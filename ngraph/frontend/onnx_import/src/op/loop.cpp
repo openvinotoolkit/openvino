@@ -62,7 +62,7 @@ namespace ngraph
                                                           ->input_value(1)
                                                           .get_node_shared_ptr();
                             if (ngraph::op::is_constant(second_input) &&
-                                second_input->get_element_type() == element::boolean &&
+                                second_input->get_element_type() == element::Type_t::boolean &&
                                 as_type_ptr<default_opset::Constant>(second_input)
                                         ->cast_vector<bool>()
                                         .at(0) == false)
@@ -90,7 +90,7 @@ namespace ngraph
                     if (ngraph::op::is_null(ng_inputs.at(0))) // trip count skipped
                     {
                         // -1 means infinite Loop
-                        trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
+                        trip_count = ngraph::op::Constant::create(ngraph::element::Type_t::i64, {1}, {-1});
                     }
                     else
                     {
@@ -103,7 +103,7 @@ namespace ngraph
                             ng_inputs.at(1).get_node_shared_ptr())) // termination condition skipped
                     {
                         termination_cond =
-                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                            ngraph::op::Constant::create(ngraph::element::Type_t::boolean, {1}, {true});
                     }
                     else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
                              as_type_ptr<default_opset::Constant>(
@@ -131,7 +131,7 @@ namespace ngraph
 
                     const int64_t concat_axis = 0;
                     const auto concat_axis_const =
-                        ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
+                        ngraph::op::Constant::create(ngraph::element::Type_t::i64, {1}, {concat_axis});
                     // provide scalar handing for scan outputs
                     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
                          ++i)
@@ -150,7 +150,7 @@ namespace ngraph
                     if (is_termination_condition_always_true(body_loop_out_cond))
                     {
                         body_outputs[0] =
-                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                            ngraph::op::Constant::create(ngraph::element::Type_t::boolean, {1}, {true});
                     }
 
                     CHECK_VALID_NODE(node,

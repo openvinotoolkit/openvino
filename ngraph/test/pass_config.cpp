@@ -91,7 +91,7 @@ std::tuple<std::shared_ptr<Function>, std::shared_ptr<Node>, std::shared_ptr<Nod
     get_test_function()
 {
     auto data =
-        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{3, 1, 2});
     auto relu = std::make_shared<ngraph::opset3::Relu>(data);
     relu->set_friendly_name("relu");
     auto sigmoid = std::make_shared<ngraph::opset3::Sigmoid>(relu);

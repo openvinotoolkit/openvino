@@ -48,8 +48,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, power)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Power>(A, B), ParameterVector{A, B});
 
     std::vector<float> a{1, 2, 3, 5};

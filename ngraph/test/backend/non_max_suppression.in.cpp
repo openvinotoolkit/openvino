@@ -57,14 +57,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format)
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -78,12 +78,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{3, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{3, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
@@ -120,14 +120,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates)
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -141,12 +141,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{3, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{3, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
@@ -184,14 +184,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes)
     const auto boxes_shape = Shape{1, 10, 4};
     const auto scores_shape = Shape{1, 1, 10};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -205,12 +205,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{1, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{1, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{1, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{1, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
@@ -247,14 +247,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size)
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -268,12 +268,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{2, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{2, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{2, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{2, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
@@ -308,14 +308,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box)
     const auto boxes_shape = Shape{1, 1, 4};
     const auto scores_shape = Shape{1, 1, 1};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -329,12 +329,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{1, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{1, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{1, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{1, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
@@ -371,14 +371,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU)
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -392,12 +392,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{3, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{3, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
@@ -434,14 +434,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores)
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -455,12 +455,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{2, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{2, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{2, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{2, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
@@ -499,14 +499,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches)
     const auto boxes_shape = Shape{2, 6, 4};
     const auto scores_shape = Shape{2, 1, 6};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -520,12 +520,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{4, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{4, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{4, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{4, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
@@ -564,14 +564,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 2, 6};
 
-    const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
-    const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
+    const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
+    const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
     auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
-    auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
+    auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
                                                       max_output_boxes_per_class,
@@ -585,12 +585,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{4, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{4, 3});
-    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
+    auto selected_indeces = backend->create_tensor(element::Type_t::i64, Shape{4, 3});
+    auto selected_scores = backend->create_tensor(element::Type_t::f32, Shape{4, 3});
+    auto valid_outputs = backend->create_tensor(element::Type_t::i64, Shape{1});
 
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
+    auto backend_boxes = backend->create_tensor(element::Type_t::f32, boxes_shape);
+    auto backend_scores = backend->create_tensor(element::Type_t::f32, scores_shape);
     copy_data(backend_boxes, boxes_data);
     copy_data(backend_scores, scores_data);
 
