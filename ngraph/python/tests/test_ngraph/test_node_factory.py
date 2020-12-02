@@ -14,9 +14,9 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
-from _pyngraph import NodeFactory as _NodeFactory
-
 import ngraph as ng
+from ngraph.utils.node_factory import NodeFactory
+from _pyngraph import NodeFactory as _NodeFactory
 
 
 def test_node_factory_add():
@@ -26,7 +26,8 @@ def test_node_factory_add():
     parameter_b = ng.parameter(shape, dtype=dtype, name="B")
 
     factory = _NodeFactory("opset1")
-    node = factory.create("Add", [parameter_a, parameter_b], {})
+    arguments = NodeFactory._arguments_as_outputs([parameter_a, parameter_b])
+    node = factory.create("Add", arguments, {})
 
     assert node.get_type_name() == "Add"
     assert node.get_output_size() == 1
@@ -52,7 +53,10 @@ def test_node_factory_topk():
     data = ng.parameter([2, 10], dtype=dtype, name="A")
     k = ng.constant(3, dtype=dtype, name="B")
     factory = _NodeFactory("opset1")
-    node = factory.create("TopK", [data, k], {"axis": 1, "mode": "max", "sort": "value"})
+    arguments = NodeFactory._arguments_as_outputs([data, k])
+    node = factory.create(
+        "TopK", arguments, {"axis": 1, "mode": "max", "sort": "value"}
+    )
 
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
