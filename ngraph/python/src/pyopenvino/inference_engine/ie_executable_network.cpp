@@ -47,6 +47,10 @@ void regclass_ExecutableNetwork(py::module m)
 
     auto py_const_inputs_data_map = py::bind_map<PyConstInputsDataMap>(m, "PyConstInputsDataMap");
 
+    py_const_inputs_data_map.def("keys", [](PyConstInputsDataMap& self) {
+        return py::make_key_iterator(self.begin(), self.end());
+    });
+
     cls.def_property_readonly("input_info", [](InferenceEngine::ExecutableNetwork& self) {
         PyConstInputsDataMap inputs;
         const InferenceEngine::ConstInputsDataMap& inputsInfo = self.GetInputsInfo();
