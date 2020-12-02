@@ -115,6 +115,10 @@ namespace ngraph
                 const ssize_t begin;
                 const ssize_t end;
                 const ssize_t step;
+                bool is_in(ssize_t i) const
+                {
+                    return step > 0 ? (begin <= i && i < end) : (end < i && i <= begin);
+                }
             };
 
             class SliceRange : public RangeBase<SliceRange>

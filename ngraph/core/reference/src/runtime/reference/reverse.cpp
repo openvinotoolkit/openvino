@@ -49,25 +49,12 @@ namespace ngraph
                 auto dst_mem = out;
                 for (auto range : coordinates::reverse(arg_shape, reversed_axes))
                 {
-                    if (range.step > 0)
+                    for (auto src_index = range.begin; range.is_in(src_index);
+                         src_index += range.step)
                     {
-                        for (auto src_index = range.begin; src_index < range.end;
-                             src_index += range.step)
-                        {
-                            const auto src_mem = arg + src_index * elem_size;
-                            std::memcpy(dst_mem, src_mem, elem_size);
-                            std::advance(dst_mem, elem_size);
-                        }
-                    }
-                    else
-                    {
-                        for (auto src_index = range.begin; src_index > range.end;
-                             src_index += range.step)
-                        {
-                            const auto src_mem = arg + src_index * elem_size;
-                            std::memcpy(dst_mem, src_mem, elem_size);
-                            std::advance(dst_mem, elem_size);
-                        }
+                        const auto src_mem = arg + src_index * elem_size;
+                        std::memcpy(dst_mem, src_mem, elem_size);
+                        std::advance(dst_mem, elem_size);
                     }
                 }
             }
