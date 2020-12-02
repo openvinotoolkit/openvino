@@ -95,45 +95,46 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, outFormats);
 
     //Support channel blocked format
-    SizeVector order(srcDims.ndims());
-    std::iota(order.begin(), order.end(), 0);
-    order.push_back(1);
     std::vector<unsigned> blockedPdIndexes;
+    if (srcDims.ndims() > 1) {
+        SizeVector order(srcDims.ndims());
+        std::iota(order.begin(), order.end(), 0);
+        order.push_back(1);
 
-    for (size_t sizeS : {8lu, 16lu}) {
-        SizeVector blkDims = srcDims.ToSizeVector();
-        if (blkDims[1] % sizeS)
-            continue;
-        blkDims[1] = blkDims[1] / sizeS;
-        blkDims.push_back(sizeS);
-
-        config.inConfs[0].desc = TensorDesc(inpPrecision, srcDims.ToSizeVector(), {blkDims, order});
-
-        outFormats.clear();
-        bool blocked = true;
-        for (size_t i = 0; i < outDims.size(); i++) {
-            auto dims = outDims[i].ToSizeVector();
-            blkDims = dims;
-
-            if (blkDims[1] % sizeS) {
-                blocked = false;
-                break;
-            }
+        for (size_t sizeS : {8lu, 16lu}) {
+            SizeVector blkDims = srcDims.ToSizeVector();
+            if (blkDims[1] % sizeS)
+                continue;
             blkDims[1] = blkDims[1] / sizeS;
             blkDims.push_back(sizeS);
-            config.outConfs[i].desc = TensorDesc(outPrecision, dims, {blkDims, order});
-            outFormats.emplace_back(MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat());
-        }
-        if (blocked) {
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, outFormats);
-            blockedPdIndexes.push_back(supportedPrimitiveDescriptors.size() - 1);
+
+            config.inConfs[0].desc = TensorDesc(inpPrecision, srcDims.ToSizeVector(), {blkDims, order});
+
+            outFormats.clear();
+            bool blocked = true;
+            for (size_t i = 0; i < outDims.size(); i++) {
+                auto dims = outDims[i].ToSizeVector();
+                blkDims = dims;
+
+                if (blkDims[1] % sizeS) {
+                    blocked = false;
+                    break;
+                }
+                blkDims[1] = blkDims[1] / sizeS;
+                blkDims.push_back(sizeS);
+                config.outConfs[i].desc = TensorDesc(outPrecision, dims, {blkDims, order});
+                outFormats.emplace_back(MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat());
+            }
+            if (blocked) {
+                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, outFormats);
+                blockedPdIndexes.push_back(supportedPrimitiveDescriptors.size() - 1);
+            }
         }
     }
 
     // Optimized inplace case
     auto numOfDim = static_cast<size_t>(srcDims.ndims());
-
-    order.clear();
+    SizeVector order;
     SizeVector offsets(numOfDim, 0lu);
     size_t offset = (std::numeric_limits<size_t>::max)();
     for (size_t i = 0; i < numOfDim; i++) {

@@ -213,5 +213,27 @@ INSTANTIATE_TEST_CASE_P(smoke_Split3D, SplitLayerCPUTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
                                 SplitLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Split2D, SplitLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(2),
+                                ::testing::Values(0, 1),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(std::vector<size_t>({6, 12})),
+                                ::testing::Values(std::vector<size_t>({})),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                        SplitLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Split1D, SplitLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(5),
+                                ::testing::Values(0),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(std::vector<size_t>({10})),
+                                ::testing::Values(std::vector<size_t>({})),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                            SplitLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
