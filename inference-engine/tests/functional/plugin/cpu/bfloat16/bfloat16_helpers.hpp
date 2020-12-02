@@ -179,7 +179,7 @@ public:
     }
 
     void test() {
-        if (!InferenceEngine::with_cpu_x86_bfloat16()) {
+        if (!InferenceEngine::with_cpu_x86_avx512_core()) {
             // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
             // tests are useless on such platforms
             GTEST_SKIP();
