@@ -50,6 +50,14 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
         this->preamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
+            push(bf16_emu_scratch);
+            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
+                bf16_emu_reserv_3, bf16_emu_scratch, bf16_emu_reserv_4));
+            bf16_emu_->init_vcvtneps2bf16();
+            pop(bf16_emu_scratch);
+        }
+
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_src_stride, ptr[reg_params + GET_OFF(src_stride)]);
@@ -169,6 +177,13 @@ private:
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
+    Vmm bf16_emu_reserv_1 = Vmm(28);
+    Vmm bf16_emu_reserv_2 = Vmm(29);
+    Vmm bf16_emu_reserv_3 = Vmm(30);
+    Xbyak::Reg64 bf16_emu_scratch = rsi;
+    Vmm bf16_emu_reserv_4 = Vmm(31);
+    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
+
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, Precision src_dt) {
@@ -192,8 +207,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    bf16_emu_->r_vcvtneps2bf16(ymm_dst, vmm_dst);
+                vmovdqu16(op, ymm_dst);
                 break;
             default:
                 assert(!"unknown dst_dt");
@@ -204,7 +222,7 @@ private:
 SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     : input_prec(inpPrc), output_prec(outPrc) {
     if (Precision::BF16 == output_prec) {
-        if (!mayiuse(avx512_core_bf16)) {
+        if (!mayiuse(avx512_core)) {
             THROW_IE_EXCEPTION << "SoftmaxGeneric doesn't support BF16 precision on this target.";
         }
     }

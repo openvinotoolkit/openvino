@@ -80,6 +80,14 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
         this->preamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
+            push(bf16_emu_scratch);
+            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
+                bf16_emu_reserv_3, bf16_emu_scratch, bf16_emu_reserv_4));
+            bf16_emu_->init_vcvtneps2bf16();
+            pop(bf16_emu_scratch);
+        }
+
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
@@ -145,6 +153,13 @@ private:
     Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(7);
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
+
+    Vmm bf16_emu_reserv_1 = Vmm(8);
+    Vmm bf16_emu_reserv_2 = Vmm(9);
+    Vmm bf16_emu_reserv_3 = Vmm(10);
+    Reg64 bf16_emu_scratch = rsi;
+    Vmm bf16_emu_reserv_4 = Vmm(11);
+    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
 
     Xbyak::Label l_table;
 
@@ -605,8 +620,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case memory::bf16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    bf16_emu_->r_vcvtneps2bf16(ymm_dst, vmm_dst);
+                vmovdqu16(op, ymm_dst);
                 break;
             case memory::s8:
                 if (isa == avx512_common) {
@@ -808,6 +826,14 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
         this->preamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
+            push(bf16_emu_scratch);
+            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
+                bf16_emu_reserv_3, bf16_emu_scratch, bf16_emu_reserv_4));
+            bf16_emu_->init_vcvtneps2bf16();
+            pop(bf16_emu_scratch);
+        }
+
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
         mov(reg_divisor, ptr[reg_params + GET_OFF(divisor)]);
@@ -854,6 +880,13 @@ private:
     Xbyak::Xmm xmm_aux1 = Xbyak::Xmm(4);
     Xbyak::Xmm xmm_aux2 = Xbyak::Xmm(5);
     Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(6);
+
+    Vmm bf16_emu_reserv_1 = Vmm(8);
+    Vmm bf16_emu_reserv_2 = Vmm(9);
+    Vmm bf16_emu_reserv_3 = Vmm(10);
+    Reg64 bf16_emu_scratch = rsi;
+    Vmm bf16_emu_reserv_4 = Vmm(11);
+    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> log_injector;
 
@@ -1063,8 +1096,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case memory::bf16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    bf16_emu_->r_vcvtneps2bf16(ymm_dst, vmm_dst);
+                vmovdqu16(op, ymm_dst);
                 break;
             case memory::s8:
                 if (isa == avx512_common) {
@@ -1355,7 +1391,7 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
         // Since in jit mode we use the output memory as an intermediate accumulator for certain reduce modes, we can't use BF16 output precision due to
         // the possible accuracy loss. Therefore, for such mods, we will change the output precision to FP32.
         if (Precision::BF16 == outputPrecision) {
-            if (!mayiuse(avx512_core_bf16)) {
+            if (!mayiuse(avx512_core)) {
                     outputPrecision = Precision::FP32;
             } else if (reduceMode != Reduce::And && reduceMode != Reduce::Or &&
                        reduceMode != Reduce::Max && reduceMode != Reduce::Min) {

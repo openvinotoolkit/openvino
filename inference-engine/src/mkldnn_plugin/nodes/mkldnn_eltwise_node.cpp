@@ -11,6 +11,7 @@
 #include <cmath>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "utils/bfloat16.hpp"
 #include "ie_parallel.hpp"
 #include "mkldnn_quantize_node.h"
 #include <map>
@@ -109,6 +110,14 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         }
 
         this->preamble();
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
+            push(bf16_emu_scratch);
+            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
+                bf16_emu_reserv_3, bf16_emu_scratch, bf16_emu_reserv_4));
+            bf16_emu_->init_vcvtneps2bf16();
+            pop(bf16_emu_scratch);
+        }
 
         for (int i = 0; i < jep.inputs_number; i++)
             mov(get_src_reg(i), ptr[reg_params + GET_OFF(src_ptr[0]) + i * sizeof(size_t)]);
@@ -319,6 +328,13 @@ private:
     Vmm vmm_d_weights = Vmm(12);
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
+
+    Vmm bf16_emu_reserv_1 = Vmm(28);
+    Vmm bf16_emu_reserv_2 = Vmm(29);
+    Vmm bf16_emu_reserv_3 = Vmm(30);
+    Reg64 bf16_emu_scratch = rsi;
+    Vmm bf16_emu_reserv_4 = Vmm(31);
+    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
@@ -615,8 +631,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    bf16_emu_->r_vcvtneps2bf16(ymm_dst, vmm_dst);
+                vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:
                 if (isa == avx512_common) {
@@ -1024,7 +1043,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (!mayiuse(avx512_core_bf16)) {
+    if (!mayiuse(avx512_core)) {
         bool hasBF16 = false;
         for (auto &inPrc : inputPrecisions)
             if (inPrc == Precision::BF16)
