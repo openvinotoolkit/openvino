@@ -73,13 +73,20 @@ def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir
     comparison_status = 0
     for step_name, references in instance["references"].items():
         for metric, reference_val in references.items():
-            if aggr_stats[step_name][metric] > reference_val * REFS_FACTOR:
-                logging.error("Comparison failed for '{}' step for '{}' metric. Reference: {}. Current values: {}"
-                              .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
+            upper_bound = reference_val * REFS_FACTOR
+            if aggr_stats[step_name][metric] > upper_bound:
+                logging.error("Comparison failed for '{}' step for '{}' metric.\n"
+                              "Current values:\t{}\n"
+                              "Upper bound:\t{} (reference: {} * factor: {})"
+                              .format(step_name, metric, aggr_stats[step_name][metric], upper_bound,
+                                      reference_val, REFS_FACTOR))
                 comparison_status = 1
             else:
-                logging.info("Comparison passed for '{}' step for '{}' metric. Reference: {}. Current values: {}"
-                             .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
+                logging.info("Comparison passed for '{}' step for '{}' metric.\n"
+                             "Current values:\t{}\n"
+                             "Upper bound:\t{} (reference: {} * factor: {})"
+                             .format(step_name, metric, aggr_stats[step_name][metric], upper_bound,
+                                     reference_val, REFS_FACTOR))
 
     assert comparison_status == 0, "Comparison with references failed"
 
