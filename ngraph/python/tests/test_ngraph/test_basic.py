@@ -409,3 +409,22 @@ def test_runtime_info():
     runtime_info_after = relu_node.get_rt_info()
 
     assert runtime_info_after["affinity"] == "test_affinity"
+
+
+def test_mutiple_outputs():
+    input_shape = [4, 4]
+    input_data = np.arange(-8, 8).reshape(input_shape)
+
+    expected_output = np.split(input_data, 2, axis=1)[0]
+    expected_output[expected_output < 0] = 0
+
+    test_param = ng.parameter(input_shape, dtype=np.float32, name="A")
+    split = ng.split(test_param, axis=1, num_splits=2)
+    split_first_output = split.output(0)
+    relu = ng.relu(split_first_output)
+
+    runtime = get_runtime()
+    computation = runtime.computation(relu, test_param)
+    output = computation(input_data)
+
+    assert np.equal(output, expected_output).all()
