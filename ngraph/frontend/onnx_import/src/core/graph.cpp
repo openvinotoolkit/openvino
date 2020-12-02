@@ -100,7 +100,8 @@ namespace ngraph
                             << initializer_tensor.name() << "'. \n"
                             << "Constant with a 0 value was created, make sure connected input is "
                                "optional.\n"
-                            << "Otherwise verify if the initializer contains a correct number of elements matching the initializer's shape. \n"
+                            << "Otherwise verify if the initializer contains a correct number of "
+                               "elements matching the initializer's shape. \n"
                             << "Detailed error:\n"
                             << exc.what();
                         ng_constant =
