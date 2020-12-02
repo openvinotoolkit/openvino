@@ -32,10 +32,10 @@
       * [Generic Back Phase Transformations](#generic-back-phase-transformations)
 
 Model Optimizer extensibility mechanism allows to support new operations and custom transformations to generate the
-optimized Intermediate Representation (IR) as described in the [Deep Learning Network Intermediate Representation and
-Operation Sets in OpenVINO™](../../IR_and_opsets.md). This mechanism is a core part of the Model Optimizer and the
-Model Optimizer uses it under the hood, so the Model Optimizer itself is a huge set of examples on how to add custom
-logic to support your model.
+optimized Intermediate Representation (IR) as described in the
+[Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
+mechanism is a core part of the Model Optimizer and the Model Optimizer uses it under the hood, so the Model Optimizer
+itself is a huge set of examples on how to add custom logic to support your model.
 
 There are several cases when the customization is needed:
 
@@ -104,8 +104,7 @@ is a separate loader for each supported framework. These loaders are implemented
 
 > **NOTE**: Model Optimizer uses a special parser for Caffe\* models built on top of `caffe.proto` file. In case of a
 > model loading failure, the Model Optimizer throws an error and requests to prepare the parser that can read the model.
-> For more information on how to prepare the custom Caffe\* parser, refer to the [Model Optimizer Frequently Asked
-> Questions #1](../Model_Optimizer_FAQ.md).
+> For more information on how to prepare the custom Caffe\* parser, refer to the [Model Optimizer Frequently Asked Questions #1](../Model_Optimizer_FAQ.md).
 
 The result of a model loading step is a `Graph` object which can be depicted like in the following example:
 
@@ -283,8 +282,8 @@ attribute for all newly added operations. It is highly recommended to use API de
 [Graph Traversal and Modification Using `Port`s and `Connection`s](#graph-ports-and-conneсtions) because modification of
 a graph using this API causes automatic re-inference of affected nodes as well as necessary data nodes creation.
 
-More information on how to develop middle transformations and dedicated API description is provided in the [Middle
-Phase Transformations](#middle-phase-transformations).
+More information on how to develop middle transformations and dedicated API description is provided in the
+[Middle Phase Transformations](#middle-phase-transformations).
 
 ### NHWC to NCHW Layout Change <a name="layout-change"></a>
 There are several middle transformations responsible for changing model layout from NHWC to NCHW. These transformations
@@ -324,8 +323,8 @@ phase.
 A graph structure during the back phase is the same as during the middle phase. There is no difference in writing middle
 and back transformations.
 
-More information on how to develop back transformations and dedicated API description is provided in the [Back Phase
-Transformations](#back-phase-transformations).
+More information on how to develop back transformations and dedicated API description is provided in the
+[Back Phase Transformations](#back-phase-transformations).
 
 ### Intermediate Representation Emitting <a name="ir-emitting"></a>
 The last phase of a model conversion is the Intermediate Representation emitting. Model Optimizer performs the following
@@ -795,8 +794,8 @@ works differently:
    responsible for writing the transformation and connecting the newly created nodes to the rest of the graph.
    2. Override the method `generate_sub_graph(self, graph, match)`. This case is not recommended to use because it is
    the most complicated approach and it can be effectively replaced with one of two previous approaches and so it is not
-   explained in this section. The explanation of this function is provided in the [Node Name Defined Sub-Graph
-   Transformations](#node-name-defined-sub-graph-transformations) section.
+   explained in this section. The explanation of this function is provided in the
+   [Node Name Defined Sub-Graph Transformations](#node-name-defined-sub-graph-transformations) section.
 
 The sub-graph pattern is defined in the `pattern()` function. This function should return a dictionary with two keys:
 `nodes` and `edges`:
@@ -979,9 +978,9 @@ particular task into the same scope. This approach divides a graph into logical 
 TensorBoard\*. The scope, in fact, just defines a common name prefix for the nodes belonging to it.
 
 For example, Inception topologies contain several types of so-called "Inception blocks". Some of them are equal to each
-other, but located in different places of the network. For example, Inception V4 from the [TensorFlow-Slim image
-classification model library](https://github.com/tensorflow/models/tree/master/research/slim) has inception blocks
-`Mixed_5b`, `Mixed_5c` and `Mixed_5d` with exactly the same nodes with the same set of attributes.
+other, but located in different places of the network. For example, Inception V4 from the
+[TensorFlow-Slim image classification model library](https://github.com/tensorflow/models/tree/master/research/slim) has
+inception blocks `Mixed_5b`, `Mixed_5c` and `Mixed_5d` with exactly the same nodes with the same set of attributes.
 
 Consider a situation when someone implemented these Inception blocks extremely efficiently using a single Inference
 Engine operation called `InceptionBlock` and need to replace these blocks in the model with instances of this operation.
@@ -1158,10 +1157,11 @@ The example of a JSON configuration file for a transformation with start and end
 ]
 ```
 
-The format of the file is similar to the one provided as an example in the [Node Name Pattern Front Phase
-Transformations](#node-name-pattern-front-phase-transformations). There difference is in the value of the `match_kind`
-parameter which should be equal to `points` and the format of the `instances` parameter which should be a dictionary
-with two keys `start_points` and `end_points` defining start and end node names correspondingly.
+The format of the file is similar to the one provided as an example in the
+[Node Name Pattern Front Phase Transformations](#node-name-pattern-front-phase-transformations). There difference is in
+the value of the `match_kind` parameter which should be equal to `points` and the format of the `instances` parameter
+which should be a dictionary with two keys `start_points` and `end_points` defining start and end node names
+correspondingly.
 
 > **NOTE**: `include_inputs_to_sub_graph` and `include_outputs_to_sub_graph` parameters are redundant and should be
 > always equal to `true`.
@@ -1259,9 +1259,9 @@ Refer to the `extensions/middle/L2NormToNorm.py` for the example of a pattern-de
 
 ##### Generic Middle Phase Transformations <a name="generic-middle-phase-transformations"></a>
 Model Optimizer provides mechanism to implement generic middle phase transformations. This type of transformation is
-implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base class and works similarly to the [Generic
-Front Phase Transformations](#generic-front-phase-transformations). The only difference is that the transformation entry
-function name is `find_and_replace_pattern(self, graph: Graph)`.
+implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base class and works similarly to the
+[Generic Front Phase Transformations](#generic-front-phase-transformations). The only difference is that the
+transformation entry function name is `find_and_replace_pattern(self, graph: Graph)`.
 
 Refer to the `extensions/middle/CheckForCycle.py` for the example of a such type of transformation.
 
@@ -1284,8 +1284,8 @@ Refer to the `extensions/back/ShufflenetReLUReorder.py` for the example of a pat
 
 ##### Generic Back Phase Transformations <a name="generic-back-phase-transformations"></a>
 Model Optimizer provides mechanism to implement generic back phase transformations. This type of transformation is
-implemented using `mo.back.replacement.BackReplacementPattern` as a base class and works the same way as [Generic
-Middle Phase Transformations](#generic-middle-phase-transformations).
+implemented using `mo.back.replacement.BackReplacementPattern` as a base class and works the same way as
+[Generic Middle Phase Transformations](#generic-middle-phase-transformations).
 
 Refer to the `extensions/back/GatherNormalizer.py` for the example of a such type of transformation.
 
