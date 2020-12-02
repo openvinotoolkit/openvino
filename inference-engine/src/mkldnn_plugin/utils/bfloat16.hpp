@@ -152,23 +152,7 @@ struct bf16_emulation_t {
     using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     bf16_emulation_t(jit_generator* host, Vmm one, Vmm even, Vmm selector, Vmm tr)
-        : one_(one)
-        , even_(even)
-        , selector_(selector)
-        , tr_(tr)
-        , host_(host) {}
-
-    void r_vcvtneps2bf16(const Xbyak::Ymm& out, Vmm in) {
-        host_->uni_vpsrld(tr_, in, 16);
-        host_->vpandd(tr_, tr_, one_);
-        host_->uni_vpaddd(tr_, even_, tr_);
-        host_->uni_vpaddd(tr_, in, tr_);
-        host_->vfixupimmps(tr_, in, selector_, 0);
-        host_->vpsrad(tr_, tr_, 16);
-        host_->vpmovdw(out, tr_);
-    }
-
-    void init_vcvtneps2bf16() {
+        : one_(one), even_(even), selector_(selector), tr_(tr), host_(host) {
         Xbyak::Reg64 scratch_ = Xbyak::util::rsi;
         host_->push(scratch_);
         const int selector_int32 =
@@ -193,6 +177,16 @@ struct bf16_emulation_t {
         host_->mov(scratch_.cvt32(), selector_int32);
         host_->vpbroadcastd(selector_, scratch_.cvt32());
         host_->pop(scratch_);
+    }
+
+    void r_vcvtneps2bf16(const Xbyak::Ymm& out, Vmm in) {
+        host_->uni_vpsrld(tr_, in, 16);
+        host_->vpandd(tr_, tr_, one_);
+        host_->uni_vpaddd(tr_, even_, tr_);
+        host_->uni_vpaddd(tr_, in, tr_);
+        host_->vfixupimmps(tr_, in, selector_, 0);
+        host_->vpsrad(tr_, tr_, 16);
+        host_->vpmovdw(out, tr_);
     }
 
 private:

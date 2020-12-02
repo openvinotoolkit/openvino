@@ -170,7 +170,6 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
             bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
                 bf16_emu_reserv_3, bf16_emu_reserv_4));
-            bf16_emu_->init_vcvtneps2bf16();
         }
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);

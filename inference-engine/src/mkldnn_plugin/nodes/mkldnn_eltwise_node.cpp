@@ -114,7 +114,6 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
             bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
                 bf16_emu_reserv_3, bf16_emu_reserv_4));
-            bf16_emu_->init_vcvtneps2bf16();
         }
 
         for (int i = 0; i < jep.inputs_number; i++)
