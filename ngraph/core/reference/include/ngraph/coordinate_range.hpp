@@ -207,13 +207,7 @@ namespace ngraph
                 using value_type = IntegerRange;
                 ReverseRange(const Shape& source_shape, const AxisSet& reversed_axis);
 
-                value_type get_value() const
-                {
-                    const std::int64_t end_index = m_memory_strides.back() > 0
-                                                       ? m_index + m_source_shape.back()
-                                                       : m_index - m_source_shape.back();
-                    return range(m_index, end_index, m_memory_strides.back());
-                }
+                value_type get_value() const;
 
                 bool increment();
 
@@ -222,6 +216,7 @@ namespace ngraph
             private:
                 const Shape m_source_shape;
                 const std::vector<std::int64_t> m_memory_strides;
+                const std::vector<signed char> m_axis_directions;
                 Coordinate m_coordinate;
                 size_t m_index{0};
             };
