@@ -8,14 +8,14 @@
 
 **Detailed description**:
 
-This operation is similar to TensorFlow CTCGreedyDecoder [TensorFlow CTCGreedyDecoder](https://www.tensorflow.org/api_docs/python/tf/nn/ctc_greedy_decoder).
+This operation is similar to the [TensorFlow CTCGreedyDecoder](https://www.tensorflow.org/api_docs/python/tf/nn/ctc_greedy_decoder).
 
 The operation *CTCGreedyDecoderSeqLen* implements best path decoding.
 Decoding is done in two steps:
 
 1. Concatenate the most probable classes per time-step which yields the best path.
 
-2. Remove duplicate consecutive elements if the attribute merge_repeated is true and then remove all blank elements.
+2. Remove duplicate consecutive elements if the attribute *merge_repeated* is true and then remove all blank elements.
 
 Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`.
 
@@ -37,13 +37,13 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * **2**: `sequence_length` - input tensor of type *T_I* of shape `[N]` with sequence lengths. The values of sequence length must be less or equal to `T`. **Required.**
 
-* **3**: `blank_index` - Scalar of type *T_I*. Specifies the class index to use for the blank class. The `blank_index` is not saved to the result sequence and it is used for post-processing. Default value is `C-1`. **Optional**.
+* **3**: `blank_index` - input tensor of type *T_I* of shape [1]. Specifies the class index to use for the blank class. The `blank_index` is not saved to the result sequence and it is used for post-processing. Default value is `C-1`. **Optional**.
 
 **Output**
 
-* **1**: Output tensor of type *T_I* shape `[N, T]` and containing vector stores the decoded classes. All elements that do not code sequence classes are filled with -1.
+* **1**: Output tensor of type *T_I* shape `[N, T]` and containing the decoded classes. All elements that do not code sequence classes are filled with -1.
 
-* **2**: Output tensor of type *T_I* shape `[N]` and containing length of decoded class array for each batch object.
+* **2**: Output tensor of type *T_I* shape `[N]` and containing length of decoded class sequence for each batch.
 
 **Types**
 
@@ -64,7 +64,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
         <port id="1">
             <dim>8</dim>
         </port>
-		<port id="2">
+        <port id="2">
             <dim>1</dim>
         </port>
     </input>
@@ -73,7 +73,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
             <dim>8</dim>
             <dim>20</dim>
         </port>
-		<port id="1">
+        <port id="1">
             <dim>8</dim>
         </port>
     </output>
