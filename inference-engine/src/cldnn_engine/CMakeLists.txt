@@ -30,7 +30,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
 set(CLDNN_TOP_FOLDER "${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN")
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${IE_MAIN_SOURCE_DIR}/src/inference_engine
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
         ${CLDNN__IOCL_ICD_INCDIRS}
         ${CLDNN_TOP_FOLDER})

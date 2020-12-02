@@ -94,11 +94,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
     , m_curBatch(-1)
     , queryMode(false) {
     // Extract inputs/outputs info from CNNNetwork
-    InferenceEngine::InputsDataMap networkInputs;
-    network.getInputsInfo(networkInputs);
-
-    InferenceEngine::OutputsDataMap networkOutputs;
-    network.getOutputsInfo(networkOutputs);
+    auto networkInputs = network.getInputsInfo();
+    auto networkOutputs = network.getOutputsInfo();
 
     auto func = network.getFunction();
     if (!func) {

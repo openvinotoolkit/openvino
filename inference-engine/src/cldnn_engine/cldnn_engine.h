@@ -27,8 +27,8 @@ class clDNNEngine : public InferenceEngine::InferencePluginInternal,
     CLDNNRemoteCLContext::Ptr m_defaultContext;
 
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
-    InferenceEngine::ICNNNetwork::Ptr CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network,
-                                                               const CLDNNPlugin::Config& config) const;
+    InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
+                                                         const CLDNNPlugin::Config& config) const;
 
     void RegisterPrimitives();
 public:

@@ -13,7 +13,6 @@
 #include <cctype>
 #include <memory>
 
-#include <cnn_network_ngraph_impl.hpp>
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
 #include <ngraph/opsets/opset2.hpp>
@@ -22,6 +21,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
+#include <ie_ngraph_utils.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -115,10 +115,11 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
     return false;
 }
 
-InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network, const CLDNNPlugin::Config& config) const {
-    std::shared_ptr<ICNNNetwork> clonedNetwork = std::make_shared<CNNNetworkNGraphImpl>(network);
-    if (clonedNetwork->getFunction()) {
-        auto nGraphFunc = clonedNetwork->getFunction();
+InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
+                                                                  const CLDNNPlugin::Config& config) const {
+    CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+    if (clonedNetwork.getFunction()) {
+        auto nGraphFunc = clonedNetwork.getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
@@ -212,8 +213,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             });
 
         pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
-            ngraph::pass::ConvertTensorIteratorToLSTMSequence,
-            ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+                                  ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                                  ngraph::pass::ConvertTensorIteratorToGRUSequence>(
             [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                 if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
                     size_t count_rnn = 0;
@@ -223,8 +224,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                 }
                 return true;
             });
-        manager.run_passes(nGraphFunc);
-
 
         // List of enabled/disabled transformations
         pass_config->disable<ngraph::pass::ConvertGELU>();
@@ -363,7 +362,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    InferenceEngine::CNNNetwork transformedNetwork(CloneAndTransformNetwork(network, conf));
+    auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
 }
 
@@ -387,7 +386,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    InferenceEngine::CNNNetwork transformedNetwork(CloneAndTransformNetwork(network, conf));
+    auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
 }
 
@@ -442,7 +441,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     }
 
     auto clonedNetwork = CloneAndTransformNetwork(network, conf);
-    auto ops = clonedNetwork->getFunction()->get_ordered_ops();
+    auto ops = clonedNetwork.getFunction()->get_ordered_ops();
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
 

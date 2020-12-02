@@ -158,7 +158,6 @@ private:
                                                  InferenceEngine::InputsDataMap networkInputs,
                                                  InferenceEngine::OutputsDataMap networkOutputs);
 
-    void Load(InferenceEngine::ICNNNetwork &network);
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
     bool CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops, InferenceEngine::InputsDataMap networkInputs) const;
     void ChangeInputBatch(int batch);
