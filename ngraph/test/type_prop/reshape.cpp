@@ -158,39 +158,3 @@ TEST(type_prop, reshape_partial_rank_static_dynamic_but_zero_ok)
     ASSERT_TRUE(r->get_output_partial_shape(0).is_static());
     ASSERT_EQ(r->get_shape(), (Shape{3, 1, 0, 2}));
 }
-
-TEST(type_prop, reshape_deduce_special_zero_shape_neg_zero)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1, 2});
-    auto r = make_shared<op::v1::Reshape>(
-        param, op::Constant::create(element::u64, {2}, std::vector<int64_t>{-1, 0}), true);
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{6, 1}));
-}
-
-TEST(type_prop, reshape_deduce_special_zero_shape_zero_neg)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1, 2});
-    auto r = make_shared<op::v1::Reshape>(
-        param, op::Constant::create(element::u64, {2}, std::vector<int64_t>{0, -1}), true);
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{3, 2}));
-}
-
-TEST(type_prop, reshape_deduce_special_zero_shape_zero_neg_copy_input)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto r = make_shared<op::v1::Reshape>(
-        param, op::Constant::create(element::u64, {2}, std::vector<int64_t>{0, -1}), true);
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{3, 1}));
-}
-
-TEST(type_prop, reshape_deduce_special_zero_shape_zero_zero_one_neg)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{2, 2, 3});
-    auto r = make_shared<op::v1::Reshape>(
-        param, op::Constant::create(element::u64, {4}, std::vector<int64_t>{0, 0, 1, -1}), true);
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{2, 2, 1, 3}));
-}
