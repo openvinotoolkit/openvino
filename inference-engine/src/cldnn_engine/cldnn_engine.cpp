@@ -242,21 +242,17 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             transformer.transform(nGraphFunc);
         }
 
+        const auto reshape_fc_callback = [](const std::shared_ptr<const ::ngraph::Node>& node) -> bool {
+            return node->input_value(0).get_shape().size() <= 3lu;
+        };
+
         {
             ngraph::pass::Manager manager = ngraph::pass::Manager();
             manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
             manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             manager.set_callback(transformations_callback);
-            manager.run_passes(nGraphFunc);
-        }
-
-        {
-            using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
-            ngraph::pass::Manager manager = ngraph::pass::Manager();
-            manager.register_pass<ngraph::pass::ReshapeFullyConnected>();
-            manager.set_callback([](const_node_ptr& node) -> bool {
-                return node->input_value(0).get_shape().size() <= 3lu;
-                });
+            auto pass_config = manager.get_pass_config();
+            pass_config->set_callback<ngraph::pass::ReshapeFullyConnected>(reshape_fc_callback);
             manager.run_passes(nGraphFunc);
         }
 
