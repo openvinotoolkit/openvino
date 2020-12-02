@@ -214,7 +214,7 @@ descriptor::Output& Node::get_output_descriptor(size_t position)
     {
         size_t i = m_outputs.size();
         auto tensor_descriptor =
-            make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic(), this, i);
+            make_shared<descriptor::Tensor>(element::Type_t::dynamic, PartialShape::dynamic(), this, i);
         m_outputs.emplace_back(this, i, tensor_descriptor);
     }
     return m_outputs.at(position);
