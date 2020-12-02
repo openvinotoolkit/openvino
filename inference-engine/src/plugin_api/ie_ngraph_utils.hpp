@@ -133,7 +133,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
  * @param network A network to clone
  * @return A cloned object
  */
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetwork>) cloneNetwork(const CNNNetwork& network);
+INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
 
 }  // namespace details
 }  // namespace InferenceEngine

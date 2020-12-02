@@ -9,11 +9,11 @@
 namespace InferenceEngine {
 namespace details {
 
-std::shared_ptr<CNNNetwork> cloneNetwork(const CNNNetwork& network) {
+CNNNetwork cloneNetwork(const CNNNetwork& network) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "cloneNetwork");
 
     if (network.getFunction()) {
-        return std::make_shared<CNNNetwork>(std::make_shared<details::CNNNetworkNGraphImpl>(network));
+        return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(network));
     }
 
     THROW_IE_EXCEPTION << "InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone";
