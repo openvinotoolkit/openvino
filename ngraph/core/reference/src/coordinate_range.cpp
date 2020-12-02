@@ -30,9 +30,9 @@ namespace ngraph
         {
             namespace
             {
-                std::vector<std::int64_t> memory_strides(const Shape& shape)
+                std::vector<std::ptrdiff_t> memory_strides(const Shape& shape)
                 {
-                    std::vector<std::int64_t> mem_strides(shape.size(), 1);
+                    std::vector<std::ptrdiff_t> mem_strides(shape.size(), 1);
 
                     if (shape.size() > 1)
                     {
@@ -56,7 +56,7 @@ namespace ngraph
                 , m_source_strides{source_strides}
                 , m_memory_strides(memory_strides(source_shape))
                 , m_coordinate{source_start_corner}
-                , m_index{coordinate_index(source_start_corner, source_shape)}
+                , m_index(coordinate_index(source_start_corner, source_shape))
             {
                 const auto axis = m_source_shape.size();
 
@@ -104,10 +104,7 @@ namespace ngraph
                     m_index += index_step;
                     if (m_coordinate[axis] < m_bounds.m_upper[axis])
                     {
-                        if (m_index > shape_size(m_source_shape))
-                        {
-                            throw std::runtime_error{"alog error"};
-                        }
+                        assert(m_index < static_cast<ptrdiff_t>(shape_size(m_source_shape)));
                         return true;
                     }
                     const auto difference = m_coordinate[axis] - m_bounds.m_lower[axis];
@@ -161,19 +158,17 @@ namespace ngraph
                 , m_memory_strides(memory_strides(source_shape))
                 , m_axis_directions(axis_direcions(source_shape.size(), reversed_axis))
                 , m_coordinate(source_shape.size(), 0)
-                , m_index{coordinate_index(start_coordinate(source_shape, m_axis_directions),
-                                           source_shape)}
+                , m_index(coordinate_index(start_coordinate(source_shape, m_axis_directions),
+                                           source_shape))
             {
             }
 
             ReverseRange::value_type ReverseRange::get_value() const
             {
-                const std::int64_t end_index = m_axis_directions.back() > 0
-                                                   ? m_index + m_source_shape.back()
-                                                   : m_index - m_source_shape.back();
+                const std::ptrdiff_t end_index = m_index + last_dim_size();
 
-                const std::int64_t step =
-                    static_cast<std::int64_t>(m_memory_strides.back()) * m_axis_directions.back();
+                const std::ptrdiff_t step =
+                    static_cast<std::ptrdiff_t>(m_memory_strides.back()) * m_axis_directions.back();
 
                 return range(m_index, end_index, step);
             }
@@ -215,6 +210,12 @@ namespace ngraph
                     }
                 }
                 return false;
+            }
+
+            std::ptrdiff_t ReverseRange::last_dim_size() const noexcept
+            {
+                const auto dir = m_axis_directions.back() > 0 ? 1 : -1;
+                return dir * static_cast<std::ptrdiff_t>(m_source_shape.back());
             }
 
         } // namespace impl

@@ -111,16 +111,16 @@ namespace ngraph
 
             struct IntegerRangeData
             {
-                const std::int64_t m_begin;
-                const std::int64_t m_end;
-                const std::int64_t m_step;
+                const std::ptrdiff_t m_begin;
+                const std::ptrdiff_t m_end;
+                const std::ptrdiff_t m_step;
             };
 
             class IntegerRange : public RangeBase<IntegerRange>, public IntegerRangeData
             {
             public:
-                using value_type = std::int64_t;
-                IntegerRange(std::int64_t begin, std::int64_t end, std::int64_t step = 1)
+                using value_type = std::ptrdiff_t;
+                IntegerRange(std::ptrdiff_t begin, std::ptrdiff_t end, std::ptrdiff_t step = 1)
                     : IntegerRangeData{begin, end, step}
                     , m_value{begin}
                 {
@@ -144,10 +144,11 @@ namespace ngraph
                 value_type get_value() const noexcept { return m_value; }
 
             private:
-                std::int64_t m_value;
+                std::ptrdiff_t m_value;
             };
 
-            inline IntegerRange range(std::int64_t begin, std::int64_t end, std::int64_t step = 1)
+            inline IntegerRange
+                range(std::ptrdiff_t begin, std::ptrdiff_t end, std::ptrdiff_t step = 1)
             {
                 return IntegerRange{begin, end, step};
             }
@@ -179,9 +180,9 @@ namespace ngraph
                 const Shape m_source_shape;
                 const CoordinateBounds m_bounds;
                 const Strides m_source_strides;
-                const std::vector<std::int64_t> m_memory_strides;
+                const std::vector<std::ptrdiff_t> m_memory_strides;
                 Coordinate m_coordinate;
-                size_t m_index{0};
+                ptrdiff_t m_index{0};
             };
 
             inline SliceRange slice(const Shape& source_shape,
@@ -214,8 +215,10 @@ namespace ngraph
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
 
             private:
+                std::ptrdiff_t last_dim_size() const noexcept;
+
                 const Shape m_source_shape;
-                const std::vector<std::int64_t> m_memory_strides;
+                const std::vector<std::ptrdiff_t> m_memory_strides;
                 const std::vector<signed char> m_axis_directions;
                 Coordinate m_coordinate;
                 size_t m_index{0};
