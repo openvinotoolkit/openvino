@@ -47,7 +47,6 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
-
     void op_is_Asin()
     {
         op::Asin node;
@@ -353,7 +352,6 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
-
 
     void op_is_Log()
     {
