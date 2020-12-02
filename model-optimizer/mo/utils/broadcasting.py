@@ -124,6 +124,7 @@ def bi_directional_broadcasting(input_value: np.array, second_shape: np.array):
                                                                                                second_shape)
     return np.array(input_value * np.ones(second_shape), dtype=input_value.dtype)
 
+
 def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_mapping: np.array) -> np.array:
     """
     Explicit broadcasting of input tensor. Resulting shape is equal to target_shape except for axes specified in axes_mapping
