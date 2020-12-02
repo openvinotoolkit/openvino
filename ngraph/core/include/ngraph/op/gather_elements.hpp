@@ -38,8 +38,8 @@ namespace ngraph
                 /// \param indices Node producing indices by which the operation gathers elements
                 /// \param axis specifies axis along which indices are specified
                 GatherElements(const Output<Node>& data,
-                         const Output<Node>& indices,
-                         const size_t axis);
+                               const Output<Node>& indices,
+                               const size_t axis);
 
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;

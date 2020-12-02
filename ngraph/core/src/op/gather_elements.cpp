@@ -25,8 +25,8 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::v6::GatherElements, "GatherElements", 6);
 
 op::v6::GatherElements::GatherElements(const Output<Node>& data,
-                           const Output<Node>& indices,
-                           const size_t axis)
+                                       const Output<Node>& indices,
+                                       const size_t axis)
     : Op({data, indices})
     , m_axis(axis)
 {
@@ -52,12 +52,14 @@ void op::v6::GatherElements::validate_and_infer_types()
     {
         auto data_rank = data_pshape.rank().get_length();
 
-        NODE_VALIDATION_CHECK(
-            this, data_rank > 1, "Data rank must be greater than 1.");
+        NODE_VALIDATION_CHECK(this, data_rank > 1, "Data rank must be greater than 1.");
 
-        if (m_axis < 0) {
-            NODE_VALIDATION_CHECK(this, -data_rank < m_axis < data_rank - 1,
-                                  "axis must be within interval (-data.rank,  data.rank - 1. Got: ", m_axis);
+        if (m_axis < 0)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  -data_rank < m_axis < data_rank - 1,
+                                  "axis must be within interval (-data.rank,  data.rank - 1. Got: ",
+                                  m_axis);
             m_axis = data_rank + m_axis;
         }
     }
@@ -68,9 +70,12 @@ void op::v6::GatherElements::validate_and_infer_types()
             this, indices_pshape.rank().get_length() > 1, "Indices rank must be greater that 1.");
     }
 
-    if (data_pshape.is_static() && indices_pshape.is_static()){
+    if (data_pshape.is_static() && indices_pshape.is_static())
+    {
         set_output_type(0, data_type, indices_pshape);
-    } else {
+    }
+    else
+    {
         set_output_type(0, data_type, PartialShape::dynamic());
     }
 }
