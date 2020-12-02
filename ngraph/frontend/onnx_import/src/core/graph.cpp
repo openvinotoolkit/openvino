@@ -95,9 +95,11 @@ namespace ngraph
                     }
                     catch (const ngraph::ngraph_error& exc)
                     {
-                        NGRAPH_WARN << "Could not create an nGraph Constant for initializer '"
-                                    << initializer_tensor.name() << "'. Detailed error:\n"
-                                    << exc.what();
+                        NGRAPH_WARN << "\nCould not create an nGraph Constant for initializer '"
+                                    << initializer_tensor.name() << "'. \n" 
+                                    << "Constant with a 0 value was created, make sure connected input is optional.\n"
+                                    << "If not check if the length of the data matches the shape. \n"
+                                    << "Detailed error:\n" << exc.what();
                         ng_constant =
                             default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
                     }
