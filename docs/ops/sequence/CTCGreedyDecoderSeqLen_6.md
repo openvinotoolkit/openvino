@@ -49,7 +49,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 **Output**
 
-* **1**: Output tensor of type *T_I* shape `[N, T]` and containing the decoded classes. All elements that do not code sequence classes are filled with -1.
+* **1**: Output tensor of type *T_I* shape `[N, T]` and containing the decoded classes. Tensor of indices must be with lexicographically sorted indices. All elements that do not code sequence classes are filled with -1.
 
 * **2**: Output tensor of type *T_I* shape `[N]` and containing length of decoded class sequence for each batch.
 
@@ -72,16 +72,14 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
         <port id="1">
             <dim>8</dim>
         </port>
-        <port id="2">
-            <!-- blank_index = 120 -->
-        </port>
+        <port id="2"/>  <!-- blank_index = 120 -->
     </input>
     <output>
-        <port id="0">
+        <port id="0" precision="I64">
             <dim>8</dim>
             <dim>20</dim>
         </port>
-        <port id="1">
+        <port id="1" precision="I64">
             <dim>8</dim>
         </port>
     </output>
