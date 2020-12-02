@@ -103,6 +103,9 @@ static const char shape_message[] = "Optional. Set shape for input. For example,
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
+// @brief message for memory map allocator
+static const char mmap_message[] = "Optional. Use mmap allocator to load model weights.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -190,6 +193,9 @@ DEFINE_string(shape, "", shape_message);
 /// @brief Define flag for quantization bits (default 16)
 DEFINE_int32(qb, 16, gna_qb_message);
 
+/// @brief Enables statistics report collecting
+DEFINE_bool(mmap, false, mmap_message);
+
 /**
 * @brief This function show a help message
 */
@@ -228,4 +234,5 @@ static void showUsage() {
     std::cout << "    -load_config              " << load_config_message << std::endl;
 #endif
     std::cout << "    -qb                       " << gna_qb_message << std::endl;
+    std::cout << "    -mmap                     " << mmap_message << std::endl;
 }

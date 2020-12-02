@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "ngraph_functions/low_precision_transformations/mat_mul_function.hpp"
+#include "lpt_ngraph_functions/mat_mul_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -69,6 +69,15 @@ void MatMulWithConstantTransformation::SetUp() {
         testValues.fqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+}
+
+void MatMulWithConstantTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<2>(GetParam());
+    const auto actualType = getRuntimePrecision(params.layerName);
+
+    EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {

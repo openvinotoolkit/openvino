@@ -39,7 +39,7 @@ class CLDNNGraph {
 public:
     typedef std::shared_ptr<CLDNNGraph> Ptr;
 
-    explicit CLDNNGraph(InferenceEngine::ICNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
+    CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
     InferenceEngine::CNNNetwork GetExecGraphInfo();
 

@@ -41,7 +41,7 @@ namespace ngraph
                 ///
                 /// Output `[d0, ...]`
                 ///
-                Softmax(const Output<Node>& arg, const size_t axis);
+                Softmax(const Output<Node>& arg, const size_t axis = 1);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;

@@ -113,8 +113,7 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
   endif()
 
   if (NOT DEFINED SHA256)
-    message(WARNING "SHA is not specified for: " ${NAME_OF_CMAKE_VAR})
-    set(SHA256 "skip")
+    message(FATAL_ERROR "SHA is not specified for: " ${NAME_OF_CMAKE_VAR})
   endif()
 
 

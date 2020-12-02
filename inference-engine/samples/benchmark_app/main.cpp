@@ -330,31 +330,37 @@ int main(int argc, char *argv[]) {
 
             slog::info << "Loading network files" << slog::endl;
 
+            CNNNetwork cnnNetwork;
+
             auto startTime = Time::now();
 
-            // Read XML file content into a string
-            std::ifstream xml_file(FLAGS_m);
-            std::string xml_content((std::istreambuf_iterator<char>(xml_file)), std::istreambuf_iterator<char>());
+            if (FLAGS_mmap) {
+                // Read XML file content into a string
+                std::ifstream xml_file(FLAGS_m);
+                std::string xml_content((std::istreambuf_iterator<char>(xml_file)), std::istreambuf_iterator<char>());
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            std::wstring bin_file = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(FLAGS_m);
-            bin_file = bin_file.substr(0, FLAGS_m.find_last_of('.')) + L".bin";
+                std::wstring bin_file = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(FLAGS_m);
+                bin_file = bin_file.substr(0, FLAGS_m.find_last_of('.')) + L".bin";
 #else
-            std::string bin_file = FLAGS_m.substr(0, FLAGS_m.find_last_of('.')) + ".bin";
+                std::string bin_file = FLAGS_m.substr(0, FLAGS_m.find_last_of('.')) + ".bin";
 #endif
 
-            // Get file size, size is needed to create a tensor descriptor
-            std::ifstream bin_stream(bin_file, std::ios::in);
-            bin_stream.seekg(0, std::ios::end);
-            size_t bin_size = bin_stream.tellg();
-            bin_stream.close();
+                // Get file size, size is needed to create a tensor descriptor
+                std::ifstream bin_stream(bin_file, std::ios::in);
+                bin_stream.seekg(0, std::ios::end);
+                size_t bin_size = bin_stream.tellg();
+                bin_stream.close();
 
-            // Create allocator and blob with model data
-            std::shared_ptr<IAllocator> mmap = details::make_mmap_allocator(bin_file);
-            TensorDesc bin_td(Precision::U8, { bin_size }, Layout::C);
-            Blob::Ptr bin_blob = make_shared_blob<uint8_t>(bin_td, mmap);
-            bin_blob->allocate();
+                // Create allocator and blob with model data
+                std::shared_ptr<IAllocator> mmap = details::make_mmap_allocator(bin_file);
+                TensorDesc bin_td(Precision::U8, { bin_size }, Layout::C);
+                Blob::Ptr bin_blob = make_shared_blob<uint8_t>(bin_td, mmap);
+                bin_blob->allocate();
 
-            CNNNetwork cnnNetwork = ie.ReadNetwork(xml_content, bin_blob);
+                cnnNetwork = ie.ReadNetwork(xml_content, bin_blob);
+            } else {
+                cnnNetwork = ie.ReadNetwork(FLAGS_m);
+            }
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)

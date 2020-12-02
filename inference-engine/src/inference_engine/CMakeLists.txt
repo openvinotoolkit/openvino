@@ -83,7 +83,7 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::itt openvino::conditional_compilation)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
@@ -138,7 +138,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt openvino::conditional_compilation ${CMAKE_DL_LIBS} Threads::Threads
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR}
@@ -173,7 +173,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt openvino::conditional_compilation ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
                                                inference_engine_transformations
                                        PUBLIC pugixml)
 
