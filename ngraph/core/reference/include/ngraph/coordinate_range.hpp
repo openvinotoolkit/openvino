@@ -105,84 +105,52 @@ namespace ngraph
                 using Iterator = RangeIterator<Range>;
 
                 Iterator begin() { return Iterator(static_cast<Range*>(this)); }
-
                 Iterator end() { return Iterator(nullptr); }
             };
 
-            struct IntegerRangeData
+            enum class Direction
             {
-                const std::ptrdiff_t m_begin;
-                const std::ptrdiff_t m_end;
-                const std::ptrdiff_t m_step;
+                forward,
+                reverse,
             };
 
-            class IntegerRange : public RangeBase<IntegerRange>, public IntegerRangeData
+            struct Range
             {
-            public:
-                using value_type = std::ptrdiff_t;
-                IntegerRange(std::ptrdiff_t begin, std::ptrdiff_t end, std::ptrdiff_t step = 1)
-                    : IntegerRangeData{begin, end, step}
-                    , m_value{begin}
-                {
-                    if (m_step == 0)
-                    {
-                        throw std::runtime_error{"Invalid step value"};
-                    }
-                }
-
-                bool increment()
-                {
-                    m_value += m_step;
-                    return is_valid();
-                }
-
-                bool is_valid() const noexcept
-                {
-                    return (m_step > 0 && m_value < m_end) || (m_step < 0 && m_value > m_end);
-                }
-
-                value_type get_value() const noexcept { return m_value; }
-
-            private:
-                std::ptrdiff_t m_value;
+                const size_t begin;
+                const size_t element_number;
+                const size_t step;
+                const Direction direction;
             };
-
-            inline IntegerRange
-                range(std::ptrdiff_t begin, std::ptrdiff_t end, std::ptrdiff_t step = 1)
-            {
-                return IntegerRange{begin, end, step};
-            }
 
             class SliceRange : public RangeBase<SliceRange>
             {
             public:
-                using value_type = IntegerRange;
+                using value_type = Range;
                 SliceRange(const Shape& source_shape,
                            const Coordinate& source_start_corner,
                            const Coordinate& source_end_corner,
                            const Strides& strides);
 
-                size_t copy_range_first_index() const;
-
                 value_type get_value() const
                 {
-                    return range(
-                        m_index, m_index + m_bounds.last_dim_size(), m_source_strides.back());
+                    const size_t element_no =
+                        (m_bounds.last_dim_size() + m_source_strides.back() - 1) /
+                        m_source_strides.back();
+
+                    return Range{m_index, element_no, m_source_strides.back(), Direction::forward};
                 }
 
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
-
                 Coordinate coodinate() const { return m_coordinate; }
-
             private:
                 const Shape m_source_shape;
                 const CoordinateBounds m_bounds;
                 const Strides m_source_strides;
-                const std::vector<std::ptrdiff_t> m_memory_strides;
+                const std::vector<size_t> m_memory_strides;
                 Coordinate m_coordinate;
-                ptrdiff_t m_index{0};
+                size_t m_index{0};
             };
 
             inline SliceRange slice(const Shape& source_shape,
@@ -205,7 +173,7 @@ namespace ngraph
             class ReverseRange : public RangeBase<ReverseRange>
             {
             public:
-                using value_type = IntegerRange;
+                using value_type = Range;
                 ReverseRange(const Shape& source_shape, const AxisSet& reversed_axis);
 
                 value_type get_value() const;
@@ -213,13 +181,11 @@ namespace ngraph
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
-
             private:
-                std::ptrdiff_t last_dim_size() const noexcept;
-
                 const Shape m_source_shape;
-                const std::vector<std::ptrdiff_t> m_memory_strides;
-                const std::vector<signed char> m_axis_directions;
+                const Strides m_source_strides;
+                const std::vector<size_t> m_memory_strides;
+                const std::vector<Direction> m_axis_directions;
                 Coordinate m_coordinate;
                 size_t m_index{0};
             };
@@ -230,8 +196,8 @@ namespace ngraph
             }
 
         } // namespace impl
-        using impl::range;
         using impl::reverse;
         using impl::slice;
+        using impl::Direction;
     } // namespace coordinates
 } // namespace ngraph
