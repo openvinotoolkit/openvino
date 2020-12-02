@@ -36,7 +36,7 @@ public:
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
         plgPtr = plg;
-        InferenceEngine::CNNNetwork clonedNetwork(cloneNetwork(network));
+        InferenceEngine::CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
         return std::make_shared<GNAExecutableNetwork>(clonedNetwork, plg);
     }
 
