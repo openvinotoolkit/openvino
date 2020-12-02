@@ -18,14 +18,15 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
     namespace op
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
+
         namespace v0
         {
             /// \brief Operator performing Mean Variance Normalization
@@ -87,7 +88,55 @@ namespace ngraph
             };
         }
         using v0::MVN;
-    } // namespace op
-} // namespace ngraph
 
-NGRAPH_SUPPRESS_DEPRECATED_END
+        NGRAPH_SUPPRESS_DEPRECATED_END
+
+        namespace v6
+        {
+            enum class EpsMode
+            {
+                inside_sqrt,
+                outside_sqrt
+            };
+
+            /// \brief Operator performing Mean Variance Normalization
+            ///
+            class NGRAPH_API MVN : public ngraph::op::Op
+            {
+            public:
+                NGRAPH_RTTI_DECLARATION;
+
+                MVN() = default;
+                /// \brief Constructs an MVN operation.
+                ///
+                /// \param data Input tensor with data
+                /// \param reduction_axes A list of axes, along which to reduce.
+                /// \param normalize_variance flag that denotes whether to perform variance
+                ///                           normalization.
+                /// \param eps the number to be added to the variance to avoid division by zero when
+                ///            normalizing the value
+                /// \param eps_mode the mode of applying epsilon
+                ///
+                MVN(const Output<Node>& data,
+                    const Output<Node>& reduction_axes,
+                    bool normalize_variance = true,
+                    double eps = 1e-9,
+                    MVNEpsMode eps_mode = MVNEpsMode::INSIDE_SQRT);
+
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                void validate_and_infer_types() override;
+
+                virtual std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                double get_eps() const { return m_eps; }
+                bool get_normalize_variance() const { return m_normalize_variance; }
+                MVNEpsMode get_eps_mode() const { return m_eps_mode; }
+            private:
+                bool m_normalize_variance = true;
+                double m_eps = 1e-9;
+                MVNEpsMode m_eps_mode = MVNEpsMode::INSIDE_SQRT;
+            };
+        } // namespace v6
+    }     // namespace op
+} // namespace ngraph

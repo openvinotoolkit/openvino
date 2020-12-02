@@ -261,6 +261,35 @@ namespace ngraph
 
     namespace op
     {
+        /// \brief Specifies how eps is applied in MVN
+        enum class MVNEpsMode
+        {
+            // Apply eps inside sqrt
+            INSIDE_SQRT,
+            // Apply eps outside sqrt
+            OUTSIDE_SQRT
+        };
+
+        NGRAPH_API
+        std::ostream& operator<<(std::ostream& s, const MVNEpsMode& type);
+    } // namespace op
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::MVNEpsMode>
+        : public EnumAttributeAdapterBase<op::MVNEpsMode>
+    {
+    public:
+        AttributeAdapter(op::MVNEpsMode& value)
+            : EnumAttributeAdapterBase<op::MVNEpsMode>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MVNEpsMode>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
+
+    namespace op
+    {
         enum class TopKSortType
         {
             // Returned values are not sorte
