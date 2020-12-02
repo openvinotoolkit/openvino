@@ -18,6 +18,7 @@
 #include "gna_plugin_log.hpp"
 #include "gna_slope_scale.h"
 #include "runtime/pwl.h"
+#include "runtime/gna_float_runtime.hpp"
 
 namespace GNAPluginNS {
 namespace frontend {
@@ -123,8 +124,8 @@ private :
                 outputMinValue = neghalflog(inputMinValue);
                 outputMaxValue = neghalflog(inputMaxValue);
             } else if (layerInfo.isClamp()) {
-                outputMinValue = std::max(static_cast<float>(KALDI_LSTM_CLIP_LOWER), inputMinValue);
-                outputMaxValue = std::min(static_cast<float>(KALDI_LSTM_CLIP_UPPER), inputMaxValue);
+                outputMinValue = clipping(inputMinValue, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER);
+                outputMaxValue = clipping(inputMaxValue, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER);
             } else if (layerInfo.isAbs()) {
                 outputMinValue = std::abs(inputMinValue);
                 outputMaxValue = std::abs(inputMaxValue);
@@ -202,7 +203,7 @@ private :
             }
         }
 
-        if (scaleFactor > DEFAULT_SCALE_FACTOR && !fp32eq(quant->_src_quant.GetScale(), scaleFactor)) {
+        if (0 && scaleFactor > DEFAULT_SCALE_FACTOR && !fp32eq(quant->_src_quant.GetScale(), scaleFactor))  {
             auto testScaleFactor = scaleFactor / 2;
             auto testSlope = gna_slope(1.0, quant->_src_quant.GetScale(), testScaleFactor);
             auto testScale = testSlope.slope * testSlope.slope_scale;
@@ -215,9 +216,30 @@ private :
             }
         }
 
-        if (layerInfo.isRelu()) {
-            //scaleFactor = 4096.0f * 2;
+        if (0 &&layerInfo.isRelu() && scaleFactor > DEFAULT_SCALE_FACTOR || scaleFactor > MAX_VALUE) {
+            auto testScaleFactor = scaleFactor / 2;
+            auto testSlope = gna_slope(1.0, quant->_src_quant.GetScale(), testScaleFactor);
+            auto testScale = testSlope.slope * testSlope.slope_scale;
+
+            auto slope = gna_slope(1.0, quant->_src_quant.GetScale(), scaleFactor);
+            auto defaultScale = slope.slope * slope.slope_scale;
+
+            if (testScale < defaultScale) {
+                scaleFactor = testScaleFactor;
+            }
         }
+
+        /*
+        if (cnnLayer->name == "conv1_node/Relu" ||
+            cnnLayer->name == "conv2_node/Relu" ||
+            cnnLayer->name == "conv3_node/Relu" ||
+            cnnLayer->name == "conv4_node/Relu" ||
+            cnnLayer->name == "conv5_node/Relu" ||
+            cnnLayer->name == "fc1_node/Relu" ||
+            cnnLayer->name == "fc2_node/Relu") {
+            scaleFactor = 1024;
+        }
+        */
 
         if (quant->_dst_quant.IsScaleSet() && !fp32eq(quant->_dst_quant.GetScale(), scaleFactor)) {
             gnalog() << "[INFO] Updating scale factor for '" << cnnLayer->name << "' layer. Change from "
@@ -1147,7 +1169,13 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
     uint16_t const _scale_change_threshold_150 = 150;
     uint16_t const _scale_change_threshold_200 = 200;
 
-    const float MAX_VALUE_GUARDBAND = 1.0f;
+    //const float MAX_VALUE_GUARDBAND = 2.0f;
+    //const float FULLY_CONNECTED_SIGMA_DIV = 3.0f;
+    //const float CONVOLUTION_SIGMA_DIV = 3.0f;
+
+    const float MAX_VALUE_GUARDBAND = 2.0f;
+    const float FULLY_CONNECTED_SIGMA_DIV = 3.0f;
+    const float CONVOLUTION_SIGMA_DIV = 3.0f;
 
     /**
     * @brief Function to compare two floating points with epsilon
@@ -1201,128 +1229,15 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
     * @param num_cols Number of columns in input matrix
     * @return Returns trasponsed matrix
     */
-    auto transposeMatrix(float* ptr_matrix, size_t num_rows, size_t num_cols) {
+    auto transposeMatrix(const std::vector<float> &input, size_t num_rows, size_t num_cols) {
         size_t element_size = sizeof(float);
-        std::vector<float> temp_buffer(num_rows * num_cols);
-        for (size_t i = 0; i < num_rows; i++) {
-            for (size_t j = 0; j < num_cols; j++) {
-                ie_memcpy(&temp_buffer.front() + (j * num_rows + i),
-                    temp_buffer.size() - (i * num_cols + j),
-                    ptr_matrix + (i * num_cols + j),
-                    element_size);
+        std::vector<float> temp_buffer(num_rows * num_cols, 0.0f);
+        for (size_t i = 0; i < num_rows; ++i) {
+            for (size_t j = 0; j < num_cols; ++j) {
+                temp_buffer[j * num_rows + i] = input[i * num_cols + j];
             }
         }
         return temp_buffer;
-    }
-
-    /**
-    * @brief Function simulates fully connected transformation
-    * @param weights Weights matrix
-    * @param input Input matrix
-    * @param biases Biases
-    * @param numRowsA Number of rows in weights matrix
-    * @param numColA Number of columnts in weights matrix
-    * @param numRowsB Number of rows in input matrix
-    * @param numColB Number of columnts in input matrix
-    * @return Returns result of affine transformation
-    */
-    auto simulateFullyConnected(const std::vector<float>& weights, const std::vector<float>& input,
-        const std::vector<float>& biases,
-        size_t numRowsA, size_t numColA, size_t numRowsB, size_t numColB) {
-        if (numColA != numRowsB) {
-            THROW_GNA_EXCEPTION << "Invalid number of rows in weights: " << numColA << ", expected: " << numRowsB;
-        }
-
-        if (numColB != 1) {
-            THROW_GNA_EXCEPTION << "Invalid number of columns: " << numColB << ", expected: 1";
-        }
-
-        std::vector<float> result(numRowsA, 0.0f);
-        size_t size = numRowsB;
-        for (size_t rowsA = 0; rowsA < numRowsA; ++rowsA) {
-            result[rowsA] = biases.empty() ? 0.0f : biases[rowsA];
-            for (size_t i = 0; i < size; ++i) {
-                auto valA = weights[rowsA * size + i];
-                auto valB = input[i];
-
-                result[rowsA] += valA * valB;
-            }
-        }
-
-        return result;
-    }
-
-    /**
-    * @brief Function simulates convolution transformation
-    * @param src_buffer Input matrix
-    * @param kernels_data Kernel matrix
-    * @param bias_data Biases
-    * @param strideX Stride in X dimension
-    * @param strideY Stride in Y dimension
-    * @param strideZ Stride in Z dimension
-    * @param paddingX Padding in X dimension
-    * @param paddingY Padding in Y dimension
-    * @param paddingZ Padding in Z dimension
-    * @param inputWidth Width of input matrix
-    * @param inputHeight Height of input matrix
-    * @param inputChannels Depth of input matrix
-    * @param outputWidth Width of output matrix
-    * @param outputHeight Height of output matrix
-    * @param outputChannels Depth of output matrix
-    * @param kernelWidth Width of kernel matrix
-    * @param kernelHeight Height of kernel matrix
-    * @return Returns result of convolutin transformation
-    */
-    auto simulateConvolution(const std::vector<float>& src_buffer,
-        const std::vector<float>& kernels_data,
-        const std::vector<float>& bias_data,
-        size_t strideX, size_t strideY, size_t strideZ,
-        size_t paddingX, size_t paddingY, size_t paddingZ,
-        size_t inputWidth, size_t inputHeight, size_t inputChannels,
-        size_t outputWidth, size_t outputHeight, size_t outputChannels,
-        size_t kernelWidth, size_t kernelHeight) {
-        std::vector<float> dst_data(outputWidth * outputHeight * outputChannels, 0.0f);
-
-        if (inputHeight != 1 || outputHeight != 1) {
-            THROW_GNA_EXCEPTION << "2D convolutions are not supported yet";
-        }
-
-        for (uint32_t oc = 0; oc < outputChannels; ++oc) {
-            for (uint32_t oh = 0; oh < outputHeight; ++oh) {
-                for (uint32_t ow = 0; ow < outputWidth; ++ow) {
-                    size_t oidx = oc * outputHeight * outputWidth + oh * outputWidth + ow;
-                    if (!bias_data.empty()) {
-                        dst_data[oidx] = bias_data[oc];
-                    }
-
-                    for (size_t ic = 0; ic < inputChannels; ++ic) {
-                        for (size_t kh = 0; kh < kernelHeight; ++kh) {
-                            for (size_t kw = 0; kw < kernelWidth; ++kw) {
-                                int32_t iw = ow * strideX - paddingX + kw;
-                                int32_t ih = oh * strideY - paddingY + kh;
-                                if (iw < 0 || iw >= inputWidth ||
-                                    ih < 0 || ih >= inputHeight)
-                                    continue;
-
-                                size_t inputIdx = ic * inputWidth * inputHeight +
-                                    ih * inputWidth +
-                                    iw;
-                                size_t kernelIdx = oc * kernelWidth * kernelHeight * inputChannels +
-                                    ic * kernelWidth * kernelHeight +
-                                    kh * kernelWidth +
-                                    kw;
-
-                                auto inputVal = src_buffer[inputIdx];
-                                auto kernelVal = kernels_data[kernelIdx];
-                                dst_data[oidx] += inputVal * kernelVal;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return dst_data;
     }
 
  public:
@@ -1420,12 +1335,14 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             }
 
             double weights_reducer = 1.0;
-            auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
-            if (conv) {
-                auto inputs = wl->insData.begin()->lock();
-                auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());                
-                auto in_width = FROM_IR_DIM(inputs, in_order[3]);
-                weights_reducer = MAX_VAL_2B_FEAT * weightsScaleFactor * in_width / std::numeric_limits<int32_t>::max();
+            if (0 && LayerInfo(wl).isConvolution()) {
+                auto dims = wl->insData.front().lock()->getDims();
+                weights_reducer = MAX_VAL_2B_FEAT * scaleRange * dims[1] / std::numeric_limits<int32_t>::max();
+
+                //auto inputs = wl->insData.begin()->lock();
+                //auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());                
+                //auto in_width = FROM_IR_DIM(inputs, in_order[3]);
+                //weights_reducer = MAX_VAL_2B_FEAT * weightsScaleFactor * in_width / std::numeric_limits<int32_t>::max();
                 
                 weights_reducer = std::max(1.0, weights_reducer);
 
@@ -1482,21 +1399,46 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
             const int seed = 0;
             std::mt19937 gen(static_cast<float>(seed));
-            auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
+            auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max, DnnActivation activation, float sigmaDiv) mutable {
                 std::vector<float> res(vec_len, 0.0f);
 
-                /*
-                std::uniform_real_distribution<float> dist(min, max);
-                for (size_t i = 0; i < vec_len; i++)
-                    res[i] = dist(gen);
-                */
+                bool minIsPositive = fp32eq(std::abs(min), min);
+                bool maxIsPositive = fp32eq(std::abs(max), max);
+                bool onlyPositiveValues = minIsPositive&& maxIsPositive;
+                bool onlyNegativeValues = !minIsPositive && !maxIsPositive;
 
-                auto sigma = std::max(std::abs(min), std::abs(max)) / 3;
-                std::normal_distribution<float> dist(0.0f, sigma);
+                //auto sigma = std::max(std::abs(min), std::abs(max)) / 3;
+                //std::normal_distribution<float> dist(0.0f, sigma);
+                auto absMax = std::max(std::abs(min), std::abs(max));
+                auto avg = (max + min) / 2.0;
+                auto range = (max - min) / 2.0;
+                auto sigma = range / sigmaDiv;
+                std::normal_distribution<float> dist(avg, sigma);
                 for (size_t i = 0; i < vec_len; i++) {
-                    res[i] = dist(gen);
-                    res[i] = std::max(min, res[i]);
-                    res[i] = std::min(max, res[i]);
+                    auto val = dist(gen);
+                    
+                    if (onlyPositiveValues) {
+                        val = std::abs(val);
+                    } else if (onlyNegativeValues) {
+                        val = -std::abs(val);
+                    } 
+
+                    val = std::max(min, val);
+                    val = std::min(max, val);
+
+                    if (activation == kActRelu) {
+                        val = relu(val, activation.args.lrelu.negative_slope);
+                    } else if (activation == kActTanh) {
+                        val = tanh(val);
+                    } else if (activation == kActSigmoid) {
+                        val = sigmoid(val);
+                    } else if (activation == kActAbs) {
+                        val = abs(val);
+                    } else if (activation == kActKaldiLstmClipping) {
+                        val = clipping(val, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER);
+                    }
+
+                    res[i] = val;
                 }
 
                 return res;
@@ -1505,6 +1447,46 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             auto minInputVal = quant->_src_quant.GetMinValues().front();
             auto maxInputVal = quant->_src_quant.GetMaxValues().front();
 
+            auto prevLayer = CNNNetPrevLayer(wl);
+            while (prevLayer != nullptr && LayerInfo(prevLayer).isNonFunctional() && CNNNetHasPrevLayer(prevLayer.get())) {
+                prevLayer = CNNNetPrevLayer(prevLayer);
+            }
+
+            auto activation = DnnActivation{};
+            if (prevLayer != nullptr && LayerInfo(prevLayer).isActivation()) {
+                auto info = LayerInfo(prevLayer);
+                activation.type = kActIdentity;
+                if (info.isRelu() || info.isLeakyRelu()) {
+                    auto reluLayer = dynamic_cast<InferenceEngine::ReLULayer*>(prevLayer.get());
+                    activation.type = kActRelu;
+                    activation.args.lrelu.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
+
+                    auto quantActiv = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                    minInputVal = quantActiv->_src_quant.GetMinValues().front();
+                    maxInputVal = quantActiv->_src_quant.GetMaxValues().front();
+                } else if (info.isTanh()) {
+                    activation.type = kActTanh;
+                    auto quantActiv = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                    minInputVal = quantActiv->_src_quant.GetMinValues().front();
+                    maxInputVal = quantActiv->_src_quant.GetMaxValues().front();
+                } else if (info.isSigmoid()) {
+                    activation.type = kActSigmoid;
+                    auto quantActiv = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                    minInputVal = quantActiv->_src_quant.GetMinValues().front();
+                    maxInputVal = quantActiv->_src_quant.GetMaxValues().front();
+                } else if (info.isAbs()) {
+                    activation.type = kActAbs;
+                    auto quantActiv = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                    minInputVal = quantActiv->_src_quant.GetMinValues().front();
+                    maxInputVal = quantActiv->_src_quant.GetMaxValues().front();
+                } else if (info.isClamp()) {
+                    activation.type = kActKaldiLstmClipping;
+                    auto quantActiv = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                    minInputVal = quantActiv->_src_quant.GetMinValues().front();
+                    maxInputVal = quantActiv->_src_quant.GetMaxValues().front();
+                }
+            }
+
             if (LayerInfo(wl).isFullyConnected()) {
                 // calculate minimum and maximum value from layer by simulating GNA affine layer
                 auto inputs = wl->insData.begin()->lock();
@@ -1512,25 +1494,64 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
                 auto num_rows_in = FROM_IR_DIM(inputs, 1);
                 auto num_columns_in = FROM_IR_DIM(inputs, 2);
+                if (num_columns_in > 1) {
+                    // Batching case. It is sufficient to simulate 1 frame
+                    num_columns_in = 1;
+                }
                 auto num_rows_out = FROM_IR_DIM(outputs, 1);
+                auto num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
                 // generate random input
-                auto input = generateFloatNumbers(num_rows_in * num_columns_in, minInputVal, maxInputVal);
+                auto input = generateFloatNumbers(num_rows_in * num_columns_in, minInputVal, maxInputVal, activation, FULLY_CONNECTED_SIGMA_DIV);
 
                 // get weights and convert them to float
                 auto weights = std::vector<float>(wl->_weights->size());
                 memcpy(&weights[0], wl->_weights->buffer().as<float*>(), weights.size() * sizeof(float));
 
                 // get biases and convert them to float
-                auto biases = std::vector<float>();
+                auto biases = std::vector<float>(num_rows_out, 0.0f);
                 if (wl->_biases) {
-                    biases.resize(wl->_biases->size());
                     memcpy(&biases[0], wl->_biases->buffer().as<float*>(), wl->_biases->size() * sizeof(float));
                 }
 
+                if (num_padding) {
+                    input.resize(num_rows_in + num_padding);
+                    for (size_t i = 0; i < num_padding; ++i) {
+                        input[num_rows_in + i] = 0.0f;
+                    }
+
+                    auto paddedRowInSize = (num_rows_in + num_padding);
+                    auto paddedTotalWeightsSize = paddedRowInSize * num_rows_out;
+                    auto paddedWeights = std::vector<float>(paddedTotalWeightsSize, 0.0f);
+
+                    for (size_t i = 0; i < num_rows_out; ++i) {
+                        ie_memcpy(&paddedWeights[(num_rows_in + num_padding) * i],
+                            paddedRowInSize * sizeof(float),
+                            &weights[num_rows_in * i],
+                            num_rows_in * sizeof(float));
+                    }
+
+                    weights = paddedWeights;
+                }
+
+                auto result = std::vector<float>(num_rows_out, 0.0f );
+
                 // simulate fully connected layer
-                auto result = simulateFullyConnected(weights, input, biases, num_rows_out, num_rows_in,
-                    num_rows_in, num_columns_in);
+                intel_dnn_component_t dnn = { 0 };
+                dnn.num_rows_out = num_rows_out;
+                dnn.num_columns_out = 1;
+                dnn.num_rows_in = num_rows_in + num_padding;
+                dnn.num_columns_in = num_columns_in;
+                dnn.op.affine.ptr_biases = biases.empty() ? nullptr: &biases[0];
+                dnn.op.affine.ptr_weights = &weights[0];
+                dnn.ptr_inputs = &input[0];
+                dnn.ptr_outputs = &result[0];
+                dnn.num_bytes_per_input = sizeof(float);
+                dnn.num_bytes_per_output = sizeof(float);
+                dnn.op.affine.num_bytes_per_weight = sizeof(float);
+                dnn.op.affine.num_bytes_per_bias = sizeof(float);
+
+                GNAPluginNS::runtime::FP::ApplyAffineTransform(&dnn, nullptr, 0);
 
                 // find minimum and maximum values
                 auto outputValue = findMinMaxValues(result);
@@ -1576,37 +1597,111 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                     THROW_GNA_EXCEPTION << "'" << convLayer->name << "' layer with 3D input is not supported on GNA";
                 }
 
-                auto convertedKernels = std::vector<float>(convLayer->_weights->size());
-                memcpy(&convertedKernels[0], convLayer->_weights->cbuffer().as<float*>(), convLayer->_weights->size() * sizeof(float));
-
-                /*
+                auto convertedKernels = std::vector<float>();
                 for (uint32_t k = 0; k < convLayer->_out_depth; k++) {
                     auto kernel = std::vector<float>(convLayer->_kernel_x * in_channels);
                     memcpy(&kernel[0], convLayer->_weights->cbuffer().as<float*>() + k * kernel.size(), kernel.size() * sizeof(float));
 
-                    //kernel = transposeMatrix(&kernel[0], in_channels, convLayer->_kernel_x);
+                    kernel = transposeMatrix(kernel, in_channels, convLayer->_kernel_x);
                     convertedKernels.insert(convertedKernels.end(), kernel.begin(), kernel.end());
-                }*/
+                }
 
-                auto biases = std::vector<float>{};
+                auto biases = std::vector<float>(out_channels, 0.0f);
                 if (wl->_biases) {
-                    biases.resize(out_channels);
                     memcpy(&biases[0], wl->_biases->buffer().as<float*>(), wl->_biases->size() * sizeof(float));
                 }
 
+                auto result = std::vector<float>(out_batch * out_channels * out_height * out_width, 0.0f);
                 // perform covolution on random data
-                auto input = generateFloatNumbers(in_width * in_height * in_channels, minInputVal, maxInputVal);
-                auto result = simulateConvolution(input, convertedKernels, biases,
-                    convLayer->_stride_x, convLayer->_stride_y, 1,
-                    convLayer->_padding_x, convLayer->_padding_y, 0,
-                    in_width, in_height, in_channels,
-                    out_width, out_height, out_channels,
-                    convLayer->_kernel_x, 1);
+                auto input = generateFloatNumbers(in_width * in_height * in_channels, minInputVal, maxInputVal, activation, CONVOLUTION_SIGMA_DIV);
+
+                uint32_t num_feature_map_columns = in_channels * convLayer->_stride_x * convLayer->_stride_y;
+                if (in_height == 1 && convLayer->_stride_y != 1) {
+                    num_feature_map_columns = in_channels * convLayer->_stride_x;
+                } else if (in_width == 1 && convLayer->_stride_x != 1) {
+                    num_feature_map_columns = in_channels * convLayer->_stride_y;
+                }
+                uint32_t num_feature_map_rows = (in_channels * in_height * in_width) / num_feature_map_columns;
+
+                uint32_t total_conv_kernel_size = convLayer->_kernel_x * convLayer->_kernel_y * convLayer->_out_depth;
+                uint32_t single_conv_kernel_size = convLayer->_kernel_x * convLayer->_kernel_y;
+                if (convLayer->_kernel_y != in_channels) { // work around the strange special case where 1D kernel gets rewritten as 2D kernel
+                    total_conv_kernel_size *= in_channels;
+                    single_conv_kernel_size *= in_channels;
+                }
+
+                uint32_t num_conv_kernel_padding = ALIGN(single_conv_kernel_size, 8) - single_conv_kernel_size;
+                
+                uint32_t num_filters = convLayer->_out_depth;
+                uint32_t num_filter_coefficients = single_conv_kernel_size;
+                uint32_t num_filter_rows = num_filter_coefficients / num_feature_map_columns;
+
+                uint32_t num_inputs = in_width * in_height * in_channels;
+                uint32_t num_columns_out = (((num_inputs - num_filter_coefficients) / num_feature_map_columns) + 1) * convLayer->_out_depth;
+
+                uint32_t num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
+                uint32_t original_num_feature_map_rows = num_feature_map_rows;
+                uint32_t original_input_padding = num_input_padding;
+                uint32_t additional_padding = 0;
+                uint32_t num_columns_in = num_inputs;
+                
+                intel_dnn_component_t dnn = { 0 };
+
+                // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
+                while (num_columns_out < out_batch * out_channels * out_height * out_width) {
+                    num_input_padding = original_input_padding + additional_padding;
+                    num_feature_map_rows = original_num_feature_map_rows + (num_input_padding) / num_feature_map_columns;
+                    num_columns_in = num_inputs + num_input_padding;
+                    num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convLayer->_out_depth;
+                    additional_padding += 8;
+                }
+
+                if (num_conv_kernel_padding) {
+                    auto paddedSingleKernelSize = single_conv_kernel_size + num_conv_kernel_padding;
+                    auto paddedTotalKernelSize = (paddedSingleKernelSize) * convLayer->_out_depth;
+                    auto paddedKernel = std::vector<float>(paddedTotalKernelSize, 0.0f);
+
+                    for (size_t i = 0; i < convLayer->_out_depth; ++i) {
+                        ie_memcpy(&paddedKernel[paddedSingleKernelSize * i],
+                            paddedSingleKernelSize * sizeof(float),
+                            &convertedKernels[single_conv_kernel_size * i],
+                            single_conv_kernel_size * sizeof(float));
+                    }
+
+                    convertedKernels = paddedKernel;
+                }
+
+                std::string layerName = "Convolution simulator";
+                
+                dnn.original_layer_name = layerName.c_str();
+                dnn.num_bytes_per_input = sizeof(float);
+                dnn.num_bytes_per_output = sizeof(float);
+                dnn.op.conv1D.num_bytes_per_weight = sizeof(float);
+                dnn.op.conv1D.num_bytes_per_bias = sizeof(float);
+
+                dnn.ptr_inputs = &input[0];
+                dnn.ptr_outputs = &result[0];
+                dnn.op.conv1D.ptr_filters = &convertedKernels[0];
+                dnn.op.conv1D.ptr_biases = biases.empty() ? nullptr : &biases[0];
+
+                dnn.op.conv1D.num_filters = num_filters;
+                dnn.op.conv1D.num_filter_rows = num_filter_rows;
+                dnn.op.conv1D.num_filter_coefficients = num_filter_coefficients;
+                dnn.op.conv1D.num_feature_maps = 1;
+                dnn.op.conv1D.num_feature_map_rows = num_feature_map_rows;
+                dnn.op.conv1D.num_feature_map_columns = num_feature_map_columns;
+
+                dnn.num_rows_in = 1;
+                dnn.num_columns_in = num_inputs;
+                dnn.num_rows_out = 1;
+                dnn.num_columns_out = num_columns_out;
+
+                GNAPluginNS::runtime::FP::ApplyConvolutional1DTransform(&dnn);
 
                 // find minimum and maximum values
                 auto outputValue = findMinMaxValues(result);
-                quant->_dst_quant.SetMinValues({ outputValue.first * MAX_VALUE_GUARDBAND });
-                quant->_dst_quant.SetMaxValues({ outputValue.second * MAX_VALUE_GUARDBAND });
+                quant->_dst_quant.SetMinValues({ outputValue.first });
+                quant->_dst_quant.SetMaxValues({ outputValue.second });
             } else {
                 auto minWeightsVal = quant->_weights_quant.GetMinValues().front();
                 auto maxWeightsVal = quant->_weights_quant.GetMaxValues().front();
@@ -1633,6 +1728,21 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 quant->_dst_quant.SetMinValues({ outputValue.first });
                 quant->_dst_quant.SetMaxValues({ outputValue.second });
             }
+        }
+
+        double maxOutVal = std::max(std::abs(quant->_dst_quant.GetMinValues().front()),
+            std::abs(quant->_dst_quant.GetMaxValues().front()));
+        int64_t maxIntOutVal = MAX_VALUE_GUARDBAND * maxOutVal * quant->_dst_quant.GetScale() + 0.5f;
+        if (maxIntOutVal > std::numeric_limits<int32_t>::max() / MAX_VALUE_GUARDBAND) {
+            auto weights_reducer = static_cast<double>(maxIntOutVal) / std::numeric_limits<int32_t>::max();
+
+            gnalog() << "[WARNING] Weights for '" << wl->name
+                << "' layer will be requantized. Weights scale factor change from "
+                << quant->_weights_quant.GetScale() << " to "
+                << quant->_weights_quant.GetScale() / weights_reducer << "\n";
+
+            quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weights_reducer);
+            quant->_dst_quant.SetScale(quant->_src_quant.GetScale() * quant->_weights_quant.GetScale());
         }
 
         return true;
