@@ -36,6 +36,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inferen
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+ie_add_manifest(TARGET_NAME ${TARGET_NAME} DEPENDENCIES inference_engine_legacy)
+
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 if(WIN32)

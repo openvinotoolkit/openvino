@@ -22,3 +22,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE pugixml inference_engine
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+ie_add_manifest(TARGET_NAME ${TARGET_NAME}
+                DEPENDENCIES ${NGRAPH_LIBRARIES})

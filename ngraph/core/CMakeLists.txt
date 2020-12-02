@@ -53,6 +53,10 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
+if(COMMAND ie_add_manifest)
+    ie_add_manifest(TARGET_NAME ngraph)
+endif()
+
 set_target_properties(ngraph PROPERTIES
                       CXX_VISIBILITY_PRESET hidden
                       C_VISIBILITY_PRESET hidden

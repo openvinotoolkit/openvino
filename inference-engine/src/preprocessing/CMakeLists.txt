@@ -151,6 +151,8 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+ie_add_manifest(TARGET_NAME ${TARGET_NAME})
+
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC

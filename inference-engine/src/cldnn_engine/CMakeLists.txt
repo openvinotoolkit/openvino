@@ -38,6 +38,10 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 # Failed because of OpenCL
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+ie_add_manifest(TARGET_NAME ${TARGET_NAME}
+                DEPENDENCIES ${NGRAPH_LIBRARIES} inference_engine_lp_transformations
+                             inference_engine_transformations inference_engine_legacy)
+
 # install
 
 install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"

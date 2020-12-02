@@ -43,6 +43,10 @@ target_link_libraries(${TARGET_NAME}
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+ie_add_manifest(TARGET_NAME ${TARGET_NAME}
+                DEPENDENCIES ${NGRAPH_LIBRARIES} inference_engine_legacy
+                             inference_engine_transformations)
+
 # LTO
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

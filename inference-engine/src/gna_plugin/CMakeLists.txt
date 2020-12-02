@@ -43,6 +43,10 @@ target_compile_definitions(${TARGET_NAME}
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+ie_add_manifest(TARGET_NAME ${TARGET_NAME}
+                DEPENDENCIES ${NGRAPH_LIBRARIES} inference_engine_transformations
+                             inference_engine_legacy)
+
 #
 # Static version for tests
 #

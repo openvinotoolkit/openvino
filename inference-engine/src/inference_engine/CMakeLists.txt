@@ -156,6 +156,15 @@ ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
+if(ENABLE_MKL_DNN)
+    list(APPEND manifest_dependencies MKLDNNPlugin)
+endif()
+
+ie_add_manifest(TARGET_NAME ${TARGET_NAME}
+                DEPENDENCIES ${NGRAPH_LIBRARIES} inference_engine_transformations
+                             inference_engine_ir_reader
+                             MultiDevicePlugin HeteroPlugin ${manifest_dependencies})
+
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC

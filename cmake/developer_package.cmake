@@ -240,6 +240,7 @@ include(cross_compiled_func)
 include(faster_build)
 include(whole_archive)
 include(api_validator/api_validator)
+include(manifests/manifests)
 
 function(set_ci_build_number)
     set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_SOURCE_DIR}")
