@@ -67,22 +67,17 @@ int main(int argc, char *argv[]) {
             auto mstate = as<MemoryBlob>(states[0].GetState());
             auto state_buf = mstate->rmap();
             float * state =state_buf.as<float*>(); 
-            std::cout << state[0] << " "<<state[1] << " "<<state[2] << " "<<state[3] << "\n";
-            //check outputs
-            MemoryBlob::Ptr moutput = as<MemoryBlob>(ptrOutputBlobs[0]);
-            std::cout<<moutput->getTensorDesc().getDims()[1]<<"\n";
-            auto moutputHolder = moutput->rmap();
-            float *output = moutputHolder.as<float*>();
-            std::cout << output[0] << " "<<output[1] << " "<<output[2] << " "<<output[3] << "\n";
+            std::cout << state[0] << "\n";
         }
 
         // resetting state between utterances
+        std::cout<<"Reset state\n";
         for (auto &&state : inferRequest.QueryState()) {
             state.Reset();
         }
 
         // infer the second utterance
-        for (size_t next_input = data.size()/2 +1; next_input < data.size(); next_input++) {
+        for (size_t next_input = data.size()/2; next_input < data.size(); next_input++) {
             MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[0]);
             auto minputHolder = minput->wmap();
 
@@ -96,13 +91,8 @@ int main(int argc, char *argv[]) {
             auto mstate = as<MemoryBlob>(states[0].GetState());
             auto state_buf = mstate->rmap();
             float * state =state_buf.as<float*>(); 
-            std::cout << state[0] << " "<<state[1] << " "<<state[2] << " "<<state[3] << "\n";
-            //check outputs
-            MemoryBlob::Ptr moutput = as<MemoryBlob>(ptrOutputBlobs[0]);
-            auto moutputHolder = moutput->rmap();
-            float *output = moutputHolder.as<float*>();
-            std::cout << output[0] << " "<<output[1] << " "<<output[2] << " "<<output[3] << "\n";
-        }
+            std::cout << state[0] << "\n";
+      }
         //! [part1]
     }
     catch (const std::exception &error) {

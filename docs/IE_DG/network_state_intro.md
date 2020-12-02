@@ -36,16 +36,18 @@ Let's represent in both forms the following graph.
 
 ### Example of IR with state
 
+`bin` file for this graph should contain float 0 in binary form. `xml` is the following.
+
 ```xml
 <?xml version="1.0" ?>
 <net name="summator" version="10">
 	<layers>
 		<layer id="0" name="init_value" type="Const" version="opset1">
-			<data element_type="f32" offset="0" shape="1,4" size="16"/>
+			<data element_type="f32" offset="0" shape="1,1" size="4"/>
 			<output>
 				<port id="1" precision="FP32">
 					<dim>1</dim>
-					<dim>4</dim>
+					<dim>1</dim>
 				</port>
 			</output>
 		</layer>
@@ -54,61 +56,13 @@ Let's represent in both forms the following graph.
 			<input>
 				<port id="0">
 					<dim>1</dim>
-					<dim>4</dim>
+					<dim>1</dim>
 				</port>
 			</input>
 			<output>
 				<port id="1" precision="FP32">
 					<dim>1</dim>
-					<dim>4</dim>
-				</port>
-			</output>
-		</layer>
-        <layer id="7" name="begin" type="Const" version="opset1">
-			<data element_type="i64" offset="16" shape="2" size="16"/>
-			<output>
-				<port id="1" precision="I64">
-					<dim>2</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="8" name="end" type="Const" version="opset1">
-			<data element_type="i64" offset="32" shape="2" size="16"/>
-			<output>
-				<port id="1" precision="I64">
-					<dim>2</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="9" name="stride" type="Const" version="opset1">
-			<data element_type="i64" offset="48" shape="2" size="16"/>
-			<output>
-				<port id="1" precision="I64">
-					<dim>2</dim>
-				</port>
-			</output>
-		</layer>
-        <layer id="6" name="crop_first" type="StridedSlice" version="opset1">
-			<data begin_mask="1,0" ellipsis_mask="0,0" end_mask="1,1" new_axis_mask="0,0" shrink_axis_mask="0,0"/>
-			<input>
-				<port id="0">
 					<dim>1</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>2</dim>
-				</port>
-				<port id="2">
-					<dim>2</dim>
-				</port>
-				<port id="3">
-					<dim>2</dim>
-				</port>
-			</input>
-			<output>
-				<port id="4" precision="FP32">
-					<dim>1</dim>
-					<dim>3</dim>
 				</port>
 			</output>
 		</layer>
@@ -121,12 +75,11 @@ Let's represent in both forms the following graph.
 				</port>
 			</output>
 		</layer>
-		<layer id="3" name="concat" type="Concat" version="opset1">
-			<data axis="1"/>
+		<layer id="3" name="add_sum" type="Add" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>
-					<dim>3</dim>
+					<dim>1</dim>
 				</port>
 				<port id="1">
 					<dim>1</dim>
@@ -136,7 +89,7 @@ Let's represent in both forms the following graph.
 			<output>
 				<port id="2" precision="FP32">
 					<dim>1</dim>
-					<dim>4</dim>
+					<dim>1</dim>
 				</port>
 			</output>
 		</layer>
@@ -145,15 +98,34 @@ Let's represent in both forms the following graph.
 			<input>
 				<port id="0">
 					<dim>1</dim>
-					<dim>4</dim>
+					<dim>1</dim>
 				</port>
 			</input>
+		</layer>
+        <layer id="10" name="add" type="Add" version="opset1">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
 		</layer>
 		<layer id="5" name="output/sink_port_0" type="Result" version="opset1">
 			<input>
 				<port id="0">
 					<dim>1</dim>
-					<dim>4</dim>
+					<dim>1</dim>
 				</port>
 			</input>
 		</layer>
@@ -161,13 +133,11 @@ Let's represent in both forms the following graph.
 	<edges>
 		<edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
         <edge from-layer="2" from-port="0" to-layer="3" to-port="1"/>
-        <edge from-layer="1" from-port="1" to-layer="6" to-port="0"/>
-        <edge from-layer="7" from-port="1" to-layer="6" to-port="1"/>
-        <edge from-layer="8" from-port="1" to-layer="6" to-port="2"/>
-        <edge from-layer="9" from-port="1" to-layer="6" to-port="3"/>
-        <edge from-layer="6" from-port="4" to-layer="3" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="3" to-port="0"/>
         <edge from-layer="3" from-port="2" to-layer="4" to-port="0"/>
-        <edge from-layer="3" from-port="2" to-layer="5" to-port="0"/>
+        <edge from-layer="3" from-port="2" to-layer="10" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="10" to-port="1"/>
+        <edge from-layer="10" from-port="2" to-layer="5" to-port="0"/>
 	</edges>
 	<meta_data>
 		<MO_version value="unknown version"/>
@@ -180,15 +150,14 @@ Let's represent in both forms the following graph.
 ### Example of creating model Ngraph API
 
 ```cpp
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 4});
-    auto init_const = op::Constant::create(element::f32, Shape{1, 4}, {0, 0, 0, 0});
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 1});
+    auto init_const = op::Constant::create(element::f32, Shape{1, 1}, {0});
     auto read = make_shared<op::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
-    auto pattern = make_shared<op::Concat>(args, 1);
-    auto res = make_shared<op::Result>(pattern);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
-    auto assign = make_shared<op::Assign>(crop, "v0");
+    auto add = make_shared<op::Add>(arg, read);
+    auto assign = make_shared<op::Assign>(add, "v0");
+    auto add2 = make_shared<op::Add>(add, read);
+    auto res = make_shared<op::Result>(add2);
 
     auto f = make_shared<Function>(ResultVector({res}), ParameterVector({arg}), SinkVector({assign}));
 ```
