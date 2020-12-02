@@ -145,6 +145,9 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     graph.RemoveDroppedNodes();
 
 #if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
+    ChangeConvertToReorder(graph);
+    graph.RemoveDroppedNodes();
+
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
@@ -1916,6 +1919,55 @@ void MKLDNNGraphOptimizer::DropConvertReorder(MKLDNNGraph& graph) {
                 }
             }
         }
+    }
+}
+
+void MKLDNNGraphOptimizer::ChangeConvertToReorder(MKLDNNGraph& graph) {
+    std::vector<Precision> continuousPrecisions{
+            Precision::BF16,
+            Precision::FP32
+    };
+    for (int ind = 0; ind < graph.GetNodes().size(); ind++) {
+        auto convertCandidate = graph.GetNodes().at(ind);
+        std::string nodeType = convertCandidate->getTypeStr();
+        if (!InferenceEngine::details::CaselessEq<std::string>()(nodeType, "convert")) {
+            continue;
+        }
+        auto inputPrecision = convertCandidate->getCnnLayer()->insData[0].lock()->getPrecision();
+        auto outputPrecision = convertCandidate->getCnnLayer()->outData[0]->getPrecision();
+        if (std::find(continuousPrecisions.begin(), continuousPrecisions.end(), inputPrecision) == continuousPrecisions.end() ||
+            std::find(continuousPrecisions.begin(), continuousPrecisions.end(), outputPrecision) == continuousPrecisions.end()) {
+            continue;
+        }
+        std::unordered_set<std::string> uniqueLayerNames;
+        for (auto node : graph.GetNodes()) {
+            uniqueLayerNames.insert(node->getCnnLayer()->name);
+        }
+        auto parentEdge = convertCandidate->getParentEdges()[0].lock();
+        auto parentNode = parentEdge->getParent();
+        auto &childEdge = convertCandidate->getChildEdgeAt(0);
+        auto childNode = childEdge->getChild();
+        std::string basicLayerName = childEdge->getParent()->getName() + "_" +
+                                     MKLDNNExtensionUtils::getReorderArgs(convertCandidate->getCnnLayer()->insData[0].lock()->getTensorDesc(),
+                                                                          convertCandidate->getCnnLayer()->outData[0]->getTensorDesc()) +
+                                     "_" + childEdge->getChild()->getName();
+        std::string layerName = basicLayerName;
+        int idx = 0;
+        while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+            idx++;
+            layerName = basicLayerName + "_" + std::to_string(idx);
+        }
+        // create temporary edge
+        auto oldParentOutputPort = parentEdge->getInputNum();
+        auto oldChildInputPort = childEdge->getOutputNum();
+        MKLDNNEdgePtr tempEdge(new MKLDNNEdge(parentNode, childNode, oldParentOutputPort, oldChildInputPort));
+
+        graph.InsertReorder(tempEdge, layerName, convertCandidate->getCnnLayer()->insData[0].lock()->getTensorDesc(),
+                            convertCandidate->getCnnLayer()->outData[0]->getTensorDesc(), false);
+        parentNode->removeEdge(parentEdge);
+        parentEdge->drop();
+        childEdge->drop();
+        graph.DropNode(convertCandidate);
     }
 }
 #endif

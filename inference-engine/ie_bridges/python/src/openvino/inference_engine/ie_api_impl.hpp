@@ -156,7 +156,7 @@ struct IECore {
     explicit IECore(const std::string & xmlConfigFile = std::string());
     std::map<std::string, InferenceEngine::Version> getVersions(const std::string & deviceName);
     InferenceEnginePython::IENetwork readNetwork(const std::string& modelPath, const std::string& binPath);
-    InferenceEnginePython::IENetwork readNetwork(const std::string& model, uint8_t *bin, size_t bin_size);
+    InferenceEnginePython::IENetwork readNetwork(const std::string& model, const uint8_t *bin, size_t bin_size);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network, const std::string & deviceName,
             const std::map<std::string, std::string> & config, int num_requests);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> importNetwork(const std::string & modelFIle, const std::string & deviceName,

@@ -85,6 +85,7 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/rnn_cell.hpp"
+#include "ngraph/runtime/reference/roi_pooling.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
@@ -1193,6 +1194,19 @@ protected:
             {
                 throw ngraph_error("only int32 indices are supported");
             }
+            break;
+        }
+        case OP_TYPEID::ROIPooling_v0:
+        {
+            const op::ROIPooling* roi_pooling = static_cast<const op::ROIPooling*>(&node);
+            reference::roi_pooling<T>(args[0]->get_data_ptr<const T>(),
+                                      args[1]->get_data_ptr<const T>(),
+                                      out[0]->get_data_ptr<T>(),
+                                      node.get_input_shape(0),
+                                      node.get_input_shape(1),
+                                      node.get_output_shape(0),
+                                      roi_pooling->get_spatial_scale(),
+                                      roi_pooling->get_method());
             break;
         }
         case OP_TYPEID::Select:
