@@ -43,7 +43,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * **1**: Output tensor of type *T_I* shape `[N, T]` and containing vector stores the decoded classes. All elements that do not code sequence classes are filled with -1.
 
-* **2**: Output tensor of type *T_I* shape `[N]` and containing length of decoded class array for each batch.
+* **2**: Output tensor of type *T_I* shape `[N]` and containing length of decoded class array for each batch object.
 
 **Types**
 
