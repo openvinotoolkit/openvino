@@ -102,8 +102,8 @@ TEST(type_prop, roi_pooling_incompatible_feature_maps_element_type)
 TEST(type_prop, roi_pooling_incompatible_rois_element_type)
 {
     const auto feat_maps = make_shared<op::Parameter>(element::f32, Shape{3, 2, 6, 6});
-    const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
-    // rois element type must be equal to feat_maps element type (floating point type)
+    const auto rois = make_shared<op::Parameter>(element::i32, Shape{3, 5});
+    // rois element type must be floating point type
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "bilinear"),
                  ngraph::NodeValidationFailure);
 }

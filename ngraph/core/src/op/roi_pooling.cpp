@@ -46,14 +46,6 @@ void op::ROIPooling::validate_and_infer_types()
         " and: ",
         coords_et);
 
-    NODE_VALIDATION_CHECK(
-        this,
-        feat_maps_et == coords_et,
-        "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
-        feat_maps_et,
-        " and: ",
-        coords_et);
-
     NODE_VALIDATION_CHECK(this,
                           m_output_size.size() == 2,
                           "The dimension of pooled size is expected to be equal to 2. Got: ",
