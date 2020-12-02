@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""
+'''
  Copyright (c) 2018 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,197 +13,170 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
-"""
+'''
 from __future__ import print_function
 from argparse import ArgumentParser, SUPPRESS
-import cv2
 import logging as log
-import numpy as np
 import os
 import sys
 
+import cv2
 import ngraph as ng
+import numpy as np
 from openvino.inference_engine import IECore
 
 def build_argparser():
     parser = ArgumentParser(add_help=False)
-    args = parser.add_argument_group("Options")
+    args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
-    args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.",
+    args.add_argument('-m', '--model', help='Required. Path to an .xml or .onnx file with a trained model.',
                       required=True, type=str)
-    args.add_argument("-i", "--input", help="Required. Path to an image file.",
+    args.add_argument('-i', '--input', help='Required. Path to an image file.',
                       required=True, type=str)
-    args.add_argument("-l", "--cpu_extension",
-                      help="Optional. Required for CPU custom layers. "
-                           "Absolute path to a shared library with the kernels implementations.",
-                      type=str, default=None)
-    args.add_argument("-d", "--device",
-                      help="Optional. Specify the target device to infer on; "
-                           "CPU, GPU, FPGA or MYRIAD is acceptable. "
-                           "Sample will look for a suitable plugin for device specified (CPU by default)",
-                      default="CPU", type=str)
-    args.add_argument("--labels", help="Optional. Labels mapping file", default=None, type=str)
-    args.add_argument("-nt", "--number_top", help="Optional. Number of top results", default=10, type=int)
-
+    args.add_argument('-d', '--device',
+                      help='Optional. Specify the target device to infer on; '
+                           'CPU, GPU, FPGA or MYRIAD is acceptable. '
+                           'Sample will look for a suitable plugin for device specified (CPU by default)',
+                      default='CPU', type=str)
     return parser
 
 
 def main():
-    log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     args = build_argparser().parse_args()
-    log.info("Loading Inference Engine")
+    log.info('Loading Inference Engine')
     ie = IECore()
 
     # ---1. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format ---
     model = args.model
-    log.info(f"Loading network:\n\t{model}")
+    log.info(f'Loading network:')
+    log.info(f'    {model}')
     net = ie.read_network(model=model)
-    func = ng.function_from_cnn(net)
-    ops = func.get_ordered_ops()
     # -----------------------------------------------------------------------------------------------------
 
     # ------------- 2. Load Plugin for inference engine and extensions library if specified --------------
-    log.info("Device info:")
+    log.info('Device info:')
     versions = ie.get_versions(args.device)
-    print("{}{}".format(" " * 8, args.device))
-    print("{}MKLDNNPlugin version ......... {}.{}".format(" " * 8, versions[args.device].major,
-                                                          versions[args.device].minor))
-    print("{}Build ........... {}".format(" " * 8, versions[args.device].build_number))
-
-    if args.cpu_extension and "CPU" in args.device:
-        ie.add_extension(args.cpu_extension, "CPU")
-        log.info("CPU extension loaded: {}".format(args.cpu_extension))
+    log.info(f'        {args.device}')
+    log.info(f'        MKLDNNPlugin version ......... {versions[args.device].major}.{versions[args.device].minor}')
+    log.info(f'        Build ........... {versions[args.device].build_number}')
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- 3. Read and preprocess input --------------------------------------------
 
-    print("inputs number: " + str(len(net.input_info.keys())))
-    assert len(net.input_info.keys()) == 1, 'Sample supports clean SSD network with one input and one output'
+    log.info(f'Inputs number: {len(net.input_info.keys())}')
+    assert len(net.input_info.keys()) == 1, 'Sample supports clean SSD network with one input'
+    assert len(net.outputs.keys()) == 1, 'Sample supports clean SSD network with one output'
     input_name = list(net.input_info.keys())[0]
+    supported_input_dims = 4  # Supported input layout - NHWC
 
     for input_key in net.input_info:
-        print("input shape: " + str(net.input_info[input_key].input_data.shape))
-        print("input key: " + input_key)
-        if len(net.input_info[input_key].input_data.layout) == 4:
+        log.info(f'    Input key: {input_key}')
+        log.info(f'    Input shape: {str(net.input_info[input_key].input_data.shape)}')
+        if len(net.input_info[input_key].input_data.layout) == supported_input_dims:
             n, c, h, w = net.input_info[input_key].input_data.shape
-            assert n == 1, 'Sample only supports topologies with one input image'
+            assert n == 1, 'Sample supports topologies with one input image only'
+        else:
+            raise AssertionError('Sample supports input with NHWC shape only')
     
     h_new, w_new = cv2.imread(args.input).shape[:-1]
     images = np.ndarray(shape=(n, c, h_new, w_new))
     images_hw = []
-    for i in range(n):
-        image = cv2.imread(args.input)
-        ih, iw = image.shape[:-1]
-        images_hw.append((ih, iw))
-        log.info("File was added: ")
-        log.info("        {}".format(args.input))
-        image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-        images[i] = image
+    image = cv2.imread(args.input)
+    ih, iw = image.shape[:-1]
+    images_hw.append((ih, iw))
+    log.info('File was added: ')
+    log.info(f'    {args.input}')
+    image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
+    images[0] = image
     
+    log.info('Reshaping the network to the height and width of the input image')
     net.reshape({input_name: [n, c, h_new, w_new]})
-    print(net.input_info['data'].input_data.shape)
+    log.info(f'Input shape after reshape: {str(net.input_info["data"].input_data.shape)}')
 
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- 4. Configure input & output ---------------------------------------------
     # --------------------------- Prepare input blobs -----------------------------------------------------
-    log.info("Preparing input blobs")
-    assert (len(net.input_info.keys()) == 1 or len(
-        net.input_info.keys()) == 2), "Sample supports topologies only with 1 or 2 inputs"
-    out_blob = next(iter(net.outputs))
-    input_name, input_info_name = "", ""
+    log.info('Preparing input blobs')
 
-    for input_key in net.input_info:
-        if len(net.input_info[input_key].layout) == 4:
-            input_name = input_key
-            net.input_info[input_key].precision = 'U8'
-        elif len(net.input_info[input_key].layout) == 2:
-            input_info_name = input_key
-            net.input_info[input_key].precision = 'FP32'
-            if net.input_info[input_key].input_data.shape[1] != 3 and net.input_info[input_key].input_data.shape[1] != 6 or \
-                net.input_info[input_key].input_data.shape[0] != 1:
-                log.error('Invalid input info. Should be 3 or 6 values length.')
-
+    if len(net.input_info[input_name].layout) == supported_input_dims:
+        net.input_info[input_name].precision = 'U8'
+    
     data = {}
     data[input_name] = images
-
-    if input_info_name != "":
-        infos = np.ndarray(shape=(n, c), dtype=float)
-        for i in range(n):
-            infos[i, 0] = h
-            infos[i, 1] = w
-            infos[i, 2] = 1.0
-        data[input_info_name] = infos
 
     # --------------------------- Prepare output blobs ----------------------------------------------------
     log.info('Preparing output blobs')
 
-    output_name, output_info = "", net.outputs[next(iter(net.outputs.keys()))]
+    func = ng.function_from_cnn(net)
+    ops = func.get_ordered_ops()
+    output_name, output_info = '', net.outputs[next(iter(net.outputs.keys()))]
     output_ops = {op.friendly_name : op for op in ops \
-                  if op.friendly_name in net.outputs and op.get_type_name() == "DetectionOutput"}
-    if len(output_ops) != 0:
+                  if op.friendly_name in net.outputs and op.get_type_name() == 'DetectionOutput'}
+    if len(output_ops) == 1:
         output_name, output_info = output_ops.popitem()
 
-    if output_name == "":
-        log.error("Can't find a DetectionOutput layer in the topology")
+    if output_name == '':
+        log.error('Can''t find a DetectionOutput layer in the topology')
 
     output_dims = output_info.shape
     if len(output_dims) != 4:
-        log.error("Incorrect output dimensions for SSD model")
+        log.error('Incorrect output dimensions for SSD model')
     max_proposal_count, object_size = output_dims[2], output_dims[3]
 
     if object_size != 7:
-        log.error("Output item should have 7 as a last dimension")
+        log.error('Output item should have 7 as a last dimension')
 
-    output_info.precision = "FP32"
+    output_info.precision = 'FP32'
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- Performing inference ----------------------------------------------------
-    log.info("Loading model to the device")
+    log.info('Loading model to the device')
     exec_net = ie.load_network(network=net, device_name=args.device)
-    log.info("Creating infer request and starting inference")
-    res = exec_net.infer(inputs=data)
+    log.info('Creating infer request and starting inference')
+    exec_result = exec_net.infer(inputs=data)
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- Read and postprocess output ---------------------------------------------
-    log.info("Processing output blobs")
-    res = res[out_blob]
+    log.info('Processing output blobs')
+    result = exec_result[output_name]
     boxes, classes = {}, {}
-    data = res[0][0]
-    for number, proposal in enumerate(data):
-        if proposal[2] > 0:
+    detections = result[0][0]  # [0][0] - location of detections in result blob
+    for number, proposal in enumerate(detections):
+        if proposal[2] > 0:  # if detection confidence is > 0%
             imid = np.int(proposal[0])
             ih, iw = images_hw[imid]
             label = np.int(proposal[1])
             confidence = proposal[2]
-            xmin = np.int(iw * proposal[3])
-            ymin = np.int(ih * proposal[4])
-            xmax = np.int(iw * proposal[5])
-            ymax = np.int(ih * proposal[6])
-            print("[{},{}] element, prob = {:.6}    ({},{})-({},{}) batch id : {}" \
-                  .format(number, label, confidence, xmin, ymin, xmax, ymax, imid), end="")
+            xmin = iw * proposal[3]
+            ymin = ih * proposal[4]
+            xmax = iw * proposal[5]
+            ymax = ih * proposal[6]
             if proposal[2] > 0.5:
-                print(" WILL BE PRINTED!")
+                log.info(f'    [{number},{label}] element, prob = {confidence:.6f}, \
+                    bbox = ({xmin:.3f},{ymin:.3f})-({xmax:.3f},{ymax:.3f}), batch id = {imid}')
                 if not imid in boxes.keys():
                     boxes[imid] = []
                 boxes[imid].append([xmin, ymin, xmax, ymax])
                 if not imid in classes.keys():
                     classes[imid] = []
                 classes[imid].append(label)
-            else:
-                print()
 
     for imid in classes:
         tmp_image = cv2.imread(args.input)
         for box in boxes[imid]:
-            cv2.rectangle(tmp_image, (box[0], box[1]), (box[2], box[3]), (232, 35, 244), 2)
-        cv2.imwrite("out.bmp", tmp_image)
-        log.info("Image out.bmp created!")
+            cv2.rectangle(
+                tmp_image, 
+                (np.int(box[0]), np.int(box[1])), (np.int(box[2]), np.int(box[3])), 
+                (232, 35, 244), 2)
+        cv2.imwrite('out.bmp', tmp_image)
+        log.info('Image out.bmp created!')
     # -----------------------------------------------------------------------------------------------------
 
-    log.info("Execution successful\n")
+    log.info('Execution successful\n')
     log.info(
-        "This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool")
+        'This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool')
 
 
 if __name__ == '__main__':
