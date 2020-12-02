@@ -19,21 +19,19 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35929
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, range_start, range_end",
     [
         (ng.absolute, np.abs, -1, 1),
         (ng.abs, np.abs, -1, 1),
         (ng.acos, np.arccos, -1, 1),
-        (ng.acosh, np.arccosh, -1, 1),
+        (ng.acosh, np.arccosh, 1, 2),
         (ng.asin, np.arcsin, -1, 1),
         (ng.asinh, np.arcsinh, -1, 1),
         (ng.atan, np.arctan, -100.0, 100.0),
-        (ng.atanh, np.arctanh, -100.0, 100.0),
+        (ng.atanh, np.arctanh, 0.0, 1.0),
         (ng.ceiling, np.ceil, -100.0, 100.0),
         (ng.ceil, np.ceil, -100.0, 100.0),
         (ng.cos, np.cos, -100.0, 100.0),
@@ -52,7 +50,7 @@ from tests import xfail_issue_35929
 )
 def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
     np.random.seed(133391)
-    input_data = range_start + np.random.rand(2, 3, 4) * (range_end - range_start)
+    input_data = (range_start + np.random.rand(2, 3, 4) * (range_end - range_start)).astype(np.float32)
     expected = numpy_fn(input_data)
 
     result = run_op_node([input_data], ng_api_fn)

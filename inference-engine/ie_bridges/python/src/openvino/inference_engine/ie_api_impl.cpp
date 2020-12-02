@@ -8,6 +8,7 @@
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map <std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
+                                                                    {"FP64", InferenceEngine::Precision::FP64},
                                                                     {"FP16", InferenceEngine::Precision::FP16},
                                                                     {"I8",   InferenceEngine::Precision::I8},
                                                                     {"I16",  InferenceEngine::Precision::I16},

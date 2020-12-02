@@ -97,6 +97,7 @@ private:
 
         switch (input.getTensorDesc().getPrecision()) {
             TBLOB_TOP_RESULT(FP32);
+            TBLOB_TOP_RESULT(FP64);
             TBLOB_TOP_RESULT(FP16);
             TBLOB_TOP_RESULT(Q78);
             TBLOB_TOP_RESULT(I16);

@@ -174,6 +174,7 @@ typedef enum {
     MIXED = 0,  /**< Mixed value. Can be received from network. No applicable for tensors */
     FP32 = 10,  /**< 32bit floating point value */
     FP16 = 11,  /**< 16bit floating point value */
+    FP64 = 13,  /**< 64bit floating point value */
     Q78 = 20,   /**< 16bit specific signed fixed point precision */
     I16 = 30,   /**< 16bit signed integer value */
     U8 = 40,    /**< 8bit unsigned integer value */

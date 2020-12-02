@@ -354,6 +354,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_
     case Precision::FP32:
         precision_str = "FP32";
         break;
+    case Precision::FP64:
+        precision_str = "FP64";
+        break;
     case Precision::I8:
         precision_str = "I8";
         break;
