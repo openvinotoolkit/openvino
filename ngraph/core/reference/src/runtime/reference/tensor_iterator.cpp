@@ -35,8 +35,8 @@ namespace ngraph
             {
                 HostTensorVector inputs_to_body;
                 for (int64_t i = 0; i < input_descs.size(); ++i)
-                    inputs_to_body.push_back(
-                        std::make_shared<HostTensor>(element::dynamic, PartialShape::dynamic()));
+                    inputs_to_body.push_back(std::make_shared<HostTensor>(element::Type_t::dynamic,
+                                                                          PartialShape::dynamic()));
 
                 // Port map processing: inputs and back edges
                 struct BackEdge

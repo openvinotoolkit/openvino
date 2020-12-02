@@ -27,9 +27,9 @@ using namespace ngraph;
 TEST(type_prop, proposal_v0_invalid_class_probs_rank)
 {
     op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
 
     try
     {
@@ -52,9 +52,9 @@ TEST(type_prop, proposal_v0_invalid_class_probs_rank)
 TEST(type_prop, proposal_v0_invalid_class_bbox_deltas_rank)
 {
     op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
 
     try
     {
@@ -78,9 +78,9 @@ TEST(type_prop, proposal_v0_invalid_class_bbox_deltas_rank)
 TEST(type_prop, proposal_v0_invalid_image_shape_rank)
 {
     op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{2, 1});
+    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 1});
 
     try
     {
@@ -103,9 +103,9 @@ TEST(type_prop, proposal_v0_invalid_image_shape_rank)
 TEST(type_prop, proposal_v0_invalid_image_shape_size)
 {
     op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
+    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{5});
 
     try
     {
@@ -135,10 +135,11 @@ TEST(type_prop, proposal_v0_shape_infer)
     attrs.post_nms_topn = 200;
     const size_t batch_size = 7;
 
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
+    auto class_probs =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 12, 34, 62});
     auto class_bbox_deltas =
-        make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 24, 34, 62});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
     auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
     ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
 }
@@ -148,9 +149,9 @@ TEST(type_prop, proposal_v0_shape_infer)
 TEST(type_prop, proposal_v4_invalid_class_probs_rank)
 {
     op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
 
     try
     {
@@ -173,9 +174,9 @@ TEST(type_prop, proposal_v4_invalid_class_probs_rank)
 TEST(type_prop, proposal_v4_invalid_class_bbox_deltas_rank)
 {
     op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
 
     try
     {
@@ -199,9 +200,9 @@ TEST(type_prop, proposal_v4_invalid_class_bbox_deltas_rank)
 TEST(type_prop, proposal_v4_invalid_image_shape_rank)
 {
     op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{2, 1});
+    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 1});
 
     try
     {
@@ -224,9 +225,9 @@ TEST(type_prop, proposal_v4_invalid_image_shape_rank)
 TEST(type_prop, proposal_v4_invalid_image_shape_size)
 {
     op::ProposalAttrs attrs;
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
+    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{5});
 
     try
     {
@@ -256,10 +257,11 @@ TEST(type_prop, proposal_v4_shape_infer)
     attrs.post_nms_topn = 200;
     const size_t batch_size = 7;
 
-    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
+    auto class_probs =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 12, 34, 62});
     auto class_bbox_deltas =
-        make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
-    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 24, 34, 62});
+    auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
     ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
     ASSERT_EQ(op->get_output_shape(1), (Shape{batch_size * attrs.post_nms_topn}));

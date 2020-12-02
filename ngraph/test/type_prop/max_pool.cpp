@@ -31,7 +31,7 @@ TEST(type_prop, max_pool_auto_padding)
     const auto rounding_mode = op::RoundingType::FLOOR;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, arg_shape);
     auto mp = make_shared<op::v1::MaxPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
 
@@ -50,7 +50,7 @@ TEST(type_prop, max_pool_auto_padding_nc_dims_dynamic_same_lower)
     const auto rounding_mode = op::RoundingType::FLOOR;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, arg_shape);
     auto mp = make_shared<op::v1::MaxPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
 
@@ -70,7 +70,7 @@ TEST(type_prop, max_pool_auto_padding_nc_dims_dynamic_same_upper)
     const auto rounding_mode = op::RoundingType::FLOOR;
     const auto auto_pad = op::PadType::SAME_UPPER;
 
-    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, arg_shape);
     auto mp = make_shared<op::v1::MaxPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
 
@@ -90,7 +90,7 @@ TEST(type_prop, max_pool_auto_padding_spatial_dims_dynamic)
     const auto rounding_mode = op::RoundingType::FLOOR;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, arg_shape);
     auto mp = make_shared<op::v1::MaxPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
 

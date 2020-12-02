@@ -30,10 +30,10 @@ using namespace std;
 TEST(dyn_elimination, transpose)
 {
     Shape shape_in{2, 4, 6, 8};
-    auto param = make_shared<op::Parameter>(element::boolean, shape_in);
+    auto param = make_shared<op::Parameter>(element::Type_t::boolean, shape_in);
 
     auto constant_perm =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{2, 3, 1, 0});
+        make_shared<op::Constant>(element::Type_t::i64, Shape{4}, vector<int64_t>{2, 3, 1, 0});
 
     auto transpose = make_shared<op::Transpose>(param, constant_perm);
 
@@ -52,7 +52,7 @@ TEST(dyn_elimination, transpose)
 
     ASSERT_EQ(new_reshape->get_input_order(), (AxisVector{2, 3, 1, 0}));
     ASSERT_EQ(new_reshape->get_output_shape(0), (Shape{6, 8, 4, 2}));
-    ASSERT_EQ(new_reshape->get_output_element_type(0), element::boolean);
+    ASSERT_EQ(new_reshape->get_output_element_type(0), element::Type_t::boolean);
 }
 
 // For now, we can't handle the case where the input has dynamic shapes,
@@ -63,10 +63,10 @@ TEST(dyn_elimination, transpose_dyn_shape)
 {
     PartialShape shape_in{2, 4, Dimension::dynamic(), 8};
 
-    auto param = make_shared<op::Parameter>(element::boolean, shape_in);
+    auto param = make_shared<op::Parameter>(element::Type_t::boolean, shape_in);
 
     auto constant_perm =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{2, 3, 1, 0});
+        make_shared<op::Constant>(element::Type_t::i64, Shape{4}, vector<int64_t>{2, 3, 1, 0});
 
     auto transpose = make_shared<op::Transpose>(param, constant_perm);
 
@@ -83,20 +83,23 @@ TEST(dyn_elimination, transpose_dyn_shape)
         as_type_ptr<op::Transpose>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_transpose);
 
-    ASSERT_EQ(new_transpose->get_output_element_type(0), element::boolean);
+    ASSERT_EQ(new_transpose->get_output_element_type(0), element::Type_t::boolean);
     ASSERT_TRUE(new_transpose->get_output_partial_shape(0).relaxes(
         PartialShape{Dimension::dynamic(), 8, 4, 2}));
 }
 
 TEST(dyn_elimination, range)
 {
-    auto constant_start = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{0});
-    auto constant_stop = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{5});
-    auto constant_step = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{2});
+    auto constant_start =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{0});
+    auto constant_stop =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{5});
+    auto constant_step =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{2});
 
     auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
 
-    ASSERT_EQ(range->get_element_type(), element::i64);
+    ASSERT_EQ(range->get_element_type(), element::Type_t::i64);
     ASSERT_EQ(range->get_shape(), (Shape{3}));
 
     auto f = make_shared<Function>(range, ParameterVector{});
@@ -112,7 +115,7 @@ TEST(dyn_elimination, range)
         as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
 
     ASSERT_NE(replacement, nullptr);
-    ASSERT_EQ(replacement->get_element_type(), element::i64);
+    ASSERT_EQ(replacement->get_element_type(), element::Type_t::i64);
     ASSERT_EQ(replacement->get_shape(), (Shape{3}));
 
     auto vals = replacement->get_vector<int64_t>();
@@ -122,13 +125,16 @@ TEST(dyn_elimination, range)
 
 TEST(dyn_elimination, range_f64)
 {
-    auto constant_start = make_shared<op::Constant>(element::f64, Shape{}, vector<double>{-0.5});
-    auto constant_stop = make_shared<op::Constant>(element::f64, Shape{}, vector<double>{2});
-    auto constant_step = make_shared<op::Constant>(element::f64, Shape{}, vector<double>{0.25});
+    auto constant_start =
+        make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{-0.5});
+    auto constant_stop =
+        make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{2});
+    auto constant_step =
+        make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{0.25});
 
     auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
 
-    ASSERT_EQ(range->get_element_type(), element::f64);
+    ASSERT_EQ(range->get_element_type(), element::Type_t::f64);
     ASSERT_EQ(range->get_shape(), (Shape{10}));
 
     auto f = make_shared<Function>(range, ParameterVector{});
@@ -144,7 +150,7 @@ TEST(dyn_elimination, range_f64)
         as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
 
     ASSERT_NE(replacement, nullptr);
-    ASSERT_EQ(replacement->get_element_type(), element::f64);
+    ASSERT_EQ(replacement->get_element_type(), element::Type_t::f64);
     ASSERT_EQ(replacement->get_shape(), (Shape{10}));
 
     auto vals = replacement->get_vector<double>();
