@@ -30,9 +30,9 @@ namespace ngraph
         {
             namespace
             {
-                std::vector<std::ptrdiff_t> memory_strides(const Shape& shape)
+                std::vector<ssize_t> memory_strides(const Shape& shape)
                 {
-                    std::vector<std::ptrdiff_t> mem_strides(shape.size(), 1);
+                    std::vector<ssize_t> mem_strides(shape.size(), 1);
 
                     if (shape.size() > 1)
                     {
@@ -88,8 +88,7 @@ namespace ngraph
                 }
             }
 
-            size_t SliceRange::copy_range_first_index() const { return m_index; }
-
+            ssize_t SliceRange::copy_range_first_index() const { return m_index; }
             bool SliceRange::increment()
             {
                 if (m_coordinate.empty())
@@ -165,12 +164,12 @@ namespace ngraph
 
             ReverseRange::value_type ReverseRange::get_value() const
             {
-                const std::ptrdiff_t end_index = m_index + last_dim_size();
+                const ssize_t end_index = m_index + last_dim_size();
 
-                const std::ptrdiff_t step =
-                    static_cast<std::ptrdiff_t>(m_memory_strides.back()) * m_axis_directions.back();
+                const ssize_t step =
+                    static_cast<ssize_t>(m_memory_strides.back()) * m_axis_directions.back();
 
-                return IntegerRangeData{m_index, end_index, step};
+                return Range{m_index, end_index, step};
             }
 
             bool ReverseRange::increment()
@@ -212,10 +211,10 @@ namespace ngraph
                 return false;
             }
 
-            std::ptrdiff_t ReverseRange::last_dim_size() const noexcept
+            ssize_t ReverseRange::last_dim_size() const noexcept
             {
-                const auto dir = m_axis_directions.back() > 0 ? 1 : -1;
-                return dir * static_cast<std::ptrdiff_t>(m_source_shape.back());
+                const ssize_t dir = m_axis_directions.back() > 0 ? 1 : -1;
+                return dir * static_cast<ssize_t>(m_source_shape.back());
             }
 
         } // namespace impl

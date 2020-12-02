@@ -29,6 +29,8 @@ namespace ngraph
     {
         namespace impl
         {
+            using ssize_t = typename std::make_signed<size_t>::type;
+
             namespace
             {
                 template <typename C>
@@ -96,10 +98,7 @@ namespace ngraph
                 Coordinate m_lower;
                 Coordinate m_upper;
 
-                std::ptrdiff_t last_dim_size() const noexcept
-                {
-                    return m_upper.back() - m_lower.back();
-                }
+                ssize_t last_dim_size() const noexcept { return m_upper.back() - m_lower.back(); }
             };
 
             template <typename Range>
@@ -108,48 +107,45 @@ namespace ngraph
                 using Iterator = RangeIterator<Range>;
 
                 Iterator begin() { return Iterator(static_cast<Range*>(this)); }
-
                 Iterator end() { return Iterator(nullptr); }
             };
 
-            struct IntegerRangeData
+            struct Range
             {
-                const std::ptrdiff_t m_begin;
-                const std::ptrdiff_t m_end;
-                const std::ptrdiff_t m_step;
+                const ssize_t begin;
+                const ssize_t end;
+                const ssize_t step;
             };
 
             class SliceRange : public RangeBase<SliceRange>
             {
             public:
-                using value_type = IntegerRangeData;
+                using value_type = Range;
                 SliceRange(const Shape& source_shape,
                            const Coordinate& source_start_corner,
                            const Coordinate& source_end_corner,
                            const Strides& strides);
 
-                size_t copy_range_first_index() const;
+                ssize_t copy_range_first_index() const;
 
                 value_type get_value() const
                 {
-                    return IntegerRangeData{m_index,
-                                            m_index + m_bounds.last_dim_size(),
-                                            static_cast<std::ptrdiff_t>(m_source_strides.back())};
+                    return Range{m_index,
+                                 m_index + m_bounds.last_dim_size(),
+                                 static_cast<ssize_t>(m_source_strides.back())};
                 }
 
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
-
                 Coordinate coodinate() const { return m_coordinate; }
-
             private:
                 const Shape m_source_shape;
                 const CoordinateBounds m_bounds;
                 const Strides m_source_strides;
-                const std::vector<std::ptrdiff_t> m_memory_strides;
+                const std::vector<ssize_t> m_memory_strides;
                 Coordinate m_coordinate;
-                std::ptrdiff_t m_index{0};
+                ssize_t m_index{0};
             };
 
             inline SliceRange slice(const Shape& source_shape,
@@ -172,7 +168,7 @@ namespace ngraph
             class ReverseRange : public RangeBase<ReverseRange>
             {
             public:
-                using value_type = IntegerRangeData;
+                using value_type = Range;
                 ReverseRange(const Shape& source_shape, const AxisSet& reversed_axis);
 
                 value_type get_value() const;
@@ -180,15 +176,14 @@ namespace ngraph
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
-
             private:
-                std::ptrdiff_t last_dim_size() const noexcept;
+                ssize_t last_dim_size() const noexcept;
 
                 const Shape m_source_shape;
-                const std::vector<std::ptrdiff_t> m_memory_strides;
+                const std::vector<ssize_t> m_memory_strides;
                 const std::vector<signed char> m_axis_directions;
                 Coordinate m_coordinate;
-                ptrdiff_t m_index{0};
+                ssize_t m_index{0};
             };
 
             inline ReverseRange reverse(const Shape& source_shape, const AxisSet& reversed_axis)

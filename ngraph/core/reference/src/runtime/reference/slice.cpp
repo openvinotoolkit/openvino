@@ -49,8 +49,8 @@ namespace ngraph
                 for (auto range :
                      coordinates::slice(arg_shape, lower_bounds, upper_bounds, strides))
                 {
-                    for (auto src_index = range.m_begin; src_index < range.m_end;
-                         src_index += range.m_step)
+                    for (auto src_index = range.begin; src_index < range.end;
+                         src_index += range.step)
                     {
                         const auto src_mem = arg + src_index * elem_size;
                         std::memcpy(dst_mem, src_mem, elem_size);
