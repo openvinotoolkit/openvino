@@ -631,6 +631,7 @@ extensions/ops/ExtractImagePatches.py
 extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
+extensions/ops/gatherelements.py
 extensions/ops/gathernd.py
 extensions/ops/GatherTree.py
 extensions/ops/gelu.py

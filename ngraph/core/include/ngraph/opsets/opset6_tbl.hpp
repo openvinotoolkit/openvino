@@ -77,6 +77,10 @@ NGRAPH_OP(Maximum, ngraph::op::v1)
 NGRAPH_OP(Minimum, ngraph::op::v1)
 NGRAPH_OP(Mod, ngraph::op::v1)
 NGRAPH_OP(Multiply, ngraph::op::v1)
+<<<<<<< HEAD
+=======
+NGRAPH_OP(MVN, ngraph::op::v0)
+>>>>>>> de2edcf1c (Initial support of GatherElements in MO and nGraph)
 NGRAPH_OP(Negative, ngraph::op::v0)
 NGRAPH_OP(NormalizeL2, ngraph::op::v0)
 NGRAPH_OP(NotEqual, ngraph::op::v1)
@@ -174,3 +178,5 @@ NGRAPH_OP(Round, ngraph::op::v5)
 
 // New operations added in opset6
 NGRAPH_OP(MVN, ngraph::op::v6)
+NGRAPH_OP(GatherElements, ngraph::op::v6)
+
