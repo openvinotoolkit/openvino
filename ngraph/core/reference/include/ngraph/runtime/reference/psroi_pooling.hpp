@@ -55,17 +55,17 @@ namespace ngraph
                 }
                 else
                 {
-                    NGRAPH_CHECK(false, "Invalid PS ROI pooling mode");
+                    NGRAPH_CHECK(false, "Invalid PS ROI pooling mode: " + mode_str);
                 }
-                int channels_in = input_shape[1];
-                int height = input_shape[2];
-                int width = input_shape[3];
-                int num_rois = output_shape[0];
-                int channels_out = output_shape[1];
-                int pooling_height = output_shape[2];
-                int pooling_width = output_shape[3];
+                size_t channels_in = input_shape[1];
+                size_t height = input_shape[2];
+                size_t width = input_shape[3];
+                size_t num_rois = output_shape[0];
+                size_t channels_out = output_shape[1];
+                size_t pooling_height = output_shape[2];
+                size_t pooling_width = output_shape[3];
                 int num_spatial_bins = spatial_bins_x * spatial_bins_y;
-                for (int roi = 0; roi < num_rois; roi++)
+                for (size_t roi = 0; roi < num_rois; roi++)
                 {
                     const T* box = rois + roi * 5;
                     int batch_id = box[0];
@@ -95,33 +95,34 @@ namespace ngraph
                         if (pooling_height > 1)
                             height_scale = bin_height * (height - 1) / (pooling_height - 1);
                     }
-                    int c_in = 0;
-                    for (int c_out = 0; c_out < channels_out; c_out++)
+                    size_t c_in = 0;
+                    for (size_t c_out = 0; c_out < channels_out; c_out++)
                     {
-                        for (int ph = 0; ph < pooling_height; ph++)
+                        for (size_t ph = 0; ph < pooling_height; ph++)
                         {
-                            for (int pw = 0; pw < pooling_width; pw++)
+                            for (size_t pw = 0; pw < pooling_width; pw++)
                             {
-                                int index = ((roi * channels_out + c_out) * pooling_height + ph) *
-                                                pooling_width +
-                                            pw;
+                                size_t index =
+                                    ((roi * channels_out + c_out) * pooling_height + ph) *
+                                        pooling_width +
+                                    pw;
                                 output[index] = 0;
                                 if (mode == AVG)
                                 {
-                                    int bin_start_w =
-                                        std::min(static_cast<int>(start_w + floorf(pw * bin_width)),
-                                                 width - 1);
-                                    int bin_start_h = std::min(
-                                        static_cast<int>(start_h + floorf(ph * bin_height)),
+                                    size_t bin_start_w = std::min(
+                                        static_cast<size_t>(start_w + floorf(pw * bin_width)),
+                                        width - 1);
+                                    size_t bin_start_h = std::min(
+                                        static_cast<size_t>(start_h + floorf(ph * bin_height)),
                                         height - 1);
-                                    int current_bin_width =
-                                        std::min(
-                                            static_cast<int>(start_w + ceilf((pw + 1) * bin_width)),
-                                            width) -
+                                    size_t current_bin_width =
+                                        std::min(static_cast<size_t>(start_w +
+                                                                     ceilf((pw + 1) * bin_width)),
+                                                 width) -
                                         bin_start_w;
-                                    int current_bin_height =
-                                        std::min(static_cast<int>(start_h +
-                                                                  ceilf((ph + 1) * bin_height)),
+                                    size_t current_bin_height =
+                                        std::min(static_cast<size_t>(start_h +
+                                                                     ceilf((ph + 1) * bin_height)),
                                                  height) -
                                         bin_start_h;
                                     T sum = 0;
@@ -130,9 +131,9 @@ namespace ngraph
                                         ((batch_id * channels_in + c_in) * height + bin_start_h) *
                                             width +
                                         bin_start_w;
-                                    for (int h = 0; h < current_bin_height; h++)
+                                    for (size_t h = 0; h < current_bin_height; h++)
                                     {
-                                        for (int w = 0; w < current_bin_width; w++)
+                                        for (size_t w = 0; w < current_bin_width; w++)
                                         {
                                             sum += input_offset[h * width + w];
                                         }
@@ -143,9 +144,9 @@ namespace ngraph
                                 else if (mode == BILINEAR)
                                 {
                                     c_in = 0;
-                                    for (int sby = 0; sby < spatial_bins_y; sby++)
+                                    for (size_t sby = 0; sby < spatial_bins_y; sby++)
                                     {
-                                        for (int sbx = 0; sbx < spatial_bins_x; sbx++)
+                                        for (size_t sbx = 0; sbx < spatial_bins_x; sbx++)
                                         {
                                             float bin_start_w = start_w + sbx * bin_width;
                                             float bin_start_h = start_h + sby * bin_height;
@@ -167,12 +168,13 @@ namespace ngraph
                                                           (height - 1) / 2;
                                             if (point_x < width && point_y < height)
                                             {
-                                                int left = floorf(point_x);
-                                                int right = std::min(
-                                                    static_cast<int>(ceilf(point_x)), width - 1);
-                                                int top = floorf(point_y);
-                                                int bottom = std::min(
-                                                    static_cast<int>(ceilf(point_y)), height - 1);
+                                                size_t left = floorf(point_x);
+                                                size_t right = std::min(
+                                                    static_cast<size_t>(ceilf(point_x)), width - 1);
+                                                size_t top = floorf(point_y);
+                                                size_t bottom =
+                                                    std::min(static_cast<size_t>(ceilf(point_y)),
+                                                             height - 1);
                                                 T top_left = input_offset[top * width + left];
                                                 T top_right = input_offset[top * width + right];
                                                 T bottom_left = input_offset[bottom * width + left];
