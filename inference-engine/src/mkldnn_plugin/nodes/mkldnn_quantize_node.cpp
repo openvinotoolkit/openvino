@@ -217,7 +217,7 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
 
         this->preamble();
 
-        if (jqp_.src_format == memory::format_tag::tnc || jqp_.src_format == memory::format_tag::nchw || jqp_.src_format == memory::format_tag::ncdhw)
+        if (jqp_.src_layout == Layout::CHW || jqp_.src_layout == Layout::NCHW || jqp_.src_layout == Layout::NCDHW)
             compute_planar();
         else
             compute_generic();
@@ -1201,15 +1201,7 @@ void MKLDNNQuantizeNode::createPrimitive() {
     jqp.wei_prc = Precision::FP32;
     jqp.dst_prc = config.outConfs[0].desc.getPrecision();
 
-    jqp.src_format = mkldnn::memory::format_tag::undef;
-    MKLDNNMemoryDesc inDesc(config.inConfs[0].desc);
-    for (const auto fmt : getDataFormats()) {
-        if (inDesc.isSame(fmt)) {
-            jqp.src_format = fmt;
-            break;
-        }
-    }
-    IE_ASSERT(jqp.src_format != mkldnn::memory::format_tag::undef);
+    jqp.src_layout = config.inConfs[0].desc.getLayout();
 
     jqp.op_type = quantizeOpType;
 
@@ -1442,22 +1434,21 @@ void MKLDNNQuantizeNode::executeQuantization() {
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
     auto srcDims = config.inConfs[0].desc.getDims();
 
-    bool is_blk_format = jqp.src_format != memory::format_tag::nhwc && jqp.src_format != memory::format_tag::ndhwc;
-    int blk_size = (jqp.src_format == memory::format_tag::tnc ||
-                    jqp.src_format == memory::format_tag::nchw ||
-                    jqp.src_format == memory::format_tag::ncdhw) ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    bool is_blk_format = jqp.src_layout != Layout::NHWC && jqp.src_layout != Layout::NDHWC;
+    int blk_size = (jqp.src_layout == Layout::CHW ||
+                    jqp.src_layout == Layout::NCHW ||
+                    jqp.src_layout == Layout::NCDHW) ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
 
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();
 
     std::vector<size_t> s_str = config.inConfs[0].desc.getBlockingDesc().getStrides();
 
-    if (jqp.src_format == memory::format_tag::nChw8c || jqp.src_format == memory::format_tag::nChw16c ||
-        jqp.src_format == memory::format_tag::nCdhw8c || jqp.src_format == memory::format_tag::nCdhw16c) {
-            s_str[1] /= blk_size;
+    if (jqp.src_layout == BLOCKED) {
+        s_str[1] /= blk_size;
     }
 
-    if (jqp.src_format == memory::format_tag::nhwc || jqp.src_format == memory::format_tag::ndhwc) {
+    if (jqp.src_layout == Layout::NHWC || jqp.src_layout == Layout::NDHWC) {
         size_t tmp = s_str[s_str.size() - 1];
         for (int i = s_str.size() - 1; i > 1; i--) {
             s_str[i] = s_str[i - 1];
@@ -1472,7 +1463,7 @@ void MKLDNNQuantizeNode::executeQuantization() {
     const int H = srcDims.size() == 3 ? srcDims[2] : srcDims.size() > 3 ? srcDims[srcDims.size() - 2] : 1;
     const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
 
-    if (jqp.src_format == memory::format_tag::tnc) {
+    if (jqp.src_layout == Layout::CHW) {
         parallel_nd(N, CB, D, [&](int n, int cb, int d) {
             auto arg = jit_quantize_call_args();
 
@@ -1519,7 +1510,7 @@ void MKLDNNQuantizeNode::executeQuantization() {
 
             arg.src_step = is_blk_format ? (size_t) blk_size * src_type_size : (size_t) C * src_type_size;
             arg.dst_step = is_blk_format ? (size_t) blk_size * dst_type_size : (size_t) C * dst_type_size;
-            arg.block_size = (is_blk_format && jqp.src_format != memory::format_tag::nc) ? (size_t) blk_size : nstl::min(blk_size, C - c);
+            arg.block_size = (is_blk_format && jqp.src_layout != Layout::NC) ? (size_t) blk_size : nstl::min(blk_size, C - c);
             arg.work_amount = (size_t) W;
 
             (*quantize_kernel)(&arg);
