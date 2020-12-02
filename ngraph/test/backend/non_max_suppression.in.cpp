@@ -59,9 +59,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
@@ -122,9 +123,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
@@ -186,9 +188,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
@@ -249,9 +252,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
@@ -310,9 +314,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
@@ -373,9 +378,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
@@ -436,9 +442,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
@@ -501,9 +508,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});
@@ -566,9 +574,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
 
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, scores_shape);
-    auto max_output_boxes_per_class =
-        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
-    auto iou_threshold = op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
+    auto max_output_boxes_per_class = op::Constant::create<int64_t>(
+        element::Type_t::i64, Shape{}, {max_output_boxes_per_class_data});
+    auto iou_threshold =
+        op::Constant::create<float>(element::Type_t::f32, Shape{}, {iou_threshold_data});
     auto score_threshold =
         op::Constant::create<float>(element::Type_t::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::Type_t::f32, Shape{}, {0.0f});

@@ -43,8 +43,8 @@ namespace ngraph
 
                         if (zero_point.get_element_type() != element::Type_t::f32)
                         {
-                            zero_point =
-                                std::make_shared<default_opset::Convert>(zero_point, element::Type_t::f32);
+                            zero_point = std::make_shared<default_opset::Convert>(
+                                zero_point, element::Type_t::f32);
                         }
 
                         return zero_point;
@@ -70,8 +70,9 @@ namespace ngraph
                     const auto scale = inputs[1];
                     const auto zero_point = get_zero_point(inputs);
 
-                    common::validate_scalar_input(
-                        "Dequantization scale", scale.get_node_shared_ptr(), {element::Type_t::f32});
+                    common::validate_scalar_input("Dequantization scale",
+                                                  scale.get_node_shared_ptr(),
+                                                  {element::Type_t::f32});
                     common::validate_scalar_input("Zero point", zero_point.get_node_shared_ptr());
 
                     const auto converted_x =

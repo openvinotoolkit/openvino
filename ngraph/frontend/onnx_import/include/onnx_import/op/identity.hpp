@@ -35,8 +35,8 @@ namespace ngraph
                     auto input = node.get_ng_inputs().at(0);
                     if (input.get_element_type() == ngraph::element::Type_t::boolean)
                     {
-                        const auto logic_zero =
-                            default_opset::Constant::create(ngraph::element::Type_t::boolean, {}, {false});
+                        const auto logic_zero = default_opset::Constant::create(
+                            ngraph::element::Type_t::boolean, {}, {false});
                         return {std::make_shared<default_opset::LogicalOr>(input, logic_zero)};
                     }
                     const auto zero =

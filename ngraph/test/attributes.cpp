@@ -1013,7 +1013,8 @@ TEST(attributes, group_conv_backprop_data_op)
     FactoryRegistry<Node>::get().register_factory<opset1::GroupConvolutionBackpropData>();
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 20, 224, 224});
     const auto filter = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, 5, 2, 3, 3});
-    const auto output_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 8, 447, 447});
+    const auto output_shape =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 8, 447, 447});
 
     const auto strides = Strides{2, 1};
     const auto pads_begin = CoordinateDiff{3, 4};
@@ -1110,16 +1111,18 @@ TEST(attributes, lstm_sequence_op)
 
     const auto X =
         make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, seq_length, input_size});
-    const auto initial_hidden_state =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto initial_cell_state =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::Type_t::i32, Shape{batch_size});
+    const auto initial_hidden_state = make_shared<op::Parameter>(
+        element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto initial_cell_state = make_shared<op::Parameter>(
+        element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths =
+        make_shared<op::Parameter>(element::Type_t::i32, Shape{batch_size});
     const auto W = make_shared<op::Parameter>(element::Type_t::f32,
                                               Shape{num_directions, 4 * hidden_size, input_size});
     const auto R = make_shared<op::Parameter>(element::Type_t::f32,
                                               Shape{num_directions, 4 * hidden_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{num_directions, 4 * hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{num_directions, 4 * hidden_size});
 
     const auto lstm_direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
     const std::vector<float> activations_alpha = {1, 2, 3};
@@ -1598,8 +1601,10 @@ TEST(attributes, prior_box_clustered_op)
 TEST(attributes, proposal_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset1::Proposal>();
-    const auto class_probs = make_shared<op::Parameter>(element::Type_t::i64, Shape{1024, 3, 128, 128});
-    const auto class_logits = make_shared<op::Parameter>(element::Type_t::i64, Shape{1024, 3, 128, 128});
+    const auto class_probs =
+        make_shared<op::Parameter>(element::Type_t::i64, Shape{1024, 3, 128, 128});
+    const auto class_logits =
+        make_shared<op::Parameter>(element::Type_t::i64, Shape{1024, 3, 128, 128});
     const auto image_shape = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
 
     op::ProposalAttrs attrs;

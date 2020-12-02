@@ -57,9 +57,10 @@ const AxisSet op::util::LogicalReduction::get_reduction_axes() const
 
 void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axes)
 {
-    this->input(1).replace_source_output(
-        op::Constant::create(element::Type_t::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
-            ->output(0));
+    this->input(1).replace_source_output(op::Constant::create(element::Type_t::i64,
+                                                              Shape{reduction_axes.size()},
+                                                              reduction_axes.to_vector())
+                                             ->output(0));
 }
 
 void op::util::LogicalReduction::validate_and_infer_types()

@@ -130,8 +130,8 @@ TEST(type_prop, split_v1_axis_const_only_data_axis_dim_known)
 
 TEST(type_prop, split_v1_axis_const_data_axis_dim_unknown)
 {
-    const auto data =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{4, Dimension::dynamic(), 3, 5});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32,
+                                                 PartialShape{4, Dimension::dynamic(), 3, 5});
     const auto axis = op::Constant::create(element::Type_t::i8, {}, {1});
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);

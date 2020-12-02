@@ -58,7 +58,8 @@ TEST(type_prop, ebos_dynamic_offsets)
 {
     auto emb_table = make_shared<op::Parameter>(element::Type_t::f32, Shape{5, 2});
     auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()});
+    auto offsets =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()});
     auto per_sample_weights = make_shared<op::Parameter>(element::Type_t::f32, Shape{4});
     auto default_index = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
 
@@ -74,7 +75,8 @@ TEST(type_prop, ebos_dynamic_emb_table_offsets)
     auto emb_table =
         make_shared<op::Parameter>(element::Type_t::f32, PartialShape{5, Dimension::dynamic()});
     auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
-    auto offsets = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()});
+    auto offsets =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()});
     auto per_sample_weights = make_shared<op::Parameter>(element::Type_t::f32, Shape{4});
     auto default_index = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
 

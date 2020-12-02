@@ -44,8 +44,10 @@ void check_strided_slice_success(const element::Type& input_element_type,
                                  const std::vector<T>& expected_values)
 {
     auto arg = std::make_shared<op::Parameter>(input_element_type, input_shape);
-    auto begin_op = make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{begin_values.size()});
-    auto end_op = make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{end_values.size()});
+    auto begin_op =
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{begin_values.size()});
+    auto end_op =
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{end_values.size()});
     auto strides_op =
         make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{strides_values.size()});
 
@@ -71,7 +73,8 @@ void check_strided_slice_success(const element::Type& input_element_type,
     auto arg_tensor = backend->create_tensor(input_element_type, input_shape);
     auto begin_tensor = backend->create_tensor(element::Type_t::i64, Shape{begin_values.size()});
     auto end_tensor = backend->create_tensor(element::Type_t::i64, Shape{end_values.size()});
-    auto strides_tensor = backend->create_tensor(element::Type_t::i64, Shape{strides_values.size()});
+    auto strides_tensor =
+        backend->create_tensor(element::Type_t::i64, Shape{strides_values.size()});
     copy_data(arg_tensor, input_values);
     copy_data(begin_tensor, begin_values);
     copy_data(end_tensor, end_values);
@@ -103,8 +106,10 @@ void check_strided_slice_stride_optional_success(const element::Type& input_elem
                                                  const std::vector<T>& expected_values)
 {
     auto arg = std::make_shared<op::Parameter>(input_element_type, input_shape);
-    auto begin_op = make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{begin_values.size()});
-    auto end_op = make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{end_values.size()});
+    auto begin_op =
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{begin_values.size()});
+    auto end_op =
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{end_values.size()});
 
     std::vector<T> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), static_cast<T>(0));

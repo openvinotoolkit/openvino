@@ -54,10 +54,14 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_mapping)
 TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_constants)
 {
     auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{16});
-    auto target_shape_constant_1 = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {1});
-    auto target_shape_constant_2 = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {16});
-    auto target_shape_constant_3 = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
-    auto target_shape_constant_4 = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
+    auto target_shape_constant_1 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {1});
+    auto target_shape_constant_2 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {16});
+    auto target_shape_constant_3 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
+    auto target_shape_constant_4 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
     std::int64_t axis = 0;
     std::vector<std::shared_ptr<Node>> args{target_shape_constant_1,
                                             target_shape_constant_2,
@@ -76,9 +80,12 @@ TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_node)
 {
     auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{16});
     auto target_shape_constant_1 = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
-    auto target_shape_constant_2 = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {16});
-    auto target_shape_constant_3 = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
-    auto target_shape_constant_4 = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
+    auto target_shape_constant_2 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {16});
+    auto target_shape_constant_3 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
+    auto target_shape_constant_4 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
     std::int64_t axis = 0;
     std::vector<std::shared_ptr<Node>> args{target_shape_constant_1,
                                             target_shape_constant_2,
@@ -268,8 +275,10 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_et_wrong)
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_all_inputs_dynamic)
 {
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
-    const auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
@@ -284,8 +293,10 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_all_inputs_dynamic)
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_target_shape_static_rank)
 {
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
-    const auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
@@ -302,7 +313,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape)
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     const auto target_shape =
         op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
-    const auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
 
@@ -323,8 +335,10 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape)
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_input_rank_static)
 {
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
-    const auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
-    const auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
@@ -340,7 +354,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_target_shape_and_input_data_rank
 {
     // static rank data
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
-    const auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
     auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
@@ -405,9 +420,11 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape)
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape_const_target_shape)
 {
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{4});
-    auto target_shape = op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{1, 4, 2, 3});
+    auto target_shape =
+        op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{1, 4, 2, 3});
     // dynamic axes mapping
-    const auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
@@ -428,7 +445,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_target_shape)
     // dynamic input
     auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     const auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{4});
-    const auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
@@ -482,7 +500,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_target_shape_dynamic)
 {
     // static rank data
     auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
-    const auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
@@ -496,7 +515,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_target_shape_dynamic)
 TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_target_shape_static_rank)
 {
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
-    const auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
 
     const auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
@@ -529,7 +549,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_partially_dynamic)
         {expected_target_shape.size()},
         std::vector<int64_t>(expected_target_shape.begin(), expected_target_shape.end()));
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 3, Dimension::dynamic()});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 3, Dimension::dynamic()});
     auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
@@ -562,8 +583,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
 {
     const auto target_shape = op::Constant::create(element::Type_t::i64, Shape{4}, {1, 2, 3, 4});
 
-    auto data =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic(), 999, 3, 4});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32,
+                                           PartialShape{Dimension::dynamic(), 999, 3, 4});
     try
     {
         auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
@@ -983,7 +1004,8 @@ TEST(type_prop, broadcast_v3_bidirectional_partially_dynamic_input)
     const auto target_shape =
         op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{1, 1, 50, 50});
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{16, 1, Dimension::dynamic()});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{16, 1, Dimension::dynamic()});
     auto bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);

@@ -461,7 +461,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_chw_4d)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+    const auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -568,7 +569,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_123axes_5d)
 {
     Shape data_shape{1, 2, 2, 2, 3};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+    const auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -649,7 +651,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_chw_4d_max_bias)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+    const auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
     float eps{5000};
     auto eps_mode = op::EpsMode::MAX;
 
@@ -1636,13 +1639,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_zero_bias_peepholes)
     const size_t gates_count = 4;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::Type_t::f32, Shape{3 * hidden_size});
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(
@@ -1711,13 +1717,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
     const size_t gates_count = 4;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::Type_t::f32, Shape{3 * hidden_size});
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
@@ -1800,13 +1809,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
     bool input_forget = true;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::Type_t::f32, Shape{3 * hidden_size});
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
@@ -1901,13 +1913,16 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
     vector<float> activation_beta{0.f, 0.f, 3.05f};
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
     const auto P = make_shared<op::Parameter>(element::Type_t::f32, Shape{3 * hidden_size});
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
@@ -2171,9 +2186,11 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_no_bias)
     const size_t hidden_size = 3;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
     const auto W = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
+    const auto R =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
     auto function = make_shared<Function>(rnn_cell, ParameterVector{X, H_t, W, R});
@@ -2221,9 +2238,11 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_bias_clip)
     float clip = 2.88f;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
     const auto W = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
+    const auto R =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X,
@@ -2283,9 +2302,11 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_activation_function)
     float clip = 2.88f;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
     const auto W = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
+    const auto R =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X,
@@ -2347,12 +2368,14 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_bias_clip)
     bool linear_before_reset = false;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                        H_t,
@@ -2420,12 +2443,14 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_linear_before_reset)
     bool linear_before_reset = true;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{(gates_count + 1) * hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{(gates_count + 1) * hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                        H_t,
@@ -2492,12 +2517,14 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_activation_function)
     bool linear_before_reset = true;
 
     const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{(gates_count + 1) * hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{(gates_count + 1) * hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                        H_t,

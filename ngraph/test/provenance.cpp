@@ -381,7 +381,8 @@ TEST(provenance, builder)
 {
     auto p1 = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
-    auto norm = builder::opset1::lp_norm(p1, op::Constant::create(element::Type_t::i64, {}, {0}), 1, 0);
+    auto norm =
+        builder::opset1::lp_norm(p1, op::Constant::create(element::Type_t::i64, {}, {0}), 1, 0);
     norm->add_provenance_tag("norm");
     for (auto node : topological_sort(NodeVector{norm}))
     {

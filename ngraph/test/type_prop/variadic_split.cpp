@@ -73,7 +73,8 @@ TEST(type_prop, variadic_split_splits_rank)
     try
     {
         const auto axis = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1, 2}, {2, 4});
+        const auto splits =
+            op::Constant::create<int64_t>(element::Type_t::i64, Shape{1, 2}, {2, 4});
         const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
         FAIL() << "Split node was created with incorrect data.";
     }
@@ -146,7 +147,8 @@ TEST(type_prop, variadic_split_splits_multiple_negatives)
     try
     {
         const auto axis = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-1, -1, 3});
+        const auto splits =
+            op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-1, -1, 3});
         const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
         FAIL() << "Split node was created with incorrect data.";
     }

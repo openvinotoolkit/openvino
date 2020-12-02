@@ -63,7 +63,8 @@ namespace ngraph
                 {
                     auto data = node.get_ng_inputs().at(0);
                     std::int64_t k{node.get_attribute_value<std::int64_t>("k")};
-                    auto k_node = default_opset::Constant::create(element::Type_t::i64, Shape{}, {k});
+                    auto k_node =
+                        default_opset::Constant::create(element::Type_t::i64, Shape{}, {k});
                     auto axis = get_axis(node);
 
                     std::shared_ptr<ngraph::Node> top_k = std::make_shared<default_opset::TopK>(

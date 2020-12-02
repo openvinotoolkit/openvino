@@ -60,8 +60,8 @@ namespace ngraph
 
                         auto shape = std::make_shared<default_opset::ShapeOf>(data);
                         auto splits = builder::opset1::split(shape, rank_size);
-                        auto num_groups_const =
-                            default_opset::Constant::create(element::Type_t::i64, Shape{1}, {num_groups});
+                        auto num_groups_const = default_opset::Constant::create(
+                            element::Type_t::i64, Shape{1}, {num_groups});
                         NodeVector new_shape{
                             splits[0].get_node_shared_ptr(),
                             num_groups_const,

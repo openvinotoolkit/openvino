@@ -94,8 +94,8 @@ TEST(type_prop, extractimagepatches_dynamic_shape)
 
 TEST(type_prop, extractimagepatches_dynamic_batch_shape)
 {
-    auto data =
-        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic(), 3, 10, 10});
+    auto data = make_shared<op::Parameter>(element::Type_t::i32,
+                                           PartialShape{Dimension::dynamic(), 3, 10, 10});
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};

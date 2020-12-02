@@ -51,7 +51,8 @@ TEST(type_prop, ebps_dynamic_emb_table)
 TEST(type_prop, ebps_dynamic_indices)
 {
     auto emb_table = make_shared<op::Parameter>(element::Type_t::f32, Shape{5, 2});
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic(), 4});
+    auto indices =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic(), 4});
     auto per_sample_weights =
         make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic(), 4});
 
@@ -65,7 +66,8 @@ TEST(type_prop, ebps_dynamic_emb_table_indices)
 {
     auto emb_table =
         make_shared<op::Parameter>(element::Type_t::f32, PartialShape{5, Dimension::dynamic()});
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic(), 4});
+    auto indices =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic(), 4});
     auto per_sample_weights =
         make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic(), 4});
 

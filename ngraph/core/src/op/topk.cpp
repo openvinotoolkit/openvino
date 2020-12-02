@@ -320,7 +320,8 @@ size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
                                                const element::Type& k_element_type) const
 {
     NODE_VALIDATION_CHECK(this,
-                          k_element_type == element::Type_t::i8 || k_element_type == element::Type_t::i32 ||
+                          k_element_type == element::Type_t::i8 ||
+                              k_element_type == element::Type_t::i32 ||
                               k_element_type == element::Type_t::i64,
                           "K input element type must be i8, i32 or i64 (got ",
                           k_element_type,

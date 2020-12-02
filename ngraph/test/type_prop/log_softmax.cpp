@@ -48,7 +48,8 @@ TEST(type_prop, log_softmax_incorrect_axis)
 
 TEST(type_prop, log_softmax_partial)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, 1);
     EXPECT_EQ(log_softmax_func->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(log_softmax_func->get_output_partial_shape(0).same_scheme(
@@ -63,7 +64,8 @@ TEST(type_prop, log_softmax_partial)
 
 TEST(type_prop, log_softmax_partial_static_rank)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, 1);
     EXPECT_EQ(log_softmax_func->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(log_softmax_func->get_output_partial_shape(0).same_scheme(

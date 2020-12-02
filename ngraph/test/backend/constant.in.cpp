@@ -91,7 +91,8 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_with_op)
 
 NGRAPH_TEST(${BACKEND_NAME}, constant_multi_use)
 {
-    auto A = make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<std::string>{"388"});
+    auto A =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<std::string>{"388"});
     auto f = make_shared<Function>(A, ParameterVector{});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -157,7 +158,8 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_float32)
 NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_int64)
 {
     Shape shape{2};
-    auto r = op::Constant::create(element::Type_t::i64, shape, {0x4000000000000001, 0x4000000000000002});
+    auto r =
+        op::Constant::create(element::Type_t::i64, shape, {0x4000000000000001, 0x4000000000000002});
     auto f = make_shared<Function>(r, ParameterVector{});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output

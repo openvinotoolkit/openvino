@@ -301,7 +301,8 @@ void op::v3::NonMaxSuppression::validate()
     const auto scores_ps = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::Type_t::i64 || m_output_type == element::Type_t::i32,
+                          m_output_type == element::Type_t::i64 ||
+                              m_output_type == element::Type_t::i32,
                           "Output type must be i32 or i64");
 
     if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
@@ -715,7 +716,8 @@ void op::v5::NonMaxSuppression::validate()
     const auto scores_ps = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::Type_t::i64 || m_output_type == element::Type_t::i32,
+                          m_output_type == element::Type_t::i64 ||
+                              m_output_type == element::Type_t::i32,
                           "Output type must be i32 or i64");
 
     if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())

@@ -61,11 +61,11 @@ static std::shared_ptr<pattern::op::Label> construct_variance_graph()
     auto N = op::Constant::create(element::Type_t::f32, Shape{3}, {2, 2, 2});
     auto input = std::make_shared<pattern::op::Label>(element::Type_t::f32, Shape{2, 3});
     auto input_sq = std::make_shared<op::Multiply>(input, input);
-    auto sum_input =
-        std::make_shared<op::v1::ReduceSum>(input, op::Constant::create(element::Type_t::i64, {1}, {0}));
+    auto sum_input = std::make_shared<op::v1::ReduceSum>(
+        input, op::Constant::create(element::Type_t::i64, {1}, {0}));
     auto square_sumed_input = std::make_shared<op::Multiply>(sum_input, sum_input);
-    auto sum_squared_input =
-        std::make_shared<op::v1::ReduceSum>(input_sq, op::Constant::create(element::Type_t::i64, {1}, {0}));
+    auto sum_squared_input = std::make_shared<op::v1::ReduceSum>(
+        input_sq, op::Constant::create(element::Type_t::i64, {1}, {0}));
     auto avg_input_sum_sq = std::make_shared<op::Divide>(square_sumed_input, N);
     auto xmu = std::make_shared<op::Subtract>(sum_squared_input, avg_input_sum_sq);
     auto variance = std::make_shared<op::Divide>(xmu, N);
@@ -80,8 +80,8 @@ static std::shared_ptr<pattern::op::Label> construct_mean_graph()
     // construct mean;
     auto input = std::make_shared<pattern::op::Label>(element::Type_t::f32, Shape{2, 3});
     auto N = op::Constant::create(element::Type_t::f32, Shape{3}, {2, 2, 2});
-    auto sum_input1 =
-        std::make_shared<op::v1::ReduceSum>(input, op::Constant::create(element::Type_t::i64, {1}, {0}));
+    auto sum_input1 = std::make_shared<op::v1::ReduceSum>(
+        input, op::Constant::create(element::Type_t::i64, {1}, {0}));
     auto mean = std::make_shared<op::Divide>(sum_input1, N);
     auto mean_label = std::make_shared<pattern::op::Label>(mean, nullptr, NodeVector{mean});
     return mean_label;
@@ -471,13 +471,13 @@ TEST(pattern, matcher)
         auto scalar_param_wrong_type = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
         ASSERT_FALSE(sm.match(label, scalar_param_wrong_type));
         // dynamic dimension
-        auto label_dynamic_dimension =
-            make_shared<pattern::op::Label>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
+        auto label_dynamic_dimension = make_shared<pattern::op::Label>(
+            element::Type_t::i32, PartialShape{Dimension::dynamic()});
         auto vector_param = make_shared<op::Parameter>(element::Type_t::i32, Shape{10});
         ASSERT_TRUE(sm.match(label_dynamic_dimension, vector_param));
         // dynamic type
-        auto label_dynamic_type =
-            make_shared<pattern::op::Label>(element::Type_t::dynamic, PartialShape{Dimension::dynamic()});
+        auto label_dynamic_type = make_shared<pattern::op::Label>(
+            element::Type_t::dynamic, PartialShape{Dimension::dynamic()});
         ASSERT_TRUE(sm.match(label_dynamic_type, vector_param));
     }
 }
@@ -489,8 +489,8 @@ TEST(pattern, mean)
 
     auto input = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 3});
     auto N = op::Constant::create(element::Type_t::f32, Shape{3}, {2, 2, 2});
-    auto sum_input1 =
-        std::make_shared<op::v1::ReduceSum>(input, op::Constant::create(element::Type_t::i64, {1}, {0}));
+    auto sum_input1 = std::make_shared<op::v1::ReduceSum>(
+        input, op::Constant::create(element::Type_t::i64, {1}, {0}));
     auto mean = std::make_shared<op::Divide>(sum_input1, N);
 
     auto mean_graph = construct_mean_graph();
@@ -505,11 +505,11 @@ TEST(pattern, variance)
     auto N = op::Constant::create(element::Type_t::f32, Shape{3}, {2, 2, 2});
     auto input = std::make_shared<pattern::op::Label>(element::Type_t::f32, Shape{2, 3});
     auto input_sq = std::make_shared<op::Multiply>(input, input);
-    auto sum_input =
-        std::make_shared<op::v1::ReduceSum>(input, op::Constant::create(element::Type_t::i64, {1}, {0}));
+    auto sum_input = std::make_shared<op::v1::ReduceSum>(
+        input, op::Constant::create(element::Type_t::i64, {1}, {0}));
     auto square_sumed_input = std::make_shared<op::Multiply>(sum_input, sum_input);
-    auto sum_squared_input =
-        std::make_shared<op::v1::ReduceSum>(input_sq, op::Constant::create(element::Type_t::i64, {1}, {0}));
+    auto sum_squared_input = std::make_shared<op::v1::ReduceSum>(
+        input_sq, op::Constant::create(element::Type_t::i64, {1}, {0}));
     auto avg_input_sum_sq = std::make_shared<op::Divide>(square_sumed_input, N);
     auto xmu = std::make_shared<op::Subtract>(sum_squared_input, avg_input_sum_sq);
     auto variance = std::make_shared<op::Divide>(xmu, N);
@@ -784,8 +784,10 @@ TEST(pattern, wrap_type)
     auto a = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 3, 64, 64});
     auto b = make_shared<op::Abs>(a);
     auto c = make_shared<op::Relu>(a);
-    auto mul1 = make_shared<op::v1::Multiply>(a, op::Constant::create(element::Type_t::f32, Shape{}, {1}));
-    auto mul2 = make_shared<op::v1::Multiply>(op::Constant::create(element::Type_t::f32, Shape{}, {1}), a);
+    auto mul1 =
+        make_shared<op::v1::Multiply>(a, op::Constant::create(element::Type_t::f32, Shape{}, {1}));
+    auto mul2 =
+        make_shared<op::v1::Multiply>(op::Constant::create(element::Type_t::f32, Shape{}, {1}), a);
 
     {
         auto m = pattern::wrap_type<op::Abs>();

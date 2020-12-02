@@ -124,11 +124,13 @@ namespace ngraph
                         ngraph::element::Type_t::f32, Shape({scales.size()}), scales);
 
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::Type_t::f32);
+                        std::make_shared<default_opset::ShapeOf>(data),
+                        ngraph::element::Type_t::f32);
                     auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
                     auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::Type_t::i64);
+                        std::make_shared<default_opset::Floor>(multiply),
+                        ngraph::element::Type_t::i64);
 
                     return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales_const, attrs)};
@@ -195,11 +197,13 @@ namespace ngraph
                     }
 
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::Type_t::f32);
+                        std::make_shared<default_opset::ShapeOf>(data),
+                        ngraph::element::Type_t::f32);
                     auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
                     auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::Type_t::i64);
+                        std::make_shared<default_opset::Floor>(multiply),
+                        ngraph::element::Type_t::i64);
 
                     return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales, attrs)};

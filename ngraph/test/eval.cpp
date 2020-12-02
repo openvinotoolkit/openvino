@@ -147,12 +147,12 @@ TEST(eval, max_eval_reduce_min)
             0),
         element::Type_t::i32);
     auto reduce = make_shared<op::v0::Convert>(
-        make_shared<op::v1::ReduceMin>(concat,
-                                       make_shared<op::v0::Constant>(element::Type_t::i32, Shape{1}, 0)),
+        make_shared<op::v1::ReduceMin>(
+            concat, make_shared<op::v0::Constant>(element::Type_t::i32, Shape{1}, 0)),
         element::Type_t::i64);
     auto squeezes = make_shared<op::v0::Squeeze>(
-        make_shared<op::v0::Unsqueeze>(reduce,
-                                       make_shared<op::v0::Constant>(element::Type_t::i32, Shape{1}, 0)),
+        make_shared<op::v0::Unsqueeze>(
+            reduce, make_shared<op::v0::Constant>(element::Type_t::i32, Shape{1}, 0)),
         make_shared<op::v0::Constant>(element::Type_t::i64, Shape{1}, 0));
     EXPECT_EQ(maximum_value(squeezes).second, 37);
 }
@@ -1291,15 +1291,23 @@ TEST(eval, eval_transpose)
 {
     auto x = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     vector<shared_ptr<op::Parameter>> axes;
-    axes.push_back(make_shared<op::Parameter>(element::Type_t::i8, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::Type_t::i16, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()}));
+    axes.push_back(
+        make_shared<op::Parameter>(element::Type_t::i8, PartialShape{Dimension::dynamic()}));
+    axes.push_back(
+        make_shared<op::Parameter>(element::Type_t::i16, PartialShape{Dimension::dynamic()}));
+    axes.push_back(
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()}));
+    axes.push_back(
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()}));
 
-    axes.push_back(make_shared<op::Parameter>(element::Type_t::u8, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::Type_t::u16, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::Type_t::u32, PartialShape{Dimension::dynamic()}));
-    axes.push_back(make_shared<op::Parameter>(element::Type_t::u64, PartialShape{Dimension::dynamic()}));
+    axes.push_back(
+        make_shared<op::Parameter>(element::Type_t::u8, PartialShape{Dimension::dynamic()}));
+    axes.push_back(
+        make_shared<op::Parameter>(element::Type_t::u16, PartialShape{Dimension::dynamic()}));
+    axes.push_back(
+        make_shared<op::Parameter>(element::Type_t::u32, PartialShape{Dimension::dynamic()}));
+    axes.push_back(
+        make_shared<op::Parameter>(element::Type_t::u64, PartialShape{Dimension::dynamic()}));
 
     std::vector<Shape> x_shapes{Shape{2, 3}, Shape{2, 3}, Shape{2, 2, 3}};
 

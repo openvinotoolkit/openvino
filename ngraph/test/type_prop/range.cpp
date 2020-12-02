@@ -237,7 +237,8 @@ TEST(type_prop, range_some_const_minus_inf_stop_fails)
 TEST(type_prop, range_some_const_nan_stio_fails)
 {
     auto start = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
-    auto stop = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{std::nanf("")});
+    auto stop =
+        make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{std::nanf("")});
     auto step = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{1});
 
     try
@@ -303,7 +304,8 @@ TEST(type_prop, range_some_const_nan_stride_fails)
 {
     auto start = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{3});
     auto stop = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
-    auto step = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{std::nanf("")});
+    auto step =
+        make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{std::nanf("")});
 
     try
     {

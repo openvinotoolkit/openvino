@@ -140,7 +140,8 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_all_dims)
 {
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{4}, vector<int64_t>{0, 1, 2, 3});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{4}, vector<int64_t>{0, 1, 2, 3});
     double alpha = 3;
     double beta = 0.5;
     double bias = 1;

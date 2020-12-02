@@ -171,7 +171,8 @@ TEST(type_prop, reverse_sequence_partial_both_rank_static_dynamic_batch_axis_oob
                                                         Dimension::dynamic(),
                                                         Dimension::dynamic(),
                                                         Dimension::dynamic()});
-    auto seq_lengths = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
+    auto seq_lengths =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
     size_t batch_axis = 4;
     size_t seq_axis = 1;
     try
@@ -196,7 +197,8 @@ TEST(type_prop, reverse_sequence_partial_both_rank_static_dynamic_sequence_axis_
                                                         Dimension::dynamic(),
                                                         Dimension::dynamic(),
                                                         Dimension::dynamic()});
-    auto seq_lengths = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
+    auto seq_lengths =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
     size_t batch_axis = 1;
     size_t seq_axis = 4;
     try
@@ -237,7 +239,8 @@ TEST(type_prop, reverse_sequence_partial_both_rank_static_dynamic_right_seq_leng
     auto data = make_shared<op::Parameter>(
         element::Type_t::f32,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, Dimension::dynamic()});
-    auto seq_lengths = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
+    auto seq_lengths =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
     size_t batch_axis = 2;
     size_t seq_axis = 1;
     auto rs = make_shared<op::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis);

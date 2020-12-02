@@ -25,8 +25,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertFP32ToFP16, "ConvertFP32ToFP16", 0);
 
 void pass::ConvertFP32ToFP16::convert_constants_precision()
 {
-    auto constant =
-        std::make_shared<ngraph::op::Constant>(element::Type_t::f32, Shape{1}, std::vector<float>{0});
+    auto constant = std::make_shared<ngraph::op::Constant>(
+        element::Type_t::f32, Shape{1}, std::vector<float>{0});
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto constant = std::dynamic_pointer_cast<ngraph::op::Constant>(m.get_match_root());

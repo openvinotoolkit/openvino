@@ -72,7 +72,8 @@ TEST(type_prop, interpolate_v4_partial)
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(partial_shape));
 
     // rank unknown
-    auto partial_param = std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto partial_param =
+        std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto interp_part =
         std::make_shared<op::v4::Interpolate>(partial_param, target_shape, scales, axes, attrs);
     ASSERT_TRUE(interp_part->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
@@ -136,7 +137,8 @@ TEST(type_prop, interpolate_v4_partial_static_rank3)
 
     auto image = std::make_shared<op::Parameter>(element::Type_t::f32, partial_shape);
     auto target_shape = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto scales = op::Constant::create<float>(element::Type_t::f32, Shape{2}, {1.0f / 3.0f, 1.0f / 3.0f});
+    auto scales =
+        op::Constant::create<float>(element::Type_t::f32, Shape{2}, {1.0f / 3.0f, 1.0f / 3.0f});
     auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;

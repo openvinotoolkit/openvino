@@ -107,9 +107,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_1_mask)
     Shape shape{4, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(A,
-                                     op::Constant::create(element::Type_t::boolean, {2}, {false, true}),
-                                     op::v1::Reverse::Mode::MASK),
+        make_shared<op::v1::Reverse>(
+            A,
+            op::Constant::create(element::Type_t::boolean, {2}, {false, true}),
+            op::v1::Reverse::Mode::MASK),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -133,8 +134,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_01)
     Shape shape{4, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {2}, {0, 1}), op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(A,
+                                     op::Constant::create(element::Type_t::i64, {2}, {0, 1}),
+                                     op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -157,11 +159,12 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_01_mask)
 {
     Shape shape{4, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(A,
-                                     op::Constant::create(element::Type_t::boolean, {2}, {true, true}),
-                                     op::v1::Reverse::Mode::MASK),
-        ParameterVector{A});
+    auto f =
+        make_shared<Function>(make_shared<op::v1::Reverse>(
+                                  A,
+                                  op::Constant::create(element::Type_t::boolean, {2}, {true, true}),
+                                  op::v1::Reverse::Mode::MASK),
+                              ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -271,8 +274,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_01)
     Shape shape{2, 4, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {2}, {0, 1}), op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(A,
+                                     op::Constant::create(element::Type_t::i64, {2}, {0, 1}),
+                                     op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -300,8 +304,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_02)
     Shape shape{2, 4, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {2}, {0, 2}), op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(A,
+                                     op::Constant::create(element::Type_t::i64, {2}, {0, 2}),
+                                     op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -329,8 +334,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_12)
     Shape shape{2, 4, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {2}, {1, 2}), op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(A,
+                                     op::Constant::create(element::Type_t::i64, {2}, {1, 2}),
+                                     op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -358,8 +364,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_012)
     Shape shape{2, 4, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {3}, {0, 1, 2}), op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(A,
+                                     op::Constant::create(element::Type_t::i64, {3}, {0, 1, 2}),
+                                     op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -385,7 +392,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_012)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_rank_index_mode)
 {
     const auto Data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 1}); // correct: 1D
+    const auto Rev_Axes =
+        make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 1}); // correct: 1D
 
     EXPECT_THROW(make_shared<Function>(
                      make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
@@ -396,7 +404,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_rank_index_mode)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_elems_mask_mode)
 {
     const auto Data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2}); // correct: 3
+    const auto Rev_Axes =
+        make_shared<op::Parameter>(element::Type_t::boolean, Shape{2}); // correct: 3
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::MASK),
                  ngraph::NodeValidationFailure);

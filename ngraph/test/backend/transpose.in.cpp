@@ -34,7 +34,8 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose)
     // i32 and cast it to i64, just for fun (and to mirror the TensorFlow test I am porting here).
     //
     auto x = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto perm = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
+    auto perm =
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
     auto perm_i64 = make_shared<op::Convert>(perm, element::Type_t::i64);
 
     auto x_transpose = make_shared<op::Transpose>(x, perm_i64);

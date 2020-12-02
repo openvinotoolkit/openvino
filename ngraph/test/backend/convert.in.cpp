@@ -33,7 +33,8 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_int32_float32)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Convert>(A, element::Type_t::f32), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::Convert>(A, element::Type_t::f32),
+                                   ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -51,7 +52,8 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_uint16_float32)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::u16, shape);
-    auto f = make_shared<Function>(make_shared<op::Convert>(A, element::Type_t::f32), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::Convert>(A, element::Type_t::f32),
+                                   ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -70,8 +72,8 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_int32_bool)
 {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto f =
-        make_shared<Function>(make_shared<op::Convert>(A, element::Type_t::boolean), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::Convert>(A, element::Type_t::boolean),
+                                   ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -92,8 +94,8 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_float32_bool)
 {
     Shape shape{3, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f =
-        make_shared<Function>(make_shared<op::Convert>(A, element::Type_t::boolean), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::Convert>(A, element::Type_t::boolean),
+                                   ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

@@ -135,7 +135,8 @@ TEST(type_prop, proposal_v0_shape_infer)
     attrs.post_nms_topn = 200;
     const size_t batch_size = 7;
 
-    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 12, 34, 62});
+    auto class_probs =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 12, 34, 62});
     auto class_bbox_deltas =
         make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 24, 34, 62});
     auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
@@ -256,7 +257,8 @@ TEST(type_prop, proposal_v4_shape_infer)
     attrs.post_nms_topn = 200;
     const size_t batch_size = 7;
 
-    auto class_probs = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 12, 34, 62});
+    auto class_probs =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 12, 34, 62});
     auto class_bbox_deltas =
         make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, 24, 34, 62});
     auto image_shape = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});

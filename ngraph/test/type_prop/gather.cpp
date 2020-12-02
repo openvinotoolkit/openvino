@@ -100,7 +100,8 @@ TEST(type_prop, gather_v1_negative_axis)
     auto params = make_shared<op::Parameter>(element::Type_t::f32, Shape{5, 6, 7});
     auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
     int64_t axis = -2;
-    auto axis_node = make_shared<op::Constant>(element::Type_t::i64, Shape{1}, vector<int64_t>{axis});
+    auto axis_node =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{1}, vector<int64_t>{axis});
     auto gather_v1 = make_shared<op::v1::Gather>(params, indices, axis_node);
     ASSERT_EQ(gather_v1->get_axis(), 1);
 }

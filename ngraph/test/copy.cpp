@@ -88,9 +88,10 @@ TEST(copy, broadcast)
     Shape new_shape{4, 1, 3};
     AxisSet axes{1, 2};
     auto arg0 = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    OutputVector new_args{make_shared<op::Parameter>(element::Type_t::f32, shape),
-                          op::Constant::create(element::Type_t::u64, Shape{new_shape.size()}, new_shape),
-                          op::Constant::create(element::Type_t::i64, Shape{axes.size()}, axes.to_vector())};
+    OutputVector new_args{
+        make_shared<op::Parameter>(element::Type_t::f32, shape),
+        op::Constant::create(element::Type_t::u64, Shape{new_shape.size()}, new_shape),
+        op::Constant::create(element::Type_t::i64, Shape{axes.size()}, axes.to_vector())};
 
     auto node = make_shared<op::v1::Broadcast>(
         arg0,
@@ -271,8 +272,9 @@ TEST(copy, reduce_sum)
 
     auto axes_node = op::Constant::create(element::Type_t::i64, {axes.size()}, axes.to_vector());
     auto node = make_shared<op::v1::ReduceSum>(arg0, axes_node, true);
-    OutputVector new_args{make_shared<op::Parameter>(element::Type_t::f32, shape),
-                          op::Constant::create(element::Type_t::i64, {axes.size()}, axes.to_vector())};
+    OutputVector new_args{
+        make_shared<op::Parameter>(element::Type_t::f32, shape),
+        op::Constant::create(element::Type_t::i64, {axes.size()}, axes.to_vector())};
     auto new_node = node->clone_with_new_inputs(new_args);
     auto node_cast = as_type_ptr<op::v1::ReduceSum>(new_node);
     ASSERT_NE(node_cast, nullptr);
@@ -289,8 +291,9 @@ TEST(copy, reshape)
     Shape shape_out{6, 4};
 
     auto arg0 = make_shared<op::Parameter>(element::Type_t::f32, shape_in);
-    OutputVector new_args{make_shared<op::Parameter>(element::Type_t::f32, shape_in),
-                          op::Constant::create(element::Type_t::u64, {shape_out.size()}, shape_out)};
+    OutputVector new_args{
+        make_shared<op::Parameter>(element::Type_t::f32, shape_in),
+        op::Constant::create(element::Type_t::u64, {shape_out.size()}, shape_out)};
 
     auto shape_pattern = op::Constant::create(element::Type_t::u64, {shape_out.size()}, shape_out);
     auto node = make_shared<op::v1::Reshape>(arg0, shape_pattern, false);
@@ -408,13 +411,13 @@ TEST(copy, loop)
     auto Xi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto Yi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto M_body = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto body_condition =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
+    auto body_condition = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, 10);
-    auto exec_condition =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{}, 10);
+    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
     // Body
     auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
     auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);

@@ -51,14 +51,16 @@ namespace ngraph
 
                 if (m_keep_dims == 0)
                 {
-                    const auto axis_to_remove =
-                        default_opset::Constant::create(element::Type_t::u64, Shape{}, {topk->get_axis()});
+                    const auto axis_to_remove = default_opset::Constant::create(
+                        element::Type_t::u64, Shape{}, {topk->get_axis()});
                     const auto reshaped_indices =
                         std::make_shared<default_opset::Squeeze>(topk->output(1), axis_to_remove);
 
-                    return std::make_shared<default_opset::Convert>(reshaped_indices, element::Type_t::i64);
+                    return std::make_shared<default_opset::Convert>(reshaped_indices,
+                                                                    element::Type_t::i64);
                 }
-                return std::make_shared<default_opset::Convert>(topk->output(1), element::Type_t::i64);
+                return std::make_shared<default_opset::Convert>(topk->output(1),
+                                                                element::Type_t::i64);
             }
         }
     }

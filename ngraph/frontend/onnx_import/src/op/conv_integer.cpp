@@ -66,7 +66,8 @@ namespace ngraph
                     auto scale_one = make_constant(ngraph::element::Type_t::f32, Shape{}, 1);
                     auto input_zero_point = make_constant(input.get_element_type(), Shape{}, 0);
                     auto filters_zero_point = make_constant(filters.get_element_type(), Shape{}, 0);
-                    auto output_zero_point = make_constant(ngraph::element::Type_t::i32, Shape{}, 0);
+                    auto output_zero_point =
+                        make_constant(ngraph::element::Type_t::i32, Shape{}, 0);
 
                     if (num_inputs == 2)
                     {

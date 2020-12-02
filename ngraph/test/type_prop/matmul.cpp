@@ -123,9 +123,10 @@ TEST(type_prop, matmul_4D_transpose_b)
 TEST(type_prop, matmul_dynamic_5D_transpose_b)
 {
     Dimension dynamic = Dimension::dynamic();
-    auto A =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{dynamic, 4, dynamic, dynamic, 6});
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, dynamic, dynamic, 4, 6});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32,
+                                        PartialShape{dynamic, 4, dynamic, dynamic, 6});
+    auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, dynamic, dynamic, 4, 6});
 
     auto matmul = make_shared<op::MatMul>(A, B, 0, 1);
 
@@ -435,10 +436,10 @@ TEST(type_prop, matmul_incompatible_batch_dims)
 
 TEST(type_prop, matmul_matrix_dynamic_bounds)
 {
-    auto A =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension(2, 5), Dimension(6, 10)});
-    auto B =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension(7, 8), Dimension(15, 20)});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32,
+                                        PartialShape{Dimension(2, 5), Dimension(6, 10)});
+    auto B = make_shared<op::Parameter>(element::Type_t::f32,
+                                        PartialShape{Dimension(7, 8), Dimension(15, 20)});
 
     auto matmul = make_shared<op::MatMul>(A, B, false, false);
 
@@ -528,10 +529,10 @@ TEST(type_prop, matmul_batch_dynamic_bounds)
 
 TEST(type_prop, matmul_incompatible_matrix_dim_bounds)
 {
-    auto A =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension(2, 5), Dimension(3, 4)});
-    auto B =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension(1, 2), Dimension(15, 20)});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32,
+                                        PartialShape{Dimension(2, 5), Dimension(3, 4)});
+    auto B = make_shared<op::Parameter>(element::Type_t::f32,
+                                        PartialShape{Dimension(1, 2), Dimension(15, 20)});
 
     auto expected_output_shape = PartialShape{Dimension(2, 5), Dimension(15, 20)};
 

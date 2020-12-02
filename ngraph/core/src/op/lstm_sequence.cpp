@@ -131,8 +131,10 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
 
     // Create predicate nodes. The condition is whether current time step value
     // is greater than sequence length for respective batch inputs.
-    shared_ptr<Node> curr_time_step_node = opset1::Constant::create(
-        element::Type_t::i32, data.get_shape(), vector<int32_t>(shape_size(data.get_shape()), time_step));
+    shared_ptr<Node> curr_time_step_node =
+        opset1::Constant::create(element::Type_t::i32,
+                                 data.get_shape(),
+                                 vector<int32_t>(shape_size(data.get_shape()), time_step));
 
     Output<Node> batch_seq_length = builder::opset1::legacy_broadcast_for_binary_operation(
         curr_time_step_node, input_value(3).get_node_shared_ptr(), batch_axis);

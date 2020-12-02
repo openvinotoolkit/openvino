@@ -196,8 +196,8 @@ TEST(type_prop, concat_partial_some_rank_dynamic_others_rank_static_dynamic_rank
     auto param0 =
         make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
     auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto param2 =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 3, Dimension::dynamic(), 4});
+    auto param2 = make_shared<op::Parameter>(element::Type_t::f32,
+                                             PartialShape{2, 3, Dimension::dynamic(), 4});
     try
     {
         auto c = make_shared<op::Concat>(NodeVector{param0, param1, param2}, 1);

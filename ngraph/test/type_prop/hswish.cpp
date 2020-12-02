@@ -31,7 +31,8 @@ TEST(type_prop, hswish)
 
 TEST(type_prop, hswish_partial)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto hswish_func = make_shared<op::v4::HSwish>(data);
     EXPECT_EQ(hswish_func->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(
@@ -45,7 +46,8 @@ TEST(type_prop, hswish_partial)
 
 TEST(type_prop, hswish_partial_static_rank)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto hswish_func = make_shared<op::v4::HSwish>(data);
     EXPECT_EQ(hswish_func->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(

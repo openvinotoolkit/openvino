@@ -94,11 +94,12 @@ TEST(type_prop, ctc_loss_non_default_parameters)
 TEST(type_prop, ctc_loss_dynamic_input)
 {
     // create inputs
-    auto logits =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic(), 120, 28});
+    auto logits = make_shared<op::Parameter>(element::Type_t::f32,
+                                             PartialShape{Dimension::dynamic(), 120, 28});
     auto logit_length =
         make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
-    auto labels = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic(), 120});
+    auto labels =
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic(), 120});
     auto label_length =
         make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
     auto blank_index = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
@@ -116,10 +117,11 @@ TEST(type_prop, ctc_loss_dynamic_input)
 TEST(type_prop, ctc_loss_partly_dynamic_input)
 {
     // create inputs
-    auto logits =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic(), 120, 28});
+    auto logits = make_shared<op::Parameter>(element::Type_t::f32,
+                                             PartialShape{Dimension::dynamic(), 120, 28});
     auto logit_length = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{10});
-    auto labels = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic(), 120});
+    auto labels =
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic(), 120});
     auto label_length =
         make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
     auto blank_index = make_shared<op::Parameter>(element::Type_t::i32, Shape{});

@@ -43,7 +43,8 @@ NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear)
     attrs.mode = "linear";
     attrs.align_corners = false;
     const auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
-    const auto output_shape_input = op::v0::Constant::create(element::Type_t::i64, {4}, {1, 1, 1, 2});
+    const auto output_shape_input =
+        op::v0::Constant::create(element::Type_t::i64, {4}, {1, 1, 1, 2});
     std::vector<float> intput_data{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
 
     auto interpolate = make_shared<op::v0::Interpolate>(input, output_shape_input, attrs);

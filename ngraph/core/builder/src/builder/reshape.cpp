@@ -230,8 +230,10 @@ shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value,
     const auto rank = make_shared<ngraph::opset1::ShapeOf>(shape);
 
     // Split lengths used in VariadicSplit
-    const auto start_axis_node = ngraph::opset1::Constant::create(element::Type_t::i64, {1}, {start_axis});
-    const auto end_axis_node = ngraph::opset1::Constant::create(element::Type_t::i64, {1}, {end_axis + 1});
+    const auto start_axis_node =
+        ngraph::opset1::Constant::create(element::Type_t::i64, {1}, {start_axis});
+    const auto end_axis_node =
+        ngraph::opset1::Constant::create(element::Type_t::i64, {1}, {end_axis + 1});
     const auto collapsed_axis =
         make_shared<ngraph::opset1::Subtract>(end_axis_node, start_axis_node);
     const auto post_axis = make_shared<ngraph::opset1::Subtract>(rank, end_axis_node);

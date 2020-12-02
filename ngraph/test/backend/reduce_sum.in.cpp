@@ -443,7 +443,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_5d_to_scalar)
     Shape shape_a{3, 3, 3, 3, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -464,7 +465,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_5d_to_scalar_int32)
     Shape shape_a{3, 3, 3, 3, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -677,7 +679,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_dynamic)
 {
     // Create a graph for f(x,axes:int32) = Sum(x,Convert<int64>(axes)).
     auto x = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
+    auto axes =
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
     auto axes_i64 = make_shared<op::Convert>(axes, element::Type_t::i64);
 
     auto sum = make_shared<op::v1::ReduceSum>(x, axes_i64, false);
@@ -1166,7 +1169,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_5d_to_scalar)
     Shape shape_a{3, 3, 3, 3, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 1, 1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1187,7 +1191,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_5d_to_scalar_int32)
     Shape shape_a{3, 3, 3, 3, 3};
     auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{1, 1, 1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1400,7 +1405,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_dynamic)
 {
     // Create a graph for f(x,axes:int32) = Sum(x,Convert<int64>(axes)).
     auto x = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
+    auto axes =
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
     auto axes_i64 = make_shared<op::Convert>(axes, element::Type_t::i64);
 
     auto sum = make_shared<op::v1::ReduceSum>(x, axes_i64, true);

@@ -42,8 +42,8 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes)
     auto body_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
     auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
     // Body
@@ -147,8 +147,8 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes)
     auto body_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, false);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
     auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
     // Body
@@ -249,12 +249,12 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
     auto Xi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto Yi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto M_body = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto condition_const =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::f32, ngraph::Shape{1}, 10);
+    auto condition_const = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::f32, ngraph::Shape{1}, 10);
     auto body_condition = std::make_shared<ngraph::opset5::Greater>(M_body, condition_const);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
     auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
     // Body
@@ -348,12 +348,12 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
     auto Xi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto Yi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto M_body = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto condition_const =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::f32, ngraph::Shape{1}, 10);
+    auto condition_const = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::f32, ngraph::Shape{1}, 10);
     auto body_condition = std::make_shared<ngraph::opset5::Greater>(M_body, condition_const);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
     auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
     // Body
@@ -455,8 +455,8 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes)
     auto body_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, -1);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{1}, -1);
     auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
     // Body
@@ -561,8 +561,8 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     auto body_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{1}, 10);
     auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
         ngraph::element::Type_t::boolean, ngraph::Shape{1}, true);
     // Body
@@ -664,13 +664,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     auto Xi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto Yi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto M_body = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto body_condition =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
+    auto body_condition = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, 10);
-    auto exec_condition =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{}, 10);
+    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
     // Body
     auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
     auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
@@ -770,13 +770,13 @@ TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs)
     auto Xi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto Yi = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto M_body = make_shared<opset5::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto body_condition =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
+    auto body_condition = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, 10);
-    auto exec_condition =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
+    auto trip_count = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::i64, ngraph::Shape{}, 10);
+    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::Type_t::boolean, ngraph::Shape{}, true);
     // Body
     auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
     auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);

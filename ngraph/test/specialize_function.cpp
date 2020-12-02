@@ -235,8 +235,8 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_rank_mismatch)
 TEST(specialize_function, et_static_shape_rank_static_dynamic_dim_mismatch)
 {
     auto p0 = std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, 3});
-    auto p1 =
-        std::make_shared<op::Parameter>(element::Type_t::i32, PartialShape{1, Dimension::dynamic(), 3});
+    auto p1 = std::make_shared<op::Parameter>(element::Type_t::i32,
+                                              PartialShape{1, Dimension::dynamic(), 3});
 
     auto k = std::make_shared<op::Convert>(p1, element::Type_t::f32);
     auto a = p0 + k;

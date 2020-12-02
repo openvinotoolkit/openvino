@@ -230,7 +230,8 @@ namespace opset1_upgrade
         auto replacement_node = make_shared<op::v1::GroupConvolutionBackpropData>(
             node->input_value(2),
             reshaped_filters,
-            op::Constant::create(element::Type_t::i64, Shape{data_batch_shape.size()}, data_batch_shape),
+            op::Constant::create(
+                element::Type_t::i64, Shape{data_batch_shape.size()}, data_batch_shape),
             strides,
             pads_begin,
             pads_end,

@@ -49,7 +49,8 @@ TEST(type_prop, normalize_invalid_axes_rank)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{1, 2}, vector<int64_t>{1, 2});
+    const auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{1, 2}, vector<int64_t>{1, 2});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -74,7 +75,8 @@ TEST(type_prop, normalize_axes_out_of_bounds)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{3, 4});
+    const auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{3, 4});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 

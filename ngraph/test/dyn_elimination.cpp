@@ -90,9 +90,12 @@ TEST(dyn_elimination, transpose_dyn_shape)
 
 TEST(dyn_elimination, range)
 {
-    auto constant_start = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{0});
-    auto constant_stop = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{5});
-    auto constant_step = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{2});
+    auto constant_start =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{0});
+    auto constant_stop =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{5});
+    auto constant_step =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{2});
 
     auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
 
@@ -122,9 +125,12 @@ TEST(dyn_elimination, range)
 
 TEST(dyn_elimination, range_f64)
 {
-    auto constant_start = make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{-0.5});
-    auto constant_stop = make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{2});
-    auto constant_step = make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{0.25});
+    auto constant_start =
+        make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{-0.5});
+    auto constant_stop =
+        make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{2});
+    auto constant_step =
+        make_shared<op::Constant>(element::Type_t::f64, Shape{}, vector<double>{0.25});
 
     auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
 

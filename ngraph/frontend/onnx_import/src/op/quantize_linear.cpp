@@ -59,7 +59,8 @@ namespace ngraph
                         CHECK_VALID_NODE(
                             onnx_node,
                             y_zero_point_et.is_static() &&
-                                (y_zero_point_et == element::Type_t::u8 || y_zero_point_et == element::Type_t::i8),
+                                (y_zero_point_et == element::Type_t::u8 ||
+                                 y_zero_point_et == element::Type_t::i8),
                             "\"y_zero_point\" input data type must be static and of 8-bit "
                             "integer type.");
                     }
@@ -74,7 +75,8 @@ namespace ngraph
                                          "\"y_scale\" input data type must be static.");
                         if (y_scale_et != element::Type_t::f32)
                         {
-                            return std::make_shared<default_opset::Convert>(y_scale, element::Type_t::f32);
+                            return std::make_shared<default_opset::Convert>(y_scale,
+                                                                            element::Type_t::f32);
                         }
                         return y_scale;
                     }
@@ -89,7 +91,8 @@ namespace ngraph
 
                         if (data_et != element::Type_t::f32)
                         {
-                            return std::make_shared<default_opset::Convert>(data, element::Type_t::f32);
+                            return std::make_shared<default_opset::Convert>(data,
+                                                                            element::Type_t::f32);
                         }
                         return data;
                     }

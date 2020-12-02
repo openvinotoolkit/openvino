@@ -213,8 +213,8 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_arg2_et_dynamic)
 
 TEST(type_prop, select_partial_arg0_rank_dynamic_static_arg1_arg2_rank_dynamic_ok)
 {
-    auto param0 =
-        make_shared<op::Parameter>(element::Type_t::boolean, PartialShape{2, Dimension::dynamic(), 3});
+    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean,
+                                             PartialShape{2, Dimension::dynamic(), 3});
     auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
@@ -331,36 +331,64 @@ TEST_P(DeduceV1SelectTest, output_shape)
 INSTANTIATE_TEST_CASE_P(
     type_prop,
     DeduceV1SelectTest,
-    ::testing::Values(SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
-                                   {element::Type_t::boolean, element::Type_t::f32, element::Type_t::f32, element::Type_t::f32},
-                                   op::AutoBroadcastType::NONE),
-                      SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
-                                   {element::Type_t::boolean, element::Type_t::f32, element::Type_t::f32, element::Type_t::f32},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{}, {2, 4}, {2, 4}, {2, 4}},
-                                   {element::Type_t::boolean, element::Type_t::f32, element::Type_t::f32, element::Type_t::f32},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{}, {4}, {2, 4}, {2, 4}},
-                                   {element::Type_t::boolean, element::Type_t::f32, element::Type_t::dynamic, element::Type_t::f32},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{}, {2, 4}, {4}, {2, 4}},
-                                   {element::Type_t::boolean, element::Type_t::f32, element::Type_t::f32, element::Type_t::f32},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{4}, {2, 4}, {4}, {2, 4}},
-                                   {element::Type_t::boolean, element::Type_t::i8, element::Type_t::dynamic, element::Type_t::i8},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{4}, {4}, {2, 4}, {2, 4}},
-                                   {element::Type_t::dynamic, element::Type_t::dynamic, element::Type_t::i8, element::Type_t::i8},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{2}, {2}, {2, 4}, {2, 4}},
-                                   {element::Type_t::boolean, element::Type_t::f32, element::Type_t::dynamic, element::Type_t::f32},
-                                   {op::AutoBroadcastType::PDPD, 0}),
-                      // TODO: Whats the right behavior here?
-                      // SelectParams({{2}, {2, 4}, {2}, {2, 4}}, {element::Type_t::boolean, element::Type_t::f32,
-                      // element::Type_t::dynamic, element::Type_t::f32}, {op::AutoBroadcastType::PDPD, 0}),
-                      SelectParams({{4}, {4}, {2, 4}, {2, 4}},
-                                   {element::Type_t::boolean, element::Type_t::f32, element::Type_t::dynamic, element::Type_t::f32},
-                                   {op::AutoBroadcastType::PDPD, 1})),
+    ::testing::Values(
+        SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::f32,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NONE),
+        SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::f32,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{}, {2, 4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::f32,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{}, {4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::dynamic,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{}, {2, 4}, {4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::f32,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{4}, {2, 4}, {4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::i8,
+                      element::Type_t::dynamic,
+                      element::Type_t::i8},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{4}, {4}, {2, 4}, {2, 4}},
+                     {element::Type_t::dynamic,
+                      element::Type_t::dynamic,
+                      element::Type_t::i8,
+                      element::Type_t::i8},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{2}, {2}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::dynamic,
+                      element::Type_t::f32},
+                     {op::AutoBroadcastType::PDPD, 0}),
+        // TODO: Whats the right behavior here?
+        // SelectParams({{2}, {2, 4}, {2}, {2, 4}}, {element::Type_t::boolean, element::Type_t::f32,
+        // element::Type_t::dynamic, element::Type_t::f32}, {op::AutoBroadcastType::PDPD, 0}),
+        SelectParams({{4}, {4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::dynamic,
+                      element::Type_t::f32},
+                     {op::AutoBroadcastType::PDPD, 1})),
     PrintToDummyParamName());
 
 TEST(type_prop, select_v1_partial_shape)
@@ -375,9 +403,11 @@ TEST(type_prop, select_v1_partial_shape)
 
 TEST(type_prop, select_v1_partial_shape_autob)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::boolean, PartialShape{Dimension::dynamic()});
+    auto a =
+        make_shared<op::Parameter>(element::Type_t::boolean, PartialShape{Dimension::dynamic()});
     auto b = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
-    auto c = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic()});
+    auto c =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic()});
 
     auto select = make_shared<op::v1::Select>(a, b, c);
     ASSERT_TRUE(
@@ -453,7 +483,8 @@ TEST(type_prop, select_v1_partial_shape_mismatch)
 {
     auto param0 =
         make_shared<op::Parameter>(element::Type_t::boolean, PartialShape{3, Dimension::dynamic()});
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic()});
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic()});
     auto param2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
 
     try

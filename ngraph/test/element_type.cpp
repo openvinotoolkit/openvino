@@ -24,15 +24,15 @@ using namespace ngraph;
 
 TEST(element_type, from)
 {
-    EXPECT_EQ(element::from<char>(),     element::Type_t::boolean);
-    EXPECT_EQ(element::from<bool>(),     element::Type_t::boolean);
-    EXPECT_EQ(element::from<float>(),    element::Type_t::f32);
-    EXPECT_EQ(element::from<double>(),   element::Type_t::f64);
-    EXPECT_EQ(element::from<int8_t>(),   element::Type_t::i8);
-    EXPECT_EQ(element::from<int16_t>(),  element::Type_t::i16);
-    EXPECT_EQ(element::from<int32_t>(),  element::Type_t::i32);
-    EXPECT_EQ(element::from<int64_t>(),  element::Type_t::i64);
-    EXPECT_EQ(element::from<uint8_t>(),  element::Type_t::u8);
+    EXPECT_EQ(element::from<char>(), element::Type_t::boolean);
+    EXPECT_EQ(element::from<bool>(), element::Type_t::boolean);
+    EXPECT_EQ(element::from<float>(), element::Type_t::f32);
+    EXPECT_EQ(element::from<double>(), element::Type_t::f64);
+    EXPECT_EQ(element::from<int8_t>(), element::Type_t::i8);
+    EXPECT_EQ(element::from<int16_t>(), element::Type_t::i16);
+    EXPECT_EQ(element::from<int32_t>(), element::Type_t::i32);
+    EXPECT_EQ(element::from<int64_t>(), element::Type_t::i64);
+    EXPECT_EQ(element::from<uint8_t>(), element::Type_t::u8);
     EXPECT_EQ(element::from<uint16_t>(), element::Type_t::u16);
     EXPECT_EQ(element::from<uint32_t>(), element::Type_t::u32);
     EXPECT_EQ(element::from<uint64_t>(), element::Type_t::u64);

@@ -42,7 +42,8 @@ op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type)
 void op::v3::ShapeOf::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::Type_t::i64 || m_output_type == element::Type_t::i32,
+                          m_output_type == element::Type_t::i64 ||
+                              m_output_type == element::Type_t::i32,
                           "Output type must be i32 or i64");
     set_input_is_relevant_to_value(0, false);
     set_output_type(0, m_output_type, PartialShape{get_input_partial_shape(0).rank()});

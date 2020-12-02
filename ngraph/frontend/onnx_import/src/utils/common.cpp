@@ -41,7 +41,8 @@ namespace ngraph
                 case ONNX_NAMESPACE::TensorProto_DataType_UINT16: return element::Type_t::u16;
                 case ONNX_NAMESPACE::TensorProto_DataType_UINT32: return element::Type_t::u32;
                 case ONNX_NAMESPACE::TensorProto_DataType_UINT64: return element::Type_t::u64;
-                case ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED: return element::Type_t::dynamic;
+                case ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED:
+                    return element::Type_t::dynamic;
                 }
 #ifdef NGRAPH_USE_PROTOBUF_LITE
                 throw ngraph_error("unsupported element type");

@@ -112,11 +112,13 @@ namespace ngraph
                     scale = std::make_shared<default_opset::Broadcast>(
                         scale,
                         data_shape_node,
-                        std::make_shared<default_opset::Constant>(element::Type_t::i64, Shape{1}, 1));
+                        std::make_shared<default_opset::Constant>(
+                            element::Type_t::i64, Shape{1}, 1));
                     bias = std::make_shared<default_opset::Broadcast>(
                         bias,
                         data_shape_node,
-                        std::make_shared<default_opset::Constant>(element::Type_t::i64, Shape{1}, 1));
+                        std::make_shared<default_opset::Constant>(
+                            element::Type_t::i64, Shape{1}, 1));
 
                     // scale * mvn + bias
                     std::shared_ptr<ngraph::Node> result =

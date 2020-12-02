@@ -43,8 +43,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 100};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10});  // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 91}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 91}); // output delta
     auto conv = make_shared<op::v0::ConvolutionBackpropData>(data_batch_shape,
                                                              param0,
                                                              param1,
@@ -90,8 +91,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_padded)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 100};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10});  // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 96}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 96}); // output delta
     auto move_strides = Strides{1};
     auto dilation_strides = Strides{1};
     auto padding_below = CoordinateDiff{2};
@@ -137,8 +139,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_strided)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 100};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10});  // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 46}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 46}); // output delta
     auto move_strides = Strides{2};
     auto conv = make_shared<op::v0::ConvolutionBackpropData>(data_batch_shape,
                                                              param0,
@@ -185,8 +188,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_strided_padded)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 100};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10});  // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 48}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 48}); // output delta
     auto move_strides = Strides{2};
     auto dilation_strides = Strides{1};
     auto padding_below = CoordinateDiff{2};
@@ -232,8 +236,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_strided_small_uneven)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 5};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 2});  // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 2}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 2}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 2}); // output delta
     auto move_strides = Strides{2};
     auto conv = make_shared<op::v0::ConvolutionBackpropData>(data_batch_shape,
                                                              param0,
@@ -276,8 +281,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_strided_small_even)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 6};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 2});  // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 3}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 2}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 3}); // output delta
     auto move_strides = Strides{2};
     auto conv = make_shared<op::v0::ConvolutionBackpropData>(data_batch_shape,
                                                              param0,
@@ -321,8 +327,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 100};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10});  // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 82}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 82}); // output delta
     auto move_strides = Strides{1};
     auto dilate_strides = Strides{2};
     auto conv = make_shared<op::v0::ConvolutionBackpropData>(data_batch_shape,
@@ -370,8 +377,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated_padded)
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 100};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10});  // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 87}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 87}); // output delta
     auto move_strides = Strides{1};
     auto dilate_strides = Strides{2};
     auto padding_below = CoordinateDiff{2};
@@ -427,8 +435,9 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated_data_dilated_padde
 {
     // Deduce type
     Shape data_batch_shape{64, 3, 100};
-    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10});   // filters
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 285}); // output delta
+    auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{128, 3, 10}); // filters
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{64, 128, 285}); // output delta
     auto move_strides = Strides{1};
     auto dilate_strides = Strides{2};
     auto padding_below = CoordinateDiff{2};

@@ -35,8 +35,10 @@ TEST(type_prop, reshape_v1_arg_rank_static_pattern_zero)
         PartialShape{1, 2, Dimension::dynamic(), 32}));
     try
     {
-        auto static_shape_parameter = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
-        auto reshape_output_pattern = op::Constant::create(element::Type_t::i64, Shape{4}, {2, 2, 3, 4});
+        auto static_shape_parameter =
+            make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+        auto reshape_output_pattern =
+            op::Constant::create(element::Type_t::i64, Shape{4}, {2, 2, 3, 4});
         auto reshape =
             make_shared<op::v1::Reshape>(static_shape_parameter, reshape_output_pattern, true);
         FAIL() << "Expected failure on reshape construction";

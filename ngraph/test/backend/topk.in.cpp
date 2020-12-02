@@ -697,8 +697,12 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_int64)
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto k = op::Constant::create(element::Type_t::i64, {}, {3});
     int64_t axis = 1;
-    auto B = make_shared<op::v1::TopK>(
-        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, element::Type_t::i64);
+    auto B = make_shared<op::v1::TopK>(A,
+                                       k,
+                                       axis,
+                                       op::v1::TopK::Mode::MAX,
+                                       op::v1::TopK::SortType::SORT_VALUES,
+                                       element::Type_t::i64);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 

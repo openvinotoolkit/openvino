@@ -52,8 +52,8 @@ NGRAPH_RTTI_DEFINITION(Anchor, "Anchor", 0);
 
 std::shared_ptr<Function> get_function()
 {
-    auto data =
-        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{3, 1, 2});
+    auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32,
+                                                            ngraph::Shape{3, 1, 2});
     auto divide_constant =
         ngraph::opset3::Constant::create(ngraph::element::Type_t::f32, ngraph::Shape{1}, {1.5});
     auto divide = std::make_shared<ngraph::opset3::Divide>(data, divide_constant);
@@ -148,8 +148,8 @@ NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ngraph::opset3::Divide
 
 std::shared_ptr<Function> get_derived_function()
 {
-    auto data =
-        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{3, 1, 2});
+    auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32,
+                                                            ngraph::Shape{3, 1, 2});
     auto divide_constant =
         ngraph::opset3::Constant::create(ngraph::element::Type_t::f32, ngraph::Shape{1}, {1.5});
     auto divide = std::make_shared<PrivateDivide>(data, divide_constant);

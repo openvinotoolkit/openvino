@@ -195,8 +195,10 @@ NGRAPH_TEST(${BACKEND_NAME}, broadcast_vector_rowwise_reversed)
         A,
         op::Constant::create(element::Type_t::u64, Shape{shape_r.size()}, shape_r),
         op::Constant::create(element::Type_t::i64, Shape{1}, {1}));
-    auto reverse = make_shared<op::v1::Reverse>(
-        broadcast, op::Constant::create(element::Type_t::i64, {1}, {1}), op::v1::Reverse::Mode::INDEX);
+    auto reverse =
+        make_shared<op::v1::Reverse>(broadcast,
+                                     op::Constant::create(element::Type_t::i64, {1}, {1}),
+                                     op::v1::Reverse::Mode::INDEX);
     auto f = make_shared<Function>(reverse, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -295,7 +297,8 @@ static void broadcast_test_helper(const Shape& shape_a, const Shape& shape_r, co
     std::shared_ptr<Node> broadcast;
     if (axes.size() > 0)
     {
-        auto axes_const = op::Constant::create(element::Type_t::i64, Shape{axes.size()}, axes.to_vector());
+        auto axes_const =
+            op::Constant::create(element::Type_t::i64, Shape{axes.size()}, axes.to_vector());
         broadcast = make_shared<op::v1::Broadcast>(A, shape_const, axes_const);
     }
     else

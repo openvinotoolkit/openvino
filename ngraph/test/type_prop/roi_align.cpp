@@ -31,7 +31,8 @@ TEST(type_prop_layers, roi_align_basic_shape_inference)
 
 TEST(type_prop_layers, roi_align_dynamic_channels_dim)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{10, Dimension(), 5, 5});
+    const auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{10, Dimension(), 5, 5});
     const auto rois = make_shared<op::Parameter>(element::Type_t::f32, Shape{7, 4});
     const auto batch_indices = make_shared<op::Parameter>(element::Type_t::i32, Shape{7});
     const auto op = make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg");
@@ -51,7 +52,8 @@ TEST(type_prop_layers, roi_align_num_rois_from_batch_indices)
 TEST(type_prop_layers, roi_align_incompatible_num_rois)
 {
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{10, 3, 5, 5});
-    const auto rois = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension{}});
+    const auto rois =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension{}});
     const auto batch_indices = make_shared<op::Parameter>(element::Type_t::i32, Shape{2});
     // the first dimension of rois and batch_indices should be equal
     ASSERT_THROW(make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),

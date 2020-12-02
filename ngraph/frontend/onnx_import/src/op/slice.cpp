@@ -139,15 +139,16 @@ namespace ngraph
                     // expected_output_shape: {3, 3, 1, 1}
                     OutputVector adjusted_indices(slice_indices_length);
                     std::vector<uint64_t> target_axes(axes);
-                    const auto gather_axis = default_opset::Constant::create(element::Type_t::i64, {}, {0});
+                    const auto gather_axis =
+                        default_opset::Constant::create(element::Type_t::i64, {}, {0});
 
                     int added_indices_number = 0;
                     for (int i = 0; i < slice_indices_length; ++i)
                     {
                         if (std::find(std::begin(axes), std::end(axes), i) == axes.end())
                         {
-                            adjusted_indices[i] =
-                                default_opset::Constant::create(element::Type_t::i64, {1}, {fill_in_value});
+                            adjusted_indices[i] = default_opset::Constant::create(
+                                element::Type_t::i64, {1}, {fill_in_value});
                             target_axes.insert(std::next(target_axes.begin(), i), i);
                             ++added_indices_number;
                         }

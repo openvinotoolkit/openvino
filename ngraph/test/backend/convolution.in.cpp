@@ -185,7 +185,8 @@ NGRAPH_TEST(${BACKEND_NAME}, dyn_convolution_backprop_data)
     copy_data(a, delta);
     auto b = backend->create_tensor(element::Type_t::f32, shape_filter);
     copy_data(b, filter);
-    auto c = backend->create_tensor(element::Type_t::i64, Shape{shapes.size()}); // dynamic data batch shape
+    auto c = backend->create_tensor(element::Type_t::i64,
+                                    Shape{shapes.size()}); // dynamic data batch shape
     copy_data(c, shapes);
     handle->call_with_validate({result}, {a, b, c});
     EXPECT_FALSE(test::all_close_f(vector<float>{expected_result}, read_vector<float>(result)));

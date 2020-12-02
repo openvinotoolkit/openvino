@@ -140,7 +140,8 @@ TEST(type_prop, nms_output_shape_2)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 6, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 6});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i32, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i32, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -155,7 +156,8 @@ TEST(type_prop, nms_output_shape_3)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 1});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -170,7 +172,8 @@ TEST(type_prop, nms_dynamic_boxes_and_scores)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -301,7 +304,8 @@ TEST(type_prop, nms_v3_output_shape_2)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 6, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 6});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i32, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i32, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -316,7 +320,8 @@ TEST(type_prop, nms_v3_output_shape_3)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 1});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -331,7 +336,8 @@ TEST(type_prop, nms_v3_output_shape_i32)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 1});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -353,7 +359,8 @@ TEST(type_prop, nms_v3_dynamic_boxes_and_scores)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -484,7 +491,8 @@ TEST(type_prop, nms_v4_output_shape_2)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 5, 7});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i32, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i32, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -499,7 +507,8 @@ TEST(type_prop, nms_v4_output_shape_3)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 5, 7});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {1000});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {1000});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -514,7 +523,8 @@ TEST(type_prop, nms_v4_output_shape_i32)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 5, 7});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -536,7 +546,8 @@ TEST(type_prop, nms_v4_dynamic_boxes_and_scores)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -681,7 +692,8 @@ TEST(type_prop, nms_v5_output_shape_2)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 5, 7});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i32, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i32, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -701,7 +713,8 @@ TEST(type_prop, nms_v5_output_shape_3)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 5, 7});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {1000});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {1000});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -720,7 +733,8 @@ TEST(type_prop, nms_v5_output_shape_i32)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 5, 7});
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
@@ -747,7 +761,8 @@ TEST(type_prop, nms_v5_dynamic_boxes_and_scores)
 {
     const auto boxes = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     const auto scores = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto max_output_boxes_per_class = op::Constant::create(element::Type_t::i16, Shape{}, {3});
+    const auto max_output_boxes_per_class =
+        op::Constant::create(element::Type_t::i16, Shape{}, {3});
     const auto iou_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     const auto score_threshold = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 

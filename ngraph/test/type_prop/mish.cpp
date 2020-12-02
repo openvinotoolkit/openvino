@@ -31,7 +31,8 @@ TEST(type_prop, mish)
 
 TEST(type_prop, mish_partial)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto mish_func = make_shared<op::v4::Mish>(data);
     EXPECT_EQ(mish_func->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(mish_func->get_output_partial_shape(0).same_scheme(
@@ -45,7 +46,8 @@ TEST(type_prop, mish_partial)
 
 TEST(type_prop, mish_partial_static_rank)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto mish_func = make_shared<op::v4::Mish>(data);
     EXPECT_EQ(mish_func->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(mish_func->get_output_partial_shape(0).same_scheme(

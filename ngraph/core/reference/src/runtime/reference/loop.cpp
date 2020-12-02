@@ -49,8 +49,8 @@ namespace ngraph
                     input_descs.size() + (cur_iter_idx >= 0 ? !cur_iter_initial_value_exist : 0);
                 HostTensorVector inputs_to_body;
                 for (int64_t i = 0; i < inputs_count; ++i)
-                    inputs_to_body.push_back(
-                        std::make_shared<HostTensor>(element::Type_t::dynamic, PartialShape::dynamic()));
+                    inputs_to_body.push_back(std::make_shared<HostTensor>(element::Type_t::dynamic,
+                                                                          PartialShape::dynamic()));
                 if (cur_iter_idx >= 0 && !cur_iter_initial_value_exist)
                 {
                     const auto& cur_iter = func->get_parameters().at(cur_iter_idx);
