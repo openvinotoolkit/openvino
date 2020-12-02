@@ -629,11 +629,11 @@ Model Optimizer runs specific extractor for each operation in the model during t
 There are several types of Model Optimizer extractor extensions:
 1. The generic one which is described in this section.
 2. The special extractor for Caffe\* models with Python layers. This kind of extractor is described in the
-[Extending the Model Optimizer with Caffe\* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md).
+[Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md).
 3. The special extractor for MXNet\* models with custom operations. This kind of extractor is described in the
-[Extending the Model Optimizer for Custom MXNet\* Operations](Extending_MXNet_Model_Optimizer_with_New_Primitives.md).
-4. The special extractor and fallback to Caffe\* for shape inference is described in the [Legacy Mode for Caffe\* Custom
-Layers](Legacy_Mode_for_Caffe_Custom_Layers.md).
+[Extending the Model Optimizer for Custom MXNet* Operations](Extending_MXNet_Model_Optimizer_with_New_Primitives.md).
+4. The special extractor and fallback to Caffe\* for shape inference is described in the
+[Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md).
 
 This chapter is focused on the option #1 which provides a generic mechanism for the operation extractor applicable for
 all frameworks. Model Optimizer provides class `mo.front.extractor.FrontExtractorOp` as a base class to implement the
@@ -1294,3 +1294,6 @@ Refer to the `extensions/back/GatherNormalizer.py` for the example of a such typ
 * [Converting a Model to Intermediate Representation (IR)](../convert_model/Converting_Model.md)
 * [nGraph Basic Concepts](@ref openvino_docs_nGraph_DG_basic_concepts)
 * [Inference Engine Extensibility Mechanism](../../../IE_DG/Extensibility_DG/Intro.md)
+* [Extending the Model Optimizer with Caffe* Python Layers](Extending_Model_Optimizer_with_Caffe_Python_Layers.md)
+* [Extending the Model Optimizer for Custom MXNet* Operations](Extending_MXNet_Model_Optimizer_with_New_Primitives.md)
+* [Legacy Mode for Caffe* Custom Layers](Legacy_Mode_for_Caffe_Custom_Layers.md)
