@@ -1346,8 +1346,10 @@ protected:
         case OP_TYPEID::DetectionOutput_v0:
         {
             const op::DetectionOutput* detOut = static_cast<const op::DetectionOutput*>(&node);
-            reference::referenceDetectionOutput<T> refDetOut(
-                detOut->get_attrs(), node.get_input_shape(0), node.get_input_shape(2));
+            reference::referenceDetectionOutput<T> refDetOut(detOut->get_attrs(),
+                                                             node.get_input_shape(0),
+                                                             node.get_input_shape(2),
+                                                             node.get_output_shape(0));
             if (node.get_input_size() == 3)
             {
                 refDetOut.run(args[0]->get_data_ptr<const T>(),

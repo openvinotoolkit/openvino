@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "ngraph/op/detection_output.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph
@@ -47,6 +48,8 @@ namespace ngraph
                 size_t numPriors;
                 size_t numLocClasses;
                 size_t offset;
+                size_t numResults;
+                size_t outTotalSize;
 
                 void GetLocPredictions(const dataType* locData, std::vector<LabelBBox>& locations)
                 {
@@ -147,11 +150,10 @@ namespace ngraph
                 {
                     priorBboxes.resize(numImages);
                     priorVariances.resize(numImages);
+                    int off = attrs.variance_encoded_in_target ? (numPriors * priorSize)
+                                                               : (2 * numPriors * priorSize);
                     for (int n = 0; n < numImages; n++)
                     {
-                        priorData += attrs.variance_encoded_in_target
-                                         ? n * numPriors * priorSize
-                                         : 2 * n * numPriors * priorSize;
                         std::vector<NormalizedBBox>& currPrBbox = priorBboxes[n];
                         std::vector<std::vector<dataType>>& currPrVar = priorVariances[n];
                         for (int i = 0; i < numPriors; ++i)
@@ -162,6 +164,7 @@ namespace ngraph
                             bbox.ymin = priorData[start_idx + 1 + offset];
                             bbox.xmax = priorData[start_idx + 2 + offset];
                             bbox.ymax = priorData[start_idx + 3 + offset];
+
                             dataType bbox_size = BBoxSize(bbox);
                             bbox.size = bbox_size;
                             currPrBbox.push_back(bbox);
@@ -172,14 +175,15 @@ namespace ngraph
                             for (int i = 0; i < numPriors; ++i)
                             {
                                 int start_idx = i * 4;
-                                std::vector<dataType> var;
+                                std::vector<dataType> var(4);
                                 for (int j = 0; j < 4; ++j)
                                 {
-                                    var.push_back(priorVar[start_idx + j]);
+                                    var[j] = (priorVar[start_idx + j]);
                                 }
                                 currPrVar.push_back(var);
                             }
                         }
+                        priorData += off;
                     }
                 }
 
@@ -200,6 +204,7 @@ namespace ngraph
                         priorXmax /= attrs.input_width;
                         priorYmax /= attrs.input_height;
                     }
+
                     if (attrs.code_type == "caffe.PriorBoxParameter.CORNER")
                     {
                         if (attrs.variance_encoded_in_target)
@@ -291,7 +296,8 @@ namespace ngraph
                         for (int c = 0; c < numLocClasses; ++c)
                         {
                             int label = attrs.share_location ? -1 : c;
-                            if (label == attrs.background_label_id)
+                            if (attrs.background_label_id > -1 &&
+                                label == attrs.background_label_id)
                             {
                                 continue;
                             }
@@ -319,7 +325,8 @@ namespace ngraph
                         for (int c = 0; c < numLocClasses; ++c)
                         {
                             int label = attrs.share_location ? -1 : c;
-                            if (label == attrs.background_label_id)
+                            if (attrs.background_label_id > -1 &&
+                                label == attrs.background_label_id)
                             {
                                 continue;
                             }
@@ -360,6 +367,7 @@ namespace ngraph
 
                     std::stable_sort(
                         scoreIndexVec.begin(), scoreIndexVec.end(), SortScorePairDescend<int>);
+
                     if (topK > -1 && topK < scoreIndexVec.size())
                     {
                         scoreIndexVec.resize(topK);
@@ -391,6 +399,7 @@ namespace ngraph
                 {
                     NormalizedBBox intersectBbox;
                     IntersectBBox(bbox1, bbox2, intersectBbox);
+
                     dataType intersectWidth, intersectHeight;
                     intersectWidth = intersectBbox.xmax - intersectBbox.xmin;
                     intersectHeight = intersectBbox.ymax - intersectBbox.ymin;
@@ -399,7 +408,6 @@ namespace ngraph
                         dataType intersect_size = intersectWidth * intersectHeight;
                         dataType bbox1_size = BBoxSize(bbox1);
                         dataType bbox2_size = BBoxSize(bbox2);
-
                         return intersect_size / (bbox1_size + bbox2_size - intersect_size);
                     }
                     else
@@ -423,6 +431,7 @@ namespace ngraph
                         {
                             const int kept_idx = indices[k];
                             dataType overlap = JaccardOverlap(bboxes[idx], bboxes[kept_idx]);
+
                             if (overlap > attrs.nms_threshold)
                             {
                                 keep = false;
@@ -448,6 +457,8 @@ namespace ngraph
                         int id = 0;
                         for (int c = 1; c < attrs.num_classes; c++)
                         {
+                            if (attrs.background_label_id > -1 && c == attrs.background_label_id)
+                                continue;
                             dataType temp = confScores.at(c)[p];
                             if (temp > conf)
                             {
@@ -497,7 +508,8 @@ namespace ngraph
             public:
                 referenceDetectionOutput(const ngraph::op::DetectionOutputAttrs& _attrs,
                                          const ngraph::Shape& locShape,
-                                         const ngraph::Shape& priorsShape)
+                                         const ngraph::Shape& priorsShape,
+                                         const ngraph::Shape& outShape)
                     : attrs(_attrs)
                 {
                     numImages = locShape[0];
@@ -506,6 +518,8 @@ namespace ngraph
                     numPriors = priorsShape[2] / priorSize;
                     numLocClasses =
                         _attrs.share_location ? 1 : static_cast<size_t>(_attrs.num_classes);
+                    numResults = outShape[2];
+                    outTotalSize = shape_size(outShape);
                 }
 
                 void run(const dataType* _location,
@@ -515,6 +529,7 @@ namespace ngraph
                          const dataType* _armLocation,
                          dataType* result)
                 {
+                    std::memset(result, 0, outTotalSize * sizeof(dataType));
                     bool withAddBoxPred = _armConfidence != nullptr && _armLocation != nullptr;
                     std::vector<LabelBBox> armLocPreds;
                     if (withAddBoxPred)
@@ -566,6 +581,7 @@ namespace ngraph
                                 if (confScores.find(c) == confScores.end())
                                     continue;
                                 const std::vector<dataType>& scores = confScores.find(c)->second;
+
                                 int label = attrs.share_location ? -1 : c;
                                 if (decodeBboxesImage.find(label) == decodeBboxesImage.end())
                                     continue;
@@ -666,7 +682,7 @@ namespace ngraph
                             }
                         }
                     }
-                    if (count < numImages * attrs.keep_top_k[0])
+                    if (count < numResults)
                     {
                         result[count * 7 + 0] = -1;
                     }
