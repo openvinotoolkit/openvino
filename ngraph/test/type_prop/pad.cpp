@@ -25,10 +25,10 @@ using namespace ngraph;
 
 TEST(type_prop, pad_v1_arg_pad_value_type_mismatch)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto arg_pad_value = make_shared<op::Parameter>(element::f16, Shape{1});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto arg_pad_value = make_shared<op::Parameter>(element::Type_t::f16, Shape{1});
 
     try
     {
@@ -52,10 +52,10 @@ TEST(type_prop, pad_v1_arg_pad_value_type_mismatch)
 
 TEST(type_prop, pad_v1_arg_pad_value_shape_not_compatible)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto arg_pad_value = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto arg_pad_value = make_shared<op::Parameter>(element::Type_t::f32, Shape{1});
 
     try
     {
@@ -78,9 +78,9 @@ TEST(type_prop, pad_v1_arg_pad_value_shape_not_compatible)
 
 TEST(type_prop, pad_v1_pads_begin_shape_not_1D)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1, 2});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2});
+    auto pads_end = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
 
     try
     {
@@ -102,9 +102,9 @@ TEST(type_prop, pad_v1_pads_begin_shape_not_1D)
 
 TEST(type_prop, pad_v1_pads_end_shape_not_1D)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1, 2});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2});
 
     try
     {
@@ -125,9 +125,9 @@ TEST(type_prop, pad_v1_pads_end_shape_not_1D)
 
 TEST(type_prop, pad_v1_pads_begin_size_not_correct)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
+    auto pads_end = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
 
     try
     {
@@ -150,10 +150,10 @@ TEST(type_prop, pad_v1_pads_begin_size_not_correct)
 
 TEST(type_prop, pad_v1_pads_end_size_not_correct)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto arg_pad_value = make_shared<op::Parameter>(element::f32, Shape{});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
+    auto arg_pad_value = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
     try
     {
@@ -178,9 +178,9 @@ TEST(type_prop, pad_v1_pads_end_size_not_correct)
 
 TEST(type_prop, pad_v1_arg_pads_begin_incompatible_type)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::f32, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::Type_t::f32, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
 
     try
     {
@@ -202,9 +202,9 @@ TEST(type_prop, pad_v1_arg_pads_begin_incompatible_type)
 
 TEST(type_prop, pad_v1_arg_pads_end_incompatible_type)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto pads_end = make_shared<op::Parameter>(element::Type_t::f32, Shape{1});
 
     try
     {
@@ -226,12 +226,12 @@ TEST(type_prop, pad_v1_arg_pads_end_incompatible_type)
 
 TEST(type_prop, pad_v1_deduce_too_small_for_edge)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 5, 0, 2});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 5, 0, 2});
     auto pads_begin =
-        make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
+        make_shared<op::Constant>(element::Type_t::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
     auto pads_end =
-        make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
-    auto arg_pad_value = make_shared<op::Parameter>(element::f32, Shape{});
+        make_shared<op::Constant>(element::Type_t::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
+    auto arg_pad_value = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
     try
     {
@@ -255,12 +255,12 @@ TEST(type_prop, pad_v1_deduce_too_small_for_edge)
 
 TEST(type_prop, pad_v1_deduce_too_small_for_reflect)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 5, 1, 2});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 5, 1, 2});
     auto pads_begin =
-        make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
+        make_shared<op::Constant>(element::Type_t::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
     auto pads_end =
-        make_shared<op::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
-    auto arg_pad_value = make_shared<op::Parameter>(element::f32, Shape{});
+        make_shared<op::Constant>(element::Type_t::i64, Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
+    auto arg_pad_value = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
     try
     {

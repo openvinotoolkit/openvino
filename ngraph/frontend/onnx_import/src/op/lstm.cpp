@@ -211,7 +211,7 @@ namespace ngraph
 
                             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
                                 default_opset::Constant::create(
-                                    element::i32,
+                                    element::Type_t::i32,
                                     Shape{m_dim_map[LSTMInputDimension::BATCH_SIZE]},
                                     std::vector<std::int32_t>(
                                         m_dim_map[LSTMInputDimension::BATCH_SIZE],

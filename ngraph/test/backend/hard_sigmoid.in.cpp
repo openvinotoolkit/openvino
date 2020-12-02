@@ -33,10 +33,10 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_1d)
 {
     const Shape a_shape{3};
-    const auto A = make_shared<op::Parameter>(element::f32, a_shape);
+    const auto A = make_shared<op::Parameter>(element::Type_t::f32, a_shape);
 
-    const auto alpha = op::Constant::create(element::f32, Shape{}, {0.5f});
-    const auto beta = op::Constant::create(element::f32, Shape{}, {0.6f});
+    const auto alpha = op::Constant::create(element::Type_t::f32, Shape{}, {0.5f});
+    const auto beta = op::Constant::create(element::Type_t::f32, Shape{}, {0.6f});
 
     const auto R = make_shared<op::v0::HardSigmoid>(A, alpha, beta);
     const auto f = make_shared<Function>(R, ParameterVector{A});
@@ -55,10 +55,10 @@ NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_1d)
 NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_2d)
 {
     const Shape a_shape{2, 5};
-    const auto A = make_shared<op::Parameter>(element::f32, a_shape);
+    const auto A = make_shared<op::Parameter>(element::Type_t::f32, a_shape);
 
-    const auto alpha = op::Constant::create(element::f32, Shape{}, {0.2f});
-    const auto beta = op::Constant::create(element::f32, Shape{}, {0.5f});
+    const auto alpha = op::Constant::create(element::Type_t::f32, Shape{}, {0.2f});
+    const auto beta = op::Constant::create(element::Type_t::f32, Shape{}, {0.5f});
 
     const auto R = make_shared<op::v0::HardSigmoid>(A, alpha, beta);
     const auto f = make_shared<Function>(R, ParameterVector{A});

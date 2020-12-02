@@ -23,29 +23,29 @@ using namespace ngraph;
 
 TEST(type_prop, scalar_constant_deduce_float32)
 {
-    auto c = op::Constant::create(element::f32, Shape{}, {208});
-    ASSERT_EQ(c->get_element_type(), element::f32);
+    auto c = op::Constant::create(element::Type_t::f32, Shape{}, {208});
+    ASSERT_EQ(c->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(c->get_shape(), (Shape{}));
 }
 
 TEST(type_prop, scalar_constant_deduce_bool)
 {
-    auto c = op::Constant::create(element::boolean, Shape{}, {1});
-    ASSERT_EQ(c->get_element_type(), element::boolean);
+    auto c = op::Constant::create(element::Type_t::boolean, Shape{}, {1});
+    ASSERT_EQ(c->get_element_type(), element::Type_t::boolean);
     ASSERT_EQ(c->get_shape(), (Shape{}));
 }
 
 TEST(type_prop, tensor_constant_deduce_float32)
 {
-    auto c = op::Constant::create(element::f32, Shape{2, 2}, {208, 208, 208, 208});
-    ASSERT_EQ(c->get_element_type(), element::f32);
+    auto c = op::Constant::create(element::Type_t::f32, Shape{2, 2}, {208, 208, 208, 208});
+    ASSERT_EQ(c->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(c->get_shape(), (Shape{2, 2}));
 }
 
 TEST(type_prop, tensor_constant_deduce_bool)
 {
-    auto c = op::Constant::create(element::boolean, Shape{2, 2}, {1, 1, 1, 1});
-    ASSERT_EQ(c->get_element_type(), element::boolean);
+    auto c = op::Constant::create(element::Type_t::boolean, Shape{2, 2}, {1, 1, 1, 1});
+    ASSERT_EQ(c->get_element_type(), element::Type_t::boolean);
     ASSERT_EQ(c->get_shape(), (Shape{2, 2}));
 }
 
@@ -53,7 +53,7 @@ TEST(type_prop, tensor_constant_bad_count)
 {
     try
     {
-        auto c = op::Constant::create(element::boolean, Shape{2, 2}, {1, 1, 1});
+        auto c = op::Constant::create(element::Type_t::boolean, Shape{2, 2}, {1, 1, 1});
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect number of literals not detected";
     }
@@ -71,8 +71,8 @@ TEST(type_prop, tensor_constant_bad_count)
 
 TEST(type_prop, constant_zero_elements_one_string)
 {
-    auto c =
-        make_shared<op::Constant>(element::i64, Shape{2, 0, 2, 2}, std::vector<std::string>{"42"});
-    ASSERT_EQ(c->get_element_type(), element::i64);
+    auto c = make_shared<op::Constant>(
+        element::Type_t::i64, Shape{2, 0, 2, 2}, std::vector<std::string>{"42"});
+    ASSERT_EQ(c->get_element_type(), element::Type_t::i64);
     ASSERT_EQ(c->get_shape(), (Shape{2, 0, 2, 2}));
 }

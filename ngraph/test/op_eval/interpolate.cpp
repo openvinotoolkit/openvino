@@ -165,11 +165,11 @@ TEST(op_eval, interpolate_v4_cubic)
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)
     {
-        auto image = std::make_shared<op::Parameter>(element::f32, data_shape);
+        auto image = std::make_shared<op::Parameter>(element::Type_t::f32, data_shape);
         auto target_spatial_shape =
-            op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
-        auto scales = op::Constant::create<float>(element::f32, Shape{2}, s.scales_data);
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+            op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, s.spatial_shape);
+        auto scales = op::Constant::create<float>(element::Type_t::f32, Shape{2}, s.scales_data);
+        auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
         attrs.mode = InterpolateMode::cubic;
@@ -187,7 +187,7 @@ TEST(op_eval, interpolate_v4_cubic)
         auto result = std::make_shared<HostTensor>();
         ASSERT_TRUE(fun->evaluate(
             {result}, {make_host_tensor<element::Type_t::f32>(data_shape, input_data)}));
-        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
         EXPECT_EQ(result->get_shape(), s.out_shape);
         auto result_vector = read_vector<float>(result);
         std::size_t num_of_elems = shape_size(s.out_shape);
@@ -377,11 +377,11 @@ TEST(op_eval, interpolate_v4_nearest)
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)
     {
-        auto image = std::make_shared<op::Parameter>(element::f32, s.input_data_shape);
+        auto image = std::make_shared<op::Parameter>(element::Type_t::f32, s.input_data_shape);
         auto target_spatial_shape =
-            op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
-        auto scales = op::Constant::create<float>(element::f32, Shape{2}, s.scales_data);
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+            op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, s.spatial_shape);
+        auto scales = op::Constant::create<float>(element::Type_t::f32, Shape{2}, s.scales_data);
+        auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
         attrs.mode = InterpolateMode::nearest;
@@ -400,7 +400,7 @@ TEST(op_eval, interpolate_v4_nearest)
         ASSERT_TRUE(fun->evaluate(
             {result},
             {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
-        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
         EXPECT_EQ(result->get_shape(), s.out_shape);
         auto result_vector = read_vector<float>(result);
         std::size_t num_of_elems = shape_size(s.out_shape);
@@ -523,11 +523,11 @@ TEST(op_eval, interpolate_v4_linear_onnx)
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)
     {
-        auto image = std::make_shared<op::Parameter>(element::f32, s.input_data_shape);
+        auto image = std::make_shared<op::Parameter>(element::Type_t::f32, s.input_data_shape);
         auto target_spatial_shape =
-            op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
-        auto scales = op::Constant::create<float>(element::f32, Shape{2}, s.scales_data);
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+            op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, s.spatial_shape);
+        auto scales = op::Constant::create<float>(element::Type_t::f32, Shape{2}, s.scales_data);
+        auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
         attrs.mode = InterpolateMode::linear_onnx;
@@ -546,7 +546,7 @@ TEST(op_eval, interpolate_v4_linear_onnx)
         ASSERT_TRUE(fun->evaluate(
             {result},
             {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
-        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
         EXPECT_EQ(result->get_shape(), s.out_shape);
         auto result_vector = read_vector<float>(result);
         std::size_t num_of_elems = shape_size(s.out_shape);

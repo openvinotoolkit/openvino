@@ -45,19 +45,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_single_indices)
     Shape params_shape{3, 3};
     Shape indices_shape{2};
     Shape out_shape{};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 2});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -77,19 +77,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_2d)
     Shape params_shape{2, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{0, 0, 1, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -109,19 +109,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_2d)
     Shape params_shape{2, 2};
     Shape indices_shape{2, 1};
     Shape out_shape{2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -143,19 +143,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_3d)
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 3};
     Shape out_shape{2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{0, 0, 1, 1, 0, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -175,19 +175,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_3d)
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{0, 1, 1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -209,19 +209,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_2d_from_3d)
     Shape params_shape{2, 2, 2};
     Shape indices_shape{1, 1};
     Shape out_shape{1, 2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{1});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -243,19 +243,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_2d)
     Shape params_shape{2, 2};
     Shape indices_shape{2, 1, 2};
     Shape out_shape{2, 1};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{0, 0, 0, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -275,19 +275,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_2d)
     Shape params_shape{2, 2};
     Shape indices_shape{2, 1, 1};
     Shape out_shape{2, 1, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -309,19 +309,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_3d)
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 2, 3};
     Shape out_shape{2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -343,19 +343,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d)
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 2, 2};
     Shape out_shape{2, 2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{0, 1, 1, 0, 0, 0, 1, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -377,19 +377,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d_negative)
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 2, 2};
     Shape out_shape{2, 2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{0, -1, -1, 0, 0, 0, 1, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -403,19 +403,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_2d_from_3d)
     Shape params_shape{2, 2, 2};
     Shape indices_shape{2, 1, 1};
     Shape out_shape{2, 1, 2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -438,20 +438,20 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims1)
     Shape indices_shape{2, 1};
     Shape out_shape{2, 4};
     int batch_dims = 1;
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I, batch_dims);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -466,22 +466,22 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2)
     Shape indices_shape{2, 3, 3, 2};
     Shape out_shape{6, 3};
     int batch_dims = 2;
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I, batch_dims);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
                                17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
                                33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 0, 3, 1, 2, 1, 0, 1, 1, 1, 2, 0, 3, 0, 3, 1, 2, 1,
                                  2, 0, 1, 1, 3, 1, 1, 1, 2, 0, 2, 0, 0, 0, 3, 1, 3, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
@@ -497,20 +497,20 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2_lead_dims)
     Shape indices_shape{2, 3, 1, 1};
     Shape out_shape{6, 1};
     int batch_dims = 2;
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto P = make_shared<op::Parameter>(element::Type_t::f32, params_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto G = make_shared<op::v5::GatherND>(P, I, batch_dims);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
+    auto p = backend->create_tensor(element::Type_t::f32, params_shape);
     copy_data(p, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24});
-    auto i = backend->create_tensor(element::i32, indices_shape);
+    auto i = backend->create_tensor(element::Type_t::i32, indices_shape);
     copy_data(i, vector<int32_t>{1, 0, 2, 0, 2, 2});
-    auto result = backend->create_tensor(element::f32, out_shape);
+    auto result = backend->create_tensor(element::Type_t::f32, out_shape);
 
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});

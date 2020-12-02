@@ -39,7 +39,8 @@ namespace ngraph
                     }
                     else
                     {
-                        constant_value = default_opset::Constant::create(element::f32, {}, {0});
+                        constant_value =
+                            default_opset::Constant::create(element::Type_t::f32, {}, {0});
                     }
                     return {std::make_shared<default_opset::Broadcast>(constant_value,
                                                                        node.get_ng_inputs().at(0))};

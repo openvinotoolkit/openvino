@@ -39,7 +39,7 @@ TEST(tensor, size)
     pass_manager.register_pass<pass::Liveness>();
 
     {
-        auto arg0 = make_shared<op::Parameter>(element::f32, Shape{2, 3});
+        auto arg0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 3});
         auto add = make_shared<op::Add>(arg0, arg0);
         auto f0 = make_shared<Function>(add, ParameterVector{arg0});
 
@@ -51,7 +51,7 @@ TEST(tensor, size)
     }
 
     {
-        auto arg0 = make_shared<op::Parameter>(element::f32, Shape{});
+        auto arg0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
         auto add = make_shared<op::Add>(arg0, arg0);
         auto f0 = make_shared<Function>(add, ParameterVector{arg0});
 
@@ -63,7 +63,7 @@ TEST(tensor, size)
     }
 
     {
-        auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
+        auto arg0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{1});
         auto add = make_shared<op::Add>(arg0, arg0);
         auto f0 = make_shared<Function>(add, ParameterVector{arg0});
 
@@ -80,7 +80,7 @@ TEST(tensor, output_flag)
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::Liveness>();
 
-    auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto arg0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{1});
     auto add = make_shared<op::Add>(arg0, arg0);
     auto f0 = make_shared<Function>(add, ParameterVector{arg0});
 

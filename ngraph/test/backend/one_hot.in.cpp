@@ -36,12 +36,12 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_2_in_3)
 {
     Shape shape_a{};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     int axis = 0;
     Shape shape_r{3};
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::i32, {}, {1});
-    auto off_value = op::Constant::create(element::i32, {}, {0});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::i32, {}, {1});
+    auto off_value = op::Constant::create(element::Type_t::i32, {}, {0});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
@@ -54,12 +54,12 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_2_in_3)
 NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_1_in_3)
 {
     Shape shape_a{};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     int axis = 0;
     Shape shape_r{3};
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::i32, {}, {1});
-    auto off_value = op::Constant::create(element::i32, {}, {0});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::i32, {}, {1});
+    auto off_value = op::Constant::create(element::Type_t::i32, {}, {0});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
@@ -72,12 +72,12 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_1_in_3)
 NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_0_in_3)
 {
     Shape shape_a{};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_r{3};
     int axis = 0;
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::i32, {}, {1});
-    auto off_value = op::Constant::create(element::i32, {}, {0});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::i32, {}, {1});
+    auto off_value = op::Constant::create(element::Type_t::i32, {}, {0});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
@@ -90,12 +90,12 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_0_in_3)
 NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_0)
 {
     Shape shape_a{8};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_r{3, 8};
     int axis = 0;
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::i32, {}, {1});
-    auto off_value = op::Constant::create(element::i32, {}, {0});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::i32, {}, {1});
+    auto off_value = op::Constant::create(element::Type_t::i32, {}, {0});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
@@ -109,12 +109,12 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_0)
 NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_1)
 {
     Shape shape_a{8};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_r{8, 3};
     int axis = 1;
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::i32, {}, {1});
-    auto off_value = op::Constant::create(element::i32, {}, {0});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::i32, {}, {1});
+    auto off_value = op::Constant::create(element::Type_t::i32, {}, {0});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
@@ -128,12 +128,12 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_1)
 NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_1_barely_oob)
 {
     Shape shape_a{8};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_r{8, 3};
     int axis = 1;
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::i32, {}, {1});
-    auto off_value = op::Constant::create(element::i32, {}, {0});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::i32, {}, {1});
+    auto off_value = op::Constant::create(element::Type_t::i32, {}, {0});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
@@ -148,12 +148,12 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_1_barely_oob)
 NGRAPH_TEST(${BACKEND_NAME}, one_hot_matrix_0)
 {
     Shape shape_a{3, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_r{3, 3, 3};
     int axis = 0;
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::i32, {}, {1});
-    auto off_value = op::Constant::create(element::i32, {}, {0});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::i32, {}, {1});
+    auto off_value = op::Constant::create(element::Type_t::i32, {}, {0});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
@@ -169,12 +169,12 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_many_categories)
     // Imagenet has roughly 20,000 categories
     constexpr uint32_t category_count = 20000;
     Shape shape_a{6};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_r{6, category_count};
     int axis = 1;
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::i32, {}, {1});
-    auto off_value = op::Constant::create(element::i32, {}, {0});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::i32, {}, {1});
+    auto off_value = op::Constant::create(element::Type_t::i32, {}, {0});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
@@ -194,24 +194,24 @@ NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_many_categories)
 NGRAPH_TEST(${BACKEND_NAME}, one_hot_on_off_float)
 {
     Shape shape_a{3, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_r{3, 3, 3};
     int axis = 0;
-    auto depth = op::Constant::create(element::i32, {}, {shape_r[axis]});
-    auto on_value = op::Constant::create(element::f32, {}, {2.5});
-    auto off_value = op::Constant::create(element::f32, {}, {0.5});
+    auto depth = op::Constant::create(element::Type_t::i32, {}, {shape_r[axis]});
+    auto on_value = op::Constant::create(element::Type_t::f32, {}, {2.5});
+    auto off_value = op::Constant::create(element::Type_t::f32, {}, {0.5});
     auto r = make_shared<op::v1::OneHot>(A, depth, on_value, off_value, axis);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a,
               vector<int32_t>{
                   0, 1, 1, 2, 1, 0, 0, 2, 1,
               });
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});

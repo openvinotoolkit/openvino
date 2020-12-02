@@ -273,31 +273,31 @@ namespace ngraph
                 }
 
                 /// \brief Returns the value of the constant node as a Shape object
-                ///        Can only be used on element::i64 nodes and interprets
+                ///        Can only be used on element::Type_t::i64 nodes and interprets
                 ///        negative values as zeros.
                 Shape get_shape_val() const;
                 /// \brief Returns the value of the constant node as a Strides
                 ///        object
-                ///        Can only be used on element::i64 nodes and interprets
+                ///        Can only be used on element::Type_t::i64 nodes and interprets
                 ///        negative values as zeros.
                 Strides get_strides_val() const;
                 /// \brief Returns the value of the constant node as a Coordinate
                 ///        object
-                ///        Can only be used on element::i64 nodes and interprets
+                ///        Can only be used on element::Type_t::i64 nodes and interprets
                 ///        negative values as zeros.
                 Coordinate get_coordinate_val() const;
                 /// \brief Returns the value of the constant node as a
                 ///        CoordinateDiff object
-                ///        Can only be used on element::i64 nodes.
+                ///        Can only be used on element::Type_t::i64 nodes.
                 CoordinateDiff get_coordinate_diff_val() const;
                 /// \brief Returns the value of the constant node as an AxisVector
                 ///        object
-                ///        Can only be used on element::i64 nodes and interprets
+                ///        Can only be used on element::Type_t::i64 nodes and interprets
                 ///        negative values as zeros.
                 AxisVector get_axis_vector_val() const;
                 /// \brief Returns the value of the constant node as an AxisSet
                 ///        object
-                ///        Can only be used on element::i64 nodes and interprets
+                ///        Can only be used on element::Type_t::i64 nodes and interprets
                 ///        negative values as zeros.
                 ///        Repeated values are allowed.
                 AxisSet get_axis_set_val() const;

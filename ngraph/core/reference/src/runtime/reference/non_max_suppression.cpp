@@ -326,7 +326,7 @@ namespace ngraph
 
                 size_t selected_size = valid_outputs * 3;
 
-                if (output_type == ngraph::element::i64)
+                if (output_type == ngraph::element::Type_t::i64)
                 {
                     int64_t* indices_ptr = outputs[0]->get_data_ptr<int64_t>();
                     memcpy(indices_ptr, selected_indices.data(), selected_size * sizeof(int64_t));
@@ -381,7 +381,7 @@ namespace ngraph
                     return;
                 }
 
-                if (output_type == ngraph::element::i64)
+                if (output_type == ngraph::element::Type_t::i64)
                 {
                     int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
                     *valid_outputs_ptr = valid_outputs;

@@ -29,15 +29,16 @@ TEST(type_prop, gru_cell)
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
-    EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(gru_cell->get_output_element_type(0), element::Type_t::f32);
     EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
 }
 
@@ -48,13 +49,13 @@ TEST(type_prop, gru_cell_invalid_input)
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                        Shape{gates_count * hidden_size, hidden_size});
+    auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
 
     // Invalid W tensor shape.
-    auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
+    auto W = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, input_size});
     try
     {
         const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
@@ -67,8 +68,9 @@ TEST(type_prop, gru_cell_invalid_input)
     }
 
     // Invalid R tensor shape.
-    W = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, 1});
+    W = make_shared<op::Parameter>(element::Type_t::f32,
+                                   Shape{gates_count * hidden_size, input_size});
+    R = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, 1});
     try
     {
         const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
@@ -83,8 +85,9 @@ TEST(type_prop, gru_cell_invalid_input)
     }
 
     // Invalid H_t tensor shape.
-    R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    H_t = make_shared<op::Parameter>(element::f32, Shape{4, hidden_size});
+    R = make_shared<op::Parameter>(element::Type_t::f32,
+                                   Shape{gates_count * hidden_size, hidden_size});
+    H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, hidden_size});
     try
     {
         const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
@@ -98,8 +101,8 @@ TEST(type_prop, gru_cell_invalid_input)
     }
 
     // Invalid B tensor shape.
-    H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
+    H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size});
     try
     {
         const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size);
@@ -119,16 +122,17 @@ TEST(type_prop, gru_cell_dynamic_batch_size)
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
 
-    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    const auto W = make_shared<op::Parameter>(element::f32,
+    const auto X =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
                                               PartialShape{gates_count * hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32,
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
                                               PartialShape{gates_count * hidden_size, hidden_size});
     const auto H_t =
-        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
-    EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(gru_cell->get_output_element_type(0), element::Type_t::f32);
     EXPECT_EQ(gru_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
 }
 
@@ -139,16 +143,17 @@ TEST(type_prop, gru_cell_dynamic_hidden_size)
     const auto hidden_size = Dimension::dynamic();
     const size_t gates_count = 3;
 
-    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    const auto W = make_shared<op::Parameter>(element::f32,
+    const auto X =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
                                               PartialShape{hidden_size * gates_count, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32,
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
                                               PartialShape{hidden_size * gates_count, hidden_size});
     const auto H_t =
-        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, 3);
-    EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(gru_cell->get_output_element_type(0), element::Type_t::f32);
     EXPECT_EQ(gru_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
 }
 
@@ -158,16 +163,19 @@ TEST(type_prop, gru_cell_dynamic_inputs)
     const auto input_size = Dimension::dynamic();
     const auto hidden_size = Dimension::dynamic();
 
-    const auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    const auto W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+    const auto X =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, input_size});
+    const auto W =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{hidden_size, input_size});
+    const auto R =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{hidden_size, hidden_size});
     const auto H_t =
-        make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, 2);
 
     EXPECT_EQ(gru_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
-    EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(gru_cell->get_output_element_type(0), element::Type_t::f32);
 }
 
 TEST(type_prop, gru_cell_invalid_input_rank0)
@@ -177,43 +185,44 @@ TEST(type_prop, gru_cell_invalid_input_rank0)
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
 
-    auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    auto R = make_shared<op::Parameter>(element::f32,
+    auto X = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, input_size});
+    auto R = make_shared<op::Parameter>(element::Type_t::f32,
                                         PartialShape{gates_count * hidden_size, hidden_size});
-    auto H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, hidden_size});
 
     // Invalid rank0 for W tensor.
-    auto W = make_shared<op::Parameter>(element::f32, PartialShape{});
+    auto W = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{});
     ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
                  ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 
     // Invalid rank0 for X tensor.
-    W = make_shared<op::Parameter>(element::f32,
+    W = make_shared<op::Parameter>(element::Type_t::f32,
                                    PartialShape{gates_count * hidden_size, input_size});
-    X = make_shared<op::Parameter>(element::f32, PartialShape{});
+    X = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{});
     ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
                  ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 
     // Invalid rank0 for H_t tensor.
-    X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    H_t = make_shared<op::Parameter>(element::f32, PartialShape{});
+    X = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, input_size});
+    H_t = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{});
     ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
                  ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 
     // Invalid rank0 for R tensor.
-    H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
-    R = make_shared<op::Parameter>(element::f32, PartialShape{});
+    H_t = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, hidden_size});
+    R = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{});
     ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
                  ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
 
     // Invalid rank0 for B tensor.
-    R = make_shared<op::Parameter>(element::f32,
+    R = make_shared<op::Parameter>(element::Type_t::f32,
                                    PartialShape{gates_count * hidden_size, input_size});
-    auto B = make_shared<op::Parameter>(element::f32, PartialShape{});
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{});
     ASSERT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size),
                  ngraph::NodeValidationFailure)
         << "GRUCell node was created with invalid data.";
@@ -226,10 +235,11 @@ TEST(type_prop, gru_cell_invalid_input_dynamic_rank)
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
 
-    auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    auto R = make_shared<op::Parameter>(element::f32,
+    auto X = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, input_size});
+    auto R = make_shared<op::Parameter>(element::Type_t::f32,
                                         PartialShape{gates_count * hidden_size, hidden_size});
-    auto H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, hidden_size});
 
     auto check_dynamic_gru = [](const shared_ptr<opset4::GRUCell>& gru) -> bool {
         return gru->output(0).get_partial_shape() == PartialShape::dynamic() &&
@@ -237,32 +247,34 @@ TEST(type_prop, gru_cell_invalid_input_dynamic_rank)
     };
 
     // Invalid dynamic rank for W tensor.
-    auto W = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto W =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_w = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_w), true);
 
     // Invalid dynamic rank for X tensor.
-    W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
-    X = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    W = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{hidden_size, input_size});
+    X = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_x = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_x), true);
 
     // Invalid dynamic rank for H_t tensor.
-    X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    H_t = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    X = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, input_size});
+    H_t = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_h = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_h), true);
 
     // Invalid dynamic rank for R tensor.
-    H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
-    R = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    H_t = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{batch_size, hidden_size});
+    R = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_r = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_r), true);
 
     // Invalid dynamic rank for B tensor.
-    R = make_shared<op::Parameter>(element::f32,
+    R = make_shared<op::Parameter>(element::Type_t::f32,
                                    PartialShape{gates_count * hidden_size, hidden_size});
-    auto B = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_b = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_b), true);
 }

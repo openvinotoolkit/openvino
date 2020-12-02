@@ -76,10 +76,12 @@ namespace ngraph
     /// because when we reconstruct the new x node, it will see that the shapes are inconsistent
     /// for elementwise add.
     ///
-    /// Specialization of element types is also possible: `element::dynamic` can be specialized
+    /// Specialization of element types is also possible: `element::Type_t::dynamic` can be
+    /// specialized
     /// to a concrete element type or left dynamic; but a concrete element type can only be
-    /// specialized to itself (e.g., specialization does not allow you to change `element::i32`
-    /// to `element::i64`).
+    /// specialized to itself (e.g., specialization does not allow you to change
+    /// `element::Type_t::i32`
+    /// to `element::Type_t::i64`).
     ///
     /// Finally, it is possible to specialize parameter values. If the ith element of
     /// `parameter_values` is not `nullptr`, and fully static element type and shape has been

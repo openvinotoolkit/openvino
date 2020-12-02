@@ -23,57 +23,57 @@ using namespace ngraph;
 
 TEST(type_prop, range_nonconst_ok)
 {
-    auto start = make_shared<op::Parameter>(element::i32, Shape{});
-    auto stop = make_shared<op::Parameter>(element::i32, Shape{});
-    auto step = make_shared<op::Parameter>(element::i32, Shape{});
+    auto start = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
+    auto stop = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
+    auto step = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
 
     auto range = make_shared<op::Range>(start, stop, step);
 
-    EXPECT_EQ(range->get_element_type(), element::i32);
+    EXPECT_EQ(range->get_element_type(), element::Type_t::i32);
     EXPECT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
 }
 
 TEST(type_prop, range_nonconst_some_dyn_et_ok)
 {
-    auto start = make_shared<op::Parameter>(element::i32, Shape{});
-    auto stop = make_shared<op::Parameter>(element::dynamic, Shape{});
-    auto step = make_shared<op::Parameter>(element::i32, Shape{});
+    auto start = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
+    auto stop = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{});
+    auto step = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
 
     auto range = make_shared<op::Range>(start, stop, step);
 
-    EXPECT_EQ(range->get_element_type(), element::i32);
+    EXPECT_EQ(range->get_element_type(), element::Type_t::i32);
     EXPECT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
 }
 
 TEST(type_prop, range_nonconst_all_dyn_et_ok)
 {
-    auto start = make_shared<op::Parameter>(element::dynamic, Shape{});
-    auto stop = make_shared<op::Parameter>(element::dynamic, Shape{});
-    auto step = make_shared<op::Parameter>(element::dynamic, Shape{});
+    auto start = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{});
+    auto stop = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{});
+    auto step = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{});
 
     auto range = make_shared<op::Range>(start, stop, step);
 
-    EXPECT_EQ(range->get_element_type(), element::dynamic);
+    EXPECT_EQ(range->get_element_type(), element::Type_t::dynamic);
     EXPECT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
 }
 
 TEST(type_prop, range_nonconst_f32_ok)
 {
-    auto start = make_shared<op::Parameter>(element::dynamic, Shape{});
-    auto stop = make_shared<op::Parameter>(element::f32, Shape{});
-    auto step = make_shared<op::Parameter>(element::dynamic, Shape{});
+    auto start = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{});
+    auto stop = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    auto step = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{});
 
     auto range = make_shared<op::Range>(start, stop, step);
 
-    EXPECT_EQ(range->get_element_type(), element::f32);
+    EXPECT_EQ(range->get_element_type(), element::Type_t::f32);
     EXPECT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
 }
 
 TEST(type_prop, range_nonconst_boolean_fails)
 {
-    auto start = make_shared<op::Parameter>(element::dynamic, Shape{});
-    auto stop = make_shared<op::Parameter>(element::boolean, Shape{});
-    auto step = make_shared<op::Parameter>(element::dynamic, Shape{});
+    auto start = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{});
+    auto stop = make_shared<op::Parameter>(element::Type_t::boolean, Shape{});
+    auto step = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{});
 
     try
     {
@@ -93,21 +93,21 @@ TEST(type_prop, range_nonconst_boolean_fails)
 
 TEST(type_prop, range_some_const_ok)
 {
-    auto start = make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{3});
-    auto stop = make_shared<op::Parameter>(element::i32, Shape{});
-    auto step = make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{2});
+    auto start = make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<int32_t>{3});
+    auto stop = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
+    auto step = make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<int32_t>{2});
 
     auto range = make_shared<op::Range>(start, stop, step);
 
-    EXPECT_EQ(range->get_element_type(), element::i32);
+    EXPECT_EQ(range->get_element_type(), element::Type_t::i32);
     EXPECT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
 }
 
 TEST(type_prop, range_some_const_zero_stride_fails)
 {
-    auto start = make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{3});
-    auto stop = make_shared<op::Parameter>(element::i32, Shape{});
-    auto step = make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+    auto start = make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<int32_t>{3});
+    auto stop = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
+    auto step = make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<int32_t>{0});
 
     try
     {
@@ -127,9 +127,9 @@ TEST(type_prop, range_some_const_zero_stride_fails)
 TEST(type_prop, range_some_const_plus_inf_start_fails)
 {
     auto start = make_shared<op::Constant>(
-        element::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
-    auto stop = make_shared<op::Parameter>(element::f32, Shape{});
-    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        element::Type_t::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
+    auto stop = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    auto step = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{1});
 
     try
     {
@@ -149,9 +149,9 @@ TEST(type_prop, range_some_const_plus_inf_start_fails)
 TEST(type_prop, range_some_const_minus_inf_start_fails)
 {
     auto start = make_shared<op::Constant>(
-        element::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
-    auto stop = make_shared<op::Parameter>(element::f32, Shape{});
-    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        element::Type_t::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
+    auto stop = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    auto step = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{1});
 
     try
     {
@@ -171,9 +171,9 @@ TEST(type_prop, range_some_const_minus_inf_start_fails)
 TEST(type_prop, range_some_const_nan_start_fails)
 {
     auto start =
-        make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{std::nanf("")});
-    auto stop = make_shared<op::Parameter>(element::f32, Shape{});
-    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{std::nanf("")});
+    auto stop = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    auto step = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{1});
 
     try
     {
@@ -192,10 +192,10 @@ TEST(type_prop, range_some_const_nan_start_fails)
 
 TEST(type_prop, range_some_const_plus_inf_stop_fails)
 {
-    auto start = make_shared<op::Parameter>(element::f32, Shape{});
+    auto start = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     auto stop = make_shared<op::Constant>(
-        element::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
-    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        element::Type_t::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
+    auto step = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{1});
 
     try
     {
@@ -214,10 +214,10 @@ TEST(type_prop, range_some_const_plus_inf_stop_fails)
 
 TEST(type_prop, range_some_const_minus_inf_stop_fails)
 {
-    auto start = make_shared<op::Parameter>(element::f32, Shape{});
+    auto start = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     auto stop = make_shared<op::Constant>(
-        element::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
-    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+        element::Type_t::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
+    auto step = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{1});
 
     try
     {
@@ -236,9 +236,10 @@ TEST(type_prop, range_some_const_minus_inf_stop_fails)
 
 TEST(type_prop, range_some_const_nan_stio_fails)
 {
-    auto start = make_shared<op::Parameter>(element::f32, Shape{});
-    auto stop = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{std::nanf("")});
-    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{1});
+    auto start = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    auto stop =
+        make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{std::nanf("")});
+    auto step = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{1});
 
     try
     {
@@ -257,10 +258,10 @@ TEST(type_prop, range_some_const_nan_stio_fails)
 
 TEST(type_prop, range_some_const_plus_inf_stride_fails)
 {
-    auto start = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{3});
-    auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+    auto start = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{3});
+    auto stop = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     auto step = make_shared<op::Constant>(
-        element::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
+        element::Type_t::f32, Shape{}, std::vector<float>{std::numeric_limits<float>::infinity()});
 
     try
     {
@@ -279,10 +280,10 @@ TEST(type_prop, range_some_const_plus_inf_stride_fails)
 
 TEST(type_prop, range_some_const_minus_inf_stride_fails)
 {
-    auto start = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{3});
-    auto stop = make_shared<op::Parameter>(element::f32, Shape{});
+    auto start = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{3});
+    auto stop = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
     auto step = make_shared<op::Constant>(
-        element::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
+        element::Type_t::f32, Shape{}, std::vector<float>{-std::numeric_limits<float>::infinity()});
 
     try
     {
@@ -301,9 +302,10 @@ TEST(type_prop, range_some_const_minus_inf_stride_fails)
 
 TEST(type_prop, range_some_const_nan_stride_fails)
 {
-    auto start = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{3});
-    auto stop = make_shared<op::Parameter>(element::f32, Shape{});
-    auto step = make_shared<op::Constant>(element::f32, Shape{}, std::vector<float>{std::nanf("")});
+    auto start = make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{3});
+    auto stop = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    auto step =
+        make_shared<op::Constant>(element::Type_t::f32, Shape{}, std::vector<float>{std::nanf("")});
 
     try
     {
@@ -322,9 +324,9 @@ TEST(type_prop, range_some_const_nan_stride_fails)
 
 TEST(type_prop, range_all_const_zero_stride_fails)
 {
-    auto start = make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{3});
-    auto stop = make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{5});
-    auto step = make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
+    auto start = make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<int32_t>{3});
+    auto stop = make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<int32_t>{5});
+    auto step = make_shared<op::Constant>(element::Type_t::i32, Shape{}, std::vector<int32_t>{0});
 
     try
     {
@@ -371,62 +373,62 @@ struct RangeTest : ::testing::TestWithParam<RangeParams>
 
 TEST_P(RangeTest, deduce_shape_i8)
 {
-    run_range_test<int8_t>(element::i8, GetParam());
+    run_range_test<int8_t>(element::Type_t::i8, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_i16)
 {
-    run_range_test<int16_t>(element::i16, GetParam());
+    run_range_test<int16_t>(element::Type_t::i16, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_i32)
 {
-    run_range_test<int32_t>(element::i32, GetParam());
+    run_range_test<int32_t>(element::Type_t::i32, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_i64)
 {
-    run_range_test<int64_t>(element::i64, GetParam());
+    run_range_test<int64_t>(element::Type_t::i64, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_u8)
 {
-    run_range_test<uint8_t>(element::u8, GetParam());
+    run_range_test<uint8_t>(element::Type_t::u8, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_u16)
 {
-    run_range_test<uint16_t>(element::u16, GetParam());
+    run_range_test<uint16_t>(element::Type_t::u16, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_u32)
 {
-    run_range_test<uint32_t>(element::u32, GetParam());
+    run_range_test<uint32_t>(element::Type_t::u32, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_u64)
 {
-    run_range_test<uint64_t>(element::u64, GetParam());
+    run_range_test<uint64_t>(element::Type_t::u64, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_bf16)
 {
-    run_range_test<bfloat16>(element::bf16, GetParam());
+    run_range_test<bfloat16>(element::Type_t::bf16, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_f16)
 {
-    run_range_test<float16>(element::f16, GetParam());
+    run_range_test<float16>(element::Type_t::f16, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_f32)
 {
-    run_range_test<float>(element::f32, GetParam());
+    run_range_test<float>(element::Type_t::f32, GetParam());
 }
 
 TEST_P(RangeTest, deduce_shape_f64)
 {
-    run_range_test<double>(element::f64, GetParam());
+    run_range_test<double>(element::Type_t::f64, GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(type_prop,
@@ -445,42 +447,42 @@ struct RangeTestWithNegatives : ::testing::TestWithParam<RangeParams>
 
 TEST_P(RangeTestWithNegatives, deduce_shape_i8)
 {
-    run_range_test<int8_t>(element::i8, GetParam());
+    run_range_test<int8_t>(element::Type_t::i8, GetParam());
 }
 
 TEST_P(RangeTestWithNegatives, deduce_shape_i16)
 {
-    run_range_test<int16_t>(element::i16, GetParam());
+    run_range_test<int16_t>(element::Type_t::i16, GetParam());
 }
 
 TEST_P(RangeTestWithNegatives, deduce_shape_i32)
 {
-    run_range_test<int32_t>(element::i32, GetParam());
+    run_range_test<int32_t>(element::Type_t::i32, GetParam());
 }
 
 TEST_P(RangeTestWithNegatives, deduce_shape_i64)
 {
-    run_range_test<int64_t>(element::i64, GetParam());
+    run_range_test<int64_t>(element::Type_t::i64, GetParam());
 }
 
 TEST_P(RangeTestWithNegatives, deduce_shape_bf16)
 {
-    run_range_test<bfloat16>(element::bf16, GetParam());
+    run_range_test<bfloat16>(element::Type_t::bf16, GetParam());
 }
 
 TEST_P(RangeTestWithNegatives, deduce_shape_f16)
 {
-    run_range_test<float16>(element::f16, GetParam());
+    run_range_test<float16>(element::Type_t::f16, GetParam());
 }
 
 TEST_P(RangeTestWithNegatives, deduce_shape_f32)
 {
-    run_range_test<float>(element::f32, GetParam());
+    run_range_test<float>(element::Type_t::f32, GetParam());
 }
 
 TEST_P(RangeTestWithNegatives, deduce_shape_f64)
 {
-    run_range_test<double>(element::f64, GetParam());
+    run_range_test<double>(element::Type_t::f64, GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(type_prop,
@@ -498,22 +500,22 @@ struct RangeTestFloating : ::testing::TestWithParam<RangeParams>
 
 TEST_P(RangeTestFloating, deduce_shape_bf16)
 {
-    run_range_test<bfloat16>(element::bf16, GetParam());
+    run_range_test<bfloat16>(element::Type_t::bf16, GetParam());
 }
 
 TEST_P(RangeTestFloating, deduce_shape_f16)
 {
-    run_range_test<float16>(element::f16, GetParam());
+    run_range_test<float16>(element::Type_t::f16, GetParam());
 }
 
 TEST_P(RangeTestFloating, deduce_shape_f32)
 {
-    run_range_test<float>(element::f32, GetParam());
+    run_range_test<float>(element::Type_t::f32, GetParam());
 }
 
 TEST_P(RangeTestFloating, deduce_shape_f64)
 {
-    run_range_test<double>(element::f64, GetParam());
+    run_range_test<double>(element::Type_t::f64, GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(type_prop,

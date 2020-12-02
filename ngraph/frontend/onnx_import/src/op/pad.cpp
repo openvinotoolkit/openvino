@@ -83,9 +83,13 @@ namespace ngraph
                     return {std::make_shared<default_opset::Pad>(
                         data,
                         std::make_shared<default_opset::Constant>(
-                            element::i64, ngraph::Shape{padding_below.size()}, padding_below),
+                            element::Type_t::i64,
+                            ngraph::Shape{padding_below.size()},
+                            padding_below),
                         std::make_shared<default_opset::Constant>(
-                            element::i64, ngraph::Shape{padding_above.size()}, padding_above),
+                            element::Type_t::i64,
+                            ngraph::Shape{padding_above.size()},
+                            padding_above),
                         std::make_shared<default_opset::Constant>(
                             data.get_element_type(), ngraph::Shape{}, std::vector<double>{value}),
                         pad_mode)};
@@ -125,20 +129,20 @@ namespace ngraph
                             pads_vector.begin() + half_size, pads_vector.end());
 
                         padding_begin = default_opset::Constant::create(
-                            element::i64, ngraph::Shape{half_size}, padding_begin_values);
+                            element::Type_t::i64, ngraph::Shape{half_size}, padding_begin_values);
                         padding_end = default_opset::Constant::create(
-                            element::i64, ngraph::Shape{half_size}, padding_end_values);
+                            element::Type_t::i64, ngraph::Shape{half_size}, padding_end_values);
                     }
                     else
                     {
-                        auto axis =
-                            default_opset::Constant::create(element::i64, ngraph::Shape{}, {0});
+                        auto axis = default_opset::Constant::create(
+                            element::Type_t::i64, ngraph::Shape{}, {0});
                         OutputVector padding = builder::opset1::split(pads, 2, 0);
 
-                        padding_begin =
-                            std::make_shared<default_opset::Convert>(padding.at(0), element::i64);
-                        padding_end =
-                            std::make_shared<default_opset::Convert>(padding.at(1), element::i64);
+                        padding_begin = std::make_shared<default_opset::Convert>(
+                            padding.at(0), element::Type_t::i64);
+                        padding_end = std::make_shared<default_opset::Convert>(
+                            padding.at(1), element::Type_t::i64);
                     }
 
                     const std::string mode =

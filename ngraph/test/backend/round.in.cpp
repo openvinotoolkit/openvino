@@ -34,15 +34,15 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, round)
 {
     Shape shape{5};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v5::Round>(A, op::v5::Round::RoundMode::HALF_TO_EVEN), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{0.9f, 2.5f, 2.3f, 1.5f, -4.5f});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -54,16 +54,16 @@ NGRAPH_TEST(${BACKEND_NAME}, round)
 NGRAPH_TEST(${BACKEND_NAME}, round_away_from_zero)
 {
     Shape shape{5};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v5::Round>(A, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{0.9f, 2.5f, 2.3f, 1.5f, -4.5f});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -75,13 +75,13 @@ NGRAPH_TEST(${BACKEND_NAME}, round_away_from_zero)
 NGRAPH_TEST(${BACKEND_NAME}, round_2D)
 {
     Shape shape{3, 5};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v5::Round>(A, op::v5::Round::RoundMode::HALF_TO_EVEN), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a,
               vector<float>{0.1f,
                             0.5f,
@@ -98,7 +98,7 @@ NGRAPH_TEST(${BACKEND_NAME}, round_2D)
                             -2.2f,
                             -2.5f,
                             -2.8f});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -113,16 +113,16 @@ NGRAPH_TEST(${BACKEND_NAME}, round_int64)
 {
     // This tests large numbers that will not fit in a double
     Shape shape{3};
-    auto A = make_shared<op::Parameter>(element::i64, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::i64, shape);
     auto f = make_shared<Function>(
         make_shared<op::v5::Round>(A, op::v5::Round::RoundMode::HALF_TO_EVEN), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::i64, shape);
+    auto a = backend->create_tensor(element::Type_t::i64, shape);
     vector<int64_t> expected{0, 1, 0x4000000000000001};
     copy_data(a, expected);
-    auto result = backend->create_tensor(element::i64, shape);
+    auto result = backend->create_tensor(element::Type_t::i64, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});

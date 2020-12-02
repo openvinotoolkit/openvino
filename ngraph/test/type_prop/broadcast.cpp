@@ -32,39 +32,43 @@ TYPED_TEST_CASE_P(BroadcastTests);
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 6});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 3, 6});
 
     auto bc = make_shared<TypeParam>(param, target_shape);
-    ASSERT_EQ(bc->get_element_type(), element::f32);
+    ASSERT_EQ(bc->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 3, 6}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_axes_mapping)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 1});
-    auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 3, 1});
+    auto axes_mapping = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2});
 
     auto bc = make_shared<TypeParam>(param, target_shape, axes_mapping);
-    ASSERT_EQ(bc->get_element_type(), element::f32);
+    ASSERT_EQ(bc->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 3, 1}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_constants)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{16});
-    auto target_shape_constant_1 = op::Constant::create<int64_t>(element::i64, Shape{1}, {1});
-    auto target_shape_constant_2 = op::Constant::create<int64_t>(element::i64, Shape{1}, {16});
-    auto target_shape_constant_3 = op::Constant::create<int64_t>(element::i64, Shape{1}, {50});
-    auto target_shape_constant_4 = op::Constant::create<int64_t>(element::i64, Shape{1}, {50});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{16});
+    auto target_shape_constant_1 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {1});
+    auto target_shape_constant_2 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {16});
+    auto target_shape_constant_3 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
+    auto target_shape_constant_4 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
     std::int64_t axis = 0;
     std::vector<std::shared_ptr<Node>> args{target_shape_constant_1,
                                             target_shape_constant_2,
                                             target_shape_constant_3,
                                             target_shape_constant_4};
     auto target_shape = make_shared<op::Concat>(args, axis);
-    auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{1}, {1});
+    auto axes_mapping = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {1});
     auto bc = make_shared<TypeParam>(param, target_shape, axes_mapping, "NONE");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
@@ -74,18 +78,21 @@ TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_constants)
 
 TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_node)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{16});
-    auto target_shape_constant_1 = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto target_shape_constant_2 = op::Constant::create<int64_t>(element::i64, Shape{1}, {16});
-    auto target_shape_constant_3 = op::Constant::create<int64_t>(element::i64, Shape{1}, {50});
-    auto target_shape_constant_4 = op::Constant::create<int64_t>(element::i64, Shape{1}, {50});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{16});
+    auto target_shape_constant_1 = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto target_shape_constant_2 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {16});
+    auto target_shape_constant_3 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
+    auto target_shape_constant_4 =
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {50});
     std::int64_t axis = 0;
     std::vector<std::shared_ptr<Node>> args{target_shape_constant_1,
                                             target_shape_constant_2,
                                             target_shape_constant_3,
                                             target_shape_constant_4};
     auto target_shape = make_shared<op::Concat>(args, axis);
-    auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{1}, {1});
+    auto axes_mapping = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {1});
     auto bc = make_shared<TypeParam>(param, target_shape, axes_mapping, "NONE");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
@@ -96,9 +103,9 @@ TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_node)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_rank)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 1});
-    auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{3}, {1, 2, 3});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 3, 1});
+    auto axes_mapping = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {1, 2, 3});
 
     try
     {
@@ -119,9 +126,9 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_rank)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_transpose)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 1, 3});
-    auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 1});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 1, 3});
+    auto axes_mapping = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 1});
 
     try
     {
@@ -142,9 +149,9 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_transpose)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 1});
-    auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 3});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 3, 1});
+    auto axes_mapping = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 3});
 
     try
     {
@@ -163,9 +170,9 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 3});
-    auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 3, 3});
+    auto axes_mapping = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2});
 
     try
     {
@@ -184,9 +191,9 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
 
 TYPED_TEST_P(BroadcastTests, broadcast_axes_wrong_rank)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto bc_shape = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto bc_axes = make_shared<op::Parameter>(element::i64, Shape{2, 2});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto bc_shape = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto bc_axes = make_shared<op::Parameter>(element::Type_t::i64, Shape{2, 2});
 
     try
     {
@@ -205,24 +212,24 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_wrong_rank)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fully_dynamic_target_shape)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto bc_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-    auto bc_axes = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto bc_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    auto bc_axes = make_shared<op::Parameter>(element::Type_t::i64, Shape{2});
 
     auto bc = make_shared<TypeParam>(arg, bc_shape, bc_axes);
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
 
-    bc_shape = make_shared<op::Parameter>(element::i64, Shape{1});
+    bc_shape = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
     bc = make_shared<TypeParam>(arg, bc_shape, bc_axes);
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_broadcast_shape_et_wrong)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     // wrong element type
-    auto bc_shape = make_shared<op::Parameter>(element::boolean, Shape{1});
-    auto bc_axes = make_shared<op::Parameter>(element::i64, Shape{2});
+    auto bc_shape = make_shared<op::Parameter>(element::Type_t::boolean, Shape{1});
+    auto bc_axes = make_shared<op::Parameter>(element::Type_t::i64, Shape{2});
 
     try
     {
@@ -242,10 +249,10 @@ TYPED_TEST_P(BroadcastTests, broadcast_broadcast_shape_et_wrong)
 
 TYPED_TEST_P(BroadcastTests, broadcast_axes_et_wrong)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto bc_shape = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto bc_shape = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
     // wrong element type
-    auto bc_axes = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto bc_axes = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
 
     try
     {
@@ -267,42 +274,47 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_et_wrong)
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_all_inputs_dynamic)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-    const auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // const axes mapping
     const auto axes_mapping_const =
-        op::Constant::create(element::i64, Shape{3}, vector<int64_t>{0, 1, 2});
+        op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{0, 1, 2});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_target_shape_static_rank)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
-    const auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // const axes mapping
     const auto axes_mapping_const =
-        op::Constant::create(element::i64, Shape{3}, vector<int64_t>{0, 1, 2});
+        op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{0, 1, 2});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     const auto target_shape =
-        op::Constant::create(element::i64, Shape{3}, vector<int64_t>{1, 2, 3});
-    const auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+        op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
 
@@ -312,7 +324,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape)
 
     // const axes mapping
     const auto axes_mapping_const =
-        op::Constant::create(element::i64, Shape{3}, vector<int64_t>{0, 2, 1});
+        op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{0, 2, 1});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
 
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
@@ -322,16 +334,18 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape)
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_input_rank_static)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-    const auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // const axes mapping
     const auto axes_mapping_const =
-        op::Constant::create(element::i64, Shape{3}, vector<int64_t>{0, 2, 1});
+        op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{0, 2, 1});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 }
@@ -339,16 +353,17 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_input_rank_static)
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_target_shape_and_input_data_rank_static)
 {
     // static rank data
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
-    auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
+    auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // const axes mapping
     const auto axes_mapping_const =
-        op::Constant::create(element::i64, Shape{3}, vector<int64_t>{0, 2, 1});
+        op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{0, 2, 1});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 }
@@ -356,10 +371,10 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_target_shape_and_input_data_rank
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_input)
 {
     const auto target_shape =
-        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{1, 1, 5, 10});
+        op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{1, 1, 5, 10});
     // static rank data
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
+    auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
@@ -368,7 +383,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
 
     // const axes mapping
     const auto axes_mapping_const =
-        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 2, 1, 3});
+        op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{0, 2, 1, 3});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
@@ -377,37 +392,39 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, 3, 4});
     // dynamic target shape and axes mapping
-    auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-    auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+    auto axes_mapping = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // const axes mapping
     const auto axes_mapping_const =
-        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 2, 1, 3});
+        op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{0, 2, 1, 3});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // static rank target shape
-    target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // static rank target shape and const axes mapping
-    target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape_const_target_shape)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{4});
-    auto target_shape = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{1, 4, 2, 3});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{4});
+    auto target_shape =
+        op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{1, 4, 2, 3});
     // dynamic axes mapping
-    const auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
@@ -416,7 +433,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape_const_target_
 
     // const axes mapping
     const auto axes_mapping_const =
-        op::Constant::create(element::i64, Shape{1}, vector<int64_t>{1});
+        op::Constant::create(element::Type_t::i64, Shape{1}, vector<int64_t>{1});
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping_const, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
@@ -426,9 +443,10 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_input_shape_const_target_
 TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_target_shape)
 {
     // dynamic input
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape{4});
-    const auto axes_mapping = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    const auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{4});
+    const auto axes_mapping =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
@@ -436,7 +454,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_target_shape)
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
 
     // static rank input
-    data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(2));
     bc = make_shared<TypeParam>(data, target_shape, axes_mapping, "EXPLICIT");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
@@ -447,15 +465,15 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_target_shape)
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_shape_dynamic)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     // dynamic output shape
-    auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // static rank target shape
-    target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 }
@@ -463,16 +481,16 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_shape_dynamic)
 TYPED_TEST_P(BroadcastTests, broadcast_numpy_target_shape_constant)
 {
     // dynamic data
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     const auto target_shape =
-        op::Constant::create(element::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+        op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
 
     auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 3);
 
     // static rank data
-    data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(2));
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 3);
@@ -481,22 +499,24 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_target_shape_constant)
 TYPED_TEST_P(BroadcastTests, broadcast_numpy_target_shape_dynamic)
 {
     // static rank data
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // static shape data
-    data = make_shared<op::Parameter>(element::f32, PartialShape{3, 4, 5, 6});
+    data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{3, 4, 5, 6});
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_target_shape_static_rank)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
-    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(3));
+    const auto target_shape =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
 
     const auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
@@ -504,16 +524,16 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_target_shape_static_rank)
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_static_shape)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, 3});
     // static rank target_shape
-    auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
 
     auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 
     // constant target_shape
     const auto target_shape_const =
-        op::Constant::create(element::i64, Shape{3}, vector<int64_t>{3, 2, 3});
+        op::Constant::create(element::Type_t::i64, Shape{3}, vector<int64_t>{3, 2, 3});
     bc = make_shared<TypeParam>(data, target_shape_const, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 3);
@@ -525,24 +545,25 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_partially_dynamic)
 {
     const Shape expected_target_shape{1, 2, 3, 4};
     const auto target_shape = op::Constant::create(
-        element::i64,
+        element::Type_t::i64,
         {expected_target_shape.size()},
         std::vector<int64_t>(expected_target_shape.begin(), expected_target_shape.end()));
 
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, Dimension::dynamic()});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 3, Dimension::dynamic()});
     auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
     ASSERT_EQ(bc->get_output_partial_shape(0), expected_target_shape);
 
-    data = make_shared<op::Parameter>(element::f32,
+    data = make_shared<op::Parameter>(element::Type_t::f32,
                                       PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()});
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
     ASSERT_EQ(bc->get_output_partial_shape(0), expected_target_shape);
 
-    data = make_shared<op::Parameter>(element::f32,
+    data = make_shared<op::Parameter>(element::Type_t::f32,
                                       PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
@@ -550,7 +571,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_partially_dynamic)
     ASSERT_EQ(bc->get_output_partial_shape(0), expected_target_shape);
 
     data = make_shared<op::Parameter>(
-        element::f32,
+        element::Type_t::f32,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
@@ -560,10 +581,10 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_partially_dynamic)
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
 {
-    const auto target_shape = op::Constant::create(element::i64, Shape{4}, {1, 2, 3, 4});
+    const auto target_shape = op::Constant::create(element::Type_t::i64, Shape{4}, {1, 2, 3, 4});
 
-    auto data =
-        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 999, 3, 4});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32,
+                                           PartialShape{Dimension::dynamic(), 999, 3, 4});
     try
     {
         auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
@@ -580,7 +601,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     }
 
     data = make_shared<op::Parameter>(
-        element::f32,
+        element::Type_t::f32,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 888});
     try
     {
@@ -598,7 +619,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     }
 
     data = make_shared<op::Parameter>(
-        element::f32,
+        element::Type_t::f32,
         PartialShape{5, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
     try
     {
@@ -654,30 +675,30 @@ INSTANTIATE_TYPED_TEST_CASE_P(type_prop, BroadcastTests, BroadcastTypes, );
 // changing AutoBroadcastSpec to BroadcastModeSpec forces runing pdpd tests separately
 TEST(type_prop, broadcast_v1_pdpd)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 6});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 3, 6});
 
     auto bc = make_shared<op::v1::Broadcast>(
         param, target_shape, op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1));
-    ASSERT_EQ(bc->get_element_type(), element::f32);
+    ASSERT_EQ(bc->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 3, 6}));
 }
 
 TEST(type_prop, broadcast_v3_pdpd)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 6});
+    auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {2, 3, 6});
 
     auto bc = make_shared<op::v3::Broadcast>(
         param, target_shape, op::BroadcastModeSpec(op::BroadcastType::PDPD, 1));
-    ASSERT_EQ(bc->get_element_type(), element::f32);
+    ASSERT_EQ(bc->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 3, 6}));
 }
 
 TEST(type_prop, broadcast_v3_bidirectional_mode_string)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1});
-    const auto shape = make_shared<op::Parameter>(element::i32, Shape{2});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 1});
+    const auto shape = make_shared<op::Parameter>(element::Type_t::i32, Shape{2});
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, "BIDIRECTIONAL");
 
@@ -687,9 +708,9 @@ TEST(type_prop, broadcast_v3_bidirectional_mode_string)
 
 TEST(type_prop, broadcast_v3_shape_unexpected_axes_mapping_input)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1});
-    const auto shape = make_shared<op::Parameter>(element::i16, Shape{2});
-    const auto axes_mapping = make_shared<op::Parameter>(element::f32, Shape{3});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 1});
+    const auto shape = make_shared<op::Parameter>(element::Type_t::i16, Shape{2});
+    const auto axes_mapping = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     try
@@ -712,8 +733,8 @@ TEST(type_prop, broadcast_v3_shape_unexpected_axes_mapping_input)
 
 TEST(type_prop, broadcast_v3_not_provided_axes_input_for_explicit_mode)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1});
-    const auto shape = make_shared<op::Parameter>(element::i16, Shape{2});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 1});
+    const auto shape = make_shared<op::Parameter>(element::Type_t::i16, Shape{2});
     const auto broadcast_spec = op::BroadcastType::EXPLICIT;
 
     try
@@ -735,65 +756,65 @@ TEST(type_prop, broadcast_v3_not_provided_axes_input_for_explicit_mode)
 
 TEST(type_prop, broadcast_v3_shape)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1});
-    const auto shape = op::Constant::create(element::i64, {2}, {1, 4});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 1});
+    const auto shape = op::Constant::create(element::Type_t::i64, {2}, {1, 4});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
 
-    ASSERT_EQ(broadcast_v3->get_element_type(), element::f32);
+    ASSERT_EQ(broadcast_v3->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(broadcast_v3->get_shape(), (Shape{1, 4, 4}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, AxisSet>(true, AxisSet{2})));
 }
 
 TEST(type_prop, broadcast_v3_shape_2)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{3, 1});
-    const auto shape = op::Constant::create(element::i64, {3}, {2, 1, 6});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 1});
+    const auto shape = op::Constant::create(element::Type_t::i64, {3}, {2, 1, 6});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
 
-    ASSERT_EQ(broadcast_v3->get_element_type(), element::f32);
+    ASSERT_EQ(broadcast_v3->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(broadcast_v3->get_shape(), (Shape{2, 3, 6}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, AxisSet>(true, AxisSet{0, 2})));
 }
 
 TEST(type_prop, broadcast_v3_shape_3)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 1});
-    const auto shape = op::Constant::create(element::i64, {2}, {2, 4});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 1});
+    const auto shape = op::Constant::create(element::Type_t::i64, {2}, {2, 4});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
 
-    ASSERT_EQ(broadcast_v3->get_element_type(), element::f32);
+    ASSERT_EQ(broadcast_v3->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(broadcast_v3->get_shape(), (Shape{2, 4}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, AxisSet>(true, AxisSet{1})));
 }
 
 TEST(type_prop, broadcast_v3_shape_4)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 3, 1});
-    const auto shape = op::Constant::create(element::i64, {2}, {3, 1});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 3, 1});
+    const auto shape = op::Constant::create(element::Type_t::i64, {2}, {3, 1});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
 
-    ASSERT_EQ(broadcast_v3->get_element_type(), element::f32);
+    ASSERT_EQ(broadcast_v3->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(broadcast_v3->get_shape(), (Shape{1, 3, 1}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, AxisSet>(true, AxisSet{})));
 }
 
 TEST(type_prop, broadcast_v3_shape_5)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{16, 1, 1});
-    const auto shape = op::Constant::create(element::i64, {4}, {1, 1, 50, 50});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{16, 1, 1});
+    const auto shape = op::Constant::create(element::Type_t::i64, {4}, {1, 1, 50, 50});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
 
-    ASSERT_EQ(broadcast_v3->get_element_type(), element::f32);
+    ASSERT_EQ(broadcast_v3->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(broadcast_v3->get_shape(), (Shape{1, 16, 50, 50}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(),
               (make_pair<bool, AxisSet>(true, AxisSet{0, 2, 3})));
@@ -801,34 +822,34 @@ TEST(type_prop, broadcast_v3_shape_5)
 
 TEST(type_prop, broadcast_v3_shape_6)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 3, 1});
-    const auto shape = op::Constant::create(element::i64, {3}, {3, 1, 3});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 3, 1});
+    const auto shape = op::Constant::create(element::Type_t::i64, {3}, {3, 1, 3});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
 
-    ASSERT_EQ(broadcast_v3->get_element_type(), element::f32);
+    ASSERT_EQ(broadcast_v3->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(broadcast_v3->get_shape(), (Shape{3, 3, 3}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, AxisSet>(true, AxisSet{0, 2})));
 }
 
 TEST(type_prop, broadcast_v3_shape_6_type_infer)
 {
-    const auto arg = make_shared<op::Parameter>(element::u16, Shape{1, 3, 1});
-    const auto shape = op::Constant::create(element::i64, {3}, {3, 1, 3});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::u16, Shape{1, 3, 1});
+    const auto shape = op::Constant::create(element::Type_t::i64, {3}, {3, 1, 3});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
 
-    ASSERT_EQ(broadcast_v3->get_element_type(), element::u16);
+    ASSERT_EQ(broadcast_v3->get_element_type(), element::Type_t::u16);
     ASSERT_EQ(broadcast_v3->get_shape(), (Shape{3, 3, 3}));
     ASSERT_EQ(broadcast_v3->get_broadcast_axes(), (make_pair<bool, AxisSet>(true, AxisSet{0, 2})));
 }
 
 TEST(type_prop, broadcast_v3_incorrect_target_shape)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
-    const auto shape = op::Constant::create(element::i64, {3}, {8, 6, 4});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, 3, 2});
+    const auto shape = op::Constant::create(element::Type_t::i64, {3}, {8, 6, 4});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     try
@@ -850,8 +871,8 @@ TEST(type_prop, broadcast_v3_incorrect_target_shape)
 
 TEST(type_prop, broadcast_v3_incorrect_target_shape_2)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 1, 2});
-    const auto shape = op::Constant::create(element::i64, {2}, {2, 3});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 2});
+    const auto shape = op::Constant::create(element::Type_t::i64, {2}, {2, 3});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     try
@@ -873,8 +894,8 @@ TEST(type_prop, broadcast_v3_incorrect_target_shape_2)
 
 TEST(type_prop, broadcast_v3_output_rank_not_deduced)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    const auto shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
@@ -884,8 +905,8 @@ TEST(type_prop, broadcast_v3_output_rank_not_deduced)
 
 TEST(type_prop, broadcast_v3_output_rank_deduced_from_arg)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    const auto shape = op::Constant::create(element::i64, {3}, {8, 6, 4});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(4));
+    const auto shape = op::Constant::create(element::Type_t::i64, {3}, {8, 6, 4});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
@@ -895,8 +916,8 @@ TEST(type_prop, broadcast_v3_output_rank_deduced_from_arg)
 
 TEST(type_prop, broadcast_v3_output_rank_deduced_from_new_shape_input)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    const auto shape = op::Constant::create(element::i64, {5}, {8, 6, 1, 5, 1});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(4));
+    const auto shape = op::Constant::create(element::Type_t::i64, {5}, {8, 6, 1, 5, 1});
     const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
@@ -908,40 +929,40 @@ TEST(type_prop, broadcast_v3_output_rank_deduced_from_new_shape_input)
 
 TEST(type_prop, broadcast_v3_bidirectional_dynamic_input)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
     // dynamic target shape
-    auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
     auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 
     // static rank target shape
-    target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
     broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 
     // constant target shape
-    const auto target_shape_const = op::Constant::create(element::i64, {3}, {2, 4, 6});
+    const auto target_shape_const = op::Constant::create(element::Type_t::i64, {3}, {2, 4, 6});
     broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape_const, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TEST(type_prop, broadcast_v3_bidirectional_static_rank_input)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(4));
 
     // dynamic target shape
-    auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
     auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 
     // static rank target shape
-    target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
     broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 
     // constant target shape
-    const auto target_shape_const = op::Constant::create(element::i64, {3}, {2, 4, 6});
+    const auto target_shape_const = op::Constant::create(element::Type_t::i64, {3}, {2, 4, 6});
     broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape_const, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).rank().get_length(), 4);
@@ -950,27 +971,27 @@ TEST(type_prop, broadcast_v3_bidirectional_static_rank_input)
 
 TEST(type_prop, broadcast_v3_bidirectional_static_shape_input)
 {
-    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 1});
+    const auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, 3, 1});
 
     // dynamic target shape
-    auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
     auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 
     // static rank target shape
-    target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    target_shape = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic(1));
     broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 
     // constant target shape
-    auto target_shape_const = op::Constant::create(element::i64, {4}, {2, 2, 3, 2});
+    auto target_shape_const = op::Constant::create(element::Type_t::i64, {4}, {2, 2, 3, 2});
     broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape_const, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).rank().get_length(), 4);
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).is_static());
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0), (PartialShape{2, 2, 3, 2}));
 
-    target_shape_const = op::Constant::create(element::i64, {4}, {5, 2, 3, 7});
+    target_shape_const = op::Constant::create(element::Type_t::i64, {4}, {5, 2, 3, 7});
     broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape_const, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).rank().get_length(), 4);
@@ -981,22 +1002,23 @@ TEST(type_prop, broadcast_v3_bidirectional_static_shape_input)
 TEST(type_prop, broadcast_v3_bidirectional_partially_dynamic_input)
 {
     const auto target_shape =
-        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{1, 1, 50, 50});
+        op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{1, 1, 50, 50});
 
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{16, 1, Dimension::dynamic()});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{16, 1, Dimension::dynamic()});
     auto bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
     ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, 16, 50, 50}));
 
-    data = make_shared<op::Parameter>(element::f32,
+    data = make_shared<op::Parameter>(element::Type_t::f32,
                                       PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()});
     bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
     ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 50, 50}));
 
-    data = make_shared<op::Parameter>(element::f32,
+    data = make_shared<op::Parameter>(element::Type_t::f32,
                                       PartialShape{16, Dimension::dynamic(), Dimension::dynamic()});
     bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
@@ -1004,7 +1026,7 @@ TEST(type_prop, broadcast_v3_bidirectional_partially_dynamic_input)
     ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, 16, 50, 50}));
 
     data = make_shared<op::Parameter>(
-        element::f32,
+        element::Type_t::f32,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
     bc = make_shared<op::v3::Broadcast>(data, target_shape, "BIDIRECTIONAL");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());

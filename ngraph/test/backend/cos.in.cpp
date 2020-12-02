@@ -46,7 +46,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, cos)
 {
     Shape shape{11};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Cos>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);

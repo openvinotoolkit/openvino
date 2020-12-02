@@ -50,7 +50,7 @@ void op::Concat::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
 
     PartialShape inputs_shape_scheme{PartialShape::dynamic()};
-    element::Type inputs_et{element::dynamic};
+    element::Type inputs_et{element::Type_t::dynamic};
     Dimension concatenation_axis_output_dim{0};
 
     for (uint64_t i = 0; i < get_input_size(); i++)

@@ -31,11 +31,11 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, aliased_output)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto C = A + B;
     auto D = A * B;
-    auto E = op::Constant::create(element::f32, shape, {1, 2, 3, 4});
+    auto E = op::Constant::create(element::Type_t::f32, shape, {1, 2, 3, 4});
     auto f = make_shared<Function>(NodeVector{C, C, D, D, C, E, E}, ParameterVector{A, B});
 
     vector<float> a{0, 1, 2, 3};

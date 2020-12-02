@@ -46,7 +46,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, log)
 {
     Shape shape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Log>(A), ParameterVector{A});
 
     std::vector<float> a{0.125f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f, 16.f};

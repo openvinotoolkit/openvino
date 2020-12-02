@@ -61,7 +61,7 @@ namespace ngraph
                     }
 
                     return default_opset::Constant::create(
-                        element::i64, Shape{reduction_axes.size()}, reduction_axes);
+                        element::Type_t::i64, Shape{reduction_axes.size()}, reduction_axes);
                 }
 
                 template <typename OpType>

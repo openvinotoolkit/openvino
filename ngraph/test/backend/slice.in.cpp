@@ -35,7 +35,7 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, slice_scalar)
 {
     Shape shape_a{};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{};
     auto r = make_shared<op::Slice>(A, Coordinate{}, Coordinate{});
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(r), ParameterVector{A});
@@ -43,9 +43,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_scalar)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{312});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -56,7 +56,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{3, 2};
     auto r = make_shared<op::Slice>(A, Coordinate{0, 1}, Coordinate{3, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
@@ -64,9 +64,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -77,7 +77,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix)
 NGRAPH_TEST(${BACKEND_NAME}, slice_vector)
 {
     Shape shape_a{16};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{12};
     auto r = make_shared<op::Slice>(A, Coordinate{2}, Coordinate{14});
     auto f = make_shared<Function>(r, ParameterVector{A});
@@ -85,9 +85,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_vector)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -99,8 +99,8 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_vector)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto B = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     auto C = make_shared<op::Add>(A, B);
     Shape shape_r{2, 4};
     auto D = make_shared<op::Slice>(C, Coordinate{0, 0}, Coordinate{2, 4});
@@ -111,11 +111,11 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto b = backend->create_tensor(element::f32, shape_a);
+    auto b = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(b, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
@@ -127,7 +127,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{2, 4};
     auto D = make_shared<op::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
     auto E = make_shared<op::Slice>(A, Coordinate{2, 0}, Coordinate{4, 4});
@@ -137,9 +137,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -151,7 +151,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{1, 4};
     auto B = make_shared<op::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
     auto D = make_shared<op::Slice>(B, Coordinate{1, 0}, Coordinate{2, 4});
@@ -162,9 +162,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -175,7 +175,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
 {
     Shape shape_a{5, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{2, 4};
     auto B = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{5, 4});
     auto D = make_shared<op::Slice>(B, Coordinate{1, 0}, Coordinate{3, 4});
@@ -186,10 +186,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a,
               vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -201,7 +201,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose)
 {
     Shape shape_a{4, 5};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{2, 4};
     auto B = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{4, 5});
     auto C = builder::opset1::transpose(B);
@@ -213,10 +213,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a,
               vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -228,7 +228,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose)
 NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_strided)
 {
     Shape shape_a{4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{2, 2};
     auto r = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{4, 4}, Strides{2, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
@@ -236,9 +236,9 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_strided)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -249,7 +249,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_strided)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d)
 {
     Shape shape_a{4, 4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{2, 2, 2};
     auto r = make_shared<op::Slice>(A, Coordinate{1, 1, 1}, Coordinate{3, 3, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
@@ -257,7 +257,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
 
                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -265,7 +265,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d)
                                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 
                                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -277,7 +277,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided)
 {
     Shape shape_a{4, 4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{2, 2, 2};
     auto r = make_shared<op::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 2});
     auto f = make_shared<Function>(r, ParameterVector{A});
@@ -285,7 +285,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
 
                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -293,7 +293,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided)
                                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 
                                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -305,7 +305,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides)
 {
     Shape shape_a{4, 4, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{2, 2, 2};
     auto r = make_shared<op::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
@@ -313,7 +313,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
 
                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -321,7 +321,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides)
                                32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 
                                48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63});
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -333,7 +333,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64)
 {
     Shape shape_a{4, 4, 4};
-    auto A = make_shared<op::Parameter>(element::i64, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i64, shape_a);
     Shape shape_r{2, 2, 2};
     auto r = make_shared<op::Slice>(A, Coordinate{0, 0, 0}, Coordinate{4, 4, 4}, Strides{2, 2, 3});
     auto f = make_shared<Function>(r, ParameterVector{A});
@@ -341,7 +341,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i64, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i64, shape_a);
     copy_data(a, vector<int64_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
 
                                  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -349,7 +349,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64)
                                  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 
                                  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63});
-    auto result = backend->create_tensor(element::i64, shape_r);
+    auto result = backend->create_tensor(element::Type_t::i64, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -359,7 +359,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64)
 NGRAPH_TEST(${BACKEND_NAME}, slice_3d_start_just_oob)
 {
     Shape shape_a{20, 10, 5};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_r{20, 0, 5};
     auto r =
         make_shared<op::Slice>(A, Coordinate{0, 10, 0}, Coordinate{20, 10, 5}, Strides{1, 1, 1});
@@ -368,10 +368,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_start_just_oob)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     vector<float> a_data(20 * 10 * 5, 222.0f);
     copy_data(a, a_data);
-    auto result = backend->create_tensor(element::f32, shape_r);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});

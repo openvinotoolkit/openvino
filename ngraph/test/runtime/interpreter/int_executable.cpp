@@ -454,7 +454,7 @@ void runtime::interpreter::INTExecutable::perform_nan_check(
     for (const shared_ptr<HostTensor>& tensor : tensors)
     {
         const element::Type& type = tensor->get_element_type();
-        if (type == element::f32)
+        if (type == element::Type_t::f32)
         {
             const float* data = tensor->get_data_ptr<float>();
             for (size_t i = 0; i < tensor->get_element_count(); i++)
@@ -473,7 +473,7 @@ void runtime::interpreter::INTExecutable::perform_nan_check(
                 }
             }
         }
-        else if (type == element::f64)
+        else if (type == element::Type_t::f64)
         {
             const double* data = tensor->get_data_ptr<double>();
             for (size_t i = 0; i < tensor->get_element_count(); i++)

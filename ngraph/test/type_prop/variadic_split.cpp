@@ -23,44 +23,44 @@ using namespace ngraph;
 
 TEST(type_prop, variadic_split)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
-    const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-    const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 4});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 6});
+    const auto axis = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {1});
+    const auto splits = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 4});
     const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
     EXPECT_EQ(split->outputs().size(), 2);
     EXPECT_EQ(split->get_output_shape(0), (Shape{2, 2}));
     EXPECT_EQ(split->get_output_shape(1), (Shape{2, 4}));
-    EXPECT_EQ(split->get_output_element_type(0), element::i32);
-    EXPECT_EQ(split->get_output_element_type(1), element::i32);
+    EXPECT_EQ(split->get_output_element_type(0), element::Type_t::i32);
+    EXPECT_EQ(split->get_output_element_type(1), element::Type_t::i32);
 
     EXPECT_EQ(make_shared<op::v1::VariadicSplit>(
-                  make_shared<op::Parameter>(element::i32, Shape{12, 6}),
-                  op::Constant::create<int64_t>(element::i64, Shape{}, {-2}),
-                  op::Constant::create<int64_t>(element::i64, Shape{3}, {7, -1, 2}))
+                  make_shared<op::Parameter>(element::Type_t::i32, Shape{12, 6}),
+                  op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {-2}),
+                  op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {7, -1, 2}))
                   ->output(1)
                   .get_shape(),
               (Shape{3, 6}));
 
     EXPECT_EQ(make_shared<op::v1::VariadicSplit>(
-                  make_shared<op::Parameter>(element::i32, Shape{12, 6}),
-                  op::Constant::create<int64_t>(element::i64, Shape{}, {-2}),
-                  op::Constant::create<int64_t>(element::i64, Shape{3}, {-1, 7, 2}))
+                  make_shared<op::Parameter>(element::Type_t::i32, Shape{12, 6}),
+                  op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {-2}),
+                  op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-1, 7, 2}))
                   ->output(0)
                   .get_shape(),
               (Shape{3, 6}));
 
     EXPECT_EQ(make_shared<op::v1::VariadicSplit>(
-                  make_shared<op::Parameter>(element::i32, Shape{12, 1, 6}),
-                  op::Constant::create<int64_t>(element::i64, Shape{1}, {2}),
-                  op::Constant::create<int64_t>(element::i64, Shape{3}, {3, 1, 2}))
+                  make_shared<op::Parameter>(element::Type_t::i32, Shape{12, 1, 6}),
+                  op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 1, 2}))
                   ->output(2)
                   .get_shape(),
               (Shape{12, 1, 2}));
 
     EXPECT_EQ(make_shared<op::v1::VariadicSplit>(
-                  make_shared<op::Parameter>(element::i32, Shape{12, 6}),
-                  op::Constant::create<int64_t>(element::i64, Shape{1}, {1}),
-                  op::Constant::create<int64_t>(element::i64, Shape{2}, {6, 0}))
+                  make_shared<op::Parameter>(element::Type_t::i32, Shape{12, 6}),
+                  op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {1}),
+                  op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {6, 0}))
                   ->output(1)
                   .get_shape(),
               (Shape{12, 0}));
@@ -68,12 +68,13 @@ TEST(type_prop, variadic_split)
 
 TEST(type_prop, variadic_split_splits_rank)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 6});
 
     try
     {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{1, 2}, {2, 4});
+        const auto axis = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {1});
+        const auto splits =
+            op::Constant::create<int64_t>(element::Type_t::i64, Shape{1, 2}, {2, 4});
         const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
         FAIL() << "Split node was created with incorrect data.";
     }
@@ -86,12 +87,12 @@ TEST(type_prop, variadic_split_splits_rank)
 
 TEST(type_prop, variadic_split_incorrect_sum)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 6});
 
     try
     {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 6});
+        const auto axis = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {1});
+        const auto splits = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 6});
         const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
         FAIL() << "Split node was created with incorrect data.";
     }
@@ -105,12 +106,12 @@ TEST(type_prop, variadic_split_incorrect_sum)
 
 TEST(type_prop, variadic_split_incorrect_axis)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 6});
 
     try
     {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {-5});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 4});
+        const auto axis = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {-5});
+        const auto splits = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 4});
         const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
         FAIL() << "Split node was created with incorrect data.";
     }
@@ -123,12 +124,12 @@ TEST(type_prop, variadic_split_incorrect_axis)
 
 TEST(type_prop, variadic_split_splits_invalid_negative)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 6});
 
     try
     {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {-2, 4});
+        const auto axis = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {1});
+        const auto splits = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {-2, 4});
         const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
         FAIL() << "Split node was created with incorrect data.";
     }
@@ -141,12 +142,13 @@ TEST(type_prop, variadic_split_splits_invalid_negative)
 
 TEST(type_prop, variadic_split_splits_multiple_negatives)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 6});
 
     try
     {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{3}, {-1, -1, 3});
+        const auto axis = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {1});
+        const auto splits =
+            op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {-1, -1, 3});
         const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
         FAIL() << "Split node was created with incorrect data.";
     }
@@ -161,9 +163,9 @@ TEST(type_prop, variadic_split_shape_partially_dynamic)
 {
     // Variadic split shape {12,?} into {7,?}, {3,?} and {2,?}
     auto var_split1 = make_shared<op::v1::VariadicSplit>(
-        make_shared<op::Parameter>(element::i32, PartialShape{12, Dimension()}),
-        op::Constant::create<int64_t>(element::i64, Shape{}, {-2}),
-        op::Constant::create<int64_t>(element::i64, Shape{3}, {7, -1, 2}));
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{12, Dimension()}),
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {-2}),
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {7, -1, 2}));
 
     EXPECT_TRUE(
         var_split1->get_output_partial_shape(0).same_scheme(PartialShape{7, Dimension::dynamic()}));
@@ -174,9 +176,9 @@ TEST(type_prop, variadic_split_shape_partially_dynamic)
 
     // Variadic split shape {?,?,6} into {?,?,3}, {?,?,1} and {?,?,2}
     auto var_split2 = make_shared<op::v1::VariadicSplit>(
-        make_shared<op::Parameter>(element::i32, PartialShape{Dimension(), Dimension(), 6}),
-        op::Constant::create<int64_t>(element::i64, Shape{}, {2}),
-        op::Constant::create<int64_t>(element::i64, Shape{3}, {3, 1, 2}));
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension(), Dimension(), 6}),
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {2}),
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 1, 2}));
 
     EXPECT_TRUE(var_split2->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3}));
@@ -187,9 +189,9 @@ TEST(type_prop, variadic_split_shape_partially_dynamic)
 
     // Variadic split shape {?,6} into {?,6}, and {?,0}
     auto var_split3 = make_shared<op::v1::VariadicSplit>(
-        make_shared<op::Parameter>(element::i32, PartialShape{Dimension(), 6}),
-        op::Constant::create<int64_t>(element::i64, Shape{}, {1}),
-        op::Constant::create<int64_t>(element::i64, Shape{2}, {6, 0}));
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension(), 6}),
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {1}),
+        op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {6, 0}));
 
     EXPECT_TRUE(
         var_split3->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 6}));

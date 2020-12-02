@@ -50,7 +50,7 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, gelu_f32)
 {
     Shape shape{100000};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Gelu>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -66,9 +66,9 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_f32)
     }
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, args[0]);
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     std::transform(args[0].begin(), args[0].end(), args[0].begin(), [](float x) -> float {
         return 0.5f * x * (1.0f + erf(x / sqrt(2.0f)));
@@ -82,16 +82,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_f32)
 NGRAPH_TEST(${BACKEND_NAME}, gelu_f64)
 {
     Shape shape{8};
-    auto A = make_shared<op::Parameter>(element::f64, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f64, shape);
     auto f = make_shared<Function>(make_shared<op::Gelu>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f64, shape);
+    auto a = backend->create_tensor(element::Type_t::f64, shape);
     vector<double> input{-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0};
     copy_data(a, input);
-    auto result = backend->create_tensor(element::f64, shape);
+    auto result = backend->create_tensor(element::Type_t::f64, shape);
 
     std::transform(input.begin(), input.end(), input.begin(), [](double x) -> double {
         return 0.5 * x * (1.0 + erf(x / sqrt(2.0)));

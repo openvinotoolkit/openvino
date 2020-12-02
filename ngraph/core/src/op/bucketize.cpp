@@ -45,7 +45,8 @@ void op::v3::Bucketize::validate_and_infer_types()
     const PartialShape& buckets_pshape = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::i64 || m_output_type == element::i32,
+                          m_output_type == element::Type_t::i64 ||
+                              m_output_type == element::Type_t::i32,
                           "Output type must be i32 or i64. Default is i64");
 
     if (buckets_pshape.is_static())

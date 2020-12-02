@@ -23,8 +23,8 @@ using namespace ngraph;
 
 TEST(type_prop, reduce_prod_v1_axis_out_of_range)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{2, 3});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{2, 3});
     try
     {
         auto reduce_prod = make_shared<op::v1::ReduceProd>(arg, axes);
@@ -44,8 +44,8 @@ TEST(type_prop, reduce_prod_v1_axis_out_of_range)
 
 TEST(type_prop, reduce_prod_v1_shape_if_keep_dims)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 4, 5});
+    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{1, 2});
     auto keep_dims = true;
     auto reduce_prod = make_shared<op::v1::ReduceProd>(arg, axes, keep_dims);
     ASSERT_TRUE(reduce_prod->get_output_partial_shape(0).compatible(PartialShape{3, 1, 1}));
@@ -53,8 +53,8 @@ TEST(type_prop, reduce_prod_v1_shape_if_keep_dims)
 
 TEST(type_prop, reduce_prod_v1_shape_if_not_keep_dims)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 4, 5});
+    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{1, 2});
     auto keep_dims = false;
     auto reduce_prod = make_shared<op::v1::ReduceProd>(arg, axes, keep_dims);
     ASSERT_TRUE(reduce_prod->get_output_partial_shape(0).compatible(PartialShape{3}));

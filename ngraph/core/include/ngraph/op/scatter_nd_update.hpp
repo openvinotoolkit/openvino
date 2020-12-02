@@ -33,7 +33,8 @@ namespace ngraph
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 ScatterNDUpdate() = default;
                 /// \param inputs Tensor
-                /// \param indices Index tensor: Data type must be `element::i32` or `element::i64`
+                /// \param indices Index tensor: Data type must be `element::Type_t::i32` or
+                /// `element::Type_t::i64`
                 /// \param updates Tensor: Must have same type as inputs
                 ScatterNDUpdate(const Output<Node>& inputs,
                                 const Output<Node>& indices,

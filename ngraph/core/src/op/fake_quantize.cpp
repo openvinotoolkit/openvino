@@ -134,7 +134,7 @@ OutputVector op::FakeQuantize::decompose_op() const
     const auto dequant_scale = (output_high - output_low) / levels_minus_one;
 
     // zero_point type needs to match the quantization output type
-    const auto zero_point = Constant::create(element::i32, data.get_shape(), {0.0});
+    const auto zero_point = Constant::create(element::Type_t::i32, data.get_shape(), {0.0});
     const auto axes = get_default_order(input_data_shape);
 
     // clip the input data to the range <input_low;input_high>
@@ -148,7 +148,7 @@ OutputVector op::FakeQuantize::decompose_op() const
         make_shared<op::Quantize>(data,
                                   quant_scale,
                                   zero_point,
-                                  element::i32,
+                                  element::Type_t::i32,
                                   axes,
                                   op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN);
 

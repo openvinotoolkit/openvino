@@ -33,17 +33,17 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_to_scalar)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::f32, Shape{});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -54,17 +54,17 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_to_scalar_int8)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i8, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::Parameter>(element::Type_t::i8, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i8, shape);
+    auto a = backend->create_tensor(element::Type_t::i8, shape);
     copy_data(a, vector<int8_t>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::i8, Shape{});
+    auto result = backend->create_tensor(element::Type_t::i8, Shape{});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -74,18 +74,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_to_scalar_int8)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -96,18 +96,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -118,18 +118,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_int32)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a, vector<int32_t>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -141,17 +141,17 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_to_scalar)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::f32, Shape{1, 1});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{1, 1});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -162,17 +162,17 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_to_scalar_int8)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i8, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::Parameter>(element::Type_t::i8, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i8, shape);
+    auto a = backend->create_tensor(element::Type_t::i8, shape);
     copy_data(a, vector<int8_t>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::i8, Shape{1, 1});
+    auto result = backend->create_tensor(element::Type_t::i8, Shape{1, 1});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -182,18 +182,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_to_scalar_int8)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -204,18 +204,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -226,18 +226,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows_int32)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a, vector<int32_t>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -248,8 +248,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows_int32)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -257,9 +257,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns_dynamic)
 
     // Create some tensors for input/output
     Shape shape_a{3, 2};
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -269,8 +269,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_columns_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, false), ParameterVector{A});
 
@@ -278,9 +278,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_dynamic)
 
     // Create some tensors for input/output
     Shape shape_a{3, 2};
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -290,8 +290,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_matrix_rows_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
@@ -299,9 +299,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns_dynamic)
 
     // Create some tensors for input/output
     Shape shape_a{3, 2};
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -311,8 +311,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_columns_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMean>(A, axes, true), ParameterVector{A});
 
@@ -320,9 +320,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_mean_keep_matrix_rows_dynamic)
 
     // Create some tensors for input/output
     Shape shape_a{3, 2};
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});

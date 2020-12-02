@@ -167,7 +167,7 @@ namespace gather
 
         out->set_shape(out_shape);
 
-        if (arg1->get_element_type() == element::i64)
+        if (arg1->get_element_type() == element::Type_t::i64)
         {
             runtime::reference::gather<T, int64_t>(arg0->get_data_ptr<ET>(),
                                                    arg1->get_data_ptr<int64_t>(),
@@ -177,7 +177,7 @@ namespace gather
                                                    out->get_shape(),
                                                    axis);
         }
-        else if (arg1->get_element_type() == element::i32)
+        else if (arg1->get_element_type() == element::Type_t::i32)
         {
             runtime::reference::gather<T, int32_t>(arg0->get_data_ptr<ET>(),
                                                    arg1->get_data_ptr<int32_t>(),
@@ -280,7 +280,7 @@ namespace gather
         if (indices_shape.empty())
         {
             // gathering a scalar
-            const auto axes = op::Constant::create(element::i64, Shape{1}, {0});
+            const auto axes = op::Constant::create(element::Type_t::i64, Shape{1}, {0});
             gathered = make_shared<op::v0::Squeeze>(gathered_concat_input, axes);
         }
 

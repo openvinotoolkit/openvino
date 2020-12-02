@@ -32,7 +32,8 @@ namespace ngraph
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 ShapeOf() = default;
                 /// \brief Constructs a shape-of operation.
-                ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);
+                ShapeOf(const Output<Node>& arg,
+                        const element::Type output_type = element::Type_t::i64);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual std::shared_ptr<Node>

@@ -52,8 +52,9 @@ OutputVector op::v1::Mod::decompose_op() const
     const auto divisor = make_shared<op::Abs>(input_value(1));
 
     // truncated(a / b)
-    auto division = make_shared<op::Convert>(
-        make_shared<op::v1::Divide>(dividend, divisor, m_auto_broadcast), ngraph::element::i64);
+    auto division =
+        make_shared<op::Convert>(make_shared<op::v1::Divide>(dividend, divisor, m_auto_broadcast),
+                                 ngraph::element::Type_t::i64);
     division = make_shared<op::Convert>(division, dividend_et);
     // truncated(a / b) * b
     const auto multiplication = make_shared<op::v1::Multiply>(division, divisor, m_auto_broadcast);

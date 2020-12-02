@@ -23,9 +23,9 @@ using namespace ngraph;
 
 TEST(type_prop, read_value_deduce)
 {
-    auto input = make_shared<op::Parameter>(element::f32, Shape{1, 2, 64, 64});
+    auto input = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 64, 64});
     auto read_value = make_shared<op::ReadValue>(input, "variable_id");
 
-    ASSERT_EQ(read_value->get_element_type(), element::f32);
+    ASSERT_EQ(read_value->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(read_value->get_shape(), (Shape{1, 2, 64, 64}));
 }

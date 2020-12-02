@@ -25,19 +25,19 @@ using namespace ngraph;
 
 TEST(type_prop, select_deduce)
 {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
-    ASSERT_EQ(bc->get_element_type(), element::f32);
+    ASSERT_EQ(bc->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 4}));
 }
 
 TEST(type_prop, select_shape_mismatch_a)
 {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{3, 5});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{3, 5});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     try
     {
         auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
@@ -56,9 +56,9 @@ TEST(type_prop, select_shape_mismatch_a)
 
 TEST(type_prop, select_shape_mismatch_b)
 {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{3, 5});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 5});
+    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     try
     {
         auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
@@ -77,9 +77,9 @@ TEST(type_prop, select_shape_mismatch_b)
 
 TEST(type_prop, select_shape_mismatch_c)
 {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{3, 5});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 5});
     try
     {
         auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
@@ -98,9 +98,9 @@ TEST(type_prop, select_shape_mismatch_c)
 
 TEST(type_prop, select_elem_mismatch_a)
 {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     try
     {
         auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
@@ -120,9 +120,9 @@ TEST(type_prop, select_elem_mismatch_a)
 
 TEST(type_prop, select_elem_mismatch_bc)
 {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::i32, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 4});
     try
     {
         auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
@@ -142,21 +142,21 @@ TEST(type_prop, select_elem_mismatch_bc)
 
 TEST(type_prop, select_partial_all_rank_dynamic)
 {
-    auto param0 = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean, PartialShape::dynamic());
+    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
     auto sel = make_shared<op::Select>(param0, param1, param2);
 
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
+    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TEST(type_prop, select_partial_all_rank_dynamic_arg0_et_dynamic_arg1_arg2_et_mismatch)
 {
-    auto param0 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto param0 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
+    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto param2 = make_shared<op::Parameter>(element::Type_t::i32, PartialShape::dynamic());
 
     try
     {
@@ -177,78 +177,78 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_et_dynamic_arg1_arg2_et_mis
 
 TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_et_dynamic)
 {
-    auto param0 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto param0 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
+    auto param1 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
+    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
     auto sel = make_shared<op::Select>(param0, param1, param2);
 
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
+    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg2_et_dynamic)
 {
-    auto param0 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param0 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
+    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto param2 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
 
     auto sel = make_shared<op::Select>(param0, param1, param2);
 
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
+    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_arg2_et_dynamic)
 {
-    auto param0 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto param0 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
+    auto param1 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
+    auto param2 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
 
     auto sel = make_shared<op::Select>(param0, param1, param2);
 
-    ASSERT_EQ(sel->get_output_element_type(0), element::dynamic);
+    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::dynamic);
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
 }
 
 TEST(type_prop, select_partial_arg0_rank_dynamic_static_arg1_arg2_rank_dynamic_ok)
 {
-    auto param0 =
-        make_shared<op::Parameter>(element::boolean, PartialShape{2, Dimension::dynamic(), 3});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean,
+                                             PartialShape{2, Dimension::dynamic(), 3});
+    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
     auto sel = make_shared<op::Select>(param0, param1, param2);
 
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
+    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(
         sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
 }
 
 TEST(type_prop, select_partial_arg1_rank_dynamic_static_arg0_arg2_rank_dynamic_ok)
 {
-    auto param0 = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
+    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean, PartialShape::dynamic());
     auto param1 =
-        make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
-    auto param2 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
+    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
     auto sel = make_shared<op::Select>(param0, param1, param2);
 
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
+    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(
         sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
 }
 
 TEST(type_prop, select_partial_arg2_rank_dynamic_static_arg0_arg1_rank_dynamic_ok)
 {
-    auto param0 = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean, PartialShape::dynamic());
+    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto param2 =
-        make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
 
     auto sel = make_shared<op::Select>(param0, param1, param2);
 
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
+    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(
         sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
 }
@@ -256,15 +256,15 @@ TEST(type_prop, select_partial_arg2_rank_dynamic_static_arg0_arg1_rank_dynamic_o
 TEST(type_prop, select_partial_all_rank_static_dynamic_ok)
 {
     auto param0 = make_shared<op::Parameter>(
-        element::boolean, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
+        element::Type_t::boolean, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
     auto param1 = make_shared<op::Parameter>(
-        element::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
+        element::Type_t::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
     auto param2 = make_shared<op::Parameter>(
-        element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3});
+        element::Type_t::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3});
 
     auto sel = make_shared<op::Select>(param0, param1, param2);
 
-    ASSERT_EQ(sel->get_output_element_type(0), element::f32);
+    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(sel->get_output_partial_shape(0).is_static());
     ASSERT_EQ(sel->get_output_shape(0), (Shape{2, 8, 3}));
 }
@@ -272,11 +272,11 @@ TEST(type_prop, select_partial_all_rank_static_dynamic_ok)
 TEST(type_prop, select_partial_all_rank_static_intransitive_incompatibility)
 {
     auto param0 = make_shared<op::Parameter>(
-        element::boolean, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
+        element::Type_t::boolean, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
     auto param1 = make_shared<op::Parameter>(
-        element::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
+        element::Type_t::f32, PartialShape{Dimension::dynamic(), 8, Dimension::dynamic()});
     auto param2 =
-        make_shared<op::Parameter>(element::f32, PartialShape{3, Dimension::dynamic(), 3});
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{3, Dimension::dynamic(), 3});
 
     try
     {
@@ -331,43 +331,71 @@ TEST_P(DeduceV1SelectTest, output_shape)
 INSTANTIATE_TEST_CASE_P(
     type_prop,
     DeduceV1SelectTest,
-    ::testing::Values(SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
-                                   {element::boolean, element::f32, element::f32, element::f32},
-                                   op::AutoBroadcastType::NONE),
-                      SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
-                                   {element::boolean, element::f32, element::f32, element::f32},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{}, {2, 4}, {2, 4}, {2, 4}},
-                                   {element::boolean, element::f32, element::f32, element::f32},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{}, {4}, {2, 4}, {2, 4}},
-                                   {element::boolean, element::f32, element::dynamic, element::f32},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{}, {2, 4}, {4}, {2, 4}},
-                                   {element::boolean, element::f32, element::f32, element::f32},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{4}, {2, 4}, {4}, {2, 4}},
-                                   {element::boolean, element::i8, element::dynamic, element::i8},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{4}, {4}, {2, 4}, {2, 4}},
-                                   {element::dynamic, element::dynamic, element::i8, element::i8},
-                                   op::AutoBroadcastType::NUMPY),
-                      SelectParams({{2}, {2}, {2, 4}, {2, 4}},
-                                   {element::boolean, element::f32, element::dynamic, element::f32},
-                                   {op::AutoBroadcastType::PDPD, 0}),
-                      // TODO: Whats the right behavior here?
-                      // SelectParams({{2}, {2, 4}, {2}, {2, 4}}, {element::boolean, element::f32,
-                      // element::dynamic, element::f32}, {op::AutoBroadcastType::PDPD, 0}),
-                      SelectParams({{4}, {4}, {2, 4}, {2, 4}},
-                                   {element::boolean, element::f32, element::dynamic, element::f32},
-                                   {op::AutoBroadcastType::PDPD, 1})),
+    ::testing::Values(
+        SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::f32,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NONE),
+        SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::f32,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{}, {2, 4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::f32,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{}, {4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::dynamic,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{}, {2, 4}, {4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::f32,
+                      element::Type_t::f32},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{4}, {2, 4}, {4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::i8,
+                      element::Type_t::dynamic,
+                      element::Type_t::i8},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{4}, {4}, {2, 4}, {2, 4}},
+                     {element::Type_t::dynamic,
+                      element::Type_t::dynamic,
+                      element::Type_t::i8,
+                      element::Type_t::i8},
+                     op::AutoBroadcastType::NUMPY),
+        SelectParams({{2}, {2}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::dynamic,
+                      element::Type_t::f32},
+                     {op::AutoBroadcastType::PDPD, 0}),
+        // TODO: Whats the right behavior here?
+        // SelectParams({{2}, {2, 4}, {2}, {2, 4}}, {element::Type_t::boolean, element::Type_t::f32,
+        // element::Type_t::dynamic, element::Type_t::f32}, {op::AutoBroadcastType::PDPD, 0}),
+        SelectParams({{4}, {4}, {2, 4}, {2, 4}},
+                     {element::Type_t::boolean,
+                      element::Type_t::f32,
+                      element::Type_t::dynamic,
+                      element::Type_t::f32},
+                     {op::AutoBroadcastType::PDPD, 1})),
     PrintToDummyParamName());
 
 TEST(type_prop, select_v1_partial_shape)
 {
-    auto a = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
-    auto b = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto c = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto a = make_shared<op::Parameter>(element::Type_t::boolean, PartialShape::dynamic());
+    auto b = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto c = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
 
     auto select = make_shared<op::v1::Select>(a, b, c, op::AutoBroadcastType::NONE);
     ASSERT_EQ(select->get_shape(), (Shape{2, 4}));
@@ -375,9 +403,11 @@ TEST(type_prop, select_v1_partial_shape)
 
 TEST(type_prop, select_v1_partial_shape_autob)
 {
-    auto a = make_shared<op::Parameter>(element::boolean, PartialShape{Dimension::dynamic()});
-    auto b = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
-    auto c = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic()});
+    auto a =
+        make_shared<op::Parameter>(element::Type_t::boolean, PartialShape{Dimension::dynamic()});
+    auto b = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
+    auto c =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic()});
 
     auto select = make_shared<op::v1::Select>(a, b, c);
     ASSERT_TRUE(
@@ -386,9 +416,9 @@ TEST(type_prop, select_v1_partial_shape_autob)
 
 TEST(type_prop, select_v1_wrong_et)
 {
-    auto param0 = make_shared<op::Parameter>(element::i8, Shape{2, 4});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto param0 = make_shared<op::Parameter>(element::Type_t::i8, Shape{2, 4});
+    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
 
     try
     {
@@ -408,9 +438,9 @@ TEST(type_prop, select_v1_wrong_et)
 
 TEST(type_prop, select_v1_et_mismatch)
 {
-    auto param0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto param2 = make_shared<op::Parameter>(element::i8, Shape{2, 4});
+    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
+    auto param2 = make_shared<op::Parameter>(element::Type_t::i8, Shape{2, 4});
 
     try
     {
@@ -430,9 +460,9 @@ TEST(type_prop, select_v1_et_mismatch)
 
 TEST(type_prop, select_v1_shape_mismatch)
 {
-    auto param0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{2, 3});
-    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 3});
+    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
 
     try
     {
@@ -452,9 +482,10 @@ TEST(type_prop, select_v1_shape_mismatch)
 TEST(type_prop, select_v1_partial_shape_mismatch)
 {
     auto param0 =
-        make_shared<op::Parameter>(element::boolean, PartialShape{3, Dimension::dynamic()});
-    auto param1 = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic()});
-    auto param2 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+        make_shared<op::Parameter>(element::Type_t::boolean, PartialShape{3, Dimension::dynamic()});
+    auto param1 =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic()});
+    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
 
     try
     {

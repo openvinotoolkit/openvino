@@ -25,9 +25,9 @@ OutputVector builder::opset1::split(const Output<Node>& value,
                                     const std::vector<size_t>& split_lengths,
                                     int64_t axis)
 {
-    const auto axis_node = ngraph::opset1::Constant::create(element::i64, Shape{}, {axis});
-    const auto split_lengths_node =
-        ngraph::opset1::Constant::create(element::u64, Shape{split_lengths.size()}, split_lengths);
+    const auto axis_node = ngraph::opset1::Constant::create(element::Type_t::i64, Shape{}, {axis});
+    const auto split_lengths_node = ngraph::opset1::Constant::create(
+        element::Type_t::u64, Shape{split_lengths.size()}, split_lengths);
     const auto variadic_split =
         std::make_shared<ngraph::opset1::VariadicSplit>(value, axis_node, split_lengths_node);
 
@@ -36,7 +36,7 @@ OutputVector builder::opset1::split(const Output<Node>& value,
 
 OutputVector builder::opset1::split(const Output<Node>& value, size_t num_splits, int64_t axis)
 {
-    const auto axis_node = ngraph::opset1::Constant::create(element::i64, Shape{}, {axis});
+    const auto axis_node = ngraph::opset1::Constant::create(element::Type_t::i64, Shape{}, {axis});
     const auto split = std::make_shared<ngraph::opset1::Split>(value, axis_node, num_splits);
 
     return split->outputs();

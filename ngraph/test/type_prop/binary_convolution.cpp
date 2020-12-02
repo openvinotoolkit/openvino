@@ -33,8 +33,8 @@ TEST(type_prop, binary_conv_v1_partial_auto_padding_same)
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -56,8 +56,8 @@ TEST(type_prop, binary_conv_v1_partial_auto_padding_same_nc_dims_dynamic_same_lo
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -79,8 +79,8 @@ TEST(type_prop, binary_conv_v1_partial_auto_padding_same_nc_dims_dynamic_same_up
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_UPPER;
 
-    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -102,8 +102,8 @@ TEST(type_prop, binary_conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);

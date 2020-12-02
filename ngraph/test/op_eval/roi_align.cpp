@@ -42,9 +42,9 @@ TEST(op_eval, roi_align_avg_pool)
     const auto data_shape = Shape{N, C, H, W};
     const auto rois_shape = Shape{num_rois, 4};
 
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
-    const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto rois = make_shared<op::Parameter>(element::Type_t::f32, rois_shape);
+    const auto batch_indices = make_shared<op::Parameter>(element::Type_t::i32, Shape{num_rois});
 
     auto roi_align = make_shared<op::v3::ROIAlign>(
         data, rois, batch_indices, pooled_height, pooled_width, 2, 1.0f / 16.0f, "avg");
@@ -93,7 +93,7 @@ TEST(op_eval, roi_align_avg_pool)
         56.8021f, 58.4375f, 58.4375f, 58.4375f, 58.4688f, 60.1042f, 60.1042f, 60.1042f, 60.1354f};
     const auto expected_shape = Shape{num_rois, C, pooled_height, pooled_width};
 
-    EXPECT_EQ(result->get_element_type(), element::f32);
+    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
     EXPECT_EQ(result->get_shape(), expected_shape);
     ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_vec, 6, 0.001));
 }
@@ -109,9 +109,9 @@ TEST(op_eval, roi_align_max_pool)
     const auto data_shape = Shape{N, C, H, W};
     const auto rois_shape = Shape{num_rois, 4};
 
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
-    const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{num_rois});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto rois = make_shared<op::Parameter>(element::Type_t::f32, rois_shape);
+    const auto batch_indices = make_shared<op::Parameter>(element::Type_t::i32, Shape{num_rois});
 
     auto roi_align = make_shared<op::v3::ROIAlign>(
         data, rois, batch_indices, pooled_height, pooled_width, 2, 1.0f / 16.0f, "max");
@@ -160,7 +160,7 @@ TEST(op_eval, roi_align_max_pool)
         40.1042f,  46.25f,   46.25f,   46.25f,    46.25f,   56.25f,   56.25f,   56.25f,   56.25f};
     const auto expected_shape = Shape{num_rois, C, pooled_height, pooled_width};
 
-    EXPECT_EQ(result->get_element_type(), element::f32);
+    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
     EXPECT_EQ(result->get_shape(), expected_shape);
     ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_vec, 6, 0.001));
 }

@@ -34,21 +34,21 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, select)
 {
     Shape shape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::boolean, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Select>(A, B, C), ParameterVector{A, B, C});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::boolean, shape);
+    auto a = backend->create_tensor(element::Type_t::boolean, shape);
     copy_data(a, vector<char>{0, 1, 1, 0, 0, 1, 0, 1});
-    auto b = backend->create_tensor(element::f32, shape);
+    auto b = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(b, vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
-    auto c = backend->create_tensor(element::f32, shape);
+    auto c = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(c, vector<float>{11, 12, 13, 14, 15, 16, 17, 18});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b, c});
@@ -59,21 +59,21 @@ NGRAPH_TEST(${BACKEND_NAME}, select)
 
 NGRAPH_TEST(${BACKEND_NAME}, select_v1)
 {
-    auto A = make_shared<op::Parameter>(element::boolean, Shape{4});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto C = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto A = make_shared<op::Parameter>(element::Type_t::boolean, Shape{4});
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{4});
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     auto f = make_shared<Function>(make_shared<op::v1::Select>(A, B, C), ParameterVector{A, B, C});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::boolean, Shape{4});
+    auto a = backend->create_tensor(element::Type_t::boolean, Shape{4});
     copy_data(a, vector<char>{0, 1, 1, 0});
-    auto b = backend->create_tensor(element::f32, Shape{4});
+    auto b = backend->create_tensor(element::Type_t::f32, Shape{4});
     copy_data(b, vector<float>{1, 2, 3, 4});
-    auto c = backend->create_tensor(element::f32, Shape{2, 4});
+    auto c = backend->create_tensor(element::Type_t::f32, Shape{2, 4});
     copy_data(c, vector<float>{11, 12, 13, 14, 15, 16, 17, 18});
-    auto result = backend->create_tensor(element::f32, Shape{2, 4});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{2, 4});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b, c});
@@ -84,21 +84,21 @@ NGRAPH_TEST(${BACKEND_NAME}, select_v1)
 NGRAPH_TEST(${BACKEND_NAME}, select_double)
 {
     Shape shape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::boolean, shape);
-    auto B = make_shared<op::Parameter>(element::f64, shape);
-    auto C = make_shared<op::Parameter>(element::f64, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::boolean, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f64, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f64, shape);
     auto f = make_shared<Function>(make_shared<op::Select>(A, B, C), ParameterVector{A, B, C});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::boolean, shape);
+    auto a = backend->create_tensor(element::Type_t::boolean, shape);
     copy_data(a, vector<char>{0, 1, 1, 0, 0, 1, 0, 1});
-    auto b = backend->create_tensor(element::f64, shape);
+    auto b = backend->create_tensor(element::Type_t::f64, shape);
     copy_data(b, vector<double>{1, 2, 3, 4, 5, 6, 7, 8});
-    auto c = backend->create_tensor(element::f64, shape);
+    auto c = backend->create_tensor(element::Type_t::f64, shape);
     copy_data(c, vector<double>{11, 12, 13, 14, 15, 16, 17, 18});
-    auto result = backend->create_tensor(element::f64, shape);
+    auto result = backend->create_tensor(element::Type_t::f64, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b, c});

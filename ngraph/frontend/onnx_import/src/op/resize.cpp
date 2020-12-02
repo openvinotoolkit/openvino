@@ -166,7 +166,7 @@ namespace ngraph
                                 std::floor(data_static_shape.at(i) * scales_vector.at(i)));
                         }
                         auto output_shape_const = default_opset::Constant::create(
-                            element::u64, Shape({output_shape.size()}), output_shape);
+                            element::Type_t::u64, Shape({output_shape.size()}), output_shape);
 
                         return output_shape_const;
                     }
@@ -175,8 +175,8 @@ namespace ngraph
                         std::make_shared<default_opset::ShapeOf>(data), scales.get_element_type());
                     const auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-                    const auto output_shape =
-                        std::make_shared<default_opset::Convert>(multiply, ngraph::element::i64);
+                    const auto output_shape = std::make_shared<default_opset::Convert>(
+                        multiply, ngraph::element::Type_t::i64);
 
                     return output_shape;
                 }
@@ -207,19 +207,20 @@ namespace ngraph
                             scales.push_back(scale);
                         }
                         auto scales_const = default_opset::Constant::create(
-                            element::f32, Shape({scales.size()}), scales);
+                            element::Type_t::f32, Shape({scales.size()}), scales);
 
                         return scales_const;
                     }
 
                     const auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    const auto converted_sizes =
-                        std::make_shared<default_opset::Convert>(sizes, ngraph::element::f32);
+                        std::make_shared<default_opset::ShapeOf>(data),
+                        ngraph::element::Type_t::f32);
+                    const auto converted_sizes = std::make_shared<default_opset::Convert>(
+                        sizes, ngraph::element::Type_t::f32);
                     const auto divide =
                         std::make_shared<default_opset::Divide>(converted_sizes, shape_of_data);
                     const auto eps_node = std::make_shared<default_opset::Constant>(
-                        ngraph::element::f32, Shape{}, epsilon);
+                        ngraph::element::Type_t::f32, Shape{}, epsilon);
                     const auto scales = std::make_shared<default_opset::Add>(divide, eps_node);
 
                     return scales;

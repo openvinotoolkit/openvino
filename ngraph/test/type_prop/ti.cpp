@@ -30,20 +30,20 @@ TEST(type_prop, tensor_iterator_lstm)
     const size_t L = 10; // Sequence length
     const size_t I = 8;  // Input size
     const size_t H = 32; // Hidden size
-    auto SENT = make_shared<op::Parameter>(element::f32, Shape{N, L, I});
+    auto SENT = make_shared<op::Parameter>(element::Type_t::f32, Shape{N, L, I});
 
-    auto H_init = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
-    auto C_init = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
+    auto H_init = make_shared<op::Parameter>(element::Type_t::f32, Shape{N, 1, H});
+    auto C_init = make_shared<op::Parameter>(element::Type_t::f32, Shape{N, 1, H});
 
-    auto W = make_shared<op::Parameter>(element::f32, Shape{4 * H, I});
-    auto R = make_shared<op::Parameter>(element::f32, Shape{4 * H, H});
-    auto H_t = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
-    auto C_t = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
+    auto W = make_shared<op::Parameter>(element::Type_t::f32, Shape{4 * H, I});
+    auto R = make_shared<op::Parameter>(element::Type_t::f32, Shape{4 * H, H});
+    auto H_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{N, 1, H});
+    auto C_t = make_shared<op::Parameter>(element::Type_t::f32, Shape{N, 1, H});
 
     // Body
-    auto X = make_shared<op::Parameter>(element::f32, Shape{N, 1, I});
-    auto W_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, I});
-    auto R_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, H});
+    auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{N, 1, I});
+    auto W_body = make_shared<op::Parameter>(element::Type_t::f32, Shape{4 * H, I});
+    auto R_body = make_shared<op::Parameter>(element::Type_t::f32, Shape{4 * H, H});
     auto LSTM_cell = make_shared<opset5::LSTMCell>(builder::opset1::reshape(X, Shape{N, I}),
                                                    builder::opset1::reshape(H_t, Shape{N, H}),
                                                    builder::opset1::reshape(C_t, Shape{N, H}),
@@ -77,15 +77,15 @@ TEST(type_prop, tensor_iterator_lstm)
 TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
 {
     // That which we iterate over
-    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
-    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
-    auto M = make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
+    auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 40, 10});
+    auto Y = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 40, 10});
+    auto M = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 2, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto Xi = make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
-    auto Yi = make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
-    auto M_body = make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
+    auto Xi = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 2, 10});
+    auto Yi = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 2, 10});
+    auto M_body = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 2, 10});
 
     // Body
     auto Zo = (Xi + Yi) * M_body;
@@ -121,15 +121,15 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
 TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
 {
     // That which we iterate over
-    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
-    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
-    auto M = make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
+    auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 40, 10});
+    auto Y = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 40, 10});
+    auto M = make_shared<op::Parameter>(element::Type_t::f32, Shape{32, 2, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xi = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
     // Body
     auto Zo = (Xi + Yi) * M_body;

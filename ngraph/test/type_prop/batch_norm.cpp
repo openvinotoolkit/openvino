@@ -29,11 +29,11 @@ TEST(type_prop, batch_norm_inference_partial_all_rank_dynamic)
     PartialShape mean_shape{PartialShape::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -58,11 +58,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_ok)
     PartialShape mean_shape{PartialShape::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -88,11 +88,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_zero_chan
     PartialShape mean_shape{PartialShape::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -124,11 +124,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_dynamic_some_rank_static
     PartialShape mean_shape{Dimension::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -152,11 +152,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_dynamic_some_rank_static
     PartialShape mean_shape{Dimension::dynamic(), Dimension::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -191,11 +191,11 @@ TEST(type_prop,
     PartialShape mean_shape{Dimension::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -229,11 +229,11 @@ TEST(type_prop,
     PartialShape mean_shape{4};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -266,11 +266,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_some_stat
     PartialShape mean_shape{3};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -296,11 +296,11 @@ TEST(type_prop,
     PartialShape mean_shape{3};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -334,11 +334,11 @@ TEST(type_prop, batch_norm_inference_partial_all_rank_dynamic_v5)
     PartialShape mean_shape{PartialShape::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -363,11 +363,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_ok_v5)
     PartialShape mean_shape{PartialShape::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -393,11 +393,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_zero_chan
     PartialShape mean_shape{PartialShape::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -429,11 +429,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_dynamic_some_rank_static
     PartialShape mean_shape{Dimension::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -458,11 +458,11 @@ TEST(type_prop,
     PartialShape mean_shape{Dimension::dynamic(), Dimension::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -497,11 +497,11 @@ TEST(type_prop,
     PartialShape mean_shape{Dimension::dynamic()};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -535,11 +535,11 @@ TEST(type_prop,
     PartialShape mean_shape{4};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -572,11 +572,11 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_some_stat
     PartialShape mean_shape{3};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
@@ -603,11 +603,11 @@ TEST(
     PartialShape mean_shape{3};
     PartialShape variance_shape{PartialShape::dynamic()};
     double epsilon = 0.001;
-    element::Type data_batch_et = element::f32;
-    element::Type gamma_et = element::f32;
-    element::Type beta_et = element::f32;
-    element::Type mean_et = element::f32;
-    element::Type variance_et = element::f32;
+    element::Type data_batch_et = element::Type_t::f32;
+    element::Type gamma_et = element::Type_t::f32;
+    element::Type beta_et = element::Type_t::f32;
+    element::Type mean_et = element::Type_t::f32;
+    element::Type variance_et = element::Type_t::f32;
 
     auto data_batch = make_shared<op::Parameter>(data_batch_et, data_batch_shape);
     auto gamma = make_shared<op::Parameter>(gamma_et, gamma_shape);
