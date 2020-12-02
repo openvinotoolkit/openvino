@@ -28,7 +28,7 @@ struct jit_quantize_params {
     InferenceEngine::Precision wei_prc;
     InferenceEngine::Precision dst_prc;
 
-    mkldnn::memory::format_tag src_format;
+    InferenceEngine::Layout src_layout;
 
     QuantizeOpType op_type;
 };
