@@ -13,7 +13,7 @@
 o_{i} = i_{i} - ReduceMean(i_{k}, axes)
 \f]
 
-If *normalize_variance* is set to `true`, the output blob is divided by variance. When normalizing the value, the number `eps` is added to the variance to avoid division by zero. According to the `eps_mode` flag's value, `eps` is added inside or outside sqrt:
+If *normalize_variance* is set to `true`, the output blob is divided by variance. When normalizing the value, the number `eps` is added to the variance to avoid division by zero. According to the `eps_mode` flag's value, `eps` is added inside or outside the sqrt:
 
 * If `eps_mode` is `inside_sqrt`:
 \f[
