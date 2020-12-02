@@ -123,5 +123,9 @@ bool op::DeconvolutionIE::visit_attributes(AttributeVisitor& visitor) {
         visitor.on_attribute("pads_begin", m_pads_begin);
         visitor.on_attribute("pads_end", m_pads_end);
         visitor.on_attribute("group", m_group);
+        visitor.on_attribute("auto_pad", m_auto_pad);
+        visitor.on_attribute("output_padding", m_output_padding);
+        bool has_output_shape = m_output_shape != nullptr;
+        visitor.on_attribute("has_output_shape", has_output_shape);
         return true;
 }
