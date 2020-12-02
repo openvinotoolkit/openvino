@@ -44,7 +44,7 @@ namespace ngraph
                 Branch()
                     : Pattern(OutputVector{})
                 {
-                    set_output_type(0, element::f32, Shape{});
+                    set_output_type(0, element::Type_t::f32, Shape{});
                 }
 
                 void set_destination(const Output<Node>& destination)

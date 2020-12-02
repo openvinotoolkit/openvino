@@ -45,20 +45,22 @@ namespace ngraph
                 ArgMinMaxFactory::make_topk_subgraph(default_opset::TopK::Mode mode) const
             {
                 const auto k_node =
-                    default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
+                    default_opset::Constant::create(ngraph::element::Type_t::i64, Shape{}, {1});
                 const auto topk = std::make_shared<default_opset::TopK>(
                     m_input_node, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
 
                 if (m_keep_dims == 0)
                 {
-                    const auto axis_to_remove =
-                        default_opset::Constant::create(element::u64, Shape{}, {topk->get_axis()});
+                    const auto axis_to_remove = default_opset::Constant::create(
+                        element::Type_t::u64, Shape{}, {topk->get_axis()});
                     const auto reshaped_indices =
                         std::make_shared<default_opset::Squeeze>(topk->output(1), axis_to_remove);
 
-                    return std::make_shared<default_opset::Convert>(reshaped_indices, element::i64);
+                    return std::make_shared<default_opset::Convert>(reshaped_indices,
+                                                                    element::Type_t::i64);
                 }
-                return std::make_shared<default_opset::Convert>(topk->output(1), element::i64);
+                return std::make_shared<default_opset::Convert>(topk->output(1),
+                                                                element::Type_t::i64);
             }
         }
     }
