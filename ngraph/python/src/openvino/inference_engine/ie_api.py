@@ -18,6 +18,8 @@ from openvino.pyopenvino import TBlobInt64
 from openvino.pyopenvino import TBlobInt32
 from openvino.pyopenvino import TBlobInt16
 from openvino.pyopenvino import TBlobInt8
+from openvino.pyopenvino import TBlobUint8
+
 
 import numpy as np
 
@@ -39,6 +41,8 @@ class BlobPatch(object):
             return TBlobInt16(tensor_desc, arr, size)
         elif arr.dtype in [np.int8]:
             return TBlobInt8(tensor_desc, arr, size)
+        elif arr.dtype in [np.uint8]:
+            return TBlobUint8(tensor_desc, arr, size)
         else:
             # TODO: raise error
             return None
