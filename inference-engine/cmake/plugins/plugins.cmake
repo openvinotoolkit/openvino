@@ -106,7 +106,6 @@ function(ie_add_plugin)
 
         install(TARGETS ${IE_PLUGIN_NAME}
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${install_component}
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${install_component}
             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${install_component})
     endif()
 endfunction()
