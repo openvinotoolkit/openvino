@@ -123,8 +123,16 @@ public:
     void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
 
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
-    static thread_local std::string                             _thisPreferredDeviceName;
-    std::atomic_bool                                            _terminate = {false};
+    std::string& _thisPreferredDeviceName() {
+        // have to wrap the std::string into the function due to a bug in old gcc versions, like on te CentOS used in our testing
+        // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81880
+        // since the string is template the bug manifests itself (and the string is not allocated/initialized)
+        // also, even though the bug is not closed, in the recent gcc (>7.5.0) it has gone, so:
+        // TODO: revert to the plain variable, when we moved to the next CentOS 8.x (with fresh gcc) in our support matrix
+        static thread_local std::string                         _thisPreferredDeviceName;
+        return _thisPreferredDeviceName;
+    }
+    // static thread_local std::string                          _thisPreferredDeviceName;
     mutable std::mutex                                          _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
     const std::vector<DeviceInformation>                        _devicePrioritiesInitial;

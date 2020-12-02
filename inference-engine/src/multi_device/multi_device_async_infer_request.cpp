@@ -36,25 +36,26 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
         { /*TaskExecutor*/ std::make_shared<ImmediateExecutor>(), /*task*/ [this] {
                // by default, no preferred device:
-               _multiDeviceExecutableNetwork->_thisPreferredDeviceName = "";
+               _multiDeviceExecutableNetwork->_thisPreferredDeviceName() = "";
                // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
                for (const auto &it : _multiDeviceExecutableNetwork->GetInputsInfo()) {
                    Blob::Ptr b;
                    _inferRequest->GetBlob(it.first.c_str(), b);
                    auto r = b->as<RemoteBlob>();
                    if (r) {
-                       _multiDeviceExecutableNetwork->_thisPreferredDeviceName = r->getDeviceName();
+                       _multiDeviceExecutableNetwork->_thisPreferredDeviceName() = r->getDeviceName();
                        break;
                    }
                }
         }},
         // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
+        // then sets the device-agnostic blobs to the actual (device-specific) request
         {
          /*TaskExecutor*/ _multiDeviceExecutableNetwork, /*task*/ [this] {
                _workerInferRequest = MultiDeviceExecutableNetwork::_thisWorkerInferRequest;
                _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
         }},
-        // set the device-agnostic blobs to the actual (device-specific) request first
+        // final task in the pipeline:
         { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
               auto status = _workerInferRequest->_status;
               if (InferenceEngine::StatusCode::OK != status) {

@@ -27,7 +27,8 @@ namespace MultiDevicePlugin {
     using namespace InferenceEngine;
 
 thread_local MultiDeviceExecutableNetwork::WorkerInferRequest* MultiDeviceExecutableNetwork::_thisWorkerInferRequest = nullptr;
-thread_local std::string MultiDeviceExecutableNetwork::_thisPreferredDeviceName;
+// TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
+//thread_local std::string MultiDeviceExecutableNetwork::_thisPreferredDeviceName;
 
 struct IdleGuard {
     explicit IdleGuard(MultiDeviceExecutableNetwork::WorkerInferRequest* workerInferRequestPtr,
@@ -138,7 +139,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
 }
 
 void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
-    ScheduleToWorkerInferRequest(std::move(inferPipelineTask), _thisPreferredDeviceName);
+    ScheduleToWorkerInferRequest(std::move(inferPipelineTask), _thisPreferredDeviceName());
 }
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
