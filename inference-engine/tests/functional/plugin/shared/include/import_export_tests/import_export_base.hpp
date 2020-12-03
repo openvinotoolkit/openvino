@@ -15,7 +15,7 @@ typedef std::tuple<
     std::map<std::string, std::string>  // Import Configuration
 > exportImportNetworkParams;
 
-namespace LayerTestsDefinitions {
+namespace FuncTestUtils {
 
 class ImportNetworkTestBase : public testing::WithParamInterface<exportImportNetworkParams>,
                               public LayerTestsUtils::LayerTestsCommon {
@@ -23,12 +23,9 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj);
     void Run() override;
 
-private:
-    std::vector<std::vector<std::uint8_t>> CalculateImportedNetwork(InferenceEngine::ExecutableNetwork& importedNetwork);
-
 protected:
     std::map<std::string, std::string> exportConfiguration;
     std::map<std::string, std::string> importConfiguration;
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace FuncTestUtils

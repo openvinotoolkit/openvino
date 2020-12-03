@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-class ImportNonZero : public ImportNetworkTestBase {
+class ImportNonZero : public FuncTestUtils::ImportNetworkTestBase {
 protected:
     void SetUp() override;
 };

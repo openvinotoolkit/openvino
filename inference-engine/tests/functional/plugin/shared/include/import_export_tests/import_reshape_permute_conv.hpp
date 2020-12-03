@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-class ImportReshapePermuteConv : public ImportNetworkTestBase {
+class ImportReshapePermuteConv : public FuncTestUtils::ImportNetworkTestBase {
 protected:
     void SetUp() override;
 };
