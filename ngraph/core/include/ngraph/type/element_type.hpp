@@ -179,6 +179,9 @@ namespace ngraph
 
         NGRAPH_API
         std::ostream& operator<<(std::ostream& out, const ngraph::element::Type& obj);
+
+        NGRAPH_API
+        std::istream& operator>>(std::istream& in, element::Type& obj);
     }
 
     template <>

@@ -25,6 +25,7 @@
 #include <ngraph/variant.hpp>
 
 #include <ngraph_ops/convolution_ie.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
 #include <legacy/ngraph_ops/scaleshift.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 
@@ -162,7 +163,54 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const 
                 input_node->output(p_output.getRealOutputPortId(e.fromPortId));
         }
 
+        pugi::xml_node dn = p.xml.child("data");
+        ngraph::element::TypeVector in, out;
+        if (!dn.empty()) {
+            in = getParameters<ngraph::element::Type>(dn, "input_data_types", {});
+            out = getParameters<ngraph::element::Type>(dn, "output_data_types", {});
+            if (!in.empty()) {
+                for (size_t i = 0; i < inputs.size(); ++i) {
+                    if (i < in.size()) {
+                        inputs[i].get_tensor().set_element_type(in[i]);
+                    }
+                }
+            }
+        }
+
         auto node = createNode(inputs, p.xml, weights, p.params);
+
+        if (!in.empty() || !out.empty()) {
+            if (auto casted = std::dynamic_pointer_cast<ngraph::op::v1::Subtract>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::Subtract>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v1::Add>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::Add>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v1::Multiply>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::Multiply>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v0::Concat>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v0::FakeQuantize>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v1::Convolution>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::Convolution>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::GroupConvolution>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v0::MatMul>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v0::MatMul>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v0::PRelu>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v0::PRelu>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v0::Interpolate>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v0::Interpolate>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v4::Interpolate>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v4::Interpolate>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v1::AvgPool>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::AvgPool>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v0::Clamp>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v0::Clamp>>(*casted, in, out);
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported TypeRelaxed: " << node;
+            }
+        }
+        node->validate_and_infer_types();
         id_to_node[layer_id] = node;
 
         // Check that output shape after nGraph node validation the same as in IR

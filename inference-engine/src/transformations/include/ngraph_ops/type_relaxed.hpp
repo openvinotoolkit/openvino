@@ -161,6 +161,13 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        visitor.on_attribute("input_data_types", m_input_data_types);
+        visitor.on_attribute("output_data_types", m_output_data_types);
+        BaseOp::visit_attributes(visitor);
+        return true;
+    }
+
 private:
     void init() {
         validate_and_infer_types();
@@ -231,4 +238,15 @@ template <typename BaseOp>
 const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
 
 }  // namespace op
+
+template <>
+class TRANSFORMATIONS_API AttributeAdapter<element::TypeVector>
+    : public DirectValueAccessor<element::TypeVector> {
+public:
+    AttributeAdapter(element::TypeVector& value)
+        : DirectValueAccessor<element::TypeVector>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<element::Type>>", 0};
+    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+};
 }  // namespace ngraph

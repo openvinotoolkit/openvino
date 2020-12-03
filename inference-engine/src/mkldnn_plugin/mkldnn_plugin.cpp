@@ -14,6 +14,7 @@
 #include <ie_plugin_config.hpp>
 #include <vector>
 #include <tuple>
+#include <chrono>
 #include <ie_system_conf.h>
 #include <generic_ie.hpp>
 #include <nodes/list.hpp>
@@ -77,6 +78,7 @@
 #include <windows.h>
 #else
 #include <cpuid.h>
+#include <transformations/serialize.hpp>
 
 #endif
 #endif
@@ -209,6 +211,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     manager.run_passes(nGraphFunc);
 
+    auto start = std::chrono::high_resolution_clock::now();
     using namespace ngraph::pass::low_precision;
     if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(
@@ -226,6 +229,19 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
         transformer.transform(nGraphFunc);
     }
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "LPT: " << duration.count() << " ms" << std::endl;
+
+    if (auto path = std::getenv("MODEL_PATH")) {
+        std::string model_path(path);
+        std::string model_path_bin = model_path.substr(0, model_path.size() - 3) + "bin";
+        ngraph::pass::Serialize(model_path, model_path_bin).run_on_function(nGraphFunc);
+        std::cout << "IR: " << model_path << std::endl << model_path_bin << std::endl;
+    } else {
+        std::cout << "MODEL_PATH not defined";
+    }
+
 
     ngraph::pass::Manager legacyManager;
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();

@@ -13,6 +13,7 @@
 #include "ngraph/opsets/opset.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
 
 using namespace ngraph;
 
@@ -62,6 +63,10 @@ public:
 #if 0  // TODO: remove when Constant will support VisitorAPI
         m_data.append_attribute(name.c_str());
 #endif
+        if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
+            auto values = a->get();
+            m_data.append_attribute(name.c_str()).set_value(joinVec(values).c_str());
+        }
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<bool>& adapter) override {

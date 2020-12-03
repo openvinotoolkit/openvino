@@ -52,6 +52,37 @@ public:
 
 #ifdef IR_READER_V10
 
+template <class T>
+std::vector<T> getParameters(const pugi::xml_node& node, const std::string& name) {
+    std::vector<T> result;
+    std::string param = XMLParseUtils::GetStrAttr(node, name.c_str());
+    std::stringstream ss(param);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        std::stringstream fs(field);
+        T value;
+        fs >> value;
+        result.emplace_back(value);
+    }
+    return result;
+}
+
+template <class T>
+std::vector<T> getParameters(const pugi::xml_node& node, const std::string& name, const std::vector<T>& def) {
+    std::vector<T> result;
+    std::string param = XMLParseUtils::GetStrAttr(node, name.c_str(), "");
+    if (param.empty()) return def;
+    std::stringstream ss(param);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        std::stringstream fs(field);
+        T value;
+        fs >> value;
+        result.emplace_back(value);
+    }
+    return result;
+}
+
 class V10Parser : public IParser {
 public:
     explicit V10Parser(const std::vector<IExtensionPtr>& exts);
@@ -110,36 +141,6 @@ private:
         explicit LayerBaseCreator(const std::string& type): type(type) {}
         std::string getType() {
             return type;
-        }
-        template <class T>
-        std::vector<T> getParameters(const pugi::xml_node& node, const std::string& name) {
-            std::vector<T> result;
-            std::string param = XMLParseUtils::GetStrAttr(node, name.c_str());
-            std::stringstream ss(param);
-            std::string field;
-            while (getline(ss, field, ',')) {
-                std::stringstream fs(field);
-                T value;
-                fs >> value;
-                result.emplace_back(value);
-            }
-            return result;
-        }
-
-        template <class T>
-        std::vector<T> getParameters(const pugi::xml_node& node, const std::string& name, const std::vector<T>& def) {
-            std::vector<T> result;
-            std::string param = XMLParseUtils::GetStrAttr(node, name.c_str(), "");
-            if (param.empty()) return def;
-            std::stringstream ss(param);
-            std::string field;
-            while (getline(ss, field, ',')) {
-                std::stringstream fs(field);
-                T value;
-                fs >> value;
-                result.emplace_back(value);
-            }
-            return result;
         }
 
         void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs) {

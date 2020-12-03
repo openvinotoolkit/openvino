@@ -14,4 +14,5 @@ namespace op {
 TypeRelaxedBase::~TypeRelaxedBase() {}
 
 }  // namespace op
+constexpr DiscreteTypeInfo AttributeAdapter<element::TypeVector>::type_info;
 }  // namespace ngraph

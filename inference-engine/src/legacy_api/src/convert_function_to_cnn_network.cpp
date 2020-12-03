@@ -49,6 +49,7 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
 
 #include "legacy/convert_function_to_cnn_network.hpp"
 #include "ie_legacy_itt.hpp"
@@ -152,8 +153,11 @@ private:
 void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& name,
                                                            ::ngraph::ValueAccessor<void>& adapter) {
     if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::element::Type>>(&adapter)) {
-        auto type = static_cast<::ngraph::element::Type&>(*a);
+        auto type = static_cast<::ngraph::element::Type &>(*a);
         params[name] = details::convertPrecision(type).name();
+    } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::element::TypeVector>>(&adapter)) {
+        auto values = a->get();
+        params[name] = joinVec(values);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::PartialShape>>(&adapter)) {
         std::string dims;
         auto shape = static_cast<::ngraph::PartialShape&>(*a);

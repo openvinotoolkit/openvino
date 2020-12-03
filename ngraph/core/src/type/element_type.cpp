@@ -225,6 +225,30 @@ std::ostream& element::operator<<(std::ostream& out, const element::Type& obj)
     return out << obj.get_type_name();
 }
 
+std::istream& element::operator>>(std::istream& in, element::Type& obj)
+{
+    static const std::unordered_map<std::string, Type> str_to_type {{"undefined", element::Type_t::undefined},
+                                                                {"dynamic", element::Type_t::dynamic},
+                                                                {"boolean", element::Type_t::boolean},
+                                                                {"bf16", element::Type_t::bf16},
+                                                                {"f16", element::Type_t::f16},
+                                                                {"f32", element::Type_t::f32},
+                                                                {"f64", element::Type_t::f64},
+                                                                {"i8", element::Type_t::i8},
+                                                                {"i16", element::Type_t::i16},
+                                                                {"i32", element::Type_t::i32},
+                                                                {"i64", element::Type_t::i64},
+                                                                {"u1", element::Type_t::u1},
+                                                                {"u8", element::Type_t::u8},
+                                                                {"u16", element::Type_t::u16},
+                                                                {"u32", element::Type_t::u32},
+                                                                {"u64", element::Type_t::u64}};
+    std::string value;
+    in >> value;
+    obj = str_to_type.at(value);
+    return in;
+}
+
 bool element::Type::compatible(const element::Type& t) const
 {
     return (is_dynamic() || t.is_dynamic() || *this == t);
