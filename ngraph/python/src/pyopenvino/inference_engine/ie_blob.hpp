@@ -20,10 +20,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <ie_blob.h>
-#include <ie_common.h>
-#include <ie_layouts.h>
-#include <ie_precision.hpp>
+#include "ie_blob.h"
+#include "ie_common.h"
+#include "ie_layouts.h"
+#include "ie_precision.hpp"
 
 #include "../../../pybind11/include/pybind11/pybind11.h"
 #include "pyopenvino/inference_engine/tensor_description.hpp"

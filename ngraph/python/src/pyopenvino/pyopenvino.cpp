@@ -70,7 +70,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     // Specific type Blobs
     regclass_TBlob<float>(m, "Float32");
     regclass_TBlob<int8_t>(m, "Int8");
-    // regclass_TBlob<uint8_t>(m, "Uint8");
+    regclass_TBlob<uint8_t>(m, "Uint8");
     regclass_TBlob<int16_t>(m, "Int16");
     // regclass_TBlob<uint16_t>(m, "Uint16");
     regclass_TBlob<int32_t>(m, "Int32");
