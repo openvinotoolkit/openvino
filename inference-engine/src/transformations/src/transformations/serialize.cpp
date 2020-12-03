@@ -179,10 +179,15 @@ const std::vector<Edge> create_edge_mapping(
 // TODO: refactor to Vistor API when Constant will be supporting it
 ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
                                      const ngraph::op::Constant& c) {
-    NGRAPH_CHECK(c.get_output_partial_shape(0.).is_static(),
-                 "Unsupported dynamic output shape in ", c);
-
     ConstantAtributes attr;
+    if (!c.get_output_partial_shape(0).is_static()) {
+        std::cerr << "[ WARNING ] Constant with dynamic shape (really???), name = "
+                  << c.get_friendly_name() << ", shape = " << c.get_output_partial_shape(0) << "\n";
+        attr.size = 0;
+        attr.offset = bin.size();
+        return attr;
+    }
+
     const uint8_t* p = reinterpret_cast<const uint8_t*>(c.get_data_ptr());
     attr.size = ngraph::shape_size(c.get_shape()) * c.get_element_type().size();
     attr.offset = bin.size();
@@ -412,15 +417,12 @@ void ngfunction_2_irv10(
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (auto i : node->inputs()) {
-                NGRAPH_CHECK(i.get_partial_shape().is_static(),
-                             "Unsupported dynamic input shape in ", node);
-
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
-                for (auto d : i.get_shape()) {
+                for (auto d : std::vector<Dimension>(i.get_partial_shape())) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                        .set_value(std::to_string(d.get_max_length()).c_str());
                 }
             }
         }
@@ -428,17 +430,14 @@ void ngfunction_2_irv10(
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (auto o : node->outputs()) {
-                NGRAPH_CHECK(o.get_partial_shape().is_static(),
-                             "Unsupported dynamic output shape in ", node);
-
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                     .set_value(get_output_precision_name(o).c_str());
-                for (auto d : o.get_shape()) {
+                for (auto d : std::vector<Dimension>(o.get_partial_shape())) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                        .set_value(std::to_string(d.get_max_length()).c_str());
                 }
             }
         }

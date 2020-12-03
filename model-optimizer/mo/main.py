@@ -29,7 +29,7 @@ from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
-from mo.pipeline.unified import unified_pipeline
+from mo.pipeline.unified import unified_pipeline, moc_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
@@ -234,13 +234,7 @@ def prepare_ir(argv: argparse.Namespace):
     if not(is_onnx and not argv.use_legacy_frontend):
         graph = unified_pipeline(argv)
     else:
-        from openvino.inference_engine import IECore
-        ie = IECore()
-        graph = ie.read_network(model=argv.input_model)
-        #TODO: provide real shapes here
-        print('Placeholder shapes:' + str(argv.placeholder_shapes))
-        print('Placeholder shapes:' + str(argv.user_shapes))
-        graph.reshape({'input:0': [1, 3, 224, 224]})
+        graph = moc_pipeline(argv)
     return graph
 
 

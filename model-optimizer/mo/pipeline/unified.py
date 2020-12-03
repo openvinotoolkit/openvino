@@ -29,3 +29,13 @@ def unified_pipeline(argv: argparse.Namespace):
         class_registration.ClassType.BACK_REPLACER
     ])
     return graph
+
+def moc_pipeline(argv: argparse.Namespace):
+    from openvino.inference_engine import IECore
+    ie = IECore()
+    graph = ie.read_network(model=argv.input_model)
+    #TODO: provide real shapes here
+    print('Placeholder shapes:' + str(argv.placeholder_shapes))
+    #print('Placeholder shapes:' + str(argv.user_shapes))
+    graph.reshape({'image': argv.placeholder_shapes})
+    return graph
