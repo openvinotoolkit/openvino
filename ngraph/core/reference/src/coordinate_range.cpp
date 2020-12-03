@@ -30,9 +30,9 @@ namespace ngraph
         {
             namespace
             {
-                std::vector<ssize_t> memory_strides(const Shape& shape)
+                std::vector<size_t> memory_strides(const Shape& shape)
                 {
-                    std::vector<ssize_t> mem_strides(shape.size(), 1);
+                    std::vector<size_t> mem_strides(shape.size(), 1);
 
                     if (shape.size() > 1)
                     {
@@ -88,7 +88,6 @@ namespace ngraph
                 }
             }
 
-            ssize_t SliceRange::copy_range_first_index() const { return m_index; }
             bool SliceRange::increment()
             {
                 if (m_coordinate.empty())
@@ -103,7 +102,7 @@ namespace ngraph
                     m_index += index_step;
                     if (m_coordinate[axis] < m_bounds.m_upper[axis])
                     {
-                        assert(m_index < static_cast<ptrdiff_t>(shape_size(m_source_shape)));
+                        assert(m_index < shape_size(m_source_shape));
                         return true;
                     }
                     const auto difference = m_coordinate[axis] - m_bounds.m_lower[axis];
@@ -118,21 +117,7 @@ namespace ngraph
 
             namespace
             {
-                Coordinate start_coordinate(const Shape& s,
-                                            const std::vector<signed char>& direction)
-                {
-                    Coordinate coordiante(s.size(), 0);
-                    for (size_t i = 0; i < s.size(); ++i)
-                    {
-                        if (direction[i] < 0)
-                        {
-                            coordiante[i] = s[i] - 1;
-                        }
-                    }
-                    return coordiante;
-                }
-
-                std::vector<signed char> axis_direcions(size_t size, const AxisSet& reversed_axis)
+                std::vector<Direction> axis_direcions(size_t size, const AxisSet& reversed_axis)
                 {
                     const auto max_reversed_axis = [&] {
                         return *std::max_element(reversed_axis.begin(), reversed_axis.end());
@@ -143,13 +128,27 @@ namespace ngraph
                             "Reversed axis have axes above the source space shape");
                     }
 
-                    std::vector<signed char> directions(size, 1);
+                    std::vector<Direction> directions(size, Direction::forward);
                     for (auto i : reversed_axis)
                     {
-                        directions[i] = -1;
+                        directions[i] = Direction::reverse;
                     }
                     return directions;
                 }
+
+                Coordinate start_coordinate(const Shape& s, const std::vector<Direction>& direction)
+                {
+                    Coordinate coordiante(s.size(), 0);
+                    for (size_t i = 0; i < s.size(); ++i)
+                    {
+                        if (direction[i] == Direction::reverse)
+                        {
+                            coordiante[i] = s[i] - 1;
+                        }
+                    }
+                    return coordiante;
+                }
+
             } // namespace
 
             ReverseRange::ReverseRange(const Shape& source_shape, const AxisSet& reversed_axis)
@@ -164,12 +163,11 @@ namespace ngraph
 
             ReverseRange::value_type ReverseRange::get_value() const
             {
-                const ssize_t end_index = m_index + last_dim_size();
-
-                const ssize_t step =
-                    static_cast<ssize_t>(m_memory_strides.back()) * m_axis_directions.back();
-
-                return Range{m_index, end_index, step};
+                assert(m_memory_strides.back() == 1);
+                return Range{m_index,
+                             m_source_shape.back(),
+                             m_memory_strides.back(),
+                             m_axis_directions.back()};
             }
 
             bool ReverseRange::increment()
@@ -183,7 +181,7 @@ namespace ngraph
                 {
                     const auto index_step = m_memory_strides[axis];
                     ++m_coordinate[axis];
-                    if (m_axis_directions[axis] > 0)
+                    if (m_axis_directions[axis] == Direction::forward)
                     {
                         m_index += index_step;
                     }
@@ -199,7 +197,7 @@ namespace ngraph
                     m_coordinate[axis] = 0;
 
                     // back on beginning of axis memory
-                    if (m_axis_directions[axis] > 0)
+                    if (m_axis_directions[axis] == Direction::forward)
                     {
                         m_index -= m_source_shape[axis] * m_memory_strides[axis];
                     }
@@ -209,12 +207,6 @@ namespace ngraph
                     }
                 }
                 return false;
-            }
-
-            ssize_t ReverseRange::last_dim_size() const noexcept
-            {
-                const ssize_t dir = m_axis_directions.back() > 0 ? 1 : -1;
-                return dir * static_cast<ssize_t>(m_source_shape.back());
             }
 
         } // namespace impl

@@ -29,8 +29,6 @@ namespace ngraph
     {
         namespace impl
         {
-            using ssize_t = typename std::make_signed<size_t>::type;
-
             namespace
             {
                 template <typename C>
@@ -98,7 +96,7 @@ namespace ngraph
                 Coordinate m_lower;
                 Coordinate m_upper;
 
-                ssize_t last_dim_size() const noexcept { return m_upper.back() - m_lower.back(); }
+                size_t last_dim_size() const noexcept { return m_upper.back() - m_lower.back(); }
             };
 
             template <typename Range>
@@ -110,15 +108,18 @@ namespace ngraph
                 Iterator end() { return Iterator(nullptr); }
             };
 
+            enum class Direction
+            {
+                forward,
+                reverse,
+            };
+
             struct Range
             {
-                const ssize_t begin;
-                const ssize_t end;
-                const ssize_t step;
-                bool contains(ssize_t i) const
-                {
-                    return step > 0 ? (begin <= i && i < end) : (end < i && i <= begin);
-                }
+                const size_t begin;
+                const size_t element_number;
+                const size_t step;
+                const Direction direction;
             };
 
             class SliceRange : public RangeBase<SliceRange>
@@ -130,26 +131,27 @@ namespace ngraph
                            const Coordinate& source_end_corner,
                            const Strides& strides);
 
-                ssize_t copy_range_first_index() const;
-
                 value_type get_value() const
                 {
-                    return Range{m_index,
-                                 m_index + m_bounds.last_dim_size(),
-                                 static_cast<ssize_t>(m_source_strides.back())};
+                    const size_t element_no =
+                        (m_bounds.last_dim_size() + m_source_strides.back() - 1) /
+                        m_source_strides.back();
+
+                    return Range{m_index, element_no, m_source_strides.back(), Direction::forward};
                 }
 
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
                 Coordinate coodinate() const { return m_coordinate; }
+
             private:
                 const Shape m_source_shape;
                 const CoordinateBounds m_bounds;
                 const Strides m_source_strides;
-                const std::vector<ssize_t> m_memory_strides;
+                const std::vector<size_t> m_memory_strides;
                 Coordinate m_coordinate;
-                ssize_t m_index{0};
+                size_t m_index{0};
             };
 
             inline SliceRange slice(const Shape& source_shape,
@@ -180,14 +182,14 @@ namespace ngraph
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
-            private:
-                ssize_t last_dim_size() const noexcept;
 
+            private:
                 const Shape m_source_shape;
-                const std::vector<ssize_t> m_memory_strides;
-                const std::vector<signed char> m_axis_directions;
+                const Strides m_source_strides;
+                const std::vector<size_t> m_memory_strides;
+                const std::vector<Direction> m_axis_directions;
                 Coordinate m_coordinate;
-                ssize_t m_index{0};
+                size_t m_index{0};
             };
 
             inline ReverseRange reverse(const Shape& source_shape, const AxisSet& reversed_axis)
@@ -198,5 +200,6 @@ namespace ngraph
         } // namespace impl
         using impl::reverse;
         using impl::slice;
+        using impl::Direction;
     } // namespace coordinates
 } // namespace ngraph
