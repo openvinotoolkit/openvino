@@ -55,8 +55,8 @@
             </tab>
             <!-- Model Downloader -->
             <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
-            <!-- Custom Layers Guide -->
-            <tab type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
+            <!-- Custom Operations Guide -->
+            <tab type="usergroup" title="Custom Operations Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
         </tab>
 
         <!-- Intermediate Representation and Operations Sets -->
