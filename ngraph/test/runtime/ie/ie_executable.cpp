@@ -56,6 +56,7 @@ namespace
         switch (elem_type)
         {
         case element::Type_t::f32: blob = MAKE_IE_TBLOB(float, FP32, shape, layout); break;
+        case element::Type_t::f64: blob = MAKE_IE_TBLOB(double, FP64, shape, layout); break;
         case element::Type_t::i16: blob = MAKE_IE_TBLOB(int16_t, I16, shape, layout); break;
         case element::Type_t::u8: blob = MAKE_IE_TBLOB(uint8_t, U8, shape, layout); break;
         case element::Type_t::i8: blob = MAKE_IE_TBLOB(int8_t, I8, shape, layout); break;

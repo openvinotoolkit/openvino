@@ -23,85 +23,85 @@ using namespace ngraph;
 
 TEST(type_prop, shape_of_v0)
 {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto a = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v0::ShapeOf>(a);
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i64);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i64);
     ASSERT_EQ(so->get_shape(), Shape{4});
 }
 
 TEST(type_prop, shape_of_partial_et_dynamic_v0)
 {
-    auto a = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
+    auto a = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v0::ShapeOf>(a);
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i64);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i64);
     ASSERT_EQ(so->get_shape(), Shape{4});
 }
 
 TEST(type_prop, shape_of_partial_rank_static_dynamic_v0)
 {
     auto a = make_shared<op::Parameter>(
-        element::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 4});
+        element::Type_t::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 4});
     auto so = make_shared<op::v0::ShapeOf>(a);
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i64);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i64);
     ASSERT_EQ(so->get_shape(), Shape{4});
 }
 
 TEST(type_prop, shape_of_partial_rank_dynamic_v0)
 {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto a = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto so = make_shared<op::v0::ShapeOf>(a);
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i64);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i64);
     ASSERT_TRUE(so->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
 }
 
 TEST(type_prop, shape_of_v3)
 {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto a = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v3::ShapeOf>(a);
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i64);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i64);
     ASSERT_EQ(so->get_shape(), Shape{4});
 }
 
 TEST(type_prop, shape_of_partial_et_dynamic_v3)
 {
-    auto a = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
+    auto a = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{1, 2, 3, 4});
     auto so = make_shared<op::v3::ShapeOf>(a);
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i64);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i64);
     ASSERT_EQ(so->get_shape(), Shape{4});
 }
 
 TEST(type_prop, shape_of_partial_rank_static_dynamic_v3)
 {
     auto a = make_shared<op::Parameter>(
-        element::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 4});
+        element::Type_t::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 4});
     auto so = make_shared<op::v3::ShapeOf>(a);
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i64);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i64);
     ASSERT_EQ(so->get_shape(), Shape{4});
 }
 
 TEST(type_prop, shape_of_partial_rank_dynamic_v3)
 {
-    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto a = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto so = make_shared<op::v3::ShapeOf>(a);
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i64);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i64);
     ASSERT_TRUE(so->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
 }
 
 TEST(type_prop, shape_of_output_type_v3)
 {
-    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto so = make_shared<op::v3::ShapeOf>(a, element::i32);
+    auto a = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto so = make_shared<op::v3::ShapeOf>(a, element::Type_t::i32);
     try
     {
-        auto sx = make_shared<op::v3::ShapeOf>(a, element::i8);
+        auto sx = make_shared<op::v3::ShapeOf>(a, element::Type_t::i8);
         FAIL() << "Invalid output_type not detected";
     }
     catch (NodeValidationFailure)
@@ -113,7 +113,7 @@ TEST(type_prop, shape_of_output_type_v3)
     }
     try
     {
-        auto sx = make_shared<op::v3::ShapeOf>(a, element::i16);
+        auto sx = make_shared<op::v3::ShapeOf>(a, element::Type_t::i16);
         FAIL() << "Invalid output_type not detected";
     }
     catch (NodeValidationFailure)
@@ -125,7 +125,7 @@ TEST(type_prop, shape_of_output_type_v3)
     }
     try
     {
-        auto sx = make_shared<op::v3::ShapeOf>(a, element::f32);
+        auto sx = make_shared<op::v3::ShapeOf>(a, element::Type_t::f32);
         FAIL() << "Invalid output_type not detected";
     }
     catch (NodeValidationFailure)
@@ -136,6 +136,6 @@ TEST(type_prop, shape_of_output_type_v3)
         FAIL() << "Node validation error not thrown";
     }
 
-    ASSERT_EQ(so->get_output_element_type(0), element::i32);
+    ASSERT_EQ(so->get_output_element_type(0), element::Type_t::i32);
     ASSERT_EQ(so->get_shape(), Shape{4});
 }

@@ -49,7 +49,7 @@ namespace ngraph
                     else
                     {
                         max_output_boxes_per_class =
-                            default_opset::Constant::create(element::i64, Shape{}, {0});
+                            default_opset::Constant::create(element::Type_t::i64, Shape{}, {0});
                     }
 
                     Output<ngraph::Node> iou_threshold;
@@ -61,7 +61,7 @@ namespace ngraph
                     else
                     {
                         iou_threshold =
-                            default_opset::Constant::create(element::f32, Shape{}, {.0f});
+                            default_opset::Constant::create(element::Type_t::f32, Shape{}, {.0f});
                     }
 
                     Output<ngraph::Node> score_threshold;
@@ -73,7 +73,7 @@ namespace ngraph
                     else
                     {
                         score_threshold =
-                            default_opset::Constant::create(element::f32, Shape{}, {.0f});
+                            default_opset::Constant::create(element::Type_t::f32, Shape{}, {.0f});
                     }
 
                     const auto center_point_box =

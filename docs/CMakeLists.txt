@@ -6,13 +6,17 @@ if(NOT ENABLE_DOCKER)
     add_subdirectory(snippets)
 
     # Detect nGraph
-    find_package(ngraph QUIET)
+    find_package(ngraph QUIET
+                 PATHS "${CMAKE_BINARY_DIR}/ngraph"
+                 NO_DEFAULT_PATH)
     if(NOT ngraph_FOUND)
         set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
     endif()
 
     # Detect InferenceEngine
-    find_package(InferenceEngine QUIET)
+    find_package(InferenceEngine QUIET
+                 PATHS "${CMAKE_BINARY_DIR}"
+                 NO_DEFAULT_PATH)
     if(NOT InferenceEngine_FOUND)
         set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
     endif()

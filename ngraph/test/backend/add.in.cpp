@@ -37,8 +37,6 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -48,9 +46,9 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, add)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
     vector<float> a{1, 2, 3, 4};
     vector<float> b{5, 6, 7, 8};
@@ -64,9 +62,9 @@ NGRAPH_TEST(${BACKEND_NAME}, add)
 NGRAPH_TEST(${BACKEND_NAME}, add_overload)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(A + B, ParameterVector{A, B});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
     vector<float> a{1, 2, 3, 4};
     vector<float> b{5, 6, 7, 8};
@@ -80,12 +78,12 @@ NGRAPH_TEST(${BACKEND_NAME}, add_overload)
 NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto T = A + B;
-    auto T2 = T + T;
-    auto T3 = T2 + T2;
-    auto T4 = T3 + T3;
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto T = make_shared<op::v1::Add>(A, B);
+    auto T2 = make_shared<op::v1::Add>(T, T);
+    auto T3 = make_shared<op::v1::Add>(T2, T2);
+    auto T4 = make_shared<op::v1::Add>(T3, T3);
 
     auto f = make_shared<Function>(T4, ParameterVector{A, B});
 

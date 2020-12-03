@@ -22,41 +22,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            /// \brief Elementwise minimum operation.
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. "
-                "Use v1::Minimum instead of it.") NGRAPH_API Minimum
-                : public util::BinaryElementwiseArithmetic
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                static constexpr NodeTypeInfo type_info{"Minimum", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a minimum operation.
-                Minimum()
-                    : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NONE)
-                {
-                }
-                /// \brief Constructs a minimum operation.
-                ///
-                /// \param arg0 Node that produces the first input tensor.
-                /// \param arg1 Node that produces the second input tensor.
-                /// \param auto_broadcast Auto broadcast specification
-                Minimum(const Output<Node>& arg0,
-                        const Output<Node>& arg1,
-                        const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec());
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-        } // namespace v0
-
         namespace v1
         {
             /// \brief Elementwise minimum operation.
@@ -88,9 +53,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         } // namespace v1
-
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Minimum;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }
