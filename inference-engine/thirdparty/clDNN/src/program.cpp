@@ -1176,9 +1176,6 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16))
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
         }
-        if (prim.type() == cldnn::crop::type_id()) {
-            total_crop_layers++;
-        }
 
         // list of layers that do not support yxfb or perform worse than bfyx
         if (prim.type() == cldnn::detection_output::type_id() || prim.type() == cldnn::proposal::type_id() ||
@@ -1230,6 +1227,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
                 can_use_fsv16 = false;
             }
+            total_crop_layers++;
         }
 
         if (prim.is_in_data_flow() &&
@@ -1251,40 +1249,19 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 
     size_t total_conv_layers = lo.get_total_conv_count();
-    if (total_crop_layers > 0) {
-        std::cout << "total conv " << total_conv_layers << std::endl;
-        std::cout << "total crop " << total_crop_layers << std::endl;
-        std::cout << "b_fs_yx_fsv16 conv " << lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}) << std::endl;
-        if (total_crop_layers >= total_conv_layers * 2)
-            std::cout << "disable all" << std::endl;
-        if (total_crop_layers >= lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}) * 2)
-            std::cout << "disable optimized" << std::endl;
-        if (total_conv_layers != lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}))
-            std::cout << "total conv and b_fs_yx_fsv16 conv differ" << std::endl;
-    }
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
+    // Crop layers are poorly optimized in fsv16 layout so whole topology stays in bfyx
+    // if there are many crops (2x more then b_fs_yx_fsv16 convolutions)
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
     size_t num_of_conv_b_fs_yx_fsv16 = lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false});
-
-    bool should_use_b_fs_yx_fsv16_conv_before = is_quantized_int8_model ||
-                                         (can_use_fsv16 &&
-                                          total_conv_layers > 11 &&
-                                          num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f);
-    if (total_crop_layers > 0)
-        std::cout << "should_use_b_fs_yx_fsv16_conv before " << should_use_b_fs_yx_fsv16_conv_before << std::endl;
 
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
                                           total_conv_layers > 11 &&
                                           num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f &&
                                           num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
-    if (total_crop_layers > 0) {
-        std::cout << "should_use_b_fs_yx_fsv16_conv after " << should_use_b_fs_yx_fsv16_conv << std::endl;
-        if (should_use_b_fs_yx_fsv16_conv_before != should_use_b_fs_yx_fsv16_conv)
-            std::cout <<"should_use_b_fs_yx_fsv16_conv changed " << should_use_b_fs_yx_fsv16_conv_before << " -> " << should_use_b_fs_yx_fsv16_conv << std::endl;
-    }
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&
