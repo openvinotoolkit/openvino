@@ -14,11 +14,8 @@
  limitations under the License.
 """
 
-import numpy as np
-
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
-from mo.ops.op import Op, PermuteAttrs
+from mo.ops.op import Op
 
 
 class GatherElements(Op):
@@ -40,5 +37,6 @@ class GatherElements(Op):
 
     @staticmethod
     def infer(node: Node):
-        indices_shape = node.in_port(1).data.get_shape()
-        node.out_port(0).data.set_shape(indices_shape)
+        node.in_port(1).data.get_shape()
+
+        # todo: add value_inference

@@ -23,7 +23,7 @@ using namespace ngraph;
 
 // ------------------------------ V6 ------------------------------
 
-TEST(type_prop, gather_elements_2d_axis_0)
+TEST(type_prop, gather_elements_2D_axis_0)
 {
     Shape data_shape{3, 3};
     Shape indices_shape{2, 3};
@@ -35,7 +35,7 @@ TEST(type_prop, gather_elements_2d_axis_0)
     ASSERT_EQ(GE->get_shape(), indices_shape);
 }
 
-TEST(type_prop, gather_elements_2d_axis_1)
+TEST(type_prop, gather_elements_2D_axis_1)
 {
     Shape data_shape{3, 3};
     Shape indices_shape{3, 1};
@@ -47,7 +47,7 @@ TEST(type_prop, gather_elements_2d_axis_1)
     ASSERT_EQ(GE->get_shape(), indices_shape);
 }
 
-TEST(type_prop, gather_elements_3d_axis_0)
+TEST(type_prop, gather_elements_3D_axis_0)
 {
     Shape data_shape{3, 3, 10000};
     Shape indices_shape{300, 3, 10000};
@@ -59,7 +59,153 @@ TEST(type_prop, gather_elements_3d_axis_0)
     ASSERT_EQ(GE->get_shape(), indices_shape);
 }
 
+TEST(type_prop, gather_elements_3D_axis_2)
+{
+    Shape data_shape{300, 3, 10};
+    Shape indices_shape{300, 3, 10000};
+    int axis = 2;
+    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::f32);
+    ASSERT_EQ(GE->get_shape(), indices_shape);
+}
+
+TEST(type_prop, gather_elements_4D_axis_minus_1)
+{
+    Shape data_shape{300, 3, 10, 1};
+    Shape indices_shape{300, 3, 10, 33333};
+    int axis = -1;
+    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::f32);
+    ASSERT_EQ(GE->get_shape(), indices_shape);
+}
+
 // --------------------- Negative tests ------------------------------
+
+TEST(type_prop, gather_elements_type_inconsistency)
+{
+    Shape data_shape{3, 3};
+    Shape indices_shape{2, 1};
+    int axis = 1;
+    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::u32, indices_shape);
+
+    try
+    {
+        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "the indices tensor type check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("indices mush be of int32 or int64 type. But instead got"));
+    }
+    catch (...)
+    {
+        FAIL() << "type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, gather_elements_data_rank_check)
+{
+    Shape data_shape{3};
+    Shape indices_shape{2, 333};
+    int axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
+
+    try
+    {
+        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "data rank check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("data rank must be greater than 1"));
+    }
+    catch (...)
+    {
+        FAIL() << "data rank check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, gather_elements_out_of_bounds_axis)
+{
+    Shape data_shape{3, 3};
+    Shape indices_shape{2, 1};
+    int axis = -33;
+    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
+
+    try
+    {
+        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "axis out of bounds check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("axis must be within interval"));
+    }
+    catch (...)
+    {
+        FAIL() << "axis out of bounds check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, gather_elements_indices_rank_check)
+{
+    Shape data_shape{3, 3};
+    Shape indices_shape{333};
+    int axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
+
+    try
+    {
+        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "indices rank check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("indices rank must be greater than 1"));
+    }
+    catch (...)
+    {
+        FAIL() << "indices rank check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, gather_elements_rank_consistency_check)
+{
+    Shape data_shape{3, 3};
+    Shape indices_shape{2, 3, 3333};
+    int axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
+
+    try
+    {
+        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "rank consistency check failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("data and indices rank must be equal"));
+    }
+    catch (...)
+    {
+        FAIL() << "rank consistency check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, gather_elements_shapes_inconsistency)
 {
     Shape data_shape{3, 3};
@@ -84,32 +230,3 @@ TEST(type_prop, gather_elements_shapes_inconsistency)
         FAIL() << "Deduced shape check failed for unexpected reason";
     }
 }
-
-TEST(type_prop, gather_elements_type_inconsistency)
-{
-    Shape data_shape{3, 3};
-    Shape indices_shape{2, 1};
-    int axis = 1;
-    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::Type_t::u32, indices_shape);
-
-    try
-    {
-        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "the indices tensor type check failed";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("indices mush be of int32 or int64 type. But instead got"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-// negative tests
-// axis out of bounds
-// rank check

@@ -26,7 +26,7 @@ NGRAPH_RTTI_DEFINITION(op::v6::GatherElements, "GatherElements", 6);
 
 op::v6::GatherElements::GatherElements(const Output<Node>& data,
                                        const Output<Node>& indices,
-                                       const size_t axis)
+                                       const int axis)
     : Op({data, indices})
     , m_axis(axis)
 {
@@ -53,16 +53,16 @@ void op::v6::GatherElements::validate_and_infer_types()
 
     if (data_rank.is_static())
     {
-        auto data_rank_size = data_rank.get_length();
+        int data_rank_size = data_rank.get_length();
 
-        NODE_VALIDATION_CHECK(this, data_rank_size > 1, "Data rank must be greater than 1.");
+        NODE_VALIDATION_CHECK(this, data_rank_size > 1, "data rank must be greater than 1.");
 
         if (m_axis < 0)
         {
             NODE_VALIDATION_CHECK(
                 this,
-                -data_rank_size < m_axis < data_rank_size - 1,
-                "axis must be within interval (-data.rank,  data.rank - 1. But instead Got: ",
+                (-data_rank_size < m_axis) && (m_axis < data_rank_size - 1),
+                "axis must be within interval (-data.rank,  data.rank - 1). But instead Got: ",
                 m_axis);
             m_axis = data_rank_size + m_axis;
         }
@@ -71,7 +71,7 @@ void op::v6::GatherElements::validate_and_infer_types()
     if (indices_rank.is_static())
     {
         NODE_VALIDATION_CHECK(
-            this, indices_rank.get_length() > 1, "Indices rank must be greater that 1.");
+            this, indices_rank.get_length() > 1, "indices rank must be greater than 1.");
     }
 
     if (data_rank.is_static() && indices_rank.is_static())
