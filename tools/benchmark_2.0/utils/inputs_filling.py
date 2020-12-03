@@ -43,8 +43,7 @@ def set_inputs(paths_to_input, batch_size, input_info, requests):
         for k, v in requests_input_data[i].items():
             if k not in inputs:
                 raise Exception("No input with name {} found!".format(k))
-            print(inputs[k].buffer())            
-            inputs[k].buffer(v)
+            inputs[k].buffer[:] = v
 
 
 def get_inputs(paths_to_input, batch_size, input_info, requests):
