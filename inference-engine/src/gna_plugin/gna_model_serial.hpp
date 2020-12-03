@@ -37,6 +37,9 @@ private:
     uint32_t nRotateRows = 0;
     uint32_t nRotateColumns = 0;
     bool doRotateInput = false;
+    uint32_t nRotateOutputRows = 0;
+    uint32_t nRotateOutputColumns = 0;
+    bool doRotateOutput = false;
 
     MemoryType states, *pstates = nullptr;
     GNAPluginNS::HeaderLatest::ModelHeader modelHeader;
@@ -107,6 +110,13 @@ private:
       this->nRotateRows = nRotateRows;
       this->doRotateInput = do_rotate_inputs;
       return *this;
+    }
+
+    GNAModelSerial& SetOutputRotation(uint32_t nRotateOutputRows, uint32_t nRotateOutputColumns, bool do_rotate_outputs) {
+        this->nRotateOutputColumns = nRotateOutputColumns;
+        this->nRotateOutputRows = nRotateOutputRows;
+        this->doRotateOutput = do_rotate_outputs;
+        return *this;
     }
 
     /**

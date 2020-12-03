@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function (Download from to fatal result output)
+function (Download from to fatal result output sha256)
 
   if((NOT EXISTS "${to}"))
     message(STATUS "Downloading from ${from} to ${to} ...")
@@ -10,7 +10,8 @@ function (Download from to fatal result output)
       TIMEOUT 3600
       LOG log
       STATUS status
-      SHOW_PROGRESS)
+      SHOW_PROGRESS
+      EXPECTED_HASH SHA256=${sha256})
 
     set (${output} ${status} PARENT_SCOPE)
   else()

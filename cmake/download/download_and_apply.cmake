@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function (DownloadAndApply URL apply_to)
+function (DownloadAndApply URL apply_to sha256)
 
   if (EXISTS ${apply_to})
     file(READ ${apply_to} patchFile4Bytes LIMIT 4)
@@ -16,7 +16,7 @@ function (DownloadAndApply URL apply_to)
       file(REMOVE ${apply_to})
     endif()
     
-    DownloadAndCheck(${URL} ${apply_to} TRUE result)
+    DownloadAndCheck(${URL} ${apply_to} TRUE result ${sha256})
   else ()
     set (MIGHT_BE_APPLIED 1)
   endif()

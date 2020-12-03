@@ -3,6 +3,7 @@
 //
 
 #include <debug.h>
+#include "ngraph_functions/builders.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "subgraph_tests/scaleshift.hpp"

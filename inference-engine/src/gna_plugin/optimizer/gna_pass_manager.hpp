@@ -142,9 +142,9 @@ DECL_PASS(InsertCopyLayer);
 DECL_PASS(InsertSplitAligningFilter);
 
 /**
-* @brief Pass that changes 4D concat to 2D concat in cases that would have to use ConcatAlignFilter
+* @brief Pass that flattens trivial concatenations inputs and output and changes its axis to 1
 */
-DECL_PASS(Concat4Dto2D);
+DECL_PASS(FlattenTrivialConcat);
 
 /**
  * @brief concat-aligning filter layer insertion required in cases when concat inputs size are not 64-aligned
@@ -198,6 +198,17 @@ DECL_PASS(FuseMultipleIdentities);
 * @brief Brodcast data in Const layer
 */
 DECL_PASS(BroadcastConst);
+
+/**
+* @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs
+*/
+DECL_PASS(FuseFQIntoWeights);
+
+/**
+* @brief remove all fake quantize layers while moving it's settings into QuantParams for certain layer
+*/
+DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
+
 
 struct PassManagerSettings {
     Policy policy;

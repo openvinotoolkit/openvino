@@ -16,8 +16,8 @@
 #include <low_precision/network_helper.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/move_dequantization_after_function.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/move_dequantization_after_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -129,7 +129,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {ngraph::element::f32},  { 7.f }, { 10.f } },
         },
         {
-            { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
+            { {ngraph::element::f32},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
             ngraph::element::f32,
             { {},  {}, { 10.f } },
         },
@@ -159,7 +159,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {ngraph::element::f32},  { 7.f }, { 10.f } },
         },
         {
-            { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
+            { {ngraph::element::f32},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
             ngraph::element::f32,
             { {},  {}, { 10.f } },
         },
@@ -189,7 +189,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {ngraph::element::f32},  { 7.f }, { 10.f } },
         },
         {
-            { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
+            { {ngraph::element::f32},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
             ngraph::element::f32,
             { {},  {}, { 10.f } },
         },
@@ -219,7 +219,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {ngraph::element::f32},  { 7.f }, { 10.f } },
         },
         {
-            { {},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
+            { {ngraph::element::f32},  { { 7.f }, ngraph::element::f32, {}, false }, {} },
             ngraph::element::f32,
             { {},  {}, { 10.f } },
         },
@@ -234,12 +234,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {ngraph::element::f32},  { { 7.f, 7.f, 7.f } }, { { 10.f, 10.f, 10.f } } },
         },
         {
-            { {},  { { 7.f, 7.f, 7.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
+            { {ngraph::element::f32},  { { 7.f, 7.f, 7.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
             ngraph::element::f32,
             { {},  {}, { { 10.f, 10.f, 10.f } } },
         },
     },
-    // per-channel quantizations with the same values
+    // per-channel quantizations with different values
     {
         ngraph::element::u8,
         LayerTransformation::createParamsU8I8(),
@@ -249,7 +249,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {ngraph::element::f32},  { { 7.f, 8.f, 9.f } }, { { 10.f, 12.f, 16.f } } },
         },
         {
-            { {},  { { 7.f, 8.f, 9.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
+            { {ngraph::element::f32},  { { 7.f, 8.f, 9.f }, ngraph::element::f32, { 1, 3, 1, 1 }, false }, {} },
             ngraph::element::f32,
             { {},  {}, { { 10.f, 12.f, 16.f } } },
         },

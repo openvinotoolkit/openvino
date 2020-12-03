@@ -33,6 +33,7 @@ bool GroupConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) co
 
 bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
+
     if (!GroupConvolutionTransformation::canBeTransformed(context, convolution)) {
         return false;
     }

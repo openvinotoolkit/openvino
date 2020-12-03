@@ -30,6 +30,23 @@ bool FakeQuantizeDequantization::empty() const {
     return (convert == nullptr) && (subtract == nullptr) && (multiply == nullptr);
 }
 
+bool FakeQuantizeDequantization::multiplyHasZero() const {
+    if (multiply == nullptr) {
+        return false;
+    }
+
+    std::shared_ptr<opset1::Constant> multiplyConstant = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
+    if (multiplyConstant == nullptr) {
+        multiplyConstant = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(0));
+    }
+    if (multiplyConstant == nullptr) {
+        return false;
+    }
+
+    auto const values = multiplyConstant->cast_vector<float>();
+    return std::any_of(values.begin(), values.end(), [](const float value) { return value == 0.f; });
+}
+
 bool FakeQuantizeDequantization::isShared() const {
     if ((convert != nullptr) && (convert->get_output_target_inputs(0).size() > 1ul)) {
         return true;
