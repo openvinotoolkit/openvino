@@ -14,8 +14,8 @@
 #include "ie_layer_parsers.h"
 #include "xml_parse_utils.h"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace InferenceEngineIRReader;
+using namespace InferenceEngineIRReader::details;
 using namespace XMLParseUtils;
 using namespace std;
 

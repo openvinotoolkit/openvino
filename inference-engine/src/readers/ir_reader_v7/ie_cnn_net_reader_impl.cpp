@@ -20,9 +20,11 @@
 #include "parsers.h"
 #include "xml_parse_utils.h"
 
+#include "ie_ir_reader_namespace.hpp"
+
 using namespace std;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace InferenceEngineIRReader;
+using namespace InferenceEngineIRReader::details;
 
 CNNNetReaderImpl::CNNNetReaderImpl(const FormatParserCreator::Ptr& _creator)
     : parseSuccess(false), _version(0), parserCreator(_creator) {}

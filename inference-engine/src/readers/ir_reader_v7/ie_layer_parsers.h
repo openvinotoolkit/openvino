@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_ir_reader_namespace.hpp"
 #include "ie_format_parser.h"
 #include "xml_parse_utils.h"
 
@@ -27,7 +28,7 @@ inline pugi::xml_node GetChild(const pugi::xml_node& node, std::vector<std::stri
 
 using namespace XMLParseUtils;
 
-namespace InferenceEngine {
+namespace InferenceEngineIRReader {
 namespace details {
 template <class LT>
 class LayerCreator : public BaseCreator {

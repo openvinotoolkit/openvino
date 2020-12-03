@@ -38,6 +38,7 @@ endif()
 
 if (NOT BUILD_SHARED_LIBS)
     add_definitions(-DUSE_STATIC_IE)
+    add_definitions(-DUSE_STATIC_IE_EXTENSIONS)
 endif()
 
 print_enabled_features()

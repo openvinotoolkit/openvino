@@ -91,8 +91,21 @@ public:
         return name;
     }
 };
-
 namespace {
+
+#ifdef USE_STATIC_IE_EXTENSIONS
+    extern "C" StatusCode InferenceEngineIRReaderV7_Create(IReader*& reader, ResponseDesc* resp);
+    extern "C" StatusCode InferenceEngineIRReaderV10_Create(IReader*& reader, ResponseDesc* resp);
+#ifdef NGRAPH_ONNX_IMPORT_ENABLE
+    extern "C" StatusCode InferenceEngineIRReader_CreateONNXReader(IReader*& reader, ResponseDesc* resp);
+#else // !NGRAPH_ONNX_IMPORT_ENABLE
+    StatusCode InferenceEngineIRReader_CreateONNXReader(IReader*& reader, ResponseDesc* resp)
+    {
+        reader = nullptr;
+        return OK;
+    }
+#endif // NGRAPH_ONNX_IMPORT_ENABLE
+#endif // USE_STATIC_IE_EXTENSIONS
 
 // Extension to plugins creator
 std::multimap<std::string, Reader::Ptr> readers;
@@ -104,6 +117,7 @@ void registerReaders() {
     std::lock_guard<std::mutex> lock(readerMutex);
     if (initialized) return;
 
+#ifndef USE_STATIC_IE_EXTENSIONS
     // TODO: Read readers info from XML
     auto create_if_exists = [] (const std::string name, const std::string library_name) {
         FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
@@ -113,21 +127,44 @@ void registerReaders() {
             return std::shared_ptr<Reader>();
         return std::make_shared<Reader>(name, library_name);
     };
+#else
+    auto create_static = [] (auto const & function) {
+        IReader * instance = nullptr;
+        ResponseDesc desc;
+        StatusCode sts = function(instance, &desc);
+        if (sts != OK) {
+            THROW_IE_EXCEPTION << desc.msg;
+        }
+        return Reader::Ptr(static_cast<Reader *>(instance));
+    };
+#endif
 
+#ifndef USE_STATIC_IE_EXTENSIONS
     // try to load ONNX reader if library exists
     auto onnxReader = create_if_exists("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
+#else
+    auto onnxReader = create_static(InferenceEngineIRReader_CreateONNXReader);
+#endif
     if (onnxReader) {
         readers.emplace("onnx", onnxReader);
         readers.emplace("prototxt", onnxReader);
     }
 
+#ifndef USE_STATIC_IE_EXTENSIONS
     // try to load IR reader v10 if library exists
     auto irReaderv10 = create_if_exists("IRv10", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
+#else
+    auto irReaderv10 = create_static(InferenceEngineIRReaderV10_Create);
+#endif
     if (irReaderv10)
         readers.emplace("xml", irReaderv10);
 
+#ifndef USE_STATIC_IE_EXTENSIONS
     // try to load IR reader v7 if library exists
     auto irReaderv7 = create_if_exists("IRv7", std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
+#else
+    auto irReaderv7 = create_static(InferenceEngineIRReaderV7_Create);
+#endif
     if (irReaderv7)
         readers.emplace("xml", irReaderv7);
 

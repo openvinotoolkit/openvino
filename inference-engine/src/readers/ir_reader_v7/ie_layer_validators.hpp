@@ -11,8 +11,9 @@
 
 #include "caseless.hpp"
 #include <legacy/ie_layers.h>
+#include "ie_ir_reader_namespace.hpp"
 
-namespace InferenceEngine {
+namespace InferenceEngineIRReader {
 namespace details {
 
 struct InOutDims {

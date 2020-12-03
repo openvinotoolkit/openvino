@@ -22,8 +22,8 @@
 #pragma once
 
 #include <openvino/itt.hpp>
-
-namespace InferenceEngine {
+#include "ie_ir_reader_namespace.hpp"
+namespace InferenceEngineIRReader {
 namespace itt {
 namespace domains {
     OV_ITT_DOMAIN(V7Reader);

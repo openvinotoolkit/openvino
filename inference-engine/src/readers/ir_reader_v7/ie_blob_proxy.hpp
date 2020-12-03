@@ -20,9 +20,11 @@ namespace InferenceEngine {
  * @class TBlobProxy
  * @brief This class enables creation of several blobs based on a single allocation but using different offsets for
  * read/write
+ * since it needs to be in the namespace InferenceEngine (to have access to Blob protected members),
+ * it needs to be fully inline in case of multiple definitions (static library)
  */
 template <class T>
-class TBlobProxy : public TBlob<T> {
+class TBlobProxy : public InferenceEngine::TBlob<T> {
     using base = TBlob<T>;
 
 public:
@@ -40,7 +42,7 @@ public:
      * @param offset Offset in memory
      * @param dims Dimensions of the given blob
      */
-    TBlobProxy(Precision p, Layout l, TBlob<T>&& blob, size_t offset, const SizeVector& dims)
+    inline TBlobProxy(Precision p, Layout l, TBlob<T>&& blob, size_t offset, const SizeVector& dims)
         : base(TensorDesc(p, dims, l)),
           realObject(make_shared_blob<T>(std::move(blob))),
           offset(offset * blob.element_size()) {
@@ -56,7 +58,7 @@ public:
      * @param offset Offset in memory
      * @param dims Dimensions of the given blob
      */
-    TBlobProxy(Precision p, Layout l, const Blob::Ptr& blob, size_t offset, const SizeVector& dims)
+    inline TBlobProxy(Precision p, Layout l, const Blob::Ptr& blob, size_t offset, const SizeVector& dims)
         : base(TensorDesc(p, dims, l)), realObject(blob), offset(offset * blob->element_size()) {
         checkWindow();
     }
@@ -69,7 +71,7 @@ public:
      * @param offset Offset in memory
      * @param dims Dimensions of the given blob
      */
-    TBlobProxy(Precision p, Layout l, const TBlobProxy<T>& blobProxy, size_t offset, const SizeVector& dims)
+    inline TBlobProxy(Precision p, Layout l, const TBlobProxy<T>& blobProxy, size_t offset, const SizeVector& dims)
         : TBlob<T>(TensorDesc(p, dims, l)), realObject(blobProxy.realObject), offset(offset * sizeof(T)) {
         checkWindow();
     }
@@ -78,7 +80,7 @@ public:
      * @brief Creates a new empty rvalue LockedMemory instance of type void
      * @return LockedMemory instance of type void
      */
-    LockedMemory<void> buffer() noexcept override {
+    inline LockedMemory<void> buffer() noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
@@ -86,7 +88,7 @@ public:
      * @brief Creates a new empty rvalue LockedMemory instance of type const void
      * @return LockedMemory instance of type const void
      */
-    LockedMemory<const void> cbuffer() const noexcept override {
+    inline LockedMemory<const void> cbuffer() const noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
@@ -94,7 +96,7 @@ public:
      * @brief Creates a LockedMemory instance of the given type
      * @return LockedMemory instance of the given type
      */
-    LockedMemory<T> data() noexcept override {
+    inline LockedMemory<T> data() noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
@@ -102,7 +104,7 @@ public:
      * @brief Creates a readOnly LockedMemory instance of the given type
      * @return Read-only LockedMemory instance of the given type
      */
-    LockedMemory<const T> readOnly() const noexcept override {
+    inline LockedMemory<const T> readOnly() const noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
@@ -111,7 +113,7 @@ protected:
      * @brief Gets an allocator
      * @return An allocator instance
      */
-    const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
+    inline const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
         return realObject->getAllocator();
     }
 
@@ -119,14 +121,14 @@ protected:
      * @brief Gets a handle pointer
      * @return A handle pointer
      */
-    void* getHandle() const noexcept override {
+    inline void* getHandle() const noexcept override {
         return realObject->getHandle();
     }
 
     /**
      * @brief Checks whether proxy can be created with the requested offset and size parameters
      */
-    void checkWindow() {
+    inline void checkWindow() {
         if (realObject->size() * realObject->element_size() < base::size() * base::element_size() + offset) {
             THROW_IE_EXCEPTION << "cannot create proxy, offsetInBytes=" << offset
                                << ", sizeInBytes=" << base::size() * base::element_size()
@@ -138,13 +140,13 @@ protected:
      * @brief Allocates TBlobProxy data
      * Always throws exception. Not intended to be used
      */
-    void allocate() noexcept override {}
+    inline void allocate() noexcept override {}
 
     /**
      * @brief Deallocates TBlobProxy data
      * Always throws exception. Not intended to be used
      */
-    bool deallocate() noexcept override {
+    inline bool deallocate() noexcept override {
         return false;
     }
 

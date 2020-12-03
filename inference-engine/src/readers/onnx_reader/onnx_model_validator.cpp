@@ -193,7 +193,7 @@ namespace prototxt {
 } // namespace prototxt
 } // namespace detail
 
-namespace InferenceEngine {
+namespace InferenceEngineONNXReader {
     bool is_valid_model(std::istream& model, onnx_format) {
         // the model usually starts with a 0x08 byte indicating the ir_version value
         // so this checker expects at least 2 valid ONNX keys to be found in the validated model

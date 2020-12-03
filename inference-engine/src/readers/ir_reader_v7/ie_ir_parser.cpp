@@ -7,7 +7,7 @@
 #include "ie_blob_stream.hpp"
 #include "ie_cnn_net_reader_impl.h"
 
-using namespace InferenceEngine;
+using namespace InferenceEngineIRReader;
 
 IRParser::IRParser(size_t version): IRParser(version, {}) {}
 IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts) {

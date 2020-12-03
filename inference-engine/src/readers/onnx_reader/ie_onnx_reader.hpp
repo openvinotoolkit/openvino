@@ -6,7 +6,11 @@
 
 #include <ie_reader.hpp>
 
-namespace InferenceEngine {
+namespace InferenceEngineONNXReader {
+
+using namespace InferenceEngine;
+
+INFERENCE_PLUGIN_API(StatusCode) CreateReader(IReader*& reader, ResponseDesc *resp) noexcept;
 
 class ONNXReader: public IReader {
 public:

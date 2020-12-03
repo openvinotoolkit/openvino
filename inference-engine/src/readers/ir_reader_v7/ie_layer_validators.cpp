@@ -19,11 +19,13 @@
 #include <legacy/ie_layers.h>
 #include "xml_parse_utils.h"
 
+#include "ie_ir_reader_namespace.hpp"
+
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wunused-variable"
 #endif
 
-namespace InferenceEngine {
+namespace InferenceEngineIRReader {
 
 using namespace details;
 using std::map;

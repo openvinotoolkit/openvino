@@ -7,7 +7,7 @@
 #include <ie_api.h>
 #include <onnx_import/onnx.hpp>
 
-using namespace InferenceEngine;
+using namespace InferenceEngineONNXReader;
 
 namespace {
 std::string readPathFromStream(std::istream& stream) {
@@ -65,7 +65,7 @@ CNNNetwork ONNXReader::read(std::istream& model, const std::vector<IExtensionPtr
     return CNNNetwork(ngraph::onnx_import::import_onnx_model(model, readPathFromStream(model)), exts);
 }
 
-INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) InferenceEngineONNXReader::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
     try {
         reader = new ONNXReader();
         return OK;
@@ -74,3 +74,10 @@ INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader,
         return GENERAL_ERROR;
     }
 }
+
+#ifdef USE_STATIC_IE_EXTENSIONS
+extern "C" StatusCode InferenceEngineIRReader_CreateONNXReader(IReader*& reader, ResponseDesc *resp)
+{
+    return InferenceEngine::CreateReader(reader, resp);
+}
+#endif

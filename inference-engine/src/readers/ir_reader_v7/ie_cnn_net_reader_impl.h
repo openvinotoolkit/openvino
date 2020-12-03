@@ -15,13 +15,15 @@
 #include "parsers.h"
 #include <legacy/ie_util_internal.hpp>
 
+#include "ie_ir_reader_namespace.hpp"
+
 namespace pugi {
 class xml_node;
 
 class xml_document;
 }  // namespace pugi
 
-namespace InferenceEngine {
+namespace InferenceEngineIRReader {
 namespace details {
 
 struct FormatParserCreator {

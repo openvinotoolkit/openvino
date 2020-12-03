@@ -14,8 +14,11 @@
 #include <legacy/ie_layers.h>
 #include "parsers.h"
 
-namespace InferenceEngine {
+#include "ie_ir_reader_namespace.hpp"
+
+namespace InferenceEngineIRReader {
 namespace details {
+
 struct WeightSegment {
     Precision precision;
     // offset in bytes of the global weights array

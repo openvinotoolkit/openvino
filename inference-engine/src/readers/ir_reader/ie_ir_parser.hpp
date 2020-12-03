@@ -24,7 +24,9 @@
 #include <string>
 #include <vector>
 
-namespace InferenceEngine {
+#include "ie_ir_reader_namespace.hpp"
+
+namespace InferenceEngineIRReader {
 
 class IParser {
 public:

@@ -6,7 +6,7 @@
 
 #include <istream>
 
-namespace InferenceEngine {
+namespace InferenceEngineONNXReader {
     // 2 empty structs used for tag dispatch below
     struct onnx_format {};
     struct prototxt_format {};

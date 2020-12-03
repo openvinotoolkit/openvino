@@ -107,6 +107,9 @@
  * @param type A plugin type
  */
 
+#ifdef USE_STATIC_IE_EXTENSIONS
+#define INFERENCE_PLUGIN_API(type) type
+#else
 #if defined(_WIN32)
 # ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #  define INFERENCE_PLUGIN_API(type) extern "C" __declspec(dllexport) type
@@ -121,4 +124,5 @@
 # endif
 #else
 # define INFERENCE_PLUGIN_API(TYPE) extern "C" TYPE
+#endif
 #endif

@@ -33,7 +33,7 @@
 #include "precision_utils.h"
 #include "blob_factory.hpp"
 
-using namespace InferenceEngine;
+using namespace InferenceEngineIRReader;
 using namespace XMLParseUtils;
 
 IRParser::IRParser(size_t version): IRParser(version, {}) {}
@@ -574,7 +574,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     return ngraphNode;
 }
 
-namespace InferenceEngine {
+namespace InferenceEngineIRReader {
 
 
 // SubGraph layer
