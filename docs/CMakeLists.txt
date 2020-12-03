@@ -70,6 +70,7 @@ function(build_docs)
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
+    set(DOXY_LOG_SCRIPT "${DOXYGEN_DIR}/log.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
 
     file(GLOB_RECURSE doc_source_files
@@ -193,6 +194,14 @@ function(build_docs)
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
 
+    add_custom_command(TARGET ie_docs
+                       POST_BUILD
+                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log ${DOCS_BUILD_DIR}/ie_docs.log
+                                                       --exclude-links ".*?(omz_|pot_|gst_|workbench_).*?"
+                       COMMENT "Parse doxygen log to find errors."
+                       VERBATIM
+                       )
+
     # Plugin API
 
     add_custom_target(plugin_api
@@ -215,11 +224,9 @@ function(build_docs)
 
     # added linkcheker
 
-    if(EXISTS "${LINKCHECKER_PY}")
+    if(EXISTS "${LINKCHECKER}")
         add_custom_target(docs_check
-                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER_PY}"
-                                    "${DOCS_BUILD_DIR}/html/" -f "${DOXYGEN_DIR}/linkchecker_filter.yaml"
-                                    --no_recursive -l "${DOCS_BUILD_DIR}"
+                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER}" -v "${DOCS_BUILD_DIR}/html/"
                             COMMENT "Check links in generated documentation"
                             WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
                             VERBATIM)
