@@ -33,8 +33,7 @@ More details on these operations you can find in [ReadValue specification](../op
 To get model with states ready for inference you can convert model from another framework with ModelOptimizer to IR or create ngraph function 
 (details can be found in [Build nGraph Function section](../nGraph_DG/build_function.md)). 
 Let's represent in both forms the following graph:
-
-[state_network_example]: ./img/state_network_example.png
+![state_network_example]
 
 ### Example of IR with state
 
@@ -195,3 +194,5 @@ if the first step done in one infer request and the second in another, state sho
 
 More powerfull examples of work with networks with states are sample and demo demonstrating work with speech. 
 Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
+
+[state_network_example]: ./img/state_network_example.png
