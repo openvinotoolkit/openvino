@@ -46,6 +46,9 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     }
 
     auto mvn = as_type_ptr<op::MVN>(operation);
+    if (mvn == nullptr) {
+        return false;
+    }
 
     const std::shared_ptr<Node> multiply = mvn->get_input_node_shared_ptr(0);
     auto scalesConst = as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(1));
