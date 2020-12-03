@@ -99,55 +99,53 @@ TEST_P(ConvolutionWIthIncorrectWeightsTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-static std::vector<ConvolutionWIthIncorrectWeightsTestValues> getTestValues() {
-    return {
-        // incorrect weights
+const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
+    // incorrect weights
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        ngraph::element::f32,
+        LayerTransformation::createParamsU8I8(),
+        bool{ false },
         {
-            ngraph::Shape({ 1, 3, 224, 224 }),
-            ngraph::element::f32,
-            LayerTransformation::createParamsU8I8(),
-            bool{ false },
-            {
-                { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-                { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            },
-            {
-                ngraph::element::u8,
-                { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
-                {{ngraph::element::f32}, {}, {0.1f}},
-                ngraph::element::f32,
-                {1.f},
-                { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-                {}
-            },
+            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+            { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         },
-        // correct weights
         {
-            ngraph::Shape({ 1, 3, 224, 224 }),
+            ngraph::element::u8,
+            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
+            {{ngraph::element::f32}, {}, {0.1f}},
             ngraph::element::f32,
-            LayerTransformation::createParamsU8I8(),
-            true,
-            {
-                { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-                { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            },
-            {
-                ngraph::element::u8,
-                { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
-                {},
-                ngraph::element::i8,
-                {-126.f},
-                {},
-                {{}, {}, {0.1f}},
-            },
+            {1.f},
+            { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+            {}
         },
-    };
-}
+    },
+    // correct weights
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        ngraph::element::f32,
+        LayerTransformation::createParamsU8I8(),
+        true,
+        {
+            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+            { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        },
+        {
+            ngraph::element::u8,
+            { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
+            {},
+            ngraph::element::i8,
+            {-126.f},
+            {},
+            {{}, {}, {0.1f}},
+        },
+    },
+};
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ConvolutionWIthIncorrectWeightsTransformation,
-    ::testing::ValuesIn(getTestValues()),
+    ::testing::ValuesIn(testValues),
     ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
 
 } // namespace

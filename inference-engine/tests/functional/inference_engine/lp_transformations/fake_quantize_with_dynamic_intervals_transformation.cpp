@@ -145,31 +145,25 @@ TEST_P(FakeQuantizeWithDynamicIntervalsTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-static std::vector<ngraph::element::Type> getPrecisions() {
-    return {
-        ngraph::element::f32,
-        ngraph::element::i32,
-        ngraph::element::f16
-    };
-}
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::i32,
+    ngraph::element::f16
+};
 
-static std::vector<FakeQuantizeWithDynamicIntervalsTransformationTestValues> getFakeQuantizeTransformationTestValues() {
-    return {
-        { LayerTransformation::createParamsU8I8(), false, false, false, true },
-        { LayerTransformation::createParamsU8I8(), true, false, false, false },
-        { LayerTransformation::createParamsU8I8(), false, false, false, false }
-    };
-}
+const std::vector<FakeQuantizeWithDynamicIntervalsTransformationTestValues> fakeQuantizeTransformationTestValues = {
+    { LayerTransformation::createParamsU8I8(), false, false, false, true },
+    { LayerTransformation::createParamsU8I8(), true, false, false, false },
+    { LayerTransformation::createParamsU8I8(), false, false, false, false }
+};
 
-static std::vector<ngraph::Shape> getShapes() {
-    return { { 1, 32, 72, 48 } };
-}
+const std::vector<ngraph::Shape> shapes = { { 1, 32, 72, 48 } };
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FakeQuantizeWithDynamicIntervalsTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecisions()),
-        ::testing::ValuesIn(getShapes()),
-        ::testing::ValuesIn(getFakeQuantizeTransformationTestValues())),
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(shapes),
+        ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
     FakeQuantizeWithDynamicIntervalsTransformation::getTestCaseName);

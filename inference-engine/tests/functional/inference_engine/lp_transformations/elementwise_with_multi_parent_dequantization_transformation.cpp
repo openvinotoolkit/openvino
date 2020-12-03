@@ -115,49 +115,47 @@ TEST_P(ElementwiseWithMultiParentDequantizationTransformation, CompareFunctions)
     ASSERT_TRUE(res.first) << res.second;
 }
 
-static std::vector<ElementwiseWithMultiParentDequantizationTransformationTestValues> getAddTransformationTestValues() {
-    return {
-        // U8
+const std::vector<ElementwiseWithMultiParentDequantizationTransformationTestValues> addTransformationTestValues = {
+    // U8
+    {
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            ngraph::Shape{1, 4, 16, 16},
-            LayerTransformation::createParamsU8I8(),
-            {
-                ngraph::element::u8,
-                { {ngraph::element::f32},  { 7.f }, { 10.f }},
-                ngraph::element::u8,
-                {},
-            },
-            {
-                ngraph::element::u8,
-                { {ngraph::element::f32},  { 7.f }, { 10.f }},
-                ngraph::element::u8,
-                {},
-            }
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { 10.f }},
+            ngraph::element::u8,
+            {},
         },
-        // U8
         {
-            ngraph::element::f32,
-            ngraph::Shape{1, 4, 16, 16},
-            LayerTransformation::createParamsU8I8(),
-            {
-                ngraph::element::u8,
-                {},
-                ngraph::element::u8,
-                { {ngraph::element::f32},  { 7.f }, { 10.f }}
-            },
-            {
-                ngraph::element::u8,
-                {},
-                ngraph::element::u8,
-                { {ngraph::element::f32},  { 7.f }, { 10.f }}
-            }
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { 10.f }},
+            ngraph::element::u8,
+            {},
         }
-    };
-}
+    },
+    // U8
+    {
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { 10.f }}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 7.f }, { 10.f }}
+        }
+    }
+};
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ElementwiseWithMultiParentDequantizationTransformation,
-    ::testing::ValuesIn(getAddTransformationTestValues()),
+    ::testing::ValuesIn(addTransformationTestValues),
     ElementwiseWithMultiParentDequantizationTransformation::getTestCaseName);

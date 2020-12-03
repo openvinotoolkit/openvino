@@ -97,81 +97,79 @@ public:
     }
 };
 
-static std::vector<TransposeTransformationTestValues> getTestValues() {
-    return {
-        // U8: per-tensor quantization
+const std::vector<TransposeTransformationTestValues> testValues = {
+    // U8: per-tensor quantization
+    {
+        ngraph::Shape({ 1, 1000, 1, 1}),
+        { 0, 1, 3, 2},
+        LayerTransformation::createParamsU8I8(),
         {
-            ngraph::Shape({ 1, 1000, 1, 1}),
-            { 0, 1, 3, 2},
-            LayerTransformation::createParamsU8I8(),
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        }
+    },
+    {
+        ngraph::Shape({ 1, 16, 512 }),
+        { 0, 2, 1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        }
+    },
+    // U8: per-channel quantization
+    {
+        ngraph::Shape({ 1, 3, 1, 1}),
+        { 0, 1, 3, 2},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
             {
-                ngraph::element::u8,
-                {{ngraph::element::f32}, {128}, {0.1f}}
-            },
-            {
-                ngraph::element::u8,
-                {{}, {}, {}},
-                ngraph::element::u8,
-                {{ngraph::element::f32}, {128}, {0.1f}}
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
             }
         },
         {
-            ngraph::Shape({ 1, 16, 512 }),
-            { 0, 2, 1 },
-            LayerTransformation::createParamsU8I8(),
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
             {
-                ngraph::element::u8,
-                {{ngraph::element::f32}, {128}, {0.1f}}
-            },
-            {
-                ngraph::element::u8,
-                {{}, {}, {}},
-                ngraph::element::u8,
-                {{ngraph::element::f32}, {128}, {0.1f}}
+                { ngraph::element::f32 },
+                {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
+                {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
             }
-        },
-        // U8: per-channel quantization
+        }
+    },
+    // empty
+    {
+        ngraph::Shape({ 1, 1000, 1, 1}),
+        { 0, 1, 3, 2},
+        LayerTransformation::createParamsU8I8(),
         {
-            ngraph::Shape({ 1, 3, 1, 1}),
-            { 0, 1, 3, 2},
-            LayerTransformation::createParamsU8I8(),
-            {
-                ngraph::element::u8,
-                {
-                    { ngraph::element::f32 },
-                    {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
-                    {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
-                }
-            },
-            {
-                ngraph::element::u8,
-                {{}, {}, {}},
-                ngraph::element::u8,
-                {
-                    { ngraph::element::f32 },
-                    {{ 128, 64, 32 }, ngraph::element::f32, { 1, 3, 1, 1 }},
-                    {{ 0.3f, 0.2f, 0.1f }, ngraph::element::f32, { 1, 3, 1, 1 }}
-                }
-            }
+            ngraph::element::u8,
+            {}
         },
-        // empty
         {
-            ngraph::Shape({ 1, 1000, 1, 1}),
-            { 0, 1, 3, 2},
-            LayerTransformation::createParamsU8I8(),
-            {
-                ngraph::element::u8,
-                {}
-            },
-            {
-                ngraph::element::u8,
-                {},
-                ngraph::element::u8,
-                {}
-            }
-        },
-    };
-}
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {}
+        }
+    },
+};
 
 TEST_P(TransposeTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
@@ -183,7 +181,7 @@ TEST_P(TransposeTransformation, CompareFunctions) {
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     TransposeTransformation,
-    ::testing::ValuesIn(getTestValues()),
+    ::testing::ValuesIn(testValues),
     TransposeTransformation::getTestCaseName);
 
 } // namespace

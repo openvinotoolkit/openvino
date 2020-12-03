@@ -80,30 +80,28 @@ TEST_P(ReshapeFullyConnectedTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-static std::vector<ReshapeFullyConnectedTransformationTestValues> getTestValues() {
-    return {
-        {
-            { 1, 1, 2048 },
-            ngraph::element::u8,
-            ngraph::element::i8,
-            ngraph::element::f32,
-            { 1, 1000 },
-            ngraph::element::f32
-        },
-        {
-            { 1, 1, 2048 },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { 1, 1000 },
-            ngraph::element::f32
-        }
-    };
-}
+std::vector<ReshapeFullyConnectedTransformationTestValues> testValues = {
+    {
+        { 1, 1, 2048 },
+        ngraph::element::u8,
+        ngraph::element::i8,
+        ngraph::element::f32,
+        { 1, 1000 },
+        ngraph::element::f32
+    },
+    {
+        { 1, 1, 2048 },
+        ngraph::element::f32,
+        ngraph::element::f32,
+        ngraph::element::f32,
+        { 1, 1000 },
+        ngraph::element::f32
+    }
+};
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ReshapeFullyConnectedTransformation,
-    ::testing::ValuesIn(getTestValues()),
+    ::testing::ValuesIn(testValues),
     ReshapeFullyConnectedTransformation::getTestCaseName);
 } // namespace

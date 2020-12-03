@@ -105,50 +105,42 @@ TEST_P(MulAddToScaleshiftOrPowerTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-static std::vector<ngraph::element::Type> getPrecision() {
-    return {
-        ngraph::element::i32,
-        ngraph::element::f32,
-        ngraph::element::u8,
-        ngraph::element::i8,
-    };
-}
+const std::vector<ngraph::element::Type> precision = {
+    ngraph::element::i32,
+    ngraph::element::f32,
+    ngraph::element::u8,
+    ngraph::element::i8,
+};
 
-static std::vector<bool> getIsDequantization() {
-    return { false, true };
-}
+const std::vector<bool> isDequantization = { false, true };
 
-static std::vector<ngraph::Shape> getInputShape() {
-    return {
-        { 1, 3, 9, 9 },
-        { 4, 3, 9, 9 }
-    };
-}
+const std::vector<ngraph::Shape> inputShape = {
+    { 1, 3, 9, 9 },
+    { 4, 3, 9, 9 }
+};
 
-static std::vector<MulAddToScaleshiftOrPowerParams> getTestValues() {
-    return {
-        {
-            LayerTransformation::createParamsU8I8(),
-            { 0.1f },
-            { 128.f },
-            ngraph::element::f32
-        },
-        {
-            LayerTransformation::createParamsU8I8(),
-            { 0.1f },
-            { -128.f },
-            ngraph::element::f32
-        }
-    };
-}
+const std::vector<MulAddToScaleshiftOrPowerParams> testValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 0.1f },
+        { 128.f },
+        ngraph::element::f32
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 0.1f },
+        { -128.f },
+        ngraph::element::f32
+    }
+};
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MulAddToScaleshiftOrPowerTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(getPrecision()),
-        ::testing::ValuesIn(getIsDequantization()),
-        ::testing::ValuesIn(getInputShape()),
-        ::testing::ValuesIn(getTestValues())),
+        ::testing::ValuesIn(precision),
+        ::testing::ValuesIn(isDequantization),
+        ::testing::ValuesIn(inputShape),
+        ::testing::ValuesIn(testValues)),
     MulAddToScaleshiftOrPowerTransformation::getTestCaseName);
 }  // namespace

@@ -115,147 +115,145 @@ TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-static std::vector<FuseFakeQuantizeTransformationTestValues> getTestValues() {
-    return {
-        // 1) Multiply
+const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
+    // 1) Multiply
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
         {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, { 0.01f } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 255.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Multiply + 2) Add
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            { {128}, element::f32 },
+            element::f32,
+            { {}, {}, { 0.01f } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Subtract + Multiply
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, { -128 }, { 0.01f } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Convert + Subtract + Multiply
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, { -128 }, { 0.01f } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {}, {}, {} },
+            element::u8,
+            element::f32,
+            { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Convert + Subtract + Multiply 2) Add
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            { {127}, element::f32 },
+            element::f32,
+            { {element::f32}, { -128 }, { 0.01f } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { -255.f }, { 0.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // negative multiply
+    {
             Shape{1, 3, 16, 16},
             LayerTransformation::createParamsU8I8(),
             {
-                element::f32,
-                {},
-                element::f32,
-                { {}, {}, { 0.01f } },
-                element::f32,
-                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+                    element::f32,
+                    {},
+                    element::f32,
+                    { {}, { -128 }, { -0.01f } },
+                    element::f32,
+                    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
             },
             {
-                element::f32,
-                {},
-                element::f32,
-                { {}, {}, {} },
-                element::f32,
-                element::f32,
-                { 256ul, {}, { 0.f }, { 255.f }, { 0.f }, { 2.55f } }
+                    element::f32,
+                    {},
+                    element::f32,
+                    { {}, { -128 }, { -0.01f } },
+                    element::f32,
+                    element::f32,
+                    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
             }
-        },
-        // 1) Multiply + 2) Add
-        {
-            Shape{1, 3, 16, 16},
-            LayerTransformation::createParamsU8I8(),
-            {
-                element::f32,
-                { {128}, element::f32 },
-                element::f32,
-                { {}, {}, { 0.01f } },
-                element::f32,
-                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-            },
-            {
-                element::f32,
-                {},
-                element::f32,
-                { {}, {}, {} },
-                element::f32,
-                element::f32,
-                { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
-            }
-        },
-        // 1) Subtract + Multiply
-        {
-            Shape{1, 3, 16, 16},
-            LayerTransformation::createParamsU8I8(),
-            {
-                element::f32,
-                {},
-                element::f32,
-                { {}, { -128 }, { 0.01f } },
-                element::f32,
-                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-            },
-            {
-                element::f32,
-                {},
-                element::f32,
-                { {}, {}, {} },
-                element::f32,
-                element::f32,
-                { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
-            }
-        },
-        // 1) Convert + Subtract + Multiply
-        {
-            Shape{1, 3, 16, 16},
-            LayerTransformation::createParamsU8I8(),
-            {
-                element::f32,
-                {},
-                element::u8,
-                { {element::f32}, { -128 }, { 0.01f } },
-                element::f32,
-                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-            },
-            {
-                element::f32,
-                {},
-                element::u8,
-                { {}, {}, {} },
-                element::u8,
-                element::f32,
-                { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
-            }
-        },
-        // 1) Convert + Subtract + Multiply 2) Add
-        {
-            Shape{1, 3, 16, 16},
-            LayerTransformation::createParamsU8I8(),
-            {
-                element::f32,
-                { {127}, element::f32 },
-                element::f32,
-                { {element::f32}, { -128 }, { 0.01f } },
-                element::f32,
-                { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-            },
-            {
-                element::f32,
-                {},
-                element::f32,
-                { {}, {}, {} },
-                element::f32,
-                element::f32,
-                { 256ul, {}, { -255.f }, { 0.f }, { 0.f }, { 2.55f } }
-            }
-        },
-        // negative multiply
-        {
-                Shape{1, 3, 16, 16},
-                LayerTransformation::createParamsU8I8(),
-                {
-                        element::f32,
-                        {},
-                        element::f32,
-                        { {}, { -128 }, { -0.01f } },
-                        element::f32,
-                        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-                },
-                {
-                        element::f32,
-                        {},
-                        element::f32,
-                        { {}, { -128 }, { -0.01f } },
-                        element::f32,
-                        element::f32,
-                        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-                }
-        },
-    };
-}
+    },
+};
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FuseFakeQuantizeTransformation,
-    ::testing::ValuesIn(getTestValues()),
+    ::testing::ValuesIn(testValues),
     FuseFakeQuantizeTransformation::getTestCaseName);
 
 } // namespace
