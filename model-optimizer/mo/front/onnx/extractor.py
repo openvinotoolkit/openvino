@@ -28,7 +28,6 @@ def node_pb_arg(pb_extractor: callable):
 
 onnx_op_extractors = {
     'BatchNormalization': tf_fused_bn_extractor,
-    'Concat': concat_ext,
     'Identity': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
     'Reshape': onnx_reshape_ext,
 }
