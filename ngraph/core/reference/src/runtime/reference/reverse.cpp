@@ -49,7 +49,7 @@ namespace ngraph
                 auto dst_mem = out;
                 for (auto range : coordinates::reverse(arg_shape, reversed_axes))
                 {
-                    for (auto src_index = range.begin; range.is_in(src_index);
+                    for (auto src_index = range.begin; range.contains(src_index);
                          src_index += range.step)
                     {
                         const auto src_mem = arg + src_index * elem_size;
