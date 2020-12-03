@@ -37,7 +37,7 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string,
                                          InferenceEngine::Parameter> & options) const override;
 
-    ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
         const Configs & localConfig) const;

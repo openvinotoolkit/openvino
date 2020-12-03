@@ -100,7 +100,7 @@ TEST(UtilTests, cloneLayers) {
 namespace {
 IE::CNNLayerPtr getLayer(const IE::details::CNNNetworkImplPtr n,
                          const char* name) {
-    if (contains(n->allLayers(), name)) {
+    if (InferenceEngine::details::contains(n->allLayers(), name)) {
         return n->allLayers().find(name)->second;
     }
     return nullptr;

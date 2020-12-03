@@ -10,8 +10,6 @@
 
 #include "backend.hpp"
 
-#include "backend.hpp"
-
 //! [plugin:header]
 namespace TemplatePlugin {
 

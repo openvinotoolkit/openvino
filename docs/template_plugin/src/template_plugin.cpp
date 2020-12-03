@@ -33,15 +33,15 @@ Plugin::Plugin() {
     _backend = ngraph::runtime::Backend::create("INTERPRETER");
 
     // create default stream executor with a given name
-    _waitExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
+    _waitExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
 
 // ! [plugin:dtor]
 Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
-    ExecutorManager::getInstance()->clear("TemplateStreamsExecutor");
-    ExecutorManager::getInstance()->clear("TemplateWaitExecutor");
+    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateStreamsExecutor");
+    InferenceEngine::ExecutorManager::getInstance()->clear("TemplateWaitExecutor");
     // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
     // ExecutorManager::getInstance()->clear("TemplateCallbackExecutor");
 }
@@ -91,8 +91,8 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
     for (auto networkOutput : networkOutputs) {
         auto output_precision = networkOutput.second->getPrecision();
 
-        if (output_precision != Precision::FP32 &&
-            output_precision != Precision::FP16) {
+        if (output_precision != InferenceEngine::Precision::FP32 &&
+            output_precision != InferenceEngine::Precision::FP16) {
             THROW_IE_EXCEPTION << "Template device supports only FP16 and FP32 output precision.";
         }
     }
@@ -135,8 +135,8 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
 // ! [plugin:import_network_impl]
 
 // ! [plugin:query_network]
-QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork &network, const ConfigMap& config) const {
-    QueryNetworkResult res;
+InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::CNNNetwork &network, const ConfigMap& config) const {
+    InferenceEngine::QueryNetworkResult res;
     Configuration cfg{config, _cfg, false};
 
     auto function = network.getFunction();
@@ -163,7 +163,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork &network, const ConfigM
         for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
-            if (contains(originalOps, fusedLayerName)) {
+            if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                 if (opset.contains_type_insensitive(fusedLayerName)) {
                     supported.emplace(fusedLayerName);
                 } else {
@@ -175,7 +175,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork &network, const ConfigM
 
     // 4. The result set should contains just nodes from supported set
     for (auto&& layerName : supported) {
-        if (!contains(unsupported, layerName)) {
+        if (!InferenceEngine::details::contains(unsupported, layerName)) {
             res.supportedLayersMap.emplace(layerName, GetName());
         }
     }
@@ -219,7 +219,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
             CONFIG_KEY(DEVICE_ID),
             CONFIG_KEY(PERF_COUNT),
             TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
-        auto streamExecutorConfigKeys = IStreamsExecutor::Config{}.SupportedKeys();
+        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
             if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
                 configKeys.emplace_back(configKey);
@@ -248,6 +248,6 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
 // ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
-static const Version version = {{2, 1}, CI_BUILD_NUMBER, "templatePlugin"};
+static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "templatePlugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 // ! [plugin:create_plugin_engine]

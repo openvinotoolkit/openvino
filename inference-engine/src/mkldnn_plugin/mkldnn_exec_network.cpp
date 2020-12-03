@@ -145,14 +145,14 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
-        _taskExecutor = ExecutorManager::getInstance()->getExecutor("CPU");
+        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-        _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+        _callbackExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
     } else {
         _callbackExecutor = _taskExecutor;
