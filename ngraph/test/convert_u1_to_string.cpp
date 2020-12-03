@@ -25,7 +25,7 @@ using namespace std;
 TEST(convert_u1_to_string, convert_u1_to_string)
 {
     vector<uint8_t> values{171, 16};
-    auto constant = make_shared<op::Constant>(element::u1, Shape{12}, &values[0]);
+    auto constant = make_shared<op::Constant>(element::Type_t::u1, Shape{12}, &values[0]);
 
     vector<string> ref{"1", "0", "1", "0", "1", "0", "1", "1", "0", "0", "0", "1"};
     for (size_t i = 0; i < 12; ++i)

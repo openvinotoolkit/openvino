@@ -45,7 +45,7 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v2_caffe)
     Shape input_shape{batch, channels, height, width};
     Shape output_shape{batch, channels * height * width};
 
-    auto A = make_shared<op::Parameter>(element::f32, input_shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
     auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, true, mask, 1, 3);
     auto f = make_shared<Function>(R, ParameterVector{A});
 
@@ -71,7 +71,7 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet)
     Shape shape{batch, channels, height, width};
     const auto count = shape_size(shape);
 
-    const auto A = make_shared<op::Parameter>(element::f32, shape);
+    const auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     const auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, false, mask, 1, 3);
     const auto f = make_shared<Function>(R, ParameterVector{A});
 

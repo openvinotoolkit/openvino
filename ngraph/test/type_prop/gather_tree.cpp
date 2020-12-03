@@ -23,24 +23,24 @@ using namespace ngraph;
 
 TEST(type_prop, gather_tree_output_shape)
 {
-    auto step_ids = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3});
-    auto parent_idx = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3});
-    auto max_seq_len = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto end_token = make_shared<op::Parameter>(element::i64, Shape{});
+    auto step_ids = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3});
+    auto parent_idx = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3});
+    auto max_seq_len = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto end_token = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
 
     auto gather_tree =
         make_shared<op::v1::GatherTree>(step_ids, parent_idx, max_seq_len, end_token);
 
     ASSERT_EQ(gather_tree->get_output_shape(0), (Shape{1, 2, 3}));
-    ASSERT_EQ(gather_tree->get_output_element_type(0), element::i64);
+    ASSERT_EQ(gather_tree->get_output_element_type(0), element::Type_t::i64);
 }
 
 TEST(type_prop, gather_tree_pooling_step_ids_invalid_rank)
 {
-    auto step_ids = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3, 4});
-    auto parent_idx = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3});
-    auto max_seq_len = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto end_token = make_shared<op::Parameter>(element::i64, Shape{});
+    auto step_ids = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3, 4});
+    auto parent_idx = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3});
+    auto max_seq_len = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto end_token = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
     try
     {
         auto gather_tree =
@@ -61,10 +61,10 @@ TEST(type_prop, gather_tree_pooling_step_ids_invalid_rank)
 
 TEST(type_prop, gather_tree_parent_idx_invalid_rank)
 {
-    auto step_ids = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3});
-    auto parent_idx = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3, 4});
-    auto max_seq_len = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto end_token = make_shared<op::Parameter>(element::i64, Shape{});
+    auto step_ids = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3});
+    auto parent_idx = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3, 4});
+    auto max_seq_len = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto end_token = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
     try
     {
         auto gather_tree =
@@ -86,10 +86,10 @@ TEST(type_prop, gather_tree_parent_idx_invalid_rank)
 
 TEST(type_prop, gather_tree_max_seq_len_invalid_rank)
 {
-    auto step_ids = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3});
-    auto parent_idx = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3});
-    auto max_seq_len = make_shared<op::Parameter>(element::i64, Shape{1, 2});
-    auto end_token = make_shared<op::Parameter>(element::i64, Shape{});
+    auto step_ids = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3});
+    auto parent_idx = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3});
+    auto max_seq_len = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2});
+    auto end_token = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
     try
     {
         auto gather_tree =
@@ -111,10 +111,10 @@ TEST(type_prop, gather_tree_max_seq_len_invalid_rank)
 
 TEST(type_prop, gather_tree_end_token_invalid_rank)
 {
-    auto step_ids = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3});
-    auto parent_idx = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3});
-    auto max_seq_len = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto end_token = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto step_ids = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3});
+    auto parent_idx = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3});
+    auto max_seq_len = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
+    auto end_token = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
     try
     {
         auto gather_tree =

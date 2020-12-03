@@ -333,7 +333,7 @@ namespace ngraph
             void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override
             {
                 HostTensorPtr data =
-                    std::make_shared<HostTensor>(element::u8, Shape{adapter.size()});
+                    std::make_shared<HostTensor>(element::Type_t::u8, Shape{adapter.size()});
                 data->write(adapter.get_ptr(), adapter.size());
                 m_values.insert(name, data);
             }
