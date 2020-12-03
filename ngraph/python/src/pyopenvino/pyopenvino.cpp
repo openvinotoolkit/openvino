@@ -25,7 +25,6 @@
 #include "inference_engine/ie_version.hpp"
 #include "inference_engine/ie_parameter.hpp"
 #include "inference_engine/ie_input_info.hpp"
-#include "inference_engine/ie_const_input_info.hpp"
 #include "inference_engine/ie_data.hpp"
 
 #include <string>
@@ -66,19 +65,21 @@ PYBIND11_MODULE(pyopenvino, m) {
 
     regclass_IECore(m);
 
-    regclass_Blob<float>(m);
-    // // TODO: do it the same way like Variants or somehow make trampoline to decide with Blob is called?
-    // regclass_Blob<int8_t>(m);
-    // regclass_Blob<uint8_t>(m);
-    // regclass_Blob<int16_t>(m);
-    // regclass_Blob<uint16_t>(m);
-    // regclass_Blob<int32_t>(m);
-    // regclass_Blob<uint32_t>(m);
-    // regclass_Blob<long>(m);
-    // regclass_Blob<unsigned long>(m);
-    // regclass_Blob<long long>(m);
-    // regclass_Blob<unsigned long long>(m);
-    // regclass_Blob<double>(m);
+    // GeneralBlob
+    regclass_Blob(m);
+    // Specific type Blobs
+    regclass_TBlob<float>(m, "Float32");
+    regclass_TBlob<int8_t>(m, "Int8");
+    // regclass_TBlob<uint8_t>(m, "Uint8");
+    regclass_TBlob<int16_t>(m, "Int16");
+    // regclass_TBlob<uint16_t>(m, "Uint16");
+    regclass_TBlob<int32_t>(m, "Int32");
+    // regclass_TBlob<uint32_t>(m, "Uint32");
+    regclass_TBlob<long>(m, "Int64");
+    // regclass_TBlob<unsigned long>(m, "UInt64");
+    // regclass_TBlob<long long>(m);
+    // regclass_TBlob<unsigned long long>(m);
+    // regclass_TBlob<double>(m);
 
     regclass_IENetwork(m);
     regclass_ExecutableNetwork(m);
@@ -88,5 +89,4 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Parameter(m);
     regclass_Data(m);
     regclass_InputInfo(m);
-    regclass_ConstInputInfo(m);
 }

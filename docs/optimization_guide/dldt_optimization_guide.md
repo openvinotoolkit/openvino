@@ -263,9 +263,7 @@ The following tips are provided to give general guidance on optimizing execution
 
 ### Analyzing Heterogeneous Execution <a name="analyzing-heterogeneous-execution"></a>
 
-There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin:
-
-@snippet openvino/docs/snippets/dldt_optimization_guide0.cpp part0
+There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin, please see code example in the [HETERO plugin documentation](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution)
 
 After enabling the configuration key, the heterogeneous plugin generates two files:
 
@@ -276,7 +274,7 @@ You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `
 
 ![](../img/output_trimmed.png)
 
-You can also use performance data (in samples, it is an option `-pc`) to get performance data on each subgraph. Refer to <a href="#performance-counters">Internal Inference Performance Counters</a> for more information.
+You can also use performance data (in the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
 
 
 ## Optimizing Custom Kernels <a name="optimizing-custom-kernels"></a>

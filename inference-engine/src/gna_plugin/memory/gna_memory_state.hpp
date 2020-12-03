@@ -11,14 +11,14 @@
 
 namespace  GNAPluginNS {
 namespace memory {
-class GNAMemoryState : public InferenceEngine::IMemoryStateInternal {
+class GNAVariableState : public InferenceEngine::IVariableStateInternal {
  public:
-    GNAMemoryState(std::string name, std::shared_ptr<GNAMemoryLayer> state)
+    GNAVariableState(std::string name, std::shared_ptr<GNAMemoryLayer> state)
         : name(name), state(state) { IE_ASSERT(state != nullptr); }
 
     void Reset() override;
     void SetState(InferenceEngine::Blob::Ptr newState) override;
-    InferenceEngine::Blob::CPtr GetLastState() const override;
+    InferenceEngine::Blob::CPtr GetState() const override;
     std::string GetName() const override;
 
 private:

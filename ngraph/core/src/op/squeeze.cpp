@@ -19,6 +19,7 @@
 #include <set>
 
 #include "itt.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/squeeze.hpp"
@@ -122,10 +123,11 @@ OutputVector op::Squeeze::decompose_op() const
         (get_output_partial_shape(0).is_static()),
         "output shape was not calculated during pre_validate_and_infer_types. Can not decompose.");
     auto data = input_value(0);
-    auto data_shape = data.get_shape();
     auto output_data_shape = get_output_shape(0);
-    AxisVector input_order{get_default_order(data_shape.size())};
-    return {make_shared<op::Reshape>(data, input_order, output_data_shape)};
+    return {make_shared<op::v1::Reshape>(
+        data,
+        op::Constant::create(element::u64, {output_data_shape.size()}, output_data_shape),
+        false)};
 }
 
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const

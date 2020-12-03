@@ -11,7 +11,6 @@ for %%A in ("%GNA%") do set GNA_FILENAME=%%~nxA
 for %%A in ("%OPENCV%") do set OPENCV_FILENAME=%%~nxA
 for %%A in ("%MYRIAD%") do set MYRIAD_FILENAME=%%~nxA
 for %%A in ("%HDDL%") do set HDDL_FILENAME=%%~nxA
-for %%A in ("%VPU_FIRMWARE_MA2450%") do set VPU_FIRMWARE_MA2450_FILENAME=%%~nxA
 for %%A in ("%VPU_FIRMWARE_MA2X8X%") do set VPU_FIRMWARE_MA2X8X_FILENAME=%%~nxA
 for %%A in ("%TBB%") do set TBB_FILENAME=%%~nxA
 
@@ -86,16 +85,6 @@ if not "%HDDL%"=="" (
 	)
 )
 
-if not "%VPU_FIRMWARE_MA2450%"=="" (
-	if not exist "%DL_SDK_TEMP%\test_dependencies\VPU\%VPU_FIRMWARE_MA2450_FILENAME%" (
-		mkdir "%DL_SDK_TEMP%\test_dependencies\VPU"
-		powershell -command "iwr -outf '%DL_SDK_TEMP%\test_dependencies\VPU\_%VPU_FIRMWARE_MA2450_FILENAME%' %VPU_FIRMWARE_MA2450%"
-		mkdir "%DL_SDK_TEMP%\test_dependencies\VPU\%VPU_FIRMWARE_MA2450_FILENAME%"
-		call "C:\Program Files\7-Zip\7z.exe" x -y %DL_SDK_TEMP%\test_dependencies\VPU\_%VPU_FIRMWARE_MA2450_FILENAME% -o%DL_SDK_TEMP%\test_dependencies\VPU\%VPU_FIRMWARE_MA2450_FILENAME%
-		del "%DL_SDK_TEMP%\test_dependencies\VPU\_%VPU_FIRMWARE_MA2450_FILENAME%" /F /Q
-	)
-)
-
 if not "%VPU_FIRMWARE_MA2X8X%"=="" (
 	if not exist "%DL_SDK_TEMP%\test_dependencies\VPU\%VPU_FIRMWARE_MA2X8X_FILENAME%" (
 		mkdir "%DL_SDK_TEMP%\test_dependencies\VPU"
@@ -131,18 +120,11 @@ if not "%MYRIAD%"=="" (
 	if exist "%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%\mvnc" (
 		echo xcopy.exe "%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%" intel64  /S /I /Y /R
 		xcopy.exe "%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%" intel64  /S /I /Y /R
-	)	
+	)
 
 	if exist "%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%\..\bin\mvnc" (
 		echo xcopy.exe "%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%\..\bin\*" intel64  /S /I /Y /R
 		xcopy.exe "%DL_SDK_TEMP%\test_dependencies\MYRIAD\%MYRIAD_FILENAME%%MYRIAD%\..\bin\*" intel64  /S /I /Y /R
-	)
-)
-
-if not "%VPU_FIRMWARE_MA2450%"=="" (
-	if exist "%DL_SDK_TEMP%\test_dependencies\VPU\%VPU_FIRMWARE_MA2450_FILENAME%" (
-		echo xcopy.exe "%DL_SDK_TEMP%\test_dependencies\VPU\%VPU_FIRMWARE_MA2450_FILENAME%\*" intel64  /S /I /Y /R
-		xcopy.exe "%DL_SDK_TEMP%\test_dependencies\VPU\%VPU_FIRMWARE_MA2450_FILENAME%\*" intel64  /S /I /Y /R
 	)
 )
 

@@ -88,7 +88,7 @@ public:
         _plugin = plugin;
     }
 
-    std::vector<IMemoryStateInternal::Ptr> QueryState() override {
+    std::vector<IVariableStateInternal::Ptr> QueryState() override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

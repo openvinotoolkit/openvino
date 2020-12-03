@@ -25,7 +25,8 @@ from test_runner.utils import expand_env_vars
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir):
+def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir, validate_test_case,
+                  prepare_db_info):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
@@ -34,6 +35,8 @@ def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir
     :param cl_cache_dir: directory to store OpenCL cache
     :param test_info: custom `test_info` field of built-in `request` pytest fixture
     :param temp_dir: path to a temporary directory. Will be cleaned up after test run
+    :param validate_test_case: custom pytest fixture. Should be declared as test argument to be enabled
+    :param prepare_db_info: custom pytest fixture. Should be declared as test argument to be enabled
     """
     # Prepare model to get model_path
     model_path = instance["model"].get("path")

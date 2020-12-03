@@ -64,7 +64,8 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::get(
         multiplyOriginal,
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{});
-
+    auto& rtInfo = multiply->get_rt_info();
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("multiply");
     multiply->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };

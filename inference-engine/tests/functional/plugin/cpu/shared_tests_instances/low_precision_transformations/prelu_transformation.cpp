@@ -23,7 +23,7 @@ std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> testValues = {
     { 256ul, ngraph::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, PReluTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, PReluTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

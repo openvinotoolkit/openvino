@@ -118,7 +118,7 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for
      * given index
      */
-    virtual StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
 
     /**
      * @brief Sets configuration for current executable network

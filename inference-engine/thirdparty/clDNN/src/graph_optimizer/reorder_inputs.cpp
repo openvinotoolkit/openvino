@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -264,8 +264,26 @@ void minimize_local_reorders(program_impl& p, std::map<program_node*, format::ty
         if (!node->is_in_data_flow())
             continue;
 
-        if (lo.get_preferred_format(*node) != format::any)
-            continue;
+        auto preferred_format = lo.get_preferred_format(*node);
+
+        if (preferred_format != format::any) {
+            if (preferred_format == format::b_fs_yx_fsv4 &&
+                (node->get_output_layout().data_type == data_types::i8 || node->get_output_layout().data_type == data_types::u8)) {
+                std::set<format::type> io_formats;
+                for (auto user : node->get_users()) {
+                    io_formats.insert(fmt_map.at(user));
+                }
+                for (auto dep : node->get_dependencies()) {
+                    if (!dep->is_in_data_flow())
+                        continue;
+                    io_formats.insert(fmt_map.at(dep));
+                }
+                if (!(io_formats.size() == 1 && io_formats.count(preferred_format) == 0))
+                    continue;
+            } else {
+                continue;
+            }
+        }
 
         if (fmt_map.at(node) == format::any) {
             auto out_fmt = node->get_output_layout().format;

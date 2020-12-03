@@ -84,7 +84,7 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
     _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
-    // NOTE: callback Executor is not configured. So callback will be called in the thread of tha last stage of inference request pipeline
+    // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of inference request pipeline
     // _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
 }
 // ! [executable_network:init_executor]

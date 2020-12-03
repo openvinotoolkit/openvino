@@ -11,7 +11,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork, DataPtr
+from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork, DataPtr, InputInfoPtr, InputInfoCPtr
 
 import os
 
@@ -31,6 +31,8 @@ test_net_xml, test_net_bin = model_path()
 def test_name():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert not(isinstance(net.input_info['data'], InputInfoCPtr))
+    assert isinstance(net.input_info['data'], InputInfoPtr)
     assert net.name == "test_model"
 
 

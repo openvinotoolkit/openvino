@@ -34,7 +34,9 @@ public:
             const std::vector<float>& values,
             const ngraph::element::Type outPrecision,
             const ngraph::Shape& constantShape,
-            const bool addDequantizationAttribute = true);
+            const bool addDequantizationAttribute = true,
+            const size_t constantIndex = 1ul,
+            const ngraph::element::Type constantPrecision = ngraph::element::undefined);
         bool empty() const noexcept;
         Subtract& setConstantPrecision(const ngraph::element::Type& precision);
 
@@ -43,7 +45,9 @@ public:
         ngraph::Shape constantShape;
         bool constantShapeIsDefined;
         bool addDequantizationAttribute;
+        size_t constantIndex = 1ul;
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
+
     private:
         bool isEmpty;
     };
@@ -59,7 +63,8 @@ public:
             const ngraph::element::Type outPrecision,
             const ngraph::Shape& constantShape,
             const bool addDequantizationAttribute = true,
-            const size_t constantIndex = 1ul);
+            const size_t constantIndex = 1ul,
+            const ngraph::element::Type constantPrecision = ngraph::element::undefined);
         bool empty() const noexcept;
         Multiply& setConstantPrecision(const ngraph::element::Type& precision);
 
@@ -70,6 +75,7 @@ public:
         bool addDequantizationAttribute;
         size_t constantIndex = 1ul;
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
+
     private:
         bool isEmpty;
     };

@@ -73,6 +73,7 @@ namespace ngraph
                 Shape m_padding_below;
                 Shape m_padding_above;
                 ngraph::op::PadType m_auto_pad;
+                ngraph::op::RoundingType m_rounding_type;
             };
 
             ///

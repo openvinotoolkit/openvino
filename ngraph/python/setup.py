@@ -31,6 +31,10 @@ NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
 # Change current working dircectory to ngraph/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
+debug_optimization_flags = [
+    "O1", "O2", "O3", "O4", "Ofast", "Os", "Oz", "Og", "O", "DNDEBUG"
+]
+
 
 def find_ngraph_dist_dir():
     """Return location of compiled ngraph library home."""
@@ -71,7 +75,8 @@ def find_pybind_headers_dir():
 
 
 NGRAPH_CPP_DIST_DIR = find_ngraph_dist_dir()
-OPENVINO_CPP_INCLUDE_DIR = "/home/akuporos/openvino/openvino/inference-engine/include"
+# OPENVINO_CPP_INCLUDE_DIR = "/home/akuporos/openvino/openvino/inference-engine/include"
+OPENVINO_CPP_INCLUDE_DIR = "/home/jiwaszki/openvino/inference-engine/include"
 PYBIND11_INCLUDE_DIR = find_pybind_headers_dir() + "/include"
 NGRAPH_CPP_INCLUDE_DIR = NGRAPH_CPP_DIST_DIR + "/include"
 if os.path.exists(os.path.join(NGRAPH_CPP_DIST_DIR, "lib")):
@@ -103,30 +108,15 @@ if len([fn for fn in os.listdir(NGRAPH_CPP_LIBRARY_DIR) if re.search("onnx_impor
 
 def _remove_compiler_flags(obj):
     """Make pybind11 more verbose in debug builds."""
-    try:
-        # pybind11 is much more verbose without the NDEBUG define
-        if sys.platform == "win32":
-            obj.compiler.remove("/DNDEBUG")
-            obj.compiler.remove("/O2")
-        else:
-            obj.compiler.remove("-DNDEBUG")
-            obj.compiler.remove("-O2")
-    except (AttributeError, ValueError):
-        pass
-
-
-def _remove_compiler_so_flags(obj):
-    """Make pybind11 more verbose in debug builds."""
-    try:
-        # pybind11 is much more verbose without the NDEBUG define
-        if sys.platform == "win32":
-            obj.compiler_so.remove("/DNDEBUG")
-            obj.compiler_so.remove("/O2")
-        else:
-            obj.compiler_so.remove("-DNDEBUG")
-            obj.compiler_so.remove("-O2")
-    except (AttributeError, ValueError):
-        pass
+    for flag in debug_optimization_flags:
+        try:
+            if sys.platform == "win32":
+                obj.compiler.compile_options.remove("/{}".format(flag))
+            else:
+                obj.compiler.compiler_so.remove("-{}".format(flag))
+                obj.compiler.compiler.remove("-{}".format(flag))
+        except (AttributeError, ValueError):
+            pass
 
 
 def parallelCCompile(
@@ -151,10 +141,6 @@ def parallelCCompile(
         output_dir, macros, include_dirs, sources, depends, extra_postargs
     )
     cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
-
-    if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-        _remove_compiler_flags(self)
-        _remove_compiler_so_flags(self)
 
     # parallel code
     import multiprocessing.pool
@@ -251,7 +237,7 @@ pyopenvino_sources = [
     "pyopenvino/inference_engine/ie_parameter.cpp",
     "pyopenvino/inference_engine/ie_data.cpp",
     "pyopenvino/inference_engine/ie_input_info.cpp",
-    "pyopenvino/inference_engine/ie_const_input_info.cpp",
+    "pyopenvino/inference_engine/ie_blob.cpp",
     "pyopenvino/inference_engine/common.cpp",
 ]
 pyopenvino_sources = [PYNGRAPH_SRC_DIR + "/" + source for source in pyopenvino_sources]
@@ -272,8 +258,9 @@ packages = [
 
 include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, OPENVINO_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
 
-library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/home/akuporos/openvino/openvino_dist/deployment_tools/inference_engine/lib/intel64/"]
 
+# library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/home/akuporos/openvino/openvino_dist/deployment_tools/inference_engine/lib/intel64/"]
+library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/home/jiwaszki/dldt_dist/debug/deployment_tools/inference_engine/lib/intel64/"]
 
 extra_compile_args = []
 extra_link_args = []
@@ -287,14 +274,6 @@ data_files = [
             if os.path.isfile(os.path.join(NGRAPH_CPP_LIBRARY_DIR, library))
         ],
     ),
-    (
-        "licenses",
-        [
-            os.path.join(NGRAPH_CPP_DIST_DIR, "licenses", license)
-            for license in os.listdir(os.path.join(NGRAPH_CPP_DIST_DIR, "licenses"))
-        ],
-    ),
-    ("", [os.path.join(NGRAPH_CPP_DIST_DIR, "LICENSE")],),
 ]
 
 print("NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME", NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME)
@@ -380,8 +359,6 @@ class BuildExt(build_ext):
         try:
             # -Wstrict-prototypes is not a valid option for c++
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
-            if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-                _remove_compiler_so_flags(self)
 
         except (AttributeError, ValueError):
             pass
@@ -389,6 +366,7 @@ class BuildExt(build_ext):
     def build_extensions(self):
         """Build extension providing extra compiler flags."""
         self._customize_compiler_flags()
+
         for ext in self.extensions:
             ext.extra_compile_args += [cpp_flag(self.compiler)]
 
@@ -403,6 +381,9 @@ class BuildExt(build_ext):
 
             if sys.platform == "darwin":
                 ext.extra_compile_args += ["-stdlib=libc++"]
+
+        if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
+            _remove_compiler_flags(self)
 
         build_ext.build_extensions(self)
 

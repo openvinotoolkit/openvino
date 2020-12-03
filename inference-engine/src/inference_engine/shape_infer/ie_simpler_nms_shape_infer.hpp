@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <legacy/ie_layers.h>
-
 #include <description_buffer.hpp>
 #include <map>
 #include <memory>

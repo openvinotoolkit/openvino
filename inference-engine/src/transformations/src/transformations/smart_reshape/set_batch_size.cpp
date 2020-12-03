@@ -22,15 +22,9 @@ bool ngraph::pass::SetBatchSize::run_on_function(std::shared_ptr<ngraph::Functio
     ngraph::pass::Manager manager;
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-
-    manager.register_pass<ngraph::pass::DisableCFForPriorBoxes>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::EnableCFForPriorBoxes>();
     manager.register_pass<ngraph::pass::SharedSqueeze>();
     manager.register_pass<ngraph::pass::SqueezeStridedSlice>();
     manager.register_pass<ngraph::pass::StridedSliceSqueeze>();
-    manager.register_pass<ngraph::pass::ReshapeTo1D>();
-
     manager.register_pass<ngraph::pass::MimicSetBatchSize>();
     manager.run_passes(f);
     return true;

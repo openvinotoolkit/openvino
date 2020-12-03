@@ -84,8 +84,6 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
     return result;
 }
 
-ICNNNetwork::~ICNNNetwork() {}
-
 CNNNetworkImpl::CNNNetworkImpl() {}
 
 CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {

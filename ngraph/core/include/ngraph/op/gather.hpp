@@ -50,11 +50,14 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
 
+                bool constant_fold(OutputVector& output_values,
+                                   const OutputVector& inputs_values) override;
+
             private:
                 static const int PARAMS;
                 static const int INDICES;
                 static const int AXIS;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph

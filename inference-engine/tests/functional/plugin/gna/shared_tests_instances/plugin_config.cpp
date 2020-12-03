@@ -6,7 +6,7 @@
 
 #include "functional_test_utils/plugin_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "legacy/ie_ngraph_utils.hpp"
+#include <ie_ngraph_utils.hpp>
 
 void PreparePluginConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
     const float MAX_VAL_2B_FEAT = 16384.0f;

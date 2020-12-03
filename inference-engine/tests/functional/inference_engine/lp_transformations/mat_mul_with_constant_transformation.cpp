@@ -140,11 +140,8 @@ public:
 };
 
 TEST_P(MatMulWithConstantTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
-
     actualFunction->validate_nodes_and_infer_types();
-
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -314,7 +311,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

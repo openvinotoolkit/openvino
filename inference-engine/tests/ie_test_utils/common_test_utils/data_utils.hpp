@@ -32,6 +32,21 @@ static void fill_data_sine(float *data, size_t size, float center, float ampl, f
 }
 
 /**
+ * @brief Create vector of floats with length of vec_len, with values ranging from min to max, 
+ * with initial seed equal to variable seed with default of 0
+ */
+static inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min, float max, int seed = 0) {
+    std::vector<float> res;
+    std::mt19937 gen(static_cast<float>(seed));
+
+    std::uniform_real_distribution<float> dist(min, max);
+    for (int i = 0; i < vec_len; i++)
+        res.emplace_back(static_cast<float>(dist(gen)));
+
+    return res;
+}
+
+/**
  * Fill blob with value data blob. Broadcast semantic is included.
  * Broadcasting with alignment through last dimension.
  *
@@ -71,6 +86,14 @@ InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &b
  * @param val value to set into each element
  */
 void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val);
+
+
+/**
+ * Calculate size of buffer required for provided tensor descriptor.
+ * @param tdesc provided tensor descriptor
+ * @return size in bytes
+ */
+size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
 
 static void fill_data_bbox(float *data, size_t size, int height, int width, float omega) {
     float center_h = (height - 1.0f) / 2;

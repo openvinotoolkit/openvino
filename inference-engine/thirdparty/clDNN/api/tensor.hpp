@@ -120,8 +120,10 @@ struct format {
 
         // Weights formats
         oiyx,                                         ///< the most common format for 2D weights
+        ioyx,                                         ///< 2D weights format for deconvolutions
         yxio,                                         ///< format used 2D weights
         oizyx,                                        ///< the most common format for 3D convolution
+        iozyx,                                        ///< 3D weights format for deconvolutions
         iyxo,
         os_iyx_osv16,                                 ///< format used only for convolution weights:
         os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
@@ -183,9 +185,11 @@ struct format {
         os_i_yxs_osv4_yxsv4,
 
         goiyx,                                        ///< format used for weights for 2D convolution
+        gioyx,                                        ///< format used for weights for 2D deconvolution
         yxiog,                                        ///< format used for weights for 2D convolution
         gyxio,                                        ///< format used for weights for 2D convolution
         goizyx,                                       ///< format used for weights for 3D convolution
+        giozyx,                                       ///< format used for weights for 3D deconvolution
         g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
         g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
@@ -251,9 +255,11 @@ struct format {
                 { image_2d_rgba,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
 
                 { oiyx,                                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {}}},
+                { ioyx,                                        { 1, 1, 2, 0, 0, "ioyx",   "oixy",       {}}},
                 { iyxo,                                        { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {}}},
                 { yxio,                                        { 1, 1, 2, 0, 0, "yxio",   "oixy?",      {}}},
                 { oizyx,                                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {}}},
+                { iozyx,                                       { 1, 1, 3, 0, 0, "iozyx",  "oixyz",      {}}},
                 { os_is_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
                 { os_iyx_osv16,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 16}}}},
                 { os_iyx_osv32,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}}}},
@@ -298,7 +304,9 @@ struct format {
                 { os_i_yxs_osv4_yxsv4,                         { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{0, 4}}}},
 
                 { goiyx,                                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {}}},
+                { gioyx,                                       { 1, 1, 2, 0, 1, "gioyx",  "oixy????g",  {}}},
                 { goizyx,                                      { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {}}},
+                { giozyx,                                      { 1, 1, 3, 0, 1, "giozyx", "oixyz???g",  {}}},
                 { g_os_iyx_osv16,                              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 16}}}},
                 { g_os_iyx_osv32,                              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 32}}}},
                 { gs_oiyx_gsv16,                               { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 16}}}},
@@ -323,9 +331,12 @@ struct format {
                 { gs_oi_yxs_gsv32_yxsv4,                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 32}}}},
                 { g_os_is_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{1, 16}, {0, 16}}}},
                 { gi_yxs_os_yxsv2_osv16,                       { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{0, 16}}}},
-                { iy_xs_os_xsv2_osv8__ao32,                    { 1, 1, 2, 0, 0, "giyxo",  "oixy????g",  {{2, 2}, {0, 8}}}},
-                { iy_xs_os_xsv2_osv16__ao32,                   { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 16}}}},
+                { giy_xs_os_xsv2_osv8__ao32,                   { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 8}}}},
+                { giy_xs_os_xsv2_osv16__ao32,                  { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 16}}}},
         };
+        if (traits.find(fmt) == traits.end()) {
+            throw std::runtime_error("[clDNN] Format description is missing in fmt traits");
+        }
         return traits.at(fmt);
     }
 

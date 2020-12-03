@@ -28,6 +28,7 @@ extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
+extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
@@ -230,6 +231,7 @@ extensions/front/mxnet/where_ext.py
 extensions/front/mxnet/yolo_v3_mobilenet1_voc.json
 extensions/front/mxnet/zeros_ext.py
 extensions/front/no_op_eraser.py
+extensions/front/non_max_suppression_normalize.py
 extensions/front/OneHotDepthNormalizer.py
 extensions/front/onnx/__init__.py
 extensions/front/onnx/activation_ext.py
@@ -276,7 +278,6 @@ extensions/front/onnx/mask_rcnn_conversion.py
 extensions/front/onnx/matmul_ext.py
 extensions/front/onnx/mean_variance_normalization_ext.py
 extensions/front/onnx/non_max_suppression_ext.py
-extensions/front/onnx/non_max_suppression_normalize.py
 extensions/front/onnx/non_zero_ext.py
 extensions/front/onnx/normalize_ext.py
 extensions/front/onnx/normalize_l2_normalize.py
@@ -343,6 +344,8 @@ extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py
 extensions/front/tf/assign_elimination.py
+extensions/front/tf/automl_efficientdet.json
+extensions/front/tf/AutomlEfficientDet.py
 extensions/front/tf/basic_lstm_cell.py
 extensions/front/tf/batch_to_space_ext.py
 extensions/front/tf/BatchMatMul_ext.py
@@ -523,7 +526,6 @@ extensions/middle/DeleteControlFlowEdges.py
 extensions/middle/DeleteNotExecutable.py
 extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
-extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
@@ -965,6 +967,7 @@ mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
+mo/utils/ir_reader/extenders/loop_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py
 mo/utils/ir_reader/extenders/non_max_suppression_extender.py
 mo/utils/ir_reader/extenders/non_zero_extender.py

@@ -127,8 +127,10 @@ function(ie_avx512_optimization_flags flags)
 endfunction()
 
 function(ie_arm_neon_optimization_flags flags)
-    if(WIN32 OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # nothing
     elseif(ANDROID)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
             set(${flags} "-mfpu=neon" PARENT_SCOPE)
@@ -184,13 +186,12 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 
 if(ENABLE_COVERAGE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
+    ie_add_compiler_flags(--coverage)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
 endif()
 
-if(NOT MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsigned-char")
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(-fsigned-char)
 endif()
 
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
@@ -216,6 +217,7 @@ if(WIN32)
     # Compiler specific flags
 
     ie_add_compiler_flags(/bigobj)
+    ie_add_compiler_flags(/MP)
 
     # Disable noisy warnings
 

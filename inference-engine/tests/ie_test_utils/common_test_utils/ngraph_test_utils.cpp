@@ -40,29 +40,29 @@ bool compareTypeInfo(const ngraph::DiscreteTypeInfo& info1, const ngraph::Discre
 
     const std::string info1Name = isTypeRelaxed(info1.name) && (info1.parent != nullptr) ? info1.parent->name : info1.name;
     const std::string info2Name = isTypeRelaxed(info2.name) && (info2.parent != nullptr) ? info2.parent->name : info2.name;
-    return info1Name == info1Name;
+    return info1Name == info2Name;
 }
 
 bool compare_rt_keys(const std::shared_ptr<ngraph::Node>& node1, const std::shared_ptr<ngraph::Node>& node2) {
     const auto& first_node_rt_info = node1->get_rt_info();
     const auto& second_node_rt_info = node2->get_rt_info();
 
-    // TODO: should be uncommented
-    // if (first_node_rt_info.size() != second_node_rt_info.size()) {
-    //    return false;
-    // }
+    if (first_node_rt_info.empty() && second_node_rt_info.empty()) {
+        return true;
+    }
 
-    for (auto first_it = first_node_rt_info.begin(); first_it != first_node_rt_info.end(); ++first_it) {
-        bool was_found = false;
-        for (auto secont_it = second_node_rt_info.begin(); secont_it != second_node_rt_info.end(); ++secont_it) {
-            if (first_it->first == secont_it->first) {
-                was_found = true;
-                break;
-            }
-        }
-        if (!was_found) {
+    if (first_node_rt_info.size() != second_node_rt_info.size()) {
+        return false;
+    }
+
+    auto first_node_rt_info_it = first_node_rt_info.begin();
+    auto second_node_rt_info_it = second_node_rt_info.begin();
+    while (first_node_rt_info_it != first_node_rt_info.end()) {
+        if (first_node_rt_info_it->first != second_node_rt_info_it->first) {
             return false;
         }
+        ++first_node_rt_info_it;
+        ++second_node_rt_info_it;
     }
 
     return true;
@@ -84,10 +84,16 @@ std::pair<bool, std::string> compare_functions(
      * - Do not check nodes attributes (requires visitor mechanism to be completed)
      */
 
-    const auto f1_results = f1->get_results();
-    const auto f2_results = f2->get_results();
+    const auto& f1_results = f1->get_results();
+    const auto& f2_results = f2->get_results();
     if (f1_results.size() != f2_results.size()) {
         return { false, "Number of results is different: " + std::to_string(f1_results.size()) + " and " + std::to_string(f2_results.size()) };
+    }
+
+    const auto& f1_sinks = f1->get_sinks();
+    const auto& f2_sinks = f2->get_sinks();
+    if (f1_sinks.size() != f2_sinks.size()) {
+        return { false, "Number of sinks is different: " + std::to_string(f1_sinks.size()) + " and " + std::to_string(f2_sinks.size()) };
     }
 
     auto typeInfoToStr = [](const ngraph::Node::type_info_t & typeInfo) {
@@ -118,6 +124,13 @@ std::pair<bool, std::string> compare_functions(
 
         if (!compareTypeInfo(type_info1, type_info2)) {
             return {false, typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2)};
+        }
+
+        const auto& dependencies_1 = node1->get_control_dependencies();
+        const auto& dependencies_2 = node2->get_control_dependencies();
+        if (dependencies_1.size() != dependencies_2.size()) {
+            return {false, "Number of dependencies is different: " + std::to_string(dependencies_1.size()) + " for " + node1->get_friendly_name() +
+                           + " and " + std::to_string(dependencies_2.size()) + " for " + node2->get_friendly_name()};
         }
 
         if (node1->inputs().size() != node2->inputs().size()) {

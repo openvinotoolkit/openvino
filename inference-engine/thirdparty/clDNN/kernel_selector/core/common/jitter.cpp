@@ -479,8 +479,12 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             const auto layout_name = toString(l);
             using args = std::initializer_list<std::string>;
             if (l == WeightsLayout::oiyx ||
+                l == WeightsLayout::ioyx ||
+                l == WeightsLayout::iozyx ||
                 l == WeightsLayout::oizyx ||
                 l == WeightsLayout::goiyx ||
+                l == WeightsLayout::gioyx ||
+                l == WeightsLayout::giozyx ||
                 l == WeightsLayout::goizyx) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
                 this->calcFunction = FuncBody(layout_name);
@@ -738,7 +742,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_grouped_4d_layout = is_common_nd_layout(grouped_4d_channels, layout);
             if (is_grouped_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(g, o, i, y, x)";
-                if (layout == WeightsLayout::goiyx)
+                if (layout == WeightsLayout::goiyx || layout == WeightsLayout::gioyx)
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::g_os_is_yx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x, 16)";
@@ -761,7 +765,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_grouped_5d_layout = is_common_nd_layout(grouped_5d_channels, layout);
             if (is_grouped_5d_layout) {
                 index_macro_name = _name + "_GET_INDEX(g, o, i, z, y, x)";
-                if (layout == WeightsLayout::goizyx)
+                if (layout == WeightsLayout::goizyx || layout == WeightsLayout::giozyx)
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, z, y, x)";
                 else if (layout == WeightsLayout::g_os_is_zyx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, z, y, x, 16)";
@@ -782,7 +786,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
             if (is_common_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
-                if (layout == WeightsLayout::oiyx)
+                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
@@ -808,7 +812,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_5d_layout = is_common_nd_layout(base_5d_channels, layout);
             if (is_common_5d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, z, y, x)";
-                if (layout == WeightsLayout::oizyx)
+                if (layout == WeightsLayout::oizyx || layout == WeightsLayout::iozyx)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, z, y, x)";
                 else if (layout == WeightsLayout::os_is_zyx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, z, y, x, 16)";
@@ -1697,14 +1701,21 @@ std::string FusedOpsCodeGenerator::GetIdx(size_t input_id, idx_desc idx, bool sh
 }
 
 std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id, const DataTensor prim_output,
-                                                          bool reuse_index, std::string reused_idx) const {
+                                              bool reuse_index, std::string reused_idx) const {
     auto& input_tensor = desc.tensors[input_id];
     size_t vec_size = 1;
     auto input_dt = input_tensor.GetDType();
 
-    if (desc.GetType() == KernelType::ELTWISE &&
+    bool valid_broadcast_case = input_tensor.LogicalSize() == prim_output.Feature().v ||
+                                input_tensor.LogicalSize() == 1;
+
+    // Eltwise fused op can't have full tensor argument when requested vec_size > 1, since it might require
+    // splitting load into several parts and some kind of index recalculation which is not supported
+    if (desc.GetType() == KernelType::ELTWISE && !valid_broadcast_case &&
         input_tensor.GetLayout() != prim_output.GetLayout() && conf.vec_size > 1) {
-        throw std::runtime_error("[clDNN] Mixed layouts of input tensors are not supported in fused eltwise");
+        throw std::runtime_error("[clDNN] Mixed layouts of input tensors are not supported in fused eltwise:"
+                                 "\nfused_input: " + toString_v2(input_tensor) +
+                                 "\noutput: " + toString_v2(prim_output));
     }
 
     if (conf.vec_axis != Tensor::DataChannelName::COUNT &&

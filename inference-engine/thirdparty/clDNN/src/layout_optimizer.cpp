@@ -193,7 +193,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     if (next.is_type<convolution>() &&
         fmt_prev == format::bfyx &&
-        fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4)
+        fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4 &&
+        next.as<convolution>().get_primitive()->activations_zero_points.empty() &&
+        next.as<convolution>().get_primitive()->weights_zero_points.empty())
         return true;
 
     if (next.is_type<convolution>() &&
@@ -209,6 +211,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<convolution>() &&
+        !(prev.is_type<quantize>() && (prev_dt == data_types::i8 || prev_dt == data_types::u8)) &&
         (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && prev_output_layout.size.feature[0] == 3 &&
         (fmt_next == format::b_fs_yx_fsv4 ||
          fmt_next == format::bs_fs_yx_bsv16_fsv16))
@@ -360,26 +363,22 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         }
 
         // Check for non-grouped or depthwise convolution
-        if (input_layout.size.spatial[2] == 1 &&
+        if (input_layout.format.dimension() == 4 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
             weights_layout.size.batch[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
              conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
-             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])) &&
-            ((conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) ||
-             (input_layout.size.feature[0] <= 4)))  // only bfyx -> fsv16 kernel supports asymmetric quantization in fsv16 format
+             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])))
             return true;
         // Check for grouped convolution
-        else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
+        else if (input_layout.format.dimension() == 4 && input_layout.size.batch[0] < 16 &&
                  out_features_per_group >= 16 &&
                  // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
                  (in_features_per_group % 4 == 0) &&
-                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16 &&
-                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()))
+                 ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) <= 16)
                 return true;
         // Check for fsv16 imad kernel
         else if ((input_layout.format.dimension() == 4) &&
-                 (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
                  ((in_features_per_group > 8) || (out_features_per_group >= 4)))
                 return true;
         return false;
@@ -446,7 +445,6 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
 
     // Check for fsv16 imad kernel
     if ((input_layout.format.dimension() == 5) &&
-        (conv->activations_zero_points.empty() && conv->weights_zero_points.empty()) &&
         (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
         (weights_layout.data_type == data_types::i8 || weights_layout.data_type == data_types::u8) &&
         ((in_features_per_group > 8) || (out_features_per_group >= 4)))

@@ -12,6 +12,18 @@ namespace ngraph { namespace vpu { namespace op {
 
 constexpr NodeTypeInfo StaticShapeNonMaxSuppression::type_info;
 
+StaticShapeNonMaxSuppression::StaticShapeNonMaxSuppression(const ngraph::opset5::NonMaxSuppression& nms)
+        : StaticShapeNonMaxSuppression(
+        nms.input_value(0),
+        nms.input_value(1),
+        nms.get_input_size() > 2 ? nms.input_value(2) : ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+        nms.get_input_size() > 3 ? nms.input_value(3) : ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f}),
+        nms.get_input_size() > 4 ? nms.input_value(4) : ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f}),
+        nms.get_input_size() > 5 ? nms.input_value(5) : ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f}),
+        nms.get_box_encoding() == ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER ? 1 : 0,
+        nms.get_sort_result_descending(),
+        nms.get_output_type()) {}
+
 StaticShapeNonMaxSuppression::StaticShapeNonMaxSuppression(
         const Output<Node>& boxes,
         const Output<Node>& scores,

@@ -92,25 +92,3 @@ bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs,
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalOr::evaluate");
     return logor::evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
 }
-
-constexpr NodeTypeInfo op::v0::Or::type_info;
-
-op::v0::Or::Or(const Output<Node>& arg0,
-               const Output<Node>& arg1,
-               const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v0::Or::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Or>(new_args.at(0), new_args.at(1), this->get_autob());
-}
-
-bool op::v0::Or::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Or::evaluate");
-    return logor::evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
-}

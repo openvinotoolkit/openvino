@@ -24,8 +24,6 @@
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -45,126 +43,23 @@ namespace
     }
 
     template <element::Type_t ET>
-    void compute_output_shape(const HostTensorPtr& pattern, Shape& output_shape)
+    void compute_output_shape(const HostTensorPtr& shape_pattern,
+                              std::vector<int64_t>& output_shape)
     {
         using T = typename element_type_traits<ET>::value_type;
-        T* pattern_ptr = pattern->get_data_ptr<ET>();
-        size_t output_rank = pattern->get_shape()[0];
+        T* shape_pattern_ptr = shape_pattern->get_data_ptr<ET>();
+        size_t output_rank = shape_pattern->get_shape()[0];
         for (int i = 0; i < output_rank; i++)
         {
-            output_shape.push_back(pattern_ptr[i]);
+            output_shape.push_back(shape_pattern_ptr[i]);
         }
     }
-}
-
-constexpr NodeTypeInfo op::Reshape::type_info;
-
-op::Reshape::Reshape(const Output<Node>& arg,
-                     const AxisVector& input_order,
-                     const Shape& output_shape)
-    : Op({arg})
-    , m_input_order(input_order)
-    , m_output_shape(output_shape)
-{
-    constructor_validate_and_infer_types();
-}
-
-void op::Reshape::validate_and_infer_types()
-{
-    auto& input_shape = get_input_partial_shape(0);
-    auto input_rank = input_shape.rank();
-
-    // Check that the input axis order is a permutation of (0,...,n-1) for some n.
-    for (size_t i = 0; i < m_input_order.size(); i++)
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            find(begin(m_input_order), end(m_input_order), i) != end(m_input_order),
-            "Input axis order is not a permutation of argument's axis indices (axis order: ",
-            m_input_order,
-            ", argument shape: ",
-            input_shape,
-            ").");
-    }
-
-    // TODO(amprocte): should be possible to move around unknown dims in the input shape.
-    if (input_rank.is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            m_input_order.size() == input_rank.get_length(),
-            "Input axis order is not a permutation of argument's axis indices (axis order: ",
-            m_input_order,
-            ", argument shape: ",
-            input_shape,
-            ").");
-
-        for (size_t i = 0; i < input_rank.get_length(); i++)
-        {
-            auto it = find(begin(m_input_order), end(m_input_order), i);
-            NODE_VALIDATION_CHECK(
-                this,
-                it != end(m_input_order),
-                "Input axis order is not a permutation of argument's axis indices (axis order: ",
-                m_input_order,
-                ", argument shape: ",
-                input_shape,
-                ").");
-        }
-
-        // TODO(amprocte): make a partial_shape_size() analogous to shape_size().
-        Dimension input_shape_product = 1;
-        for (size_t i = 0; i < input_rank.get_length(); i++)
-        {
-            input_shape_product *= input_shape[i];
-        }
-
-        if (input_shape_product.is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                input_shape_product.get_length() == shape_size(m_output_shape),
-                "Product of output shape dimensions does not match product of argument shape "
-                "dimensions ",
-                "(output shape: ",
-                m_output_shape,
-                ", argument shape: ",
-                input_shape,
-                ").");
-        }
-    }
-
-    if (!std::is_sorted(m_input_order.begin(), m_input_order.end()))
-    {
-        m_is_transpose = true;
-    }
-    set_output_type(0, get_input_element_type(0), m_output_shape);
-}
-
-shared_ptr<Node> op::Reshape::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<Reshape>(new_args.at(0), m_input_order, m_output_shape);
-}
-
-bool op::Reshape::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("input_order", m_input_order);
-    visitor.on_attribute("output_shape", m_output_shape);
-    return true;
-}
-
-bool op::v0::Reshape::evaluate(const HostTensorVector& outputs,
-                               const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Reshape::evaluate");
-    return evaluate_reshape(inputs[0], outputs[0], get_input_order());
 }
 
 NGRAPH_RTTI_DEFINITION(op::v1::Reshape, "Reshape", 1);
 
-op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& pattern, bool zero_flag)
-    : Op({arg, pattern})
+op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, bool zero_flag)
+    : Op({arg, shape_pattern})
     , m_special_zero(zero_flag)
 {
     constructor_validate_and_infer_types();
@@ -178,20 +73,21 @@ bool op::v1::Reshape::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::Reshape::validate_and_infer_types()
 {
-    auto pattern_et = get_input_element_type(1);
+    auto shape_pattern_et = get_input_element_type(1);
     // check data types
     NODE_VALIDATION_CHECK(
-        this, pattern_et.is_integral_number(), "Pattern must be an integral number.");
+        this, shape_pattern_et.is_integral_number(), "Shape pattern must be an integral number.");
 
     // check shapes
     const PartialShape& input_pshape = get_input_partial_shape(0);
-    const PartialShape& pattern_shape = get_input_partial_shape(1);
+    const PartialShape& shape_pattern_shape = get_input_partial_shape(1);
     NODE_VALIDATION_CHECK(this,
-                          pattern_shape.rank().compatible(1),
+                          shape_pattern_shape.rank().compatible(1),
                           "Pattern shape must have rank 1, got ",
-                          pattern_shape.rank(),
+                          shape_pattern_shape.rank(),
                           ".");
-    Rank output_rank = pattern_shape.rank().is_dynamic() ? Rank::dynamic() : pattern_shape[0];
+    Rank output_rank =
+        shape_pattern_shape.rank().is_dynamic() ? Rank::dynamic() : shape_pattern_shape[0];
 
     set_input_is_relevant_to_shape(1);
 
@@ -339,7 +235,7 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
     size_t output_rank = inputs[1]->get_shape()[0];
-    Shape out_shape_val;
+    std::vector<int64_t> out_shape_val;
 
     switch (inputs[1]->get_element_type())
     {
@@ -367,7 +263,7 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     case element::Type_t::u64:
         compute_output_shape<element::Type_t::u64>(inputs[1], out_shape_val);
         break;
-    default: throw ngraph_error("pattern element type is not integral data type");
+    default: throw ngraph_error("shape_pattern element type is not integral data type");
     }
 
     NODE_VALIDATION_CHECK(
@@ -382,9 +278,10 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     NODE_VALIDATION_CHECK(
         this, negative_dims <= 1, "More than one dimension has size of -1 (", negative_dims, ")");
 
+    Shape output_shape;
+    std::copy(out_shape_val.begin(), out_shape_val.end(), std::back_inserter(output_shape));
     if (!(zero_dims && m_special_zero) && !negative_dims)
     {
-        auto output_shape = out_shape_val;
         if (get_input_partial_shape(0).is_static())
         {
             NODE_VALIDATION_CHECK(this,
@@ -398,7 +295,6 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     }
     else
     {
-        Shape output_shape = out_shape_val;
         size_t output_elements = 1;
         int negative_dim = -1;
 

@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 
+#include "cpp/ie_memory_state.hpp"
 #include "ie_iinfer_request.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
@@ -248,6 +249,31 @@ public:
         callback.reset(new details::CompletionCallbackWrapper<T>(callbackToSet));
         CALL_STATUS_FNC(SetUserData, callback.get());
         actual->SetCompletionCallback(callWrapper);
+    }
+
+    /**
+     * @copybrief IExecutableNetwork::QueryState
+     *
+     * Wraps IExecutableNetwork::QueryState
+     * @return A vector of Memory State objects
+     */
+    std::vector<VariableState> QueryState() {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
+        IVariableState::Ptr pState = nullptr;
+        auto res = OK;
+        std::vector<VariableState> controller;
+        for (size_t idx = 0; res == OK; ++idx) {
+            ResponseDesc resp;
+            res = actual->QueryState(pState, idx, &resp);
+            if (res != OK && res != OUT_OF_BOUNDS) {
+                THROW_IE_EXCEPTION << resp.msg;
+            }
+            if (res != OUT_OF_BOUNDS) {
+                controller.push_back(VariableState(pState, plg));
+            }
+        }
+
+        return controller;
     }
 
     /**

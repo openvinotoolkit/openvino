@@ -13,12 +13,13 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
 
 std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
 
-namespace LayerTestsDefinitions {
+namespace ExecutionGraphTests {
 
 std::string ExecGraphInputsFusingBinConv::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::string targetDevice = obj.param;
@@ -50,6 +51,8 @@ void ExecGraphInputsFusingBinConv::TearDown() {
 }
 
 TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
     auto ie = PluginCache::get().ie();
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
@@ -116,4 +119,4 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
     fnPtr.reset();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace ExecutionGraphTests

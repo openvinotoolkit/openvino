@@ -68,6 +68,7 @@ public:
     /// \return The group
     const size_t& get_group() const { return m_group; }
     void set_group(const size_t & group) { m_group = group; }
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     Strides m_strides;

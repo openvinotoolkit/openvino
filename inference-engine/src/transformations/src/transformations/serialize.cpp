@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <ngraph/variant.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "pugixml.hpp"
@@ -18,8 +19,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Serialize, "Serialize", 0);
 
 namespace {  // helpers
 template <typename T, typename A>
-std::string joinVec(std::vector<T, A> const& vec,
-                    std::string const& glue = std::string(",")) {
+std::string joinVec(const std::vector<T, A>& vec,
+                    const std::string& glue = std::string(",")) {
     if (vec.empty()) return "";
     std::stringstream oss;
     oss << vec[0];
@@ -42,7 +43,8 @@ struct ConstantAtributes {
 };
 
 class XmlVisitor : public ngraph::AttributeVisitor {
-    pugi::xml_node m_data;
+    pugi::xml_node& m_data;
+    std::string& m_node_type_name;
 
     template <typename T>
     std::string create_atribute_list(
@@ -51,7 +53,8 @@ class XmlVisitor : public ngraph::AttributeVisitor {
     }
 
 public:
-    XmlVisitor(pugi::xml_node& data) : m_data(data) {}
+    XmlVisitor(pugi::xml_node& data, std::string& node_type_name)
+        : m_data(data), m_node_type_name(node_type_name) {}
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
@@ -65,7 +68,16 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
-        m_data.append_attribute(name.c_str()).set_value(adapter.get().c_str());
+        if ((m_node_type_name == "GenericIE") &&
+            (name == "__generic_ie_type__")) {
+            // __generic_ie_type__  in GenericIE should not be serialized as a
+            // <data> since it's purpose is to hold name of the layer type
+            // it is a WA to not introduce dependency on plugin_api library
+            m_node_type_name = adapter.get();
+        } else {
+            m_data.append_attribute(name.c_str())
+                .set_value(adapter.get().c_str());
+        }
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<int64_t>& adapter) override {
@@ -100,6 +112,23 @@ public:
             .set_value(create_atribute_list(adapter).c_str());
     }
 };
+
+void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
+                           const ngraph::Node* n) {
+    for (const auto& param : n->get_rt_info()) {
+        if (auto variant =
+                std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(param.second)) {
+            std::string name = param.first;
+            std::string value = variant->get();
+
+            if (name == "layerType") {
+                node_type_name = value;
+            } else {
+                data.append_attribute(name.c_str()).set_value(value.c_str());
+            }
+        }
+    }
+}
 
 const std::unordered_map<ngraph::Node*, int> create_layer_ids(
     const ngraph::Function& f) {
@@ -160,7 +189,9 @@ ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
     return attr;
 }
 
-std::string get_opset_name(const ngraph::Node* n) {
+std::string get_opset_name(
+    const ngraph::Node* n,
+    const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 5>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5()};
@@ -171,6 +202,15 @@ std::string get_opset_name(const ngraph::Node* n) {
             return "opset" + std::to_string(idx + 1);
         }
     }
+
+    for (const auto& custom_opset : custom_opsets) {
+        std::string name = custom_opset.first;
+        ngraph::OpSet opset = custom_opset.second;
+        if (opset.contains_op_type(n)) {
+            return name;
+        }
+    }
+
     return "experimental";
 }
 
@@ -178,10 +218,7 @@ std::string get_opset_name(const ngraph::Node* n) {
 // convention. Most of them are the same, but there are exceptions, e.g
 // Constant (ngraph name) and Const (IR name). If there will be more
 // discrepancies discoverd, translations needs to be added here.
-std::string get_type_name(const ngraph::Node* n) {
-    std::string name = n->get_type_name();
-    NGRAPH_CHECK(name != "GenericIE", "Unsupported type in ", n);
-
+std::string translate_type_name(std::string name) {
     const std::unordered_map<std::string, std::string> translator = {
         {"Constant", "Const"}};
     if (translator.count(name) > 0) {
@@ -250,8 +287,23 @@ std::string get_node_unique_name(std::unordered_set<std::string>& unique_names,
     return name;
 }
 
-void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
-                        const ngraph::Function& f) {
+bool is_exec_graph(const ngraph::Function& f) {
+    // go over all operations and check whether performance stat is set
+    for (const auto& op : f.get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+        if (rtInfo.find("execTimeMcs") != rtInfo.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void ngfunction_2_irv10(
+    pugi::xml_document& doc, std::vector<uint8_t>& bin,
+    const ngraph::Function& f,
+    const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+    const bool exec_graph = is_exec_graph(f);
+
     pugi::xml_node netXml = doc.append_child("net");
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value("10");
@@ -270,17 +322,25 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
         layer.append_attribute("name").set_value(
             get_node_unique_name(unique_names, node).c_str());
-        layer.append_attribute("type").set_value(get_type_name(node).c_str());
-        layer.append_attribute("version").set_value(
-            get_opset_name(node).c_str());
-
+        auto layer_type_attribute = layer.append_attribute("type");
+        if (!exec_graph) {
+            layer.append_attribute("version").set_value(
+                get_opset_name(node, custom_opsets).c_str());
+        }
         // <layers/data>
         pugi::xml_node data = layer.append_child("data");
 
         // <layers/data> general atributes
-        XmlVisitor visitor{data};
-        NGRAPH_CHECK(node->visit_attributes(visitor),
-                     "Visitor API is not supported in ", node);
+        std::string node_type_name{node->get_type_name()};
+        if (exec_graph) {
+            visit_exec_graph_node(data, node_type_name, node);
+        } else {
+            XmlVisitor visitor(data, node_type_name);
+            NGRAPH_CHECK(node->visit_attributes(visitor),
+                         "Visitor API is not supported in ", node);
+        }
+        layer_type_attribute.set_value(
+            translate_type_name(node_type_name).c_str());
 
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
@@ -347,7 +407,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     std::vector<uint8_t> constants;
     switch (m_version) {
     case Version::IR_V10:
-        ngfunction_2_irv10(xml_doc, constants, *f);
+        ngfunction_2_irv10(xml_doc, constants, *f, m_custom_opsets);
         break;
     default:
         NGRAPH_UNREACHABLE("Unsupported version");

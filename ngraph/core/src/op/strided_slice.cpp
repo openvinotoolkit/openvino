@@ -106,7 +106,7 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
 {
 }
 
-bool ngraph::op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
+bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("begin_mask", m_begin_mask);
     visitor.on_attribute("end_mask", m_end_mask);

@@ -21,7 +21,8 @@
 namespace LayerTestsDefinitions {
 
 std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple> &obj) {
-    std::vector<size_t> inShapes, blockShape, padsBegin, padsEnd;
+    std::vector<size_t> inShapes;
+    std::vector<int64_t> blockShape, padsBegin, padsEnd;
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -43,7 +44,8 @@ std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<
 
 void SpaceToBatchLayerTest::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::INTERPRETER_TRANSFORMATIONS);
-    std::vector<size_t> inputShape, blockShape, padsBegin, padsEnd;
+    std::vector<size_t> inputShape;
+    std::vector<int64_t> blockShape, padsBegin, padsEnd;
     InferenceEngine::Precision inputPrecision, netPrecision;
     std::tie(blockShape, padsBegin, padsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
 

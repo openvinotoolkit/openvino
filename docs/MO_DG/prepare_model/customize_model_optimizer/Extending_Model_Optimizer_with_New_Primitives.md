@@ -62,7 +62,7 @@ layer {
 ```shell
 python mo.py --input_model VGG16_faster_rcnn_final.caffemodel --input_proto test.prototxt
 ```
-    You get the model successfuly converted to Intermediate Representation, and you can infer it with the Inference Engine.
+    You get the model successfully converted to Intermediate Representation, and you can infer it with the Inference Engine.
 
     However, the aim of this tutorial is to demonstrate the way of supporting custom layers not yet supported by the Model Optimizer.
     If you want to understand better how Model Optimizer works, remove the extension for layer `Proposal` and follow all steps of this tutorial.

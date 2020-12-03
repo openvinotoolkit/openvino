@@ -10,6 +10,7 @@
 
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
+#include <cpp_interfaces/base/ie_memory_state_base.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
 #include "ie_profiling.hpp"
@@ -86,6 +87,21 @@ public:
 
     StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetBatch(batch_size));
+    }
+
+    StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
+        try {
+            auto v = _impl->QueryState();
+            if (idx >= v.size()) {
+                return OUT_OF_BOUNDS;
+            }
+            pState = std::make_shared<VariableStateBase<IVariableStateInternal>>(v[idx]);
+            return OK;
+        } catch (const std::exception& ex) {
+            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
+        } catch (...) {
+            return InferenceEngine::DescriptionBuffer(UNEXPECTED);
+        }
     }
 
 private:

@@ -115,7 +115,7 @@ public:
             testValues.expected.dequantization2,
             testValues.expected.dequantizationAfter,
             // Constant operations after transformations are on 1 input only
-            testValues.constInput == 0 ? 1 : -1,
+            testValues.constInput == -1 ? -1 : 1,
             testValues.expected.constValues,
             testValues.additionalLayer,
             testValues.expected.operationType);
@@ -509,7 +509,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     AddTransformation,
     ::testing::ValuesIn(addTransformationTestValues),
     AddTransformation::getTestCaseName);

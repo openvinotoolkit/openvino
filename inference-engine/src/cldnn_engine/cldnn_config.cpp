@@ -8,15 +8,35 @@
 #include "cldnn_config.h"
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "ie_api.h"
+#include "file_utils.h"
 
 #ifdef _WIN32
 # include <direct.h>
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+# define mkdir(dir, mode) _wmkdir(dir)
+#else
 # define mkdir(dir, mode) _mkdir(dir)
-#endif
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // _WIN32
 
 using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
+
+static void createDirectory(std::string _path) {
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widepath = FileUtils::multiByteCharToWString(_path.c_str());
+    const wchar_t* path = widepath.c_str();
+#else
+    const char* path = _path.c_str();
+#endif
+
+    auto err = mkdir(path, 0755);
+    if (err != 0 && errno != EEXIST) {
+        THROW_IE_EXCEPTION << "Couldn't create directory! (err=" << err << "; errno=" << errno << ")";
+    }
+}
 
 void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) {
     for (auto& kvp : configMap) {
@@ -129,16 +149,17 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR) == 0) {
             if (!val.empty()) {
                 graph_dumps_dir = val;
-                if (mkdir(graph_dumps_dir.c_str(), 0755) != 0) {
-                    THROW_IE_EXCEPTION << "Couldn't create clDNN graph dump directory!";
-                }
+                createDirectory(graph_dumps_dir);
+            }
+        } else if (key.compare(PluginConfigParams::KEY_CACHE_DIR) == 0) {
+            if (!val.empty()) {
+                kernels_cache_dir = val;
+                createDirectory(kernels_cache_dir);
             }
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR) == 0) {
             if (!val.empty()) {
                 sources_dumps_dir = val;
-                if (mkdir(sources_dumps_dir.c_str(), 0755) != 0) {
-                    THROW_IE_EXCEPTION << "Couldn't create clDNN source dump directory!";
-                }
+                createDirectory(sources_dumps_dir);
             }
         } else if (key.compare(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
@@ -276,6 +297,7 @@ void Config::adjustKeyMapValues() {
 
     key_config_map[CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR] = graph_dumps_dir;
     key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
+    key_config_map[PluginConfigParams::KEY_CACHE_DIR] = kernels_cache_dir;
 
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
     key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;

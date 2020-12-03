@@ -32,6 +32,8 @@ private:
 #endif
     std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> inputs;
     std::vector<GNAPluginNS::HeaderLatest::RuntimeEndPoint> outputs;
+    std::vector<std::string> inputNames;
+    std::vector<std::string> outputNames;
     uint32_t nRotateRows = 0;
     uint32_t nRotateColumns = 0;
     bool doRotateInput = false;
@@ -63,6 +65,13 @@ private:
         const InferenceEngine::OutputsDataMap& outputsDataMap) : gna2Model(model),
             inputs(serializeInputs(inputsDataMap, inputDesc)),
             outputs(serializeOutputs(outputsDataMap, outputsDesc)) {
+        for (auto const& input : inputsDataMap) {
+            inputNames.push_back(input.first);
+        }
+
+        for (auto const& input : outputsDataMap) {
+            outputNames.push_back(input.first);
+        }
     }
 
 #else

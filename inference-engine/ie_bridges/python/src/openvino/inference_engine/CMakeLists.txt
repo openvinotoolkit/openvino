@@ -30,6 +30,13 @@ foreach(PYX_FILE ${OTHER_SOURCES})
     list(APPEND INSTALLED_TARGETS ${PYX_NAME})
 endforeach()
 
+if(COMMAND ie_add_vs_version_file)
+    foreach(target IN LISTS INSTALLED_TARGETS)
+        ie_add_vs_version_file(NAME ${target}
+                               FILEDESCRIPTION "Inference Engine Python library")
+    endforeach()
+endif()
+
 function(python_disable_deprecated_warnings)
     disable_deprecated_warnings()
     set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")

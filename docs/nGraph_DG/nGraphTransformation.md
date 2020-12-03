@@ -280,7 +280,7 @@ Not using `get_shape()` method makes your transformation more flexible and appli
 
 Each `ngraph::Node` has a unique name (used for nGraph internals) and a friendly name. In transformations we care only about friendly name because it represents the name from intermediate representation (IR). 
 Also friendly name is used as output tensor name (until we do not have other way to represent output tensor name) and user code that requests intermediate outputs based on these names.
-To avoid loosing friendly name when replacing node with other node or subgraph, set the original friendly name to the latest node in replacing subgraph. See the example below. 
+To avoid losing friendly name when replacing node with other node or subgraph, set the original friendly name to the latest node in replacing subgraph. See the example below.
 
 ```cpp
 // Replace Div operation with Power and Multiply sub-graph and set original friendly name to Multiply operation

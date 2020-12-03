@@ -23,7 +23,7 @@ from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
 from tests import (xfail_issue_35929,
-                   xfail_issue_34323,
+                   xfail_issue_40957,
                    xfail_issue_35930)
 
 
@@ -502,7 +502,7 @@ def test_cast_errors():
 
 
 @pytest.mark.parametrize("value_type",
-                         [pytest.param(np.float32, marks=xfail_issue_34323),
+                         [pytest.param(np.float32, marks=xfail_issue_40957),
                           pytest.param(np.float64, marks=xfail_issue_35929)])
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)

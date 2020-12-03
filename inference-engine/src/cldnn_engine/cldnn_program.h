@@ -138,6 +138,7 @@ public:
         Pooling,
         FullyConnected,
         SoftMax,
+        LogSoftmax,
         Power,
         Split,
         VariadicSplit,
@@ -337,6 +338,7 @@ private:
     void CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, bool useGroups = true);
     void CreatePowerPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateSoftMaxPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateLogSoftmaxPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateFullyConnectedPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreatePoolingPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateLRNPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);

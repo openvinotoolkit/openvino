@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <legacy/ie_layers.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -12,7 +10,6 @@
 #include "cnn_network_ngraph_impl.hpp"
 
 using namespace InferenceEngine;
-
 
 Blob::Ptr Blob::CreateFromData(const DataPtr& data) {
     // TODO Here some decision should be made about the layout.
@@ -44,13 +41,28 @@ Blob::Ptr Blob::CreateFromData(const DataPtr& data) {
     }
 }
 
+namespace InferenceEngine {
+
+class CNNLayer;
+
+/**
+ * @brief A smart pointer to the CNNLayer
+ */
+using CNNLayerPtr = std::shared_ptr<CNNLayer>;
+/**
+ * @brief A smart weak pointer to the CNNLayer
+ */
+using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
+
+}  // namespace InferenceEngine
+
 class Data::Impl {
 public:
     /**
      * @brief A pointer to the layer that creates this data element, null for input data elements
      */
     CNNLayerWeakPtr creatorLayer;
-    
+
     /**
      * @brief A map of layers that use this node as input.
      * It is useful for recursive NN graph traversal.
@@ -137,14 +149,18 @@ const SizeVector& Data::getDims() const {
 
 // compatibility
 
-CNNLayerWeakPtr& InferenceEngine::getCreatorLayer(const DataPtr & data) {
+namespace InferenceEngine {
+
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data) {
     return data->_impl->creatorLayer;
 }
 
-std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(const DataPtr & data) {
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data) {
     return data->_impl->inputTo;
 }
 
-std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(Data * data) {
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data) {
     return data->_impl->inputTo;
 }
+
+}  // namespace InferenceEngine

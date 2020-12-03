@@ -79,7 +79,7 @@ def build_argparser():
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.",
                       required=True, type=str)
-    args.add_argument("-i", "--input", help="Required. Path to a folder with images or path to an image files",
+    args.add_argument("-i", "--input", help="Required. Path to an image files",
                       required=True, type=str, nargs="+")
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. Absolute path to a shared library with the"
@@ -105,14 +105,8 @@ def main():
 
     # Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
     model = args.model
-    model_bin = None
-    model_name, model_ext = os.path.splitext(model)
-    log.info(f"Loading network files:\n\t{model}")
-    if model_ext == ".xml":
-        # Read .bin weights for IR format only
-        model_bin = model_name + ".bin"
-        log.info(f"\n\t{model_bin}")
-    net = ie.read_network(model=model, weights=model_bin)
+    log.info(f"Loading network:\n\t{model}")
+    net = ie.read_network(model=model)
 
     assert len(net.input_info.keys()) == 1, "Sample supports only single input topologies"
     assert len(net.outputs) == 1, "Sample supports only single output topologies"

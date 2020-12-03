@@ -82,8 +82,8 @@ def get_net_copy_with_output(model: str, output: str, core: IECore):
         if founded_op:
             net_copy.add_outputs(output)
         else:
-            splitted = output.rsplit(".", 1)
-            net_copy.add_outputs((splitted[0], int(splitted[1])))
+            split = output.rsplit(".", 1)
+            net_copy.add_outputs((split[0], int(split[1])))
     return net_copy
 
 
@@ -207,8 +207,9 @@ def two_ir_mode(args):
     global_accuracy = []
     global_times, ref_global_times = overall_accuracy_check(model=args.model, ref_model=args.reference_model,
                                                             out_layers=out_layers, ref_out_layers=ref_out_layers,
-                                                            inputs=inputs, ref_inputs=ref_inputs, plugin=core,
-                                                            ref_plugin=ref_core, layers=args.layers,
+                                                            inputs=inputs, ref_inputs=ref_inputs, core=core,
+                                                            device=args.device, ref_core=ref_core,
+                                                            ref_device=args.reference_device, layers=args.layers,
                                                             num_of_iterations=args.num_of_iterations)
     for out_layer in layers_map:
         ref_out_layer = layers_map[out_layer]

@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief a header file with ouput classification results
+ * @brief a header file with output classification results
  * @file classification_results.hpp
  */
 #include <string>

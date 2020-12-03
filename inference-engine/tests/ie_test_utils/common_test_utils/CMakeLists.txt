@@ -14,6 +14,7 @@ function(add_gtest_libraries)
         endif()
     endif ()
 
+    set(BUILD_SHARED_LIBS OFF)
     add_subdirectory(gtest)
 
     get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
@@ -82,6 +83,7 @@ function(add_common_utils ADD_TARGET_NAME)
             PUBLIC
             ${IE_TESTS_ROOT}/ie_test_utils
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
             PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>

@@ -53,7 +53,7 @@ void StaticShapeBroadcast::validate_and_infer_types() {
         // Try to evaluate output shape. After some transformations further, we may not be able
         // to evaluate the target shape again, then we will leave the evaluated shape unchanged.
         // For example, EliminateShapeOfAfterDSR remove ShapeOf and pass the second input of DSR.
-        const auto evaluatedDimensionValues = evaluateTargetShape(input_value(1));
+        const auto evaluatedDimensionValues = ::vpu::evaluateTargetShape(input_value(1));
         NODE_VALIDATION_CHECK(this, !evaluatedDimensionValues.empty(), "StaticShapeBroadcast (", get_friendly_name(), ") can't evaluate output shape");
 
         const auto evaluatedTargetShape = ngraph::PartialShape(evaluatedDimensionValues);

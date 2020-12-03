@@ -102,6 +102,9 @@ class GNACppApi {
     MOCK_METHOD1(Gna2DeviceClose, Gna2Status (
         uint32_t deviceIndex));
 
+    MOCK_METHOD1(Gna2DeviceGetCount, Gna2Status (
+        uint32_t * numberOfDevices));
+
     MOCK_METHOD1(Gna2MemoryFree, Gna2Status (
         void * memory));
 
@@ -182,5 +185,9 @@ class GNACppApi {
     MOCK_METHOD2(Gna2InstrumentationConfigAssignToRequestConfig, Gna2Status (
         uint32_t instrumentationConfigId,
         uint32_t requestConfigId));
+
+    MOCK_METHOD2(Gna2GetLibraryVersion, Gna2Status(
+        char* versionBuffer,
+        uint32_t versionBufferSize));
 #endif
 };

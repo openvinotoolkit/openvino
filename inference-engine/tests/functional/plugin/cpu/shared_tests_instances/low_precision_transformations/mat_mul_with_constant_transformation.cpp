@@ -22,7 +22,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, MatMulWithConstantTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),

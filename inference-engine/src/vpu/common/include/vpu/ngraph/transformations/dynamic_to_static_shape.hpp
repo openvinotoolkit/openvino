@@ -15,6 +15,7 @@ using Transformations = std::unordered_map<ngraph::NodeTypeInfo, std::function<v
 
 class DynamicToStaticShape: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     explicit DynamicToStaticShape(const Transformations& specificTransformations = {});
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 

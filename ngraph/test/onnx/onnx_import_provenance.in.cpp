@@ -130,7 +130,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_provenance_tag_downgrade_pass)
     pass_manager.register_pass<pass::Opset0Downgrade>();
     pass_manager.run_passes(function);
 
-    test_provenance_tags<ngraph::op::v0::TopK>(function, "<ONNX TopK (TOPK -> values, indices)>");
-    test_provenance_tags<ngraph::op::v0::TopK>(function, "<Opset1_Downgrade (v3 TopK)>");
-    test_provenance_tags<ngraph::op::v0::TopK>(function, "<Opset0_Downgrade (v1 TopK)>");
+    test_provenance_tags<ngraph::op::v1::TopK>(function, "<ONNX TopK (TOPK -> values, indices)>");
+    test_provenance_tags<ngraph::op::v1::TopK>(function, "<Opset1_Downgrade (v3 TopK)>");
 }

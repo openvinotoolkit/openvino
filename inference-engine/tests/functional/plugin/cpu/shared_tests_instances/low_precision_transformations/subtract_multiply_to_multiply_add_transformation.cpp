@@ -59,7 +59,7 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
     //},
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, SubtractMultiplyToMultiplyAddTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, SubtractMultiplyToMultiplyAddTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),

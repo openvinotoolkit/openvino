@@ -14,17 +14,14 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
 
 
 def eltwise_infer(node, op=None, **kwargs):
     raw_inputs = [(inp, attr) for inp, attr in node.get_sorted_inputs()
                   if 'control_flow_edge' not in attr or not attr['control_flow_edge']]
-    inputs = [Node(node.graph, inp) for inp, attr in raw_inputs]
     shapes = [node.graph.node[inp]['shape'] for inp, attr in raw_inputs]
     values = [node.graph.node[inp]['value'] for inp, attr in raw_inputs]
 
@@ -52,14 +49,6 @@ def eltwise_infer(node, op=None, **kwargs):
                 new_shape = np.append(new_shape, 1)
 
             shapes[id] = new_shape
-
-            # Save shape for further transformation that applies this shapes for input nodes
-            # We set new_shape attribute on edge for given input node
-            edge_attrs = node.graph.get_edge_data(inputs[id].id, node.id)[0]
-
-            nx.set_edge_attributes(G=node.graph,
-                                   values={(inputs[id].id, node.id, 0): new_shape},
-                                   name='new_shape')
 
             # Reshape value to correctly calculate output shape
             if values[id] is not None:

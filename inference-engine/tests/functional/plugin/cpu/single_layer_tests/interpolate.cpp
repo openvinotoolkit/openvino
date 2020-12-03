@@ -149,6 +149,7 @@ const std::vector<ngraph::op::v4::Interpolate::NearestMode> defNearestModes = {
 
 const std::vector<std::vector<size_t>> pads = {
         {0, 0, 0, 0},
+        {0, 0, 1, 1},
 };
 
 const std::vector<bool> antialias = {
@@ -191,6 +192,18 @@ const auto interpolateCasesLinearOnnx = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
+const auto interpolateCasesCubic = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::cubic),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
+
 INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
@@ -200,8 +213,8 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
@@ -215,8 +228,23 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLaye
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::ValuesIn(filterCPUInfoForDevice())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            ::testing::Combine(
+                interpolateCasesCubic,
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);

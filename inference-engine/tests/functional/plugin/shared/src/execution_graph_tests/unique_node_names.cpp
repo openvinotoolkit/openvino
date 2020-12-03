@@ -18,12 +18,13 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/unique_node_names.hpp"
 
 std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
 
-namespace LayerTestsDefinitions {
+namespace ExecutionGraphTests {
 
 std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
     InferenceEngine::Precision inputPrecision, netPrecision;
@@ -60,6 +61,8 @@ void ExecGraphUniqueNodeNames::TearDown() {
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
     auto ie = PluginCache::get().ie();
@@ -107,4 +110,4 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     fnPtr.reset();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace ExecutionGraphTests

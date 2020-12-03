@@ -8,6 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include "common/fake_quantize_on_data.hpp"
 #include "low_precision/layer_transformation.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -15,34 +16,16 @@ namespace subgraph {
 
 class MaxPoolFunction {
 public:
-    class ActualValues {
-    public:
-        ngraph::element::Type lowPrecision;
-        std::vector<float> subtractValues;
-        std::vector<float> mutliplyValues;
-    };
-
-    class ExpectedValues {
-    public:
-        ngraph::element::Type activationPrecision;
-        std::vector<float> subtractValues;
-        std::vector<float> mutliplyValues;
-    };
-
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type originalFunctionPrecision,
-        const ngraph::Shape& inputShape,
-        const ActualValues& values);
-
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type originalFunctionPrecision,
+    static std::shared_ptr<ngraph::Function> get(
         const ngraph::Shape& inputShape,
-        const ExpectedValues& values);
+        const ngraph::element::Type precisionBeforeDequantization,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 
 }  // namespace subgraph

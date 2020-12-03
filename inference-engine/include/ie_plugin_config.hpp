@@ -95,6 +95,7 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
  *  - "INT8" - device can support models with INT8 layers
  *  - "BIN" - device can support models with BIN layers
  *  - "WINOGRAD" - device can support models where convolution implemented via Winograd transformations
+ *  - "BATCHED_BLOB" - device can support BatchedBlob
  */
 DECLARE_METRIC_KEY(OPTIMIZATION_CAPABILITIES, std::vector<std::string>);
 
@@ -104,6 +105,7 @@ DECLARE_METRIC_VALUE(FP16);
 DECLARE_METRIC_VALUE(INT8);
 DECLARE_METRIC_VALUE(BIN);
 DECLARE_METRIC_VALUE(WINOGRAD);
+DECLARE_METRIC_VALUE(BATCHED_BLOB);
 
 /**
  * @brief Metric to provide information about a range for streams on platforms where streams are supported.
@@ -359,6 +361,19 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
  * user's decision to use this option or not to use
  */
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
+
+/**
+* @brief This key defines the directory which will be used to store any data cached by plugins.
+*
+* This key supports unicode symbols in path
+* The underlying cache structure is not defined and might differ between OpenVINO releases
+* Cached data might be platform/device specific and might be invalid after OpenVINO version change
+* If this key is not specified or value is empty string, then caching is disabled.
+* The key might enable caching for all plugin or some specific ones, e.g.:
+* ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}) - enables cache for all plugins that might want to use it
+* ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, {"GPU"}) - enables cache only for GPU plugin
+*/
+DECLARE_CONFIG_KEY(CACHE_DIR);
 
 }  // namespace PluginConfigParams
 }  // namespace InferenceEngine

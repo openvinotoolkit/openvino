@@ -168,7 +168,6 @@ message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
 message(STATUS "NGRAPH_DEPRECATED_ENABLE:             ${NGRAPH_DEPRECATED_ENABLE}")
 message(STATUS "NGRAPH_DYNAMIC_COMPONENTS_ENABLE:     ${NGRAPH_DYNAMIC_COMPONENTS_ENABLE}")
 message(STATUS "NGRAPH_EXPORT_TARGETS_ENABLE:         ${NGRAPH_EXPORT_TARGETS_ENABLE}")
-message(STATUS "NGRAPH_IE_STATIC_LIB_ENABLE:          ${NGRAPH_IE_STATIC_LIB_ENABLE}")
 message(STATUS "NGRAPH_INTERPRETER_ENABLE:            ${NGRAPH_INTERPRETER_ENABLE}")
 message(STATUS "NGRAPH_LIB_VERSIONING_ENABLE:         ${NGRAPH_LIB_VERSIONING_ENABLE}")
 message(STATUS "NGRAPH_ONNX_IMPORT_ENABLE:            ${NGRAPH_ONNX_IMPORT_ENABLE}")
@@ -236,10 +235,11 @@ message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS ${NGRAPH_FORWARD_CMAKE_ARGS}")
 if (LINUX)
     include(GNUInstallDirs)
 else()
-    set(CMAKE_INSTALL_BINDIR "bin")
-    set(CMAKE_INSTALL_INCLUDEDIR "include")
-    set(CMAKE_INSTALL_DOCDIR "doc")
-    set(CMAKE_INSTALL_LIBDIR "lib")
+    set(CMAKE_INSTALL_BINDIR "bin" CACHE STRING "User executables (bin)")
+    set(CMAKE_INSTALL_LIBDIR "lib" CACHE STRING "Object code libraries (lib)")
+    set(CMAKE_INSTALL_INCLUDEDIR "include" CACHE STRING "C header files (include)")
+    set(CMAKE_INSTALL_DOCDIR "doc" CACHE STRING "Document files (doc)")
+    mark_as_advanced(CMAKE_INSTALL_BINDIR CMAKE_INSTALL_LIBDIR CMAKE_INSTALL_INCLUDEDIR, CMAKE_INSTALL_DOCDIR)
 endif()
 
 if (DEFINED NGRAPH_INSTALL_PREFIX)
@@ -459,10 +459,18 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     if (MSVC)
         # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
         # These two options can't be mixed, because they requires link two imcompatiable runtime.
-        set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
         set(protobuf_WITH_ZLIB  OFF CACHE BOOL "" FORCE)
-        set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+
+        if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
+            set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
+        endif()
+        if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+            set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
+        endif()
     endif()
+
+    set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF)
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
         include(cmake/external_protobuf.cmake)
     else()
@@ -472,6 +480,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     if (TARGET ext_protobuf)
         add_dependencies(onnx ext_protobuf)
     endif()
+    set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
+    unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
 endif()
 
 add_subdirectory(core)
@@ -481,11 +491,13 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
     set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
     export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 
-    install(EXPORT ngraphTargets
-        FILE ngraphTargets.cmake
-        NAMESPACE ngraph::
-        DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
-        COMPONENT ngraph)
+    if(BUILD_SHARED_LIBS)
+        install(EXPORT ngraphTargets
+            FILE ngraphTargets.cmake
+            NAMESPACE ngraph::
+            DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
+            COMPONENT ngraph)
+    endif()
 
     configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
@@ -504,7 +516,11 @@ endif()
 add_subdirectory(frontend)
 
 if (NGRAPH_TEST_UTIL_ENABLE)
+    set(BEFORE_GTEST_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF)
     include(cmake/external_gtest.cmake)
+    set(BUILD_SHARED_LIBS ${BEFORE_GTEST_BUILD_SHARED_LIBS})
+    unset(BEFORE_GTEST_BUILD_SHARED_LIBS)
 endif()
 
 add_subdirectory(test)
@@ -513,11 +529,4 @@ if (NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(python)
 endif()
 
-install(DIRECTORY
-    ${CMAKE_CURRENT_SOURCE_DIR}/licenses
-    DESTINATION "${NGRAPH_COMPONENT_PREFIX}."
-    COMPONENT ngraph
-)
-
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE DESTINATION "${NGRAPH_COMPONENT_PREFIX}." COMPONENT ngraph)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/VERSION DESTINATION "${NGRAPH_COMPONENT_PREFIX}." COMPONENT ngraph)

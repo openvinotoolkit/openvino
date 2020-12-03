@@ -48,7 +48,6 @@ public:
             shape,
             epsMode,
             params.actual);
-
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(
             low_precision::LayerTransformation::Params(params.transformationParams));
@@ -137,7 +136,7 @@ const std::vector<NormalizeL2TransformationTestValues> normalizeL2Transformation
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

@@ -35,6 +35,32 @@ public:
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
+
+    // v4::Interpolate
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::Shape& inputShape,
+        const ngraph::Shape& outputShape,
+        const ngraph::Shape& scalesShape,
+        const ngraph::op::v4::Interpolate::InterpolateAttrs& interp4Attrs,
+        const ngraph::element::Type precisionBeforeDequantization,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
+
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const ngraph::Shape& outputShape,
+        const ngraph::Shape& scalesShape,
+        const ngraph::op::v4::Interpolate::InterpolateAttrs& interp4Attrs);
+
+    static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::Shape& inputShape,
+        const ngraph::Shape& outputShape,
+        const ngraph::Shape& scalesShape,
+        const ngraph::op::v4::Interpolate::InterpolateAttrs& interp4Attrs,
+        const ngraph::element::Type precisionBeforeDequantization,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ngraph::element::Type precisionAfterOperation,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 
 }  // namespace subgraph

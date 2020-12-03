@@ -63,5 +63,6 @@ class UpsampleOp(Op):
                                                      width=out_width)
         else:
             assert node.in_node(1).value is not None
+            eps = 1e-5  # This is to make rounding in case of very close number to round to closest instead of down
             # generic output shape calculation to support 5D input shape case
-            node.out_node().shape = np.array(input_shape * node.in_node(1).value).astype(np.int64)
+            node.out_node().shape = np.array((input_shape + eps) * node.in_node(1).value).astype(np.int64)

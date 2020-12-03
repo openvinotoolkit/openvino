@@ -36,8 +36,8 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
             }
 
             if (!options.count(KEY_DEVICE_ID)) {
-                if (availableDevices.size() == 1) {
-                    return availableDevices[0];
+                if (availableDevices.size() == 1 || availableDevices.size() == 2) {
+                    return availableDevices.back(); // detection order is GNA_SW, GNA_HW
                 } else {
                     THROW_GNA_EXCEPTION << "KEY_DEVICE_ID not set in request for FULL_DEVICE_NAME";
                 }

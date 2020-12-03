@@ -30,6 +30,7 @@ namespace ngraph
 class NGRAPH_API ngraph::pass::ConvertFP32ToFP16 : public ngraph::pass::GraphRewrite
 {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertFP32ToFP16()
         : GraphRewrite()
     {

@@ -15,6 +15,7 @@
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <vpu/utils/error.hpp>
+#include <vpu/ngraph/utilities.hpp>
 
 namespace {
 
@@ -102,24 +103,15 @@ protected:
         const auto indices_shape = ngraph::opset3::Constant::create(dims->get_element_type(), {gather_setup.index_shape.size()}, gather_setup.index_shape);
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
-            std::vector<int64_t> idxs(gather_setup.first_split_point);
-            std::iota(idxs.begin(), idxs.end(), 0);
-            output_dims.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            output_dims.push_back(vpu::gatherShapeElements(dims, 0, gather_setup.first_split_point));
         }
         if (!gather_setup.index_shape.empty())
             output_dims.push_back(indices_shape);
         if (gather_setup.first_split_point + 1 < gather_setup.data_shape.size()) {
-            std::vector<int64_t> idxs(gather_setup.data_shape.size() - gather_setup.second_split_point);
-            std::iota(idxs.begin(), idxs.end(), gather_setup.second_split_point);
-            output_dims.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            output_dims.push_back(vpu::gatherShapeElements(
+                dims,
+                gather_setup.second_split_point,
+                gather_setup.data_shape.size() - gather_setup.second_split_point));
         }
         const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, output_shape);
@@ -192,24 +184,15 @@ protected:
 
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
-            std::vector<int64_t> idxs(gather_setup.first_split_point);
-            std::iota(idxs.begin(), idxs.end(), 0);
-            output_dims.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            data_shape,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            output_dims.push_back(vpu::gatherShapeElements(data_shape, 0, gather_setup.first_split_point));
         }
         if (!gather_setup.index_shape.empty())
             output_dims.push_back(dims);
         if (gather_setup.first_split_point + 1 < gather_setup.data_shape.size()) {
-            std::vector<int64_t> idxs(gather_setup.data_shape.size() - gather_setup.second_split_point);
-            std::iota(idxs.begin(), idxs.end(), gather_setup.second_split_point);
-            output_dims.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            data_shape,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            output_dims.push_back(vpu::gatherShapeElements(
+                data_shape,
+                gather_setup.second_split_point,
+                gather_setup.data_shape.size() - gather_setup.second_split_point));
         }
         const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, output_shape);
@@ -284,24 +267,15 @@ protected:
 
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
-            std::vector<int64_t> idxs(gather_setup.first_split_point);
-            std::iota(idxs.begin(), idxs.end(), 0);
-            output_dims.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            data_dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            output_dims.push_back(vpu::gatherShapeElements(data_dims, 0, gather_setup.first_split_point));
         }
         if (!gather_setup.index_shape.empty())
             output_dims.push_back(indices_dims);
         if (gather_setup.first_split_point + 1 < gather_setup.data_shape.size()) {
-            std::vector<int64_t> idxs(gather_setup.data_shape.size() - gather_setup.second_split_point);
-            std::iota(idxs.begin(), idxs.end(), gather_setup.second_split_point);
-            output_dims.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            data_dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            output_dims.push_back(vpu::gatherShapeElements(
+                data_dims,
+                gather_setup.second_split_point,
+                gather_setup.data_shape.size() - gather_setup.second_split_point));
         }
         const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, output_shape);

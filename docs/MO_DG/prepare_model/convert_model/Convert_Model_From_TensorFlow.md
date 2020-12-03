@@ -114,6 +114,7 @@ Where `HEIGHT` and `WIDTH` are the input images height and width for which the m
 | Unet | [Repo](https://github.com/kkweon/UNet-in-Tensorflow) |
 | Keras-TCN | [Repo](https://github.com/philipperemy/keras-tcn) |
 | PRNet | [Repo](https://github.com/YadiraF/PRNet) |
+| YOLOv4 | [Repo](https://github.com/Ma-Dan/keras-yolo4) |
 
 * YOLO topologies from DarkNet* can be converted using [instruction](tf_specific/Convert_YOLO_From_Tensorflow.md),
 * FaceNet topologies can be converted using [instruction](tf_specific/Convert_FaceNet_From_Tensorflow.md).

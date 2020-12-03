@@ -446,7 +446,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
 };
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     SplitTransformation,
     ::testing::ValuesIn(testValues),
     SplitTransformation::getTestCaseName);

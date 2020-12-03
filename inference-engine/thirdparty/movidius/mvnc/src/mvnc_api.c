@@ -2524,6 +2524,7 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
     if (opAccess != NC_OP_ACCESS_READ_ONLY &&
         opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
@@ -2756,6 +2757,7 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
 
     if (opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
@@ -2825,6 +2827,7 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
     if (opAccess != NC_OP_ACCESS_READ_ONLY &&
        opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 

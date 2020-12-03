@@ -98,7 +98,7 @@ TEST(spatial_concatenate_f32_gpu, test02) {
     });
 
     const auto expected_output = std::vector<float>{
-        1.0f, 2.0f, 
+        1.0f, 2.0f,
         3.0f, 4.0f,
         5.0f, 6.0f,
         7.0f, 8.0f
@@ -445,7 +445,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_x) {
     ASSERT_EQ(output_layout.size.spatial[1], input1.get_layout().size.spatial[1]);
     ASSERT_EQ(output_layout.size.spatial[2], input1.get_layout().size.spatial[2]);
 
-    ASSERT_EQ(output_mem.get_layout().get_linear_size(), expected_output.size()); 
+    ASSERT_EQ(output_mem.get_layout().get_linear_size(), expected_output.size());
     {
         auto out_ptr = output_mem.pointer<const float>();
 
@@ -632,9 +632,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_b) {
     tpl.add(input_layout("in2", input2.get_layout()));
     tpl.add(concatenation("conc", { "in1", "in2" }, concatenation::along_b));
 
-    build_options bo;
-    bo.set_option(build_option::graph_dumps_dir("C:\\graphs"));
-    network net(eng, tpl, bo);
+    network net(eng, tpl);
     net.set_input_data("in1", input1);
     net.set_input_data("in2", input2);
 

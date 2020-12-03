@@ -20,6 +20,7 @@ class MemoryLSTMCellTest : public LayerTestsUtils::LayerTestsCommon,
 private:
     // you have to Unroll TI manually and remove memory untill ngraph supports it
     void switchToNgraphFriendlyModel();
+    void CreatePureTensorIteratorModel();
     // since we switching models we need to generate and save weights biases and inputs in SetUp
     std::vector<float> input_bias;
     std::vector<float> input_weights;
@@ -31,6 +32,7 @@ private:
 protected:
     void SetUp() override;
     void Run() override;
+    void RunLowLatency(bool regular_api = false);
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<memoryLSTMCellParams> &obj);
 };

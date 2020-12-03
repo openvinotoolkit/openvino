@@ -10,7 +10,7 @@
 
 * *axis*
 
-  * **Description**: Specifies the axis along which 
+  * **Description**: Specifies the axis along which the values are retrieved.
   * **Range of values**: An integer. Negative value means counting dimension from the end.
   * **Type**: `int`
   * **Default value**: None
@@ -31,7 +31,7 @@
   * **Type**: `string`
   * **Default value**: None
   * **Required**: *yes*
-  
+
 * *index_element_type*
 
   * **Description**: the type of output tensor with indices
@@ -65,7 +65,15 @@ Output tensor is populated by values computes in the following way:
 
     output[i1, ..., i(axis-1), j, i(axis+1) ..., iN] = top_k(input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]), k, sort, mode)
 
-So for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` which represents 1D array, *TopK* value is computed individually. Sorting and minimum/maximum are controlled by `sort` and `mode` attributes.
+So for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` which represents 1D array, *TopK* value is computed individually.
+
+Sorting and minimum/maximum are controlled by `sort` and `mode` attributes:
+  * *mode*=`max`, *sort*=`value` - descending by value
+  * *mode*=`max`, *sort*=`index` - ascending by index
+  * *mode*=`max`, *sort*=`none`  - undefined
+  * *mode*=`min`, *sort*=`value` - ascending by value
+  * *mode*=`min`, *sort*=`index` - ascending by index
+  * *mode*=`min`, *sort*=`none`  - undefined
 
 **Example**
 

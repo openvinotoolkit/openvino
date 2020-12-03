@@ -15,10 +15,6 @@ else()
     SET(ARCH_64 OFF)
 endif()
 
-if (NOT ENABLE_MKL_DNN)
-    set(ENABLE_MKL OFF)
-endif()
-
 if(ENABLE_AVX512F)
     if ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND (MSVC_VERSION VERSION_LESS 1920))
         # 1920 version of MSVC 2019. In MSVC 2017 AVX512F not work

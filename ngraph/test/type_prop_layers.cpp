@@ -33,7 +33,7 @@ using namespace ngraph;
 
 TEST(type_prop_layers, ctc_greedy_decoder)
 {
-    auto input = make_shared<op::Parameter>(element::f32, Shape{88, 2, 48, 1});
+    auto input = make_shared<op::Parameter>(element::f32, Shape{88, 2, 48});
     auto seq_len = make_shared<op::Parameter>(element::f32, Shape{88, 2});
     auto op = make_shared<op::CTCGreedyDecoder>(input, seq_len, false);
     ASSERT_EQ(op->get_shape(), (Shape{2, 88, 1, 1}));

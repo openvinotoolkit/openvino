@@ -326,6 +326,11 @@ add_user_to_video_group()
     if [[ $? -ne 0 ]]; then
         echo "WARNING: unable to add $real_user to the video group" >&2
     fi
+    echo "Adding $real_user to the render group..."
+    usermod -a -G render "$real_user"
+    if [[ $? -ne 0 ]]; then
+        echo "WARNING: unable to add $real_user to the render group" >&2
+    fi
 }
 
 _check_distro_version()

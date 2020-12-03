@@ -4,11 +4,14 @@
 
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
+#include "mkldnn_itt.h"
 
+#include "caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>
 #include <cstdint>
+#include <unordered_map>
 
 #include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
@@ -28,6 +31,7 @@
 #include <nodes/mkldnn_softmax_node.h>
 #include <nodes/mkldnn_tile_node.h>
 #include <nodes/mkldnn_split_node.h>
+#include <nodes/mkldnn_pad_node.h>
 #include <nodes/mkldnn_permute_node.h>
 #include <nodes/mkldnn_memory_node.hpp>
 #include <nodes/mkldnn_rnn.h>
@@ -75,6 +79,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "HSwish", Eltwise },
         { "Mish", Eltwise },
         { "HSigmoid", Eltwise },
+        { "Round", Eltwise },
         { "ScaleShift", Eltwise },
         { "PReLU", Eltwise },
         { "Norm", Lrn },
@@ -99,6 +104,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ROIPooling", ROIPooling },
         { "BatchNormalization", BatchNormalization },
         { "Flatten", Flatten },
+        { "Pad", Pad },
         { "Permute", Permute },
         { "Copy", Copy },
         { "LSTMCell", RNNCell },
@@ -112,6 +118,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "BinaryConvolution", BinaryConvolution },
         { "DeformableConvolution", DeformableConvolution },
         { "TensorIterator", TensorIterator },
+        { "Loop", TensorIterator },
         { "MemoryInput", MemoryInput},  // for construction from name ctor, arbitrary name is used
         { "Memory", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
@@ -156,7 +163,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), cnnLayer(layer), engine(eng), name(layer->name), typeStr(layer->type),
-          type(TypeFromName(layer->type)), profilingTask(itt::handle(name)) {
+          type(TypeFromName(layer->type)), profiling(layer->name) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());

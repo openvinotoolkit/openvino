@@ -16,7 +16,7 @@
 from extensions.front.div import Div
 from extensions.front.sub import Sub
 from extensions.middle.AddFakeQuantizeFuse import AddFakeQuantizeFuse
-from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
+from extensions.middle.EltwiseInputReshape import normalize_eltwise_inputs
 from extensions.middle.MulFakeQuantizeFuse import MulFakeQuantizeFuse
 from extensions.middle.RemoveRedundantReshapes import RemoveRedundantReshapes
 
@@ -82,7 +82,7 @@ class Fusing(MiddleReplacementPattern):
             for_graph_and_each_sub_graph_recursively(graph, fuse_mul_add_sequence)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-            EltwiseInputNormalize().find_and_replace_pattern(graph)
+            normalize_eltwise_inputs(graph)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
             # Fusing linear operation to Convolution
@@ -96,7 +96,7 @@ class Fusing(MiddleReplacementPattern):
                 for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
                 for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        EltwiseInputNormalize().find_and_replace_pattern(graph)
+        normalize_eltwise_inputs(graph)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         MarkNodesToFuseUpToFakeQuantize().find_and_replace_pattern(graph)

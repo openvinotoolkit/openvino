@@ -135,7 +135,7 @@ const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     FuseMultiplyToFakeQuantizeTransformation,
     ::testing::ValuesIn(testValues),
     FuseMultiplyToFakeQuantizeTransformation::getTestCaseName);

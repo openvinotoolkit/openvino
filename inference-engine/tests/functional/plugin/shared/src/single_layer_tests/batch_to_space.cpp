@@ -21,7 +21,8 @@
 namespace LayerTestsDefinitions {
 
 std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj) {
-    std::vector<size_t> inShapes, blockShape, cropsBegin, cropsEnd;
+    std::vector<size_t> inShapes;
+    std::vector<int64_t> blockShape, cropsBegin, cropsEnd;
     InferenceEngine::Precision  netPrc;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -43,7 +44,8 @@ std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
 
 void BatchToSpaceLayerTest::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::INTERPRETER_TRANSFORMATIONS);
-    std::vector<size_t> inputShape, blockShape, cropsBegin, cropsEnd;
+    std::vector<size_t> inputShape;
+    std::vector<int64_t> blockShape, cropsBegin, cropsEnd;
     InferenceEngine::Precision netPrecision;
     std::tie(blockShape, cropsBegin, cropsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

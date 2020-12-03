@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/quantize.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/quantize.hpp"
 #include "ngraph/shape_util.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START

@@ -9,9 +9,9 @@ namespace ngraph {
 namespace builder {
 std::shared_ptr<ngraph::Node> makeBatchToSpace(const ngraph::Output<Node> &in,
                                                const element::Type &type,
-                                               const std::vector<size_t> &blockShape,
-                                               const std::vector<size_t> &cropsBegin,
-                                               const std::vector<size_t> &cropsEnd) {
+                                               const std::vector<int64_t> &blockShape,
+                                               const std::vector<int64_t> &cropsBegin,
+                                               const std::vector<int64_t> &cropsEnd) {
     ngraph::Shape constShape = {in.get_shape().size()};
     auto blockShapeNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape,
                                                                      blockShape.data());
