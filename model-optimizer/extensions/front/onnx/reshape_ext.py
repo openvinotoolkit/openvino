@@ -19,16 +19,16 @@ import numpy as np
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.ops.reshape import Reshape
 
+class ReshapeFrontExtractor(FrontExtractorOp):
+    op = 'Reshape'
+    enabled = True
 
-def onnx_reshape_ext(node):
-    ''' Extract ONNX Reshape op of different versions.
-        Support both latest Reshape and Reshape-1.
-        The first one has 2 arguments, Reshape-1 has one input and shape is coded in attribute.
-    '''
-    dim = onnx_attr(node, 'shape', 'ints', None)
-    if dim is not None:
-        dim = np.array(dim, dtype=np.int64)
-        Reshape.update_node_stat(node, {'dim': dim})
-    else:
-        Reshape.update_node_stat(node)
-    return node.graph.node[node.id]
+    @classmethod
+    def extract(cls, node):
+        dim = onnx_attr(node, 'shape', 'ints', None)
+        if dim is not None:
+            dim = np.array(dim, dtype=np.int64)
+            Reshape.update_node_stat(node, {'dim': dim})
+        else:
+            Reshape.update_node_stat(node)
+        return cls.enabled

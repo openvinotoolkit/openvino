@@ -267,6 +267,7 @@ extensions/front/onnx/gemm_ext.py
 extensions/front/onnx/group_norm_ext.py
 extensions/front/onnx/gru_ext.py
 extensions/front/onnx/hard_sigmoid_ext.py
+extensions/front/onnx/identity_ext.py
 extensions/front/onnx/image_scaler_ext.py
 extensions/front/onnx/instance_normalization_ext.py
 extensions/front/onnx/logsoftmaxONNX_to_logsoftmax.py
@@ -302,6 +303,7 @@ extensions/front/onnx/quantize_linear_resolver.py
 extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/remove_filtering_boxes_by_size.py
+extensions/front/onnx/reshape_ext.py
 extensions/front/onnx/resize_ext.py
 extensions/front/onnx/resize_to_interpolate.py
 extensions/front/onnx/reverse_sequence_ext.py
@@ -844,9 +846,7 @@ mo/front/mxnet/register_custom_ops.py
 mo/front/onnx/__init__.py
 mo/front/onnx/extractor.py
 mo/front/onnx/extractors/__init__.py
-mo/front/onnx/extractors/eltwise.py
 mo/front/onnx/extractors/fused_bn.py
-mo/front/onnx/extractors/reshape.py
 mo/front/onnx/extractors/utils.py
 mo/front/onnx/loader.py
 mo/front/onnx/register_custom_ops.py
