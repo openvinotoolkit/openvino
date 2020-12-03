@@ -291,11 +291,11 @@ NGRAPH_TEST(${BACKEND_NAME}, concat_in_place_2d_tensor)
     Shape shape{1, 1};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add1 = make_shared<op::Add>(A, B);
+    auto add1 = make_shared<op::v1::Add>(A, B);
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto D = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add2 = make_shared<op::Add>(C, D);
-    auto subtract = make_shared<op::Subtract>(C, A);
+    auto add2 = make_shared<op::v1::Add>(C, D);
+    auto subtract = make_shared<op::v1::Subtract>(C, A);
     Shape shape_r{3, 1};
     auto f = make_shared<Function>(make_shared<op::Concat>(NodeVector{add1, add2, subtract}, 0),
                                    ParameterVector{A, B, C, D});
@@ -324,12 +324,12 @@ NGRAPH_TEST(${BACKEND_NAME}, concat_in_place_propagate_2d_tensor)
     Shape shape{1, 1};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add1 = make_shared<op::Add>(A, B);
+    auto add1 = make_shared<op::v1::Add>(A, B);
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto D = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add2 = make_shared<op::Add>(C, D);
+    auto add2 = make_shared<op::v1::Add>(C, D);
     auto concat1 = make_shared<op::Concat>(NodeVector{add1, add2}, 0);
-    auto subtract = make_shared<op::Subtract>(C, A);
+    auto subtract = make_shared<op::v1::Subtract>(C, A);
     Shape shape_r{3, 1};
     auto f = make_shared<Function>(make_shared<op::Concat>(NodeVector{concat1, subtract}, 0),
                                    ParameterVector{A, B, C, D});
@@ -359,10 +359,10 @@ NGRAPH_TEST(${BACKEND_NAME}, concat_in_place_tree_1)
     Shape shape_r{1, 4, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add1 = make_shared<op::Add>(A, B);
-    auto add2 = make_shared<op::Add>(A, B);
+    auto add1 = make_shared<op::v1::Add>(A, B);
+    auto add2 = make_shared<op::v1::Add>(A, B);
     auto concat = make_shared<op::Concat>(NodeVector{add1, add2}, 1);
-    auto f = make_shared<Function>(make_shared<op::Add>(concat, concat), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(concat, concat), ParameterVector{A, B});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::Type_t::f32, shape);
@@ -385,12 +385,13 @@ NGRAPH_TEST(${BACKEND_NAME}, concat_in_place_tree_2)
     Shape shape_r{1, 8, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add1 = make_shared<op::Add>(A, B);
-    auto add2 = make_shared<op::Add>(A, B);
+    auto add1 = make_shared<op::v1::Add>(A, B);
+    auto add2 = make_shared<op::v1::Add>(A, B);
     auto concat1 = make_shared<op::Concat>(NodeVector{add1, add2}, 1);
     auto concat2 = make_shared<op::Concat>(NodeVector{add1, add2}, 1);
     auto concat12 = make_shared<op::Concat>(NodeVector{concat1, concat2}, 1);
-    auto f = make_shared<Function>(make_shared<op::Add>(concat12, concat12), ParameterVector{A, B});
+    auto f =
+        make_shared<Function>(make_shared<op::v1::Add>(concat12, concat12), ParameterVector{A, B});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
@@ -420,7 +421,8 @@ NGRAPH_TEST(${BACKEND_NAME}, concat_in_place_tree_3)
     auto concat12 = make_shared<op::Concat>(NodeVector{concat1, concat2}, 1);
     auto concat34 = make_shared<op::Concat>(NodeVector{concat3, concat4}, 1);
     auto concat14 = make_shared<op::Concat>(NodeVector{concat12, concat34}, 1);
-    auto f = make_shared<Function>(make_shared<op::Add>(concat14, concat14), ParameterVector{A, B});
+    auto f =
+        make_shared<Function>(make_shared<op::v1::Add>(concat14, concat14), ParameterVector{A, B});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::Type_t::f32, shape);
@@ -442,10 +444,10 @@ NGRAPH_TEST(${BACKEND_NAME}, concat_in_place_add_concat)
     Shape shape_r{4, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add1 = make_shared<op::Add>(A, B);
-    auto add2 = make_shared<op::Add>(add1, add1);
+    auto add1 = make_shared<op::v1::Add>(A, B);
+    auto add2 = make_shared<op::v1::Add>(add1, add1);
     auto concat = make_shared<op::Concat>(NodeVector{add1, add2}, 0);
-    auto add3 = make_shared<op::Add>(concat, concat);
+    auto add3 = make_shared<op::v1::Add>(concat, concat);
     auto f = make_shared<Function>(add3, ParameterVector{A, B});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -466,17 +468,17 @@ NGRAPH_TEST(${BACKEND_NAME}, concat_in_place_add_concat_2)
     Shape shape_r{1, 6, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add1 = make_shared<op::Add>(A, B);
-    auto add2 = make_shared<op::Add>(A, B);
-    auto add3 = make_shared<op::Add>(A, B);
-    auto add4 = make_shared<op::Add>(A, B);
-    auto add5 = make_shared<op::Add>(A, B);
+    auto add1 = make_shared<op::v1::Add>(A, B);
+    auto add2 = make_shared<op::v1::Add>(A, B);
+    auto add3 = make_shared<op::v1::Add>(A, B);
+    auto add4 = make_shared<op::v1::Add>(A, B);
+    auto add5 = make_shared<op::v1::Add>(A, B);
 
     auto concat1 = make_shared<op::Concat>(NodeVector{add1, add2, add3}, 1);
 
     auto concat2 = make_shared<op::Concat>(NodeVector{add4, add2, add5}, 1);
 
-    auto add6 = make_shared<op::Add>(concat1, concat2);
+    auto add6 = make_shared<op::v1::Add>(concat1, concat2);
     auto f = make_shared<Function>(add6, ParameterVector{A, B});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

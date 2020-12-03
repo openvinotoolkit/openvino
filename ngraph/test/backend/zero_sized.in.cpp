@@ -25,12 +25,18 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+
+static const std::vector<ngraph::element::Type> base_types = {
+    ngraph::element::from<float>(),
+    ngraph::element::from<int32_t>(),
+    ngraph::element::from<int64_t>(),
+    ngraph::element::from<uint32_t>(),
+    ngraph::element::from<uint64_t>(),
+};
 
 template <typename OP>
 void make_unary_empty_test(const string& backend_name)
@@ -39,9 +45,9 @@ void make_unary_empty_test(const string& backend_name)
 
     ParameterVector params;
     NodeVector result_list;
-    for (size_t i = 0; i < s_known_element_types.size(); i++)
+    for (size_t i = 0; i < base_types.size(); i++)
     {
-        shared_ptr<op::Parameter> p = make_shared<op::Parameter>(s_known_element_types[i], shape);
+        shared_ptr<op::Parameter> p = make_shared<op::Parameter>(base_types[i], shape);
         params.push_back(p);
         result_list.push_back(make_shared<OP>(p));
     }
@@ -51,36 +57,26 @@ void make_unary_empty_test(const string& backend_name)
 
     vector<shared_ptr<runtime::Tensor>> inputs;
     vector<shared_ptr<runtime::Tensor>> outputs;
-    for (size_t i = 0; i < s_known_element_types.size(); i++)
+    for (size_t i = 0; i < base_types.size(); i++)
     {
-        inputs.push_back(backend->create_tensor(s_known_element_types[i], shape));
-        outputs.push_back(backend->create_tensor(s_known_element_types[i], shape));
+        inputs.push_back(backend->create_tensor(base_types[i], shape));
+        outputs.push_back(backend->create_tensor(base_types[i], shape));
     }
 
     auto handle = backend->compile(f);
     handle->call_with_validate(outputs, inputs);
 
     EXPECT_EQ(read_vector<float>(inputs[0]).size(), 0);
-    EXPECT_EQ(read_vector<double>(inputs[1]).size(), 0);
-    EXPECT_EQ(read_vector<int8_t>(inputs[2]).size(), 0);
-    EXPECT_EQ(read_vector<int16_t>(inputs[3]).size(), 0);
-    EXPECT_EQ(read_vector<int32_t>(inputs[4]).size(), 0);
-    EXPECT_EQ(read_vector<int64_t>(inputs[5]).size(), 0);
-    EXPECT_EQ(read_vector<uint8_t>(inputs[6]).size(), 0);
-    EXPECT_EQ(read_vector<uint16_t>(inputs[7]).size(), 0);
-    EXPECT_EQ(read_vector<uint32_t>(inputs[8]).size(), 0);
-    EXPECT_EQ(read_vector<uint64_t>(inputs[9]).size(), 0);
+    EXPECT_EQ(read_vector<int32_t>(inputs[1]).size(), 0);
+    EXPECT_EQ(read_vector<int64_t>(inputs[2]).size(), 0);
+    EXPECT_EQ(read_vector<uint32_t>(inputs[3]).size(), 0);
+    EXPECT_EQ(read_vector<uint64_t>(inputs[4]).size(), 0);
 
     EXPECT_EQ(read_vector<float>(outputs[0]).size(), 0);
-    EXPECT_EQ(read_vector<double>(outputs[1]).size(), 0);
-    EXPECT_EQ(read_vector<int8_t>(outputs[2]).size(), 0);
-    EXPECT_EQ(read_vector<int16_t>(outputs[3]).size(), 0);
-    EXPECT_EQ(read_vector<int32_t>(outputs[4]).size(), 0);
-    EXPECT_EQ(read_vector<int64_t>(outputs[5]).size(), 0);
-    EXPECT_EQ(read_vector<uint8_t>(outputs[6]).size(), 0);
-    EXPECT_EQ(read_vector<uint16_t>(outputs[7]).size(), 0);
-    EXPECT_EQ(read_vector<uint32_t>(outputs[8]).size(), 0);
-    EXPECT_EQ(read_vector<uint64_t>(outputs[9]).size(), 0);
+    EXPECT_EQ(read_vector<int32_t>(outputs[1]).size(), 0);
+    EXPECT_EQ(read_vector<int64_t>(outputs[2]).size(), 0);
+    EXPECT_EQ(read_vector<uint32_t>(outputs[3]).size(), 0);
+    EXPECT_EQ(read_vector<uint64_t>(outputs[4]).size(), 0);
 }
 
 template <typename OP>
@@ -88,9 +84,9 @@ void make_binary_empty_test(const string& backend_name, bool is_comparison = fal
 {
     Shape shape{0};
     ParameterVector A;
-    for (size_t i = 0; i < s_known_element_types.size(); i++)
+    for (size_t i = 0; i < base_types.size(); i++)
     {
-        A.push_back(make_shared<op::Parameter>(s_known_element_types[i], shape));
+        A.push_back(make_shared<op::Parameter>(base_types[i], shape));
     }
 
     NodeVector result_list;
@@ -104,16 +100,16 @@ void make_binary_empty_test(const string& backend_name, bool is_comparison = fal
 
     vector<shared_ptr<runtime::Tensor>> inputs;
     vector<shared_ptr<runtime::Tensor>> outputs;
-    for (size_t i = 0; i < s_known_element_types.size(); i++)
+    for (size_t i = 0; i < base_types.size(); i++)
     {
-        inputs.push_back(backend->create_tensor(s_known_element_types[i], shape));
+        inputs.push_back(backend->create_tensor(base_types[i], shape));
         if (is_comparison)
         {
             outputs.push_back(backend->create_tensor(element::from<char>(), shape));
         }
         else
         {
-            outputs.push_back(backend->create_tensor(s_known_element_types[i], shape));
+            outputs.push_back(backend->create_tensor(base_types[i], shape));
         }
     }
 
@@ -121,15 +117,10 @@ void make_binary_empty_test(const string& backend_name, bool is_comparison = fal
     handle->call_with_validate(outputs, inputs);
 
     EXPECT_EQ(read_vector<float>(inputs[0]).size(), 0);
-    EXPECT_EQ(read_vector<double>(inputs[1]).size(), 0);
-    EXPECT_EQ(read_vector<int8_t>(inputs[2]).size(), 0);
-    EXPECT_EQ(read_vector<int16_t>(inputs[3]).size(), 0);
-    EXPECT_EQ(read_vector<int32_t>(inputs[4]).size(), 0);
-    EXPECT_EQ(read_vector<int64_t>(inputs[5]).size(), 0);
-    EXPECT_EQ(read_vector<uint8_t>(inputs[6]).size(), 0);
-    EXPECT_EQ(read_vector<uint16_t>(inputs[7]).size(), 0);
-    EXPECT_EQ(read_vector<uint32_t>(inputs[8]).size(), 0);
-    EXPECT_EQ(read_vector<uint64_t>(inputs[9]).size(), 0);
+    EXPECT_EQ(read_vector<int32_t>(inputs[1]).size(), 0);
+    EXPECT_EQ(read_vector<int64_t>(inputs[2]).size(), 0);
+    EXPECT_EQ(read_vector<uint32_t>(inputs[3]).size(), 0);
+    EXPECT_EQ(read_vector<uint64_t>(inputs[4]).size(), 0);
 
     if (is_comparison)
     {
@@ -138,24 +129,14 @@ void make_binary_empty_test(const string& backend_name, bool is_comparison = fal
         EXPECT_EQ(read_vector<char>(outputs[2]).size(), 0);
         EXPECT_EQ(read_vector<char>(outputs[3]).size(), 0);
         EXPECT_EQ(read_vector<char>(outputs[4]).size(), 0);
-        EXPECT_EQ(read_vector<char>(outputs[5]).size(), 0);
-        EXPECT_EQ(read_vector<char>(outputs[6]).size(), 0);
-        EXPECT_EQ(read_vector<char>(outputs[7]).size(), 0);
-        EXPECT_EQ(read_vector<char>(outputs[8]).size(), 0);
-        EXPECT_EQ(read_vector<char>(outputs[9]).size(), 0);
     }
     else
     {
         EXPECT_EQ(read_vector<float>(outputs[0]).size(), 0);
-        EXPECT_EQ(read_vector<double>(outputs[1]).size(), 0);
-        EXPECT_EQ(read_vector<int8_t>(outputs[2]).size(), 0);
-        EXPECT_EQ(read_vector<int16_t>(outputs[3]).size(), 0);
-        EXPECT_EQ(read_vector<int32_t>(outputs[4]).size(), 0);
-        EXPECT_EQ(read_vector<int64_t>(outputs[5]).size(), 0);
-        EXPECT_EQ(read_vector<uint8_t>(outputs[6]).size(), 0);
-        EXPECT_EQ(read_vector<uint16_t>(outputs[7]).size(), 0);
-        EXPECT_EQ(read_vector<uint32_t>(outputs[8]).size(), 0);
-        EXPECT_EQ(read_vector<uint64_t>(outputs[9]).size(), 0);
+        EXPECT_EQ(read_vector<int32_t>(outputs[1]).size(), 0);
+        EXPECT_EQ(read_vector<int64_t>(outputs[2]).size(), 0);
+        EXPECT_EQ(read_vector<uint32_t>(outputs[3]).size(), 0);
+        EXPECT_EQ(read_vector<uint64_t>(outputs[4]).size(), 0);
     }
 }
 
@@ -251,65 +232,65 @@ NGRAPH_TEST(${BACKEND_NAME}, zero_sized_atan)
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_add)
 {
-    make_binary_empty_test<op::Add>("${BACKEND_NAME}");
+    make_binary_empty_test<op::v1::Add>("${BACKEND_NAME}");
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_divide)
 {
-    make_binary_empty_test<op::Divide>("${BACKEND_NAME}");
+    make_binary_empty_test<op::v1::Divide>("${BACKEND_NAME}");
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_eq)
 {
-    make_binary_empty_test<op::Equal>("${BACKEND_NAME}", true);
+    make_binary_empty_test<op::v1::Equal>("${BACKEND_NAME}", true);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_greater)
 {
-    make_binary_empty_test<op::Greater>("${BACKEND_NAME}", true);
+    make_binary_empty_test<op::v1::Greater>("${BACKEND_NAME}", true);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_greatereq)
 {
-    make_binary_empty_test<op::GreaterEq>("${BACKEND_NAME}", true);
+    make_binary_empty_test<op::v1::GreaterEqual>("${BACKEND_NAME}", true);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_less)
 {
-    make_binary_empty_test<op::Less>("${BACKEND_NAME}", true);
+    make_binary_empty_test<op::v1::Less>("${BACKEND_NAME}", true);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_lesseq)
 {
-    make_binary_empty_test<op::LessEq>("${BACKEND_NAME}", true);
+    make_binary_empty_test<op::v1::LessEqual>("${BACKEND_NAME}", true);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_maximum)
 {
-    make_binary_empty_test<op::Maximum>("${BACKEND_NAME}");
+    make_binary_empty_test<op::v1::Maximum>("${BACKEND_NAME}");
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_minimum)
 {
-    make_binary_empty_test<op::Minimum>("${BACKEND_NAME}");
+    make_binary_empty_test<op::v1::Minimum>("${BACKEND_NAME}");
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_multiply)
 {
-    make_binary_empty_test<op::Multiply>("${BACKEND_NAME}");
+    make_binary_empty_test<op::v1::Multiply>("${BACKEND_NAME}");
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_not_equal)
 {
-    make_binary_empty_test<op::NotEqual>("${BACKEND_NAME}", true);
+    make_binary_empty_test<op::v1::NotEqual>("${BACKEND_NAME}", true);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_power)
 {
-    make_binary_empty_test<op::Power>("${BACKEND_NAME}");
+    make_binary_empty_test<op::v1::Power>("${BACKEND_NAME}");
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_subtract)
 {
-    make_binary_empty_test<op::Subtract>("${BACKEND_NAME}");
+    make_binary_empty_test<op::v1::Subtract>("${BACKEND_NAME}");
 }

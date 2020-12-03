@@ -132,7 +132,7 @@ TEST(eval, max_eval_minimum_constant)
 {
     auto c = op::Constant::create<int64_t>(element::Type_t::i64, Shape{}, {27});
     auto p = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    auto m = make_shared<op::Minimum>(c, p);
+    auto m = make_shared<op::v1::Minimum>(c, p);
     auto result = maximum_value(m);
     ASSERT_TRUE(result.first);
     EXPECT_EQ(result.second, 27);

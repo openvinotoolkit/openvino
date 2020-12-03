@@ -19,10 +19,13 @@
 #include <cfenv>
 #include <cmath>
 #include <functional>
+#include <numeric>
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_transform.hpp"
+#include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
+#include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph
@@ -72,21 +75,8 @@ namespace ngraph
                                      size_t filter_out_channel_axis,
                                      size_t filter_in_channel_axis,
                                      size_t out_batch_axis,
-                                     size_t out_channel_axis,
-                                     const float* input_scale = nullptr,
-                                     const INPUT* input_zero_point = nullptr,
-                                     const float* filter_scale = nullptr,
-                                     const FILTER* filter_zero_point = nullptr,
-                                     const float* output_scale = nullptr,
-                                     const OUTPUT* output_zero_point = nullptr)
+                                     size_t out_channel_axis)
             {
-                bool is_quantized = false;
-                if (input_scale && input_zero_point && filter_scale && filter_zero_point &&
-                    output_scale && output_zero_point)
-                {
-                    is_quantized = true;
-                }
-
                 auto old_mode = std::fegetround();
                 std::fesetround(FE_TONEAREST);
                 // Comments throughout assume without loss of generality that:
@@ -236,11 +226,7 @@ namespace ngraph
                             {
                                 ACCUMULATION in_v = static_cast<ACCUMULATION>(in[in_idx]);
                                 ACCUMULATION f_v = static_cast<ACCUMULATION>(filter[filter_idx]);
-                                if (is_quantized)
-                                {
-                                    in_v = in_v - static_cast<ACCUMULATION>(*input_zero_point);
-                                    f_v = f_v - static_cast<ACCUMULATION>(*filter_zero_point);
-                                }
+
                                 result += in_v * f_v;
                                 in_idx += in_channel_stride;
                                 filter_idx += filter_in_channel_stride;
@@ -249,17 +235,8 @@ namespace ngraph
                         ++in_it;
                         ++filter_it;
                     }
-                    if (is_quantized)
-                    {
-                        float scale = *input_scale * *filter_scale / *output_scale;
-                        out[out_transform.index(out_coord)] =
-                            static_cast<OUTPUT>(std::round(static_cast<float>(result) * scale)) +
-                            *output_zero_point;
-                    }
-                    else
-                    {
-                        out[out_transform.index(out_coord)] = result;
-                    }
+
+                    out[out_transform.index(out_coord)] = result;
                 }
                 std::fesetround(old_mode);
             }
@@ -278,13 +255,7 @@ namespace ngraph
                              const Strides& filter_dilation,
                              const CoordinateDiff& in_pad_below,
                              const CoordinateDiff& in_pad_above,
-                             const Strides& in_dilation,
-                             const float* input_scale = nullptr,
-                             const INPUT* input_zero_point = nullptr,
-                             const float* filter_scale = nullptr,
-                             const FILTER* filter_zero_point = nullptr,
-                             const float* output_scale = nullptr,
-                             const OUTPUT* output_zero_point = nullptr)
+                             const Strides& in_dilation)
 
             {
                 general_convolution<INPUT, FILTER, OUTPUT, ACCUMULATION>(in,
@@ -303,48 +274,7 @@ namespace ngraph
                                                                          0,
                                                                          1,
                                                                          0,
-                                                                         1,
-                                                                         input_scale,
-                                                                         input_zero_point,
-                                                                         filter_scale,
-                                                                         filter_zero_point,
-                                                                         output_scale,
-                                                                         output_zero_point);
-            }
-
-            template <typename INPUT,
-                      typename OUTPUT,
-                      typename FILTER,
-                      typename ACCUMULATION = typename widen<FILTER>::type>
-            void convolution_backprop_filter(const INPUT* in,
-                                             const OUTPUT* delta_out,
-                                             FILTER* delta_filter,
-                                             const Shape& in_shape,
-                                             const Shape& out_shape,
-                                             const Shape& filter_shape,
-                                             const Strides& filter_dilation,
-                                             const Strides& stride,
-                                             const CoordinateDiff& in_pad_below,
-                                             const CoordinateDiff& backprop_in_pad_above,
-                                             const Strides& in_dilation)
-            {
-                general_convolution<INPUT, OUTPUT, FILTER, ACCUMULATION>(in,
-                                                                         delta_out,
-                                                                         delta_filter,
-                                                                         in_shape,
-                                                                         out_shape,
-                                                                         filter_shape,
-                                                                         filter_dilation,
-                                                                         stride,
-                                                                         in_pad_below,
-                                                                         backprop_in_pad_above,
-                                                                         in_dilation,
-                                                                         1,
-                                                                         0,
-                                                                         1,
-                                                                         0,
-                                                                         1,
-                                                                         0);
+                                                                         1);
             }
 
             template <typename OUTPUT,
@@ -359,15 +289,16 @@ namespace ngraph
                                          const Shape& in_shape,
                                          const Strides& in_dilation,
                                          const Strides& filter_dilation,
-                                         const CoordinateDiff& backward_delta_out_pad_below,
-                                         const CoordinateDiff& backward_delta_out_pad_above,
+                                         const CoordinateDiff& forward_in_pad_bellow,
+                                         const CoordinateDiff& forward_in_pad_above,
                                          const Strides& stride)
             {
                 // Note that we only reverse the spatial dimensions here (loop
                 // starts at 2)
                 std::vector<INPUT> reversed(shape_size(filter_shape));
                 AxisSet reverse_axes;
-                for (size_t i = 2; i < filter_shape.size(); ++i)
+                size_t reverse_axes_start = 2;
+                for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i)
                 {
                     reverse_axes.insert(i);
                 }
@@ -377,6 +308,35 @@ namespace ngraph
                         filter_shape,
                         reverse_axes,
                         sizeof(FILTER));
+                size_t filter_out_channel_axis = 1;
+                size_t filter_in_channel_axis = 0;
+
+                // Compute backward pad out pad bellow
+                size_t spatial_dim_count = in_shape.size() - 2;
+
+                CoordinateDiff backward_delta_out_pad_below;
+                backward_delta_out_pad_below.resize(spatial_dim_count);
+
+                for (size_t i = 0; i < spatial_dim_count; i++)
+                {
+                    backward_delta_out_pad_below[i] =
+                        (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] -
+                        forward_in_pad_bellow[i];
+                }
+                // Compute backward pad out pad above
+                CoordinateDiff backward_delta_out_pad_above;
+                backward_delta_out_pad_above.resize(spatial_dim_count);
+
+                for (size_t i = 0; i < spatial_dim_count; i++)
+                {
+                    backward_delta_out_pad_above[i] =
+                        (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] +
+                        ((forward_in_pad_bellow[i] + ((in_shape[i + 2]) - 1) * in_dilation[i] +
+                          forward_in_pad_above[i] -
+                          (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i]) %
+                         stride[i]) -
+                        forward_in_pad_above[i];
+                }
 
                 general_convolution<OUTPUT, FILTER, INPUT, ACCUMULATION>(
                     delta_out,
@@ -392,8 +352,8 @@ namespace ngraph
                     stride,
                     0,
                     1,
-                    1,
-                    0,
+                    filter_out_channel_axis,
+                    filter_in_channel_axis,
                     0,
                     1);
             }

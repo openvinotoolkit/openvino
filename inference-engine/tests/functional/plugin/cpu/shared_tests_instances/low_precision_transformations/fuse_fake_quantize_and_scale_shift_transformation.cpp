@@ -21,15 +21,16 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 };
 
 const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
-    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-    {
-        256ul,
-        { 1ul, 3ul, 1ul, 1ul },
-        { 0.f, 0.f, 0.f },
-        { 2.55f / 10.f, 2.55f / 5.f, 2.55f / 2.f },
-        { 0.f, 0.f, 0.f },
-        { 2.55f / 10.f, 2.55f / 5.f, 2.55f / 2.f }
-    },
+    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+// TODO: Issue 39810
+//    {
+//        256ul,
+//        { 1ul, 3ul, 1ul, 1ul },
+//        { 0.f, 0.f, 0.f },
+//        { 2.55f / 10.f, 2.55f / 5.f, 2.55f / 2.f },
+//        { 0.f, 0.f, 0.f },
+//        { 2.55f / 10.f, 2.55f / 5.f, 2.55f / 2.f }
+//    },
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseFakeQuantizeAndScaleShiftTransformation,

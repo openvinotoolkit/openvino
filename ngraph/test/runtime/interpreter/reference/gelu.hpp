@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,23 +16,23 @@
 
 #pragma once
 
-#include "ngraph/ops.hpp"
-#include "op/avg_pool.hpp"
-#include "op/convolution.hpp"
-#include "op/group_conv.hpp"
+#include <cmath>
+#include <cstddef>
 
 namespace ngraph
 {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    namespace opset0
+    namespace runtime
     {
-#ifdef NGRAPH_OP
-#include "opset0_tbl.hpp"
-#else
-#define NGRAPH_OP(a, b) using b::a;
-#include "opset0_tbl.hpp"
-#undef NGRAPH_OP
-#endif
+        namespace reference
+        {
+            template <typename T>
+            void gelu(const T* arg, T* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = 0.5 * arg[i] * (1 + erf(arg[i] / std::sqrt(2)));
+                }
+            }
+        }
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }

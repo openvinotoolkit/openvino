@@ -33,11 +33,11 @@ namespace ngraph
             private:
                 struct NormalizedBBox
                 {
-                    dataType xmin = 0;
-                    dataType ymin = 0;
-                    dataType xmax = 0;
-                    dataType ymax = 0;
-                    dataType size = 0;
+                    dataType xmin = dataType(0);
+                    dataType ymin = dataType(0);
+                    dataType xmax = dataType(0);
+                    dataType ymax = dataType(0);
+                    dataType size = dataType(0);
                 };
                 using LabelBBox = std::map<int, std::vector<NormalizedBBox>>;
 

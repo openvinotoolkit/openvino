@@ -20,6 +20,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -37,7 +38,7 @@ namespace ngraph
             ///
             ///        Output node produces a tensor with shape:
             ///        [N, C/(blocksize * blocksize), H * blocksize, W * blocksize]
-            class NGRAPH_API DepthToSpace : public ngraph::op::util::FusedOp
+            class NGRAPH_API DepthToSpace : public Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -68,10 +69,11 @@ namespace ngraph
 
                 std::size_t get_block_size() const { return m_blocksize; }
                 DepthToSpaceMode get_mode() const { return m_mode; }
-                virtual OutputVector decompose_op() const override;
-
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+                void validate_and_infer_types() override;
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
 
             protected:
                 std::size_t m_blocksize;

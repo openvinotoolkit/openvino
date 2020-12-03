@@ -43,7 +43,6 @@ std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void BatchToSpaceLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::INTERPRETER_TRANSFORMATIONS);
     std::vector<size_t> inputShape;
     std::vector<int64_t> blockShape, cropsBegin, cropsEnd;
     InferenceEngine::Precision netPrecision;

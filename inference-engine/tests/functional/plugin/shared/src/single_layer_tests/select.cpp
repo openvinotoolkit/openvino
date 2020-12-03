@@ -37,8 +37,6 @@ namespace LayerTestsDefinitions {
     }
 
     void SelectLayerTest::SetUp() {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
-
         std::vector<std::vector<size_t>> inputShapes(numOfInputs);
         InferenceEngine::Precision inputPrecision;
         ngraph::op::AutoBroadcastSpec broadcast;

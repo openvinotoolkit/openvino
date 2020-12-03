@@ -69,7 +69,7 @@ namespace ngraph
                 /// \brief Constructs a batched convolution operation with no data dilation (i.e.,
                 /// all
                 ///        data dilation strides are 1).
-                ///
+                /// ngraph/test/runtime/interpreter/unit_test.manifest
                 /// \param data_batch The node producing the input data batch tensor.<br>
                 /// `[N, C_IN, D1, ... Df]`
                 /// \param filters The node producing the filters tensor.<br>

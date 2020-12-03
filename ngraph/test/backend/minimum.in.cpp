@@ -37,8 +37,6 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -50,7 +48,7 @@ NGRAPH_TEST(${BACKEND_NAME}, minimum)
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Minimum>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
 
     std::vector<float> a{1, 8, -8, 17, -0.5, 0.5, 2, 1};
     std::vector<float> b{1, 2, 4, 8, 0, 0, 1, 1.5};
@@ -66,7 +64,7 @@ NGRAPH_TEST(${BACKEND_NAME}, minimum_int32)
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Minimum>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
 
     std::vector<int32_t> a{1, 8, -8, 17, -5, 67635216, 2, 1};
     std::vector<int32_t> b{1, 2, 4, 8, 0, 18448, 1, 6};
@@ -82,7 +80,7 @@ NGRAPH_TEST(${BACKEND_NAME}, minimum_int64)
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::i64, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::i64, shape);
-    auto f = make_shared<Function>(make_shared<op::Minimum>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
 
     std::vector<int64_t> a{1, 8, -8, 17, -5, 67635216, 2, 17179887632};
     std::vector<int64_t> b{1, 2, 4, 8, 0, 18448, 1, 280592};

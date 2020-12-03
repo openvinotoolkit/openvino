@@ -49,38 +49,9 @@ namespace opset1_upgrade
 
     // Default is that we didn nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::Add> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::Multiply> node)
     {
-        return op_cast_binary_elementwise_node<op::v0::Add, op::v1::Add>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v0::Convolution> node)
-    {
-        auto strides = node->get_window_movement_strides();
-        auto dilations = node->get_window_dilation_strides();
-        auto pads_begin = node->get_padding_below();
-        auto pads_end = node->get_padding_above();
-        auto data_dilation_strides = node->get_data_dilation_strides();
-        auto auto_pad = node->get_pad_type();
-
-        bool is_dds_valid = all_of(data_dilation_strides.begin(),
-                                   data_dilation_strides.end(),
-                                   [](size_t value) { return value == 1; });
-
-        NGRAPH_CHECK(is_dds_valid,
-                     "Unable to convert Convolution:0 to Convolution:1 with data dilation strides "
-                     "other than `1`. Node: ",
-                     *node);
-
-        auto replacement_node = make_shared<op::v1::Convolution>(node->input_value(0),
-                                                                 node->input_value(1),
-                                                                 strides,
-                                                                 pads_begin,
-                                                                 pads_end,
-                                                                 dilations,
-                                                                 auto_pad);
-        replace_node(node, replacement_node);
-        return replacement_node;
+        return op_cast_binary_elementwise_node<op::v0::Multiply, op::v1::Multiply>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
@@ -115,31 +86,6 @@ namespace opset1_upgrade
             dilations);
         replace_node(node, replacement_node);
         return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Divide> node)
-    {
-        const auto autob = node->get_autob();
-        const bool pydiv = node->is_pythondiv();
-        auto replacement_node =
-            make_shared<op::v1::Divide>(node->input_value(0), node->input_value(1), pydiv, autob);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Equal> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Greater> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Greater, op::v1::Greater>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::GreaterEq> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::GreaterEq, op::v1::GreaterEqual>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v0::GroupConvolution> node)
@@ -238,56 +184,6 @@ namespace opset1_upgrade
             dilations);
         replace_node(node, replacement_node);
         return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Less> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Less, op::v1::Less>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::LessEq> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::LessEq, op::v1::LessEqual>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Maximum> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Maximum, op::v1::Maximum>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Minimum> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Minimum, op::v1::Minimum>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Multiply> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Multiply, op::v1::Multiply>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::NotEqual> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::NotEqual, op::v1::NotEqual>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Power> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Select> node)
-    {
-        auto replacement_node = make_shared<op::v1::Select>(node->input_value(0),
-                                                            node->input_value(1),
-                                                            node->input_value(2),
-                                                            op::AutoBroadcastSpec());
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Subtract> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::Xor> node)

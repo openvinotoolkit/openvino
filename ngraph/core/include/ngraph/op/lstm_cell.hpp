@@ -401,7 +401,7 @@ namespace ngraph
 
                 static constexpr std::size_t s_gates_count{4};
             };
-        } // v1
+        } // v4
     }     // namespace op
 
     NGRAPH_API

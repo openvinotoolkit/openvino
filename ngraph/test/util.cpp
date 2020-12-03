@@ -31,8 +31,6 @@
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -174,8 +172,8 @@ public:
     std::shared_ptr<op::Parameter> A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     std::shared_ptr<op::Parameter> B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     std::shared_ptr<op::Parameter> C = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    std::shared_ptr<Node> AplusB = A + B;
-    std::shared_ptr<Node> AplusBtimesC = AplusB * C;
+    std::shared_ptr<Node> AplusB = make_shared<op::v1::Add>(A, B);
+    std::shared_ptr<Node> AplusBtimesC = make_shared<op::v1::Multiply>(AplusB, C);
 
     NodeMap node_map;
     std::vector<std::shared_ptr<ngraph::Node>> nodes;
@@ -222,8 +220,8 @@ TEST_F(CloneTest, clone_nodes_full)
     ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(A.get())));
     ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(B.get())));
     ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(C.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Add>(node_map.at(AplusB.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Multiply>(node_map.at(AplusBtimesC.get())));
+    ASSERT_NE(nullptr, as_type_ptr<op::v1::Add>(node_map.at(AplusB.get())));
+    ASSERT_NE(nullptr, as_type_ptr<op::v1::Multiply>(node_map.at(AplusBtimesC.get())));
 
     auto sorted_nodes = topological_sort(nodes);
     auto sorted_cloned_nodes = topological_sort(cloned_nodes);
@@ -255,8 +253,8 @@ TEST(graph_util, clone_multiple_results)
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto A_add_B = make_shared<op::Add>(A, B);
-    auto A_add_B_mul_C = make_shared<op::Multiply>(A_add_B, C);
+    auto A_add_B = make_shared<op::v1::Add>(A, B);
+    auto A_add_B_mul_C = make_shared<op::v1::Multiply>(A_add_B, C);
 
     auto f = make_shared<Function>(NodeVector{A_add_B, A_add_B_mul_C}, ParameterVector{A, B, C});
 
@@ -321,7 +319,7 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
     outputs = ngraph::get_subgraph_outputs(NodeVector{B, abs_b, abs_b_neg}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{B}));
 
-    auto add_b = make_shared<op::Add>(neg_b, abs_b_neg);
+    auto add_b = make_shared<op::v1::Add>(neg_b, abs_b_neg);
     outputs =
         ngraph::get_subgraph_outputs(NodeVector{B, abs_b, neg_b, abs_b_neg, add_b}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{}));
@@ -337,8 +335,8 @@ TEST(graph_util, test_subgraph_topological_sort)
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto add = A + B;
-    auto mul = C * add;
+    auto add = make_shared<op::v1::Add>(A, B);
+    auto mul = make_shared<op::v1::Multiply>(C, add);
     auto result = make_shared<op::Result>(mul);
     auto sorted = ngraph::subgraph_topological_sort(NodeVector{mul, add, A});
     std::vector<std::shared_ptr<Node>> expected{A, add, mul};
@@ -353,10 +351,10 @@ TEST(graph_util, test_subgraph_topological_sort_control_dependencies)
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto D = make_shared<op::Abs>(A);
     auto E = make_shared<op::Abs>(B);
-    auto add = A + B;
+    auto add = make_shared<op::v1::Add>(A, B);
     add->add_control_dependency(D);
     add->add_control_dependency(E);
-    auto mul = C * add;
+    auto mul = make_shared<op::v1::Multiply>(C, add);
     auto result = make_shared<op::Result>(mul);
     auto sorted = ngraph::subgraph_topological_sort(NodeVector{mul, add, A, D});
     std::vector<std::shared_ptr<Node>> expected{A, D, add, mul};
@@ -604,7 +602,7 @@ TEST(util, clone_function_friendly_name)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
     A->set_friendly_name("A");
     B->set_friendly_name("B");
@@ -628,7 +626,8 @@ TEST(util, clone_function_op_annotations)
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(A + B + C, ParameterVector{A, B, C});
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(make_shared<op::v1::Add>(A, B), C),
+                                   ParameterVector{A, B, C});
 
     auto cacheable_op_annotation = std::make_shared<op::util::OpAnnotations>();
     cacheable_op_annotation->set_cacheable(true);
@@ -666,7 +665,8 @@ TEST(util, topological_sort_replace)
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(A + B + C, ParameterVector{A, B, C});
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(make_shared<op::v1::Add>(A, B), C),
+                                   ParameterVector{A, B, C});
     bool custom_sorter_used = false;
 
     f->set_topological_sort(

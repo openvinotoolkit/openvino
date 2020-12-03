@@ -26,8 +26,8 @@
 /**
  * redefine this seed to reproduce issue with given seed that can be read from gtest logs
  */
-#define BASE_SEED   USE_CLOCK_TIME
-#define NGRAPH_SEED USE_CLOCK_TIME
+#define BASE_SEED   123
+#define NGRAPH_SEED 123
 
 namespace LayerTestsDefinitions {
 
@@ -84,6 +84,9 @@ void FakeQuantizeLayerTest::SetUp() {
         inputDataMin = inputArg[0];
         inputDataMax = inputArg[1];
         inputDataResolution = inputArg[2];
+    }
+    if (fqDirectArg.size() != 0) {
+        threshold = (fqDirectArg[3] - fqDirectArg[2]) / levels;
     }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

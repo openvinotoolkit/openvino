@@ -24,35 +24,6 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-// ------------------------------- v0 ------------------------------------------
-
-constexpr NodeTypeInfo op::v0::Add::type_info;
-
-op::v0::Add::Add(const Output<Node>& arg0,
-                 const Output<Node>& arg1,
-                 const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v0::Add::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<op::v0::Add>(new_args.at(0), new_args.at(1), this->get_autob());
-}
-
-bool op::v0::Add::visit_attributes(AttributeVisitor& visitor)
-{
-    BinaryElementwiseArithmetic::visit_attributes(visitor);
-    return true;
-}
-
-shared_ptr<Node> ngraph::operator+(const Output<Node>& arg0, const Output<Node>& arg1)
-{
-    return make_shared<op::Add>(arg0, arg1);
-}
-
 namespace add
 {
     template <element::Type_t ET>
@@ -105,12 +76,6 @@ namespace add
         }
         return rc;
     }
-}
-
-bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Add::evaluate");
-    return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 // ------------------------------- v1 ------------------------------------------

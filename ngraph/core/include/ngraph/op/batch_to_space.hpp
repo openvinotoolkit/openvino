@@ -54,6 +54,8 @@ namespace ngraph
                              const Output<Node>& block_shape,
                              const Output<Node>& crops_begin,
                              const Output<Node>& crops_end);
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
 
                 void validate_and_infer_types() override;
                 std::shared_ptr<Node>

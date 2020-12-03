@@ -52,7 +52,7 @@ void SoftsignTest::SetUp() {
     auto abs = std::make_shared<ngraph::op::Abs>(params[0]);
     auto add = std::make_shared<ngraph::op::PowerIE>(abs, 1, 1, 1);
     auto power = std::make_shared<ngraph::op::PowerIE>(add, -1, 1, 0);
-    auto mul = std::make_shared<ngraph::op::Multiply>(power, params[0]);
+    auto mul = std::make_shared<ngraph::op::v1::Multiply>(power, params[0]);
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(mul) };
     function = std::make_shared<ngraph::Function>(results, params, "SoftSignTest");
 }
@@ -75,10 +75,10 @@ std::shared_ptr<ngraph::Function> SoftsignTest::GenerateNgraphFriendlySoftSign()
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
     auto abs = std::make_shared<ngraph::op::Abs>(params[0]);
     auto constant_0 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { 1 });
-    auto add = std::make_shared<ngraph::op::Add>(abs, constant_0);
+    auto add = std::make_shared<ngraph::op::v1::Add>(abs, constant_0);
     auto constant_1 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, { -1 });
-    auto power = std::make_shared<ngraph::op::Power>(add, constant_1);
-    auto mul = std::make_shared<ngraph::op::Multiply>(power, params[0]);
+    auto power = std::make_shared<ngraph::op::v1::Power>(add, constant_1);
+    auto mul = std::make_shared<ngraph::op::v1::Multiply>(power, params[0]);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(mul) };
     return std::make_shared<ngraph::Function>(results, params, "SoftSignTest");

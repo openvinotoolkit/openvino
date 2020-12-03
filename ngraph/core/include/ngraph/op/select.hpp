@@ -22,51 +22,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            // clang-format off
-            /// \brief Elementwise selection operation.
-            ///
-            /// ## Inputs
-            ///
-            /// |        | Type                                          | Description                                                  |
-            /// | ------ | --------------------------------------------- | ------------------------------------------------------------ |
-            /// | `arg0` | \f$\texttt{bool}[d_1,\dots,d_n]~(n \geq 0)\f$ | A tensor of any shape, with element `bool`.                  |
-            /// | `arg1` | \f$E[d_1,\dots,d_n]~(n \geq 0)\f$             | A tensor of the same shape as `arg0`, with any element type. |
-            /// | `arg2` | \f$E[d_1,\dots,d_n]~(n \geq 0)\f$             | A tensor of the same shape and element type as `arg1`.       |
-            ///
-            /// ## Output
-            ///
-            /// | Type                   | Description                                                                                                                                                             |
-            /// | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-            /// | \f$E[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg1}[i_1,\dots,i_n]\text{ if }\texttt{arg0}[i_1,\dots,i_n] \neq 0\text{, else }\texttt{arg2}[i_1,\dots,i_n]\f$ |
-            // clang-format on
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. "
-                "Use v1::Select instead of it.") NGRAPH_API Select : public Op
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                static constexpr NodeTypeInfo type_info{"Select", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a selection operation.
-                Select() = default;
-                /// \brief Constructs a selection operation.
-                ///
-                /// \param arg0 Node that produces the first input tensor.
-                /// \param arg1 Node that produces the second input tensor.
-                /// \param arg2 Node that produces the third input tensor.
-                Select(const Output<Node>& arg0,
-                       const Output<Node>& arg1,
-                       const Output<Node>& arg2);
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-                void validate_and_infer_types() override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-        } // namespace v0
-
         namespace v1
         {
             // clang-format off
@@ -129,8 +84,5 @@ namespace ngraph
                 AutoBroadcastSpec m_auto_broadcast;
             };
         } // namespace v1
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Select;
-        NGRAPH_SUPPRESS_DEPRECATED_END
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph

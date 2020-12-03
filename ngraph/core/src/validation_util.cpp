@@ -1145,7 +1145,6 @@ pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
         {op::v0::Constant::type_info, exec_constant},
         {op::v0::Convert::type_info, exec_nop},
         {op::v1::Gather::type_info, exec_gather},
-        {op::v0::Minimum::type_info, exec_minimum},
         {op::v1::Minimum::type_info, exec_minimum},
         {op::v1::ReduceMin::type_info, exec_reduce_min},
         {op::v1::Reshape::type_info, exec_nop},

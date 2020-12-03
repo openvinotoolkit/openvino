@@ -16,12 +16,16 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <numeric>
 
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/space_to_batch.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/shape.hpp"
+
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "ngraph/runtime/reference/pad.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -133,5 +137,134 @@ std::shared_ptr<Node>
 
 bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& visitor)
 {
+    return true;
+}
+
+bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
+                                            const HostTensorVector& inputs) const
+{
+    const auto& data = inputs[0];
+    const auto& out = outputs[0];
+    const auto& out_shape = out->get_shape();
+    size_t elem_size = data->get_element_type().size();
+
+    if (data->get_partial_shape().is_dynamic())
+    {
+        return false;
+    }
+    auto data_shape = data->get_shape();
+
+    if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5))
+    {
+        return false;
+    }
+
+    size_t block_values_size = shape_size(inputs[1]->get_shape());
+    const auto* block_values = inputs[1]->get_data_ptr<int64_t>();
+    const auto* pads_begin = inputs[2]->get_data_ptr<int64_t>();
+    const auto* pads_end = inputs[3]->get_data_ptr<int64_t>();
+
+    const char* pad_value = nullptr;
+    const std::vector<char> pad_zero_value(elem_size, 0);
+    if (inputs.size() == 4)
+    {
+        pad_value = inputs[3]->get_data_ptr<char>();
+    }
+    else
+    {
+        pad_value = pad_zero_value.data();
+    }
+    CoordinateDiff pads_begin_vec(shape_size(inputs[2]->get_shape()));
+    pads_begin_vec.assign(pads_begin, pads_begin + shape_size(inputs[2]->get_shape()));
+    CoordinateDiff pads_end_vec(shape_size(inputs[2]->get_shape()));
+    pads_end_vec.assign(pads_end, pads_end + shape_size(inputs[2]->get_shape()));
+
+    Shape padded_shape(data_shape.size());
+    for (size_t i = 0; i < data_shape.size(); ++i)
+    {
+        padded_shape[i] = data_shape[i] + pads_begin_vec[i] + pads_end_vec[i];
+    }
+
+    std::vector<char> padded_data(shape_size(padded_shape) * elem_size);
+    ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
+                                    pad_value,
+                                    padded_data.data(),
+                                    elem_size,
+                                    data_shape,
+                                    padded_shape,
+                                    pads_begin_vec,
+                                    pads_end_vec,
+                                    ngraph::op::PadMode::CONSTANT);
+    data_shape = padded_shape;
+
+    Shape dispersed_shape(block_values_size + 1);
+    std::vector<size_t> axes_order(block_values_size + 1);
+    Shape squeezed_shape(data_shape.begin(), data_shape.end());
+    std::vector<size_t> plain_axes_order(block_values_size + 1);
+    std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
+
+    std::vector<char> flat_data(padded_data.begin(), padded_data.end());
+    std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
+    std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
+
+    for (int64_t block_idx = block_values_size - 1; block_idx >= 0; --block_idx)
+    {
+        int64_t sq_shape_idx = block_values_size - 1;
+        int64_t axis_idx = axes_order.size() - 1;
+        for (int64_t shape_idx = dispersed_shape.size() - 1; shape_idx >= 0; --shape_idx)
+        {
+            if (shape_idx == (block_idx + 1))
+            {
+                dispersed_shape[shape_idx] = block_values[block_idx];
+                axes_order[0] = shape_idx;
+            }
+            else if (shape_idx == block_idx)
+            {
+                dispersed_shape[shape_idx] = squeezed_shape[sq_shape_idx] / block_values[block_idx];
+                axes_order[axis_idx] = shape_idx;
+                axis_idx--;
+                sq_shape_idx--;
+            }
+            else
+            {
+                dispersed_shape[shape_idx] = squeezed_shape[sq_shape_idx];
+                axes_order[axis_idx] = shape_idx;
+                axis_idx--;
+                sq_shape_idx--;
+            }
+        }
+
+        runtime::opt_kernel::reshape(flat_data.data(),
+                                     dispersed_data.data(),
+                                     data_shape,
+                                     plain_axes_order,
+                                     dispersed_shape,
+                                     elem_size);
+        Shape post_transpose_shape(axes_order.size());
+        for (size_t i = 0; i < axes_order.size(); ++i)
+        {
+            post_transpose_shape[i] = dispersed_shape[axes_order[i]];
+        }
+
+        runtime::opt_kernel::reshape(dispersed_data.data(),
+                                     post_transpose_data.data(),
+                                     dispersed_shape,
+                                     axes_order,
+                                     post_transpose_shape,
+                                     elem_size);
+        squeezed_shape[0] *= block_values[block_idx];
+        squeezed_shape[block_idx] /= block_values[block_idx];
+
+        runtime::opt_kernel::reshape(post_transpose_data.data(),
+                                     flat_data.data(),
+                                     post_transpose_shape,
+                                     plain_axes_order,
+                                     squeezed_shape,
+                                     elem_size);
+        data_shape = squeezed_shape;
+    }
+
+    out->write(flat_data.data(), elem_size * shape_size(out->get_shape()));
+
     return true;
 }

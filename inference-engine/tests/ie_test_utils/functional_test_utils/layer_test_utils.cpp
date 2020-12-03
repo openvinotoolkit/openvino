@@ -370,17 +370,6 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
             // reference inference on device with other options and nGraph function has to be implemented here
             break;
         }
-        case INTERPRETER_TRANSFORMATIONS: {
-            auto cloned_function = ngraph::clone_function(*function);
-
-            // todo: add functionality to configure the necessary transformations for each test separately
-            ngraph::pass::Manager m;
-            m.register_pass<ngraph::pass::ConvertSpaceToBatch>();
-            m.register_pass<ngraph::pass::ConvertBatchToSpace>();
-            m.run_passes(cloned_function);
-            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, inType, convertType);
-            break;
-        }
     }
 
     return expectedOutputs;

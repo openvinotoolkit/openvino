@@ -23,8 +23,6 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -35,7 +33,7 @@ NGRAPH_TEST(${BACKEND_NAME}, node_name)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto C = A + B;
+    auto C = std::make_shared<ngraph::op::v1::Add>(A, B);
     C->set_friendly_name("a node name");
     auto f = make_shared<Function>(C, ParameterVector{A, B});
 

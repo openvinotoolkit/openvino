@@ -88,6 +88,7 @@ std::shared_ptr<runtime::Backend> runtime::Backend::create(const string& t,
     {
         return make_shared<runtime::dynamic::DynamicBackend>(inner_backend);
     }
+    return inner_backend;
 }
 
 vector<string> runtime::Backend::get_registered_devices()

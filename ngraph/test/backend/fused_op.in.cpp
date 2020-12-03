@@ -36,7 +36,6 @@
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
-#include "op/group_conv.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"
@@ -168,218 +167,6 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, group_conv)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{1, 1},
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1},
-                                                            2);
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(Shape{1, 2, 2, 2},
-                                         vector<float>{11, 14, 17, 20, 79, 86, 93, 100});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, group_conv_striding)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{2, 2},
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1},
-                                                            2);
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(Shape{1, 2, 1, 1}, vector<float>{11, 79});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, group_conv_window_dilation)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{1, 1},
-                                                            Strides{2, 2},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1},
-                                                            2);
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(Shape{1, 2, 2, 2},
-                                         vector<float>{11, 14, 17, 20, 79, 86, 93, 100});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, group_conv_data_dilation)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{1, 1},
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{2, 2},
-                                                            2);
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 3, 3},
-        vector<float>{11, 0, 14, 0, 0, 0, 17, 0, 20, 79, 0, 86, 0, 0, 0, 93, 0, 100});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, group_conv_padding)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{1, 1},
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{1, 0},
-                                                            CoordinateDiff{0, 1},
-                                                            Strides{1, 1},
-                                                            2);
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 3, 3},
-        vector<float>{0, 0, 0, 11, 14, 0, 17, 20, 0, 0, 0, 0, 79, 86, 0, 93, 100, 0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, group_conv_padding_and_window_dilation)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{1, 1},
-                                                            Strides{2, 2},
-                                                            CoordinateDiff{1, 0},
-                                                            CoordinateDiff{0, 1},
-                                                            Strides{1, 1},
-                                                            2);
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 3, 3},
-        vector<float>{0, 0, 0, 11, 14, 0, 17, 20, 0, 0, 0, 0, 79, 86, 0, 93, 100, 0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, group_conv_input_shape_variation)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 4, 1});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{1, 1},
-                                                            Strides{2, 2},
-                                                            CoordinateDiff{1, 0},
-                                                            CoordinateDiff{0, 1},
-                                                            Strides{1, 1},
-                                                            2);
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 5, 2},
-        vector<float>{0, 0, 11, 0, 14, 0, 17, 0, 20, 0, 0, 0, 79, 0, 86, 0, 93, 0, 100, 0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, group_conv_input_data_variation)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 3, 3});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{1, 1},
-                                                            Strides{2, 2},
-                                                            CoordinateDiff{1, 0},
-                                                            CoordinateDiff{0, 1},
-                                                            Strides{1, 1},
-                                                            2);
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18,
-                         19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 4, 4},
-        vector<float>{0, 0, 0, 0, 21,  24,  27,  0, 30,  33,  36,  0, 39,  42,  45,  0,
-                      0, 0, 0, 0, 169, 176, 183, 0, 190, 197, 204, 0, 211, 218, 225, 0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, group_conv_groups_included_in_shape)
-{
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 1, 2, 1, 1});
-    auto group_conv = make_shared<op::v0::GroupConvolution>(data,
-                                                            filters,
-                                                            Strides{1, 1},
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
-    auto f = make_shared<Function>(NodeVector{group_conv}, ParameterVector{data, filters});
-    std::vector<float> a{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    std::vector<float> b{1, 2, 3, 4};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(Shape{1, 2, 2, 2},
-                                         vector<float>{11, 14, 17, 20, 79, 86, 93, 100});
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_block_first)
 {
     auto A = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 4, 4});
@@ -456,8 +243,8 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
                             7.f,  23.f, 12.f, 28.f, 14.f, 30.f, 13.f, 29.f, 15.f, 31.f});
     test_case.run();
 }
-
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_chw_4d)
+// TODO: Issue: 37521
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -485,7 +272,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_chw_4d)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_empty_axes_input)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_empty_axes_input)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -513,7 +300,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_empty_axes_input)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_h_4d)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_h_4d)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -539,7 +326,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_h_4d)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_1axis_5d)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_1axis_5d)
 {
     Shape data_shape{1, 2, 2, 2, 3};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -565,7 +352,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_1axis_5d)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_123axes_5d)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_123axes_5d)
 {
     Shape data_shape{1, 2, 2, 2, 3};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -592,7 +379,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_123axes_5d)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_c_2x2_shape)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x2_shape)
 {
     Shape data_shape{2, 2};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -616,7 +403,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_c_2x2_shape)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_c_2x4_shape)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x4_shape)
 {
     Shape data_shape{2, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -647,7 +434,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_c_2x4_shape)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, normalize_across_chw_4d_max_bias)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d_max_bias)
 {
     Shape data_shape{1, 2, 3, 4};
     auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -1382,7 +1169,6 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
 
     test_case.run();
 }
-
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_shared_across_channel_batch_size_2)
 {
     Shape data_shape{2, 2, 5};
@@ -1453,7 +1239,7 @@ NGRAPH_TEST(${BACKEND_NAME}, grn_4d)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, grn_2d_with_bias)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_2d_with_bias)
 {
     const Shape data_shape{3, 4};
     const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
@@ -1599,7 +1385,8 @@ NGRAPH_TEST(${BACKEND_NAME}, squeeze_dynamic)
     EXPECT_THROW(make_shared<op::Squeeze>(data_param, axes_param), CheckFailure);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squared_difference)
+// TODO: Issue: 37534
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference)
 {
     const auto x1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
     const auto x2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
@@ -1615,7 +1402,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squared_difference_broadcast)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference_broadcast)
 {
     const auto x1 = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 2});
     const auto x2 = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
@@ -1631,7 +1418,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference_broadcast)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_zero_bias_peepholes)
+NGRAPH_TEST(${BACKEND_NAME}, lstm_cell__zero_bias_peepholes)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -1709,7 +1496,8 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_zero_bias_peepholes)
     ct_test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
+// Peerholes unsupported in Ngraph
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -1799,7 +1587,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes)
     ct_test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes_clip_input_forget)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -1900,7 +1688,8 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_peepholes_clip_input_forget)
     ct_test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
+// Hard Sigmoid is unsupprted
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__activaction_functions)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -2004,7 +1793,8 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_activaction_functions)
     ct_test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, fake_quantize)
+// TODO: Issue: 37511
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize)
 {
     const Shape data_shape{1, 2, 3, 4};
     const size_t levels = 4;
@@ -2047,7 +1837,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_with_clip)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize_with_clip)
 {
     const Shape data_shape{1, 2, 3, 4};
     const size_t levels = 5;
@@ -2087,7 +1877,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_with_clip)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_with_clip_across_channels)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize_with_clip_across_channels)
 {
     Shape data_shape{1, 2, 5, 5};
     size_t levels = 5;
@@ -2130,7 +1920,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_with_clip_across_channels)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_pdpd)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize_pdpd)
 {
     Shape data_shape{1, 2, 5, 5};
     size_t levels = 5;
@@ -2179,7 +1969,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_pdpd)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_no_bias)
+NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__no_bias)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -2230,7 +2020,7 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_no_bias)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_bias_clip)
+NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__bias_clip)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;
@@ -2294,7 +2084,7 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_bias_clip)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, rnn_cell_activation_function)
+NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__activation_function)
 {
     const size_t batch_size = 2;
     const size_t input_size = 3;

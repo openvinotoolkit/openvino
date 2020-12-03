@@ -28,7 +28,7 @@ TEST(type_prop, select_deduce)
     auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
     auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
-    auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
+    auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
     ASSERT_EQ(bc->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(bc->get_shape(), (Shape{2, 4}));
 }
@@ -40,7 +40,7 @@ TEST(type_prop, select_shape_mismatch_a)
     auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     try
     {
-        auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
+        auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     }
@@ -61,7 +61,7 @@ TEST(type_prop, select_shape_mismatch_b)
     auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     try
     {
-        auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
+        auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     }
@@ -82,7 +82,7 @@ TEST(type_prop, select_shape_mismatch_c)
     auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 5});
     try
     {
-        auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
+        auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     }
@@ -103,7 +103,7 @@ TEST(type_prop, select_elem_mismatch_a)
     auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
     try
     {
-        auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
+        auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     }
@@ -125,14 +125,14 @@ TEST(type_prop, select_elem_mismatch_bc)
     auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 4});
     try
     {
-        auto bc = make_shared<op::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
+        auto bc = make_shared<op::v1::Select>(tv0_2_4_param_0, tv0_2_4_param_1, tv0_2_4_param_2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Argument 1 and 2 element types are inconsistent"));
+                             std::string("Argument 1 and 2 element types must match"));
     }
     catch (...)
     {
@@ -146,7 +146,7 @@ TEST(type_prop, select_partial_all_rank_dynamic)
     auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
-    auto sel = make_shared<op::Select>(param0, param1, param2);
+    auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
     ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
@@ -160,14 +160,14 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_et_dynamic_arg1_arg2_et_mis
 
     try
     {
-        auto sel = make_shared<op::Select>(param0, param1, param2);
+        auto sel = make_shared<op::v1::Select>(param0, param1, param2);
         FAIL() << "Did not detect mismatched element types for args 1 and 2 (element type-dynamic "
                   "arg0)";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Argument 1 and 2 element types are inconsistent"));
+                             std::string("Argument 1 and 2 element types must match"));
     }
     catch (...)
     {
@@ -181,7 +181,7 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_et_dynamic)
     auto param1 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
     auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
 
-    auto sel = make_shared<op::Select>(param0, param1, param2);
+    auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
     ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
@@ -193,7 +193,7 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg2_et_dynamic)
     auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto param2 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
 
-    auto sel = make_shared<op::Select>(param0, param1, param2);
+    auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
     ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
@@ -205,52 +205,10 @@ TEST(type_prop, select_partial_all_rank_dynamic_arg0_arg1_arg2_et_dynamic)
     auto param1 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
     auto param2 = make_shared<op::Parameter>(element::Type_t::dynamic, PartialShape::dynamic());
 
-    auto sel = make_shared<op::Select>(param0, param1, param2);
+    auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
     ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::dynamic);
     ASSERT_TRUE(sel->get_output_partial_shape(0).rank().is_dynamic());
-}
-
-TEST(type_prop, select_partial_arg0_rank_dynamic_static_arg1_arg2_rank_dynamic_ok)
-{
-    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean,
-                                             PartialShape{2, Dimension::dynamic(), 3});
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-
-    auto sel = make_shared<op::Select>(param0, param1, param2);
-
-    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
-    ASSERT_TRUE(
-        sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
-}
-
-TEST(type_prop, select_partial_arg1_rank_dynamic_static_arg0_arg2_rank_dynamic_ok)
-{
-    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean, PartialShape::dynamic());
-    auto param1 =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
-    auto param2 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-
-    auto sel = make_shared<op::Select>(param0, param1, param2);
-
-    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
-    ASSERT_TRUE(
-        sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
-}
-
-TEST(type_prop, select_partial_arg2_rank_dynamic_static_arg0_arg1_rank_dynamic_ok)
-{
-    auto param0 = make_shared<op::Parameter>(element::Type_t::boolean, PartialShape::dynamic());
-    auto param1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto param2 =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
-
-    auto sel = make_shared<op::Select>(param0, param1, param2);
-
-    ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
-    ASSERT_TRUE(
-        sel->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
 }
 
 TEST(type_prop, select_partial_all_rank_static_dynamic_ok)
@@ -262,7 +220,7 @@ TEST(type_prop, select_partial_all_rank_static_dynamic_ok)
     auto param2 = make_shared<op::Parameter>(
         element::Type_t::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3});
 
-    auto sel = make_shared<op::Select>(param0, param1, param2);
+    auto sel = make_shared<op::v1::Select>(param0, param1, param2);
 
     ASSERT_EQ(sel->get_output_element_type(0), element::Type_t::f32);
     ASSERT_TRUE(sel->get_output_partial_shape(0).is_static());
@@ -280,7 +238,7 @@ TEST(type_prop, select_partial_all_rank_static_intransitive_incompatibility)
 
     try
     {
-        auto sel = make_shared<op::Select>(param0, param1, param2);
+        auto sel = make_shared<op::v1::Select>(param0, param1, param2);
         FAIL() << "Did not detect intransitive partial-shape incompatibility";
     }
     catch (const NodeValidationFailure& error)

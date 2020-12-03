@@ -37,7 +37,7 @@ NGRAPH_TEST(${BACKEND_NAME}, select)
     auto A = make_shared<op::Parameter>(element::Type_t::boolean, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Select>(A, B, C), ParameterVector{A, B, C});
+    auto f = make_shared<Function>(make_shared<op::v1::Select>(A, B, C), ParameterVector{A, B, C});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -87,7 +87,7 @@ NGRAPH_TEST(${BACKEND_NAME}, select_double)
     auto A = make_shared<op::Parameter>(element::Type_t::boolean, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f64, shape);
     auto C = make_shared<op::Parameter>(element::Type_t::f64, shape);
-    auto f = make_shared<Function>(make_shared<op::Select>(A, B, C), ParameterVector{A, B, C});
+    auto f = make_shared<Function>(make_shared<op::v1::Select>(A, B, C), ParameterVector{A, B, C});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
