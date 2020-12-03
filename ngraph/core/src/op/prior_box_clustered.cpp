@@ -80,11 +80,11 @@ void op::PriorBoxClustered::validate_and_infer_types()
         // {Prior boxes, variances-adjusted prior boxes}
         const auto num_priors = m_attrs.widths.size();
         set_output_type(
-            0, element::f32, Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
+            0, element::Type_t::f32, Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
     }
     else
     {
-        set_output_type(0, element::f32, PartialShape::dynamic());
+        set_output_type(0, element::Type_t::f32, PartialShape::dynamic());
     }
 }
 

@@ -26,6 +26,7 @@
 using namespace ngraph;
 using namespace std;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 const element::Type element::undefined(element::Type_t::undefined);
 const element::Type element::dynamic(element::Type_t::dynamic);
 const element::Type element::boolean(element::Type_t::boolean);
@@ -42,6 +43,7 @@ const element::Type element::u8(element::Type_t::u8);
 const element::Type element::u16(element::Type_t::u16);
 const element::Type element::u32(element::Type_t::u32);
 const element::Type element::u64(element::Type_t::u64);
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type>::type_info;
 
@@ -102,26 +104,6 @@ static const element_types_map_t& get_type_info_map()
     return s_type_info_map;
 };
 
-std::vector<const element::Type*> element::Type::get_known_types()
-{
-    std::vector<const element::Type*> rc = {&element::dynamic,
-                                            &element::boolean,
-                                            &element::bf16,
-                                            &element::f16,
-                                            &element::f32,
-                                            &element::f64,
-                                            &element::i8,
-                                            &element::i16,
-                                            &element::i32,
-                                            &element::i64,
-                                            &element::u1,
-                                            &element::u8,
-                                            &element::u16,
-                                            &element::u32,
-                                            &element::u64};
-    return rc;
-}
-
 element::Type::Type(size_t bitwidth,
                     bool is_real,
                     bool is_signed,
@@ -143,6 +125,11 @@ element::Type::Type(size_t bitwidth,
 const std::string& element::Type::c_type_string() const
 {
     return get_type_info_map().at(m_type).m_cname;
+}
+
+bool element::Type::operator==(const element::Type_t& other) const
+{
+    return m_type == other;
 }
 
 bool element::Type::operator==(const element::Type& other) const
@@ -292,7 +279,7 @@ bool element::Type::is_real() const
 
 bool element::Type::is_integral_number() const
 {
-    return is_integral() && (m_type != element::boolean);
+    return is_integral() && (m_type != element::Type_t::boolean);
 }
 
 bool element::Type::is_signed() const

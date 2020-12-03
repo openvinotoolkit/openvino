@@ -44,8 +44,10 @@ SizeVector  SetDimVector(BatchNum batchNum, ChannelNum channelNum, Dims dims) {
 InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision, SizeVector dimsVector, InferenceEngine::Layout layout) {
     InferenceEngine::TensorDesc tensorDesc(precision, dimsVector, layout);
     switch (precision) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
              return make_shared_blob<float>(tensorDesc);
+        case  InferenceEngine::Precision::FP64:
+             return make_shared_blob<double>(tensorDesc);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -115,8 +117,10 @@ void FillBlobRandom(Blob::Ptr& inputBlob) {
 void FillBlob(Blob::Ptr& inputBlob) {
     auto precision = inputBlob->getTensorDesc().getPrecision();
     switch (precision) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
             return FillBlobRandom<float>(inputBlob);
+        case  InferenceEngine::Precision::FP64:
+            return FillBlobRandom<double>(inputBlob);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -203,8 +207,10 @@ bool IsCorrectBlobCopy_Impl(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
 
 bool IsCorrectBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     switch (srcBlob->getTensorDesc().getPrecision()) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
             return IsCorrectBlobCopy_Impl<float>(srcBlob, dstBlob);
+        case  InferenceEngine::Precision::FP64:
+            return IsCorrectBlobCopy_Impl<double>(srcBlob, dstBlob);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -264,7 +270,7 @@ TEST_P(BlobCopyTest, BlobCopy) {
 
     std::cout << "Blob_copy execution time : " << std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() << " micros" << std::endl;
 
-    ASSERT_TRUE(IsCorrectBlobCopy(srcBlob, dstBlob)) << "'blob_copy' function is't correct";
+    ASSERT_TRUE(IsCorrectBlobCopy(srcBlob, dstBlob)) << "'blob_copy' function is not correct";
 }
 
 namespace {
@@ -332,6 +338,8 @@ bool IsEqualBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     switch (srcBlob->getTensorDesc().getPrecision()) {
     case InferenceEngine::Precision::FP32:
         return IsEqualBlobCopy_Impl<float>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::FP64:
+        return IsEqualBlobCopy_Impl<double>(srcBlob, dstBlob);
     case InferenceEngine::Precision::FP16:
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::Q78:
@@ -381,6 +389,8 @@ void copy3DBlobsAllBytesWithReLayoutWrapper(const Blob::Ptr& srcLayoutBlob, Blob
     switch (precision) {
     case InferenceEngine::Precision::FP32:
         return copy3DBlobsAllBytesWithReLayout<float>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::FP64:
+        return copy3DBlobsAllBytesWithReLayout<double>(srcLayoutBlob, trgLayoutBlob);
     case InferenceEngine::Precision::FP16:
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::Q78:

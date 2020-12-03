@@ -44,10 +44,12 @@ void check_strided_slice_success(const element::Type& input_element_type,
                                  const std::vector<T>& expected_values)
 {
     auto arg = std::make_shared<op::Parameter>(input_element_type, input_shape);
-    auto begin_op = make_shared<ngraph::op::Parameter>(element::i64, Shape{begin_values.size()});
-    auto end_op = make_shared<ngraph::op::Parameter>(element::i64, Shape{end_values.size()});
+    auto begin_op =
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{begin_values.size()});
+    auto end_op =
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{end_values.size()});
     auto strides_op =
-        make_shared<ngraph::op::Parameter>(element::i64, Shape{strides_values.size()});
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{strides_values.size()});
 
     std::vector<T> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), static_cast<T>(0));
@@ -69,9 +71,10 @@ void check_strided_slice_success(const element::Type& input_element_type,
     auto ex = backend->compile(f);
 
     auto arg_tensor = backend->create_tensor(input_element_type, input_shape);
-    auto begin_tensor = backend->create_tensor(element::i64, Shape{begin_values.size()});
-    auto end_tensor = backend->create_tensor(element::i64, Shape{end_values.size()});
-    auto strides_tensor = backend->create_tensor(element::i64, Shape{strides_values.size()});
+    auto begin_tensor = backend->create_tensor(element::Type_t::i64, Shape{begin_values.size()});
+    auto end_tensor = backend->create_tensor(element::Type_t::i64, Shape{end_values.size()});
+    auto strides_tensor =
+        backend->create_tensor(element::Type_t::i64, Shape{strides_values.size()});
     copy_data(arg_tensor, input_values);
     copy_data(begin_tensor, begin_values);
     copy_data(end_tensor, end_values);
@@ -103,8 +106,10 @@ void check_strided_slice_stride_optional_success(const element::Type& input_elem
                                                  const std::vector<T>& expected_values)
 {
     auto arg = std::make_shared<op::Parameter>(input_element_type, input_shape);
-    auto begin_op = make_shared<ngraph::op::Parameter>(element::i64, Shape{begin_values.size()});
-    auto end_op = make_shared<ngraph::op::Parameter>(element::i64, Shape{end_values.size()});
+    auto begin_op =
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{begin_values.size()});
+    auto end_op =
+        make_shared<ngraph::op::Parameter>(element::Type_t::i64, Shape{end_values.size()});
 
     std::vector<T> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), static_cast<T>(0));
@@ -125,8 +130,8 @@ void check_strided_slice_stride_optional_success(const element::Type& input_elem
     auto ex = backend->compile(f);
 
     auto arg_tensor = backend->create_tensor(input_element_type, input_shape);
-    auto begin_tensor = backend->create_tensor(element::i64, Shape{begin_values.size()});
-    auto end_tensor = backend->create_tensor(element::i64, Shape{end_values.size()});
+    auto begin_tensor = backend->create_tensor(element::Type_t::i64, Shape{begin_values.size()});
+    auto end_tensor = backend->create_tensor(element::Type_t::i64, Shape{end_values.size()});
     copy_data(arg_tensor, input_values);
     copy_data(begin_tensor, begin_values);
     copy_data(end_tensor, end_values);
@@ -150,7 +155,7 @@ void check_strided_slice_stride_optional_success(const element::Type& input_elem
 NGRAPH_TEST(${BACKEND_NAME}, strided_slice_0)
 {
     check_strided_slice_success<uint32_t>(
-        element::u32,
+        element::Type_t::u32,
         Shape{2, 3, 4},
         std::vector<int64_t>{1, 0},
         std::vector<int64_t>{0, 0},
@@ -171,7 +176,7 @@ NGRAPH_TEST(${BACKEND_NAME}, strided_slice_0)
 NGRAPH_TEST(${BACKEND_NAME}, strided_slice_1)
 {
     check_strided_slice_success<uint32_t>(
-        element::u32,
+        element::Type_t::u32,
         Shape{2, 4, 6, 8, 2, 2, 2},
         std::vector<int64_t>{0, 0, 2, 7, 0, 0, 1},
         std::vector<int64_t>{0, 4, 6, 3, 0, 0, 0},
@@ -201,7 +206,7 @@ NGRAPH_TEST(${BACKEND_NAME}, strided_slice_1)
 // expected output shape is Shape{1,4}
 NGRAPH_TEST(${BACKEND_NAME}, strided_slice_stride_optional)
 {
-    check_strided_slice_stride_optional_success<uint32_t>(element::u32,
+    check_strided_slice_stride_optional_success<uint32_t>(element::Type_t::u32,
                                                           Shape{2, 3, 4},
                                                           std::vector<int64_t>{-1, -1, 0},
                                                           std::vector<int64_t>{0, 0, 0},

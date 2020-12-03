@@ -78,9 +78,9 @@
 
 **Mathematical Formulation**
 
-    \f[
-    output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
-    \f]
+\f[
+output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
+\f]
 
 **Example**
 

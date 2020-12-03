@@ -39,7 +39,7 @@ namespace ngraph
                     std::vector<std::size_t> normalized_axes =
                         ngraph::normalize_axes(node.get_description(), axes, data_rank);
                     auto axes_node = std::make_shared<default_opset::Constant>(
-                        element::u64, Shape{normalized_axes.size()}, normalized_axes);
+                        element::Type_t::u64, Shape{normalized_axes.size()}, normalized_axes);
 
                     return {std::make_shared<default_opset::Squeeze>(data, axes_node)};
                 }
