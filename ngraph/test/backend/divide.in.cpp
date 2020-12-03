@@ -41,8 +41,6 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -54,7 +52,7 @@ NGRAPH_TEST(${BACKEND_NAME}, divide)
 
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Divide>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -76,7 +74,7 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_int32)
 
     auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Divide>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -98,7 +96,7 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_cpp_rounding_int32)
 
     auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Divide>(A, B, false), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B, false), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -120,7 +118,7 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_python_rounding_int32)
 
     auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Divide>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -142,7 +140,7 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_overload)
 
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(A / B, ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -164,7 +162,7 @@ NGRAPH_TEST(${BACKEND_NAME}, divide_by_zero_float32)
 
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Divide>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

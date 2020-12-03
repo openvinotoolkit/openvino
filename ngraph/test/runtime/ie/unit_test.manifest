@@ -1121,12 +1121,12 @@ IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
 
-# Next nine tests fails in CPU for the following reason. The nGraph function
-# for NMS-5 are passed to the method compile() of the backend, but this
-# method doesn't apply any nGraph transformations to the passed function,
-# and the plugin backend gets CNNNetwork with NMS-5, NMS-5 has dynamic shapes
-# for two of three outputs, and results of these two outputs are interpreted
-# as scalars. If we apply all needed nGraph transformations to the nGraph
+# RNN/LSTM Cells should be converted to IE representation
+IE_CPU.lstm_cell__zero_bias_peepholes
+IE_CPU.rnn_cell__no_bias
+IE_CPU.rnn_cell__bias_clip
+IE_CPU.rnn_cell__activation_function
+
 # function with NMS-5 to get the nGraph function with NMSIE3 (internal
 # operation, similar with NMS-5, but with all static output shapes), before
 # the method compile() call, then tests for INTERPRETER backend for NMS-5 will

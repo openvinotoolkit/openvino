@@ -537,7 +537,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Softmax>::createLayer(const std::sha
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Subtract>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr NodeConverter<ngraph::op::v1::Subtract>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Eltwise",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
