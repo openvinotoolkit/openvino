@@ -231,17 +231,14 @@ TEST(type_prop, eltwise_auto_bcast)
     test_binary_eltwise_numpy<op::v1::Divide>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Equal>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Greater>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::GreaterEqual>(element::f32,
-                                                    op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::GreaterEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Less>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::LessEqual>(element::f32,
-                                                 op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::LessEqual>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Maximum>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Minimum>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Multiply>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::NotEqual>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::LogicalOr>(element::boolean,
-                                                 op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::LogicalOr>(element::boolean, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Power>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Subtract>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Xor>(element::boolean, op::AutoBroadcastType::NUMPY);
@@ -289,10 +286,8 @@ TEST(type_prop, binary_elementwise_arithmetic_both_dynamic)
 TEST(type_prop,
      binary_elementwise_arithmetic_left_rank_static_dynamic_right_rank_static_dynamic_result_static)
 {
-    auto a =
-        make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 3});
-    auto b =
-        make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 3});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
     auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
@@ -305,8 +300,7 @@ TEST(
 {
     auto a = make_shared<op::Parameter>(
         element::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic()});
-    auto b =
-        make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
     auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).rank().is_static());
@@ -318,8 +312,7 @@ TEST(
 TEST(type_prop, binary_elementwise_arithmetic_left_static_right_rank_static_dynamic)
 {
     auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3});
-    auto b =
-        make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
     auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
@@ -328,8 +321,7 @@ TEST(type_prop, binary_elementwise_arithmetic_left_static_right_rank_static_dyna
 
 TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_right_static)
 {
-    auto a =
-        make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
     auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3});
     auto add = make_shared<op::v1::Add>(a, b);
 

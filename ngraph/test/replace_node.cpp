@@ -77,10 +77,8 @@ TEST(replace_node, replace_nodes)
     parameter_replacement_map[x] = x_replacement;
 
     unordered_map<shared_ptr<Node>, shared_ptr<Node>> body_replacement_map;
-    auto y_replacement =
-        make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{3, 4});
-    auto k_replacement =
-        make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{5, 6});
+    auto y_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{3, 4});
+    auto k_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{5, 6});
     auto z_replacement = make_shared<op::v1::Add>(x_replacement, mul);
     body_replacement_map[y] = y_replacement;
     body_replacement_map[k] = k_replacement;
