@@ -94,6 +94,193 @@ execute a custom operation. The custom operation extension is implemented accord
    operation description file (.xml) needed by the VPU Plugin for the custom operation kernel. Refer to the
    [How to Implement Custom Operations for VPU](../IE_DG/Extensibility_DG/VPU_Kernel.md) for more details.
 
+## Enabling Magnetic Resonance Image Reconstruction Model
+This chapter provides a step-by-step instruction on how to enable the magnetic resonance image Reconstruction model
+implemented in the [repository](https://github.com/rmsouza01/Hybrid-CS-Model-MRI/) using a custom operation on CPU. The
+example is prepared for a model generated from the repository with hash 2ede2f96161ce70dcdc922371fe6b6b254aafcc8.
+
+### Download and Convert the Model to a Frozen TensorFlow\* Model Format
+The original pre-trained model is provided in the hdf5 format which is not supported by OpenVINO directly and needs to
+be converted to TensorFlow\* frozen model format first.
+
+1. Download repository https://github.com/rmsouza01/Hybrid-CS-Model-MRI
+    ```bash
+    git clone https://github.com/rmsouza01/Hybrid-CS-Model-MRI
+    git checkout 2ede2f96161ce70dcdc922371fe6b6b254aafcc8
+    ```
+
+2. Convert pre-trained `.hdf5` to a frozen `.pb` graph using the following script (tested with TensorFlow==1.15.0 and
+Keras==2.2.4) which should be executed from the root of the cloned repository:
+    ```py
+    import keras as K
+    import numpy as np
+    import Modules.frequency_spatial_network as fsnet
+    import tensorflow as tf
+    
+    under_rate = '20'
+    
+    stats = np.load("Data/stats_fs_unet_norm_" + under_rate + ".npy")
+    var_sampling_mask = np.load("Data/sampling_mask_" + under_rate + "perc.npy")
+    
+    model = fsnet.wnet(stats[0], stats[1], stats[2], stats[3], kshape = (5,5), kshape2=(3,3))
+    model_name = "Models/wnet_" + under_rate + ".hdf5"
+    model.load_weights(model_name)
+    
+    inp = np.random.standard_normal([1, 256, 256, 2]).astype(np.float32)
+    np.save('inp', inp)
+    
+    sess = K.backend.get_session()
+    sess.as_default()
+    graph_def = sess.graph.as_graph_def()
+    graph_def = tf.graph_util.convert_variables_to_constants(sess, graph_def, ['conv2d_44/BiasAdd'])
+    with tf.gfile.FastGFile('wnet_20.pb', 'wb') as f:
+        f.write(graph_def.SerializeToString())    
+    ```
+   
+As a result the TensorFlow\* frozen model file "wnet_20.pb" is generated.
+
+### Convert the Frozen TensorFlow\* Model to Intermediate Representation
+
+Firstly, open the model in the TensorBoard or other TensorFlow* model visualization tool. The model supports dynamic
+batch dimension because the value for the batch dimension is not hardcoded in the model. Model Optimizer need to set all
+dynamic dimensions to some specific value to create the IR, therefore specify the command line parameter `-b 1` to set
+the batch dimension equal to 1. The actual batch size dimension can be changed at runtime using the Inference Engine API
+described in the [Using Shape Inference](../IE_DG/ShapeInference.md). Also refer to
+[Converting a Model Using General Conversion Parameters](../MO_DG/prepare_model/convert_model/Converting_Model_General.md)
+and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+for more details and command line parameters used for the model conversion.
+
+```bash
+./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
+```
+
+Model Optimizer produces the following error:
+```bash
+[ ERROR ]  List of operations that cannot be converted to Inference Engine IR:
+[ ERROR ]      Complex (1)
+[ ERROR ]          lambda_2/Complex
+[ ERROR ]      IFFT2D (1)
+[ ERROR ]          lambda_2/IFFT2D
+[ ERROR ]      ComplexAbs (1)
+[ ERROR ]          lambda_2/Abs
+[ ERROR ]  Part of the nodes was not converted to IR. Stopped.
+```
+
+The error means that the Model Optimizer doesn't know how to handle 3 types of TensorFlow\* operations: "Complex",
+"IFFT2D" and "ComplexAbs". In order to see more details about the conversion process run the model conversion with
+additional parameter `--log_level DEBUG`. It is worth to mention the following lines from the detailed output:
+
+```bash
+[ INFO ]  Called "tf_native_tf_node_infer" for node "lambda_2/Complex"
+[ <TIMESTAMP> ] [ DEBUG ] [ tf:228 ]  Added placeholder with name 'lambda_2/lambda_3/strided_slice_port_0_ie_placeholder'
+[ <TIMESTAMP> ] [ DEBUG ] [ tf:228 ]  Added placeholder with name 'lambda_2/lambda_4/strided_slice_port_0_ie_placeholder'
+[ <TIMESTAMP> ] [ DEBUG ] [ tf:241 ]  update_input_in_pbs: replace input 'lambda_2/lambda_3/strided_slice' with input 'lambda_2/lambda_3/strided_slice_port_0_ie_placeholder'
+[ <TIMESTAMP> ] [ DEBUG ] [ tf:249 ]  Replacing input '0' of the node 'lambda_2/Complex' with placeholder 'lambda_2/lambda_3/strided_slice_port_0_ie_placeholder'
+[ <TIMESTAMP> ] [ DEBUG ] [ tf:241 ]  update_input_in_pbs: replace input 'lambda_2/lambda_4/strided_slice' with input 'lambda_2/lambda_4/strided_slice_port_0_ie_placeholder'
+[ <TIMESTAMP> ] [ DEBUG ] [ tf:249 ]  Replacing input '1' of the node 'lambda_2/Complex' with placeholder 'lambda_2/lambda_4/strided_slice_port_0_ie_placeholder'
+[ <TIMESTAMP> ] [ DEBUG ] [ tf:148 ]  Inferred shape of the output tensor with index '0' of the node 'lambda_2/Complex': '[  1 256 256]'
+[ <TIMESTAMP> ] [ DEBUG ] [ infer:145 ]  Outputs:
+[ <TIMESTAMP> ] [ DEBUG ] [ infer:32 ]  output[0]: shape = [  1 256 256], value = <UNKNOWN>
+[ <TIMESTAMP> ] [ DEBUG ] [ infer:129 ]  --------------------
+[ <TIMESTAMP> ] [ DEBUG ] [ infer:130 ]  Partial infer for lambda_2/IFFT2D
+[ <TIMESTAMP> ] [ DEBUG ] [ infer:131 ]  Op: IFFT2D
+[ <TIMESTAMP> ] [ DEBUG ] [ infer:132 ]  Inputs:
+[ <TIMESTAMP> ] [ DEBUG ] [ infer:32 ]  input[0]: shape = [  1 256 256], value = <UNKNOWN>
+```
+
+This is a part of the log of the [Partial Inference](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#partial-inference)
+phase of the model conversion. Model Optimizer inferred output shape for the unknown operation of type "Complex" using a
+"fallback" to TensorFlow\*. However, it is not enough to generate the IR because Model Optimizer doesn't know which
+attributes of the operation should be saved to IR. So it is necessary to implement Model Optimizer extensions to support
+these operations.
+
+Before going into the extension development it is necessary to understand what these unsupported operations do according
+to the TensorFlow\* framework specification.
+
+* "Complex" - returns a tensor of complex type constructed from two real input tensors specifying real and imaginary
+part of a complex number.
+* "IFFT2D" - returns a tensor with inverse 2-dimensional discrete Fourier transform over the inner-most 2 dimensions of
+ an input.
+* "ComplexAbs" - returns a tensor with absolute values of input tensor with complex numbers.
+
+The part of the model with all three unsupported operations is depicted below:
+
+![Unsupported sub-graph](img/unsupported_subgraph.png)
+
+This model uses complex numbers during the inference but Inference Engine does not support tensors of this data type. So
+it is necessary to find a way how to avoid using tensors of such a type in the model. Fortunately, the complex tensor
+appear as a result of "Complex" operation, is used as input in the "IFFT2D" operation then is passed to "ComplexAbs"
+which produces real value tensor as output. So there are just 3 operations consuming/producing complex tensors in the
+model.
+
+Let's design an OpenVINO operation "FFT" which get a single real number tensor describing the complex number and
+produces a single real number tensor describing output complex tensor. This way the fact that the model uses complex
+numbers is hidden inside the "FFT" operation implementation. The operation gets a tensor of shape `[N, H, W, 2]` and
+produces the output tensor with the same shape, where the innermost dimension contains pairs of real numbers describing
+the complex number (its real and imaginary part). As we will see further this operation will allow us to support the
+model. The implementation of the Model Optimizer operation should be saved to `mo_extensions/ops/FFT.py` file:
+
+@snippet FFT.py fft:operation
+
+The attribute `inverse` is a flag specifying type of the FFT to apply: forward or inverse.
+
+Refer to the [Model Optimizer Operation](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#extension-operation)
+for the detailed instruction on how to implement the operation.
+
+Now it is necessary to implement extractor for the "IFFT2D" operation according to the
+[Operation Extractor](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#operation-extractor)
+document. The following snippet provides two extractors: one for "IFFT2D", another one for "FFT2D", however only on of
+them is used in this example. The implementation should be saved to the file `mo_extensions/front/tf/FFT_ext.py`.
+
+@snippet FFT_ext.py fft_ext:extractor
+
+> **NOTE:** The graph is in inconsistent state after extracting node attributes because according to original operation
+> "IFFT2D" semantic it should have an input consuming a tensor of complex numbers, but the extractor instantiated an
+> operation "FFT" which expects a real tensor with specific layout. But the inconsistency will be resolved during
+> applying front phase transformations discussed below.
+
+The output shape of the operation "AddV2" from the picture above is `[N, H, W, 2]`. Where the innermost dimension
+contains pairs of real numbers describing the complex number (its real and imaginary part). The following "StridedSlice"
+operations split the input tensor into 2 parts to get a tensor of real and a tensor of imaginary parts which are then
+consumed with the "Complex" operation to produce a tensor of complex numbers. These "StridedSlice" and "Complex"
+operations can be removed so the "FFT" operation will get a real value tensor encoding complex numbers. To achieve this
+we implement the front phase transformation which searches for a pattern of two "StridedSlice" operations with specific
+attributes producing data to "Complex" operation and removes it from the graph. Refer to the
+[Pattern-Defined Front Phase Transformations](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#pattern-defined-front-phase-transformations)]
+for more information on how this type of transformation works. The implementation should be saved to the file
+`mo_extensions/front/tf/Complex.py`.
+
+@snippet Complex.py complex:transformation
+
+> **NOTE:** The graph is in inconsistent state even more because the "ComplexAbs" operation consumes complex value
+> tensor but "FFT" produces real value tensor.
+
+Now lets implement a transformation which replace a "ComplexAbs" operation with a sub-graph of primitive operations
+which calculate the result using the following formulae: \f$module(z) = \sqrt{z.real * z.real + z.imag * z.imag}\f$.
+Original "IFFT2D" operation produces tensor of complex values but the "FFT" operation produces a real value tensor with
+the same format and shape as the input for the operation. So the input shape for the "ComplexAbs" will be `[N, H, W, 2]`
+with the innermost dimension containing tuple with real and imaginary part of a complex number. In order to calculate
+absolute values for the complex tensor we do the following:
+1. Raise all elements in the power of 2.0.
+2. Calculate a reduce sum over the last dimension.
+3. Take square root from the tensor.
+
+The implementation should be saved to the file `mo_extensions/front/tf/ComplexAbs.py` and provided below:
+
+@snippet ComplexAbs.py complex_abs:transformation
+
+Now it is possible to convert the model using the following command line:
+```bash
+    ./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
+```
+
+The sub-graph corresponding to the originally non-supported one is depicted on the image below:
+
+![Converted sub-graph](img/converted_subgraph.png)
+
+> **NOTE:** Model Optimizer performed conversion of the model from NHWC to NCHW layout that is why the dimension with
+> the value 2 moved to another position.
+
 ## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
