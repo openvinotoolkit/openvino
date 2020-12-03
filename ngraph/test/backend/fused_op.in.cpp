@@ -56,7 +56,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, elu)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{3, 2});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 2});
     auto elu = make_shared<op::Elu>(A, 0.5f);
     auto function = make_shared<Function>(NodeVector{elu}, ParameterVector{A});
 
@@ -69,7 +69,7 @@ NGRAPH_TEST(${BACKEND_NAME}, elu)
 
 NGRAPH_TEST(${BACKEND_NAME}, elu_negative_alpha)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{3, 2});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 2});
     auto elu = make_shared<op::Elu>(A, -1.f);
     auto function = make_shared<Function>(NodeVector{elu}, ParameterVector{A});
 
@@ -84,8 +84,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu)
 {
     Shape shape{3, 2};
     Shape rshape{3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, rshape);
     auto prelu = make_shared<op::PRelu>(A, B);
     auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
     std::vector<float> a{-2, 3, -2, 1, -1, 0};
@@ -102,7 +102,7 @@ NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
     const Shape shape{2, 7};
     const float alpha_f = 0.125f;
     const float beta_f = 0.642f;
-    const auto A = make_shared<op::Parameter>(element::f32, shape);
+    const auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     const auto alpha = op::Constant::create<float>(A->get_element_type(), Shape{}, {alpha_f});
     const auto beta = op::Constant::create<float>(A->get_element_type(), Shape{}, {beta_f});
     auto hardsigmoid = make_shared<op::HardSigmoid>(A, alpha, beta);
@@ -137,8 +137,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_shared_slope)
 {
     Shape shape{3, 2};
     Shape rshape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, rshape);
     auto prelu = make_shared<op::PRelu>(A, B);
     auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
     std::vector<float> a{-2, 3, -2, 1, -1, 0};
@@ -154,8 +154,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
 {
     Shape shape{3, 2};
     Shape rshape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, rshape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, rshape);
     auto prelu = make_shared<op::PRelu>(A, B);
     auto f = make_shared<Function>(NodeVector{prelu}, ParameterVector{A, B});
     std::vector<float> a{-2, 3, -2, 1, -1, 0};
@@ -169,7 +169,7 @@ NGRAPH_TEST(${BACKEND_NAME}, prelu_negative_slope)
 
 NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_block_first)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4, 4});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 4, 4});
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
     auto function = make_shared<Function>(NodeVector{space_to_depth}, ParameterVector{A});
@@ -190,7 +190,7 @@ NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_block_first)
 
 NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_depth_first)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4, 4});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 4, 4});
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
     auto function = make_shared<Function>(NodeVector{space_to_depth}, ParameterVector{A});
@@ -208,7 +208,7 @@ NGRAPH_TEST(${BACKEND_NAME}, space_to_depth_depth_first)
 
 NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_block_first)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 8, 2, 2});
     auto depth_to_space =
         make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
     auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
@@ -227,7 +227,7 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_block_first)
 
 NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 8, 2, 2});
     auto depth_to_space =
         make_shared<op::DepthToSpace>(A, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
     auto function = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{A});
@@ -247,8 +247,9 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_depth_first)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
 {
     Shape data_shape{1, 2, 3, 4};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -274,8 +275,8 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_empty_axes_input)
 {
     Shape data_shape{1, 2, 3, 4};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{0}, vector<int64_t>{});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -302,8 +303,8 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_empty_axes_input)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_h_4d)
 {
     Shape data_shape{1, 2, 3, 4};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{1});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{1}, vector<int64_t>{1});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -328,8 +329,8 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_h_4d)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_1axis_5d)
 {
     Shape data_shape{1, 2, 2, 2, 3};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{1});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{1}, vector<int64_t>{1});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -354,8 +355,9 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_1axis_5d)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_123axes_5d)
 {
     Shape data_shape{1, 2, 2, 2, 3};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -380,8 +382,8 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_123axes_5d)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x2_shape)
 {
     Shape data_shape{2, 2};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{1});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{1});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -404,8 +406,8 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x2_shape)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x4_shape)
 {
     Shape data_shape{2, 4};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{1});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{1});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
 
@@ -435,8 +437,9 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_c_2x4_shape)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_normalize_across_chw_4d_max_bias)
 {
     Shape data_shape{1, 2, 3, 4};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto axes = make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto axes =
+        make_shared<op::Constant>(element::Type_t::i64, Shape{3}, vector<int64_t>{1, 2, 3});
     float eps{5000};
     auto eps_mode = op::EpsMode::MAX;
 
@@ -483,7 +486,7 @@ namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_double)
 {
-    auto type = element::f64;
+    auto type = element::Type_t::f64;
     typedef double ctype;
 
     auto sshape = Shape{5, 2};
@@ -569,7 +572,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_double)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float)
 {
-    auto type = element::f32;
+    auto type = element::Type_t::f32;
     typedef float ctype;
 
     auto sshape = Shape{5, 2};
@@ -655,7 +658,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int8)
 {
-    auto type = element::i8;
+    auto type = element::Type_t::i8;
     typedef int8_t ctype;
 
     auto sshape = Shape{4, 2};
@@ -684,7 +687,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int8)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int16)
 {
-    auto type = element::i16;
+    auto type = element::Type_t::i16;
     typedef int16_t ctype;
 
     auto sshape = Shape{4, 2};
@@ -713,7 +716,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int16)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int32)
 {
-    auto type = element::i32;
+    auto type = element::Type_t::i32;
     typedef int32_t ctype;
 
     auto sshape = Shape{4, 2};
@@ -742,7 +745,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int32)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int64)
 {
-    auto type = element::i64;
+    auto type = element::Type_t::i64;
     typedef int64_t ctype;
 
     auto sshape = Shape{4, 2};
@@ -771,7 +774,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int64)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint8)
 {
-    auto type = element::u8;
+    auto type = element::Type_t::u8;
     typedef uint8_t ctype;
 
     auto sshape = Shape{4, 2};
@@ -803,7 +806,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint8)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint16)
 {
-    auto type = element::u16;
+    auto type = element::Type_t::u16;
     typedef uint16_t ctype;
 
     auto sshape = Shape{4, 2};
@@ -835,7 +838,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint16)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint32)
 {
-    auto type = element::u32;
+    auto type = element::Type_t::u32;
     typedef uint32_t ctype;
 
     auto sshape = Shape{4, 2};
@@ -867,7 +870,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint32)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint64)
 {
-    auto type = element::u64;
+    auto type = element::Type_t::u64;
     typedef uint64_t ctype;
 
     auto sshape = Shape{4, 2};
@@ -899,7 +902,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint64)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float16)
 {
-    auto type = element::f16;
+    auto type = element::Type_t::f16;
     typedef float16 ctype;
 
     auto sshape = Shape{5, 2};
@@ -985,7 +988,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float16)
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_bfloat16)
 {
-    auto type = element::bf16;
+    auto type = element::Type_t::bf16;
     typedef bfloat16 ctype;
 
     auto sshape = Shape{5, 2};
@@ -1072,7 +1075,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_bfloat16)
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization)
 {
     Shape data_shape{1, 2, 5};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
 
     auto mvn_func = make_shared<op::MVN>(data, true, false);
     auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
@@ -1092,7 +1095,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization)
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization_split_channels)
 {
     Shape data_shape{1, 2, 5, 1};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
 
     auto mvn_func = make_shared<op::MVN>(data, false, false);
     auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
@@ -1112,7 +1115,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization_split_channels)
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization)
 {
     Shape data_shape{1, 2, 5};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
 
     auto mvn_func = make_shared<op::MVN>(data);
     auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
@@ -1141,7 +1144,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization)
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
 {
     Shape data_shape{1, 2, 5};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
 
     auto mvn_func = make_shared<op::MVN>(data, false);
     auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
@@ -1169,7 +1172,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_shared_across_channel_batch_size_2)
 {
     Shape data_shape{2, 2, 5};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
 
     auto mvn_func = make_shared<op::MVN>(data, true);
     auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
@@ -1192,7 +1195,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_shared_across_chann
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_not_shared_across_channel_batch_size_2)
 {
     Shape data_shape{2, 2, 5};
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
 
     auto mvn_func = make_shared<op::MVN>(data, false);
     auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
@@ -1215,7 +1218,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_not_shared_across_c
 NGRAPH_TEST(${BACKEND_NAME}, grn_4d)
 {
     const Shape data_shape{1, 2, 3, 4};
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     float bias{1e-6f};
 
     const auto grn = make_shared<op::GRN>(data, bias);
@@ -1239,7 +1242,7 @@ NGRAPH_TEST(${BACKEND_NAME}, grn_4d)
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_2d_with_bias)
 {
     const Shape data_shape{3, 4};
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     float bias{2.25f};
 
     const auto grn = make_shared<op::GRN>(data, bias);
@@ -1270,9 +1273,9 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_2d_with_bias)
 
 NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
 {
-    auto data_node = make_shared<op::Parameter>(element::f32, Shape{4, 2});
+    auto data_node = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, 2});
     auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
+        make_shared<ngraph::op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{1, 2});
     auto squeeze = make_shared<op::v0::Unsqueeze>(data_node, axes_node);
 
     auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
@@ -1285,7 +1288,7 @@ NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
 
 NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_simple)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 15, 2, 2});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{1, 15, 2, 2});
     auto tested_op = make_shared<op::ShuffleChannels>(data, 1, 5);
     auto function = make_shared<Function>(tested_op, ParameterVector{data});
 
@@ -1309,7 +1312,7 @@ NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_negative_axis)
     // in this test the output is the same as in shuffle_channels_simple but
     // the axis value is negative and the C(channels) value is in a different dimension(0) of the
     // shape
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{15, 2, 1, 2});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{15, 2, 1, 2});
     auto tested_op = make_shared<op::ShuffleChannels>(data, -4, 5);
     auto function = make_shared<Function>(tested_op, ParameterVector{data});
 
@@ -1330,7 +1333,7 @@ NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_negative_axis)
 
 NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_float)
 {
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{6, 1, 1, 1});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{6, 1, 1, 1});
     auto tested_op = make_shared<op::ShuffleChannels>(data, 0, 2);
     auto function = make_shared<Function>(tested_op, ParameterVector{data});
 
@@ -1345,9 +1348,9 @@ NGRAPH_TEST(${BACKEND_NAME}, shuffle_channels_float)
 
 NGRAPH_TEST(${BACKEND_NAME}, squeeze)
 {
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
+    const auto data_node = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 1, 1, 2});
     const auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
+        make_shared<ngraph::op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{0, 2});
     const auto squeeze = make_shared<op::Squeeze>(data_node, axes_node);
 
     const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
@@ -1361,9 +1364,9 @@ NGRAPH_TEST(${BACKEND_NAME}, squeeze)
 
 NGRAPH_TEST(${BACKEND_NAME}, squeeze_default_axes)
 {
-    const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
+    const auto data_node = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 1, 1, 2});
     const auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
+        make_shared<ngraph::op::Constant>(element::Type_t::i64, Shape{0}, vector<int64_t>{});
     const auto squeeze = make_shared<op::Squeeze>(data_node, axes_node);
 
     const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
@@ -1377,16 +1380,16 @@ NGRAPH_TEST(${BACKEND_NAME}, squeeze_default_axes)
 
 NGRAPH_TEST(${BACKEND_NAME}, squeeze_dynamic)
 {
-    const auto data_param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_param = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto data_param = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 4, 1, 1, 2});
+    const auto axes_param = make_shared<op::Parameter>(element::Type_t::i64, Shape{2});
     EXPECT_THROW(make_shared<op::Squeeze>(data_param, axes_param), CheckFailure);
 }
 
 // TODO: Issue: 37534
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference)
 {
-    const auto x1 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    const auto x2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    const auto x1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
+    const auto x2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
 
     auto tested_op = make_shared<op::SquaredDifference>(x1, x2);
     auto function = make_shared<Function>(tested_op, ParameterVector{x1, x2});
@@ -1401,8 +1404,8 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference)
 
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference_broadcast)
 {
-    const auto x1 = make_shared<op::Parameter>(element::i32, Shape{2, 2});
-    const auto x2 = make_shared<op::Parameter>(element::i32, Shape{});
+    const auto x1 = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 2});
+    const auto x2 = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
 
     auto tested_op = make_shared<op::SquaredDifference>(x1, x2);
     auto function = make_shared<Function>(tested_op, ParameterVector{x1, x2});
@@ -1422,15 +1425,18 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell__zero_bias_peepholes)
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
-    const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto P = make_shared<op::Parameter>(element::Type_t::f32, Shape{3 * hidden_size});
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(
         X,
@@ -1498,15 +1504,18 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes)
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
-    const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto P = make_shared<op::Parameter>(element::Type_t::f32, Shape{3 * hidden_size});
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
 
@@ -1587,15 +1596,18 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes_clip_input_forge
     const float clip_threshold = 3.5f;
     bool input_forget = true;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
-    const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto P = make_shared<op::Parameter>(element::Type_t::f32, Shape{3 * hidden_size});
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
                                                          H_t,
@@ -1689,15 +1701,18 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__activaction_functions)
     vector<float> activation_alpha{0.f, 0.f, 1.8345f};
     vector<float> activation_beta{0.f, 0.f, 3.05f};
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto C_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
-    const auto P = make_shared<op::Parameter>(element::f32, Shape{3 * hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto C_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
+    const auto P = make_shared<op::Parameter>(element::Type_t::f32, Shape{3 * hidden_size});
 
     const auto lstm_cell = make_shared<opset4::LSTMCell>(X,
                                                          H_t,
@@ -1783,11 +1798,11 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize)
 {
     const Shape data_shape{1, 2, 3, 4};
     const size_t levels = 4;
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto input_low = make_shared<op::Parameter>(element::f32, Shape{});
-    const auto input_high = make_shared<op::Parameter>(element::f32, Shape{});
-    const auto output_low = make_shared<op::Parameter>(element::f32, Shape{});
-    const auto output_high = make_shared<op::Parameter>(element::f32, Shape{});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto input_low = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    const auto input_high = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    const auto output_low = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    const auto output_high = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
     const auto quantize =
         make_shared<op::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
@@ -1826,11 +1841,11 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize_with_clip)
 {
     const Shape data_shape{1, 2, 3, 4};
     const size_t levels = 5;
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    const auto input_low = make_shared<op::Parameter>(element::f32, Shape{});
-    const auto input_high = make_shared<op::Parameter>(element::f32, Shape{});
-    const auto output_low = make_shared<op::Parameter>(element::f32, Shape{});
-    const auto output_high = make_shared<op::Parameter>(element::f32, Shape{});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto input_low = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    const auto input_high = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    const auto output_low = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    const auto output_high = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
 
     const auto quantize =
         make_shared<op::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
@@ -1866,11 +1881,11 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize_with_clip_across_channels)
 {
     Shape data_shape{1, 2, 5, 5};
     size_t levels = 5;
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    auto input_low = make_shared<op::Parameter>(element::f32, Shape{2, 1, 1});
-    auto input_high = make_shared<op::Parameter>(element::f32, Shape{2, 1, 1});
-    auto output_low = make_shared<op::Parameter>(element::f32, Shape{2, 1, 1});
-    auto output_high = make_shared<op::Parameter>(element::f32, Shape{2, 1, 1});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto input_low = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 1, 1});
+    auto input_high = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 1, 1});
+    auto output_low = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 1, 1});
+    auto output_high = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 1, 1});
 
     auto quantize =
         make_shared<op::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
@@ -1909,11 +1924,11 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize_pdpd)
 {
     Shape data_shape{1, 2, 5, 5};
     size_t levels = 5;
-    auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    auto input_low = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto input_high = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto output_low = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto output_high = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto input_low = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
+    auto input_high = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
+    auto output_low = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
+    auto output_high = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
 
     auto quantize =
         make_shared<op::FakeQuantize>(data,
@@ -1960,10 +1975,12 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__no_bias)
     const size_t input_size = 3;
     const size_t hidden_size = 3;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, input_size});
+    const auto R =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
     auto function = make_shared<Function>(rnn_cell, ParameterVector{X, H_t, W, R});
@@ -2010,11 +2027,13 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__bias_clip)
     const size_t hidden_size = 3;
     float clip = 2.88f;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, input_size});
+    const auto R =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
+    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X,
                                                        H_t,
@@ -2072,11 +2091,13 @@ NGRAPH_TEST(${BACKEND_NAME}, rnn_cell__activation_function)
     const size_t hidden_size = 3;
     float clip = 2.88f;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, input_size});
+    const auto R =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size, hidden_size});
+    const auto B = make_shared<op::Parameter>(element::Type_t::f32, Shape{hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X,
                                                        H_t,
@@ -2136,13 +2157,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_bias_clip)
     float clip = 2.88f;
     bool linear_before_reset = false;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{gates_count * hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                        H_t,
@@ -2209,13 +2232,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_linear_before_reset)
     float clip = 2.88f;
     bool linear_before_reset = true;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{(gates_count + 1) * hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{(gates_count + 1) * hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                        H_t,
@@ -2281,13 +2306,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gru_cell_activation_function)
     float clip = 2.88f;
     bool linear_before_reset = true;
 
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
-    const auto W =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
-    const auto R =
-        make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
-    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{(gates_count + 1) * hidden_size});
+    const auto X = make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, input_size});
+    const auto W = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::Type_t::f32,
+                                              Shape{gates_count * hidden_size, hidden_size});
+    const auto H_t =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{batch_size, hidden_size});
+    const auto B =
+        make_shared<op::Parameter>(element::Type_t::f32, Shape{(gates_count + 1) * hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X,
                                                        H_t,
@@ -2351,31 +2378,31 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_block_first)
     Shape dts_input_shape{2, 32, 2, 4, 2, 4};
     size_t block_size = 2;
 
-    auto dts_input = make_shared<op::Parameter>(element::f32, dts_input_shape);
+    auto dts_input = make_shared<op::Parameter>(element::Type_t::f32, dts_input_shape);
     auto depth_to_space = make_shared<op::DepthToSpace>(
         dts_input, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, block_size);
     auto dts_func = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{dts_input});
 
-    auto dts_input_tensor = backend->create_tensor(element::f32, dts_input_shape);
+    auto dts_input_tensor = backend->create_tensor(element::Type_t::f32, dts_input_shape);
     const auto data_size = shape_size(dts_input_shape);
     vector<float> data(data_size);
     std::iota(data.begin(), data.end(), 0);
     copy_data(dts_input_tensor, data);
     const auto dts_output_shape = depth_to_space->get_output_shape(0);
-    auto dts_output_tensor = backend->create_tensor(element::f32, dts_output_shape);
+    auto dts_output_tensor = backend->create_tensor(element::Type_t::f32, dts_output_shape);
     auto handle = backend->compile(dts_func);
     handle->call_with_validate({dts_output_tensor}, {dts_input_tensor});
     auto dts_result = read_vector<float>(dts_output_tensor);
 
     // use depth_to_space output as space_to_depth input
-    auto std_input = make_shared<op::Parameter>(element::f32, dts_output_shape);
+    auto std_input = make_shared<op::Parameter>(element::Type_t::f32, dts_output_shape);
     auto space_to_depth = make_shared<op::SpaceToDepth>(
         std_input, op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, block_size);
     auto std_func = make_shared<Function>(NodeVector{space_to_depth}, ParameterVector{std_input});
 
-    auto std_input_tensor = backend->create_tensor(element::f32, dts_output_shape);
+    auto std_input_tensor = backend->create_tensor(element::Type_t::f32, dts_output_shape);
     copy_data(std_input_tensor, dts_result);
-    auto std_output_tensor = backend->create_tensor(element::f32, dts_input_shape);
+    auto std_output_tensor = backend->create_tensor(element::Type_t::f32, dts_input_shape);
     handle = backend->compile(std_func);
     handle->call_with_validate({std_output_tensor}, {std_input_tensor});
     auto std_result = read_vector<float>(std_output_tensor);
@@ -2391,31 +2418,31 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_depth_first)
     Shape dts_input_shape{2, 32, 2, 4, 2, 4};
     size_t block_size = 2;
 
-    auto dts_input = make_shared<op::Parameter>(element::f32, dts_input_shape);
+    auto dts_input = make_shared<op::Parameter>(element::Type_t::f32, dts_input_shape);
     auto depth_to_space = make_shared<op::DepthToSpace>(
         dts_input, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, block_size);
     auto dts_func = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{dts_input});
 
-    auto dts_input_tensor = backend->create_tensor(element::f32, dts_input_shape);
+    auto dts_input_tensor = backend->create_tensor(element::Type_t::f32, dts_input_shape);
     const auto data_size = shape_size(dts_input_shape);
     vector<float> data(data_size);
     std::iota(data.begin(), data.end(), 0);
     copy_data(dts_input_tensor, data);
     const auto dts_output_shape = depth_to_space->get_output_shape(0);
-    auto dts_output_tensor = backend->create_tensor(element::f32, dts_output_shape);
+    auto dts_output_tensor = backend->create_tensor(element::Type_t::f32, dts_output_shape);
     auto handle = backend->compile(dts_func);
     handle->call_with_validate({dts_output_tensor}, {dts_input_tensor});
     auto dts_result = read_vector<float>(dts_output_tensor);
 
     // use depth_to_space output as space_to_depth input
-    auto std_input = make_shared<op::Parameter>(element::f32, dts_output_shape);
+    auto std_input = make_shared<op::Parameter>(element::Type_t::f32, dts_output_shape);
     auto space_to_depth = make_shared<op::SpaceToDepth>(
         std_input, op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, block_size);
     auto std_func = make_shared<Function>(NodeVector{space_to_depth}, ParameterVector{std_input});
 
-    auto std_input_tensor = backend->create_tensor(element::f32, dts_output_shape);
+    auto std_input_tensor = backend->create_tensor(element::Type_t::f32, dts_output_shape);
     copy_data(std_input_tensor, dts_result);
-    auto std_output_tensor = backend->create_tensor(element::f32, dts_input_shape);
+    auto std_output_tensor = backend->create_tensor(element::Type_t::f32, dts_input_shape);
     handle = backend->compile(std_func);
     handle->call_with_validate({std_output_tensor}, {std_input_tensor});
     auto std_result = read_vector<float>(std_output_tensor);

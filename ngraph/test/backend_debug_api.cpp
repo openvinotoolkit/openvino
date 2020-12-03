@@ -14,76 +14,65 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <algorithm>
-#include <cinttypes>
-#include <cmath>
-#include <cstdlib>
 #include <random>
+#include <sstream>
 #include <string>
-
-// clang-format off
-#ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
-#endif
-
-#ifdef ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#define DEFAULT_DOUBLE_TOLERANCE_BITS ${BACKEND_NAME}_DOUBLE_TOLERANCE_BITS
-#endif
-// clang-format on
+#include <vector>
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
+#include "runtime/interpreter/int_executable.hpp"
 #include "util/test_tools.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
 
-static string s_manifest = "${MANIFEST}";
-
-NGRAPH_TEST(${BACKEND_NAME}, subtract)
+TEST(INTERPRETER, nan_check_input)
 {
-    Shape shape{2, 2};
+    Shape shape{4};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::v1::Subtract>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    shared_ptr<runtime::Backend> backend = runtime::Backend::create("INTERPRETER");
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::Type_t::f32, shape);
-    copy_data(a, vector<float>{2, 4, 8, 16});
+    copy_data(a, vector<float>{2, 4, NAN, 16});
     auto b = backend->create_tensor(element::Type_t::f32, shape);
-    copy_data(b, vector<float>{1, 2, 4, 8});
+    copy_data(b, vector<float>{1, 2, 1, 8});
     auto result = backend->create_tensor(element::Type_t::f32, shape);
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1, 2, 4, 8}), read_vector<float>(result)));
+    shared_ptr<runtime::Executable> handle = backend->compile(f);
+
+    shared_ptr<runtime::interpreter::INTExecutable> ihandle =
+        static_pointer_cast<runtime::interpreter::INTExecutable>(handle);
+    ihandle->set_nan_check(true);
+    EXPECT_ANY_THROW(handle->call_with_validate({result}, {a, b}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, subtract_overload)
+TEST(INTERPRETER, nan_check_output)
 {
-    Shape shape{2, 2};
+    Shape shape{4};
     auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f = make_shared<Function>(std::make_shared<op::v1::Subtract>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Divide>(A, B), ParameterVector{A, B});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    shared_ptr<runtime::Backend> backend = runtime::Backend::create("INTERPRETER");
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::Type_t::f32, shape);
-    copy_data(a, vector<float>{2, 4, 8, 16});
+    copy_data(a, vector<float>{2, 4, 0, 16});
     auto b = backend->create_tensor(element::Type_t::f32, shape);
-    copy_data(b, vector<float>{1, 2, 4, 8});
+    copy_data(b, vector<float>{1, 2, 0, 8});
     auto result = backend->create_tensor(element::Type_t::f32, shape);
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1, 2, 4, 8}), read_vector<float>(result)));
+    shared_ptr<runtime::Executable> handle = backend->compile(f);
+    shared_ptr<runtime::interpreter::INTExecutable> ihandle =
+        static_pointer_cast<runtime::interpreter::INTExecutable>(handle);
+    ihandle->set_nan_check(true);
+    EXPECT_ANY_THROW(handle->call_with_validate({result}, {a, b}));
 }

@@ -126,7 +126,7 @@ OutputVector op::Squeeze::decompose_op() const
     auto output_data_shape = get_output_shape(0);
     return {make_shared<op::v1::Reshape>(
         data,
-        op::Constant::create(element::u64, {output_data_shape.size()}, output_data_shape),
+        op::Constant::create(element::Type_t::u64, {output_data_shape.size()}, output_data_shape),
         false)};
 }
 
