@@ -41,43 +41,69 @@ void op::v6::GatherElements::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           indices_type == element::i32 || indices_type == element::i64,
-                          "indices mush be of int32 or int64 type. Got: ",
+                          "indices mush be of int32 or int64 type. But instead got: ",
                           indices_type);
 
     // check ranks of input tensors
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
+    auto data_rank = data_pshape.rank();
+    auto indices_rank = indices_pshape.rank();
 
-    if (data_pshape.rank().is_static())
+    if (data_rank.is_static())
     {
-        auto data_rank = data_pshape.rank().get_length();
+        auto data_rank_size = data_rank.get_length();
 
-        NODE_VALIDATION_CHECK(this, data_rank > 1, "Data rank must be greater than 1.");
+        NODE_VALIDATION_CHECK(this, data_rank_size > 1, "Data rank must be greater than 1.");
 
         if (m_axis < 0)
         {
-            NODE_VALIDATION_CHECK(this,
-                                  -data_rank < m_axis < data_rank - 1,
-                                  "axis must be within interval (-data.rank,  data.rank - 1. Got: ",
-                                  m_axis);
-            m_axis = data_rank + m_axis;
+            NODE_VALIDATION_CHECK(
+                this,
+                -data_rank_size < m_axis < data_rank_size - 1,
+                "axis must be within interval (-data.rank,  data.rank - 1. But instead Got: ",
+                m_axis);
+            m_axis = data_rank_size + m_axis;
         }
     }
 
-    if (indices_pshape.rank().is_static())
+    if (indices_rank.is_static())
     {
         NODE_VALIDATION_CHECK(
-            this, indices_pshape.rank().get_length() > 1, "Indices rank must be greater that 1.");
+            this, indices_rank.get_length() > 1, "Indices rank must be greater that 1.");
     }
 
-    if (data_pshape.is_static() && indices_pshape.is_static())
+    if (data_rank.is_static() && indices_rank.is_static())
     {
-        set_output_type(0, data_type, indices_pshape);
+        NODE_VALIDATION_CHECK(this,
+                              data_rank.get_length() == indices_rank.get_length(),
+                              "data and indices rank must be equal. But instead got: ",
+                              data_rank.get_length(),
+                              " and ",
+                              indices_rank.get_length());
+
+        if (data_pshape.is_static() && indices_pshape.is_static())
+        {
+            // check if PartialShapes of data and indices are consistent
+            for (int i = 0; i < data_rank.get_length(); i++)
+            {
+                if (i != m_axis)
+                    NODE_VALIDATION_CHECK(
+                        this,
+                        data_pshape[i] == indices_pshape[i],
+                        "Sizes ",
+                        data_pshape[i],
+                        " and ",
+                        indices_pshape[i],
+                        " on axis ",
+                        i,
+                        " do not match. data and indices mush have equal shapes except for axis ",
+                        m_axis);
+            }
+        }
     }
-    else
-    {
-        set_output_type(0, data_type, PartialShape::dynamic());
-    }
+
+    set_output_type(0, data_type, indices_pshape);
 }
 
 bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor)
