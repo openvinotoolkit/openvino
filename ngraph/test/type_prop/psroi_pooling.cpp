@@ -267,7 +267,8 @@ TEST(type_prop, psroi_pooling_invalid_spatial_bins)
 TEST(type_prop, psroi_pooling_dynamic_ranks)
 {
     {
-        auto inputs = std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+        auto inputs =
+            std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
         auto coords = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{150, 5});
         auto op = std::make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "average");
         ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
@@ -275,7 +276,8 @@ TEST(type_prop, psroi_pooling_dynamic_ranks)
     }
     {
         auto inputs = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 72, 4, 5});
-        auto coords = std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+        auto coords =
+            std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
         auto op = std::make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "average");
         ASSERT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
         ASSERT_EQ(op->get_element_type(), element::Type_t::f32);
@@ -285,8 +287,8 @@ TEST(type_prop, psroi_pooling_dynamic_ranks)
 TEST(type_prop, psroi_pooling_dynamic_num_boxes)
 {
     auto inputs = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 72, 4, 5});
-    auto coords =
-        std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape{{Dimension::dynamic(), 5}});
+    auto coords = std::make_shared<op::Parameter>(element::Type_t::f32,
+                                                  PartialShape{{Dimension::dynamic(), 5}});
     auto op = std::make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "average");
     ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{{Dimension::dynamic(), 2, 6, 6}}));
     ASSERT_EQ(op->get_element_type(), element::Type_t::f32);
