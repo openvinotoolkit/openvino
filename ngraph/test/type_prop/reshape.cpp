@@ -21,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, reshape_deduce_empty_to_1_dim)
+TEST(type_prop, reshape_deduce_s2t)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(
@@ -30,7 +30,7 @@ TEST(type_prop, reshape_deduce_empty_to_1_dim)
     ASSERT_EQ(r->get_shape(), (Shape{1}));
 }
 
-TEST(type_prop, reshape_deduce_empty_to_2_dim)
+TEST(type_prop, reshape_deduce_s2m)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(
@@ -39,7 +39,7 @@ TEST(type_prop, reshape_deduce_empty_to_2_dim)
     ASSERT_EQ(r->get_shape(), (Shape{1, 1}));
 }
 
-TEST(type_prop, reshape_deduce_empty_to_3_dim)
+TEST(type_prop, reshape_deduce_s2m3)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(
@@ -48,7 +48,7 @@ TEST(type_prop, reshape_deduce_empty_to_3_dim)
     ASSERT_EQ(r->get_shape(), (Shape{1, 1, 1}));
 }
 
-TEST(type_prop, reshape_deduce_2_dim_to_1_dim)
+TEST(type_prop, reshape_deduce_2d_to_1d)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4});
     auto r = make_shared<op::v1::Reshape>(
@@ -57,7 +57,7 @@ TEST(type_prop, reshape_deduce_2_dim_to_1_dim)
     ASSERT_EQ(r->get_shape(), (Shape{12}));
 }
 
-TEST(type_prop, reshape_deduce_3_dim_to_1_dim)
+TEST(type_prop, reshape_deduce_3d_to_1d)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
     auto r = make_shared<op::v1::Reshape>(

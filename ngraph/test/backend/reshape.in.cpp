@@ -44,7 +44,7 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v_012)
+NGRAPH_TEST(${BACKEND_NAME}, reshape_3d_to_1d)
 {
     Shape shape_a{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -67,29 +67,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v_012)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s_012)
-{
-    Shape shape_a{1, 1, 1};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape shape_r{};
-    auto r = make_shared<op::v1::Reshape>(
-        A, op::Constant::create(element::u64, {shape_r.size()}, shape_r), false);
-    auto f = make_shared<Function>(r, ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{6});
-    auto result = backend->create_tensor(element::f32, shape_r);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{6}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s_120)
+NGRAPH_TEST(${BACKEND_NAME}, reshape_t2s)
 {
     Shape shape_a{1, 1, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -154,7 +132,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_s2t1)
     EXPECT_EQ((vector<char>{42}), read_vector<char>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_col)
+NGRAPH_TEST(${BACKEND_NAME}, reshape_1d_col_to_2d)
 {
     Shape shape_a{3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -176,7 +154,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_col)
         (vector<float>{1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_row)
+NGRAPH_TEST(${BACKEND_NAME}, reshape_1d_row_to_3d)
 {
     Shape shape_a{3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -198,7 +176,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_v2m_row)
         (vector<float>{1, 2, 3}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_v2t_middle)
+NGRAPH_TEST(${BACKEND_NAME}, reshape_1d_to_3d_middle)
 {
     Shape shape_a{3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);

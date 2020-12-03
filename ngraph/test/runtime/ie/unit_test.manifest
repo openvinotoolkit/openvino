@@ -408,40 +408,15 @@ reduce_sum_large_1d_to_scalar
 # Doesn't throw expected exception type.
 unhandled_op
 
-# Cannot cast ngraph node Reshape_158305 to CNNLayer
-transpose
-slice_matrix_axis_0_in_place_with_reshape
-reshape_t2v_012
-reshape_t2s_012
-reshape_t2s_120
-reshape_s2t
+# Const layer Constant_6325 has incorrect dimensions in the output data 0
+reshape_t2s
+
+# Expected equality of these values:
+#  (vector<char>{42})
+#    Which is: { '*' (42, 0x2A) }
+#  read_vector<char>(result)
+#    Which is: { '\0' }
 reshape_s2t1
-reshape_v2m_col
-reshape_v2m_row
-reshape_v2t_middle
-reshape_m2m_same
-reshape_m2m_transpose
-reshape_m2m_dim_change_transpose
-reshape_3d_transpose_021
-reshape_3d_transpose_210
-reshape_3d_transpose_201
-reshape_3d_transpose_102
-reshape_3d_transpose_120
-reshape_4d_transpose
-reshape_4d_no_transpose
-reshape_transposed_shape_change
-reshape_6d
-reshape_shufflenet_5d
-dyn_group_convolution_backprop_data
-group_conv
-group_conv_striding
-group_conv_window_dilation
-group_conv_padding
-group_conv_padding_and_window_dilation
-group_conv_input_shape_variation
-group_conv_input_data_variation
-dynamic_to_vector
-dynamic_reverse_shape
 
 # Error of validate layer: Tile_1082 with type: Tile. Layer is not instance of TileLayer class
 tile_3d_small_data_rank
@@ -906,7 +881,9 @@ broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
 
 # Cannot find blob with name: Parameter_1
+dyn_group_convolution_backprop_data
 dynamic_transpose
+transpose
 
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_axis_0_2d_input
