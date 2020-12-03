@@ -42,7 +42,8 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp);
 
     const bool moveSubtract = subWithTheSameValues(dequantization.subtract);
-    if (!moveSubtract && !canSubtractBeHandled(clamp, dequantization)) {
+    // issue #43136
+    if (!moveSubtract && (dequantization.subtract != nullptr)) {
         return false;
     }
     const auto newClamp = as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));

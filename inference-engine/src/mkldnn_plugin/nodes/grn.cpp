@@ -22,7 +22,7 @@ public:
 
             bias = layer->GetParamAsFloat("bias");
 
-            addConfig(layer, {{ConfLayout::PLN, false, 0}}, {{ConfLayout::PLN, false, 0}});
+            addConfig(layer, {{ConfLayout::PLN, false, 0, Precision::FP32}}, {{ConfLayout::PLN, false, 0, Precision::FP32}});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

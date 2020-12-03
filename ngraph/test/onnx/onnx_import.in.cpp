@@ -426,7 +426,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
         "TestMissingIn", 1, "com.intel.ai", [](const onnx_import::Node& node) -> OutputVector {
             OutputVector ng_inputs{node.get_ng_inputs()};
             std::shared_ptr<ngraph::Node> result = std::make_shared<ngraph::op::Constant>(
-                element::f32, ngraph::Shape{2, 2}, std::vector<float>{1, 1, 1, 1});
+                element::Type_t::f32, ngraph::Shape{2, 2}, std::vector<float>{1, 1, 1, 1});
 
             for (const auto& ng_input : ng_inputs)
             {
@@ -1016,6 +1016,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max)
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max_invalid_axes)
+{
+    EXPECT_THROW(onnx_import::import_onnx_model(
+                     file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_max_invalid_axes.prototxt")),
+                 ngraph::ngraph_error);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_mean)
@@ -2146,6 +2153,34 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softplus_infinity)
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/swish_with_beta.prototxt"));
+
+    const Shape expected_output_shape{3};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{-0.5f, 0, 0.5f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape, {-0.2036667, 0.0, 0.2963333});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/swish_without_beta.prototxt"));
+
+    const Shape expected_output_shape{3};
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{-0.5f, 0, 0.5f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(expected_output_shape, {-0.18877034, 0.0, 0.31122968});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum_opset8)

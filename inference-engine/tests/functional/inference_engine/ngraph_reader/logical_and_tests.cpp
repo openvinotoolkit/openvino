@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadLogicalAndNetwork) {
             </output>
         </layer>
         <layer id="1" name="data1" type="Const" version="opset1">
-            <data offset="0" size="1452"/>
+            <data element_type="boolean" offset="0" shape="1,3,22,22" size="1452"/>
             <output>
                 <port id="0" precision="BOOL">
                     <dim>1</dim>

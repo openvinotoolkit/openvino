@@ -86,6 +86,10 @@ protected:
     using RefBlobGenerator = std::function<InferenceEngine::Blob::Ptr (const InferenceEngine::TensorDesc &info)>;
     std::map<std::string, RefBlobGenerator> inputGens, outputGens;
 
+    void CreateSlicedLoop(size_t batch_size, size_t num_iteration, InferenceEngine::Precision iePrc,
+                          InferenceEngine::SizeVector& ieShape);
+    void CreateSlicedLoopDynCondition(size_t batch_size, size_t num_iteration, InferenceEngine::Precision iePrc,
+                          InferenceEngine::SizeVector& ieShape, size_t trip_count);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
         auto found = inputGens.find(info.name());
         if (found != inputGens.end()) {
@@ -100,7 +104,7 @@ protected:
         return LayerTestsCommon::GenerateInput(info);
     }
 
-    std::vector<std::vector<std::uint8_t>> PredefinedRefs() {
+    std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
         if (outputGens.empty())
             return LayerTestsCommon::CalculateRefs();
 

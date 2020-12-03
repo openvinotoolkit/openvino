@@ -11,7 +11,7 @@
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
-#include "unit_test_utils/mocks/mock_ie_imemory_state.hpp"
+#include "unit_test_utils/mocks/mock_ie_ivariable_state.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 

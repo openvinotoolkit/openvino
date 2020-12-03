@@ -33,18 +33,18 @@ using namespace ngraph;
 TEST(INTERPRETER, nan_check_input)
 {
     Shape shape{4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Divide>(A, B), ParameterVector{A, B});
 
     shared_ptr<runtime::Backend> backend = runtime::Backend::create("INTERPRETER");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{2, 4, NAN, 16});
-    auto b = backend->create_tensor(element::f32, shape);
+    auto b = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(b, vector<float>{1, 2, 1, 8});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     shared_ptr<runtime::Executable> handle = backend->compile(f);
 
@@ -57,18 +57,18 @@ TEST(INTERPRETER, nan_check_input)
 TEST(INTERPRETER, nan_check_output)
 {
     Shape shape{4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Divide>(A, B), ParameterVector{A, B});
 
     shared_ptr<runtime::Backend> backend = runtime::Backend::create("INTERPRETER");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{2, 4, 0, 16});
-    auto b = backend->create_tensor(element::f32, shape);
+    auto b = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(b, vector<float>{1, 2, 0, 8});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     shared_ptr<runtime::Executable> handle = backend->compile(f);
     shared_ptr<runtime::interpreter::INTExecutable> ihandle =

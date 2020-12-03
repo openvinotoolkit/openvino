@@ -27,7 +27,7 @@ std::string RegionYoloLayerTest::getTestCaseName(const testing::TestParamInfo<re
     std::string targetName;
     std::tie(inputShape, classes, coords, num_regions, do_softmax , mask, start_axis, end_axis, netPrecision, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << inputShape << "_";
+    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "classes=" << classes << "_";
     result << "coords=" << coords << "_";
     result << "num=" << num_regions << "_";
@@ -51,7 +51,7 @@ void RegionYoloLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, classes, coords, num_regions, do_softmax, mask, start_axis, end_axis, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, inputShape);
+    auto param = std::make_shared<ngraph::op::Parameter>(ngPrc, inputShape);
     auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(param, coords, classes, num_regions, do_softmax, mask, start_axis, end_axis);
     function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(region_yolo), ngraph::ParameterVector{param}, "RegionYolo");
 }

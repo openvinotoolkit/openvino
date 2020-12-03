@@ -16,8 +16,8 @@
 #include <low_precision/network_helper.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/move_dequantization_after_with_int_constant_function.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/move_dequantization_after_with_int_constant_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;

@@ -15,7 +15,7 @@
 #include <low_precision/normalize_l2.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/normalize_l2_function.hpp"
+#include "lpt_ngraph_functions/normalize_l2_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -53,7 +53,7 @@ public:
             low_precision::LayerTransformation::Params(params.transformationParams));
         transform.transform(actualFunction);
 
-        referenceFunction = (!params.transformationParams.supportAsymmetricQuantization) && (!params.expected.subtractValues.empty()) ?
+        referenceFunction = !params.expected.subtractValues.empty() ?
             ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
                 precision,
                 shape,

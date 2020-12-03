@@ -62,12 +62,12 @@ bool validate_list(const vector<shared_ptr<Node>>& nodes)
 
 shared_ptr<Function> make_test_graph()
 {
-    auto arg_0 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    auto arg_1 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    auto arg_2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    auto arg_3 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    auto arg_4 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    auto arg_5 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
+    auto arg_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
+    auto arg_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
+    auto arg_3 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
+    auto arg_4 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
+    auto arg_5 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
 
     auto t0 = make_shared<op::Add>(arg_0, arg_1);
     auto t1 = make_shared<op::MatMul>(t0, arg_2);
@@ -141,47 +141,47 @@ void init_int_tv<uint8_t>(ngraph::runtime::Tensor* tv,
 void random_init(ngraph::runtime::Tensor* tv, std::default_random_engine& engine)
 {
     element::Type et = tv->get_element_type();
-    if (et == element::boolean)
+    if (et == element::Type_t::boolean)
     {
         init_int_tv<char>(tv, engine, 0, 1);
     }
-    else if (et == element::f32)
+    else if (et == element::Type_t::f32)
     {
         init_real_tv<float>(tv, engine, numeric_limits<float>::min(), 1.0f);
     }
-    else if (et == element::f64)
+    else if (et == element::Type_t::f64)
     {
         init_real_tv<double>(tv, engine, numeric_limits<double>::min(), 1.0);
     }
-    else if (et == element::i8)
+    else if (et == element::Type_t::i8)
     {
         init_int_tv<int8_t>(tv, engine, -1, 1);
     }
-    else if (et == element::i16)
+    else if (et == element::Type_t::i16)
     {
         init_int_tv<int16_t>(tv, engine, -1, 1);
     }
-    else if (et == element::i32)
+    else if (et == element::Type_t::i32)
     {
         init_int_tv<int32_t>(tv, engine, 0, 1);
     }
-    else if (et == element::i64)
+    else if (et == element::Type_t::i64)
     {
         init_int_tv<int64_t>(tv, engine, 0, 1);
     }
-    else if (et == element::u8)
+    else if (et == element::Type_t::u8)
     {
         init_int_tv<uint8_t>(tv, engine, 0, 1);
     }
-    else if (et == element::u16)
+    else if (et == element::Type_t::u16)
     {
         init_int_tv<uint16_t>(tv, engine, 0, 1);
     }
-    else if (et == element::u32)
+    else if (et == element::Type_t::u32)
     {
         init_int_tv<uint32_t>(tv, engine, 0, 1);
     }
-    else if (et == element::u64)
+    else if (et == element::Type_t::u64)
     {
         init_int_tv<uint64_t>(tv, engine, 0, 1);
     }

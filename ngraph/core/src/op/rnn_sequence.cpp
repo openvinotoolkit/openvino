@@ -71,7 +71,7 @@ void op::v5::RNNSequence::validate_and_infer_types()
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto merged_num_directions = Dimension::dynamic();
-    auto result_et = element::dynamic;
+    element::Type result_et = element::Type_t::dynamic;
 
     auto x_pshape = get_input_partial_shape(0);
     auto ht_pshape = get_input_partial_shape(1);

@@ -15,11 +15,11 @@
 #include <low_precision/fake_quantize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/fold_fake_quantize_function.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/fold_fake_quantize_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 
 using namespace testing;
 using namespace ngraph;

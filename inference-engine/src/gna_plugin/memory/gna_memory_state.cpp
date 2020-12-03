@@ -71,7 +71,7 @@ namespace memory {
         case InferenceEngine::Precision::I16: {
             if (new_state_precision == InferenceEngine::Precision::FP32) {
                 auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(state->getInput());
-                auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+                auto scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
                 GNAPluginNS::ConvertToInt16(static_cast<int16_t*>(state->gna_ptr),
                     newState->buffer().as<float*>(),
                     1,
@@ -97,7 +97,7 @@ namespace memory {
 
         if (state->getInput() && state_precision == InferenceEngine::Precision::I16) {
             auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(state->getInput());
-            auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+            auto scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
 
             auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
                 InferenceEngine::SizeVector({ 1, elements }),

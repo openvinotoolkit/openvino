@@ -18,8 +18,8 @@ using namespace CPUTestUtils;
 namespace LayerTestsDefinitions {
 
 using FusePermuteAndReorderParams = std::tuple<
-        InferenceEngine::SizeVector, // Input shape
-        InferenceEngine::Precision   // Input precision
+        InferenceEngine::SizeVector,    // Input shape
+        InferenceEngine::Precision      // Input precision
 >;
 
 class FusePermuteAndReorderTest : public testing::WithParamInterface<FusePermuteAndReorderParams>, public CPUTestsBase,
@@ -29,7 +29,21 @@ public:
 
 protected:
     void SetUp() override;
-    std::string pluginTypeNode;
+    virtual void CreateGraph();
+    void CheckPermuteCount(size_t expectedPermuteCount);
+
+    InferenceEngine::SizeVector inputShape;
+    InferenceEngine::Precision inPrec;
+};
+
+class FusePermuteAndReorderTest1 : public FusePermuteAndReorderTest {
+protected:
+    void CreateGraph() override;
+};
+
+class FusePermuteAndReorderTest2 : public FusePermuteAndReorderTest {
+protected:
+    void CreateGraph() override;
 };
 
 } // namespace LayerTestsDefinitions

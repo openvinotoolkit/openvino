@@ -26,6 +26,7 @@ public:
         std::shared_ptr<ngraph::opset1::Multiply> multiply);
 
     bool empty() const;
+    bool multiplyHasZero() const;
     bool isShared() const;
     bool isLowPrecision() const;
     static bool checkElementwise(const std::shared_ptr<ngraph::Node>& elementwise);

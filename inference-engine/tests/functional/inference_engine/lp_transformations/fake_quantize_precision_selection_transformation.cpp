@@ -18,7 +18,7 @@
 #include <low_precision/max_pool.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/fake_quantize_precision_selection_function.hpp"
+#include "lpt_ngraph_functions/fake_quantize_precision_selection_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;

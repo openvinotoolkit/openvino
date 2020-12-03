@@ -48,25 +48,25 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
             </output>
         </layer>
         <layer id="2" name="max_output_boxes_per_class" precision="I64" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="" size="8"/>
             <output>
                 <port id="0" precision="I64"/>
             </output>
         </layer>
         <layer id="3" name="iou_threshold" precision="FP32" type="Const" version="opset1">
-            <data offset="8" size="4"/>
+            <data element_type="f32" offset="8" shape="" size="4"/>
             <output>
                 <port id="0" precision="FP32"/>
             </output>
         </layer>
         <layer id="4" name="score_threshold" precision="FP32" type="Const" version="opset1">
-            <data offset="12" size="4"/>
+            <data element_type="f32" offset="12" shape="" size="4"/>
             <output>
                 <port id="0" precision="FP32"/>
             </output>
         </layer>
         <layer id="5" name="soft_nms_sigma" precision="FP32" type="Const" version="opset1">
-            <data offset="16" size="4"/>
+            <data element_type="f32" offset="16" shape="" size="4"/>
             <output>
                 <port id="0" precision="FP32"/>
             </output>

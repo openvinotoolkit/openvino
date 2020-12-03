@@ -29,7 +29,7 @@ op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg,
                                                    const AxisSet& reduction_axes)
     : Op({arg,
           op::Constant::create(
-              element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
+              element::Type_t::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
               ->output(0)})
 {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
@@ -51,16 +51,21 @@ const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const
     AxisSet axes;
     if (auto const_op = as_type<op::Constant>(input_value(1).get_node()))
     {
-        axes = const_op->get_axis_set_val();
+        const auto const_data = const_op->cast_vector<int64_t>();
+        const auto input_data_rank = get_input_partial_shape(0).rank();
+        const auto normalized_axes =
+            ngraph::normalize_axes(get_friendly_name(), const_data, input_data_rank);
+        axes = AxisSet{normalized_axes};
     }
     return axes;
 }
 
 void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes)
 {
-    this->input(1).replace_source_output(
-        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
-            ->output(0));
+    this->input(1).replace_source_output(op::Constant::create(element::Type_t::i64,
+                                                              Shape{reduction_axes.size()},
+                                                              reduction_axes.to_vector())
+                                             ->output(0));
 }
 
 void op::util::ArithmeticReduction::validate_and_infer_types()

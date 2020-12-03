@@ -14,9 +14,9 @@
 #include "low_precision/fuse_convert.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/fuse_convert_function.hpp"
+#include "lpt_ngraph_functions/fuse_convert_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
