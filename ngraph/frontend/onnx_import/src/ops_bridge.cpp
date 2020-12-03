@@ -431,6 +431,7 @@ namespace ngraph
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
             REGISTER_OPERATOR("Split", 1, split);
+            REGISTER_OPERATOR("Split", 13, split);
             REGISTER_OPERATOR("Sqrt", 1, sqrt);
             REGISTER_OPERATOR("Squeeze", 1, squeeze);
             REGISTER_OPERATOR("Sub", 1, sub);
