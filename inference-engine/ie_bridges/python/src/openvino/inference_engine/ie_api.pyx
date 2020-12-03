@@ -114,6 +114,7 @@ cdef class Blob:
     def __cinit__(self, TensorDesc tensor_desc = None, array : np.ndarray = None):
         cdef CTensorDesc c_tensor_desc
         cdef float[::1] fp32_array_memview
+        cdef double[::1] fp64_array_memview
         cdef int16_t[::1] I16_array_memview
         cdef uint16_t[::1] U16_array_memview
         cdef uint8_t[::1] U8_array_memview
@@ -137,6 +138,8 @@ cdef class Blob:
             precision = tensor_desc.precision
             if precision == "FP32":
                 self._ptr = C.make_shared_blob[float](c_tensor_desc)
+            elif precision == "FP64":
+                self._ptr = C.make_shared_blob[double](c_tensor_desc)
             elif precision == "FP16" or precision == "I16":
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc)
             elif precision == "Q78" or precision == "U16":
@@ -168,6 +171,9 @@ cdef class Blob:
             if precision == "FP32":
                 fp32_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[float](c_tensor_desc, &fp32_array_memview[0], fp32_array_memview.shape[0])
+            elif precision == "FP64":
+                fp64_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[double](c_tensor_desc, &fp64_array_memview[0], fp64_array_memview.shape[0])
             elif precision == "FP16":
                 raise RuntimeError("Currently, it's impossible to set_blob with FP16 precision")
             elif precision == "I16":
@@ -1485,6 +1491,7 @@ cdef class BlobBuffer:
         # todo: half floats
         precision_to_format = {
             'FP32': 'f',  # float
+            'FP64': 'd',  # double
             'FP16': 'h',  # signed short
             'U8': 'B',  # unsigned char
             'U16': 'H',  # unsigned short

@@ -221,8 +221,8 @@ void op::v4::Interpolate::validate_and_infer_types()
 {
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          input_et == element::f32 || input_et == element::f16 ||
-                              input_et == element::i8,
+                          input_et == element::Type_t::f32 || input_et == element::Type_t::f16 ||
+                              input_et == element::Type_t::i8,
                           "Input element type must be f32, f16, or i8");
 
     PartialShape input_shape = PartialShape(get_input_partial_shape(0));

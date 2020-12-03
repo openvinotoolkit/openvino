@@ -88,7 +88,8 @@ xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is no
 xfail_issue_35924 = xfail_test(reason="Assertion error - elu results mismatch")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_35929 = xfail_test(reason="RuntimeError: Incorrect precision f64!")
+xfail_issue_40319 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format FP64 is not "
+                                      "supported yet...")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
 xfail_issue_40485 = xfail_test(reason="Computation missmatch")

@@ -23,62 +23,66 @@ using namespace ngraph;
 
 TEST(type_prop, bucketize)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 2});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 3, 2});
+    auto buckets = make_shared<op::Parameter>(element::Type_t::f32, Shape{4});
     auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
-    EXPECT_EQ(bucketize->get_element_type(), element::i64);
+    EXPECT_EQ(bucketize->get_element_type(), element::Type_t::i64);
     EXPECT_TRUE(bucketize->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, 2}));
 }
 
 TEST(type_prop, bucketize_output_type)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::i32);
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto buckets = make_shared<op::Parameter>(element::Type_t::f32, Shape{5});
+    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::Type_t::i32);
 
-    ASSERT_EQ(bucketize->get_output_element_type(0), element::i32);
+    ASSERT_EQ(bucketize->get_output_element_type(0), element::Type_t::i32);
     EXPECT_TRUE(bucketize->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 3, 4}));
 }
 
 TEST(type_prop, bucketize_output_type_right_bound)
 {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::i32, false);
+    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
+    auto buckets = make_shared<op::Parameter>(element::Type_t::f32, Shape{5});
+    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::Type_t::i32, false);
 
-    ASSERT_EQ(bucketize->get_output_element_type(0), element::i32);
+    ASSERT_EQ(bucketize->get_output_element_type(0), element::Type_t::i32);
     EXPECT_TRUE(bucketize->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 3, 4}));
 }
 
 TEST(type_prop, bucketize_dynamic_input)
 {
-    auto data = make_shared<op::Parameter>(element::f64, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f64, PartialShape{4, Dimension::dynamic()});
+    auto buckets = make_shared<op::Parameter>(element::Type_t::f32, Shape{5});
     auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
 
-    EXPECT_EQ(bucketize->get_element_type(), element::i64);
+    EXPECT_EQ(bucketize->get_element_type(), element::Type_t::i64);
     EXPECT_TRUE(
         bucketize->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension::dynamic()}));
 }
 
 TEST(type_prop, bucketize_dynamic_buckets)
 {
-    auto data = make_shared<op::Parameter>(element::f64, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f64, PartialShape{4, Dimension::dynamic()});
+    auto buckets =
+        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic()});
     auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
 
-    EXPECT_EQ(bucketize->get_element_type(), element::i64);
+    EXPECT_EQ(bucketize->get_element_type(), element::Type_t::i64);
     EXPECT_TRUE(
         bucketize->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension::dynamic()}));
 }
 
 TEST(type_prop, bucketize_fail_output_type)
 {
-    auto data = make_shared<op::Parameter>(element::f64, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f64, PartialShape{4, Dimension::dynamic()});
+    auto buckets = make_shared<op::Parameter>(element::Type_t::f32, Shape{5});
     try
     {
-        auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::f64);
+        auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::Type_t::f64);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid output type not detected";
     }
@@ -94,8 +98,9 @@ TEST(type_prop, bucketize_fail_output_type)
 
 TEST(type_prop, bucketize_fail_buckets_dim)
 {
-    auto data = make_shared<op::Parameter>(element::f64, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5, 5});
+    auto data =
+        make_shared<op::Parameter>(element::Type_t::f64, PartialShape{4, Dimension::dynamic()});
+    auto buckets = make_shared<op::Parameter>(element::Type_t::f32, Shape{5, 5});
     try
     {
         auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);

@@ -43,17 +43,17 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_to_scalar)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::f32, Shape{});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -63,8 +63,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_large_1d_to_scalar)
 {
     Shape shape{1000000};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -79,9 +79,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_large_1d_to_scalar)
         v_a[i] = static_cast<float>(random_generator() % 255);
         r += static_cast<double>(v_a[i]);
     }
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, v_a);
-    auto result = backend->create_tensor(element::f32, Shape{});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -93,18 +93,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_large_1d_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_columns)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -114,9 +114,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_columns)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_6d)
 {
     Shape shape_a{2, 6, 4, 5, 7, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{2, 4, 5, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{1, 4});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{1, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -124,10 +124,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_6d)
     auto backend_ref = runtime::Backend::create("INTERPRETER");
 
     // Create some tensors for input/output
-    auto a_wrk = backend_wrk->create_tensor(element::f32, shape_a);
-    auto a_ref = backend_ref->create_tensor(element::f32, shape_a);
-    auto result_wrk = backend_wrk->create_tensor(element::f32, shape_rt);
-    auto result_ref = backend_ref->create_tensor(element::f32, shape_rt);
+    auto a_wrk = backend_wrk->create_tensor(element::Type_t::f32, shape_a);
+    auto a_ref = backend_ref->create_tensor(element::Type_t::f32, shape_a);
+    auto result_wrk = backend_wrk->create_tensor(element::Type_t::f32, shape_rt);
+    auto result_ref = backend_ref->create_tensor(element::Type_t::f32, shape_rt);
 
     vector<float> inp_data(shape_size<const Shape>(shape_a));
     iota(inp_data.begin(), inp_data.end(), 1.f);
@@ -145,18 +145,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_6d)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_rows)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -166,18 +166,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_rows)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_rows_zero)
 {
     Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
     copy_data(result, vector<float>({3, 3, 3}));
 
     auto handle = backend->compile(f);
@@ -189,18 +189,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_cols_zero)
 {
     // Now the reduction (g(x:float32[2,2],y:float32[]) = reduce(x,y,f,axes={})).
     Shape shape_a{0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
     copy_data(result, vector<float>({3, 3}));
 
     auto handle = backend->compile(f);
@@ -211,18 +211,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_cols_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_vector_zero)
 {
     Shape shape_a{0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
     copy_data(result, vector<float>({3}));
 
     auto handle = backend->compile(f);
@@ -233,18 +233,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_vector_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_to_scalar_zero_by_zero)
 {
     Shape shape_a{0, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
     copy_data(result, vector<float>({3}));
 
     auto handle = backend->compile(f);
@@ -255,19 +255,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_to_scalar_zero_by_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_matrix_most_sig)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
                                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -286,19 +286,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_matrix_most_sig)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_matrix_least_sig)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 2);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 2);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
                                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -317,19 +317,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_matrix_least_sig)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_vector)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
                                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -342,19 +342,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_vector)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_scalar)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
                                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -367,19 +367,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_scalar_int32)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a, vector<int32_t>{0x40000001, 10, 19, 4,  13, 22, 7,  16, 25, 2,  11, 20, 5, 14,
                                  23,         8,  17, 26, 3,  12, 21, 6,  15, 24, 9,  18, 27});
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -391,18 +391,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_to_scalar_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_eliminate_zero_dim)
 {
     Shape shape_a{3, 0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     // Overwrite the initial result vector to make sure we're not just coincidentally getting the
     // right value.
@@ -416,18 +416,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_eliminate_zero_dim)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_eliminate_zero_dim_int32)
 {
     Shape shape_a{3, 0, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{3, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a, vector<int32_t>{});
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
 
     // Overwrite the initial result vector to make sure we're not just coincidentally getting the
     // right value.
@@ -441,18 +441,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_3d_eliminate_zero_dim_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_5d_to_scalar)
 {
     Shape shape_a{3, 3, 3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, std::vector<float>(std::pow(3, 5), 1));
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -462,18 +463,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_5d_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_5d_to_scalar_int32)
 {
     Shape shape_a{3, 3, 3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a, std::vector<int32_t>(std::pow(3, 5), 1));
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -483,18 +485,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_5d_to_scalar_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_2d_to_scalar_int8)
 {
     Shape shape_a{3, 3};
-    auto A = make_shared<op::Parameter>(element::i8, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i8, shape_a);
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i8, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i8, shape_a);
     copy_data(a, std::vector<int8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
-    auto result = backend->create_tensor(element::i8, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i8, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -505,17 +507,17 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_trivial_in_double)
 {
     Shape shape{4, 3};
     Shape rshape{3};
-    auto A = make_shared<op::Parameter>(element::f64, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::Parameter>(element::Type_t::f64, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f64, shape);
+    auto a = backend->create_tensor(element::Type_t::f64, shape);
     copy_data(a, vector<double>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result = backend->create_tensor(element::f64, rshape);
+    auto result = backend->create_tensor(element::Type_t::f64, rshape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -533,10 +535,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_stable_acc)
         return;
     }
     Shape shape_a{10, 10, 10, 30};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
 
     Shape shape_rt{10};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{1, 2, 3});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{3}, vector<int32_t>{1, 2, 3});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -568,10 +570,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_stable_acc_double)
         return;
     }
     Shape shape_a{10, 10, 20, 300};
-    auto A = make_shared<op::Parameter>(element::f64, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f64, shape_a);
 
     Shape shape_rt{10};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{1, 2, 3});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{3}, vector<int32_t>{1, 2, 3});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -601,10 +603,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_stable_simple_float)
         return;
     }
     Shape shape_a{20};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
 
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -632,10 +634,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_stable_simple_double)
         return;
     }
     Shape shape_a{20};
-    auto A = make_shared<op::Parameter>(element::f64, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f64, shape_a);
 
     Shape shape_rt{};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -676,9 +678,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_stable_simple_double)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_dynamic)
 {
     // Create a graph for f(x,axes:int32) = Sum(x,Convert<int64>(axes)).
-    auto x = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    auto axes_i64 = make_shared<op::Convert>(axes, element::i64);
+    auto x = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes =
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
+    auto axes_i64 = make_shared<op::Convert>(axes, element::Type_t::i64);
 
     auto sum = make_shared<op::v1::ReduceSum>(x, axes_i64, false);
     ASSERT_TRUE(sum->get_output_partial_shape(0).rank().is_dynamic());
@@ -689,7 +692,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_dynamic)
 
     auto ex = backend->compile(f);
 
-    auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto t_r = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     std::vector<Shape> x_shapes{
         Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{5}, Shape{5}};
@@ -707,8 +710,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_dynamic)
 
     for (size_t i = 0; i < x_shapes.size(); i++)
     {
-        auto t_x = backend->create_tensor(element::f32, x_shapes[i]);
-        auto t_axes = backend->create_tensor(element::i32, Shape{axeses[i].size()});
+        auto t_x = backend->create_tensor(element::Type_t::f32, x_shapes[i]);
+        auto t_axes = backend->create_tensor(element::Type_t::i32, Shape{axeses[i].size()});
 
         copy_data(t_x, inputs[i]);
         copy_data(t_axes, axeses[i]);
@@ -726,8 +729,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_dynamic)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_inf)
 {
     Shape shape{7, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -736,7 +739,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_inf)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a,
               test::NDArray<float, 2>({{-infi, 0, 0, infi},
                                        {infi, 100, -100, -infi},
@@ -746,7 +749,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_inf)
                                        {infi, infi, infi, -infi},
                                        {infi, std::nanf(""), 42, infi}})
                   .get_vector());
-    auto result = backend->create_tensor(element::f32, Shape{7});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{7});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -766,17 +769,17 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_inf)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_to_scalar)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::f32, Shape{1, 1});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{1, 1});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -786,8 +789,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_large_1d_to_scalar)
 {
     Shape shape{1000000};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -802,9 +805,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_large_1d_to_scalar)
         v_a[i] = static_cast<float>(random_generator() % 255);
         r += static_cast<double>(v_a[i]);
     }
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, v_a);
-    auto result = backend->create_tensor(element::f32, Shape{1});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{1});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -816,18 +819,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_large_1d_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_columns)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -837,9 +840,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_columns)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_6d)
 {
     Shape shape_a{2, 6, 4, 5, 7, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{2, 1, 4, 5, 1, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{1, 4});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{1, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -847,10 +850,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_6d)
     auto backend_ref = runtime::Backend::create("INTERPRETER");
 
     // Create some tensors for input/output
-    auto a_wrk = backend_wrk->create_tensor(element::f32, shape_a);
-    auto a_ref = backend_ref->create_tensor(element::f32, shape_a);
-    auto result_wrk = backend_wrk->create_tensor(element::f32, shape_rt);
-    auto result_ref = backend_ref->create_tensor(element::f32, shape_rt);
+    auto a_wrk = backend_wrk->create_tensor(element::Type_t::f32, shape_a);
+    auto a_ref = backend_ref->create_tensor(element::Type_t::f32, shape_a);
+    auto result_wrk = backend_wrk->create_tensor(element::Type_t::f32, shape_rt);
+    auto result_ref = backend_ref->create_tensor(element::Type_t::f32, shape_rt);
 
     vector<float> inp_data(shape_size<const Shape>(shape_a));
     iota(inp_data.begin(), inp_data.end(), 1.f);
@@ -868,18 +871,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_6d)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_rows)
 {
     Shape shape_a{3, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -889,18 +892,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_rows)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_rows_zero)
 {
     Shape shape_a{3, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
     copy_data(result, vector<float>({3, 3, 3}));
 
     auto handle = backend->compile(f);
@@ -912,18 +915,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_cols_zero)
 {
     // Now the reduction (g(x:float32[2,2],y:float32[]) = reduce(x,y,f,axes={})).
     Shape shape_a{0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
     copy_data(result, vector<float>({3, 3}));
 
     auto handle = backend->compile(f);
@@ -934,18 +937,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_cols_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_vector_zero)
 {
     Shape shape_a{0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
     copy_data(result, vector<float>({3}));
 
     auto handle = backend->compile(f);
@@ -956,18 +959,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_vector_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_to_scalar_zero_by_zero)
 {
     Shape shape_a{0, 0};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
     copy_data(result, vector<float>({3}));
 
     auto handle = backend->compile(f);
@@ -978,19 +981,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_to_scalar_zero_by_zero)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_matrix_most_sig)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 3, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
                                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1009,19 +1012,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_matrix_most_sig)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_matrix_least_sig)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3, 3, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 2);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 2);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
                                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1040,19 +1043,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_matrix_least_sig)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_vector)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 1, 3};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
                                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1065,19 +1068,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_vector)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_scalar)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
                                15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1090,19 +1093,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_scalar_int32)
 {
     Shape shape_a{3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{0, 1, 2});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{3}, vector<int32_t>{0, 1, 2});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a, vector<int32_t>{0x40000001, 10, 19, 4,  13, 22, 7,  16, 25, 2,  11, 20, 5, 14,
                                  23,         8,  17, 26, 3,  12, 21, 6,  15, 24, 9,  18, 27});
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1114,18 +1117,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_to_scalar_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_eliminate_zero_dim)
 {
     Shape shape_a{3, 0, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{3, 1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     // Overwrite the initial result vector to make sure we're not just coincidentally getting the
     // right value.
@@ -1139,18 +1142,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_eliminate_zero_dim)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_eliminate_zero_dim_int32)
 {
     Shape shape_a{3, 0, 2};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{3, 1, 2};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a, vector<int32_t>{});
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
 
     // Overwrite the initial result vector to make sure we're not just coincidentally getting the
     // right value.
@@ -1164,18 +1167,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_3d_eliminate_zero_dim_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_5d_to_scalar)
 {
     Shape shape_a{3, 3, 3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
     Shape shape_rt{1, 1, 1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, std::vector<float>(std::pow(3, 5), 1));
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1185,18 +1189,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_5d_to_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_5d_to_scalar_int32)
 {
     Shape shape_a{3, 3, 3, 3, 3};
-    auto A = make_shared<op::Parameter>(element::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
     Shape shape_rt{1, 1, 1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
+    auto axes =
+        make_shared<op::Constant>(element::Type_t::i32, Shape{5}, vector<int32_t>{0, 1, 2, 3, 4});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
     copy_data(a, std::vector<int32_t>(std::pow(3, 5), 1));
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1206,18 +1211,18 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_5d_to_scalar_int32)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_2d_to_scalar_int8)
 {
     Shape shape_a{3, 3};
-    auto A = make_shared<op::Parameter>(element::i8, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::i8, shape_a);
     Shape shape_rt{1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{2}, vector<int32_t>{0, 1});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i8, shape_a);
+    auto a = backend->create_tensor(element::Type_t::i8, shape_a);
     copy_data(a, std::vector<int8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
-    auto result = backend->create_tensor(element::i8, shape_rt);
+    auto result = backend->create_tensor(element::Type_t::i8, shape_rt);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1228,17 +1233,17 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_trivial_in_double)
 {
     Shape shape{4, 3};
     Shape rshape{1, 3};
-    auto A = make_shared<op::Parameter>(element::f64, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::Parameter>(element::Type_t::f64, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f64, shape);
+    auto a = backend->create_tensor(element::Type_t::f64, shape);
     copy_data(a, vector<double>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result = backend->create_tensor(element::f64, rshape);
+    auto result = backend->create_tensor(element::Type_t::f64, rshape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1256,10 +1261,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_acc)
         return;
     }
     Shape shape_a{10, 10, 10, 30};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
 
     Shape shape_rt{10, 1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{1, 2, 3});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{3}, vector<int32_t>{1, 2, 3});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1291,10 +1296,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_acc_double)
         return;
     }
     Shape shape_a{10, 10, 20, 300};
-    auto A = make_shared<op::Parameter>(element::f64, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f64, shape_a);
 
     Shape shape_rt{10, 1, 1, 1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{3}, vector<int32_t>{1, 2, 3});
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{3}, vector<int32_t>{1, 2, 3});
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1324,10 +1329,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_simple_float)
         return;
     }
     Shape shape_a{20};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
 
     Shape shape_rt{1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1355,10 +1360,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_simple_double)
         return;
     }
     Shape shape_a{20};
-    auto A = make_shared<op::Parameter>(element::f64, shape_a);
+    auto A = make_shared<op::Parameter>(element::Type_t::f64, shape_a);
 
     Shape shape_rt{1};
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1399,9 +1404,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_simple_double)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_dynamic)
 {
     // Create a graph for f(x,axes:int32) = Sum(x,Convert<int64>(axes)).
-    auto x = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    auto axes_i64 = make_shared<op::Convert>(axes, element::i64);
+    auto x = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes =
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
+    auto axes_i64 = make_shared<op::Convert>(axes, element::Type_t::i64);
 
     auto sum = make_shared<op::v1::ReduceSum>(x, axes_i64, true);
     ASSERT_TRUE(sum->get_output_partial_shape(0).rank().is_dynamic());
@@ -1412,7 +1418,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_dynamic)
 
     auto ex = backend->compile(f);
 
-    auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto t_r = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     std::vector<Shape> x_shapes{
         Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{5}, Shape{5}};
@@ -1430,8 +1436,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_dynamic)
 
     for (size_t i = 0; i < x_shapes.size(); i++)
     {
-        auto t_x = backend->create_tensor(element::f32, x_shapes[i]);
-        auto t_axes = backend->create_tensor(element::i32, Shape{axeses[i].size()});
+        auto t_x = backend->create_tensor(element::Type_t::f32, x_shapes[i]);
+        auto t_axes = backend->create_tensor(element::Type_t::i32, Shape{axeses[i].size()});
 
         copy_data(t_x, inputs[i]);
         copy_data(t_axes, axeses[i]);
@@ -1449,8 +1455,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_dynamic)
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_inf)
 {
     Shape shape{7, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1459,7 +1465,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_inf)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a,
               test::NDArray<float, 2>({{-infi, 0, 0, infi},
                                        {infi, 100, -100, -infi},
@@ -1469,7 +1475,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_inf)
                                        {infi, infi, infi, -infi},
                                        {infi, std::nanf(""), 42, infi}})
                   .get_vector());
-    auto result = backend->create_tensor(element::f32, Shape{7, 1});
+    auto result = backend->create_tensor(element::Type_t::f32, Shape{7, 1});
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1488,8 +1494,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_inf)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_columns_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -1497,9 +1503,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_columns_dynamic)
 
     // Create some tensors for input/output
     Shape shape_a{3, 2};
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1508,8 +1514,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_columns_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_rows_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
@@ -1517,9 +1523,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_rows_dynamic)
 
     // Create some tensors for input/output
     Shape shape_a{3, 2};
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1528,8 +1534,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_matrix_rows_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_columns_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 0);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1537,9 +1543,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_columns_dynamic)
 
     // Create some tensors for input/output
     Shape shape_a{3, 2};
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -1548,8 +1554,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_columns_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_rows_dynamic)
 {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto axes = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 1);
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
@@ -1557,9 +1563,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_matrix_rows_dynamic)
 
     // Create some tensors for input/output
     Shape shape_a{3, 2};
-    auto a = backend->create_tensor(element::f32, shape_a);
+    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});

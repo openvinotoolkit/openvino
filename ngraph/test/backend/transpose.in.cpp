@@ -33,9 +33,10 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose)
     // Create a graph for f(x,perm) = Transpose(x,Convert<i64>(perm)). We'll do the permutation in
     // i32 and cast it to i64, just for fun (and to mirror the TensorFlow test I am porting here).
     //
-    auto x = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto perm = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    auto perm_i64 = make_shared<op::Convert>(perm, element::i64);
+    auto x = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto perm =
+        make_shared<op::Parameter>(element::Type_t::i32, PartialShape{Dimension::dynamic()});
+    auto perm_i64 = make_shared<op::Convert>(perm, element::Type_t::i64);
 
     auto x_transpose = make_shared<op::Transpose>(x, perm_i64);
 
@@ -45,7 +46,7 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose)
 
     auto ex = backend->compile(f);
 
-    auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto t_r = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
 
     std::vector<Shape> x_shapes{Shape{2, 3}, Shape{2, 3}, Shape{2, 2, 3}};
     std::vector<std::vector<int32_t>> perms{{0, 1}, {1, 0}, {2, 1, 0}};
@@ -58,8 +59,8 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose)
 
     for (size_t i = 0; i < x_shapes.size(); i++)
     {
-        auto t_x = backend->create_tensor(element::f32, x_shapes[i]);
-        auto t_perm = backend->create_tensor(element::i32, Shape{perms[i].size()});
+        auto t_x = backend->create_tensor(element::Type_t::f32, x_shapes[i]);
+        auto t_perm = backend->create_tensor(element::Type_t::i32, Shape{perms[i].size()});
 
         copy_data(t_x, inputs[i]);
         copy_data(t_perm, perms[i]);
