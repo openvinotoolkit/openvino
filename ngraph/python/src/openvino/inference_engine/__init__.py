@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
+
+
 from openvino.pyopenvino import IECore
 from openvino.pyopenvino import IENetwork
 from openvino.pyopenvino import ExecutableNetwork
