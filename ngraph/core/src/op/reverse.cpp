@@ -59,7 +59,7 @@ void op::v1::Reverse::validate_and_infer_types()
     if (m_mode == Mode::MASK)
     {
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(1) == element::boolean,
+                              get_input_element_type(1) == element::Type_t::boolean,
                               "In 'mask' mode the second input must contain boolean values.");
     }
 

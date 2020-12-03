@@ -88,13 +88,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         } // namespace v1
-
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Multiply;
-        NGRAPH_SUPPRESS_DEPRECATED_END
-    } // namespace op
-
-    NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")
-    NGRAPH_API
-    std::shared_ptr<Node> operator*(const Output<Node>& arg0, const Output<Node>& arg1);
+    }     // namespace op
 } // namespace ngraph
