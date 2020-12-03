@@ -66,6 +66,10 @@ void regclass_IENetwork(py::module m)
 
     auto py_inputs_data_map = py::bind_map<PyInputsDataMap>(m, "PyInputsDataMap");
 
+    py_inputs_data_map.def("keys", [](PyInputsDataMap& self) {
+        return py::make_key_iterator(self.begin(), self.end());
+    });
+
     cls.def_property_readonly("input_info", [](InferenceEngine::CNNNetwork& self) {
         PyInputsDataMap inputs;
         const InferenceEngine::InputsDataMap& inputsInfo = self.getInputsInfo();
