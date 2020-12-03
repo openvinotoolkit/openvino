@@ -388,8 +388,7 @@ def test_cast_to_bool(val_type, input_data):
     "val_type, range_start, range_end, in_dtype",
     [
         (np.dtype(np.float32), -8, 8, np.dtype(np.int32)),
-        pytest.param(np.dtype(np.float64), -16383, 16383, np.dtype(np.int64),
-                     marks=pytest.mark.xfail(reason="RuntimeError: Unsupported type")),
+        (np.dtype(np.float64), -16383, 16383, np.dtype(np.int64)),
     ],
 )
 def test_cast_to_float(val_type, range_start, range_end, in_dtype):
