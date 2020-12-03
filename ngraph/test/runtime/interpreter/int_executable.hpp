@@ -85,6 +85,7 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/rnn_cell.hpp"
+#include "ngraph/runtime/reference/roi_pooling.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
@@ -438,7 +439,7 @@ protected:
         {
             const op::v4::CTCLoss* ctc_loss = static_cast<const op::v4::CTCLoss*>(&node);
             auto t_int = node.get_input_element_type(1);
-            if (t_int == element::i32)
+            if (t_int == element::Type_t::i32)
             {
                 reference::CTCLoss<T, int32_t>(
                     args[0]->get_data_ptr<const T>(),
@@ -452,7 +453,7 @@ protected:
                     ctc_loss->get_unique(),
                     out[0]->get_data_ptr<T>());
             }
-            else if (t_int == element::i64)
+            else if (t_int == element::Type_t::i64)
             {
                 reference::CTCLoss<T, int64_t>(
                     args[0]->get_data_ptr<const T>(),
@@ -472,7 +473,7 @@ protected:
         {
             const op::CumSum* cumsum = static_cast<const op::CumSum*>(&node);
             auto axis_et = node.get_input_element_type(1);
-            if (axis_et == element::i32)
+            if (axis_et == element::Type_t::i32)
             {
                 reference::cumsum<T, int32_t>(args[0]->get_data_ptr<const T>(),
                                               args[1]->get_data_ptr<const int32_t>(),
@@ -481,7 +482,7 @@ protected:
                                               cumsum->is_exclusive(),
                                               cumsum->is_reverse());
             }
-            else if (axis_et == element::i64)
+            else if (axis_et == element::Type_t::i64)
             {
                 reference::cumsum<T, int64_t>(args[0]->get_data_ptr<const T>(),
                                               args[1]->get_data_ptr<const int64_t>(),
@@ -499,7 +500,7 @@ protected:
             auto indicesType = embed->input(1).get_element_type();
             size_t indices_num = shape_size(embed->get_input_shape(1));
 
-            if (indicesType == element::u64 || indicesType == element::i64)
+            if (indicesType == element::Type_t::u64 || indicesType == element::Type_t::i64)
             {
                 reference::embeddingBagOffsetsSum<T, size_t>(
                     args[0]->get_data_ptr<const T>(),
@@ -511,7 +512,7 @@ protected:
                     indices_num,
                     embed->get_shape());
             }
-            else if (indicesType == element::u32 || indicesType == element::i32)
+            else if (indicesType == element::Type_t::u32 || indicesType == element::Type_t::i32)
             {
                 reference::embeddingBagOffsetsSum<T, unsigned>(
                     args[0]->get_data_ptr<const T>(),
@@ -537,7 +538,7 @@ protected:
                 static_cast<const op::EmbeddingBagPackedSum*>(&node);
             auto indicesType = embed->input(1).get_element_type();
 
-            if (indicesType == element::u64 || indicesType == element::i64)
+            if (indicesType == element::Type_t::u64 || indicesType == element::Type_t::i64)
             {
                 reference::embeddingBagPackedSum<T, size_t>(
                     args[0]->get_data_ptr<const T>(),
@@ -547,7 +548,7 @@ protected:
                     embed->get_input_shape(1),
                     embed->get_shape());
             }
-            else if (indicesType == element::u32 || indicesType == element::i32)
+            else if (indicesType == element::Type_t::u32 || indicesType == element::Type_t::i32)
             {
                 reference::embeddingBagPackedSum<T, unsigned>(
                     args[0]->get_data_ptr<const T>(),
@@ -572,7 +573,7 @@ protected:
             auto indicesType = embed->input(1).get_element_type();
             size_t indices_num = shape_size(embed->get_input_shape(1));
 
-            if (indicesType == element::u64 || indicesType == element::i64)
+            if (indicesType == element::Type_t::u64 || indicesType == element::Type_t::i64)
             {
                 reference::embeddingSegmentsSum<T, size_t>(
                     args[0]->get_data_ptr<const T>(),
@@ -585,7 +586,7 @@ protected:
                     embed->get_input_shape(1),
                     embed->get_shape());
             }
-            else if (indicesType == element::u32 || indicesType == element::i32)
+            else if (indicesType == element::Type_t::u32 || indicesType == element::Type_t::i32)
             {
                 reference::embeddingSegmentsSum<T, unsigned>(
                     args[0]->get_data_ptr<const T>(),
@@ -666,7 +667,7 @@ protected:
         case OP_TYPEID::GatherND_v5:
         {
             const op::v5::GatherND* gatherNDNode = static_cast<const op::v5::GatherND*>(&node);
-            if (node.get_input_element_type(1) == element::i64)
+            if (node.get_input_element_type(1) == element::Type_t::i64)
             {
                 reference::gather_nd<T, int64_t>(args[0]->get_data_ptr<T>(),
                                                  args[1]->get_data_ptr<int64_t>(),
@@ -676,7 +677,7 @@ protected:
                                                  node.get_output_shape(0),
                                                  gatherNDNode->get_batch_dims());
             }
-            else if (node.get_input_element_type(1) == element::i32)
+            else if (node.get_input_element_type(1) == element::Type_t::i32)
             {
                 reference::gather_nd<T, int32_t>(args[0]->get_data_ptr<T>(),
                                                  args[1]->get_data_ptr<int32_t>(),
@@ -759,7 +760,7 @@ protected:
         {
             auto lstm_seq = static_cast<const op::v5::LSTMSequence*>(&node);
             auto type = args[3]->get_element_type();
-            if (type == element::i64 || type == element::u64)
+            if (type == element::Type_t::i64 || type == element::Type_t::u64)
             {
                 runtime::reference::lstm_sequence<T, int64_t>(args[0]->get_data_ptr<char>(),
                                                               args[0]->get_shape(),
@@ -784,7 +785,7 @@ protected:
                                                               lstm_seq->get_clip(),
                                                               lstm_seq->get_direction());
             }
-            else if (type == element::i32 || type == element::u32)
+            else if (type == element::Type_t::i32 || type == element::Type_t::u32)
             {
                 runtime::reference::lstm_sequence<T, int32_t>(args[0]->get_data_ptr<char>(),
                                                               args[0]->get_shape(),
@@ -821,7 +822,7 @@ protected:
         {
             auto gru_seq = static_cast<const op::v5::GRUSequence*>(&node);
             auto type = args[2]->get_element_type();
-            if (type == element::i64 || type == element::u64)
+            if (type == element::Type_t::i64 || type == element::Type_t::u64)
             {
                 runtime::reference::gru_sequence<T, int64_t>(args[0]->get_data_ptr<char>(),
                                                              args[0]->get_shape(),
@@ -843,7 +844,7 @@ protected:
                                                              gru_seq->get_direction(),
                                                              gru_seq->get_linear_before_reset());
             }
-            else if (type == element::i32 || type == element::u32)
+            else if (type == element::Type_t::i32 || type == element::Type_t::u32)
             {
                 runtime::reference::gru_sequence<T, int32_t>(args[0]->get_data_ptr<char>(),
                                                              args[0]->get_shape(),
@@ -890,7 +891,7 @@ protected:
         {
             auto rnn_seq = static_cast<const op::v5::RNNSequence*>(&node);
             auto type = args[2]->get_element_type();
-            if (type == element::i64 || type == element::u64)
+            if (type == element::Type_t::i64 || type == element::Type_t::u64)
             {
                 runtime::reference::rnn_sequence<T, int64_t>(args[0]->get_data_ptr<char>(),
                                                              args[0]->get_shape(),
@@ -910,7 +911,7 @@ protected:
                                                              rnn_seq->get_clip(),
                                                              rnn_seq->get_direction());
             }
-            else if (type == element::i32 || type == element::u32)
+            else if (type == element::Type_t::i32 || type == element::Type_t::u32)
             {
                 runtime::reference::rnn_sequence<T, int32_t>(args[0]->get_data_ptr<char>(),
                                                              args[0]->get_shape(),
@@ -1105,7 +1106,7 @@ protected:
             const op::Quantize* quantize = static_cast<const op::Quantize*>(&node);
             auto type = quantize->get_element_type();
 
-            if (type == element::u8)
+            if (type == element::Type_t::u8)
             {
                 reference::quantize<T>(args[0]->get_data_ptr<const T>(),
                                        args[1]->get_data_ptr<const T>(),
@@ -1116,7 +1117,7 @@ protected:
                                        quantize->get_axes(),
                                        quantize->get_round_mode());
             }
-            else if (type == element::i8)
+            else if (type == element::Type_t::i8)
             {
                 reference::quantize<T>(args[0]->get_data_ptr<const T>(),
                                        args[1]->get_data_ptr<const T>(),
@@ -1127,7 +1128,7 @@ protected:
                                        quantize->get_axes(),
                                        quantize->get_round_mode());
             }
-            else if (type == element::i32)
+            else if (type == element::Type_t::i32)
             {
                 reference::quantize<T>(args[0]->get_data_ptr<const T>(),
                                        args[1]->get_data_ptr<const T>(),
@@ -1171,7 +1172,7 @@ protected:
         {
             const op::ReverseSequence* reverse = static_cast<const op::ReverseSequence*>(&node);
 
-            if (node.get_input_element_type(1) == element::i32)
+            if (node.get_input_element_type(1) == element::Type_t::i32)
             {
                 reference::reverse_sequence<T, int32_t>(args[0]->get_data_ptr<const T>(),
                                                         out[0]->get_data_ptr<T>(),
@@ -1180,7 +1181,7 @@ protected:
                                                         reverse->get_sequence_axis(),
                                                         args[1]->get_data_ptr<const int32_t>());
             }
-            else if (node.get_input_element_type(1) == element::i64)
+            else if (node.get_input_element_type(1) == element::Type_t::i64)
             {
                 reference::reverse_sequence<T, int64_t>(args[0]->get_data_ptr<const T>(),
                                                         out[0]->get_data_ptr<T>(),
@@ -1193,6 +1194,19 @@ protected:
             {
                 throw ngraph_error("only int32 indices are supported");
             }
+            break;
+        }
+        case OP_TYPEID::ROIPooling_v0:
+        {
+            const op::ROIPooling* roi_pooling = static_cast<const op::ROIPooling*>(&node);
+            reference::roi_pooling<T>(args[0]->get_data_ptr<const T>(),
+                                      args[1]->get_data_ptr<const T>(),
+                                      out[0]->get_data_ptr<T>(),
+                                      node.get_input_shape(0),
+                                      node.get_input_shape(1),
+                                      node.get_output_shape(0),
+                                      roi_pooling->get_spatial_scale(),
+                                      roi_pooling->get_method());
             break;
         }
         case OP_TYPEID::Select:
@@ -1364,7 +1378,7 @@ protected:
             const op::ScatterNDUpdate* scatterNDUpd =
                 static_cast<const op::v3::ScatterNDUpdate*>(&node);
             auto idxType = scatterNDUpd->get_input_element_type(1);
-            if (idxType == element::i32)
+            if (idxType == element::Type_t::i32)
             {
                 reference::scatterNdUpdate<T, int32_t>(args[0]->get_data_ptr<const T>(),
                                                        args[1]->get_data_ptr<const int32_t>(),
@@ -1374,7 +1388,7 @@ protected:
                                                        node.get_input_shape(1),
                                                        node.get_input_shape(2));
             }
-            else if (idxType == element::i64)
+            else if (idxType == element::Type_t::i64)
             {
                 reference::scatterNdUpdate<T, int64_t>(args[0]->get_data_ptr<const T>(),
                                                        args[1]->get_data_ptr<const int64_t>(),
@@ -1443,8 +1457,8 @@ protected:
                                            &valid_outputs,
                                            info.sort_result_descending);
 
-            auto selected_scores_type =
-                (args.size() < 4) ? element::f32 : args[3]->get_element_type();
+            auto selected_scores_type = (args.size() < 4) ? element::Type(element::Type_t::f32)
+                                                          : args[3]->get_element_type();
 
             reference::nms5_postprocessing(out,
                                            info.output_type,

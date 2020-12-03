@@ -28,8 +28,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, split_1d)
 {
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{6});
-    const auto axis = op::Constant::create(element::i64, Shape{}, {0});
+    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{6});
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {0});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 3);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -47,8 +47,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_1d)
 NGRAPH_TEST(${BACKEND_NAME}, split_2d_axis_0)
 {
     Shape shape{6, 2};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {0});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {0});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 2);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -67,8 +67,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_2d_axis_0)
 NGRAPH_TEST(${BACKEND_NAME}, split_2d_axis_1)
 {
     Shape shape{6, 2};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {1});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 2);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -87,8 +87,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_2d_axis_1)
 NGRAPH_TEST(${BACKEND_NAME}, split_3d_axis_0)
 {
     Shape shape{2, 2, 3};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {0});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {0});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 2);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -107,8 +107,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_3d_axis_0)
 NGRAPH_TEST(${BACKEND_NAME}, split_3d_axis_1)
 {
     Shape shape{2, 8, 2};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {1});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 4);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -129,8 +129,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_3d_axis_1)
 NGRAPH_TEST(${BACKEND_NAME}, split_3d_axis_2)
 {
     Shape shape{2, 1, 6};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {2});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {2});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 2);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -149,8 +149,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_3d_axis_2)
 NGRAPH_TEST(${BACKEND_NAME}, split_4d_axis_0)
 {
     Shape shape{3, 2, 3, 1};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {0});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {0});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 3);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -170,8 +170,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_4d_axis_0)
 NGRAPH_TEST(${BACKEND_NAME}, split_4d_axis_1)
 {
     Shape shape{2, 8, 2, 2};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {1});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 4);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -196,8 +196,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_4d_axis_1)
 NGRAPH_TEST(${BACKEND_NAME}, split_4d_axis_2)
 {
     Shape shape{2, 1, 6, 2};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {2});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {2});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 3);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});
@@ -217,8 +217,8 @@ NGRAPH_TEST(${BACKEND_NAME}, split_4d_axis_2)
 NGRAPH_TEST(${BACKEND_NAME}, split_4d_axis_3)
 {
     Shape shape{2, 1, 2, 6};
-    const auto data = make_shared<op::Parameter>(element::f32, shape);
-    const auto axis = op::Constant::create(element::i64, Shape{}, {3});
+    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {3});
 
     const auto tested_op = make_shared<op::v1::Split>(data, axis, 3);
     const auto function = make_shared<Function>(tested_op, ParameterVector{data});

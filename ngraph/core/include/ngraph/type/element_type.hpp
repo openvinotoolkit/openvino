@@ -91,11 +91,12 @@ namespace ngraph
             size_t bitwidth() const;
             // The name of this type, the enum name of this type
             const std::string& get_type_name() const;
+            bool operator==(const Type_t& other) const;
+            bool operator!=(const Type_t& other) const { return !(*this == other); }
             bool operator==(const Type& other) const;
             bool operator!=(const Type& other) const { return !(*this == other); }
             bool operator<(const Type& other) const;
             friend NGRAPH_API std::ostream& operator<<(std::ostream&, const Type&);
-            static std::vector<const Type*> get_known_types();
 
             /// \brief Checks whether this element type is merge-compatible with `t`.
             /// \param t The element type to compare this element type to.
@@ -130,21 +131,50 @@ namespace ngraph
 
         typedef std::vector<Type> TypeVector;
 
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::undefined instead.")
         extern NGRAPH_API const Type undefined;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::dynamic instead.")
         extern NGRAPH_API const Type dynamic;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::boolean instead.")
         extern NGRAPH_API const Type boolean;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::bf16 instead.")
         extern NGRAPH_API const Type bf16;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::f16 instead.")
         extern NGRAPH_API const Type f16;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::f32 instead.")
         extern NGRAPH_API const Type f32;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::f64 instead.")
         extern NGRAPH_API const Type f64;
+        NGRAPH_DEPRECATED("This global element type was deprecated. Please use Type_t::i8 instead.")
         extern NGRAPH_API const Type i8;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::i16 instead.")
         extern NGRAPH_API const Type i16;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::i32 instead.")
         extern NGRAPH_API const Type i32;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::i64 instead.")
         extern NGRAPH_API const Type i64;
+        NGRAPH_DEPRECATED("This global element type was deprecated. Please use Type_t::u1 instead.")
         extern NGRAPH_API const Type u1;
+        NGRAPH_DEPRECATED("This global element type was deprecated. Please use Type_t::u8 instead.")
         extern NGRAPH_API const Type u8;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::u16 instead.")
         extern NGRAPH_API const Type u16;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::u32 instead.")
         extern NGRAPH_API const Type u32;
+        NGRAPH_DEPRECATED(
+            "This global element type was deprecated. Please use Type_t::u64 instead.")
         extern NGRAPH_API const Type u64;
 
         template <typename T>

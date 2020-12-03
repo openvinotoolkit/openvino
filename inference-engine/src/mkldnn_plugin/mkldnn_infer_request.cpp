@@ -105,6 +105,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
             // these precisions are supported by mkldnn, so we push the blob directly
             case InferenceEngine::Precision::I8:
             case InferenceEngine::Precision::I32:
+            case InferenceEngine::Precision::BF16:
             case InferenceEngine::Precision::FP32: {
                 break;
             }

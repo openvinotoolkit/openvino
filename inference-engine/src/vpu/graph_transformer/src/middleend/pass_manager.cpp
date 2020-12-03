@@ -249,8 +249,10 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(mergeReLUAndBias);
     ADD_DUMP_PASS("mergeReLUAndBias");
 
-    ADD_PASS(mergeEltwiseAndReLUDynamic);
-    ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
+    if (env.config.enableEarlyEltwiseReLUFusion) {
+        ADD_PASS(mergeEltwiseAndReLUDynamic);
+        ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
+    }
 
     //
     // Data layout adjustment

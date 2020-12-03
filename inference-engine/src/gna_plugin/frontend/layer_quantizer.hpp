@@ -286,7 +286,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         THROW_IE_EXCEPTION << "Unsupported input dims size for " << wl->name << ", should be > 1, but " << wl->insData[0].lock().get()->getDims().size();
     }
     uint32_t num_rows = isDiagonal ? 1 : wl->outData[0]->getDims()[oIdx];
-    uint32_t num_columns = wl->insData[0].lock().get()->getDims()[iIdx];
+    uint32_t num_columns = isDiagonal ? wl->_weights->size() : wl->insData[0].lock().get()->getDims()[iIdx];
 
     if (LayerInfo(wl).isAffineFilter() || LayerInfo(wl).isConcatAlignFilter())  {
         // for affine filter layer insdata size not equal to actual coded in input layer
@@ -476,7 +476,8 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
                 if (LayerInfo(*cnnLayer).isActivation() ||
                     LayerInfo(*cnnLayer).isCopy() ||
                     LayerInfo(*cnnLayer).isNonFunctional() ||
-                    LayerInfo(*cnnLayer).isPermute()) {
+                    LayerInfo(*cnnLayer).isPermute() ||
+                    LayerInfo(*cnnLayer).isConst()) {
                 // precision of activation layers is always equal input precision
                 for (auto &&outData : cnnLayer->outData) {
                     outData->setPrecision(Desc::mandatory().getInputPrecision());
@@ -485,8 +486,12 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
         }
         cnnLayer->precision = Desc::mandatory().getInputPrecision();
 
-        if (cnnLayer->type == "Const") {
-            if (cnnLayer->blobs["custom"]->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+        if (LayerInfo(*cnnLayer).isConst()) {
+            auto initial_precision = cnnLayer->blobs["custom"]->getTensorDesc().getPrecision();
+            // TODO I32 must be handled separately when it'll be supported
+            IE_ASSERT(initial_precision != InferenceEngine::Precision::I32);
+
+            if (initial_precision == InferenceEngine::Precision::FP16) {
                 cnnLayer->blobs["custom"] = make_fp32_blob(cnnLayer->blobs["custom"]);
             }
             auto const_scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer)->_dst_quant.GetScale();

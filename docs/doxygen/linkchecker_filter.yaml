@@ -1,0 +1,4 @@
+exclude_links:
+  - '.*?\@ref omz.*'
+  - '.*?\@ref pot.*'
+  - '.*?\@ref workbench.*'

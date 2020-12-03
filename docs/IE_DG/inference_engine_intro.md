@@ -16,17 +16,17 @@ For complete API Reference, see the [Inference Engine API References](./api_refe
 Inference Engine uses a plugin architecture. Inference Engine plugin is a software component that contains complete implementation for inference on a certain Intel&reg; hardware device: CPU, GPU, VPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs.
 
 Modules in the Inference Engine component
----------------------------------------
+-----------------------------------------
 
 ### Core Inference Engine Libraries ###
 
 Your application must link to the core Inference Engine libraries:
 * Linux* OS:
-    - `libinference_engine.so`, which depends on `libinference_engine_transformations.so` and `libngraph.so`
-    - `libinference_engine_legacy.so`, which depends on `libtbb.so`
+    - `libinference_engine.so`, which depends on `libinference_engine_transformations.so`, `libtbb.so`, `libtbbmalloc.so` and `libngraph.so`
 * Windows* OS:
-    - `inference_engine.dll`, which depends on `inference_engine_transformations.dll` and `ngraph.dll`
-    - `inference_engine_legacy.dll`, which depends on `tbb.dll`
+    - `inference_engine.dll`, which depends on `inference_engine_transformations.dll`, `tbb.dll`, `tbbmalloc.dll` and `ngraph.dll`
+* macOS*:
+    - `libinference_engine.dylib`, which depends on `libinference_engine_transformations.dylib`, `libtbb.dylib`, `libtbbmalloc.dylib` and `libngraph.dylib`
 
 The required C++ header files are located in the `include` directory.
 
@@ -49,26 +49,26 @@ Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwo
 
 For each supported target device, Inference Engine provides a plugin — a DLL/shared library that contains complete implementation for inference on this particular device. The following plugins are available:
 
-| Plugin   | Device Type   |
-| ------------- | ------------- |
-|CPU|	Intel® Xeon® with Intel® AVX2 and AVX512, Intel® Core™ Processors with Intel® AVX2, Intel® Atom® Processors with Intel® SSE |
-|GPU| Intel® Processor Graphics, including Intel® HD Graphics and Intel® Iris® Graphics
-|MYRIAD|	Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X|
-|GNA|	Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor
-|HETERO|Automatic splitting of a network inference between several devices (for example if a device doesn't support certain layers|
-|MULTI| Simultaneous inference of the same network on several devices in parallel|
+| Plugin  | Device Type                   |
+| ------- | ----------------------------- |
+|CPU      |	Intel® Xeon® with Intel® AVX2 and AVX512, Intel® Core™ Processors with Intel® AVX2, Intel® Atom® Processors with Intel® SSE |
+|GPU      | Intel® Processor Graphics, including Intel® HD Graphics and Intel® Iris® Graphics |
+|MYRIAD   |	Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X |
+|GNA      |	Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor |
+|HETERO   | Automatic splitting of a network inference between several devices (for example if a device doesn't support certain layers|
+|MULTI    | Simultaneous inference of the same network on several devices in parallel|
 
-The table below shows the plugin libraries and additional dependencies for Linux and Windows platforms.
+The table below shows the plugin libraries and additional dependencies for Linux, Windows and macOS platforms.
 
-| Plugin | Library name for Linux | Dependency libraries for Linux                  | Library name for Windows | Dependency libraries for Windows                                                                       |
-|--------|------------------------|-------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|
-| CPU    | `libMKLDNNPlugin.so`   | `libinference_engine_lp_transformations.so` | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`    |
-| GPU    | `libclDNNPlugin.so`    | `libinference_engine_lp_transformations.so`, `libOpenCL.so`                                  | `clDNNPlugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                                                           |
-| MYRIAD | `libmyriadPlugin.so`   | `libusb.so`, `libinference_engine_lp_transformations.so`                                 | `myriadPlugin.dll`       | `usb.dll`, `inference_engine_lp_transformations.dll`                                                                                        |
-| HDDL   | `libHDDLPlugin.so`     | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`, `libinference_engine_lp_transformations.so`| `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll`, `inference_engine_lp_transformations.dll` |
-| GNA    | `libGNAPlugin.so`      | `libgna.so`, `libinference_engine_lp_transformations.so`                                 | `GNAPlugin.dll`          | `gna.dll`, `inference_engine_lp_transformations.dll`                                                                                              |
-| HETERO | `libHeteroPlugin.so`   | Same as for selected plugins                    | `HeteroPlugin.dll`       | Same as for selected plugins                                                                           |
-| MULTI  | `libMultiDevicePlugin.so`   | Same as for selected plugins               | `MultiDevicePlugin.dll`  | Same as for selected plugins                                                                           |
+| Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
+|--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
+| CPU    | `libMKLDNNPlugin.so`        | `libinference_engine_lp_transformations.so`                 | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`                                                              | `libMKLDNNPlugin.dylib`      | `inference_engine_lp_transformations.dylib` |
+| GPU    | `libclDNNPlugin.so`         | `libinference_engine_lp_transformations.so`, `libOpenCL.so` | `clDNNPlugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                |  Is not supported            |  -                                          |
+| MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.dylib`      | `libusb.dylib`                              |
+| HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
+| GNA    | `libGNAPlugin.so`           | `libgna.so`,                                                | `GNAPlugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |
+| HETERO | `libHeteroPlugin.so`        | Same as for selected plugins                                | `HeteroPlugin.dll`       | Same as for selected plugins                                                                           | `libHeteroPlugin.dylib`      |  Same as for selected plugins               |
+| MULTI  | `libMultiDevicePlugin.so`   | Same as for selected plugins                                | `MultiDevicePlugin.dll`  | Same as for selected plugins                                                                           | `libMultiDevicePlugin.dylib` |  Same as for selected plugins               |
 
 > **NOTE**: All plugin libraries also depend on core Inference Engine libraries.
 
@@ -76,15 +76,16 @@ Make sure those libraries are in your computer's path or in the place you pointe
 
 * Linux: `LD_LIBRARY_PATH`
 * Windows: `PATH`
+* macOS: `DYLD_LIBRARY_PATH`
 
-On Linux, use the script `bin/setupvars.sh` to set the environment variables.
+On Linux and macOS, use the script `bin/setupvars.sh` to set the environment variables.
 
 On Windows, run the `bin\setupvars.bat` batch file to set the environment variables.
 
 To learn more about supported devices and corresponding plugins, see the [Supported Devices](supported_plugins/Supported_Devices.md) chapter.
 
 Common Workflow for Using the Inference Engine API
----------------------------
+--------------------------------------------------
 The common workflow contains the following steps:
 
 1. **Create Inference Engine Core object** - Create an `InferenceEngine::Core` object to work with different devices, all device plugins are managed internally by the `Core` object. Register extensions with custom nGraph operations (`InferenceEngine::Core::AddExtension`).

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <ie_iinfer_request.hpp>
 #include <ie_parameter.hpp>
 #include <map>
