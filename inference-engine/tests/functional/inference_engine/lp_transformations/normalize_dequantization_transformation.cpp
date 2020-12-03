@@ -11,8 +11,7 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/squeeze.hpp>
-#include <low_precision/transformer.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <low_precision/network_helper.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -50,9 +49,11 @@ public:
             testValues.actual.precisionBeforeDequantization,
             testValues.inputShape,
             testValues.actual.dequantization);
+
         const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
-        auto dequantization = low_precision::NetworkHelper::getDequantization(targetNode);
+        const auto dequantization = low_precision::NetworkHelper::getDequantization(targetNode);
         low_precision::NetworkHelper::normalizeDequantization(dequantization);
+
         referenceFunction = ngraph::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
             testValues.expected.precisionBeforeDequantization,
             testValues.inputShape,
@@ -100,70 +101,70 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
             }
         },
     },
-   {
-       LayerTransformation::createParamsU8I8(),
-       { 1, 3, 16, 16 },
-       {
-           ngraph::element::i32,
-           {
-               {ngraph::element::f32},
-               { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-               { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 0 }
-           },
-       },
-       {
-           ngraph::element::i32,
-           {
-               { ngraph::element::f32 },
-               { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-               {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
-           }
-       },
-   },
-   {
-       LayerTransformation::createParamsU8I8(),
-       { 1, 3, 16, 16 },
-       {
-           ngraph::element::u32,
-           {
-               { ngraph::element::f32 },
-               { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 0 },
-               { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 }
-           },
-       },
-       {
-           ngraph::element::u32,
-           {
-               { {ngraph::element::f32} },
-               { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-               {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
-           }
-       },
-   },
-   {
-       LayerTransformation::createParamsU8I8().setUpdatePrecisions(true),
-       { 1, 3, 16, 16 },
-       {
-           ngraph::element::u32,
-           {
-               { ngraph::element::f32 },
-               { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-               { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 }
-           },
-       },
-       {
-           ngraph::element::u32,
-           {
-               { ngraph::element::f32 },
-               { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
-               {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
-           }
-       },
-   },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        {
+            ngraph::element::i32,
+            {
+                {ngraph::element::f32},
+                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 0 }
+            },
+        },
+        {
+            ngraph::element::i32,
+            {
+                { ngraph::element::f32 },
+                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
+            }
+        },
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        {
+            ngraph::element::u32,
+            {
+                { ngraph::element::f32 },
+                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 0 },
+                { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 }
+            },
+        },
+        {
+            ngraph::element::u32,
+            {
+                { {ngraph::element::f32} },
+                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
+            }
+        },
+    },
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(true),
+        { 1, 3, 16, 16 },
+        {
+            ngraph::element::u32,
+            {
+                { ngraph::element::f32 },
+                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                { {10.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 }
+            },
+        },
+        {
+            ngraph::element::u32,
+            {
+                { ngraph::element::f32 },
+                { {7.f}, ngraph::element::f32, { 1, 3, 16, 16 }, true, 1 },
+                {{10.0f}, ngraph::element::f32, {1, 3, 16, 16}, true, 1 }
+            }
+        },
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     NormalizeDequantizationTransformation,
-        ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(testValues),
     NormalizeDequantizationTransformation::getTestCaseName);
