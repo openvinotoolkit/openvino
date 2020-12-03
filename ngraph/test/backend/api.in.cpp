@@ -37,7 +37,6 @@ NGRAPH_TEST(${BACKEND_NAME}, create_tensor_1)
     auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output

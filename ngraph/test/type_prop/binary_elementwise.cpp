@@ -231,9 +231,11 @@ TEST(type_prop, eltwise_auto_bcast)
     test_binary_eltwise_numpy<op::v1::Divide>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Equal>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Greater>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::GreaterEqual>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::GreaterEqual>(element::Type_t::f32,
+                                                    op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Less>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::LessEqual>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::LessEqual>(element::Type_t::f32,
+                                                 op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Maximum>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Minimum>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::v1::Multiply>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
