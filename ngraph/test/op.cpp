@@ -42,7 +42,7 @@ TEST(op, is_parameter)
 {
     auto arg0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{1});
     ASSERT_NE(nullptr, arg0);
-    auto t0 = make_shared<op::Add>(arg0, arg0);
+    auto t0 = make_shared<op::v1::Add>(arg0, arg0);
     ASSERT_NE(nullptr, t0);
     EXPECT_FALSE(op::is_parameter(t0));
 }
