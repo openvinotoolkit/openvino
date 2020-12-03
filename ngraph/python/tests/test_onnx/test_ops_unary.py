@@ -302,13 +302,13 @@ def test_logsoftmax():
     ng_results = run_node(node, [data])
     assert np.allclose(ng_results, [expected])
 
-    # default axis is 1
-    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"])
+    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=2)
+    expected = logsoftmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
     ng_results = run_node(node, [data])
     assert np.allclose(ng_results, [expected])
 
-    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=2)
-    expected = logsoftmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
+    # default axis is -1
+    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"])
     ng_results = run_node(node, [data])
     assert np.allclose(ng_results, [expected])
 
