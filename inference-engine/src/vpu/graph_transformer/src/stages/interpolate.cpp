@@ -61,6 +61,14 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
 
                 if (cmp(coordinateTransformation, "asymmetric")) {
                     coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
+                } else if (cmp(coordinateTransformation, "half_pixel")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+                } else if (cmp(coordinateTransformation, "pytorch_half_pixel")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::PytorchHalfPixel;
+                } else if (cmp(coordinateTransformation, "tf_half_pixel_for_nn")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::TfHalfPixelForNn;
+                } else if (cmp(coordinateTransformation, "align_corners")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::AlignCorners;
                 }
 
                 if (cmp(nearest, "round_prefer_floor")) {
@@ -69,7 +77,12 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                     nearestMode = InterpolateNearestMode::RoundPreferCeil;
                 } else if (cmp(nearest, "floor")) {
                     nearestMode = InterpolateNearestMode::Floor;
+                } else if (cmp(nearest, "ceil")) {
+                    nearestMode = InterpolateNearestMode::Ceil;
+                } else if (cmp(nearest, "simple")) {
+                    nearestMode = InterpolateNearestMode::Simple;
                 }
+
                 _stageBuilder->addResampleNearestStage(model,
                                                        _layer->name,
                                                        _layer,
