@@ -197,10 +197,11 @@ void op::v1::Reshape::validate_and_infer_types()
                         }
                         else
                         {
-                            NODE_VALIDATION_CHECK(
-                            this,
-                            input_static_elements % output_static_elements == 0,
-                            "Non-'-1' output dimensions do not evenly divide the input dimensions");
+                            NODE_VALIDATION_CHECK(this,
+                                                  input_static_elements % output_static_elements ==
+                                                      0,
+                                                  "Non-'-1' output dimensions do not evenly divide "
+                                                  "the input dimensions");
                             partial_shape[negative_dim] =
                                 Dimension(input_static_elements / output_static_elements);
                         }
