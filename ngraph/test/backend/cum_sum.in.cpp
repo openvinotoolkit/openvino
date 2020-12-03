@@ -42,18 +42,18 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default)
 {
     Shape shape{1, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axis = make_shared<op::Parameter>(element::Type_t::i32, Shape{1});
     auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis), ParameterVector{A, axis});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
     auto axis_tensor = backend->create_tensor(axis->get_element_type(), axis->get_shape());
     copy_data(axis_tensor, vector<int32_t>{1});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, axis_tensor});
@@ -63,18 +63,18 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default)
 NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim)
 {
     Shape shape{2, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto axis = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
     auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis), ParameterVector{A, axis});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{0, 1, 2, 3, 4, 5, 6, 7});
     auto axis_tensor = backend->create_tensor(axis->get_element_type(), axis->get_shape());
     copy_data(axis_tensor, vector<int64_t>{0});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, axis_tensor});
@@ -85,15 +85,15 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim)
 NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_default_axis)
 {
     Shape shape{2, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::CumSum>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{0, 1, 2, 3, 4, 5, 6, 7});
-    auto result = backend->create_tensor(element::f32, shape);
+    auto result = backend->create_tensor(element::Type_t::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -105,19 +105,19 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_3d)
 {
     auto test_cumsum_3d = [](const int32_t axis_val) -> void {
         Shape shape{3, 2, 4};
-        auto A = make_shared<op::Parameter>(element::f32, shape);
-        auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
+        auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+        auto axis = make_shared<op::Parameter>(element::Type_t::i32, Shape{1});
         auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis), ParameterVector{A, axis});
 
         auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
         // Create some tensors for input/output
-        auto a = backend->create_tensor(element::f32, shape);
+        auto a = backend->create_tensor(element::Type_t::f32, shape);
         copy_data(a, vector<float>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23});
         auto axis_tensor = backend->create_tensor(axis->get_element_type(), axis->get_shape());
         copy_data(axis_tensor, vector<int32_t>{axis_val});
-        auto result = backend->create_tensor(element::f32, shape);
+        auto result = backend->create_tensor(element::Type_t::f32, shape);
 
         auto handle = backend->compile(f);
         handle->call_with_validate({result}, {a, axis_tensor});
@@ -153,19 +153,19 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_allmodes)
 {
     auto test_cum_sum_allmodes = [](const int64_t axis_val, int exclusive, int reverse) {
         Shape shape{2, 4};
-        auto A = make_shared<op::Parameter>(element::f32, shape);
-        auto axis = make_shared<op::Parameter>(element::i64, Shape{1});
+        auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+        auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
         auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis, exclusive, reverse),
                                        ParameterVector{A, axis});
 
         auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
         // Create some tensors for input/output
-        auto a = backend->create_tensor(element::f32, shape);
+        auto a = backend->create_tensor(element::Type_t::f32, shape);
         copy_data(a, vector<float>{0, 1, 2, 3, 4, 5, 6, 7});
         auto axis_tensor = backend->create_tensor(axis->get_element_type(), axis->get_shape());
         copy_data(axis_tensor, vector<int64_t>{axis_val});
-        auto result = backend->create_tensor(element::f32, shape);
+        auto result = backend->create_tensor(element::Type_t::f32, shape);
 
         auto handle = backend->compile(f);
         handle->call_with_validate({result}, {a, axis_tensor});

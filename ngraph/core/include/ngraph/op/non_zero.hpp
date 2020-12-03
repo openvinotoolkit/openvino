@@ -74,7 +74,7 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
             protected:
-                element::Type m_output_type = element::i64;
+                element::Type m_output_type = element::Type_t::i64;
             };
         }
         using v3::NonZero;

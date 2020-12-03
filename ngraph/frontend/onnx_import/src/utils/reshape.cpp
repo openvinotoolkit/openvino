@@ -126,8 +126,10 @@ namespace ngraph
                     // reshape the node with shape {C} to {1, C, 1, 1, ..., 1}
                     std::vector<size_t> reshape_pattern_values(expected_rank, 1U);
                     reshape_pattern_values[1] = node.get_shape().front();
-                    const auto reshape_pattern = default_opset::Constant::create(
-                        element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
+                    const auto reshape_pattern =
+                        default_opset::Constant::create(element::Type_t::u64,
+                                                        Shape{reshape_pattern_values.size()},
+                                                        reshape_pattern_values);
                     return std::make_shared<default_opset::Reshape>(node, reshape_pattern, false);
                 }
                 return node;
