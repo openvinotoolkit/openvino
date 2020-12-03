@@ -62,7 +62,7 @@ runtime::HostTensor::HostTensor(const element::Type& element_type,
 }
 
 runtime::HostTensor::HostTensor(const std::string& name)
-    : HostTensor(element::dynamic, PartialShape::dynamic())
+    : HostTensor(element::Type_t::dynamic, PartialShape::dynamic())
 {
 }
 

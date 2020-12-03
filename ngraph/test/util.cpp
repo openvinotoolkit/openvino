@@ -147,15 +147,15 @@ TEST(util, all_close)
     auto backend = runtime::Backend::create("INTERPRETER");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{2, 3});
-    auto b = backend->create_tensor(element::f32, Shape{2, 3});
+    auto a = backend->create_tensor(element::Type_t::f32, Shape{2, 3});
+    auto b = backend->create_tensor(element::Type_t::f32, Shape{2, 3});
 
     copy_data(a, test::NDArray<float, 2>({{1, 2, 3}, {3, 4, 5}}).get_vector());
     copy_data(b, test::NDArray<float, 2>({{1, 2, 3}, {3, 4, 5}}).get_vector());
 
     EXPECT_TRUE(ngraph::test::all_close<float>(a, b));
 
-    auto c = backend->create_tensor(element::f32, Shape{2, 3});
+    auto c = backend->create_tensor(element::Type_t::f32, Shape{2, 3});
     copy_data(c, test::NDArray<float, 2>({{1.1f, 2, 3}, {3, 4, 5}}).get_vector());
 
     EXPECT_FALSE(ngraph::test::all_close<float>(c, a, 0, .05f));
@@ -171,9 +171,9 @@ class CloneTest : public ::testing::Test
 public:
     // (A + B) * C
     Shape shape = Shape{2, 2};
-    std::shared_ptr<op::Parameter> A = make_shared<op::Parameter>(element::f32, shape);
-    std::shared_ptr<op::Parameter> B = make_shared<op::Parameter>(element::f32, shape);
-    std::shared_ptr<op::Parameter> C = make_shared<op::Parameter>(element::f32, shape);
+    std::shared_ptr<op::Parameter> A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    std::shared_ptr<op::Parameter> B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    std::shared_ptr<op::Parameter> C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     std::shared_ptr<Node> AplusB = A + B;
     std::shared_ptr<Node> AplusBtimesC = AplusB * C;
 
@@ -233,7 +233,7 @@ TEST_F(CloneTest, clone_nodes_full)
 TEST_F(CloneTest, clone_nodes_partial)
 {
     // map A -> A' prior to clone
-    auto Aprime = make_shared<op::Parameter>(element::f32, shape);
+    auto Aprime = make_shared<op::Parameter>(element::Type_t::f32, shape);
     node_map[A.get()] = Aprime;
 
     auto cloned_nodes = clone_nodes(nodes, node_map);
@@ -252,9 +252,9 @@ TEST_F(CloneTest, clone_function_full)
 TEST(graph_util, clone_multiple_results)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto A_add_B = make_shared<op::Add>(A, B);
     auto A_add_B_mul_C = make_shared<op::Multiply>(A_add_B, C);
 
@@ -296,7 +296,7 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
     ASSERT_EQ(outputs.size(), 0);
 
     Shape shape{};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto absn = make_shared<op::Abs>(A);
     auto neg_absn = make_shared<op::Negative>(absn);
     outputs = ngraph::get_subgraph_outputs(NodeVector{A}, NodeVector{});
@@ -308,7 +308,7 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
     outputs = ngraph::get_subgraph_outputs(NodeVector{A, absn}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{absn}));
 
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto abs_b = make_shared<op::Abs>(B);
     auto neg_b = make_shared<op::Negative>(B);
     auto abs_b_neg = make_shared<op::Negative>(abs_b);
@@ -334,9 +334,9 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
 TEST(graph_util, test_subgraph_topological_sort)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto add = A + B;
     auto mul = C * add;
     auto result = make_shared<op::Result>(mul);
@@ -348,9 +348,9 @@ TEST(graph_util, test_subgraph_topological_sort)
 TEST(graph_util, test_subgraph_topological_sort_control_dependencies)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto D = make_shared<op::Abs>(A);
     auto E = make_shared<op::Abs>(B);
     auto add = A + B;
@@ -511,7 +511,7 @@ TEST(graph, huge)
 {
     std::vector<std::weak_ptr<Node>> weak_nodes;
     {
-        auto param = make_shared<op::Parameter>(element::f32, Shape{3, 3});
+        auto param = make_shared<op::Parameter>(element::Type_t::f32, Shape{3, 3});
         std::shared_ptr<Node> n = param;
         weak_nodes.push_back(n);
         for (size_t i = 0; i < 1000000; i++)
@@ -602,8 +602,8 @@ TEST(util, apply_permutation_pshape_rank_dynamic_inviable_permutation_fails)
 TEST(util, clone_function_friendly_name)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
 
     A->set_friendly_name("A");
@@ -625,9 +625,9 @@ TEST(util, clone_function_friendly_name)
 TEST(util, clone_function_op_annotations)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(A + B + C, ParameterVector{A, B, C});
 
     auto cacheable_op_annotation = std::make_shared<op::util::OpAnnotations>();
@@ -663,9 +663,9 @@ TEST(util, clone_function_op_annotations)
 TEST(util, topological_sort_replace)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>(A + B + C, ParameterVector{A, B, C});
     bool custom_sorter_used = false;
 
@@ -756,7 +756,7 @@ TEST(util_host_tensor_2_vector, ht_boolean_2_vec_bool)
     vector<char> input{1, 0, 1, 0};
     vector<bool> output{true, false, true, false};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::boolean);
+        input, output, element::Type_t::boolean);
 }
 
 TEST(util_host_tensor_2_vector, ht_boolean_2_vec_int64)
@@ -764,7 +764,7 @@ TEST(util_host_tensor_2_vector, ht_boolean_2_vec_int64)
     vector<char> input{1, 0, 1, 0};
     vector<int64_t> output{true, false, true, false};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::boolean);
+        input, output, element::Type_t::boolean);
 }
 
 TEST(util_host_tensor_2_vector, ht_i8_2_vec_int64)
@@ -774,7 +774,7 @@ TEST(util_host_tensor_2_vector, ht_i8_2_vec_int64)
     vector<int64_t> output{
         0, 1, std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::i8);
+        input, output, element::Type_t::i8);
 }
 
 TEST(util_host_tensor_2_vector, ht_i16_2_vec_int64)
@@ -784,7 +784,7 @@ TEST(util_host_tensor_2_vector, ht_i16_2_vec_int64)
     vector<int64_t> output{
         0, 1, std::numeric_limits<int16_t>::min(), std::numeric_limits<int16_t>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::i16);
+        input, output, element::Type_t::i16);
 }
 
 TEST(util_host_tensor_2_vector, ht_i32_2_vec_int64)
@@ -794,7 +794,7 @@ TEST(util_host_tensor_2_vector, ht_i32_2_vec_int64)
     vector<int64_t> output{
         0, 1, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::i32);
+        input, output, element::Type_t::i32);
 }
 
 TEST(util_host_tensor_2_vector, ht_i64_2_vec_int64)
@@ -803,7 +803,7 @@ TEST(util_host_tensor_2_vector, ht_i64_2_vec_int64)
         0, 1, std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max()};
     vector<int64_t> output{input};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::i64);
+        input, output, element::Type_t::i64);
 }
 
 TEST(util_host_tensor_2_vector, ht_bf16_2_vec_double)
@@ -813,7 +813,7 @@ TEST(util_host_tensor_2_vector, ht_bf16_2_vec_double)
     vector<double> output{
         0, 1, std::numeric_limits<bfloat16>::min(), std::numeric_limits<bfloat16>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::bf16);
+        input, output, element::Type_t::bf16);
 }
 
 TEST(util_host_tensor_2_vector, ht_f16_2_vec_double)
@@ -823,7 +823,7 @@ TEST(util_host_tensor_2_vector, ht_f16_2_vec_double)
     vector<double> output{
         0, 1, std::numeric_limits<float16>::min(), std::numeric_limits<float16>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::f16);
+        input, output, element::Type_t::f16);
 }
 
 TEST(util_host_tensor_2_vector, ht_f32_2_vec_double)
@@ -832,7 +832,7 @@ TEST(util_host_tensor_2_vector, ht_f32_2_vec_double)
     vector<double> output{
         0, 1, std::numeric_limits<float>::min(), std::numeric_limits<float>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::f32);
+        input, output, element::Type_t::f32);
 }
 
 TEST(util_host_tensor_2_vector, ht_f64_2_vec_double)
@@ -842,7 +842,7 @@ TEST(util_host_tensor_2_vector, ht_f64_2_vec_double)
     vector<double> output{
         0, 1, std::numeric_limits<double>::min(), std::numeric_limits<double>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::f64);
+        input, output, element::Type_t::f64);
 }
 
 TEST(util_host_tensor_2_vector, ht_u8_2_vec_uint64)
@@ -852,7 +852,7 @@ TEST(util_host_tensor_2_vector, ht_u8_2_vec_uint64)
     vector<uint64_t> output{
         0, 1, std::numeric_limits<uint8_t>::min(), std::numeric_limits<uint8_t>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::u8);
+        input, output, element::Type_t::u8);
 }
 
 TEST(util_host_tensor_2_vector, ht_u16_2_vec_uint64)
@@ -862,7 +862,7 @@ TEST(util_host_tensor_2_vector, ht_u16_2_vec_uint64)
     vector<uint64_t> output{
         0, 1, std::numeric_limits<uint16_t>::min(), std::numeric_limits<uint16_t>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::u16);
+        input, output, element::Type_t::u16);
 }
 
 TEST(util_host_tensor_2_vector, ht_u32_2_vec_uint64)
@@ -872,7 +872,7 @@ TEST(util_host_tensor_2_vector, ht_u32_2_vec_uint64)
     vector<uint64_t> output{
         0, 1, std::numeric_limits<uint32_t>::min(), std::numeric_limits<uint32_t>::max()};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::u32);
+        input, output, element::Type_t::u32);
 }
 
 TEST(util_host_tensor_2_vector, ht_u64_2_vec_uint64)
@@ -881,5 +881,5 @@ TEST(util_host_tensor_2_vector, ht_u64_2_vec_uint64)
         0, 1, std::numeric_limits<uint64_t>::min(), std::numeric_limits<uint64_t>::max()};
     vector<uint64_t> output{input};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(
-        input, output, element::u64);
+        input, output, element::Type_t::u64);
 }
