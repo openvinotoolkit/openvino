@@ -22,8 +22,6 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -56,7 +54,8 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_abc)
     auto c =
         make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
 
-    auto a_plus_b_times_c = (a + b) * c;
+    auto a_plus_b = make_shared<op::v1::Add>(a, b);
+    auto a_plus_b_times_c = make_shared<op::v1::Multiply>(a_plus_b, c);
 
     auto f = make_shared<Function>(NodeVector{a_plus_b_times_c}, ParameterVector{a, b, c});
 
@@ -120,7 +119,7 @@ static void axpy_test(const PartialShape& input_pshape, const std::vector<Shape>
     auto x = make_shared<op::Parameter>(element::Type_t::f32, input_pshape);
     auto y = make_shared<op::Parameter>(element::Type_t::f32, input_pshape);
 
-    auto axpy = a * x + y;
+    auto axpy = make_shared<op::v1::Add>(make_shared<op::v1::Multiply>(a, x), y);
 
     auto f = make_shared<Function>(NodeVector{axpy}, ParameterVector{a, x, y});
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);

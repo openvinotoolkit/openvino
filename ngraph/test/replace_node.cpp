@@ -19,8 +19,6 @@
 
 #include "ngraph/ngraph.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -67,10 +65,10 @@ TEST(replace_node, replace_nodes)
     auto y = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
     auto z = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
 
-    auto add = x + y;
+    auto add = make_shared<op::v1::Add>(x, y);
     auto k = make_shared<op::Constant>(element::Type_t::f32, Shape{2}, vector<float>{1, 2});
-    auto mul = add * k;
-    auto sub = mul - z;
+    auto mul = make_shared<op::v1::Multiply>(add, k);
+    auto sub = make_shared<op::v1::Subtract>(mul, z);
 
     auto f = make_shared<Function>(NodeVector{sub}, ParameterVector{x, y, z});
 
@@ -83,7 +81,7 @@ TEST(replace_node, replace_nodes)
         make_shared<op::Constant>(element::Type_t::f32, Shape{2}, vector<float>{3, 4});
     auto k_replacement =
         make_shared<op::Constant>(element::Type_t::f32, Shape{2}, vector<float>{5, 6});
-    auto z_replacement = x_replacement + mul;
+    auto z_replacement = make_shared<op::v1::Add>(x_replacement, mul);
     body_replacement_map[y] = y_replacement;
     body_replacement_map[k] = k_replacement;
     body_replacement_map[z] = z_replacement;
