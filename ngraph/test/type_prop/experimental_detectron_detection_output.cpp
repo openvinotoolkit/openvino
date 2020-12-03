@@ -49,8 +49,8 @@ TEST(type_prop, detectron_detection_output)
     ASSERT_EQ(detection->get_output_element_type(2), element::f32);
     ASSERT_EQ(detection->get_output_element_type(3), element::i32);
 
-    EXPECT_EQ(detection->get_output_shape(0), Shape{rois_num, 4}));
-    EXPECT_EQ(detection->get_output_shape(1), Shape{rois_num}));
+    EXPECT_EQ(detection->get_output_shape(0), (Shape{rois_num, 4}));
+    EXPECT_EQ(detection->get_output_shape(1), (Shape{rois_num}));
     EXPECT_EQ(detection->get_output_shape(2), (Shape{rois_num}));
     EXPECT_EQ(detection->get_output_shape(3), (Shape{rois_num}));
 }

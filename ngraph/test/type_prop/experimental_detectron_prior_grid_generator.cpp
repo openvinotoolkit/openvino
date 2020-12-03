@@ -25,5 +25,16 @@ using GridGenerator = op::v6::ExperimentalDetectronPriorGridGenerator;
 
 TEST(type_prop, detectron_grid_generator)
 {
+    Attrs attrs;
+    attrs.flatten = true;
+    attrs.h = 0;
+    attrs.w = 0;
+    attrs.stride_x = 4.0f;
+    attrs.stride_y = 4.0f;
+
+    auto priors = std::make_shared<op::Parameter>(element::f32, Shape{3, 4});
+    auto feature_map = std::make_shared<op::Parameter>(element::f32, Shape{1, 256, 200, 336});
+    auto im_data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 800, 1344});
+
     ASSERT_TRUE(true);
 }
