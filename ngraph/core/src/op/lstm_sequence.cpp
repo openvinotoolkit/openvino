@@ -131,10 +131,8 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
 
     // Create predicate nodes. The condition is whether current time step value
     // is greater than sequence length for respective batch inputs.
-    shared_ptr<Node> curr_time_step_node =
-        opset1::Constant::create(element::Type_t::i32,
-                                 data.get_shape(),
-                                 vector<int32_t>(shape_size(data.get_shape()), time_step));
+    shared_ptr<Node> curr_time_step_node = opset1::Constant::create(
+        element::i32, data.get_shape(), vector<int32_t>(shape_size(data.get_shape()), time_step));
 
     Output<Node> batch_seq_length = builder::opset1::legacy_broadcast_for_binary_operation(
         curr_time_step_node, input_value(3).get_node_shared_ptr(), batch_axis);
@@ -272,7 +270,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto merged_num_directions = Dimension::dynamic();
-    element::Type result_et = element::Type_t::dynamic;
+    auto result_et = element::dynamic;
 
     // Copy all inputs without peephole and initial_cell_state information for further validation
     for (size_t i = 0; i < get_input_size() - 1; i++)
@@ -470,7 +468,7 @@ void op::v5::LSTMSequence::validate_and_infer_types()
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
     auto merged_num_directions = Dimension::dynamic();
-    element::Type result_et = element::Type_t::dynamic;
+    auto result_et = element::dynamic;
 
     // Copy all inputs without initial_cell_state information for further validation
     for (size_t i = 0; i < get_input_size(); i++)

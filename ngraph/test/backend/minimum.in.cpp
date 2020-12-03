@@ -46,8 +46,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, minimum)
 {
     Shape shape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
 
     std::vector<float> a{1, 8, -8, 17, -0.5, 0.5, 2, 1};
@@ -62,8 +62,8 @@ NGRAPH_TEST(${BACKEND_NAME}, minimum)
 NGRAPH_TEST(${BACKEND_NAME}, minimum_int32)
 {
     Shape shape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::i32, shape);
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto B = make_shared<op::Parameter>(element::i32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
 
     std::vector<int32_t> a{1, 8, -8, 17, -5, 67635216, 2, 1};
@@ -78,8 +78,8 @@ NGRAPH_TEST(${BACKEND_NAME}, minimum_int32)
 NGRAPH_TEST(${BACKEND_NAME}, minimum_int64)
 {
     Shape shape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::i64, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::i64, shape);
+    auto A = make_shared<op::Parameter>(element::i64, shape);
+    auto B = make_shared<op::Parameter>(element::i64, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
 
     std::vector<int64_t> a{1, 8, -8, 17, -5, 67635216, 2, 17179887632};

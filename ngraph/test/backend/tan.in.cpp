@@ -49,16 +49,16 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, tan)
 {
     Shape shape{11};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Tan>(A), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     vector<float> input{0.f, 0.25f, -0.25f, 0.5f, -0.5f, 1.f, -1.f, 2.f, -2.f, 4.f, -4.f};
     copy_data(a, input);
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
     EXPECT_TRUE(test::all_close_f(vector<float>{0.00000000f,
