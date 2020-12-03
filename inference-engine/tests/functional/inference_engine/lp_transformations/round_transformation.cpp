@@ -69,32 +69,34 @@ public:
     }
 };
 
-std::vector<RoundTestValues> testValues = {
-    {
-        ngraph::element::u8,
-        ngraph::Shape{ 1, 3, 16, 16 },
-        { { ngraph::element::f32 }, { 125.5f }, { 0.1f } },
-        { {}, { { 126.f }, ngraph::element::f32 }, { 0.1f } }
-    },
-    {
-        ngraph::element::u8,
-        ngraph::Shape{ 1, 3, 16, 16 },
-        { { ngraph::element::f32 }, { { 128.3f, 64.5f, 31.7f } }, { { 0.1f, 0.1f, 0.1f } } },
-        { {}, { { 128.f, 65.f, 32.f }, ngraph::element::f32 }, { { 0.1f, 0.1f, 0.1f } } }
-    },
-    {
-        ngraph::element::i8,
-        ngraph::Shape{ 1, 3, 16, 16 },
-        { { ngraph::element::f32 }, { 126.6f }, { 0.1f } },
-        { {}, { { 127.f }, ngraph::element::f32 }, { 0.1f } }
-    },
-    {
-        ngraph::element::i8,
-        ngraph::Shape{ 1, 3, 16, 16 },
-        { { ngraph::element::f32 }, { { 126.5f, 32.25f, -127.5f } }, { { 0.1f, 0.1f, 0.1f } } },
-        { {}, { { 127.f, 32.f, -128.f }, ngraph::element::f32 }, { { 0.1f, 0.1f, 0.1f } } }
-    },
-};
+static std::vector<RoundTestValues> getTestValues() {
+    return {
+        {
+            ngraph::element::u8,
+            ngraph::Shape{ 1, 3, 16, 16 },
+            { { ngraph::element::f32 }, { 125.5f }, { 0.1f } },
+            { {}, { { 126.f }, ngraph::element::f32 }, { 0.1f } }
+        },
+        {
+            ngraph::element::u8,
+            ngraph::Shape{ 1, 3, 16, 16 },
+            { { ngraph::element::f32 }, { { 128.3f, 64.5f, 31.7f } }, { { 0.1f, 0.1f, 0.1f } } },
+            { {}, { { 128.f, 65.f, 32.f }, ngraph::element::f32 }, { { 0.1f, 0.1f, 0.1f } } }
+        },
+        {
+            ngraph::element::i8,
+            ngraph::Shape{ 1, 3, 16, 16 },
+            { { ngraph::element::f32 }, { 126.6f }, { 0.1f } },
+            { {}, { { 127.f }, ngraph::element::f32 }, { 0.1f } }
+        },
+        {
+            ngraph::element::i8,
+            ngraph::Shape{ 1, 3, 16, 16 },
+            { { ngraph::element::f32 }, { { 126.5f, 32.25f, -127.5f } }, { { 0.1f, 0.1f, 0.1f } } },
+            { {}, { { 127.f, 32.f, -128.f }, ngraph::element::f32 }, { { 0.1f, 0.1f, 0.1f } } }
+        },
+    };
+}
 
 TEST_P(RoundTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
@@ -105,6 +107,6 @@ TEST_P(RoundTransformation, CompareFunctions) {
 INSTANTIATE_TEST_CASE_P(
     LPT,
     RoundTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::ValuesIn(getTestValues()),
     RoundTransformation::getTestCaseName);
 } // namespace
