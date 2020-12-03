@@ -33,7 +33,8 @@ More details on these operations you can find in [ReadValue specification](../op
 To get model with states ready for inference you can convert model from another framework with ModelOptimizer to IR or create ngraph function 
 (details can be found in [Build nGraph Function section](../nGraph_DG/build_function.md)). 
 Let's represent in both forms the following graph:
-![state_network_example]
+
+[state_network_example]: ./img/state_network_example.png
 
 ### Example of IR with state
 
@@ -164,8 +165,8 @@ Let's represent in both forms the following graph:
 ```
 
 In this example `SinkVector` was used to create `ngraph::Function`. For network with states except inputs and outputs also Assign nodes should be pointed to Function 
-to avoid deleting it during graph transformations. It can be done with constructor as shown in example or with special method `add_sinks(const SinkVector& sinks)`. Also you can delete 
-sink from `ngraph::Function` after deleting node from graph with `delete_sink()` method.
+to avoid deleting it during graph transformations. It can be done with constructor as shown in example or with special method `Function::add_sink`. Also you can delete 
+sink from `Function` after deleting node from graph with `Function::delete_sink` method.
 
 ## OpenVINO state API
 
@@ -194,5 +195,3 @@ if the first step done in one infer request and the second in another, state sho
 
 More powerfull examples of work with networks with states are sample and demo demonstrating work with speech. 
 Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
-
-[state_network_example]: ./img/state_network_example.png
