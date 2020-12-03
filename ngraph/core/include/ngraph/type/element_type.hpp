@@ -65,7 +65,7 @@ namespace ngraph
             {
             }
             Type(const Type&) = default;
-            Type(const Type_t t)
+            constexpr Type(const Type_t t)
                 : m_type{t}
             {
             }
@@ -74,7 +74,6 @@ namespace ngraph
                  bool is_signed,
                  bool is_quantized,
                  const std::string& cname);
-            ~Type() {}
             Type& operator=(const Type&) = default;
             const std::string& c_type_string() const;
             size_t size() const;
@@ -91,11 +90,6 @@ namespace ngraph
             size_t bitwidth() const;
             // The name of this type, the enum name of this type
             const std::string& get_type_name() const;
-            bool operator==(const Type_t& other) const;
-            bool operator!=(const Type_t& other) const { return !(*this == other); }
-            bool operator==(const Type& other) const;
-            bool operator!=(const Type& other) const { return !(*this == other); }
-            bool operator<(const Type& other) const;
             friend NGRAPH_API std::ostream& operator<<(std::ostream&, const Type&);
 
             /// \brief Checks whether this element type is merge-compatible with `t`.
@@ -124,58 +118,29 @@ namespace ngraph
             static bool merge(element::Type& dst, const element::Type& t1, const element::Type& t2);
 
             // \brief This allows switch(element_type)
-            operator Type_t() const { return m_type; }
+            constexpr operator Type_t() const { return m_type; }
         private:
             Type_t m_type{Type_t::undefined};
         };
 
         typedef std::vector<Type> TypeVector;
 
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::undefined instead.")
-        extern NGRAPH_API const Type undefined;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::dynamic instead.")
-        extern NGRAPH_API const Type dynamic;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::boolean instead.")
-        extern NGRAPH_API const Type boolean;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::bf16 instead.")
-        extern NGRAPH_API const Type bf16;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::f16 instead.")
-        extern NGRAPH_API const Type f16;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::f32 instead.")
-        extern NGRAPH_API const Type f32;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::f64 instead.")
-        extern NGRAPH_API const Type f64;
-        NGRAPH_DEPRECATED("This global element type was deprecated. Please use Type_t::i8 instead.")
-        extern NGRAPH_API const Type i8;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::i16 instead.")
-        extern NGRAPH_API const Type i16;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::i32 instead.")
-        extern NGRAPH_API const Type i32;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::i64 instead.")
-        extern NGRAPH_API const Type i64;
-        NGRAPH_DEPRECATED("This global element type was deprecated. Please use Type_t::u1 instead.")
-        extern NGRAPH_API const Type u1;
-        NGRAPH_DEPRECATED("This global element type was deprecated. Please use Type_t::u8 instead.")
-        extern NGRAPH_API const Type u8;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::u16 instead.")
-        extern NGRAPH_API const Type u16;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::u32 instead.")
-        extern NGRAPH_API const Type u32;
-        NGRAPH_DEPRECATED(
-            "This global element type was deprecated. Please use Type_t::u64 instead.")
-        extern NGRAPH_API const Type u64;
+        constexpr Type undefined(Type_t::undefined);
+        constexpr Type dynamic(Type_t::dynamic);
+        constexpr Type boolean(Type_t::boolean);
+        constexpr Type bf16(Type_t::bf16);
+        constexpr Type f16(Type_t::f16);
+        constexpr Type f32(Type_t::f32);
+        constexpr Type f64(Type_t::f64);
+        constexpr Type i8(Type_t::i8);
+        constexpr Type i16(Type_t::i16);
+        constexpr Type i32(Type_t::i32);
+        constexpr Type i64(Type_t::i64);
+        constexpr Type u1(Type_t::u1);
+        constexpr Type u8(Type_t::u8);
+        constexpr Type u16(Type_t::u16);
+        constexpr Type u32(Type_t::u32);
+        constexpr Type u64(Type_t::u64);
 
         template <typename T>
         Type from()
