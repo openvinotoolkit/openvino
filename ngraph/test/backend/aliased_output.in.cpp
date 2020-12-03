@@ -20,8 +20,6 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -31,10 +29,10 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, aliased_output)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = A + B;
-    auto D = A * B;
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::v1::Add>(A, B);
+    auto D = make_shared<op::v1::Multiply>(A, B);
     auto E = op::Constant::create(element::f32, shape, {1, 2, 3, 4});
     auto f = make_shared<Function>(NodeVector{C, C, D, D, C, E, E}, ParameterVector{A, B});
 

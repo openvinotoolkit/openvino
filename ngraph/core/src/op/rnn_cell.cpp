@@ -92,7 +92,7 @@ void op::v0::RNNCell::validate_and_infer_types()
     }
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
-    auto result_et = element::dynamic;
+    element::Type result_et = element::Type_t::dynamic;
 
     // Get input partial shape for all inputs
     const auto& x_pshape = get_input_partial_shape(0);

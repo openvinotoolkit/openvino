@@ -117,7 +117,7 @@ namespace ngraph
                           R,
                           B,
                           Constant::create(
-                              element::f32,
+                              element::Type_t::f32,
                               Shape{(lstm_direction == direction::BIDIRECTIONAL ? 2UL : 1UL),
                                     3UL * static_cast<size_t>(hidden_size)},
                               std::vector<float>{0.f}),

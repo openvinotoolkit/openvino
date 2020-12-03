@@ -26,6 +26,8 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
@@ -36,6 +38,7 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
+    k.EnableDifferentTypes();
     return k;
 }
 
