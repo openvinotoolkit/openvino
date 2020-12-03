@@ -21,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, reshape_deduce_s2v)
+TEST(type_prop, reshape_deduce_empty_to_1_dim)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(
@@ -30,7 +30,7 @@ TEST(type_prop, reshape_deduce_s2v)
     ASSERT_EQ(r->get_shape(), (Shape{1}));
 }
 
-TEST(type_prop, reshape_deduce_s2m)
+TEST(type_prop, reshape_deduce_empty_to_2_dim)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(
@@ -39,7 +39,7 @@ TEST(type_prop, reshape_deduce_s2m)
     ASSERT_EQ(r->get_shape(), (Shape{1, 1}));
 }
 
-TEST(type_prop, reshape_deduce_s2t)
+TEST(type_prop, reshape_deduce_empty_to_3_dim)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(
@@ -48,7 +48,7 @@ TEST(type_prop, reshape_deduce_s2t)
     ASSERT_EQ(r->get_shape(), (Shape{1, 1, 1}));
 }
 
-TEST(type_prop, reshape_deduce_m2v_01)
+TEST(type_prop, reshape_deduce_2_dim_to_1_dim)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4});
     auto r = make_shared<op::v1::Reshape>(
@@ -57,25 +57,7 @@ TEST(type_prop, reshape_deduce_m2v_01)
     ASSERT_EQ(r->get_shape(), (Shape{12}));
 }
 
-TEST(type_prop, reshape_deduce_m2v_10)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto r = make_shared<op::v1::Reshape>(
-        param, op::Constant::create(element::u64, {1}, Shape{12}), false);
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{12}));
-}
-
-TEST(type_prop, reshape_deduce_t2v_012)
-{
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
-    auto r = make_shared<op::v1::Reshape>(
-        param, op::Constant::create(element::u64, {1}, Shape{60}), false);
-    ASSERT_EQ(r->get_element_type(), element::f32);
-    ASSERT_EQ(r->get_shape(), (Shape{60}));
-}
-
-TEST(type_prop, reshape_deduce_t2v_120)
+TEST(type_prop, reshape_deduce_3_dim_to_1_dim)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{3, 4, 5});
     auto r = make_shared<op::v1::Reshape>(
