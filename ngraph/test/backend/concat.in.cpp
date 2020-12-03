@@ -295,7 +295,7 @@ NGRAPH_TEST(${BACKEND_NAME}, concat_in_place_2d_tensor)
     auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto D = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto add2 = make_shared<op::v1::Add>(C, D);
-    auto subtract = make_shared<op::Subtract>(C, A);
+    auto subtract = make_shared<op::v1::Subtract>(C, A);
     Shape shape_r{3, 1};
     auto f = make_shared<Function>(make_shared<op::Concat>(NodeVector{add1, add2, subtract}, 0),
                                    ParameterVector{A, B, C, D});
