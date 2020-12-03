@@ -80,3 +80,8 @@ target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(interpreter)
 add_subdirectory(ie)
+
+if (NOT BUILD_SHARED_LIBS)
+    # In static mode we link plugins explicitely
+    target_link_libraries(ngraph_backend PRIVATE ie_backend interpreter_backend)
+endif()
