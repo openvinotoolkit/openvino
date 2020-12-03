@@ -66,7 +66,9 @@ namespace ngraph
         ///              Floor(num_dims/2) at the beginning and
         ///              Ceil(num_dims/2) at the end
         /// VALID      - No padding
-        ///
+        /// AUTO       - Deprecated. User should not use it in the future
+        /// NOTSET     - Deprecated. User should not use it in the future
+
         enum class PadType
         {
             EXPLICIT = 0,
