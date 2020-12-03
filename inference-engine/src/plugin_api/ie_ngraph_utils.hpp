@@ -8,6 +8,7 @@
 #include <ngraph/type/element_type.hpp>
 #include <string>
 #include <algorithm>
+#include <cpp/ie_cnn_network.h>
 
 namespace InferenceEngine {
 namespace details {
@@ -125,6 +126,14 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         THROW_IE_EXCEPTION << "Incorrect precision " << precision.get_type_name() << "!";
     }
 }
+
+/**
+ * @brief Clones input network including all layers and internal data objects
+ * @note Blobs inside layers are reused
+ * @param network A network to clone
+ * @return A cloned object
+ */
+INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
 
 }  // namespace details
 }  // namespace InferenceEngine
