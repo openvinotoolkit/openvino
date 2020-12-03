@@ -35,7 +35,6 @@ class GatherElements(Op):
             'out_ports_count': 1,
         }, attrs)
 
-
     def backend_attrs(self):
         return ['axis']
 
