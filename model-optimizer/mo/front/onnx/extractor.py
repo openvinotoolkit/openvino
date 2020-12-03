@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-
-from mo.front.onnx.extractors.concat import concat_ext
 from mo.front.onnx.extractors.eltwise import make_tf_eltwise
 from mo.front.onnx.extractors.fused_bn import tf_fused_bn_extractor
 from mo.front.onnx.extractors.reshape import onnx_reshape_ext
