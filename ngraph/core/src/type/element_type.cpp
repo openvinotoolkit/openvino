@@ -108,16 +108,6 @@ const std::string& element::Type::c_type_string() const
     return get_type_info_map().at(m_type).m_cname;
 }
 
-bool element::Type::operator==(const element::Type_t& other) const
-{
-    return m_type == other;
-}
-
-bool element::Type::operator<(const element::Type_t& other) const
-{
-    return m_type < other;
-}
-
 size_t element::Type::size() const
 {
     return std::ceil(static_cast<float>(bitwidth()) / 8.0f);
