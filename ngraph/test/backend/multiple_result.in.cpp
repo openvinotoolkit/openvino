@@ -34,9 +34,9 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, multiple_result)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto A_add_B = make_shared<op::Add>(A, B);
     auto A_add_B_mul_C = make_shared<op::Multiply>(A_add_B, C);
 
@@ -44,15 +44,15 @@ NGRAPH_TEST(${BACKEND_NAME}, multiple_result)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::f32, shape);
+    auto a = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto b = backend->create_tensor(element::f32, shape);
+    auto b = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(b, vector<float>{5, 6, 7, 8});
-    auto c = backend->create_tensor(element::f32, shape);
+    auto c = backend->create_tensor(element::Type_t::f32, shape);
     copy_data(c, vector<float>{9, 10, 11, 12});
 
-    auto r0 = backend->create_tensor(element::f32, shape);
-    auto r1 = backend->create_tensor(element::f32, shape);
+    auto r0 = backend->create_tensor(element::Type_t::f32, shape);
+    auto r1 = backend->create_tensor(element::Type_t::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({r0, r1}, {a, b, c});

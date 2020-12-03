@@ -65,7 +65,7 @@ namespace greater_equalop
                                 const op::AutoBroadcastSpec& broadcast_spec)
     {
         bool rc = true;
-        out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
+        out->set_broadcast(broadcast_spec, arg0, arg1, element::Type_t::boolean);
         switch (arg0->get_element_type())
         {
             TYPE_CASE(boolean)(arg0, arg1, out, broadcast_spec);

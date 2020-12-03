@@ -44,12 +44,12 @@ void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
 
     NODE_VALIDATION_CHECK(
         this,
-        args_et.is_dynamic() || args_et == element::boolean,
+        args_et.is_dynamic() || args_et == element::Type_t::boolean,
         "Operands for logical operators must have boolean element type but have element type ",
         args_et,
         ".");
 
-    set_output_type(0, element::boolean, args_pshape);
+    set_output_type(0, element::Type_t::boolean, args_pshape);
 }
 
 void op::util::BinaryElementwiseLogical::validate_and_infer_types()
