@@ -67,7 +67,8 @@ extern "C" void ngraph_register_interpreter_backend();
 class auto_register_backends
 {
 public:
-    auto_register_backends() {
+    auto_register_backends()
+    {
         ngraph_register_ie_backend();
         ngraph_register_interpreter_backend();
     }
