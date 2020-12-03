@@ -241,6 +241,7 @@ extensions/front/onnx/aten_ext.py
 extensions/front/onnx/AttributedSliceToSlice.py
 extensions/front/onnx/cast_ext.py
 extensions/front/onnx/clip_ext.py
+extensions/front/onnx/concat_ext.py
 extensions/front/onnx/const_ext.py
 extensions/front/onnx/constant_fill_ext.py
 extensions/front/onnx/constant_of_shape_ext.py
@@ -843,7 +844,6 @@ mo/front/mxnet/register_custom_ops.py
 mo/front/onnx/__init__.py
 mo/front/onnx/extractor.py
 mo/front/onnx/extractors/__init__.py
-mo/front/onnx/extractors/concat.py
 mo/front/onnx/extractors/eltwise.py
 mo/front/onnx/extractors/fused_bn.py
 mo/front/onnx/extractors/reshape.py
@@ -1012,3 +1012,4 @@ requirements_mxnet.txt
 requirements_onnx.txt
 requirements_tf.txt
 requirements_tf2.txt
+

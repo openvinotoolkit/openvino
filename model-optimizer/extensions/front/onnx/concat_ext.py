@@ -14,16 +14,7 @@
  limitations under the License.
 """
 
-#from mo.front.common.partial_infer.concat import concat_infer
-#from mo.front.onnx.extractors.utils import onnx_attr
-
-
-#def concat_ext(node):
-#    return {
-#        'type': "Concat",
-#        'axis': onnx_attr(node, 'axis', 'i', default=0),
-#        'infer': concat_infer
-#   }
+from mo.front.onnx.extractors.utils import onnx_attr
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.concat import Concat
     
