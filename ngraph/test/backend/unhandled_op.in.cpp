@@ -56,7 +56,7 @@ namespace
 NGRAPH_TEST(${BACKEND_NAME}, unhandled_op)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto unhandled = make_shared<UnhandledOp>(A);
     auto f = make_shared<Function>(unhandled, ParameterVector{A});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

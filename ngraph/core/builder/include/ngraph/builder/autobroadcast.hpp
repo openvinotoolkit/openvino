@@ -169,7 +169,7 @@ namespace ngraph
                                                          std::size_t start_match_axis)
         {
             auto shape_const =
-                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape);
+                op::Constant::create(element::Type_t::u64, Shape{new_shape.size()}, new_shape);
             return std::make_shared<op::v1::Broadcast>(
                 value,
                 shape_const,

@@ -31,9 +31,9 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, abc)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::f32, shape);
     auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C});
 
     std::vector<float> a{1, 2, 3, 4};
@@ -62,9 +62,9 @@ NGRAPH_TEST(${BACKEND_NAME}, abc)
 NGRAPH_TEST(${BACKEND_NAME}, abc_int64)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::i64, shape);
-    auto B = make_shared<op::Parameter>(element::i64, shape);
-    auto C = make_shared<op::Parameter>(element::i64, shape);
+    auto A = make_shared<op::Parameter>(element::Type_t::i64, shape);
+    auto B = make_shared<op::Parameter>(element::Type_t::i64, shape);
+    auto C = make_shared<op::Parameter>(element::Type_t::i64, shape);
     auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C});
 
     std::vector<int64_t> a{1, 2, 3, 4};

@@ -66,7 +66,7 @@ namespace ngraph
                             weights_shape.push_back(1);
                         }
                         auto new_shape = std::make_shared<default_opset::Constant>(
-                            element::i64, Shape{weights_shape.size()}, weights_shape);
+                            element::Type_t::i64, Shape{weights_shape.size()}, weights_shape);
                         weights =
                             std::make_shared<default_opset::Reshape>(inputs[1], new_shape, true);
                     }
@@ -75,7 +75,7 @@ namespace ngraph
                     if (!across_spatial)
                     {
                         axes = std::make_shared<default_opset::Constant>(
-                            element::i64, Shape{1}, std::vector<int64_t>{1});
+                            element::Type_t::i64, Shape{1}, std::vector<int64_t>{1});
                     }
                     else
                     {
