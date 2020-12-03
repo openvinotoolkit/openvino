@@ -40,7 +40,8 @@ void op::v6::GatherElements::validate_and_infer_types()
     const auto& indices_type = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
-                          indices_type == element::Type_t::i32 || indices_type == element::Type_t::i64,
+                          indices_type == element::Type_t::i32 ||
+                              indices_type == element::Type_t::i64,
                           "indices mush be of int32 or int64 type. But instead got: ",
                           indices_type);
 
@@ -97,7 +98,7 @@ void op::v6::GatherElements::validate_and_infer_types()
                         indices_pshape[i],
                         " on axis ",
                         i,
-                        " do not match. data and indices mush have equal shapes except for axis ",
+                        " do not match. data and indices must have equal shapes except for axis ",
                         m_axis);
             }
         }
