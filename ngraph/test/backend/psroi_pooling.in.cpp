@@ -34,8 +34,8 @@ NGRAPH_TEST(${BACKEND_NAME}, psroi_pooling_average)
     size_t num_boxes = 3;
     Shape image_shape{2, num_channels, 20, 20};
     Shape coords_shape{num_boxes, 5};
-    auto image = std::make_shared<op::Parameter>(element::f32, image_shape);
-    auto coords = std::make_shared<op::Parameter>(element::f32, coords_shape);
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, image_shape);
+    auto coords = std::make_shared<op::Parameter>(element::Type_t::f32, coords_shape);
     auto f =
         std::make_shared<Function>(std::make_shared<op::v0::PSROIPooling>(
                                        image, coords, output_dim, group_size, 1, 1, 1, "average"),
@@ -87,8 +87,8 @@ NGRAPH_TEST(${BACKEND_NAME}, psroi_pooling_average_spatial_scale)
     float spatial_scale = 0.2;
     Shape image_shape{2, num_channels, 20, 20};
     Shape coords_shape{num_boxes, 5};
-    auto image = std::make_shared<op::Parameter>(element::f32, image_shape);
-    auto coords = std::make_shared<op::Parameter>(element::f32, coords_shape);
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, image_shape);
+    auto coords = std::make_shared<op::Parameter>(element::Type_t::f32, coords_shape);
     auto f = std::make_shared<Function>(
         std::make_shared<op::v0::PSROIPooling>(
             image, coords, output_dim, group_size, spatial_scale, 1, 1, "average"),
@@ -128,8 +128,8 @@ NGRAPH_TEST(${BACKEND_NAME}, psroi_pooling_bilinear)
     size_t num_boxes = 5;
     Shape image_shape{2, num_channels, 20, 20};
     Shape coords_shape{num_boxes, 5};
-    auto image = std::make_shared<op::Parameter>(element::f32, image_shape);
-    auto coords = std::make_shared<op::Parameter>(element::f32, coords_shape);
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, image_shape);
+    auto coords = std::make_shared<op::Parameter>(element::Type_t::f32, coords_shape);
     auto f = std::make_shared<Function>(
         std::make_shared<op::v0::PSROIPooling>(
             image, coords, output_dim, group_size, 1, spatial_bins_x, spatial_bins_y, "bilinear"),
@@ -178,8 +178,8 @@ NGRAPH_TEST(${BACKEND_NAME}, psroi_pooling_bilinear_spatial_scale)
     float spatial_scale = 0.5;
     Shape image_shape{2, num_channels, 20, 20};
     Shape coords_shape{num_boxes, 5};
-    auto image = std::make_shared<op::Parameter>(element::f32, image_shape);
-    auto coords = std::make_shared<op::Parameter>(element::f32, coords_shape);
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, image_shape);
+    auto coords = std::make_shared<op::Parameter>(element::Type_t::f32, coords_shape);
     auto f = std::make_shared<Function>(std::make_shared<op::v0::PSROIPooling>(image,
                                                                                coords,
                                                                                output_dim,
