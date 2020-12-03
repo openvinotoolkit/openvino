@@ -34,7 +34,7 @@ TEST(shape_relevance, simple)
 {
     auto param0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, 6});
     auto param1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, 6});
-    auto x = make_shared<op::Add>(param0, param1);
+    auto x = make_shared<op::v1::Add>(param0, param1);
 
     auto f = make_shared<Function>(x, ParameterVector{param0, param1});
 

@@ -126,7 +126,6 @@ typedef std::tuple<
 
 enum RefMode {
     INTERPRETER,
-    INTERPRETER_TRANSFORMATIONS,
     CONSTANT_FOLDING,
     IE
 };
