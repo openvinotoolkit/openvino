@@ -33,16 +33,6 @@ extern "C" INTERPRETER_BACKEND_API void ngraph_register_interpreter_backend()
     });
 }
 
-#ifdef NGRAPH_STATIC_LIBRARY
-
-static class ngraph_auto_register_interpreter_backend
-{
-public:
-    ngraph_auto_register_interpreter_backend() { ngraph_register_interpreter_backend(); }
-} ngraph_auto_register_interpreter_backend_instance;
-
-#endif
-
 runtime::interpreter::INTBackend::INTBackend()
 {
 }

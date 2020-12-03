@@ -59,6 +59,22 @@ void runtime::BackendManager::register_backend(const string& name, BackendConstr
     get_registry()[name] = new_backend;
 }
 
+#ifdef NGRAPH_STATIC_LIBRARY
+
+extern "C" void ngraph_register_ie_backend();
+extern "C" void ngraph_register_interpreter_backend();
+
+class auto_register_backends
+{
+public:
+    auto_register_backends() {
+        ngraph_register_ie_backend();
+        ngraph_register_interpreter_backend();
+    }
+};
+
+#endif
+
 vector<string> runtime::BackendManager::get_registered_backends()
 {
     vector<string> rc;
@@ -78,6 +94,10 @@ vector<string> runtime::BackendManager::get_registered_backends()
 
 shared_ptr<runtime::Backend> runtime::BackendManager::create_backend(std::string config)
 {
+#ifdef NGRAPH_STATIC_LIBRARY
+    static auto_register_backends auto_register;
+#endif
+
     string type = config;
     string options;
 

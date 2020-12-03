@@ -84,13 +84,3 @@ extern "C" IE_BACKEND_API void ngraph_register_ie_backend()
     runtime::BackendManager::register_backend(
         "IE", [](const string& config) { return make_shared<runtime::ie::IE_Backend>(config); });
 }
-
-#ifdef NGRAPH_STATIC_LIBRARY
-
-static class ngraph_auto_register_ie_backend
-{
-public:
-    ngraph_auto_register_ie_backend() { ngraph_register_ie_backend(); }
-} ngraph_auto_register_ie_backend_instance;
-
-#endif
