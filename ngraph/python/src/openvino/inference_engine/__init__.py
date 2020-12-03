@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 # ******************************************************************************
 # Copyright 2017-2020 Intel Corporation
 #
@@ -15,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
->>>>>>> 8c0bd14ba3fa77b3ca68bf089df9968d1b29da42
+
 from openvino.pyopenvino import IECore
 from openvino.pyopenvino import IENetwork
 from openvino.pyopenvino import ExecutableNetwork
