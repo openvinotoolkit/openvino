@@ -28,10 +28,10 @@ using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
 
 TEST(type_prop, interpolate_v4)
 {
-    auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 30, 60});
+    auto target_shape = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 15, 30});
+    auto scales = op::Constant::create<float>(element::Type_t::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::nearest;
@@ -44,7 +44,7 @@ TEST(type_prop, interpolate_v4)
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::f32);
+    EXPECT_EQ(interp->get_element_type(), element::Type_t::f32);
     EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
 }
 
@@ -52,10 +52,10 @@ TEST(type_prop, interpolate_v4_partial)
 {
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
 
-    auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, partial_shape);
+    auto target_shape = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 15, 30});
+    auto scales = op::Constant::create<float>(element::Type_t::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::nearest;
@@ -68,11 +68,12 @@ TEST(type_prop, interpolate_v4_partial)
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::f32);
+    EXPECT_EQ(interp->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(partial_shape));
 
     // rank unknown
-    auto partial_param = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto partial_param =
+        std::make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto interp_part =
         std::make_shared<op::v4::Interpolate>(partial_param, target_shape, scales, axes, attrs);
     ASSERT_TRUE(interp_part->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
@@ -82,10 +83,10 @@ TEST(type_prop, interpolate_v4_partial_static_rank)
 {
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
 
-    auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, partial_shape);
+    auto target_shape = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 15, 30});
+    auto scales = op::Constant::create<float>(element::Type_t::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::nearest;
@@ -98,7 +99,7 @@ TEST(type_prop, interpolate_v4_partial_static_rank)
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::f32);
+    EXPECT_EQ(interp->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(partial_shape));
     ASSERT_TRUE(interp->get_output_partial_shape(0).rank().is_static());
 }
@@ -108,10 +109,10 @@ TEST(type_prop, interpolate_v4_partial_static_rank2)
     auto partial_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 10, 20};
     auto out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 5, 10};
 
-    auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, partial_shape);
+    auto target_shape = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 15, 30});
+    auto scales = op::Constant::create<float>(element::Type_t::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::nearest;
@@ -124,7 +125,7 @@ TEST(type_prop, interpolate_v4_partial_static_rank2)
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::f32);
+    EXPECT_EQ(interp->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(out_shape));
     ASSERT_TRUE(interp->get_output_partial_shape(0).rank().is_static());
 }
@@ -134,10 +135,11 @@ TEST(type_prop, interpolate_v4_partial_static_rank3)
     auto partial_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3};
     auto out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1};
 
-    auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {1.0f / 3.0f, 1.0f / 3.0f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<op::Parameter>(element::Type_t::f32, partial_shape);
+    auto target_shape = std::make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 1, 1});
+    auto scales =
+        op::Constant::create<float>(element::Type_t::f32, Shape{2}, {1.0f / 3.0f, 1.0f / 3.0f});
+    auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::nearest;
@@ -150,7 +152,7 @@ TEST(type_prop, interpolate_v4_partial_static_rank3)
     attrs.cube_coeff = -0.75;
     auto interp = std::make_shared<op::v4::Interpolate>(image, target_shape, scales, axes, attrs);
 
-    EXPECT_EQ(interp->get_element_type(), element::f32);
+    EXPECT_EQ(interp->get_element_type(), element::Type_t::f32);
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(out_shape));
     ASSERT_TRUE(interp->get_output_partial_shape(0).rank().is_static());
 }

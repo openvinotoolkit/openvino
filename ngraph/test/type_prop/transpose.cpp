@@ -23,30 +23,32 @@ using namespace ngraph;
 
 TEST(type_prop, transpose_arg_static_input_order_static_ok)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto input_order = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
+    auto input_order = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(type_prop, transpose_arg_static_input_order_constant_ok)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto input_order = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{2, 1, 0, 3});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
+    auto input_order =
+        op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{2, 1, 0, 3});
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{6, 4, 2, 8}));
 }
 
 TEST(type_prop, transpose_arg_static_input_order_constant_invalid_perm)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto input_order = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{2, 9, 0, 3});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
+    auto input_order =
+        op::Constant::create(element::Type_t::i64, Shape{4}, vector<int64_t>{2, 9, 0, 3});
 
     try
     {
@@ -68,76 +70,79 @@ TEST(type_prop, transpose_arg_static_input_order_constant_invalid_perm)
 TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_static_ok)
 {
     auto arg = make_shared<op::Parameter>(
-        element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
-    auto input_order = make_shared<op::Parameter>(element::i64, Shape{4});
+        element::Type_t::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
+    auto input_order = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(type_prop, transpose_arg_static_input_order_rank_static_dynamic_ok)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto input_order = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
+    auto input_order =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()});
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_static_dynamic_ok)
 {
     auto arg = make_shared<op::Parameter>(
-        element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
-    auto input_order = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+        element::Type_t::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
+    auto input_order =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()});
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_static_dynamic_ok)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto input_order = make_shared<op::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto input_order =
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{Dimension::dynamic()});
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
 TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_dynamic_ok)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto input_order = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto input_order = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
 TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_dynamic_ok)
 {
     auto arg = make_shared<op::Parameter>(
-        element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
-    auto input_order = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+        element::Type_t::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
+    auto input_order = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(type_prop, transpose_arg_static_input_order_static_input_order_not_vector)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, PartialShape{2, 4, 6, 8});
-    auto input_order = make_shared<op::Parameter>(element::i64, PartialShape{2, 2});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 4, 6, 8});
+    auto input_order = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{2, 2});
 
     try
     {
@@ -156,9 +161,9 @@ TEST(type_prop, transpose_arg_static_input_order_static_input_order_not_vector)
 
 TEST(type_prop, transpose_arg_static_input_order_rank_static_dynamic_input_order_not_vector)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, PartialShape{2, 4, 6, 8});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 4, 6, 8});
     auto input_order =
-        make_shared<op::Parameter>(element::i64, PartialShape{2, Dimension::dynamic()});
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{2, Dimension::dynamic()});
 
     try
     {
@@ -177,8 +182,8 @@ TEST(type_prop, transpose_arg_static_input_order_rank_static_dynamic_input_order
 
 TEST(type_prop, transpose_arg_static_input_order_static_input_order_wrong_size)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, PartialShape{2, 4, 6, 8});
-    auto input_order = make_shared<op::Parameter>(element::i64, PartialShape{5});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 4, 6, 8});
+    auto input_order = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{5});
 
     try
     {
@@ -200,8 +205,8 @@ TEST(type_prop, transpose_arg_static_input_order_static_input_order_wrong_size)
 TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_static_input_order_not_vector)
 {
     auto arg = make_shared<op::Parameter>(
-        element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
-    auto input_order = make_shared<op::Parameter>(element::i64, PartialShape{2, 2});
+        element::Type_t::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
+    auto input_order = make_shared<op::Parameter>(element::Type_t::i64, PartialShape{2, 2});
 
     try
     {
@@ -222,9 +227,9 @@ TEST(type_prop,
      transpose_arg_rank_static_dynamic_input_order_rank_static_dynamic_input_order_not_vector)
 {
     auto arg = make_shared<op::Parameter>(
-        element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
+        element::Type_t::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic(), 8});
     auto input_order =
-        make_shared<op::Parameter>(element::i64, PartialShape{2, Dimension::dynamic()});
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{2, Dimension::dynamic()});
 
     try
     {
@@ -243,9 +248,9 @@ TEST(type_prop,
 
 TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_static_dynamic_input_order_not_vector)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
     auto input_order =
-        make_shared<op::Parameter>(element::i64, PartialShape{2, Dimension::dynamic()});
+        make_shared<op::Parameter>(element::Type_t::i64, PartialShape{2, Dimension::dynamic()});
 
     try
     {
@@ -264,19 +269,19 @@ TEST(type_prop, transpose_arg_rank_dynamic_input_order_rank_static_dynamic_input
 
 TEST(type_prop, transpose_input_order_et_dynamic_ok)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto input_order = make_shared<op::Parameter>(element::dynamic, Shape{4});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
+    auto input_order = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{4});
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
 }
 
 TEST(type_prop, transpose_input_order_et_wrong)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
-    auto input_order = make_shared<op::Parameter>(element::boolean, Shape{4});
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
+    auto input_order = make_shared<op::Parameter>(element::Type_t::boolean, Shape{4});
 
     try
     {
@@ -296,11 +301,12 @@ TEST(type_prop, transpose_input_order_et_wrong)
 
 TEST(type_prop, transpose_with_empty_order)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 300});
-    auto input_order = make_shared<op::Constant>(element::i64, Shape({0}), std::vector<size_t>());
+    auto arg = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 300});
+    auto input_order =
+        make_shared<op::Constant>(element::Type_t::i64, Shape({0}), std::vector<size_t>());
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
-    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_element_type(0), element::Type_t::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape({300, 1})));
 }

@@ -50,7 +50,7 @@ void op::util::ScatterNDBase::validate_and_infer_types()
     const PartialShape& updates_shape = get_input_partial_shape(UPDATES);
 
     NODE_VALIDATION_CHECK(this,
-                          indices_et == element::i32 || indices_et == element::i64,
+                          indices_et == element::Type_t::i32 || indices_et == element::Type_t::i64,
                           "Indices element type must be i64 or i32");
 
     NODE_VALIDATION_CHECK(
