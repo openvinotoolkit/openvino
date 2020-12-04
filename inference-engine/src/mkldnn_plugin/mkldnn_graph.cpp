@@ -1235,3 +1235,42 @@ void MKLDNNGraph::do_after(const std::string &dir, const MKLDNNNodePtr &node) {
 InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
+
+bool MKLDNNGraph::InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node) {
+    auto oIndex = edge->getOutputNum();
+    auto iIndex = edge->getInputNum();
+    if (iIndex < 0 || oIndex < 0)
+        THROW_IE_EXCEPTION << "Cannot insert node '" << node->getName() << "' between nodes: "
+                           << edge->getParent()->getName() << " and "
+                           << edge->getChild()->getName() << ".";
+
+    edge->drop();
+
+    return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex);
+}
+
+bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort) {
+    bool isOk = true;
+
+    MKLDNNEdgePtr beforeNode(new MKLDNNEdge(parent, node, parentPort, 0));
+    MKLDNNEdgePtr afterNode(new MKLDNNEdge(node, child, 0, childPort));
+
+    // Add edge for beforeNode
+    beforeNode->getChild()->parentEdges.push_back(beforeNode);
+    parent->childEdges.push_back(beforeNode);
+
+    // Add edge for afterNode
+    afterNode->getParent()->childEdges.push_back(afterNode);
+    child->parentEdges.push_back(afterNode);
+
+    node->getSupportedDescriptors();
+    node->initSupportedPrimitiveDescriptors();
+    node->filterSupportedPrimitiveDescriptors();
+    node->selectOptimalPrimitiveDescriptor();
+    node->initOptimalPrimitiveDescriptor();
+
+    graphEdges.push_back(beforeNode);
+    graphEdges.push_back(afterNode);
+    graphNodes.push_back(node);
+    return isOk;
+}

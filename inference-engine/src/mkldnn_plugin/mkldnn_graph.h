@@ -115,6 +115,9 @@ public:
     MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc,
             const InferenceEngine::TensorDesc& outDesc, bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
 
+    bool InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node);
+    bool InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort);
+
     InferenceEngine::CNNNetwork dump() const;
 
     template<typename NET>
