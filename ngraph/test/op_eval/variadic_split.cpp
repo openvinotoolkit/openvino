@@ -32,9 +32,9 @@ using namespace ngraph;
 TEST(op_eval, variadic_split_same_lengths)
 {
     const auto data_shape = Shape{3, 8, 3};
-    const auto data = make_shared<op::Parameter>(element::Type_t::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    const auto split_lengths = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{4});
 
     auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
@@ -62,7 +62,7 @@ TEST(op_eval, variadic_split_same_lengths)
 
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::i64);
+        EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(),
                   (Shape{3, static_cast<size_t>(split_lengths_vec[i]), 3}));
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
@@ -72,9 +72,9 @@ TEST(op_eval, variadic_split_same_lengths)
 TEST(op_eval, variadic_split_different_lengths)
 {
     const auto data_shape = Shape{6, 2, 3};
-    const auto data = make_shared<op::Parameter>(element::Type_t::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    const auto split_lengths = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{3});
 
     auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
@@ -101,7 +101,7 @@ TEST(op_eval, variadic_split_different_lengths)
 
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::i64);
+        EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(),
                   (Shape{static_cast<size_t>(split_lengths_vec[i]), 2, 3}));
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
@@ -111,9 +111,9 @@ TEST(op_eval, variadic_split_different_lengths)
 TEST(op_eval, variadic_split_neg_length)
 {
     const auto data_shape = Shape{2, 7, 1};
-    const auto data = make_shared<op::Parameter>(element::Type_t::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    const auto split_lengths = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{3});
 
     auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
@@ -139,7 +139,7 @@ TEST(op_eval, variadic_split_neg_length)
     const vector<size_t> expected_lengths{3, 1, 3};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::i64);
+        EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, expected_lengths[i], 1}));
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
     }
@@ -148,9 +148,9 @@ TEST(op_eval, variadic_split_neg_length)
 TEST(op_eval, variadic_split_neg_length_neg_axis)
 {
     const auto data_shape = Shape{2, 1, 5, 2};
-    const auto data = make_shared<op::Parameter>(element::Type_t::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    const auto split_lengths = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{3});
 
     auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
@@ -176,7 +176,7 @@ TEST(op_eval, variadic_split_neg_length_neg_axis)
     const vector<size_t> expected_lengths{1, 2, 2};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::i64);
+        EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, expected_lengths[i], 2}));
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
     }
@@ -185,9 +185,9 @@ TEST(op_eval, variadic_split_neg_length_neg_axis)
 TEST(op_eval, variadic_split_neg_length_bool_data_type)
 {
     const auto data_shape = Shape{2, 1, 5};
-    const auto data = make_shared<op::Parameter>(element::Type_t::boolean, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    const auto split_lengths = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
+    const auto data = make_shared<op::Parameter>(element::boolean, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{3});
 
     auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
@@ -212,7 +212,7 @@ TEST(op_eval, variadic_split_neg_length_bool_data_type)
     const vector<size_t> expected_lengths{1, 2, 2};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::boolean);
+        EXPECT_EQ(results[i]->get_element_type(), element::boolean);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, expected_lengths[i]}));
         EXPECT_EQ(read_vector<char>(results[i]), expected_results[i]);
     }
@@ -221,9 +221,9 @@ TEST(op_eval, variadic_split_neg_length_bool_data_type)
 TEST(op_eval, variadic_split_neg_length_axis_ui64)
 {
     const auto data_shape = Shape{2, 1, 4, 2};
-    const auto data = make_shared<op::Parameter>(element::Type_t::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::u64, Shape{});
-    const auto split_lengths = make_shared<op::Parameter>(element::Type_t::i64, Shape{2});
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::u64, Shape{});
+    const auto split_lengths = make_shared<op::Parameter>(element::i64, Shape{2});
 
     auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
@@ -250,7 +250,7 @@ TEST(op_eval, variadic_split_neg_length_axis_ui64)
     const vector<size_t> expected_lengths{2, 2};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::i64);
+        EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, expected_lengths[i], 2}));
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
     }
@@ -259,9 +259,9 @@ TEST(op_eval, variadic_split_neg_length_axis_ui64)
 TEST(op_eval, variadic_split_data_float_length_i32)
 {
     const auto data_shape = Shape{2, 3, 3};
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    const auto split_lengths = make_shared<op::Parameter>(element::Type_t::i32, Shape{3});
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const auto split_lengths = make_shared<op::Parameter>(element::i32, Shape{3});
 
     auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
 
@@ -288,7 +288,7 @@ TEST(op_eval, variadic_split_data_float_length_i32)
     const vector<size_t> expected_lengths{1, 1, 1};
     for (int i = 0; i < split_lengths_vec.size(); ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::f32);
+        EXPECT_EQ(results[i]->get_element_type(), element::f32);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 3, expected_lengths[i]}));
         EXPECT_EQ(read_vector<float>(results[i]), expected_results[i]);
     }

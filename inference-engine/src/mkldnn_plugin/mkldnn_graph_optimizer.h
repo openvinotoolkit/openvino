@@ -37,7 +37,6 @@ private:
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
 #endif
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseResampleAndSimpleOperation(MKLDNNGraph &graph);
     void FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph);
     void FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);

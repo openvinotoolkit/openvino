@@ -30,7 +30,7 @@ using namespace ngraph;
 
 TEST(op_eval, rounding_to_even)
 {
-    auto p = make_shared<op::Parameter>(element::Type_t::f32, Shape{9});
+    auto p = make_shared<op::Parameter>(element::f32, Shape{9});
     auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
 
@@ -40,7 +40,7 @@ TEST(op_eval, rounding_to_even)
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(
         fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{9}, inputs)}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{9});
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < inputs.size(); i++)
@@ -49,7 +49,7 @@ TEST(op_eval, rounding_to_even)
 
 TEST(op_eval, rounding_away)
 {
-    auto p = make_shared<op::Parameter>(element::Type_t::f32, Shape{9});
+    auto p = make_shared<op::Parameter>(element::f32, Shape{9});
     auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
 
@@ -59,7 +59,7 @@ TEST(op_eval, rounding_away)
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(
         fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{9}, inputs)}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{9});
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < inputs.size(); i++)
