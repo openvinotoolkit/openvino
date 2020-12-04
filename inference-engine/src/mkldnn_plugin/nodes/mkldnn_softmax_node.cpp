@@ -85,6 +85,10 @@ void MKLDNNSoftMaxNode::createPrimitive() {
     }
 
     prim.reset(new softmax_forward(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
 bool MKLDNNSoftMaxNode::created() const {

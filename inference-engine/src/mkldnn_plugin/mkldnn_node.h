@@ -563,6 +563,7 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
     std::vector<PrimitiveDescInfo> supportedPrimitiveDescriptors;
+    std::unordered_map<int, mkldnn::memory> primArgs;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 

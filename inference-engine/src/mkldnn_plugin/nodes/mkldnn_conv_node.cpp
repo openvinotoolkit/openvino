@@ -577,6 +577,13 @@ void MKLDNNConvolutionNode::createPrimitive() {
             convolution_forward::desc>(attr);
 
     prim.reset(new convolution_forward(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    if (withBiases)
+        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_BIAS, getBias()}, {DNNL_ARG_DST, dst}};
+    else
+        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
 }
 
 bool MKLDNNConvolutionNode::created() const {
@@ -910,20 +917,6 @@ const mkldnn::memory& MKLDNNConvolutionNode::getWeights() const {
 
 const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
     return baseInputsNumber > 2 ? getParentEdgeAt(2)->getMemory().GetPrimitive() : internalBlobMemory[1]->GetPrimitive();
-}
-
-void MKLDNNConvolutionNode::execute(mkldnn::stream strm) {
-    if (prim) {
-        auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-
-        if (withBiases)
-            (*prim).execute(strm, {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_BIAS, getBias()},
-                                   {DNNL_ARG_DST, dst}});
-        else
-            (*prim).execute(strm, {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()},
-                                   {DNNL_ARG_DST, dst}});
-    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);

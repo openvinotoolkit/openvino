@@ -141,6 +141,26 @@ void MKLDNNBatchNormalizationNode::createPrimitive() {
     auto prim_desc = createPrimitiveDescriptor<batch_normalization_forward::primitive_desc,
             batch_normalization_forward::desc>();
     prim.reset(new batch_normalization_forward(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+    const auto &mean = internalBlobMemory[1]->GetPrimitive();
+    const auto &var = internalBlobMemory[0]->GetPrimitive();
+
+    if (convert_to_c(flag) & dnnl_use_scaleshift) {
+        const auto &sclshft = internalBlobMemory[2]->GetPrimitive();
+        primArgs = {{DNNL_ARG_SRC, src},
+                    {DNNL_ARG_MEAN, mean},
+                    {DNNL_ARG_VARIANCE, var},
+                    {DNNL_ARG_SCALE_SHIFT, sclshft},
+                    {DNNL_ARG_DST, dst}};
+    } else {
+        primArgs = {{DNNL_ARG_SRC, src},
+                    {DNNL_ARG_MEAN, mean},
+                    {DNNL_ARG_VARIANCE, var},
+                    {DNNL_ARG_DST, dst}};
+    }
 }
 
 void MKLDNNBatchNormalizationNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
@@ -256,30 +276,6 @@ MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::getDstMemDesc(mkldnn::primitive_d
         return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
                                                             getChildEdgeAt(idx)->getDims().ToSizeVector(),
                                                             desc.getBlockingDesc()));
-}
-
-void MKLDNNBatchNormalizationNode::execute(dnnl::stream strm) {
-    if (prim) {
-        auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-
-        const auto &mean = internalBlobMemory[1]->GetPrimitive();
-        const auto &var = internalBlobMemory[0]->GetPrimitive();
-
-        if (convert_to_c(flag) & dnnl_use_scaleshift) {
-            const auto &sclshft = internalBlobMemory[2]->GetPrimitive();
-            (*prim).execute(strm, {{DNNL_ARG_SRC, src},
-                                   {DNNL_ARG_MEAN, mean},
-                                   {DNNL_ARG_VARIANCE, var},
-                                   {DNNL_ARG_SCALE_SHIFT, sclshft},
-                                   {DNNL_ARG_DST, dst}});
-        } else {
-            (*prim).execute(strm, {{DNNL_ARG_SRC, src},
-                                   {DNNL_ARG_MEAN, mean},
-                                   {DNNL_ARG_VARIANCE, var},
-                                   {DNNL_ARG_DST, dst}});
-        }
-    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNBatchNormalizationNode, BatchNormalization);

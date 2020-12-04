@@ -20,7 +20,6 @@ public:
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
 
     bool canBeInPlace() const override {
         return false;

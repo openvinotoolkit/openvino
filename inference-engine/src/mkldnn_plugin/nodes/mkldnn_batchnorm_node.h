@@ -25,7 +25,6 @@ public:
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
 
     bool fusedWithScale() const {return fusedWith.size() == 1 && fusedWith[0]->getType() == Eltwise
                                         && fusedWith[0]->getCnnLayer()->type == "ScaleShift";}
