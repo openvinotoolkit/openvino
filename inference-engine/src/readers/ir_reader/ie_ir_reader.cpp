@@ -60,9 +60,9 @@ INFERENCE_PLUGIN_API(StatusCode) InferenceEngineIRReader::CreateReader(IReader*&
 
 #ifdef USE_STATIC_IE_EXTENSIONS
 #ifdef IR_READER_V10
-extern "C" StatusCode InferenceEngineIRReaderV10_Create(IReader*& reader, ResponseDesc *resp)
+INFERENCE_PLUGIN_STATIC_API(StatusCode) InferenceEngineIRReaderV10_Create(IReader*& reader, ResponseDesc *resp)
 #else
-extern "C" StatusCode InferenceEngineIRReaderV7_Create(IReader*& reader, ResponseDesc *resp)
+INFERENCE_PLUGIN_STATIC_API(StatusCode) InferenceEngineIRReaderV7_Create(IReader*& reader, ResponseDesc *resp)
 #endif
 {
     return InferenceEngineIRReader::CreateReader(reader, resp);

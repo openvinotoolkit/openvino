@@ -10,4 +10,4 @@ using namespace InferenceEngine;
 using namespace vpu::MyriadPlugin;
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "myriadPlugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version, std::make_shared<Mvnc>())
+IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(MyriadPlugin_CreatePluginEngine, Engine, version, std::make_shared<Mvnc>())

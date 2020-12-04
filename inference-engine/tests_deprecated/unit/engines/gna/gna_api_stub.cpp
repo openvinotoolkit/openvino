@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// Check that we are not already statically linked to gna
+#if !(defined(USE_STATIC_IE_EXTENSIONS) && defined(ENABLE_GNA))
 #define INTEL_GNA_DLLEXPORT 1
+#endif
 
 #if GNA_LIB_VER == 1
 #include <gna-api.h>
@@ -25,6 +28,7 @@ GNACppApi :: ~GNACppApi() {
     current = nullptr;
 }
 
+#if !(defined(USE_STATIC_IE_EXTENSIONS) && defined(ENABLE_GNA))
 #ifdef __cplusplus
 extern "C" {  // API uses C linkage so that it can be used by C and C++ applications
 #endif
@@ -461,3 +465,5 @@ DLLDECL void gmmSetThreads(
 #ifdef __cplusplus
 }
 #endif
+
+#endif // defined(USE_STATIC_IE_EXTENSIONS) && defined(ENABLE_GNA)

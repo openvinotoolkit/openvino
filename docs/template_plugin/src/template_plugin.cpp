@@ -249,5 +249,5 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
 
 // ! [plugin:create_plugin_engine]
 static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "templatePlugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(TemplatePlugin_CreatePluginEngine, Plugin, version)
 // ! [plugin:create_plugin_engine]

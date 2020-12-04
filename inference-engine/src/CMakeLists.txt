@@ -48,8 +48,28 @@ endif()
 
 if(NOT BUILD_SHARED_LIBS)
     target_link_libraries(inference_engine PRIVATE inference_engine_ir_v7_reader inference_engine_ir_reader)
+
     if(NGRAPH_ONNX_IMPORT_ENABLE)
         target_compile_definitions(inference_engine PRIVATE NGRAPH_ONNX_IMPORT_ENABLE)
         target_link_libraries(inference_engine PRIVATE inference_engine_onnx_reader)
     endif()
+
+    if(ENABLE_MKL_DNN)
+        target_link_libraries(inference_engine PRIVATE MKLDNNPlugin)
+    endif()
+
+    if(ENABLE_CLDNN)
+        target_link_libraries(inference_engine PRIVATE clDNNPlugin)
+    endif()
+
+    if(ENABLE_VPU)
+      target_link_libraries(inference_engine PRIVATE myriadPlugin)
+    endif()
+
+    if(ENABLE_GNA)
+        target_link_libraries(inference_engine PRIVATE GNAPlugin)
+    endif()
+
+    target_link_libraries(inference_engine PRIVATE HeteroPlugin MultiDevicePlugin)
+
 endif()

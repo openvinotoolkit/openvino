@@ -276,12 +276,13 @@ public:
 }  // namespace InferenceEngine
 
 /**
- * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
- * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
+ * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(FunctionName, APIMacro, PluginType, version)
+ * @brief Defines the exported `FunctionName` function which is used to create a plugin instance
+ *        using specified APIMacro (for instance INFERENCE_PLUGIN_API)
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                          \
-    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                                   \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(FunctionName, APIMacro, PluginType, version, ...)           \
+    APIMacro(InferenceEngine::StatusCode) FunctionName(                                                     \
             InferenceEngine::IInferencePlugin *&plugin,                                                     \
             InferenceEngine::ResponseDesc *resp) noexcept {                                                 \
         try {                                                                                               \
@@ -293,3 +294,25 @@ public:
             return InferenceEngine::DescriptionBuffer(InferenceEngine::GENERAL_ERROR, resp) << ex.what();   \
         }                                                                                                   \
     }
+
+/**
+ * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
+ * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
+ * @ingroup ie_dev_api_plugin_api
+ */
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)  \
+    IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(CreatePluginEngine, INFERENCE_PLUGIN_API, PluginType, version, __VA_ARGS__)
+
+/**
+ * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(StaticFunctionName, PluginType, version)
+ * @brief Defines the exported `CreatePluginEngine` (dynamic) or `StaticFunctionName` (static) function
+ *        which is used to create a plugin instance
+ * @ingroup ie_dev_api_plugin_api
+ */
+#ifdef USE_STATIC_IE_EXTENSIONS 
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(StaticFunctionName, PluginType, version, ...)  \
+    IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(StaticFunctionName, INFERENCE_PLUGIN_STATIC_API, PluginType, version, __VA_ARGS__)
+#else
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(StaticFunctionName, PluginType, version, ...)  \
+    IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(CreatePluginEngine, INFERENCE_PLUGIN_API, PluginType, version, __VA_ARGS__)
+#endif
