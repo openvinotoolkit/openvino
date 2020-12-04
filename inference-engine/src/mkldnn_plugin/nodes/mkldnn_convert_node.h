@@ -24,6 +24,17 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+
+    void setDescs(const InferenceEngine::TensorDesc& input, const InferenceEngine::TensorDesc& output) {
+        this->input = input;
+        this->output = output;
+    }
+
+    const InferenceEngine::TensorDesc& getInput() { return input; }
+    const InferenceEngine::TensorDesc& getOutput() { return output; }
+private:
+    InferenceEngine::TensorDesc input;
+    InferenceEngine::TensorDesc output;
 };
 }  // namespace MKLDNNPlugin
 

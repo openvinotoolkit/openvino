@@ -13,6 +13,10 @@ MKLDNNConvertNode::MKLDNNConvertNode(const InferenceEngine::CNNLayerPtr& layer, 
         MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNConvertNode::getSupportedDescriptors() {
+    if (outDims.empty() && output.getLayout() != InferenceEngine::Layout::ANY)
+        outDims.push_back(MKLDNNDims(output.getDims()));
+    if (inDims.empty() && input.getLayout() != InferenceEngine::Layout::ANY)
+        inDims.push_back(MKLDNNDims(input.getDims()));
     if (getParentEdges().size() != 1 || getChildEdges().size() != 1)
         THROW_IE_EXCEPTION << "Convert layer with name '" << getName() << "' has incorrect number of input/output edges";
 }
@@ -28,17 +32,32 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
 
     LayerConfig config;
     DataConfig dataIn;
-    const SizeVector& ins_dims = layer->insData[0].lock()->getTensorDesc().getDims();
-    const auto layout = layer->insData[0].lock()->getTensorDesc().getLayout(); // inp/out layouts must be the same
-    dataIn.desc = TensorDesc(layer->insData[0].lock()->getTensorDesc().getPrecision(), ins_dims, layout);
-    config.inConfs.push_back(dataIn);
-
     DataConfig dataConfigOut;
-    const SizeVector& out_dims = layer->outData[0]->getTensorDesc().getDims();
-    dataConfigOut.desc = TensorDesc(layer->outData[0]->getTensorDesc().getPrecision(), out_dims, layout);
-    config.outConfs.push_back(dataConfigOut);
+
+    memory::format fmt;
+
+    if (input.getLayout() != InferenceEngine::Layout::ANY && output.getLayout() != InferenceEngine::Layout::ANY) {
+        dataIn.desc = input;
+        config.inConfs.push_back(dataIn);
+
+        const auto layout = config.inConfs[0].desc.getLayout(); // inp/out layouts must be the same
+        auto outTensorDesc = output;
+        dataConfigOut.desc = TensorDesc(output.getPrecision(), output.getDims(), layout);
+        config.outConfs.push_back(dataConfigOut);
+        fmt = MKLDNNMemory::Convert(layout);
+    } else if (!layer->insData.empty() && !layer->outData.empty()) {
+        const SizeVector& ins_dims = layer->insData[0].lock()->getTensorDesc().getDims();
+        const auto layout = layer->insData[0].lock()->getTensorDesc().getLayout(); // inp/out layouts must be the same
+        dataIn.desc = TensorDesc(layer->insData[0].lock()->getTensorDesc().getPrecision(), ins_dims, layout);
+        config.inConfs.push_back(dataIn);
+
+        const SizeVector& out_dims = layer->outData[0]->getTensorDesc().getDims();
+        dataConfigOut.desc = TensorDesc(layer->outData[0]->getTensorDesc().getPrecision(), out_dims, layout);
+        config.outConfs.push_back(dataConfigOut);
+        fmt = MKLDNNMemory::Convert(layout);
+    }
+
     config.dynBatchSupport = false;
-    memory::format fmt = MKLDNNMemory::Convert(layout);
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
 }
 
