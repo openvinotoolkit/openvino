@@ -63,8 +63,7 @@ namespace ngraph
                 {
                     auto data = node.get_ng_inputs().at(0);
                     std::int64_t k{node.get_attribute_value<std::int64_t>("k")};
-                    auto k_node =
-                        default_opset::Constant::create(element::Type_t::i64, Shape{}, {k});
+                    auto k_node = default_opset::Constant::create(element::i64, Shape{}, {k});
                     auto axis = get_axis(node);
 
                     std::shared_ptr<ngraph::Node> top_k = std::make_shared<default_opset::TopK>(
@@ -73,7 +72,7 @@ namespace ngraph
                         axis,
                         default_opset::TopK::Mode::MAX,
                         default_opset::TopK::SortType::SORT_VALUES,
-                        element::Type_t::i64);
+                        element::i64);
 
                     return {top_k->output(0), top_k->output(1)};
                 }
@@ -93,7 +92,7 @@ namespace ngraph
                         axis,
                         default_opset::TopK::Mode::MAX,
                         default_opset::TopK::SortType::SORT_VALUES,
-                        element::Type_t::i64);
+                        element::i64);
 
                     return {top_k->output(0), top_k->output(1)};
                 }
@@ -121,7 +120,7 @@ namespace ngraph
                                                   : default_opset::TopK::Mode::MIN;
 
                     std::shared_ptr<ngraph::Node> top_k = std::make_shared<default_opset::TopK>(
-                        data, k, axis, mode, sort_type, element::Type_t::i64);
+                        data, k, axis, mode, sort_type, element::i64);
 
                     return {top_k->output(0), top_k->output(1)};
                 }

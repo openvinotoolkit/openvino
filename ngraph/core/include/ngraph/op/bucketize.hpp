@@ -40,7 +40,7 @@ namespace ngraph
                 ///                          edge of interval. default true = includes right edge
                 Bucketize(const Output<Node>& data,
                           const Output<Node>& buckets,
-                          const element::Type output_type = element::Type_t::i64,
+                          const element::Type output_type = element::i64,
                           const bool with_right_bound = true);
 
                 virtual void validate_and_infer_types() override;

@@ -76,7 +76,7 @@ bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs,
     const auto& axes = inputs[1];
     const auto& out = outputs[0];
 
-    if (data->get_element_type() != element::Type_t::boolean ||
+    if (data->get_element_type() != element::boolean ||
         !axes->get_element_type().is_integral_number())
     {
         return false;
