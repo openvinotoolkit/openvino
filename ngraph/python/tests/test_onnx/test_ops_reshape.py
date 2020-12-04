@@ -246,18 +246,21 @@ def test_squeeze():
 def test_unsqueeze():
     data = np.random.randn(3, 4, 5).astype(np.float32)
     expected_output = np.expand_dims(data, axis=0)
-    node = onnx.helper.make_node("Unsqueeze", inputs=["x"], outputs=["y"], axes=[0])
-    ng_results = run_node(node, [data])
+    axes = np.array([0]).astype(np.int64)
+    node = onnx.helper.make_node("Unsqueeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
     expected_output = np.reshape(data, [1, 3, 4, 5, 1])
-    node = onnx.helper.make_node("Unsqueeze", inputs=["x"], outputs=["y"], axes=[0, 4])
-    ng_results = run_node(node, [data])
+    axes = np.array([0, 4]).astype(np.int64)
+    node = onnx.helper.make_node("Unsqueeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
     expected_output = np.reshape(data, [1, 3, 1, 4, 5])
-    node = onnx.helper.make_node("Unsqueeze", inputs=["x"], outputs=["y"], axes=[0, 2])
-    ng_results = run_node(node, [data])
+    axes = np.array([0, 2]).astype(np.int64)
+    node = onnx.helper.make_node("Unsqueeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
 

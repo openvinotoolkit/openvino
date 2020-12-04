@@ -41,6 +41,15 @@ namespace ngraph
 
             } // namespace set_1
 
+            namespace set_13
+            {
+                OutputVector unsqueeze(const Node& node)
+                {
+                    auto inputs = node.get_ng_inputs();
+                    return {std::make_shared<default_opset::Unsqueeze>(inputs.at(0), inputs.at(1))};
+                }
+
+            } // namespace set_13
         } // namespace op
 
     } // namespace onnx_import
