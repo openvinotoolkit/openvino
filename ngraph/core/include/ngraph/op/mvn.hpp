@@ -93,12 +93,6 @@ namespace ngraph
 
         namespace v6
         {
-            enum class EpsMode
-            {
-                inside_sqrt,
-                outside_sqrt
-            };
-
             /// \brief Operator performing Mean Variance Normalization
             ///
             class NGRAPH_API MVN : public ngraph::op::Op
