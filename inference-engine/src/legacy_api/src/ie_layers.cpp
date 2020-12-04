@@ -308,9 +308,9 @@ std::string CNNLayer::GetParamAsString(const char* param) const {
 
 std::string CNNLayer::getBoolStrParamAsIntStr(const char *param) const {
     std::string val = GetParamAsString(param);
-    if (val == "true") {
+    if (val == "true" || val == "True") {
         return "1";
-    } else if (val == "false") {
+    } else if (val == "false" || val == "False") {
         return "0";
     }
     return val;

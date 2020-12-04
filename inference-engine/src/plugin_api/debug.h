@@ -207,6 +207,5 @@ inline std::string tolower(const std::string& s) {
     std::transform(s.begin(), s.end(), ret.begin(), ::tolower);
     return ret;
 }
-
 }  // namespace details
 }  // namespace InferenceEngine
