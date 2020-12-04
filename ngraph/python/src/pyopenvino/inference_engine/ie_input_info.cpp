@@ -24,8 +24,7 @@
 namespace py = pybind11;
 
 template <typename T>
-class ConstWrapper
-{
+class ConstWrapper {
 public:
     const T& cref() const { return value; }
 
@@ -34,8 +33,7 @@ protected:
     T value;
 };
 
-void regclass_InputInfo(py::module m)
-{
+void regclass_InputInfo(py::module m) {
     // Workaround for constant class
     py::class_<ConstWrapper<const InferenceEngine::InputInfo>,
                std::shared_ptr<ConstWrapper<const InferenceEngine::InputInfo>>>
