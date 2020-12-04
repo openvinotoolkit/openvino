@@ -76,10 +76,13 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 
     // Initialize execution queue with nodes in topological order
     deque<std::shared_ptr<Node>> nodes_to_run;
+#define ITERATOR 1
+#ifndef ITERATOR
     for (auto& node : f->get_ordered_ops())
     {
         nodes_to_run.emplace_back(node);
     }
+#endif
 
     // Check that all Matchers in MatcherPasses has type bases root node
     bool all_roots_has_type = true;
@@ -150,7 +153,8 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // to this node
         bool status = m_pass->apply(node);
 
-        if (status) {
+        if (status)
+        {
             info.insert(m_pass->get_type_info());
         }
 
@@ -173,10 +177,27 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     // list of matchers to run for a node; define here to keep memory allocated
     std::vector<size_t> matcher_passes_to_run;
 
+#ifdef ITERATOR
+    auto it = f->get_iterator();
+    while (it.get() || !nodes_to_run.empty())
+    {
+        std::shared_ptr<Node> node;
+        if (!nodes_to_run.empty())
+        {
+            node = nodes_to_run.front();
+            nodes_to_run.pop_front();
+        }
+        else
+        {
+            node = it.get();
+            it.next();
+        }
+#else
     while (!nodes_to_run.empty())
     {
         auto node = nodes_to_run.front();
         nodes_to_run.pop_front();
+#endif
         // Recursive apply Matchers for sub-graph based nodes
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
         {
@@ -242,7 +263,8 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
             }
         }
     }
-    for (auto pass : info) {
+    for (auto pass : info)
+    {
         std::cout << "    " << pass.name << std::endl;
     }
     return rewritten;

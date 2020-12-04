@@ -59,6 +59,7 @@ namespace ngraph
     class Node;
 
     class Function;
+    class Iterator;
 
     namespace runtime
     {
@@ -140,6 +141,8 @@ namespace ngraph
         // For access to m_outputs.
         template <typename NodeType>
         friend class Output;
+
+        friend class Iterator;
 
     public:
         /// \brief Verifies that attributes and inputs are consistent and computes output shapes

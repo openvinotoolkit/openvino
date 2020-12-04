@@ -255,34 +255,40 @@ namespace strided_slice
                                 const HostTensorPtr& out)
     {
         SlicePlan slice_plan;
-        if (begin->get_element_type() == element::i64) {
+        if (begin->get_element_type() == element::i64)
+        {
             std::vector<int64_t> begin_const = read_vector<int64_t>(begin);
             std::vector<int64_t> end_const = read_vector<int64_t>(end);
             std::vector<int64_t> stride_const = read_vector<int64_t>(stride);
             slice_plan = make_slice_plan(in->get_shape(),
-                                                   begin_const,
-                                                   end_const,
-                                                   stride_const,
-                                                   begin_mask,
-                                                   end_mask,
-                                                   new_axis_mask,
-                                                   shrink_axis_mask,
-                                                   ellipsis_mask);
-        } else if (begin->get_element_type() == element::i32) {
+                                         begin_const,
+                                         end_const,
+                                         stride_const,
+                                         begin_mask,
+                                         end_mask,
+                                         new_axis_mask,
+                                         shrink_axis_mask,
+                                         ellipsis_mask);
+        }
+        else if (begin->get_element_type() == element::i32)
+        {
             auto begin_const = read_vector<int32_t>(begin);
             auto end_const = read_vector<int32_t>(end);
             auto stride_const = read_vector<int32_t>(stride);
 
-            slice_plan = make_slice_plan(in->get_shape(),
-                                                   std::vector<int64_t >(begin_const.begin(), begin_const.end()),
-                                                   std::vector<int64_t >(end_const.begin(), end_const.end()),
-                                                   std::vector<int64_t >(stride_const.begin(), stride_const.end()),
-                                                   begin_mask,
-                                                   end_mask,
-                                                   new_axis_mask,
-                                                   shrink_axis_mask,
-                                                   ellipsis_mask);
-        } else {
+            slice_plan =
+                make_slice_plan(in->get_shape(),
+                                std::vector<int64_t>(begin_const.begin(), begin_const.end()),
+                                std::vector<int64_t>(end_const.begin(), end_const.end()),
+                                std::vector<int64_t>(stride_const.begin(), stride_const.end()),
+                                begin_mask,
+                                end_mask,
+                                new_axis_mask,
+                                shrink_axis_mask,
+                                ellipsis_mask);
+        }
+        else
+        {
             throw ngraph_error("Unsupported precision");
         }
         return evaluate(in, slice_plan, out);

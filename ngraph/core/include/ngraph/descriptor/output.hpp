@@ -49,6 +49,7 @@ namespace ngraph
             Output(Node* node, size_t index, const std::shared_ptr<Tensor>& tensor);
 
             std::shared_ptr<Node> get_node() const;
+            Node* get_raw_pointer_node() const { return m_node; }
             size_t get_index() const { return m_index; }
             ngraph::Output<Node> get_output() const;
             std::shared_ptr<Tensor> get_tensor_ptr() const { return m_tensor; }

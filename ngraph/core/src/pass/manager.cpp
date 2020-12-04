@@ -173,7 +173,8 @@ bool pass::Manager::run_passes(shared_ptr<Function> func)
             }
         }
 
-        if (function_changed) {
+        if (function_changed)
+        {
             std::cout << "Executed: " << pass->get_name() << std::endl;
         }
         NGRAPH_SUPPRESS_DEPRECATED_END

@@ -114,12 +114,15 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
 
     std::function<void(const std::shared_ptr<Function> &)> register_constants =
             [&const_to_internal_output, &register_constants](const std::shared_ptr<Function> & f) {
-        for (auto & node : f->get_ordered_ops()) {
+        auto it = f->get_iterator();
+        while (it.get()) {
+            auto node = it.get();
             for (auto & input : node->inputs()) {
                 if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
                     const_to_internal_output[const_node].emplace_back(input);
                 }
             }
+            it.next();
         }
     };
 
@@ -168,7 +171,9 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         // Iterate over all nodes in topological order and then iterate over node outputs.
         // If output type mismatch given type we try to fuse type into this operation
         // otherwise we insert Convert operation.
-        for (auto &node : f->get_ordered_ops()) {
+        auto it = f->get_iterator();
+        while (it.get()) {
+            auto node = it.get();
             m_transformation_callback(node);
             // Recursively apply transformation for sub-graph based operations
             if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
@@ -177,12 +182,16 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
                 }
             }
             convert_node_input_precision(node);
+            it.next();
         }
         // Register internal constants only after fixing input type that could lead to nodes replacement
         register_constants(f);
 
-        for (auto &node : f->get_ordered_ops()) {
+        it = f->get_iterator();
+        while (it.get()) {
+            auto node = it.get();
             convert_node_output_precision(node);
+            it.next();
         }
     };
 
@@ -194,7 +203,9 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     }
 
     // TODO: we need to split NopElimination pass to separate MatcherPasses and call Convert elimination here
-    for (auto &node : f->get_ordered_ops()) {
+    auto it = f->get_iterator();
+    while (it.get()) {
+        auto node = it.get();
         if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
             // WA for topK, dont remove fake convert
             if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
@@ -202,6 +213,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
                 rewritten |= replace_output_update_name(convert->output(0), convert->input_value(0));
             }
         }
+        it.next();
     }
     return rewritten;
 }

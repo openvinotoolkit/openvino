@@ -20,6 +20,8 @@
 #include <initializer_list>
 #include <list>
 #include <memory>
+#include <queue>
+#include <stack>
 #include <string>
 #include <vector>
 
@@ -28,9 +30,72 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/sink.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
+    class NGRAPH_API Iterator
+    {
+    public:
+        int64_t max_depth{0};
+
+        Iterator(const ParameterVector& nodes)
+        {
+            for (const auto& node : nodes)
+            {
+                visit(node.get());
+                nodes_to_visit.push(node.get());
+            }
+            next();
+        }
+
+        std::shared_ptr<Node> next()
+        {
+            if (nodes_to_visit.empty())
+            {
+                m_node = nullptr;
+                return get();
+            }
+            auto prev = m_node;
+            m_node = nodes_to_visit.front();
+            nodes_to_visit.pop();
+            add_node_outputs(m_node);
+            //            max_depth = std::max(max_depth, (int64_t)nodes_to_visit.size());
+            return get();
+        }
+
+        std::shared_ptr<Node> get() { return m_node ? m_node->shared_from_this() : nullptr; }
+    private:
+        void add_node_outputs(Node* node)
+        {
+            for (const auto& output : node->m_outputs)
+            {
+                for (const auto& target_input : output.get_inputs())
+                {
+                    add_node(target_input->get_raw_pointer_node());
+                }
+            }
+        }
+
+        void add_node(Node* node)
+        {
+            if (is_visited(node))
+                return;
+            for (const auto& input_desc : node->m_inputs)
+            {
+                add_node(input_desc.get_output().get_raw_pointer_node());
+            }
+            nodes_to_visit.push(node);
+            visit(node);
+        }
+
+        bool is_visited(Node* node) { return visited.find(node) != visited.end(); }
+        void visit(Node* node) { visited.insert(node); }
+        std::queue<Node*> nodes_to_visit;
+        std::unordered_set<Node*> visited;
+        Node* m_node;
+    };
+
     /// A user-defined function.
     class NGRAPH_API Function
     {
@@ -170,6 +235,7 @@ namespace ngraph
         /// \param result Result node to delete
         void remove_result(const std::shared_ptr<op::Result>& result);
 
+        Iterator get_iterator() { return Iterator(m_parameters); }
     private:
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
