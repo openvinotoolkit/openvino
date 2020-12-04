@@ -117,52 +117,51 @@ void regclass_pyngraph_op_Constant(py::module m)
 
     constant.def("get_vector", [](const ngraph::op::Constant& self) {
         auto element_type = self.get_element_type();
-        if (element_type == ngraph::element::Type_t::boolean)
+        if (element_type == ngraph::element::boolean)
         {
             return _cast_vector<char>(self);
         }
-        else if (element_type == ngraph::element::Type_t::f16)
+        else if (element_type == ngraph::element::f16)
         {
             return _cast_vector<ngraph::float16>(self);
         }
-        else if (element_type == ngraph::element::Type_t::f32)
+        else if (element_type == ngraph::element::f32)
         {
             return _cast_vector<float>(self);
         }
-        else if (element_type == ngraph::element::Type_t::f64)
+        else if (element_type == ngraph::element::f64)
         {
             return _cast_vector<double>(self);
         }
-        else if (element_type == ngraph::element::Type_t::i8)
+        else if (element_type == ngraph::element::i8)
         {
             return _cast_vector<int8_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::i16)
+        else if (element_type == ngraph::element::i16)
         {
             return _cast_vector<int16_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::i32)
+        else if (element_type == ngraph::element::i32)
         {
             return _cast_vector<int32_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::i64)
+        else if (element_type == ngraph::element::i64)
         {
             return _cast_vector<int64_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::u8 ||
-                 element_type == ngraph::element::Type_t::u1)
+        else if (element_type == ngraph::element::u8 || element_type == ngraph::element::u1)
         {
             return _cast_vector<uint8_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::u16)
+        else if (element_type == ngraph::element::u16)
         {
             return _cast_vector<uint16_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::u32)
+        else if (element_type == ngraph::element::u32)
         {
             return _cast_vector<uint32_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::u64)
+        else if (element_type == ngraph::element::u64)
         {
             return _cast_vector<uint64_t>(self);
         }
@@ -175,52 +174,51 @@ void regclass_pyngraph_op_Constant(py::module m)
     // Provide buffer access
     constant.def_buffer([](const ngraph::op::Constant& self) -> py::buffer_info {
         auto element_type = self.get_element_type();
-        if (element_type == ngraph::element::Type_t::boolean)
+        if (element_type == ngraph::element::boolean)
         {
             return _get_buffer_info<char>(self);
         }
-        else if (element_type == ngraph::element::Type_t::f16)
+        else if (element_type == ngraph::element::f16)
         {
             return _get_buffer_info<ngraph::float16>(self);
         }
-        else if (element_type == ngraph::element::Type_t::f32)
+        else if (element_type == ngraph::element::f32)
         {
             return _get_buffer_info<float>(self);
         }
-        else if (element_type == ngraph::element::Type_t::f64)
+        else if (element_type == ngraph::element::f64)
         {
             return _get_buffer_info<double>(self);
         }
-        else if (element_type == ngraph::element::Type_t::i8)
+        else if (element_type == ngraph::element::i8)
         {
             return _get_buffer_info<int8_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::i16)
+        else if (element_type == ngraph::element::i16)
         {
             return _get_buffer_info<int16_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::i32)
+        else if (element_type == ngraph::element::i32)
         {
             return _get_buffer_info<int32_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::i64)
+        else if (element_type == ngraph::element::i64)
         {
             return _get_buffer_info<int64_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::u8 ||
-                 element_type == ngraph::element::Type_t::u1)
+        else if (element_type == ngraph::element::u8 || element_type == ngraph::element::u1)
         {
             return _get_buffer_info<uint8_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::u16)
+        else if (element_type == ngraph::element::u16)
         {
             return _get_buffer_info<uint16_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::u32)
+        else if (element_type == ngraph::element::u32)
         {
             return _get_buffer_info<uint32_t>(self);
         }
-        else if (element_type == ngraph::element::Type_t::u64)
+        else if (element_type == ngraph::element::u64)
         {
             return _get_buffer_info<uint64_t>(self);
         }

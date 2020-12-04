@@ -37,8 +37,7 @@ NGRAPH_TEST(${BACKEND_NAME}, create_dynamic_backend)
 NGRAPH_TEST(${BACKEND_NAME}, create_dynamic_tensor)
 {
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
-    auto t = backend->create_dynamic_tensor(element::Type_t::f32,
-                                            PartialShape{2, Dimension::dynamic(), 3});
+    auto t = backend->create_dynamic_tensor(element::f32, PartialShape{2, Dimension::dynamic(), 3});
     ASSERT_TRUE(t->get_partial_shape().same_scheme(PartialShape{2, Dimension::dynamic(), 3}));
 }
 
@@ -47,12 +46,9 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_abc)
     //
     // Create a graph for f(a,b,c) = (a+b)*c, where a, b, c all have shape {2,?,3}.
     //
-    auto a =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
-    auto c =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, Dimension::dynamic(), 3});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
+    auto c = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
 
     auto a_plus_b = make_shared<op::v1::Add>(a, b);
     auto a_plus_b_times_c = make_shared<op::v1::Multiply>(a_plus_b, c);
@@ -69,8 +65,8 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_abc)
     //
     // Create a dynamic output tensor with shape {2,?,3}.
     //
-    auto t_r = backend->create_dynamic_tensor(element::Type_t::f32,
-                                              PartialShape{2, Dimension::dynamic(), 3});
+    auto t_r =
+        backend->create_dynamic_tensor(element::f32, PartialShape{2, Dimension::dynamic(), 3});
 
     //
     // For each of n=[0,...,5), run the compiled executable against a test vector of shape
@@ -86,9 +82,9 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_abc)
         }
 
         // Create static tensors for the inputs and copy data.
-        auto t_a = backend->create_tensor(element::Type_t::f32, Shape{2, middle_dim, 3});
-        auto t_b = backend->create_tensor(element::Type_t::f32, Shape{2, middle_dim, 3});
-        auto t_c = backend->create_tensor(element::Type_t::f32, Shape{2, middle_dim, 3});
+        auto t_a = backend->create_tensor(element::f32, Shape{2, middle_dim, 3});
+        auto t_b = backend->create_tensor(element::f32, Shape{2, middle_dim, 3});
+        auto t_c = backend->create_tensor(element::f32, Shape{2, middle_dim, 3});
 
         copy_data(t_a, inputs);
         copy_data(t_b, inputs);
@@ -115,9 +111,9 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_abc)
 
 static void axpy_test(const PartialShape& input_pshape, const std::vector<Shape>& input_shapes)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, input_pshape);
-    auto x = make_shared<op::Parameter>(element::Type_t::f32, input_pshape);
-    auto y = make_shared<op::Parameter>(element::Type_t::f32, input_pshape);
+    auto a = make_shared<op::Parameter>(element::f32, input_pshape);
+    auto x = make_shared<op::Parameter>(element::f32, input_pshape);
+    auto y = make_shared<op::Parameter>(element::f32, input_pshape);
 
     auto axpy = make_shared<op::v1::Add>(make_shared<op::v1::Multiply>(a, x), y);
 
@@ -125,7 +121,7 @@ static void axpy_test(const PartialShape& input_pshape, const std::vector<Shape>
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
     auto ex = backend->compile(f);
 
-    auto t_r = backend->create_dynamic_tensor(element::Type_t::f32, input_pshape);
+    auto t_r = backend->create_dynamic_tensor(element::f32, input_pshape);
 
     for (auto& shape : input_shapes)
     {
@@ -135,9 +131,9 @@ static void axpy_test(const PartialShape& input_pshape, const std::vector<Shape>
             inputs[i] = i;
         }
 
-        auto t_a = backend->create_tensor(element::Type_t::f32, shape);
-        auto t_x = backend->create_tensor(element::Type_t::f32, shape);
-        auto t_y = backend->create_tensor(element::Type_t::f32, shape);
+        auto t_a = backend->create_tensor(element::f32, shape);
+        auto t_x = backend->create_tensor(element::f32, shape);
+        auto t_y = backend->create_tensor(element::f32, shape);
 
         copy_data(t_a, inputs);
         copy_data(t_x, inputs);
@@ -182,13 +178,13 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_axpy)
 
 static void to_vector_test(const PartialShape& input_pshape, const std::vector<Shape>& input_shapes)
 {
-    auto x = make_shared<op::Parameter>(element::Type_t::f32, input_pshape);
+    auto x = make_shared<op::Parameter>(element::f32, input_pshape);
 
     shared_ptr<Node> x_new_shape = make_shared<op::v0::ShapeOf>(x);
-    auto axes = op::Constant::create(element::Type_t::i64, {}, {0});
+    auto axes = op::Constant::create(element::i64, {}, {0});
     x_new_shape = make_shared<op::v1::ReduceProd>(x_new_shape, axes);
     x_new_shape = make_shared<op::v1::Reshape>(
-        x_new_shape, op::Constant::create(element::Type_t::u64, {1}, Shape{1}), false);
+        x_new_shape, op::Constant::create(element::u64, {1}, Shape{1}), false);
 
     auto x_reshaped = make_shared<op::v1::Reshape>(x, x_new_shape, true);
 
@@ -196,7 +192,7 @@ static void to_vector_test(const PartialShape& input_pshape, const std::vector<S
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
     auto ex = backend->compile(f);
 
-    auto t_r = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic(1));
+    auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic(1));
 
     for (auto& shape : input_shapes)
     {
@@ -206,7 +202,7 @@ static void to_vector_test(const PartialShape& input_pshape, const std::vector<S
             inputs[i] = i;
         }
 
-        auto t_x = backend->create_tensor(element::Type_t::f32, shape);
+        auto t_x = backend->create_tensor(element::f32, shape);
 
         copy_data(t_x, inputs);
 
@@ -244,12 +240,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_to_vector)
 static void reverse_shape_test(const PartialShape& input_pshape,
                                const std::vector<Shape>& input_shapes)
 {
-    auto x = make_shared<op::Parameter>(element::Type_t::f32, input_pshape);
+    auto x = make_shared<op::Parameter>(element::f32, input_pshape);
 
     shared_ptr<Node> x_new_shape = make_shared<op::v0::ShapeOf>(x);
-    x_new_shape = make_shared<op::v1::Reverse>(x_new_shape,
-                                               op::Constant::create(element::Type_t::i64, {1}, {0}),
-                                               op::v1::Reverse::Mode::INDEX);
+    x_new_shape = make_shared<op::v1::Reverse>(
+        x_new_shape, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
 
     auto x_reshaped = make_shared<op::v1::Reshape>(x, x_new_shape, true);
 
@@ -257,7 +252,7 @@ static void reverse_shape_test(const PartialShape& input_pshape,
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
     auto ex = backend->compile(f);
 
-    auto t_r = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
+    auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
 
     for (auto& shape : input_shapes)
     {
@@ -267,7 +262,7 @@ static void reverse_shape_test(const PartialShape& input_pshape,
             inputs[i] = i;
         }
 
-        auto t_x = backend->create_tensor(element::Type_t::f32, shape);
+        auto t_x = backend->create_tensor(element::f32, shape);
 
         copy_data(t_x, inputs);
 
@@ -306,8 +301,8 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_reverse_shape)
 
 NGRAPH_TEST(${BACKEND_NAME}, dynamic_transpose)
 {
-    auto arg = std::make_shared<op::Parameter>(element::Type_t::i32, PartialShape::dynamic());
-    auto input_order = make_shared<op::Parameter>(element::Type_t::i32, PartialShape::dynamic());
+    auto arg = std::make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto input_order = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
     auto transpose = std::make_shared<op::v1::Transpose>(arg, input_order);
 
     auto f = std::make_shared<Function>(NodeVector{transpose}, ParameterVector{arg, input_order});
@@ -318,16 +313,15 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_transpose)
     auto arg_data = vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     auto input_order_data = vector<int32_t>{2, 0, 1};
 
-    auto arg_tensor = backend->create_tensor(element::Type_t::i32, Shape{2, 2, 3});
-    auto input_order_tensor =
-        backend->create_tensor(element::Type_t::i32, Shape{input_order_data.size()});
+    auto arg_tensor = backend->create_tensor(element::i32, Shape{2, 2, 3});
+    auto input_order_tensor = backend->create_tensor(element::i32, Shape{input_order_data.size()});
     copy_data(arg_tensor, arg_data);
     copy_data(input_order_tensor, input_order_data);
 
-    auto output = backend->create_dynamic_tensor(element::Type_t::i32, PartialShape::dynamic());
+    auto output = backend->create_dynamic_tensor(element::i32, PartialShape::dynamic());
     ex->call_with_validate({output}, {arg_tensor, input_order_tensor});
 
-    ASSERT_EQ(output->get_element_type(), element::Type_t::i32);
+    ASSERT_EQ(output->get_element_type(), element::i32);
     EXPECT_EQ(read_vector<int32_t>(output),
               vector<int32_t>({1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12}));
 }

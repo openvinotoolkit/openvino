@@ -29,8 +29,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, aliased_output)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto C = make_shared<op::v1::Add>(A, B);
     auto D = make_shared<op::v1::Multiply>(A, B);
     auto E = op::Constant::create(element::f32, shape, {1, 2, 3, 4});

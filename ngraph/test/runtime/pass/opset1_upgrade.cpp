@@ -77,7 +77,7 @@ namespace opset1_upgrade
             node->input_value(1), // data
             node->input_value(0), // filters
             op::Constant::create(
-                element::Type_t::i64,
+                element::i64,
                 Shape{data_batch_shape.size() - 2},
                 vector<size_t>(data_batch_shape.begin() + 2, data_batch_shape.end())),
             strides,
@@ -176,8 +176,7 @@ namespace opset1_upgrade
         auto replacement_node = make_shared<op::v1::GroupConvolutionBackpropData>(
             node->input_value(2),
             reshaped_filters,
-            op::Constant::create(
-                element::Type_t::i64, Shape{data_batch_shape.size()}, data_batch_shape),
+            op::Constant::create(element::i64, Shape{data_batch_shape.size()}, data_batch_shape),
             strides,
             pads_begin,
             pads_end,
