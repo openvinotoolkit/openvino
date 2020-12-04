@@ -74,6 +74,15 @@ void MatMulTransformation::SetUp() {
     ngraph::pass::InitNodeInfo().run_on_function(function);
 }
 
+void MatMulTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<3>(GetParam());
+    const auto actualType = getRuntimePrecision(params.expectedKernelName);
+
+    EXPECT_EQ(actualType, params.expectedRuntimePrecision);
+}
+
 TEST_P(MatMulTransformation, CompareWithRefImpl) {
     Run();
 };

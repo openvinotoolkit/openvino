@@ -42,7 +42,7 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     }
 
     // FakeQuantize on weights are used without dequantization ScaleShifts
-    if (NetworkHelper::onWeights(layer)) {
+    if (NetworkHelper::isConstantPath(layer)) {
         return false;
     }
 

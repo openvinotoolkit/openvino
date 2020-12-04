@@ -124,7 +124,7 @@ bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQu
     //    return true;
     // }
 
-    const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::onWeights(quantize));
+    const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::isConstantPath(quantize));
     if ((outputIntervalsCount != 1ul) && (outputIntervalsCount != outputChannelsCount)) {
         return false;
     }
@@ -189,7 +189,7 @@ QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<opset1::Fake
     size_t outputIntervalsCount;
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
-    const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::onWeights(quantize));
+    const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::isConstantPath(quantize));
     if (!outputLayoutIsSupported(quantize)) {
         THROW_IE_LPT_EXCEPTION(*quantize) << "Expected output channels count " << outputIntervalsCount << " but found " << outputChannelsCount;
     }
