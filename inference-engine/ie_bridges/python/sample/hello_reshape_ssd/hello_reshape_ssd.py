@@ -68,23 +68,20 @@ def main():
     assert len(net.input_info.keys()) == 1, 'Sample supports clean SSD network with one input'
     assert len(net.outputs.keys()) == 1, 'Sample supports clean SSD network with one output'
     input_name = list(net.input_info.keys())[0]
+    input_info = net.input_info[input_name]
     supported_input_dims = 4  # Supported input layout - NHWC
 
-    for input_key in net.input_info:
-        log.info(f'    Input key: {input_key}')
-        log.info(f'    Input shape: {str(net.input_info[input_key].input_data.shape)}')
-        if len(net.input_info[input_key].input_data.layout) == supported_input_dims:
-            n, c, h, w = net.input_info[input_key].input_data.shape
-            assert n == 1, 'Sample supports topologies with one input image only'
-        else:
-            raise AssertionError('Sample supports input with NHWC shape only')
+    log.info(f'    Input name: {input_name}')
+    log.info(f'    Input shape: {str(input_info.input_data.shape)}')
+    if len(input_info.input_data.layout) == supported_input_dims:
+        n, c, h, w = input_info.input_data.shape
+        assert n == 1, 'Sample supports topologies with one input image only'
+    else:
+        raise AssertionError('Sample supports input with NHWC shape only')
     
-    h_new, w_new = cv2.imread(args.input).shape[:-1]
-    images = np.ndarray(shape=(n, c, h_new, w_new))
-    images_hw = []
     image = cv2.imread(args.input)
-    ih, iw = image.shape[:-1]
-    images_hw.append((ih, iw))
+    h_new, w_new = image.shape[:-1]
+    images = np.ndarray(shape=(n, c, h_new, w_new))
     log.info('File was added: ')
     log.info(f'    {args.input}')
     image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
@@ -100,8 +97,8 @@ def main():
     # --------------------------- Prepare input blobs -----------------------------------------------------
     log.info('Preparing input blobs')
 
-    if len(net.input_info[input_name].layout) == supported_input_dims:
-        net.input_info[input_name].precision = 'U8'
+    if len(input_info.layout) == supported_input_dims:
+        input_info.precision = 'U8'
     
     data = {}
     data[input_name] = images
@@ -117,16 +114,11 @@ def main():
     if len(output_ops) == 1:
         output_name, output_info = output_ops.popitem()
 
-    if output_name == '':
-        log.error('Can''t find a DetectionOutput layer in the topology')
+    assert output_name != '', 'Can''t find a DetectionOutput layer in the topology'
 
     output_dims = output_info.shape
-    if len(output_dims) != 4:
-        log.error('Incorrect output dimensions for SSD model')
-    max_proposal_count, object_size = output_dims[2], output_dims[3]
-
-    if object_size != 7:
-        log.error('Output item should have 7 as a last dimension')
+    assert output_dims != 4, 'Incorrect output dimensions for SSD model'
+    assert output_dims[3] == 7, 'Output item should have 7 as a last dimension'
 
     output_info.precision = 'FP32'
     # -----------------------------------------------------------------------------------------------------
@@ -141,37 +133,31 @@ def main():
     # --------------------------- Read and postprocess output ---------------------------------------------
     log.info('Processing output blobs')
     result = exec_result[output_name]
-    boxes, classes = {}, {}
+    boxes = {}
     detections = result[0][0]  # [0][0] - location of detections in result blob
     for number, proposal in enumerate(detections):
-        if proposal[2] > 0:  # if detection confidence is > 0%
-            imid = np.int(proposal[0])
-            ih, iw = images_hw[imid]
-            label = np.int(proposal[1])
-            confidence = proposal[2]
-            xmin = iw * proposal[3]
-            ymin = ih * proposal[4]
-            xmax = iw * proposal[5]
-            ymax = ih * proposal[6]
-            if proposal[2] > 0.5:
-                log.info(f'    [{number},{label}] element, prob = {confidence:.6f}, \
-                    bbox = ({xmin:.3f},{ymin:.3f})-({xmax:.3f},{ymax:.3f}), batch id = {imid}')
-                if not imid in boxes.keys():
-                    boxes[imid] = []
-                boxes[imid].append([xmin, ymin, xmax, ymax])
-                if not imid in classes.keys():
-                    classes[imid] = []
-                classes[imid].append(label)
+        imid, label, confidence, coords = np.int(proposal[0]), np.int(proposal[1]), proposal[2], proposal[3:]
+        if confidence > 0.5:
+            # correcting coordinates to actual image resolution
+            xmin, ymin, xmax, ymax = w_new * coords[0], h_new * coords[1], w_new * coords[2], h_new * coords[3]
 
-    for imid in classes:
-        tmp_image = cv2.imread(args.input)
-        for box in boxes[imid]:
-            cv2.rectangle(
-                tmp_image, 
-                (np.int(box[0]), np.int(box[1])), (np.int(box[2]), np.int(box[3])), 
-                (232, 35, 244), 2)
-        cv2.imwrite('out.bmp', tmp_image)
-        log.info('Image out.bmp created!')
+            log.info(f'    [{number},{label}] element, prob = {confidence:.6f}, \
+                bbox = ({xmin:.3f},{ymin:.3f})-({xmax:.3f},{ymax:.3f}), image id = {imid}')
+            if not imid in boxes.keys():
+                boxes[imid] = []
+            boxes[imid].append([xmin, ymin, xmax, ymax])
+
+    imid = 0  # as sample supports one input image only, imid in results will always be 0
+
+    tmp_image = cv2.imread(args.input)
+    for box in boxes[imid]:
+        # drawing bounding boxes on the output image
+        cv2.rectangle(
+            tmp_image, 
+            (np.int(box[0]), np.int(box[1])), (np.int(box[2]), np.int(box[3])), 
+            color=(232, 35, 244), thickness=2)
+    cv2.imwrite('out.bmp', tmp_image)
+    log.info('Image out.bmp created!')
     # -----------------------------------------------------------------------------------------------------
 
     log.info('Execution successful\n')
