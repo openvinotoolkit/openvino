@@ -20,7 +20,7 @@ public:
         : MatcherPass()
     {
         auto divide = std::make_shared<ngraph::pattern::op::Label>(
-            element::Type_t::f32, Shape{}, pattern::has_class<opset3::Divide>());
+            element::f32, Shape{}, pattern::has_class<opset3::Divide>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
             if (m_transformation_callback(m.get_match_root()))
             {
@@ -52,10 +52,10 @@ NGRAPH_RTTI_DEFINITION(Anchor, "Anchor", 0);
 
 std::shared_ptr<Function> get_function()
 {
-    auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32,
-                                                            ngraph::Shape{3, 1, 2});
+    auto data =
+        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
     auto divide_constant =
-        ngraph::opset3::Constant::create(ngraph::element::Type_t::f32, ngraph::Shape{1}, {1.5});
+        ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
     auto divide = std::make_shared<ngraph::opset3::Divide>(data, divide_constant);
     return std::make_shared<ngraph::Function>(ngraph::NodeVector{divide},
                                               ngraph::ParameterVector{data});
@@ -148,10 +148,10 @@ NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ngraph::opset3::Divide
 
 std::shared_ptr<Function> get_derived_function()
 {
-    auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::f32,
-                                                            ngraph::Shape{3, 1, 2});
+    auto data =
+        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
     auto divide_constant =
-        ngraph::opset3::Constant::create(ngraph::element::Type_t::f32, ngraph::Shape{1}, {1.5});
+        ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
     auto divide = std::make_shared<PrivateDivide>(data, divide_constant);
     return std::make_shared<ngraph::Function>(ngraph::NodeVector{divide},
                                               ngraph::ParameterVector{data});
@@ -177,7 +177,7 @@ public:
         auto divide = std::make_shared<ngraph::opset3::Divide>(
             std::make_shared<ngraph::pattern::op::Label>(),
             std::make_shared<ngraph::pattern::op::Label>());
-        //        element::Type_t::f32, Shape{}, pattern::has_class<opset3::Divide>());
+        //        element::f32, Shape{}, pattern::has_class<opset3::Divide>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
             if (m_transformation_callback(m.get_match_root()))
             {

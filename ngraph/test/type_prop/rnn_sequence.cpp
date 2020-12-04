@@ -30,19 +30,17 @@ TEST(type_prop, rnn_sequence_forward)
     const size_t input_size = 4;
     const size_t hidden_size = 128;
 
-    const auto X = make_shared<opset5::Parameter>(element::Type_t::f32,
-                                                  Shape{batch_size, seq_length, input_size});
+    const auto X =
+        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths =
-        make_shared<op::Parameter>(element::Type_t::i32, Shape{batch_size});
+        element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
 
-    const auto W = make_shared<opset5::Parameter>(element::Type_t::f32,
+    const auto W = make_shared<opset5::Parameter>(element::f32,
                                                   Shape{num_directions, hidden_size, input_size});
-    const auto R = make_shared<opset5::Parameter>(element::Type_t::f32,
+    const auto R = make_shared<opset5::Parameter>(element::f32,
                                                   Shape{num_directions, hidden_size, hidden_size});
-    const auto B =
-        make_shared<opset5::Parameter>(element::Type_t::f32, Shape{num_directions, hidden_size});
+    const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size});
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
@@ -55,10 +53,10 @@ TEST(type_prop, rnn_sequence_forward)
     EXPECT_TRUE(sequence->get_activations_beta().empty());
     EXPECT_EQ(sequence->get_activations()[0], "tanh");
     EXPECT_EQ(sequence->get_clip(), 0.f);
-    EXPECT_EQ(sequence->get_output_element_type(0), element::Type_t::f32);
+    EXPECT_EQ(sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(sequence->outputs().size(), 2);
     EXPECT_EQ(sequence->get_output_shape(0),
               (Shape{batch_size, num_directions, seq_length, hidden_size}));
-    EXPECT_EQ(sequence->get_output_element_type(1), element::Type_t::f32);
+    EXPECT_EQ(sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(sequence->get_output_shape(1), (Shape{batch_size, num_directions, hidden_size}));
 }

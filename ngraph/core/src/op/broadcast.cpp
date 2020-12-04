@@ -260,7 +260,7 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const AutoBroadcastSpec& broadcast_spec)
     : util::BroadcastBase{arg,
                           target_shape,
-                          op::v0::Constant::create(element::Type_t::u8, Shape{}, {0})->output(0),
+                          op::v0::Constant::create(element::u8, Shape{}, {0})->output(0),
                           to_broadcast_mode(broadcast_spec)}
     , m_broadcast_spec{broadcast_spec}
 {

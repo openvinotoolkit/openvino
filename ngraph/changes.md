@@ -103,9 +103,9 @@ methods have been decorated with deprecated warnings which may be enabled by set
 To update, remove the passed argument. For example,
 ```C++
 // Old
-make_shared<Parameter>(make_shared<descriptor::TensorViewType>(element::Type_t::f32, Shape{2, 4}));
+make_shared<Parameter>(make_shared<descriptor::TensorViewType>(element::f32, Shape{2, 4}));
 // New (remove TensorViewType)
-make_shared<Parameter>(element::Type_t::f32, Shape{2, 4});
+make_shared<Parameter>(element::f32, Shape{2, 4});
 
 // Old
 make_shared<Function>(results, result_type, parameters);

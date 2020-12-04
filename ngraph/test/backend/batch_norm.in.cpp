@@ -161,7 +161,7 @@ public:
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_0eps_f64)
 {
     using T = double;
-    element::Type et = element::Type_t::f64;
+    auto& et = element::f64;
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     BatchNormInferenceTesterZeroEpsilon<T> bnt(backend, et);
     EXPECT_TRUE(bnt.test_gamma()) << "Gamma test";
@@ -173,7 +173,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_0eps_f64)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_0eps_f32)
 {
     using T = float;
-    element::Type et = element::Type_t::f32;
+    auto& et = element::f32;
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     BatchNormInferenceTesterZeroEpsilon<T> bnt(backend, et);
     EXPECT_TRUE(bnt.test_gamma()) << "Gamma test";
@@ -255,7 +255,7 @@ public:
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_f64)
 {
     using T = double;
-    element::Type et = element::Type_t::f64;
+    auto& et = element::f64;
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     BatchNormInferenceTesterNonZeroEpsilon<T> bnt(backend, et);
     EXPECT_TRUE(bnt.test_gamma()) << "Gamma test";
@@ -267,7 +267,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_f64)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_f32)
 {
     using T = float;
-    element::Type et = element::Type_t::f32;
+    auto& et = element::f32;
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     BatchNormInferenceTesterNonZeroEpsilon<T> bnt(backend, et);
     EXPECT_TRUE(bnt.test_gamma()) << "Gamma test";
@@ -279,10 +279,10 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_f32)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication)
 {
     auto input_shape = Shape{2, 2, 2, 1};
-    auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
+    auto input = make_shared<op::Parameter>(element::f32, input_shape);
 
     auto mvgb_shape = Shape{2};
-    auto mvgb = make_shared<op::Parameter>(element::Type_t::f32, mvgb_shape);
+    auto mvgb = make_shared<op::Parameter>(element::f32, mvgb_shape);
 
     double eps = 0.001;
     auto shape_r = Shape{2, 2, 2, 1};
@@ -291,7 +291,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication)
     auto f = make_shared<Function>(bn, ParameterVector{input, mvgb, mvgb, mvgb, mvgb});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output
-    auto _input = backend->create_tensor(element::Type_t::f32, input_shape);
+    auto _input = backend->create_tensor(element::f32, input_shape);
     copy_data(_input,
               vector<float>{0.54881352f,
                             0.71518934f,
@@ -302,9 +302,9 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication)
                             0.4375872f,
                             0.89177299f});
 
-    auto _mvgb = backend->create_tensor(element::Type_t::f32, mvgb_shape);
+    auto _mvgb = backend->create_tensor(element::f32, mvgb_shape);
     copy_data(_mvgb, vector<float>{1.0f, 1.0f});
-    auto bn_output = backend->create_tensor(element::Type_t::f32, shape_r);
+    auto bn_output = backend->create_tensor(element::f32, shape_r);
 
     vector<float> expected_result{0.54903894f,
                                   0.71533161f,
@@ -324,10 +324,10 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication_v5)
 {
     auto input_shape = Shape{2, 2, 2, 1};
-    auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
+    auto input = make_shared<op::Parameter>(element::f32, input_shape);
 
     auto mvgb_shape = Shape{2};
-    auto mvgb = make_shared<op::Parameter>(element::Type_t::f32, mvgb_shape);
+    auto mvgb = make_shared<op::Parameter>(element::f32, mvgb_shape);
 
     double eps = 0.001;
     auto shape_r = Shape{2, 2, 2, 1};
@@ -336,7 +336,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication_v5)
     auto f = make_shared<Function>(bn, ParameterVector{input, mvgb, mvgb, mvgb, mvgb});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output
-    auto _input = backend->create_tensor(element::Type_t::f32, input_shape);
+    auto _input = backend->create_tensor(element::f32, input_shape);
     copy_data(_input,
               vector<float>{0.54881352f,
                             0.71518934f,
@@ -347,9 +347,9 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication_v5)
                             0.4375872f,
                             0.89177299f});
 
-    auto _mvgb = backend->create_tensor(element::Type_t::f32, mvgb_shape);
+    auto _mvgb = backend->create_tensor(element::f32, mvgb_shape);
     copy_data(_mvgb, vector<float>{1.0f, 1.0f});
-    auto bn_output = backend->create_tensor(element::Type_t::f32, shape_r);
+    auto bn_output = backend->create_tensor(element::f32, shape_r);
 
     vector<float> expected_result{0.54903894f,
                                   0.71533161f,
@@ -369,15 +369,15 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication_v5)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1)
 {
     auto input_shape = Shape{2, 2, 2, 1};
-    auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
+    auto input = make_shared<op::Parameter>(element::f32, input_shape);
     auto gamma_shape = Shape{2};
-    auto gamma = make_shared<op::Parameter>(element::Type_t::f32, gamma_shape);
+    auto gamma = make_shared<op::Parameter>(element::f32, gamma_shape);
     auto beta_shape = Shape{2};
-    auto beta = make_shared<op::Parameter>(element::Type_t::f32, beta_shape);
+    auto beta = make_shared<op::Parameter>(element::f32, beta_shape);
     auto mean_shape = Shape{2};
-    auto mean = make_shared<op::Parameter>(element::Type_t::f32, mean_shape);
+    auto mean = make_shared<op::Parameter>(element::f32, mean_shape);
     auto var_shape = Shape{2};
-    auto var = make_shared<op::Parameter>(element::Type_t::f32, var_shape);
+    auto var = make_shared<op::Parameter>(element::f32, var_shape);
     double eps = 0.001;
     auto shape_r = Shape{2, 2, 2, 1};
     auto bn = make_shared<op::v0::BatchNormInference>(input, gamma, beta, mean, var, eps);
@@ -385,7 +385,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1)
     auto f = make_shared<Function>(bn, ParameterVector{input, gamma, beta, mean, var});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output
-    auto _input = backend->create_tensor(element::Type_t::f32, input_shape);
+    auto _input = backend->create_tensor(element::f32, input_shape);
     copy_data(_input,
               vector<float>{0.54881352f,
                             0.71518934f,
@@ -396,15 +396,15 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1)
                             0.4375872f,
                             0.89177299f});
 
-    auto _gamma = backend->create_tensor(element::Type_t::f32, gamma_shape);
+    auto _gamma = backend->create_tensor(element::f32, gamma_shape);
     copy_data(_gamma, vector<float>{1.0f, 1.0f});
-    auto _beta = backend->create_tensor(element::Type_t::f32, beta_shape);
+    auto _beta = backend->create_tensor(element::f32, beta_shape);
     copy_data(_beta, vector<float>{0.0f, 0.0f});
-    auto _mean = backend->create_tensor(element::Type_t::f32, mean_shape);
+    auto _mean = backend->create_tensor(element::f32, mean_shape);
     copy_data(_mean, vector<float>{0.583388f, 0.619252f});
-    auto _var = backend->create_tensor(element::Type_t::f32, var_shape);
+    auto _var = backend->create_tensor(element::f32, var_shape);
     copy_data(_var, vector<float>{0.0119972f, 0.0282681f});
-    auto bn_output = backend->create_tensor(element::Type_t::f32, shape_r);
+    auto bn_output = backend->create_tensor(element::f32, shape_r);
 
     vector<float> expected_result{
         -0.30327f, 1.1561f, -0.0963782f, -0.434702f, -1.4011f, 0.548275f, -1.06187f, 1.59295f};
@@ -418,15 +418,15 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1_v5)
 {
     auto input_shape = Shape{2, 2, 2, 1};
-    auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
+    auto input = make_shared<op::Parameter>(element::f32, input_shape);
     auto gamma_shape = Shape{2};
-    auto gamma = make_shared<op::Parameter>(element::Type_t::f32, gamma_shape);
+    auto gamma = make_shared<op::Parameter>(element::f32, gamma_shape);
     auto beta_shape = Shape{2};
-    auto beta = make_shared<op::Parameter>(element::Type_t::f32, beta_shape);
+    auto beta = make_shared<op::Parameter>(element::f32, beta_shape);
     auto mean_shape = Shape{2};
-    auto mean = make_shared<op::Parameter>(element::Type_t::f32, mean_shape);
+    auto mean = make_shared<op::Parameter>(element::f32, mean_shape);
     auto var_shape = Shape{2};
-    auto var = make_shared<op::Parameter>(element::Type_t::f32, var_shape);
+    auto var = make_shared<op::Parameter>(element::f32, var_shape);
     double eps = 0.001;
     auto shape_r = Shape{2, 2, 2, 1};
     auto bn = make_shared<op::v5::BatchNormInference>(input, gamma, beta, mean, var, eps);
@@ -434,7 +434,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1_v5)
     auto f = make_shared<Function>(bn, ParameterVector{input, gamma, beta, mean, var});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     // Create some tensors for input/output
-    auto _input = backend->create_tensor(element::Type_t::f32, input_shape);
+    auto _input = backend->create_tensor(element::f32, input_shape);
     copy_data(_input,
               vector<float>{0.54881352f,
                             0.71518934f,
@@ -445,15 +445,15 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1_v5)
                             0.4375872f,
                             0.89177299f});
 
-    auto _gamma = backend->create_tensor(element::Type_t::f32, gamma_shape);
+    auto _gamma = backend->create_tensor(element::f32, gamma_shape);
     copy_data(_gamma, vector<float>{1.0f, 1.0f});
-    auto _beta = backend->create_tensor(element::Type_t::f32, beta_shape);
+    auto _beta = backend->create_tensor(element::f32, beta_shape);
     copy_data(_beta, vector<float>{0.0f, 0.0f});
-    auto _mean = backend->create_tensor(element::Type_t::f32, mean_shape);
+    auto _mean = backend->create_tensor(element::f32, mean_shape);
     copy_data(_mean, vector<float>{0.583388f, 0.619252f});
-    auto _var = backend->create_tensor(element::Type_t::f32, var_shape);
+    auto _var = backend->create_tensor(element::f32, var_shape);
     copy_data(_var, vector<float>{0.0119972f, 0.0282681f});
-    auto bn_output = backend->create_tensor(element::Type_t::f32, shape_r);
+    auto bn_output = backend->create_tensor(element::f32, shape_r);
 
     vector<float> expected_result{
         -0.30327f, 1.1561f, -0.0963782f, -0.434702f, -1.4011f, 0.548275f, -1.06187f, 1.59295f};

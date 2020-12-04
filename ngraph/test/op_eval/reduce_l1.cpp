@@ -30,8 +30,8 @@ using namespace ngraph;
 
 TEST(op_eval, reduce_l1_one_axis_keep_dims)
 {
-    auto data = make_shared<opset4::Parameter>(element::Type_t::f32, Shape{3, 2, 2});
-    auto axes = opset4::Constant::create(element::Type_t::i32, Shape{1}, {2});
+    auto data = make_shared<opset4::Parameter>(element::f32, Shape{3, 2, 2});
+    auto axes = opset4::Constant::create(element::i32, Shape{1}, {2});
     auto reduce = make_shared<opset4::ReduceL1>(data, axes, true);
     auto fun = make_shared<Function>(OutputVector{reduce}, ParameterVector{data});
 
@@ -42,7 +42,7 @@ TEST(op_eval, reduce_l1_one_axis_keep_dims)
     ASSERT_TRUE(fun->evaluate({result},
                               {make_host_tensor<element::Type_t::f32>(Shape{3, 2, 2}, inputs),
                                make_host_tensor<element::Type_t::i32>(Shape{1}, {2})}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{std::vector<size_t>({3, 2, 1})});
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < expected_result.size(); i++)
@@ -51,8 +51,8 @@ TEST(op_eval, reduce_l1_one_axis_keep_dims)
 
 TEST(op_eval, reduce_l1_one_axis_do_not_keep_dims)
 {
-    auto data = make_shared<opset4::Parameter>(element::Type_t::f32, Shape{3, 2, 2});
-    auto axes = opset4::Constant::create(element::Type_t::i32, Shape{1}, {2});
+    auto data = make_shared<opset4::Parameter>(element::f32, Shape{3, 2, 2});
+    auto axes = opset4::Constant::create(element::i32, Shape{1}, {2});
     auto reduce = make_shared<opset4::ReduceL1>(data, axes, false);
     auto fun = make_shared<Function>(OutputVector{reduce}, ParameterVector{data});
 
@@ -63,7 +63,7 @@ TEST(op_eval, reduce_l1_one_axis_do_not_keep_dims)
     ASSERT_TRUE(fun->evaluate({result},
                               {make_host_tensor<element::Type_t::f32>(Shape{3, 2, 2}, inputs),
                                make_host_tensor<element::Type_t::i32>(Shape{1}, {2})}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{std::vector<size_t>({3, 2})});
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < expected_result.size(); i++)

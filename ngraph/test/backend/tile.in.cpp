@@ -39,9 +39,9 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank)
 {
     Shape shape_a{3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_re{3};
-    auto repeats = make_shared<op::Constant>(element::Type_t::i64, shape_re, vector<int>{2, 2, 1});
+    auto repeats = make_shared<op::Constant>(element::i64, shape_re, vector<int>{2, 2, 1});
     Shape shape_r{2, 2, 3};
 
     auto tile = make_shared<op::v0::Tile>(A, repeats);
@@ -51,10 +51,10 @@ NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3});
 
-    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -66,9 +66,9 @@ NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank)
 NGRAPH_TEST(${BACKEND_NAME}, tile_3d_few_repeats)
 {
     Shape shape_a{2, 1, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_re{2};
-    auto repeats = make_shared<op::Constant>(element::Type_t::i64, shape_re, vector<int>{2, 1});
+    auto repeats = make_shared<op::Constant>(element::i64, shape_re, vector<int>{2, 1});
     Shape shape_r{2, 2, 3};
 
     auto tile = make_shared<op::v0::Tile>(A, repeats);
@@ -78,10 +78,10 @@ NGRAPH_TEST(${BACKEND_NAME}, tile_3d_few_repeats)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, shape_a);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
 
-    auto result = backend->create_tensor(element::Type_t::f32, shape_r);
+    auto result = backend->create_tensor(element::f32, shape_r);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});

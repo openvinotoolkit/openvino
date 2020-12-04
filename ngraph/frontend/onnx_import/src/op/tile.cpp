@@ -35,8 +35,7 @@ namespace ngraph
 
                     // Workaround for backends which require repeats to be i64.
                     // Remove the following line when no longer needed.
-                    repeats =
-                        std::make_shared<default_opset::Convert>(repeats, element::Type_t::i64);
+                    repeats = std::make_shared<default_opset::Convert>(repeats, element::i64);
 
                     return {std::make_shared<default_opset::Tile>(input, repeats)};
                 }

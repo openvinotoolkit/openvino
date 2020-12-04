@@ -68,8 +68,8 @@ void op::util::IndexReduction::validate_and_infer_types()
                           rank,
                           ").");
     NODE_VALIDATION_CHECK(this,
-                          m_index_element_type == element::Type_t::i32 ||
-                              m_index_element_type == element::Type_t::i64,
+                          m_index_element_type == element::i32 ||
+                              m_index_element_type == element::i64,
                           "Index element is neither i64 or i32.");
 
     PartialShape output_shape{PartialShape::dynamic()};

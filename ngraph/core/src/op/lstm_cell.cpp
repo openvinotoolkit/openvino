@@ -156,7 +156,7 @@ void op::v0::LSTMCell::validate_and_infer_types()
 
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
-    element::Type result_et = element::Type_t::dynamic;
+    auto result_et = element::dynamic;
 
     // Copy all inputs without peephole (7th input) and initial_cell_state (2nd input) information
     // for further validation
@@ -457,7 +457,7 @@ void op::v4::LSTMCell::validate_and_infer_types()
     }
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
-    element::Type result_et = element::Type_t::dynamic;
+    auto result_et = element::dynamic;
 
     // Get input partial shape for all inputs
     const auto& x_pshape = get_input_partial_shape(0);

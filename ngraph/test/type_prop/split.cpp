@@ -25,11 +25,11 @@ using namespace ngraph;
 
 TEST(type_prop, split)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 6});
+    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
 
     try
     {
-        const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {1});
+        const auto axis = op::Constant::create(element::i64, Shape{}, {1});
         const auto split = make_shared<op::v1::Split>(data, axis, 7);
         FAIL() << "Split node was created with incorrect data.";
     }
@@ -43,7 +43,7 @@ TEST(type_prop, split)
 
     try
     {
-        const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {-5});
+        const auto axis = op::Constant::create(element::i64, Shape{}, {-5});
         const auto split = make_shared<op::v1::Split>(data, axis, 4); // invalid axis
         FAIL() << "Split node was created with incorrect data.";
     }
@@ -52,19 +52,19 @@ TEST(type_prop, split)
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis -5 out of the tensor rank"));
     }
 
-    const auto axis = op::Constant::create(element::Type_t::i64, Shape{}, {1});
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
     const auto split = make_shared<op::v1::Split>(data, axis, 2);
     EXPECT_EQ(split->outputs().size(), 2);
     EXPECT_EQ(split->get_output_shape(0), (Shape{2, 3}));
     EXPECT_EQ(split->get_output_shape(1), (Shape{2, 3}));
-    EXPECT_EQ(split->get_output_element_type(0), element::Type_t::i32);
-    EXPECT_EQ(split->get_output_element_type(1), element::Type_t::i32);
+    EXPECT_EQ(split->get_output_element_type(0), element::i32);
+    EXPECT_EQ(split->get_output_element_type(1), element::i32);
 }
 
 TEST(type_prop, split_axis_must_be_scalar)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 6});
-    const auto axis = op::Constant::create(element::Type_t::i64, Shape{2}, {0, 1});
+    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto axis = op::Constant::create(element::i64, Shape{2}, {0, 1});
 
     try
     {
@@ -84,15 +84,15 @@ TEST(type_prop, split_axis_must_be_scalar)
 
 TEST(type_prop, split_v1)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f16, Shape{2, 3, 4});
-    const auto axis = op::Constant::create(element::Type_t::i64, {}, {1});
+    const auto data = make_shared<op::Parameter>(element::f16, Shape{2, 3, 4});
+    const auto axis = op::Constant::create(element::i64, {}, {1});
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
     EXPECT_EQ(split->outputs().size(), num_splits);
     for (int i = 0; i < num_splits; ++i)
     {
-        EXPECT_EQ(split->get_output_element_type(i), element::Type_t::f16);
+        EXPECT_EQ(split->get_output_element_type(i), element::f16);
         EXPECT_EQ(split->get_output_shape(i), (Shape{2, 1, 4}));
     }
 }
@@ -100,8 +100,8 @@ TEST(type_prop, split_v1)
 TEST(type_prop, split_v1_axis_const_data_axis_dim_known)
 {
     const auto data =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 3, Dimension::dynamic()});
-    const auto axis = op::Constant::create(element::Type_t::i32, {}, {1});
+        make_shared<op::Parameter>(element::f32, PartialShape{2, 3, Dimension::dynamic()});
+    const auto axis = op::Constant::create(element::i32, {}, {1});
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -115,8 +115,8 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_known)
 TEST(type_prop, split_v1_axis_const_only_data_axis_dim_known)
 {
     const auto data = make_shared<op::Parameter>(
-        element::Type_t::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
-    const auto axis = op::Constant::create(element::Type_t::i16, {}, {0});
+        element::f32, PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
+    const auto axis = op::Constant::create(element::i16, {}, {0});
     const size_t num_splits = 2;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -130,9 +130,9 @@ TEST(type_prop, split_v1_axis_const_only_data_axis_dim_known)
 
 TEST(type_prop, split_v1_axis_const_data_axis_dim_unknown)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32,
-                                                 PartialShape{4, Dimension::dynamic(), 3, 5});
-    const auto axis = op::Constant::create(element::Type_t::i8, {}, {1});
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension::dynamic(), 3, 5});
+    const auto axis = op::Constant::create(element::i8, {}, {1});
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -146,8 +146,8 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_unknown)
 
 TEST(type_prop, split_v1_axis_const_only_data_rank_known)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(4));
-    const auto axis = op::Constant::create(element::Type_t::u64, {}, {1});
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto axis = op::Constant::create(element::u64, {}, {1});
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -160,8 +160,8 @@ TEST(type_prop, split_v1_axis_const_only_data_rank_known)
 
 TEST(type_prop, split_v1_axis_not_const_only_data_rank_known)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic(4));
-    const auto axis = make_shared<op::Parameter>(element::Type_t::u32, PartialShape{});
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto axis = make_shared<op::Parameter>(element::u32, PartialShape{});
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -174,8 +174,8 @@ TEST(type_prop, split_v1_axis_not_const_only_data_rank_known)
 
 TEST(type_prop, split_v1_axis_const_data_rank_unknown)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto axis = op::Constant::create(element::Type_t::u16, {}, {2});
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = op::Constant::create(element::u16, {}, {2});
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -188,8 +188,8 @@ TEST(type_prop, split_v1_axis_const_data_rank_unknown)
 
 TEST(type_prop, split_v1_axis_not_const_data_rank_unknown)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto axis = make_shared<op::Parameter>(element::Type_t::u8, PartialShape{});
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<op::Parameter>(element::u8, PartialShape{});
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 
@@ -202,8 +202,8 @@ TEST(type_prop, split_v1_axis_not_const_data_rank_unknown)
 
 TEST(type_prop, split_v1_axis_dynamic_rank)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    const auto axis = make_shared<op::Parameter>(element::Type_t::u8, PartialShape::dynamic());
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<op::Parameter>(element::u8, PartialShape::dynamic());
     const size_t num_splits = 3;
     const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
 

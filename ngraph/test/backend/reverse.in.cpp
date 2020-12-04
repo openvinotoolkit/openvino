@@ -32,18 +32,18 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, reverse_1d)
 {
     Shape shape{8};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX),
+            A, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{0, 1, 2, 3, 4, 5, 6, 7});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -55,19 +55,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_1d)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_0)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX),
+            A, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 2>({{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}}).get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -80,19 +80,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_0)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_1)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {1}, {1}), op::v1::Reverse::Mode::INDEX),
+            A, op::Constant::create(element::i64, {1}, {1}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 2>({{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}}).get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -105,21 +105,20 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_1)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_1_mask)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(
-            A,
-            op::Constant::create(element::Type_t::boolean, {2}, {false, true}),
-            op::v1::Reverse::Mode::MASK),
+        make_shared<op::v1::Reverse>(A,
+                                     op::Constant::create(element::boolean, {2}, {false, true}),
+                                     op::v1::Reverse::Mode::MASK),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 2>({{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}}).get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -132,20 +131,19 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_1_mask)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_01)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(A,
-                                     op::Constant::create(element::Type_t::i64, {2}, {0, 1}),
-                                     op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(
+            A, op::Constant::create(element::i64, {2}, {0, 1}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 2>({{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}}).get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -158,21 +156,20 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_01)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_01_mask)
 {
     Shape shape{4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::Reverse>(
-                                  A,
-                                  op::Constant::create(element::Type_t::boolean, {2}, {true, true}),
-                                  op::v1::Reverse::Mode::MASK),
-                              ParameterVector{A});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Reverse>(A,
+                                     op::Constant::create(element::boolean, {2}, {true, true}),
+                                     op::v1::Reverse::Mode::MASK),
+        ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 2>({{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}}).get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -185,21 +182,21 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_2d_01_mask)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_0)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX),
+            A, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 3>({{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}},
                                        {{12, 13, 14}, {15, 16, 17}, {18, 19, 20}, {21, 22, 23}}})
                   .get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -214,21 +211,21 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_0)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_1)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {1}, {1}), op::v1::Reverse::Mode::INDEX),
+            A, op::Constant::create(element::i64, {1}, {1}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 3>({{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}},
                                        {{12, 13, 14}, {15, 16, 17}, {18, 19, 20}, {21, 22, 23}}})
                   .get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -243,21 +240,21 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_1)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_2)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
         make_shared<op::v1::Reverse>(
-            A, op::Constant::create(element::Type_t::i64, {1}, {2}), op::v1::Reverse::Mode::INDEX),
+            A, op::Constant::create(element::i64, {1}, {2}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 3>({{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}},
                                        {{12, 13, 14}, {15, 16, 17}, {18, 19, 20}, {21, 22, 23}}})
                   .get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -272,22 +269,21 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_2)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_01)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(A,
-                                     op::Constant::create(element::Type_t::i64, {2}, {0, 1}),
-                                     op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(
+            A, op::Constant::create(element::i64, {2}, {0, 1}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 3>({{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}},
                                        {{12, 13, 14}, {15, 16, 17}, {18, 19, 20}, {21, 22, 23}}})
                   .get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -302,22 +298,21 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_01)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_02)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(A,
-                                     op::Constant::create(element::Type_t::i64, {2}, {0, 2}),
-                                     op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(
+            A, op::Constant::create(element::i64, {2}, {0, 2}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 3>({{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}},
                                        {{12, 13, 14}, {15, 16, 17}, {18, 19, 20}, {21, 22, 23}}})
                   .get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -332,22 +327,21 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_02)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_12)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(A,
-                                     op::Constant::create(element::Type_t::i64, {2}, {1, 2}),
-                                     op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(
+            A, op::Constant::create(element::i64, {2}, {1, 2}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 3>({{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}},
                                        {{12, 13, 14}, {15, 16, 17}, {18, 19, 20}, {21, 22, 23}}})
                   .get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -362,22 +356,21 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_12)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_012)
 {
     Shape shape{2, 4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(
-        make_shared<op::v1::Reverse>(A,
-                                     op::Constant::create(element::Type_t::i64, {3}, {0, 1, 2}),
-                                     op::v1::Reverse::Mode::INDEX),
+        make_shared<op::v1::Reverse>(
+            A, op::Constant::create(element::i64, {3}, {0, 1, 2}), op::v1::Reverse::Mode::INDEX),
         ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a,
               test::NDArray<float, 3>({{{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}},
                                        {{12, 13, 14}, {15, 16, 17}, {18, 19, 20}, {21, 22, 23}}})
                   .get_vector());
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -391,9 +384,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_3d_012)
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_rank_index_mode)
 {
-    const auto Data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 2});
-    const auto Rev_Axes =
-        make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 1}); // correct: 1D
+    const auto Data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = make_shared<op::Parameter>(element::i64, Shape{1, 1}); // correct: 1D
 
     EXPECT_THROW(make_shared<Function>(
                      make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
@@ -403,9 +395,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_rank_index_mode)
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_elems_mask_mode)
 {
-    const auto Data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 2});
-    const auto Rev_Axes =
-        make_shared<op::Parameter>(element::Type_t::boolean, Shape{2}); // correct: 3
+    const auto Data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = make_shared<op::Parameter>(element::boolean, Shape{2}); // correct: 3
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::MASK),
                  ngraph::NodeValidationFailure);
@@ -413,8 +404,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_elems_mask_mode)
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_axes_out_of_bounds)
 {
-    const auto Data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = op::Constant::create(element::Type_t::i64, Shape{2}, {1, 10});
+    const auto Data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = op::Constant::create(element::i64, Shape{2}, {1, 10});
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                  ngraph::NodeValidationFailure);
@@ -422,8 +413,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_axes_out_of_bounds)
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_too_many_axes)
 {
-    const auto Data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2, 2});
-    const auto Rev_Axes = op::Constant::create(element::Type_t::i64, Shape{4}, {0, 1, 2, 3});
+    const auto Data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = op::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                  ngraph::NodeValidationFailure);

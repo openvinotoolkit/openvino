@@ -34,8 +34,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n2c3h4w2)
 {
     Shape shape{2, 3, 4, 2};
     Shape seq_len_shape{4};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::i32, seq_len_shape);
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto B = make_shared<op::Parameter>(element::i32, seq_len_shape);
 
     size_t batch_axis = 2;
     size_t sequence_axis = 1;
@@ -46,10 +46,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n2c3h4w2)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::Type_t::i32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::Type_t::i32, seq_len_shape);
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::i32, shape);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::i32, seq_len_shape);
 
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::Type_t::i32, shape);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::i32, shape);
 
     std::vector<int> input{
         0,  0, 3,  0, 6,  0, 9,  0, 1,  0, 4,  0, 7,  0, 10, 0, 2,  0, 5,  0, 8,  0, 11, 0,
@@ -74,9 +74,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n2c3h4w2)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4c3h2w2)
 {
     Shape shape{4, 3, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
+    auto A = make_shared<op::Parameter>(element::i32, shape);
     Shape seq_len_shape{4};
-    auto B = make_shared<op::Parameter>(element::Type_t::i32, seq_len_shape);
+    auto B = make_shared<op::Parameter>(element::i32, seq_len_shape);
 
     size_t batch_axis = 0;
     size_t sequence_axis = 1;
@@ -88,10 +88,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4c3h2w2)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::Type_t::i32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::Type_t::i32, seq_len_shape);
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::i32, shape);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::i32, seq_len_shape);
 
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::Type_t::i32, shape);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::i32, shape);
 
     std::vector<int> seq_lenghts{1, 2, 3, 3};
     copy_data(b, seq_lenghts);
@@ -114,9 +114,9 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4c3h2w2)
 NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4d2c3h2w2)
 {
     Shape shape{4, 2, 3, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
+    auto A = make_shared<op::Parameter>(element::i32, shape);
     Shape seq_len_shape{4};
-    auto B = make_shared<op::Parameter>(element::Type_t::i32, seq_len_shape);
+    auto B = make_shared<op::Parameter>(element::i32, seq_len_shape);
 
     size_t batch_axis = 0;
     size_t sequence_axis = 2;
@@ -128,10 +128,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_n4d2c3h2w2)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::Type_t::i32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::Type_t::i32, seq_len_shape);
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::i32, shape);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::i32, seq_len_shape);
 
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::Type_t::i32, shape);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::i32, shape);
 
     std::vector<int> input{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -161,8 +161,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_negative_axes)
 {
     Shape shape{2, 3, 4, 2};
     Shape seq_len_shape{4};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::i32, seq_len_shape);
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto B = make_shared<op::Parameter>(element::i32, seq_len_shape);
 
     int64_t batch_axis = -2;
     int64_t sequence_axis = -3;
@@ -173,10 +173,10 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_sequence_negative_axes)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::Type_t::i32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::Type_t::i32, seq_len_shape);
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::i32, shape);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::i32, seq_len_shape);
 
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::Type_t::i32, shape);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::i32, shape);
 
     std::vector<int> input{
         0,  0, 3,  0, 6,  0, 9,  0, 1,  0, 4,  0, 7,  0, 10, 0, 2,  0, 5,  0, 8,  0, 11, 0,

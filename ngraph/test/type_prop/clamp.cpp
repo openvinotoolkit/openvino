@@ -23,7 +23,7 @@ using namespace ngraph;
 
 TEST(type_prop, fused_clamp)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f64, Shape{2, 2});
+    const auto data = make_shared<op::Parameter>(element::f64, Shape{2, 2});
 
     try
     {
@@ -38,6 +38,6 @@ TEST(type_prop, fused_clamp)
     }
 
     const auto clamp = make_shared<op::Clamp>(data, 1.0, 2.0);
-    EXPECT_EQ(clamp->get_element_type(), element::Type_t::f64);
+    EXPECT_EQ(clamp->get_element_type(), element::f64);
     EXPECT_EQ(clamp->get_shape(), (Shape{2, 2}));
 }

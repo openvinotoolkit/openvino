@@ -45,13 +45,13 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_1d_single_value)
 {
     Shape shape{1};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{0};
 
@@ -64,13 +64,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_1d_single_value)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis0)
 {
     Shape shape{2, 4};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{0, 1, 2, 3, 10000, 10001, 10002, 10003});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-10000., -10000., -10000., -10000., 0., 0., 0., 0.};
 
@@ -83,13 +83,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis0)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis1)
 {
     Shape shape{2, 4};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{0, 1, 2, 3, 10000, 10001, 10002, 10003});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-3.4401896,
                                        -2.4401896,
@@ -109,13 +109,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis1)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg1)
 {
     Shape shape{2, 4};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{0, 1, 2, 3, 10000, 10001, 10002, 10003});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-3.4401896,
                                        -2.4401896,
@@ -135,13 +135,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg1)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg2)
 {
     Shape shape{2, 4};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{0, 1, 2, 3, 10000, 10001, 10002, 10003});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-10000., -10000., -10000., -10000., 0., 0., 0., 0.};
 
@@ -154,13 +154,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg2)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_0)
 {
     Shape shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-12.0024818,
                                        -12.0024818,
@@ -190,13 +190,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_0)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_1)
 {
     Shape shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-3.04858735,
                                        -3.04858735,
@@ -226,13 +226,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_1)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_2)
 {
     Shape shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-2.40760596,
                                        -1.40760596,
@@ -262,13 +262,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_2)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg1)
 {
     Shape shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-2.40760596,
                                        -1.40760596,
@@ -298,13 +298,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg1)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg2)
 {
     Shape shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-3.04858735,
                                        -3.04858735,
@@ -334,13 +334,13 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg2)
 NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg3)
 {
     Shape shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     std::vector<float> expected_result{-12.0024818,
                                        -12.0024818,

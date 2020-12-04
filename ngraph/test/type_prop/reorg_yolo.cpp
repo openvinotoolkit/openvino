@@ -25,7 +25,7 @@ TEST(type_prop, reorg_yolo_stride_2)
 {
     const auto in_shape = Shape{1, 64, 26, 26};
     size_t stride = 2;
-    auto data_param = make_shared<op::Parameter>(element::Type_t::f32, in_shape);
+    auto data_param = make_shared<op::Parameter>(element::f32, in_shape);
     auto reorg_yolo = make_shared<op::v0::ReorgYolo>(data_param, stride);
 
     // in_shape [N,C,H,W] -> out_shape [N, C*stride*stride, H/stride, W/stride]
@@ -38,7 +38,7 @@ TEST(type_prop, reorg_yolo_stride_2_batch_2)
 {
     const auto in_shape = Shape{2, 64, 26, 26};
     size_t stride = 2;
-    auto data_param = make_shared<op::Parameter>(element::Type_t::f32, in_shape);
+    auto data_param = make_shared<op::Parameter>(element::f32, in_shape);
     auto reorg_yolo = make_shared<op::v0::ReorgYolo>(data_param, stride);
 
     // in_shape [N,C,H,W] -> out_shape [N, C*stride*stride, H/stride, W/stride]
@@ -51,7 +51,7 @@ TEST(type_prop, reorg_yolo_stride_2_smaller_H)
 {
     const auto in_shape = Shape{1, 24, 34, 62};
     size_t stride = 2;
-    auto data_param = make_shared<op::Parameter>(element::Type_t::f32, in_shape);
+    auto data_param = make_shared<op::Parameter>(element::f32, in_shape);
     auto reorg_yolo = make_shared<op::v0::ReorgYolo>(data_param, stride);
 
     // in_shape [N,C,H,W] -> out_shape [N, C*stride*stride, H/stride, W/stride]
@@ -63,7 +63,7 @@ TEST(type_prop, reorg_yolo_stride_3)
 {
     const auto in_shape = Shape{1, 9, 3, 3};
     size_t stride = 3;
-    auto data_param = make_shared<op::Parameter>(element::Type_t::f32, in_shape);
+    auto data_param = make_shared<op::Parameter>(element::f32, in_shape);
     auto reorg_yolo = make_shared<op::v0::ReorgYolo>(data_param, stride);
 
     // in_shape [N,C,H,W] -> out_shape [N, C*stride*stride, H/stride, W/stride]
@@ -77,7 +77,7 @@ TEST(type_prop, reorg_yolo_catch_small_shape_stride)
 {
     const auto in_shape = Shape{1, 1, 4, 4};
     size_t stride = 2;
-    auto data_param = make_shared<op::Parameter>(element::Type_t::f32, in_shape);
+    auto data_param = make_shared<op::Parameter>(element::f32, in_shape);
     try
     {
         // Throw error test: For [N, C, H, W] input shape, C >= (stride*stride) is required.

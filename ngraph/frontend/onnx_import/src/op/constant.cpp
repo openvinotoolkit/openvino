@@ -62,84 +62,84 @@ namespace ngraph
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::float16>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<ngraph::float16>(element::Type_t::f16, tensor);
+                        return __make_ng_constant<ngraph::float16>(element::f16, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::float32>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<float>(element::Type_t::f32, tensor);
+                        return __make_ng_constant<float>(element::f32, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::float64>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<double>(element::Type_t::f64, tensor);
+                        return __make_ng_constant<double>(element::f64, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::int8>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<int8_t>(element::Type_t::i8, tensor);
+                        return __make_ng_constant<int8_t>(element::i8, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::int16>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<int16_t>(element::Type_t::i16, tensor);
+                        return __make_ng_constant<int16_t>(element::i16, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::int32>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<int32_t>(element::Type_t::i32, tensor);
+                        return __make_ng_constant<int32_t>(element::i32, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::int64>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<int64_t>(element::Type_t::i64, tensor);
+                        return __make_ng_constant<int64_t>(element::i64, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::uint8>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<uint8_t>(element::Type_t::u8, tensor);
+                        return __make_ng_constant<uint8_t>(element::u8, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::uint16>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<uint16_t>(element::Type_t::u16, tensor);
+                        return __make_ng_constant<uint16_t>(element::u16, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::uint32>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<uint32_t>(element::Type_t::u32, tensor);
+                        return __make_ng_constant<uint32_t>(element::u32, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::uint64>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<uint64_t>(element::Type_t::u64, tensor);
+                        return __make_ng_constant<uint64_t>(element::u64, tensor);
                     }
 
                     template <>
                     inline std::shared_ptr<default_opset::Constant>
                         make_ng_constant<Tensor::Type::boolean>(const Tensor& tensor)
                     {
-                        return __make_ng_constant<char>(element::Type_t::boolean, tensor);
+                        return __make_ng_constant<char>(element::boolean, tensor);
                     }
 
                     inline std::shared_ptr<default_opset::Constant>

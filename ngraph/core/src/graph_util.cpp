@@ -587,7 +587,7 @@ std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const
     if (shape.size() > 0)
     {
         return std::make_shared<op::v1::Broadcast>(
-            zero, op::Constant::create(element::Type_t::u64, Shape{shape.size()}, shape));
+            zero, op::Constant::create(element::u64, Shape{shape.size()}, shape));
     }
     return zero;
 }

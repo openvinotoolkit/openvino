@@ -53,8 +53,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder)
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto masks = make_shared<op::Parameter>(element::Type_t::f32, masks_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto masks = make_shared<op::Parameter>(element::f32, masks_shape);
     auto decoder = make_shared<op::CTCGreedyDecoder>(data, masks, false);
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
@@ -74,8 +74,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_f16)
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f16, data_shape);
-    auto masks = make_shared<op::Parameter>(element::Type_t::f16, masks_shape);
+    auto data = make_shared<op::Parameter>(element::f16, data_shape);
+    auto masks = make_shared<op::Parameter>(element::f16, masks_shape);
     auto decoder = make_shared<op::CTCGreedyDecoder>(data, masks, false);
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
@@ -95,8 +95,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_multiple_batches)
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto masks = make_shared<op::Parameter>(element::Type_t::f32, masks_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto masks = make_shared<op::Parameter>(element::f32, masks_shape);
     auto decoder = make_shared<op::CTCGreedyDecoder>(data, masks, false);
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
@@ -136,8 +136,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_single_batch_short_sequence)
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto masks = make_shared<op::Parameter>(element::Type_t::f32, masks_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto masks = make_shared<op::Parameter>(element::f32, masks_shape);
     auto decoder = make_shared<op::CTCGreedyDecoder>(data, masks, false);
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
@@ -157,8 +157,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_merge)
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto masks = make_shared<op::Parameter>(element::Type_t::f32, masks_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto masks = make_shared<op::Parameter>(element::f32, masks_shape);
     auto decoder = make_shared<op::CTCGreedyDecoder>(data, masks, true);
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
@@ -178,8 +178,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_single_no_merge)
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto masks = make_shared<op::Parameter>(element::Type_t::f32, masks_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto masks = make_shared<op::Parameter>(element::f32, masks_shape);
     auto decoder = make_shared<op::CTCGreedyDecoder>(data, masks, false);
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);
@@ -199,8 +199,8 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_multiple_sequences)
     const auto data_shape = Shape{T, N, C};
     const auto masks_shape = Shape{T, N};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto masks = make_shared<op::Parameter>(element::Type_t::f32, masks_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto masks = make_shared<op::Parameter>(element::f32, masks_shape);
     auto decoder = make_shared<op::CTCGreedyDecoder>(data, masks, false);
     auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
     auto test_case = test::TestCase<TestEngine>(function);

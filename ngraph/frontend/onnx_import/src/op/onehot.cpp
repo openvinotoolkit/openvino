@@ -32,14 +32,13 @@ namespace ngraph
                 OutputVector onehot(const Node& node)
                 {
                     OutputVector inputs{node.get_ng_inputs()};
-                    auto indices = std::make_shared<default_opset::Convert>(inputs.at(0),
-                                                                            element::Type_t::i64);
+                    auto indices =
+                        std::make_shared<default_opset::Convert>(inputs.at(0), element::i64);
                     auto depth = reshape::interpret_as_scalar(inputs.at(1));
 
                     // Rank 1 tensor containing exactly two elements: [off_value, on_value]
                     auto values = inputs.at(2);
-                    auto split_axis =
-                        default_opset::Constant::create(element::Type_t::i64, {}, {0});
+                    auto split_axis = default_opset::Constant::create(element::i64, {}, {0});
                     auto off_on_values =
                         std::make_shared<default_opset::Split>(values, split_axis, 2);
                     auto off_value = reshape::interpret_as_scalar(off_on_values->output(0));

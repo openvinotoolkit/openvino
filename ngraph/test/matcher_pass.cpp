@@ -74,7 +74,7 @@ TEST(pattern, matcher_pass)
 {
     {
         TestMatcherPass test_matcher;
-        auto a = make_shared<opset3::Parameter>(element::Type_t::f32, Shape{1});
+        auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
         auto b = make_shared<opset3::Relu>(a);
         auto c = make_shared<opset3::Relu>(b);
         auto f = std::make_shared<Function>(ngraph::NodeVector{c}, ParameterVector{a});
@@ -92,7 +92,7 @@ TEST(pattern, matcher_pass)
 
     {
         TestMatcherPass test_matcher;
-        auto a = make_shared<opset3::Parameter>(element::Type_t::f32, Shape{1});
+        auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
         auto b = make_shared<opset3::Relu>(a);
         auto c = make_shared<opset3::Relu>(b);
         auto f = std::make_shared<Function>(ngraph::NodeVector{b, c}, ParameterVector{a});
@@ -103,7 +103,7 @@ TEST(pattern, matcher_pass)
     {
         std::shared_ptr<Function> f;
         {
-            auto a = make_shared<opset3::Parameter>(element::Type_t::f32, Shape{1});
+            auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
             auto b = make_shared<opset3::Relu>(a);
             auto c = make_shared<opset3::Relu>(b);
             auto d = make_shared<opset3::Relu>(c);

@@ -30,7 +30,7 @@ using namespace ngraph;
 
 TEST(op_eval, hswish)
 {
-    auto p = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
+    auto p = make_shared<op::Parameter>(element::f32, Shape{3});
     auto swish = make_shared<op::v4::HSwish>(p);
     auto fun = make_shared<Function>(OutputVector{swish}, ParameterVector{p});
 
@@ -40,7 +40,7 @@ TEST(op_eval, hswish)
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(
         fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < inputs.size(); i++)

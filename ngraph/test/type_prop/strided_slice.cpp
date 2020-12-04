@@ -25,9 +25,9 @@ using namespace ngraph;
 
 TEST(type_prop, strided_slice_begin_incorrect_type)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::Type_t::f16, Shape{4});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<op::Parameter>(element::f16, Shape{4});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{4});
     try
     {
         auto strided_slice = make_shared<op::v1::StridedSlice>(
@@ -47,9 +47,9 @@ TEST(type_prop, strided_slice_begin_incorrect_type)
 
 TEST(type_prop, strided_slice_end_incorrect_type)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
-    auto end = make_shared<op::Parameter>(element::Type_t::boolean, Shape{4});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto end = make_shared<op::Parameter>(element::boolean, Shape{4});
     try
     {
         auto strided_slice = make_shared<op::v1::StridedSlice>(
@@ -69,9 +69,9 @@ TEST(type_prop, strided_slice_end_incorrect_type)
 
 TEST(type_prop, strided_slice_incompatible_size_of_masks_attr)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{4});
     try
     {
         auto strided_slice = make_shared<op::v1::StridedSlice>(data,
@@ -96,9 +96,9 @@ TEST(type_prop, strided_slice_incompatible_size_of_masks_attr)
 
 TEST(type_prop, strided_slice_mask_incorrect_value)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{4, 5});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{4, 5});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{4});
     try
     {
         auto strided_slice = make_shared<op::v1::StridedSlice>(
@@ -119,9 +119,9 @@ TEST(type_prop, strided_slice_mask_incorrect_value)
 
 TEST(type_prop, strided_slice_begin_incorrect_shape)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{4, 5});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{4, 5});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{4});
     try
     {
         auto strided_slice = make_shared<op::v1::StridedSlice>(
@@ -141,9 +141,9 @@ TEST(type_prop, strided_slice_begin_incorrect_shape)
 
 TEST(type_prop, strided_slice_end_incorrect_shape)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{4});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{4, 5});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{4, 5});
     try
     {
         auto strided_slice = make_shared<op::v1::StridedSlice>(
@@ -163,9 +163,9 @@ TEST(type_prop, strided_slice_end_incorrect_shape)
 
 TEST(type_prop, strided_slice_default_stride_dynamic_shape_input)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4, 6, 8});
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{2});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
+    auto begin = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    auto end = make_shared<op::Parameter>(element::i64, Shape{2});
     auto strided_slice = make_shared<op::v1::StridedSlice>(
         data, begin, end, vector<int64_t>{0, 0}, vector<int64_t>{0, 0});
 
@@ -173,7 +173,7 @@ TEST(type_prop, strided_slice_default_stride_dynamic_shape_input)
 
     try
     {
-        end = make_shared<op::Parameter>(element::Type_t::i64, PartialShape::dynamic());
+        end = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
         strided_slice = make_shared<op::v1::StridedSlice>(
             data, begin, end, vector<int64_t>{0, 0}, vector<int64_t>{0, 0});
         // Should have thrown, so fail if it didn't
@@ -191,11 +191,10 @@ TEST(type_prop, strided_slice_default_stride_dynamic_shape_input)
 
 TEST(type_prop, strided_slice_reverse_out_of_bounds)
 {
-    auto data =
-        std::make_shared<op::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{3, 4, 5});
-    auto begin = op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{3}, {100});
-    auto end = op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{3}, {-100});
-    auto stride = op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{3}, {-1});
+    auto data = std::make_shared<op::Parameter>(ngraph::element::f32, ngraph::Shape{3, 4, 5});
+    auto begin = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {100});
+    auto end = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-100});
+    auto stride = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-1});
 
     std::vector<int64_t> begin_mask = {0, 0, 0, 0};
     std::vector<int64_t> end_mask = {0, 0, 0, 0};

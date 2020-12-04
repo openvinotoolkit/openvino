@@ -69,15 +69,15 @@ namespace ngraph
                                            const Output<ngraph::Node>& bias = nullptr)
                     {
                         ngraph::element::Type output_type;
-                        if (data.get_element_type() == ngraph::element::Type_t::u8 &&
-                            filters.get_element_type() == ngraph::element::Type_t::i8)
+                        if (data.get_element_type() == ngraph::element::u8 &&
+                            filters.get_element_type() == ngraph::element::i8)
                         {
-                            output_type = ngraph::element::Type_t::i8;
+                            output_type = ngraph::element::i8;
                         }
-                        else if (data.get_element_type() == ngraph::element::Type_t::u8 &&
-                                 filters.get_element_type() == ngraph::element::Type_t::u8)
+                        else if (data.get_element_type() == ngraph::element::u8 &&
+                                 filters.get_element_type() == ngraph::element::u8)
                         {
-                            output_type = ngraph::element::Type_t::u8;
+                            output_type = ngraph::element::u8;
                         }
                         if (groups > 1)
                         {

@@ -32,8 +32,7 @@ namespace ngraph
             {
                 const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
 
-                const auto axis_1 =
-                    default_opset::Constant::create(element::Type_t::i64, Shape{1}, {1});
+                const auto axis_1 = default_opset::Constant::create(element::i64, Shape{1}, {1});
                 const auto max =
                     std::make_shared<default_opset::ReduceMax>(coerced_data, axis_1, true);
 

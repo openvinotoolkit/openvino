@@ -482,7 +482,7 @@ Shape op::Constant::get_shape_val() const
 
 Strides op::Constant::get_strides_val() const
 {
-    NGRAPH_CHECK(m_element_type == element::Type_t::i64);
+    NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_strides = cast_vector<int64_t>();
     Strides output_strides(shape_size(m_shape));
     std::transform(out_strides.begin(),
@@ -494,7 +494,7 @@ Strides op::Constant::get_strides_val() const
 
 Coordinate op::Constant::get_coordinate_val() const
 {
-    NGRAPH_CHECK(m_element_type == element::Type_t::i64);
+    NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate = cast_vector<int64_t>();
     Coordinate output_coordinate(shape_size(m_shape));
     std::transform(out_coordinate.begin(),
@@ -506,7 +506,7 @@ Coordinate op::Constant::get_coordinate_val() const
 
 CoordinateDiff op::Constant::get_coordinate_diff_val() const
 {
-    NGRAPH_CHECK(m_element_type == element::Type_t::i64);
+    NGRAPH_CHECK(m_element_type == element::i64);
     std::vector<int64_t> out_coordinate_diff = cast_vector<int64_t>();
     CoordinateDiff output_coordinate_diff(shape_size(m_shape));
     std::transform(out_coordinate_diff.begin(),

@@ -46,7 +46,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, negative)
 {
     Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Negative>(A), ParameterVector{A});
 
     std::vector<float> a{1, -2, 0, -4.75f, 8.75f, -8.75f};
@@ -60,7 +60,7 @@ NGRAPH_TEST(${BACKEND_NAME}, negative)
 NGRAPH_TEST(${BACKEND_NAME}, negative_i32)
 {
     auto shape_a = Shape{2, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::i32, shape_a);
     auto relu = make_shared<op::Negative>(A);
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(relu, ParameterVector{A});
@@ -76,7 +76,7 @@ NGRAPH_TEST(${BACKEND_NAME}, negative_i32)
 NGRAPH_TEST(${BACKEND_NAME}, negative_f32)
 {
     auto shape_a = Shape{2, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto relu = make_shared<op::Negative>(A);
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(relu, ParameterVector{A});

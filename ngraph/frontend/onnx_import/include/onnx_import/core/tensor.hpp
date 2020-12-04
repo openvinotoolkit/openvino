@@ -531,7 +531,7 @@ namespace ngraph
                 return static_cast<Type>(m_tensor_proto->data_type());
             }
 
-            element::Type get_ng_type() const
+            const element::Type& get_ng_type() const
             {
                 if (!m_tensor_proto->has_data_type())
                 {
@@ -540,29 +540,29 @@ namespace ngraph
                 switch (m_tensor_proto->data_type())
                 {
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
-                    return element::Type_t::boolean;
+                    return element::boolean;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
-                    return element::Type_t::f32;
+                    return element::f32;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-                    return element::Type_t::f16;
+                    return element::f16;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
-                    return element::Type_t::f64;
+                    return element::f64;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
-                    return element::Type_t::i8;
+                    return element::i8;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT16:
-                    return element::Type_t::i16;
+                    return element::i16;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT32:
-                    return element::Type_t::i32;
+                    return element::i32;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT64:
-                    return element::Type_t::i64;
+                    return element::i64;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT8:
-                    return element::Type_t::u8;
+                    return element::u8;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16:
-                    return element::Type_t::u16;
+                    return element::u16;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32:
-                    return element::Type_t::u32;
+                    return element::u32;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
-                    return element::Type_t::u64;
+                    return element::u64;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UNDEFINED:
                     throw error::tensor::data_type_undefined{};
                 default: throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
@@ -575,29 +575,29 @@ namespace ngraph
                 switch (m_tensor_proto->data_type())
                 {
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BOOL:
-                    return make_ng_constant<char>(element::Type_t::boolean);
+                    return make_ng_constant<char>(element::boolean);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
-                    return make_ng_constant<float>(element::Type_t::f32);
+                    return make_ng_constant<float>(element::f32);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-                    return make_ng_constant<ngraph::float16>(element::Type_t::f16);
+                    return make_ng_constant<ngraph::float16>(element::f16);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
-                    return make_ng_constant<double>(element::Type_t::f64);
+                    return make_ng_constant<double>(element::f64);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
-                    return make_ng_constant<int8_t>(element::Type_t::i8);
+                    return make_ng_constant<int8_t>(element::i8);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT16:
-                    return make_ng_constant<int16_t>(element::Type_t::i16);
+                    return make_ng_constant<int16_t>(element::i16);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT32:
-                    return make_ng_constant<int32_t>(element::Type_t::i32);
+                    return make_ng_constant<int32_t>(element::i32);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT64:
-                    return make_ng_constant<int64_t>(element::Type_t::i64);
+                    return make_ng_constant<int64_t>(element::i64);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT8:
-                    return make_ng_constant<uint8_t>(element::Type_t::u8);
+                    return make_ng_constant<uint8_t>(element::u8);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16:
-                    return make_ng_constant<uint16_t>(element::Type_t::u16);
+                    return make_ng_constant<uint16_t>(element::u16);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32:
-                    return make_ng_constant<uint32_t>(element::Type_t::u32);
+                    return make_ng_constant<uint32_t>(element::u32);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
-                    return make_ng_constant<uint64_t>(element::Type_t::u64);
+                    return make_ng_constant<uint64_t>(element::u64);
                 default: throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
                 }
             }

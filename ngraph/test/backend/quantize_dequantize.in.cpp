@@ -34,8 +34,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::u8;
+    auto input_type = element::f32;
+    auto output_type = element::u8;
 
     typedef float input_c_type;
     typedef uint8_t output_c_type;
@@ -67,8 +67,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_zero_offset)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::u8;
+    auto input_type = element::f32;
+    auto output_type = element::u8;
 
     typedef float input_c_type;
     typedef uint8_t output_c_type;
@@ -100,8 +100,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_axes)
     Shape scale_offset_shape{4};
     AxisSet quantization_axes{0};
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::u8;
+    auto input_type = element::f32;
+    auto output_type = element::u8;
 
     typedef float input_c_type;
     typedef uint8_t output_c_type;
@@ -134,8 +134,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -168,8 +168,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8_zero_offset)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -202,8 +202,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i32;
+    auto input_type = element::f32;
+    auto output_type = element::i32;
 
     typedef float input_c_type;
     typedef int32_t output_c_type;
@@ -236,8 +236,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32_zero_offset)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i32;
+    auto input_type = element::f32;
+    auto output_type = element::i32;
 
     typedef float input_c_type;
     typedef int32_t output_c_type;
@@ -270,8 +270,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_uint8)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::u8;
+    auto input_type = element::f32;
+    auto output_type = element::u8;
 
     typedef float input_c_type;
     typedef uint8_t output_c_type;
@@ -302,8 +302,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_int8)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -335,8 +335,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_int32)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f64;
-    auto output_type = element::Type_t::i32;
+    auto input_type = element::f64;
+    auto output_type = element::i32;
 
     // TODO: fails with input due to 32 bits
     typedef double input_c_type;
@@ -369,8 +369,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_ZERO)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -401,8 +401,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_INFINITY)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -433,8 +433,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_UPWARD)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -465,8 +465,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_DOWNWARD)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -497,8 +497,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_NEAREST_TOWARD_EVEN)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -529,8 +529,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_INFINITY)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -566,8 +566,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_TOWARD_ZERO)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -603,8 +603,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_UP)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -635,8 +635,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_DOWN)
     Shape scale_offset_shape;
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::i8;
+    auto input_type = element::f32;
+    auto output_type = element::i8;
 
     typedef float input_c_type;
     typedef int8_t output_c_type;
@@ -667,8 +667,8 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_dynamic_offset)
     Shape scale_offset_shape = {};
     AxisSet quantization_axes;
 
-    auto input_type = element::Type_t::f32;
-    auto output_type = element::Type_t::u8;
+    auto input_type = element::f32;
+    auto output_type = element::u8;
 
     typedef float input_c_type;
     typedef uint8_t output_c_type;

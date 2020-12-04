@@ -31,8 +31,8 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, function_name)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto add = make_shared<op::v1::Add>(A, B);
     auto f = make_shared<Function>(add, ParameterVector{A, B}, "funky func name");
 

@@ -71,11 +71,11 @@ void check_auto_bcast(
 
     if (std::is_same<itype, char>::value)
     {
-        iet = element::Type_t::boolean;
+        iet = element::boolean;
     }
     if (std::is_same<otype, char>::value)
     {
-        oet = element::Type_t::boolean;
+        oet = element::boolean;
     }
     auto A = make_shared<op::Parameter>(iet, Shape{2, 3});
     auto B = make_shared<op::Parameter>(iet, Shape{3});
@@ -110,17 +110,17 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
 {
     auto pshape_a = PartialShape::dynamic();
     auto pshape_b = PartialShape::dynamic();
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, pshape_a);
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, pshape_b);
+    auto a = make_shared<op::Parameter>(element::f32, pshape_a);
+    auto b = make_shared<op::Parameter>(element::f32, pshape_b);
 
     op::AutoBroadcastSpec autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -1);
     auto f = make_shared<Function>(make_shared<op::v1::Add>(a, b, autob), ParameterVector{a, b});
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
     auto ex = backend->compile(f);
 
-    auto t_r = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
-    auto t_a = backend->create_tensor(element::Type_t::f32, Shape{2, 3});
-    auto t_b = backend->create_tensor(element::Type_t::f32, Shape{3});
+    auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto t_a = backend->create_tensor(element::f32, Shape{2, 3});
+    auto t_b = backend->create_tensor(element::f32, Shape{3});
     copy_data(t_a, vector<float>{1, 2, 3, 4, 5, 6});
     copy_data(t_b, vector<float>{5, 6, 7});
     ex->call_with_validate({t_r}, {t_a, t_b});
@@ -134,18 +134,18 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
     autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
     f = make_shared<Function>(make_shared<op::v1::Add>(a, b, autob), ParameterVector{a, b});
     ex = backend->compile(f);
-    t_r = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
-    t_a = backend->create_tensor(element::Type_t::f32, Shape{2, 3, 4, 5});
-    t_b = backend->create_tensor(element::Type_t::f32, Shape{3, 4});
+    t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    t_a = backend->create_tensor(element::f32, Shape{2, 3, 4, 5});
+    t_b = backend->create_tensor(element::f32, Shape{3, 4});
     copy_data(t_a, vector<float>(2 * 3 * 4 * 5, 1));
     copy_data(t_b, vector<float>(3 * 4, 1));
     ex->call_with_validate({t_r}, {t_a, t_b});
     ASSERT_EQ(t_r->get_shape(), (Shape{2, 3, 4, 5}));
 
     // a shape {2, 3, 4, 5}, b shape {3, 1} axis = 1
-    t_r = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
-    t_a = backend->create_tensor(element::Type_t::f32, Shape{2, 3, 4, 5});
-    t_b = backend->create_tensor(element::Type_t::f32, Shape{3, 1});
+    t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    t_a = backend->create_tensor(element::f32, Shape{2, 3, 4, 5});
+    t_b = backend->create_tensor(element::f32, Shape{3, 1});
     copy_data(t_a, vector<float>(2 * 3 * 4 * 5, 1));
     copy_data(t_b, vector<float>(3, 1));
     ex->call_with_validate({t_r}, {t_a, t_b});
@@ -154,8 +154,8 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
 
 NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_string_cast)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, Shape{1});
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, Shape{1});
+    auto a = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::Parameter>(element::f32, Shape{1});
 
     auto add = make_shared<op::v1::Add>(a, b, "NUMPY");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NUMPY);

@@ -29,10 +29,10 @@ TEST(type_prop, scatter_elements_update_output_shape)
     Shape axis_shape{};
     Shape expected_output_shape{2, 4, 5, 7};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto indices = make_shared<op::Parameter>(element::Type_t::i16, indices_shape);
-    auto updates = make_shared<op::Parameter>(element::Type_t::f32, updates_shape);
-    auto axis = make_shared<op::Parameter>(element::Type_t::i16, axis_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto indices = make_shared<op::Parameter>(element::i16, indices_shape);
+    auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto axis = make_shared<op::Parameter>(element::i16, axis_shape);
 
     auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
 
@@ -46,10 +46,10 @@ TEST(type_prop, scatter_elements_update_output_partial_dyn_shape)
     PartialShape updates_shape{2, 2, Dimension::dynamic()};
     PartialShape axis_shape = PartialShape::dynamic();
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto indices = make_shared<op::Parameter>(element::Type_t::i16, indices_shape);
-    auto updates = make_shared<op::Parameter>(element::Type_t::f32, updates_shape);
-    auto axis = make_shared<op::Parameter>(element::Type_t::i16, axis_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto indices = make_shared<op::Parameter>(element::i16, indices_shape);
+    auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto axis = make_shared<op::Parameter>(element::i16, axis_shape);
 
     auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
 
@@ -63,10 +63,10 @@ TEST(type_prop, scatter_elements_update_output_full_dyn_shape)
     PartialShape updates_shape = PartialShape::dynamic();
     PartialShape axis_shape = PartialShape::dynamic();
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto indices = make_shared<op::Parameter>(element::Type_t::i16, indices_shape);
-    auto updates = make_shared<op::Parameter>(element::Type_t::f32, updates_shape);
-    auto axis = make_shared<op::Parameter>(element::Type_t::i16, axis_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto indices = make_shared<op::Parameter>(element::i16, indices_shape);
+    auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto axis = make_shared<op::Parameter>(element::i16, axis_shape);
 
     auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
 
@@ -80,10 +80,10 @@ TEST(type_prop, scatter_elements_update_axis_validation)
     Shape updates_shape{2, 2, 2, 2};
     Shape axis_shape{};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto indices = make_shared<op::Parameter>(element::Type_t::i16, indices_shape);
-    auto updates = make_shared<op::Parameter>(element::Type_t::f32, updates_shape);
-    auto axis = make_shared<op::Constant>(element::Type_t::i16, axis_shape, std::vector<int>{8});
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto indices = make_shared<op::Parameter>(element::i16, indices_shape);
+    auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto axis = make_shared<op::Constant>(element::i16, axis_shape, std::vector<int>{8});
 
     try
     {
@@ -107,10 +107,10 @@ TEST(type_prop, scatter_elements_updates_indices_shape)
     Shape updates_shape{2, 2, 2, 2};
     Shape axis_shape{};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto indices = make_shared<op::Parameter>(element::Type_t::i16, indices_shape);
-    auto updates = make_shared<op::Parameter>(element::Type_t::f32, updates_shape);
-    auto axis = make_shared<op::Constant>(element::Type_t::i16, axis_shape, std::vector<int>{1});
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto indices = make_shared<op::Parameter>(element::i16, indices_shape);
+    auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto axis = make_shared<op::Constant>(element::i16, axis_shape, std::vector<int>{1});
 
     try
     {
@@ -135,10 +135,10 @@ TEST(type_prop, scatter_elements_updates_indices_rank)
     Shape updates_shape{2, 2, 2, 2};
     Shape axis_shape{};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto indices = make_shared<op::Parameter>(element::Type_t::i16, indices_shape);
-    auto updates = make_shared<op::Parameter>(element::Type_t::f32, updates_shape);
-    auto axis = make_shared<op::Constant>(element::Type_t::i16, axis_shape, std::vector<int>{1});
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto indices = make_shared<op::Parameter>(element::i16, indices_shape);
+    auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto axis = make_shared<op::Constant>(element::i16, axis_shape, std::vector<int>{1});
 
     try
     {
@@ -163,10 +163,10 @@ TEST(type_prop, scatter_elements_data_indices_rank)
     Shape updates_shape{2, 2};
     Shape axis_shape{};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto indices = make_shared<op::Parameter>(element::Type_t::i16, indices_shape);
-    auto updates = make_shared<op::Parameter>(element::Type_t::f32, updates_shape);
-    auto axis = make_shared<op::Constant>(element::Type_t::i16, axis_shape, std::vector<int>{1});
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto indices = make_shared<op::Parameter>(element::i16, indices_shape);
+    auto updates = make_shared<op::Parameter>(element::f32, updates_shape);
+    auto axis = make_shared<op::Constant>(element::i16, axis_shape, std::vector<int>{1});
 
     try
     {

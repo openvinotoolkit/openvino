@@ -64,14 +64,14 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_resnet50)
     Shape shape{128, 1000};
     Shape rshape5{128, 5};
     Shape rshape1{128, 1};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::v1::TopK>(A,
-                                       op::Constant::create(element::Type_t::i64, {}, {5}),
+                                       op::Constant::create(element::i64, {}, {5}),
                                        1,
                                        op::v1::TopK::Mode::MAX,
                                        op::v1::TopK::SortType::SORT_VALUES);
     auto C = make_shared<op::v1::TopK>(A,
-                                       op::Constant::create(element::Type_t::i64, {}, {1}),
+                                       op::Constant::create(element::i64, {}, {1}),
                                        1,
                                        op::v1::TopK::Mode::MAX,
                                        op::v1::TopK::SortType::SORT_VALUES);
@@ -86,7 +86,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_resnet50)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     vector<float> data;
     for (size_t i = 0; i < shape[0]; i++)
     {
@@ -97,10 +97,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_resnet50)
     }
     copy_data(a, data);
 
-    auto result5_value = backend->create_tensor(element::Type_t::f32, rshape5);
-    auto result5_index = backend->create_tensor(element::Type_t::i32, rshape5);
-    auto result1_value = backend->create_tensor(element::Type_t::f32, rshape1);
-    auto result1_index = backend->create_tensor(element::Type_t::i32, rshape1);
+    auto result5_value = backend->create_tensor(element::f32, rshape5);
+    auto result5_index = backend->create_tensor(element::i32, rshape5);
+    auto result1_value = backend->create_tensor(element::f32, rshape1);
+    auto result1_index = backend->create_tensor(element::i32, rshape1);
 
     auto exec = backend->compile(f);
     exec->call({result5_value, result5_index, result1_value, result1_index}, {a});
@@ -142,8 +142,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_none)
 {
     Shape shape{128, 1000};
     Shape rshape{128, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {5});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
@@ -154,7 +154,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_none)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     vector<float> data;
     for (size_t i = 0; i < shape[0]; i++)
     {
@@ -165,8 +165,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_none)
     }
     copy_data(a, data);
 
-    auto result_value = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result_index = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result_value = backend->create_tensor(element::f32, rshape);
+    auto result_index = backend->create_tensor(element::i32, rshape);
 
     auto exec = backend->compile(f);
     exec->call({result_value, result_index}, {a});
@@ -196,8 +196,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_none)
 {
     Shape shape{128, 1000};
     Shape rshape{128, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {5});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::NONE);
@@ -208,7 +208,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_none)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     vector<float> data;
     for (size_t i = 0; i < shape[0]; i++)
     {
@@ -219,8 +219,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_none)
     }
     copy_data(a, data);
 
-    auto result_value = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result_index = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result_value = backend->create_tensor(element::f32, rshape);
+    auto result_index = backend->create_tensor(element::i32, rshape);
 
     auto exec = backend->compile(f);
     exec->call({result_value, result_index}, {a});
@@ -250,8 +250,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_value)
 {
     Shape shape{128, 1000};
     Shape rshape{128, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {5});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -262,7 +262,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_value)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     vector<float> data;
     for (size_t i = 0; i < shape[0]; i++)
     {
@@ -273,8 +273,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_value)
     }
     copy_data(a, data);
 
-    auto result_value = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result_index = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result_value = backend->create_tensor(element::f32, rshape);
+    auto result_index = backend->create_tensor(element::i32, rshape);
 
     auto exec = backend->compile(f);
     exec->call({result_value, result_index}, {a});
@@ -300,8 +300,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_value)
 {
     Shape shape{128, 1000};
     Shape rshape{128, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {5});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -312,7 +312,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_value)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     vector<float> data;
     for (size_t i = 0; i < shape[0]; i++)
     {
@@ -323,8 +323,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_value)
     }
     copy_data(a, data);
 
-    auto result_value = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result_index = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result_value = backend->create_tensor(element::f32, rshape);
+    auto result_index = backend->create_tensor(element::i32, rshape);
 
     auto exec = backend->compile(f);
     exec->call({result_value, result_index}, {a});
@@ -354,8 +354,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_index)
 {
     Shape shape{128, 1000};
     Shape rshape{128, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {5});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_INDICES);
@@ -366,7 +366,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_index)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     vector<float> data;
     for (size_t i = 0; i < shape[0]; i++)
     {
@@ -377,8 +377,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_max_sort_index)
     }
     copy_data(a, data);
 
-    auto result_value = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result_index = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result_value = backend->create_tensor(element::f32, rshape);
+    auto result_index = backend->create_tensor(element::i32, rshape);
 
     auto exec = backend->compile(f);
     exec->call({result_value, result_index}, {a});
@@ -408,8 +408,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_index)
 {
     Shape shape{128, 1000};
     Shape rshape{128, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {5});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {5});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_INDICES);
@@ -420,7 +420,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_index)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     vector<float> data;
     for (size_t i = 0; i < shape[0]; i++)
     {
@@ -431,8 +431,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_min_sort_index)
     }
     copy_data(a, data);
 
-    auto result_value = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result_index = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result_value = backend->create_tensor(element::f32, rshape);
+    auto result_index = backend->create_tensor(element::i32, rshape);
 
     auto exec = backend->compile(f);
     exec->call({result_value, result_index}, {a});
@@ -462,8 +462,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_all)
 {
     Shape shape{6};
     Shape rshape{6};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {6});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {6});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -473,10 +473,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_all)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -491,8 +491,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_i32_max_all)
 {
     Shape shape{6};
     Shape rshape{6};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {6});
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto k = op::Constant::create(element::i64, {}, {6});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -502,10 +502,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_i32_max_all)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::i32, shape);
+    auto a = backend->create_tensor(element::i32, shape);
     copy_data(a, vector<int32_t>{1, 2, 3, 4, 5, 6});
-    auto result0 = backend->create_tensor(element::Type_t::i32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::i32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -519,8 +519,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_partial)
 {
     Shape shape{6};
     Shape rshape{3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {3});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -530,10 +530,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_partial)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -548,8 +548,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_one)
 {
     Shape shape{6};
     Shape rshape{1};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -559,10 +559,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_max_one)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -577,8 +577,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_all)
 {
     Shape shape{6};
     Shape rshape{6};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {6});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {6});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -588,10 +588,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_all)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{6, 5, 4, 3, 2, 1});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -606,8 +606,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_partial)
 {
     Shape shape{6};
     Shape rshape{3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {3});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -617,10 +617,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_partial)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{6, 5, 4, 3, 2, 1});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -635,8 +635,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_one)
 {
     Shape shape{6};
     Shape rshape{1};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -646,10 +646,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_1d_min_one)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{6, 5, 4, 3, 2, 1});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -664,8 +664,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_all)
 {
     Shape shape{2, 3, 2};
     Shape rshape{2, 3, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {3});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -675,10 +675,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_all)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{9, 2, 10, 12, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -694,25 +694,21 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_int64)
 {
     Shape shape{2, 3, 2};
     Shape rshape{2, 3, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {3});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 1;
-    auto B = make_shared<op::v1::TopK>(A,
-                                       k,
-                                       axis,
-                                       op::v1::TopK::Mode::MAX,
-                                       op::v1::TopK::SortType::SORT_VALUES,
-                                       element::Type_t::i64);
+    auto B = make_shared<op::v1::TopK>(
+        A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, element::i64);
     auto f0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto f1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{9, 2, 10, 12, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i64, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i64, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -728,8 +724,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_5d_max_partial)
 {
     Shape shape{2, 6, 3, 2, 4};
     Shape rshape{2, 2, 3, 2, 4};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {2});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -739,7 +735,7 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_5d_max_partial)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(
         a,
         vector<float>{
@@ -765,8 +761,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_5d_max_partial)
             205., 277., 213., 285., 198., 270., 206., 278., 214., 286., 199., 271., 207., 279.,
             215., 287., 200., 272., 208., 280., 216., 288.});
 
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -794,8 +790,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_partial)
 {
     Shape shape{2, 3, 2};
     Shape rshape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {2});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -805,10 +801,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_partial)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{9, 2, 10, 12, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -824,8 +820,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_one)
 {
     Shape shape{2, 3, 2};
     Shape rshape{2, 1, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -835,10 +831,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_max_one)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{9, 2, 10, 12, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -853,8 +849,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_all)
 {
     Shape shape{2, 3, 2};
     Shape rshape{2, 3, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {3});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {3});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -864,10 +860,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_all)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -883,8 +879,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_partial)
 {
     Shape shape{2, 3, 2};
     Shape rshape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {2});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -894,10 +890,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_partial)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -913,8 +909,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_one)
 {
     Shape shape{2, 3, 2};
     Shape rshape{2, 1, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -924,10 +920,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_min_one)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -942,8 +938,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_all)
 {
     Shape shape{4, 3};
     Shape rshape{4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {4});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {4});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -953,10 +949,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_all)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{9, 2, 10, 12, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -972,8 +968,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_partial)
 {
     Shape shape{4, 3};
     Shape rshape{2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {2});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -983,10 +979,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_partial)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{9, 2, 10, 12, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -1002,8 +998,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_one)
 {
     Shape shape{4, 3};
     Shape rshape{1, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -1013,10 +1009,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_one)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{9, 2, 10, 12, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -1031,8 +1027,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_one_with_equal_values)
 {
     Shape shape{2, 4};
     Shape rshape{2, 1};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -1042,10 +1038,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_max_one_with_equal_values)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 3, 2, 4, 1, 3, 3, 2});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -1060,8 +1056,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_all)
 {
     Shape shape{4, 3};
     Shape rshape{4, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {4});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {4});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -1071,10 +1067,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_all)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -1090,8 +1086,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_partial)
 {
     Shape shape{4, 3};
     Shape rshape{2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {2});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -1101,10 +1097,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_partial)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -1119,8 +1115,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_one)
 {
     Shape shape{4, 3};
     Shape rshape{1, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {1});
     int64_t axis = 0;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::NONE);
@@ -1130,10 +1126,10 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_one)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::f32, rshape);
-    auto result1 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::f32, rshape);
+    auto result1 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -1147,9 +1143,9 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_2d_min_one)
 NGRAPH_TEST(${BACKEND_NAME}, topk_3d_large_input_max)
 {
     Shape shape{4, 8192, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
-    auto k = op::Constant::create(element::Type_t::i64, {}, {10});
+    auto k = op::Constant::create(element::i64, {}, {10});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES);
@@ -1187,9 +1183,9 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_large_input_max)
 NGRAPH_TEST(${BACKEND_NAME}, topk_3d_large_input_min)
 {
     Shape shape{4, 8192, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
 
-    auto k = op::Constant::create(element::Type_t::i64, {}, {10});
+    auto k = op::Constant::create(element::i64, {}, {10});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -1228,8 +1224,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_single_output)
 {
     Shape shape{2, 3, 2};
     Shape rshape{2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto k = op::Constant::create(element::Type_t::i64, {}, {2});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto k = op::Constant::create(element::i64, {}, {2});
     int64_t axis = 1;
     auto B = make_shared<op::v1::TopK>(
         A, k, axis, op::v1::TopK::Mode::MIN, op::v1::TopK::SortType::SORT_VALUES);
@@ -1238,9 +1234,9 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_single_output)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7});
-    auto result0 = backend->create_tensor(element::Type_t::i32, rshape);
+    auto result0 = backend->create_tensor(element::i32, rshape);
 
     auto h0 = backend->compile(f0);
     h0->call_with_validate({result0}, {a});
@@ -1249,27 +1245,27 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_single_output)
 
 NGRAPH_TEST(${BACKEND_NAME}, topk_v1_invalid_strings)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
-    const auto k = op::Constant::create(element::Type_t::i64, Shape{}, {1});
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+    const auto k = op::Constant::create(element::i64, Shape{}, {1});
     EXPECT_THROW(op::v1::TopK(data, k, 0, "max", "invalid_mode"), ngraph::CheckFailure);
     EXPECT_THROW(op::v1::TopK(data, k, 0, "invalid_sort", "index"), ngraph::CheckFailure);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, topk_v1_invalid_k)
 {
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
 
     // K must be a scalar
-    const auto k_non_scalar = op::Constant::create(element::Type_t::i64, Shape{2}, {1, 2});
+    const auto k_non_scalar = op::Constant::create(element::i64, Shape{2}, {1, 2});
     EXPECT_THROW(op::v1::TopK(data, k_non_scalar, 0, "max", "index"),
                  ngraph::NodeValidationFailure);
 
     // K can only be i8, i32 or i64
-    const auto k_float = op::Constant::create(element::Type_t::f32, Shape{}, {1.0f});
+    const auto k_float = op::Constant::create(element::f32, Shape{}, {1.0f});
     EXPECT_THROW(op::v1::TopK(data, k_float, 0, "max", "index"), ngraph::NodeValidationFailure);
 
     // the value of K must be positive
-    const auto k_negative = op::Constant::create(element::Type_t::i8, Shape{}, {-1});
+    const auto k_negative = op::Constant::create(element::i8, Shape{}, {-1});
     EXPECT_THROW(op::v1::TopK(data, k_negative, 0, "max", "index"), ngraph::NodeValidationFailure);
 }
 
@@ -1303,8 +1299,8 @@ TYPED_TEST_P(topk_backend, topk_mode_sort_order)
 {
     const Shape shape{5};
     const Shape rshape{3};
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    const auto k = op::Constant::create(element::Type_t::i64, {}, {3});
+    const auto data = make_shared<op::Parameter>(element::f32, shape);
+    const auto k = op::Constant::create(element::i64, {}, {3});
     const int64_t axis = 0;
 
     // helpers to reduce code verbosity

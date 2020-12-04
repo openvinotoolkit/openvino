@@ -74,7 +74,7 @@ namespace ngraph
                                 data,
                                 filters,
                                 default_opset::Constant::create(
-                                    element::Type_t::i64, Shape{output_shape.size()}, output_shape),
+                                    element::i64, Shape{output_shape.size()}, output_shape),
                                 strides,
                                 dilations,
                                 auto_pad_type,
@@ -113,7 +113,7 @@ namespace ngraph
                                 data,
                                 filters,
                                 default_opset::Constant::create(
-                                    element::Type_t::i64, Shape{output_shape.size()}, output_shape),
+                                    element::i64, Shape{output_shape.size()}, output_shape),
                                 strides,
                                 pads_begin,
                                 pads_end,
@@ -144,10 +144,10 @@ namespace ngraph
                                 std::make_shared<default_opset::ShapeOf>(filters);
                             const auto filters_rank =
                                 std::make_shared<default_opset::ShapeOf>(filters_shape);
-                            const auto one_node = default_opset::Constant::create(
-                                element::Type_t::i64, Shape{1}, {1});
-                            const auto zero_node = default_opset::Constant::create(
-                                element::Type_t::i64, Shape{1}, {0});
+                            const auto one_node =
+                                default_opset::Constant::create(element::i64, Shape{1}, {1});
+                            const auto zero_node =
+                                default_opset::Constant::create(element::i64, Shape{1}, {0});
 
                             std::shared_ptr<ngraph::Node> in_c_dim =
                                 std::make_shared<default_opset::StridedSlice>(
@@ -166,8 +166,8 @@ namespace ngraph
                                     std::vector<int64_t>{0}); // end mask
 
                             // Apply shape layout transformation:
-                            const auto groups_node = default_opset::Constant::create(
-                                element::Type_t::i64, Shape{1}, {groups});
+                            const auto groups_node =
+                                default_opset::Constant::create(element::i64, Shape{1}, {groups});
                             in_c_dim =
                                 std::make_shared<default_opset::Divide>(in_c_dim, groups_node);
 
@@ -192,7 +192,7 @@ namespace ngraph
                             new_bias_shape[1] = conv_pshape[1].get_length();
 
                             bias_shape_node = default_opset::Constant::create(
-                                element::Type_t::i64, Shape{new_bias_shape.size()}, new_bias_shape);
+                                element::i64, Shape{new_bias_shape.size()}, new_bias_shape);
                         }
                         else
                         {
@@ -201,10 +201,10 @@ namespace ngraph
                                 std::make_shared<default_opset::ShapeOf>(conv_shape);
 
                             // Prepare new bias shape base: [1, 1, 1, 1, ... ]
-                            const auto one_node = default_opset::Constant::create(
-                                element::Type_t::i64, Shape{1}, {1});
-                            const auto two_node = default_opset::Constant::create(
-                                element::Type_t::i64, Shape{1}, {2});
+                            const auto one_node =
+                                default_opset::Constant::create(element::i64, Shape{1}, {1});
+                            const auto two_node =
+                                default_opset::Constant::create(element::i64, Shape{1}, {2});
                             const auto remaining_shape_length =
                                 std::make_shared<default_opset::Subtract>(conv_rank, two_node);
                             const auto remaining_bias_shape_ones =

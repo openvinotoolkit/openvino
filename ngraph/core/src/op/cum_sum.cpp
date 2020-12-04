@@ -37,7 +37,7 @@ op::v0::CumSum::CumSum(const Output<Node>& arg,
 }
 
 op::v0::CumSum::CumSum(const Output<Node>& arg, const bool exclusive, const bool reverse)
-    : Op({arg, op::Constant::create(element::Type_t::i32, Shape{}, {0})})
+    : Op({arg, op::Constant::create(element::i32, Shape{}, {0})})
     , m_exclusive(exclusive)
     , m_reverse(reverse)
 {
@@ -65,7 +65,7 @@ void op::v0::CumSum::validate_and_infer_types()
 
     const auto& axis_type = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          axis_type == element::Type_t::i32 || axis_type == element::Type_t::i64,
+                          axis_type == element::i32 || axis_type == element::i64,
                           "axis element type must be either int64_t or int32_t but got (",
                           axis_type,
                           ").");

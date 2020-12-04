@@ -50,22 +50,22 @@ namespace ngraph
                         std::make_shared<default_opset::ShapeOf>(coerced_tensor);
                     Output<ngraph::Node> row_size = std::make_shared<default_opset::Gather>(
                         coerced_tensor_shape,
-                        default_opset::Constant::create(element::Type_t::i64, {1}, {1}),
-                        default_opset::Constant::create(element::Type_t::i64, {}, {0}));
+                        default_opset::Constant::create(element::i64, {1}, {1}),
+                        default_opset::Constant::create(element::i64, {}, {0}));
                     row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
 
                     const auto indices_axis = 1;
                     const auto topk = std::make_shared<default_opset::TopK>(
                         coerced_tensor,
-                        default_opset::Constant::create(ngraph::element::Type_t::i64, Shape{}, {1}),
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {1}),
                         indices_axis,
                         default_opset::TopK::Mode::MAX,
                         default_opset::TopK::SortType::NONE);
 
                     const auto on_value =
-                        default_opset::Constant::create(ngraph::element::Type_t::i64, Shape{}, {1});
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
                     const auto off_value =
-                        default_opset::Constant::create(ngraph::element::Type_t::i64, Shape{}, {0});
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {0});
 
                     const auto results = std::make_shared<default_opset::OneHot>(
                         topk->output(1), row_size, on_value, off_value, indices_axis);

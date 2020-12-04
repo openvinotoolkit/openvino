@@ -37,11 +37,11 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
 {
     Shape shape_filter{6, 1, 3, 3};
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     Shape shape_delta{2, 6, 3, 3};
-    auto deltas = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     Shape shape_data_batch{2, 3, 5, 5};
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
+    auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto strides = Strides{1, 1};
     auto dilations = Strides{1, 1};
     auto padding_begin = CoordinateDiff{0, 0};
@@ -57,7 +57,7 @@ NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
 
     auto handle = backend->compile(f);
 
-    auto result = backend->create_dynamic_tensor(element::Type_t::f32, PartialShape::dynamic());
+    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
 
     vector<float> filter, delta, data, expected_result;
 
@@ -73,11 +73,11 @@ NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
     for (int i = 0; i < 2 * 3 * 5 * 5; i++)
         expected_result.emplace_back(i);
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape_data_batch);
+    auto a = backend->create_tensor(element::f32, shape_data_batch);
     copy_data(a, data);
-    auto b = backend->create_tensor(element::Type_t::f32, shape_filter);
+    auto b = backend->create_tensor(element::f32, shape_filter);
     copy_data(b, filter);
-    auto c = backend->create_tensor(element::Type_t::f32, shape_delta);
+    auto c = backend->create_tensor(element::f32, shape_delta);
     copy_data(c, delta);
     handle->call_with_validate({result}, {a, b, c});
     EXPECT_FALSE(test::all_close_f(vector<float>{expected_result}, read_vector<float>(result)));
@@ -92,8 +92,8 @@ NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data)
     Strides dilations{1, 1};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 3, 3});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 1, 3, 3});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 1, 3, 3});
+    auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 3, 3});
 
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, strides, pads_begin, pads_end, dilations, auto_pad, output_padding);
@@ -138,9 +138,9 @@ NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data_output_shape)
     Strides strides{1, 1};
     Strides dilations{1, 1};
 
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 1, 10});
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 1, 1, 1, 5});
-    auto output_shape = op::Constant::create(element::Type_t::i64, Shape{2}, {1, 14});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 10});
+    auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 1, 5});
+    auto output_shape = op::Constant::create(element::i64, Shape{2}, {1, 14});
 
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, strides, dilations, op::PadType::SAME_UPPER);

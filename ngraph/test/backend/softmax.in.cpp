@@ -43,14 +43,14 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-10, -20, -30, -40, -50, -60, -1, -2, -3, -4, -5, -6});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto d0 = expf(-10) + expf(-1);
     auto d1 = expf(-20) + expf(-2);
@@ -80,14 +80,14 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d)
 NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double)
 {
     Shape shape{2, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f64, shape);
+    auto A = make_shared<op::Parameter>(element::f64, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f64, shape);
+    auto a = backend->create_tensor(element::f64, shape);
     copy_data(a, vector<double>{-10, -20, -30, -40, -50, -60, -1, -2, -3, -4, -5, -6});
-    auto result = backend->create_tensor(element::Type_t::f64, shape);
+    auto result = backend->create_tensor(element::f64, shape);
 
     auto d0 = exp(-10) + exp(-1);
     auto d1 = exp(-20) + exp(-2);
@@ -117,14 +117,14 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double)
 NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1)
 {
     Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 1), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-10, -20, -30, -40, -50, -60});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto d0 = expf(-10) + expf(-20) + expf(-30);
     auto d1 = expf(-40) + expf(-50) + expf(-60);
@@ -143,14 +143,14 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1)
 NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0)
 {
     Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-10, -20, -30, -40, -50, -60});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto d0 = expf(-10) + expf(-40);
     auto d1 = expf(-20) + expf(-50);
@@ -170,14 +170,14 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0)
 NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial)
 {
     Shape shape{1, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{-10, -20, -30, -40, -50, -60});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -188,16 +188,16 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial)
 NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow)
 {
     Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     auto low = std::numeric_limits<float>::lowest();
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{low, 1, 2, 3, 4, 5});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto d0 = expf(low) + expf(3);
     auto d1 = expf(1) + expf(4);
@@ -213,16 +213,16 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow)
 NGRAPH_TEST(${BACKEND_NAME}, softmax_overflow)
 {
     Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     auto high = std::numeric_limits<float>::max();
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{high, 1, 2, 3, 4, 5});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto d0 = expf(high - high) + expf(3 - high);
     auto d1 = expf(1) + expf(4);

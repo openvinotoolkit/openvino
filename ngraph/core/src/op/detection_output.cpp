@@ -49,11 +49,11 @@ void op::DetectionOutput::validate_and_infer_types()
     {
         auto box_logits_shape = get_input_partial_shape(0).to_shape();
         set_output_type(
-            0, element::Type_t::f32, Shape{1, 1, m_attrs.keep_top_k[0] * box_logits_shape[0], 7});
+            0, element::f32, Shape{1, 1, m_attrs.keep_top_k[0] * box_logits_shape[0], 7});
     }
     else
     {
-        set_output_type(0, element::Type_t::f32, PartialShape::dynamic());
+        set_output_type(0, element::f32, PartialShape::dynamic());
     }
 }
 

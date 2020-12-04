@@ -57,14 +57,14 @@ namespace ngraph
                      const int64_t axis,
                      const std::string& mode,
                      const std::string& sort,
-                     const element::Type& index_element_type = element::Type_t::i32);
+                     const element::Type& index_element_type = element::i32);
 
                 TopK(const Output<Node>& data,
                      const Output<Node>& k,
                      const int64_t axis,
                      const Mode mode,
                      const SortType sort,
-                     const element::Type& index_element_type = element::Type_t::i32);
+                     const element::Type& index_element_type = element::i32);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -104,7 +104,7 @@ namespace ngraph
                 uint64_t m_normalized_axis;
                 Mode m_mode;
                 SortType m_sort;
-                element::Type m_index_element_type{element::Type_t::i32};
+                element::Type m_index_element_type{element::i32};
 
                 virtual size_t read_k_from_constant_node(const std::shared_ptr<Node>& node,
                                                          const element::Type& k_element_type) const;
@@ -146,14 +146,14 @@ namespace ngraph
                      const int64_t axis,
                      const std::string& mode,
                      const std::string& sort,
-                     const element::Type& index_element_type = element::Type_t::i32);
+                     const element::Type& index_element_type = element::i32);
 
                 TopK(const Output<Node>& data,
                      const Output<Node>& k,
                      const int64_t axis,
                      const Mode mode,
                      const SortType sort,
-                     const element::Type& index_element_type = element::Type_t::i32);
+                     const element::Type& index_element_type = element::i32);
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
                 virtual std::shared_ptr<Node>

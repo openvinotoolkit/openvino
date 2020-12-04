@@ -31,8 +31,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, numeric_float_nan)
 {
     Shape shape{5};
-    auto A = op::Constant::create(element::Type_t::f32, shape, {-2.5f, 25.5f, 2.25f, NAN, 6.0f});
-    auto B = op::Constant::create(element::Type_t::f32, shape, {10.0f, 5.0f, 2.25f, 10.0f, NAN});
+    auto A = op::Constant::create(element::f32, shape, {-2.5f, 25.5f, 2.25f, NAN, 6.0f});
+    auto B = op::Constant::create(element::f32, shape, {10.0f, 5.0f, 2.25f, 10.0f, NAN});
     auto f = make_shared<Function>(make_shared<op::v1::Equal>(A, B), ParameterVector{});
 
     auto test_case = test::TestCase<TestEngine>(f);
@@ -43,8 +43,8 @@ NGRAPH_TEST(${BACKEND_NAME}, numeric_float_nan)
 NGRAPH_TEST(${BACKEND_NAME}, numeric_double_nan)
 {
     Shape shape{5};
-    auto A = op::Constant::create(element::Type_t::f64, shape, {-2.5f, 25.5f, 2.25f, NAN, 6.0f});
-    auto B = op::Constant::create(element::Type_t::f64, shape, {10.0f, 5.0f, 2.25f, 10.0f, NAN});
+    auto A = op::Constant::create(element::f64, shape, {-2.5f, 25.5f, 2.25f, NAN, 6.0f});
+    auto B = op::Constant::create(element::f64, shape, {10.0f, 5.0f, 2.25f, 10.0f, NAN});
     auto f = make_shared<Function>(make_shared<op::v1::Equal>(A, B), ParameterVector{});
 
     auto test_case = test::TestCase<TestEngine>(f);
@@ -55,10 +55,8 @@ NGRAPH_TEST(${BACKEND_NAME}, numeric_double_nan)
 NGRAPH_TEST(${BACKEND_NAME}, numeric_float_inf)
 {
     Shape shape{5};
-    auto A =
-        op::Constant::create(element::Type_t::f32, shape, {-2.5f, 25.5f, 2.25f, INFINITY, 6.0f});
-    auto B =
-        op::Constant::create(element::Type_t::f32, shape, {10.0f, 5.0f, 2.25f, 10.0f, -INFINITY});
+    auto A = op::Constant::create(element::f32, shape, {-2.5f, 25.5f, 2.25f, INFINITY, 6.0f});
+    auto B = op::Constant::create(element::f32, shape, {10.0f, 5.0f, 2.25f, 10.0f, -INFINITY});
     auto f = make_shared<Function>(make_shared<op::v1::Equal>(A, B), ParameterVector{});
 
     auto test_case = test::TestCase<TestEngine>(f);
@@ -69,10 +67,8 @@ NGRAPH_TEST(${BACKEND_NAME}, numeric_float_inf)
 NGRAPH_TEST(${BACKEND_NAME}, numeric_double_inf)
 {
     Shape shape{5};
-    auto A =
-        op::Constant::create(element::Type_t::f64, shape, {-2.5f, 25.5f, 2.25f, INFINITY, 6.0f});
-    auto B =
-        op::Constant::create(element::Type_t::f64, shape, {10.0f, 5.0f, 2.25f, 10.0f, -INFINITY});
+    auto A = op::Constant::create(element::f64, shape, {-2.5f, 25.5f, 2.25f, INFINITY, 6.0f});
+    auto B = op::Constant::create(element::f64, shape, {10.0f, 5.0f, 2.25f, 10.0f, -INFINITY});
     auto f = make_shared<Function>(make_shared<op::v1::Equal>(A, B), ParameterVector{});
 
     auto test_case = test::TestCase<TestEngine>(f);
