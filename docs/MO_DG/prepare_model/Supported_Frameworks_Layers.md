@@ -338,7 +338,7 @@ Standard ONNX\* operators:
 | Floor | No |
 | GRU | No |
 | Gather | No |
-| GatherElements | only with positive indices |
+| GatherElements | Doesn't work with negative indices |
 | GatherND | No |
 | GatherTree | No |
 | Gemm | No |
