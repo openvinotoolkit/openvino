@@ -22,7 +22,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         std::vector<float>(4 * 2, 2.f),
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         "matMul/FC",
-        "I8"
+        "U8"
     },
     // 3D with different values
     {
@@ -32,7 +32,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         std::vector<float>(4 * 2, 2.f),
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         "matMul/FC",
-        "I8"
+        "U8"
     },
     // 4D with different values
     {
@@ -42,7 +42,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         std::vector<float>(4 * 2, 2.f),
         { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         "matMul/FC",
-        "I8"
+        "U8"
     },
     // 3D with the same values
     {
@@ -52,7 +52,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         std::vector<float>(4 * 4, 2.f),
         { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-128.f}, {127.f} },
         "matMul/FC",
-        "I8"
+        "U8"
     },
     // 2D with subtract on activations
     {
