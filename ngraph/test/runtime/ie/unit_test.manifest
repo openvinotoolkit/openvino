@@ -674,6 +674,10 @@ relu_4Dbackprop
 range
 parameter_as_output
 
+# MKLDNNGraph::CreateGraph: No inputs for the topology
+range_v4_int32
+range_v4_float32
+
 # Cannot cast ngraph node QuantizedDot to CNNLayer!
 quantized_dot_u8u8
 quantized_dot_int32_output

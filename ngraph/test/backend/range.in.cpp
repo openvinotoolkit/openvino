@@ -113,3 +113,56 @@ NGRAPH_TEST(${BACKEND_NAME}, range_v4_trunc_inputs)
                                            std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, range_v4_int32)
+{
+    element::Type_t et = element::i32;
+    std::vector<RangeTest<int32_t>> int32_tests = {
+        RangeTest<int32_t>{0, 10, 1, Shape{10}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+        RangeTest<int32_t>{-5, 6, 3, Shape{4}, {-5, -2, 1, 4}},
+        RangeTest<int32_t>{10, 0, 1, Shape{0}, {}},
+        RangeTest<int32_t>{10, 5, -3, Shape{2}, {10, 7}}};
+
+    for (auto& test : int32_tests)
+    {
+        auto start = make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{test.start});
+        auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{test.stop});
+        auto step = make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{test.step});
+        auto range = make_shared<op::v4::Range>(start, stop, step, et);
+        auto pshape_out = range->get_output_partial_shape(0);
+        ASSERT_TRUE(pshape_out.rank().is_static() && pshape_out.rank() == Dimension{1});
+        auto f = make_shared<Function>(NodeVector{range}, ParameterVector{});
+
+        auto test_case = test::TestCase<TestEngine>(f);
+
+        test_case.add_expected_output<int32_t>(test.expected_result_shape, test.expected_result);
+        test_case.run();
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, range_v4_float32)
+{
+    element::Type_t et = element::f32;
+    std::vector<RangeTest<float>> float32_tests = {
+        RangeTest<float>{0, 1, 0.25, Shape{4}, {0, 0.25, 0.5, 0.75}},
+        RangeTest<float>{
+            -1, 0.875, 0.2, Shape{10}, {-1, -0.8, -0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6, 0.8}},
+        RangeTest<float>{10, 0, 1, Shape{0}, {}},
+        RangeTest<float>{2, 0, -0.25, Shape{8}, {2, 1.75, 1.5, 1.25, 1, 0.75, 0.5, 0.25}}};
+
+    for (auto& test : float32_tests)
+    {
+        auto start = make_shared<op::Constant>(et, Shape{}, std::vector<float>{test.start});
+        auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<float>{test.stop});
+        auto step = make_shared<op::Constant>(et, Shape{}, std::vector<float>{test.step});
+        auto range = make_shared<op::v4::Range>(start, stop, step, et);
+        auto pshape_out = range->get_output_partial_shape(0);
+        ASSERT_TRUE(pshape_out.rank().is_static() && pshape_out.rank() == Dimension{1});
+        auto f = make_shared<Function>(NodeVector{range}, ParameterVector{});
+
+        auto test_case = test::TestCase<TestEngine>(f);
+
+        test_case.add_expected_output<float>(test.expected_result_shape, test.expected_result);
+        test_case.run();
+    }
+}
