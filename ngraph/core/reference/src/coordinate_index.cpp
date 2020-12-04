@@ -23,6 +23,10 @@ namespace ngraph
 {
     std::size_t coordinate_index(const Coordinate& c, const Shape& s)
     {
+        if (c.size() < s.size())
+        {
+            throw std::domain_error("Coordinate rank is less than shape rank.");
+        }
         std::size_t index = 0;
         std::size_t stride = 1;
         std::size_t const padding = c.size() - s.size();
