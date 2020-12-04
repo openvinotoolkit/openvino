@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-#define MAX_INPUT_INTERPOLATE 4
+#define MAX_INPUT_INTERPOLATE 8
 
 using namespace InferenceEngine;
 
@@ -52,7 +52,8 @@ struct jit_interpolate_config_params {
     int src_data_size;
     int dst_data_size;
     int indices_size;
-    int IH, IW, OH, OW;
+    int spatial_dim_size;
+    int ID, IH, IW, OD, OH, OW;
 };
 
 struct jit_interpolate_call_args {
@@ -104,9 +105,10 @@ private:
     void NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
 
     // onnx linear
-    void linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
-    void linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
-    void linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+    void linearOnnxCF(int outCoord, float scale, int inShape, int outShape, int& index0, int& index1, float& weight0, float& weight1);
+    void linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+    void linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+    void linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
 
     // cubic
     std::vector<float> getCubicCoeffs(float mantissa, float a);
@@ -158,6 +160,7 @@ private:
     std::string shapeInferMode;
     SizeVector srcDim;
     SizeVector srcDimPad;
+    int spatialDimSize;
 
     mkldnn::primitive_attr attr;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
@@ -169,7 +172,7 @@ private:
 
     std::vector<int> indexTable;
 
-    std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel;
+    std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
 };
 
 }  // namespace MKLDNNPlugin

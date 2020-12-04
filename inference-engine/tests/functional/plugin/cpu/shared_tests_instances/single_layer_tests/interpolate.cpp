@@ -20,10 +20,6 @@ const std::vector<std::vector<size_t>> inShapes = {
         {1, 4, 30, 30},
 };
 
-const std::vector<std::vector<size_t>> targetShapes = {
-        {1, 4, 40, 40},
-};
-
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
         ngraph::op::v4::Interpolate::InterpolateMode::linear,
         ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
@@ -78,8 +74,12 @@ const std::vector<std::vector<int64_t>> defaultAxes = {
     {2, 3}
 };
 
+const std::vector<std::vector<size_t>> targetShapes = {
+    {40, 40},
+};
+
 const std::vector<std::vector<float>> defaultScales = {
-    {1.33333f, 1.33333f}
+    {1.333333f, 1.333333f}
 };
 
 const auto interpolateCasesWithoutNearest = ::testing::Combine(
@@ -135,7 +135,7 @@ const std::vector<std::vector<size_t>> targetShapesTailTest = {
 };
 
 const std::vector<std::vector<float>> defaultScalesTailTest = {
-    {0.33333f, 1.36666f}
+    {0.333333f, 1.366666f}
 };
 
 const auto interpolateCasesWithoutNearestTail = ::testing::Combine(
