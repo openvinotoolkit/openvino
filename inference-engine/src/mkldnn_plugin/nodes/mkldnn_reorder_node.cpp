@@ -165,6 +165,10 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
 //            THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
 //        }
     }
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
 const std::vector<impl_desc_type>& MKLDNNReorderNode::getPrimitivesPriority() {

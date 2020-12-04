@@ -183,16 +183,6 @@ void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
     }
 }
 
-void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
-    if (prim) {
-        auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-
-        (*prim).execute(strm, {{DNNL_ARG_DIFF_DST, src}, {DNNL_ARG_WEIGHTS, getWeights()},
-                               {DNNL_ARG_DIFF_SRC, dst}});
-    }
-}
-
 bool MKLDNNDeconvolutionNode::created() const {
     return getType() == Deconvolution;
 }
@@ -205,6 +195,10 @@ void MKLDNNDeconvolutionNode::createPrimitive() {
             convolution_backward_data::desc, convolution_forward::primitive_desc>(attr);
 
     prim.reset(new convolution_backward_data(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs = {{DNNL_ARG_DIFF_DST, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DIFF_SRC, dst}};
 }
 
 void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
