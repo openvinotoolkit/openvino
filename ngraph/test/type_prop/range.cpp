@@ -21,6 +21,14 @@
 using namespace std;
 using namespace ngraph;
 
+struct RangeParams
+{
+    double start;
+    double stop;
+    double step;
+    PartialShape expected_shape;
+};
+
 // ------------------------------ V0 ------------------------------
 
 TEST(type_prop, range_nonconst_ok)
@@ -343,14 +351,6 @@ TEST(type_prop, range_all_const_zero_stride_fails)
     }
 }
 
-struct RangeParams
-{
-    double start;
-    double stop;
-    double step;
-    PartialShape expected_shape;
-};
-
 template <typename T>
 void run_range_test(const element::Type& et, const RangeParams& params)
 {
@@ -526,6 +526,48 @@ INSTANTIATE_TEST_CASE_P(type_prop,
                         PrintToDummyParamName());
 
 // ------------------------------ V4 ------------------------------
+
+TEST(type_prop, range_v4_all_const_shape_inference)
+{
+    int num_elems = 100;
+    int step_val = 5;
+    int start_val = 0;
+    int stop_val = num_elems * step_val + start_val;
+    element::Type_t et = element::i32;
+    auto start = make_shared<op::Constant>(et, Shape{}, std::vector<int>{start_val});
+    auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<int>{stop_val});
+    auto step = make_shared<op::Constant>(et, Shape{}, std::vector<int>{step_val});
+    auto range = make_shared<op::v4::Range>(start, stop, step, et);
+    auto pshape_out = range->get_output_partial_shape(0);
+    ASSERT_TRUE(pshape_out.rank().is_static() && pshape_out.rank() == Dimension{1});
+    ASSERT_TRUE(pshape_out.same_scheme(PartialShape{Dimension{num_elems}}));
+}
+
+TEST(type_prop, range_v4_some_const_shape_inference)
+{
+    int step_val = 5;
+    int start_val = 0;
+    element::Type_t et = element::i32;
+    auto start = make_shared<op::Constant>(et, Shape{}, std::vector<int>{start_val});
+    auto stop = make_shared<op::Parameter>(et, Shape{});
+    auto step = make_shared<op::Constant>(et, Shape{}, std::vector<int>{step_val});
+    auto range = make_shared<op::v4::Range>(start, stop, step, et);
+    auto pshape_out = range->get_output_partial_shape(0);
+    ASSERT_TRUE(pshape_out.rank().is_static() && pshape_out.rank() == Dimension{1});
+    ASSERT_TRUE(pshape_out.same_scheme(PartialShape{Dimension::dynamic()}));
+}
+
+TEST(type_prop, range_v4_trunc_inputs_shape_inference)
+{
+    element::Type_t et = element::f32;
+    auto start = make_shared<op::Constant>(et, Shape{}, std::vector<float>{0.9});
+    auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<float>{10.3});
+    auto step = make_shared<op::Constant>(et, Shape{}, std::vector<float>{1.7});
+    auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
+    auto pshape_out = range->get_output_partial_shape(0);
+    ASSERT_TRUE(pshape_out.rank().is_static() && pshape_out.rank() == Dimension{1});
+    ASSERT_TRUE(pshape_out.same_scheme(PartialShape{Dimension{10}}));
+}
 
 TEST(type_prop, range_v4_invalid_inputs_elem_type)
 {
@@ -863,3 +905,176 @@ TEST(type_prop, range_v4_zero_output_elem_neg_step)
     // if step is negative and start <= stop, number of output elements is zero
     ASSERT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape{Dimension(0)}));
 }
+
+template <typename T>
+void run_range_v4_test(const element::Type& et, const RangeParams& params)
+{
+    auto start =
+        make_shared<op::Constant>(et, Shape{}, std::vector<T>{static_cast<T>(params.start)});
+    auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<T>{static_cast<T>(params.stop)});
+    auto step = make_shared<op::Constant>(et, Shape{}, std::vector<T>{static_cast<T>(params.step)});
+
+    auto range = make_shared<op::v4::Range>(start, stop, step, et);
+
+    EXPECT_TRUE(range->get_output_partial_shape(0).same_scheme(params.expected_shape))
+        << "Expected shape " << params.expected_shape << " but got "
+        << range->get_output_partial_shape(0);
+}
+
+struct RangeNumpyTest : ::testing::TestWithParam<RangeParams>
+{
+};
+
+TEST_P(RangeNumpyTest, deduce_shape_i8)
+{
+    run_range_v4_test<int8_t>(element::i8, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_i16)
+{
+    run_range_v4_test<int16_t>(element::i16, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_i32)
+{
+    run_range_v4_test<int32_t>(element::i32, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_i64)
+{
+    run_range_v4_test<int64_t>(element::i64, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_u8)
+{
+    run_range_v4_test<uint8_t>(element::u8, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_u16)
+{
+    run_range_v4_test<uint16_t>(element::u16, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_u32)
+{
+    run_range_v4_test<uint32_t>(element::u32, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_u64)
+{
+    run_range_v4_test<uint64_t>(element::u64, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_bf16)
+{
+    run_range_v4_test<bfloat16>(element::bf16, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_f16)
+{
+    run_range_v4_test<float16>(element::f16, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_f32)
+{
+    run_range_v4_test<float>(element::f32, GetParam());
+}
+
+TEST_P(RangeNumpyTest, deduce_shape_f64)
+{
+    run_range_v4_test<double>(element::f64, GetParam());
+}
+
+INSTANTIATE_TEST_CASE_P(type_prop,
+                        RangeNumpyTest,
+                        ::testing::Values(RangeParams{0, 5, 1, PartialShape{5}},
+                                          RangeParams{0, 22, 2, PartialShape{11}},
+                                          RangeParams{1, 23, 2, PartialShape{11}},
+                                          RangeParams{1, 22, 2, PartialShape{11}},
+                                          RangeParams{0, 0, 1, PartialShape{0}},
+                                          RangeParams{1, 0, 2, PartialShape{0}}),
+                        PrintToDummyParamName());
+
+struct RangeNumpyTestWithNegatives : ::testing::TestWithParam<RangeParams>
+{
+};
+
+TEST_P(RangeNumpyTestWithNegatives, deduce_shape_i8)
+{
+    run_range_v4_test<int8_t>(element::i8, GetParam());
+}
+
+TEST_P(RangeNumpyTestWithNegatives, deduce_shape_i16)
+{
+    run_range_v4_test<int16_t>(element::i16, GetParam());
+}
+
+TEST_P(RangeNumpyTestWithNegatives, deduce_shape_i32)
+{
+    run_range_v4_test<int32_t>(element::i32, GetParam());
+}
+
+TEST_P(RangeNumpyTestWithNegatives, deduce_shape_i64)
+{
+    run_range_v4_test<int64_t>(element::i64, GetParam());
+}
+
+TEST_P(RangeNumpyTestWithNegatives, deduce_shape_bf16)
+{
+    run_range_v4_test<bfloat16>(element::bf16, GetParam());
+}
+
+TEST_P(RangeNumpyTestWithNegatives, deduce_shape_f16)
+{
+    run_range_v4_test<float16>(element::f16, GetParam());
+}
+
+TEST_P(RangeNumpyTestWithNegatives, deduce_shape_f32)
+{
+    run_range_v4_test<float>(element::f32, GetParam());
+}
+
+TEST_P(RangeNumpyTestWithNegatives, deduce_shape_f64)
+{
+    run_range_v4_test<double>(element::f64, GetParam());
+}
+
+INSTANTIATE_TEST_CASE_P(type_prop,
+                        RangeNumpyTestWithNegatives,
+                        ::testing::Values(RangeParams{2, 0, -2, PartialShape{1}},
+                                          RangeParams{2, 0, -1, PartialShape{2}},
+                                          RangeParams{-19, 19, 1, PartialShape{38}},
+                                          RangeParams{-19, 19, 3, PartialShape{13}},
+                                          RangeParams{20, -19, 1, PartialShape{0}}),
+                        PrintToDummyParamName());
+
+struct RangeNumpyTestFloating : ::testing::TestWithParam<RangeParams>
+{
+};
+
+TEST_P(RangeNumpyTestFloating, deduce_shape_bf16)
+{
+    run_range_v4_test<bfloat16>(element::bf16, GetParam());
+}
+
+TEST_P(RangeNumpyTestFloating, deduce_shape_f16)
+{
+    run_range_v4_test<float16>(element::f16, GetParam());
+}
+
+TEST_P(RangeNumpyTestFloating, deduce_shape_f32)
+{
+    run_range_v4_test<float>(element::f32, GetParam());
+}
+
+TEST_P(RangeNumpyTestFloating, deduce_shape_f64)
+{
+    run_range_v4_test<double>(element::f64, GetParam());
+}
+
+INSTANTIATE_TEST_CASE_P(type_prop,
+                        RangeNumpyTestFloating,
+                        ::testing::Values(RangeParams{0, 1, 0.25, PartialShape{4}},
+                                          RangeParams{-1, 1, 0.25, PartialShape{8}},
+                                          RangeParams{-1, 0.875, 0.25, PartialShape{8}}),
+                        PrintToDummyParamName());
