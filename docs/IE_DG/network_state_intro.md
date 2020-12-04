@@ -164,8 +164,8 @@ Let's represent in both forms the following graph:
 ```
 
 In this example `SinkVector` was used to create `ngraph::Function`. For network with states except inputs and outputs also Assign nodes should be pointed to Function 
-to avoid deleting it during graph transformations. It can be done with constructor as shown in example or with special method `Function::add_sink`. Also you can delete 
-sink from `Function` after deleting node from graph with `Function::delete_sink` method.
+to avoid deleting it during graph transformations. It can be done with constructor as shown in example or with special method `add_sinks(const SinkVector& sinks)`. Also you can delete 
+sink from `ngraph::Function` after deleting node from graph with `delete_sink()` method.
 
 ## OpenVINO state API
 
