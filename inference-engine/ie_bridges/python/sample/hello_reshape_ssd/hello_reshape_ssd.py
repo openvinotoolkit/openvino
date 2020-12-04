@@ -141,8 +141,8 @@ def main():
             # correcting coordinates to actual image resolution
             xmin, ymin, xmax, ymax = w_new * coords[0], h_new * coords[1], w_new * coords[2], h_new * coords[3]
 
-            log.info(f'    [{number},{label}] element, prob = {confidence:.6f}, \
-                bbox = ({xmin:.3f},{ymin:.3f})-({xmax:.3f},{ymax:.3f}), image id = {imid}')
+            log.info(f'    [{number},{label}] element, prob = {confidence:.6f}, '
+                f'bbox = ({xmin:.3f},{ymin:.3f})-({xmax:.3f},{ymax:.3f}), batch id = {imid}')
             if not imid in boxes.keys():
                 boxes[imid] = []
             boxes[imid].append([xmin, ymin, xmax, ymax])
