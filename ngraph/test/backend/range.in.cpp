@@ -16,9 +16,6 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/runtime/tensor.hpp"
-#include "runtime/backend.hpp"
-#include "util/all_close_f.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
@@ -45,48 +42,56 @@ struct RangeTest
 
 // TODO(amprocte): We should test this with more than just int32, but there is a bug in the
 // handling of element type-changing that is currently blocking doing that easily.
-NGRAPH_TEST(${BACKEND_NAME}, range)
+NGRAPH_TEST(${BACKEND_NAME}, range_v0_int32)
 {
-    // Create a graph for f(start,stop,step) = Range(start,stop,step).
-    auto start = make_shared<op::Parameter>(element::i32, Shape{});
-    auto stop = make_shared<op::Parameter>(element::i32, Shape{});
-    auto step = make_shared<op::Parameter>(element::i32, Shape{});
-
-    auto range = make_shared<op::Range>(start, stop, step);
-    ASSERT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
-
-    auto f = make_shared<Function>(NodeVector{range}, ParameterVector{start, stop, step});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
-
-    auto ex = backend->compile(f);
-
-    auto t_r = backend->create_dynamic_tensor(element::i32, PartialShape::dynamic());
-
+    element::Type_t et = element::i32;
     std::vector<RangeTest<int32_t>> int32_tests = {
         RangeTest<int32_t>{0, 10, 1, Shape{10}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
         RangeTest<int32_t>{-5, 6, 3, Shape{4}, {-5, -2, 1, 4}},
-        RangeTest<int32_t>{10, 0, 1, Shape{0}, {}},
         RangeTest<int32_t>{10, 5, -3, Shape{2}, {10, 7}}};
 
     for (auto& test : int32_tests)
     {
-        auto t_start = backend->create_tensor(element::i32, Shape{});
-        auto t_stop = backend->create_tensor(element::i32, Shape{});
-        auto t_step = backend->create_tensor(element::i32, Shape{});
+        // Create a graph for f(start,stop,step) = Range(start,stop,step).
+        auto start = make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{test.start});
+        auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{test.stop});
+        auto step = make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{test.step});
+        auto range = make_shared<op::Range>(start, stop, step);
+        auto pshape_out = range->get_output_partial_shape(0);
+        ASSERT_TRUE(pshape_out.rank().is_static() && pshape_out.rank() == Dimension{1});
+        auto f = make_shared<Function>(NodeVector{range}, ParameterVector{});
 
-        copy_data(t_start, std::vector<int32_t>{test.start});
-        copy_data(t_stop, std::vector<int32_t>{test.stop});
-        copy_data(t_step, std::vector<int32_t>{test.step});
+        auto test_case = test::TestCase<TestEngine>(f);
 
-        ex->call_with_validate({t_r}, {t_start, t_stop, t_step});
+        test_case.add_expected_output<int32_t>(test.expected_result_shape, test.expected_result);
+        test_case.run();
+    }
+}
 
-        ASSERT_EQ(t_r->get_element_type(), element::i32);
-        ASSERT_EQ(t_r->get_shape(), test.expected_result_shape);
+NGRAPH_TEST(${BACKEND_NAME}, range_v0_float32)
+{
+    element::Type_t et = element::f32;
+    std::vector<RangeTest<float>> float32_tests = {
+        RangeTest<float>{0, 1, 0.25, Shape{4}, {0, 0.25, 0.5, 0.75}},
+        RangeTest<float>{
+            -1, 0.875, 0.2, Shape{10}, {-1, -0.8, -0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6, 0.8}},
+        RangeTest<float>{2, 0, -0.25, Shape{8}, {2, 1.75, 1.5, 1.25, 1, 0.75, 0.5, 0.25}}};
 
-        auto results = read_vector<int32_t>(t_r);
+    for (auto& test : float32_tests)
+    {
+        // Create a graph for f(start,stop,step) = Range(start,stop,step).
+        auto start = make_shared<op::Constant>(et, Shape{}, std::vector<float>{test.start});
+        auto stop = make_shared<op::Constant>(et, Shape{}, std::vector<float>{test.stop});
+        auto step = make_shared<op::Constant>(et, Shape{}, std::vector<float>{test.step});
+        auto range = make_shared<op::Range>(start, stop, step);
+        auto pshape_out = range->get_output_partial_shape(0);
+        ASSERT_TRUE(pshape_out.rank().is_static() && pshape_out.rank() == Dimension{1});
+        auto f = make_shared<Function>(NodeVector{range}, ParameterVector{});
 
-        ASSERT_EQ(results, test.expected_result);
+        auto test_case = test::TestCase<TestEngine>(f);
+
+        test_case.add_expected_output<float>(test.expected_result_shape, test.expected_result);
+        test_case.run();
     }
 }
 

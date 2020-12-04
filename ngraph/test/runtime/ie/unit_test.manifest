@@ -671,10 +671,11 @@ relu_2Dbackprop
 relu_4Dbackprop
 
 # data [<name>] doesn't exist
-range
 parameter_as_output
 
 # MKLDNNGraph::CreateGraph: No inputs for the topology
+range_v0_int32
+range_v0_float32
 range_v4_int32
 range_v4_float32
 
