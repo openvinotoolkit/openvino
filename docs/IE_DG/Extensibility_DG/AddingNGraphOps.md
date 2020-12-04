@@ -73,7 +73,7 @@ When specifying opset names, follow the rules below:
 * Use unique opset names.
 * Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opset2`, `opset3`, ... , `opsetN`.
 * Make sure that the Model Optimizer and your extension use the same opset names.
-* IR v10 layers have the mandatory `version` attribute specifying the opset. 
+* IR v10 operations have the mandatory `version` attribute specifying the opset.
 Operations from the default opset cannot be redefined.
 
 Use a custom opset to create a new operation or extend functionality of an existing operation from another opset.

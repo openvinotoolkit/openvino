@@ -51,24 +51,25 @@ To see the operations that are supported by each device plugin for the Inference
 
 ### Custom Operation Support for the Model Optimizer
 
-Model Optimizer model conversion pipeline is described in details in
-[Model Conversion Pipeline](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#model-conversion-pipeline).
+Model Optimizer model conversion pipeline is described in details in "Model Conversion Pipeline" section on the
+[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 It is recommended to read that article first for a better understanding of the following material.
 
 Model Optimizer provides extensions mechanism to support new operations and implement custom model transformations to
-generate optimized IR. This mechanism is described in the
-[Model Optimizer Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#extensions).
+generate optimized IR. This mechanism is described in the "Model Optimizer Extensions" section on the
+[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 
 Two types of the Model Optimizer extensions should be implemented to support custom operation at minimum:
 1. Operation class for a new operation. This class stores information about the operation, its attributes, shape
 inference function, attributes to be saved to an IR and some others internally used attributes. Refer to the
-[Model Optimizer Operation](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#extension-operation)
-for the detailed instruction on how to implement it.
+"Model Optimizer Operation" section on the
+[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for the
+detailed instruction on how to implement it.
 2. Operation attributes extractor. The extractor is responsible for parsing framework-specific representation of the
 operation and uses corresponding operation class to update graph node attributes with necessary attributes of the
-operation. Refer to the
-[Operation Extractor](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#operation-extractor)
-for the detailed instruction on how to implement it.
+operation. Refer to the "Operation Extractor" section on the
+[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for the
+detailed instruction on how to implement it.
 
 > **NOTE:** In some cases you may need to implement some transformation to support the operation. This topic is covered
 > in the [Graph Transformation Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer#graph-transformations).
@@ -103,32 +104,32 @@ example is prepared for a model generated from the repository with hash 2ede2f96
 The original pre-trained model is provided in the hdf5 format which is not supported by OpenVINO directly and needs to
 be converted to TensorFlow\* frozen model format first.
 
-1. Download repository https://github.com/rmsouza01/Hybrid-CS-Model-MRI
+1. Download repository `https://github.com/rmsouza01/Hybrid-CS-Model-MRI`:<br>
     ```bash
     git clone https://github.com/rmsouza01/Hybrid-CS-Model-MRI
     git checkout 2ede2f96161ce70dcdc922371fe6b6b254aafcc8
     ```
 
 2. Convert pre-trained `.hdf5` to a frozen `.pb` graph using the following script (tested with TensorFlow==1.15.0 and
-Keras==2.2.4) which should be executed from the root of the cloned repository:
+Keras==2.2.4) which should be executed from the root of the cloned repository:<br>
     ```py
     import keras as K
     import numpy as np
     import Modules.frequency_spatial_network as fsnet
     import tensorflow as tf
-    
+
     under_rate = '20'
-    
+
     stats = np.load("Data/stats_fs_unet_norm_" + under_rate + ".npy")
     var_sampling_mask = np.load("Data/sampling_mask_" + under_rate + "perc.npy")
-    
+
     model = fsnet.wnet(stats[0], stats[1], stats[2], stats[3], kshape = (5,5), kshape2=(3,3))
     model_name = "Models/wnet_" + under_rate + ".hdf5"
     model.load_weights(model_name)
-    
+
     inp = np.random.standard_normal([1, 256, 256, 2]).astype(np.float32)
     np.save('inp', inp)
-    
+
     sess = K.backend.get_session()
     sess.as_default()
     graph_def = sess.graph.as_graph_def()
@@ -188,11 +189,12 @@ additional parameter `--log_level DEBUG`. It is worth to mention the following l
 [ <TIMESTAMP> ] [ DEBUG ] [ infer:32 ]  input[0]: shape = [  1 256 256], value = <UNKNOWN>
 ```
 
-This is a part of the log of the [Partial Inference](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#partial-inference)
-phase of the model conversion. Model Optimizer inferred output shape for the unknown operation of type "Complex" using a
-"fallback" to TensorFlow\*. However, it is not enough to generate the IR because Model Optimizer doesn't know which
-attributes of the operation should be saved to IR. So it is necessary to implement Model Optimizer extensions to support
-these operations.
+This is a part of the log of the partial inference phase of the model conversion. See the "Partial Inference" section on
+the [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for
+more information about this phase. Model Optimizer inferred output shape for the unknown operation of type "Complex"
+using a "fallback" to TensorFlow\*. However, it is not enough to generate the IR because Model Optimizer doesn't know
+which  attributes of the operation should be saved to IR. So it is necessary to implement Model Optimizer extensions to
+support these operations.
 
 Before going into the extension development it is necessary to understand what these unsupported operations do according
 to the TensorFlow\* framework specification.
@@ -224,13 +226,15 @@ model. The implementation of the Model Optimizer operation should be saved to `m
 
 The attribute `inverse` is a flag specifying type of the FFT to apply: forward or inverse.
 
-Refer to the [Model Optimizer Operation](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#extension-operation)
-for the detailed instruction on how to implement the operation.
+See the "Model Optimizer Operation" section on the
+[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for the
+detailed instruction on how to implement the operation.
 
 Now it is necessary to implement extractor for the "IFFT2D" operation according to the
-[Operation Extractor](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#operation-extractor)
-document. The following snippet provides two extractors: one for "IFFT2D", another one for "FFT2D", however only on of
-them is used in this example. The implementation should be saved to the file `mo_extensions/front/tf/FFT_ext.py`.
+"Operation Extractor" section on the 
+Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md). The
+following snippet provides two extractors: one for "IFFT2D", another one for "FFT2D", however only on of  them is used
+in this example. The implementation should be saved to the file `mo_extensions/front/tf/FFT_ext.py`.
 
 @snippet FFT_ext.py fft_ext:extractor
 
@@ -246,8 +250,9 @@ consumed with the "Complex" operation to produce a tensor of complex numbers. Th
 operations can be removed so the "FFT" operation will get a real value tensor encoding complex numbers. To achieve this
 we implement the front phase transformation which searches for a pattern of two "StridedSlice" operations with specific
 attributes producing data to "Complex" operation and removes it from the graph. Refer to the
-[Pattern-Defined Front Phase Transformations](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md#pattern-defined-front-phase-transformations)]
-for more information on how this type of transformation works. The implementation should be saved to the file
+"Pattern-Defined Front Phase Transformations" section on the
+[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for more
+information on how this type of transformation works. The code snippet should be saved to the file
 `mo_extensions/front/tf/Complex.py`.
 
 @snippet Complex.py complex:transformation
@@ -256,7 +261,7 @@ for more information on how this type of transformation works. The implementatio
 > tensor but "FFT" produces real value tensor.
 
 Now lets implement a transformation which replace a "ComplexAbs" operation with a sub-graph of primitive operations
-which calculate the result using the following formulae: \f$module(z) = \sqrt{z.real * z.real + z.imag * z.imag}\f$.
+which calculate the result using the following formulae: \f$module(z) = \sqrt{z.real \cdot z.real + z.imag \cdot z.imag}\f$.
 Original "IFFT2D" operation produces tensor of complex values but the "FFT" operation produces a real value tensor with
 the same format and shape as the input for the operation. So the input shape for the "ComplexAbs" will be `[N, H, W, 2]`
 with the innermost dimension containing tuple with real and imaginary part of a complex number. In order to calculate
@@ -286,7 +291,7 @@ The sub-graph corresponding to the originally non-supported one is depicted on t
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- [Model Optimizer Customization](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
+- [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
 - [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 - [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)

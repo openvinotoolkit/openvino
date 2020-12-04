@@ -1,4 +1,4 @@
-# Model Optimizer Customization {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
+# Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
 
 * [Model Representation in Memory](#model-representation-in-memory)
 * [Model Conversion Pipeline](#model-conversion-pipeline)

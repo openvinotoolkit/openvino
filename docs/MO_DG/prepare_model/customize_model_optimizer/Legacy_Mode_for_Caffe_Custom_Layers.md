@@ -11,7 +11,7 @@ not satisfy the condition. Internally, Caffe fallback forwards the whole net wit
 noise. It is natural to get only one bounding box (0,0,0,0) instead of expected number (for example, 15). There is an
 option to patch Caffe accordingly, however, it makes success of Intermediate Representation generation on the patched
 Caffe on the particular machine. To keep the solution independent from Caffe, we recommend to use extensions mechanism
-for such layers described in the [Model Optimizer Customization](Customize_Model_Optimizer.md).
+for such layers described in the [Model Optimizer Extensibility](Customize_Model_Optimizer.md).
 * It is not possible to produce Intermediate Representation on a machine that does not have Caffe installed.
 
 > **NOTE**: Caffe Python\* API has an issue when layer name does not correspond to the name of its top. The fix was
