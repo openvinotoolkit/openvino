@@ -41,6 +41,7 @@ private:
     void DropDoubleReorders(MKLDNNGraph& graph);
     void DropConvertReorder(MKLDNNGraph& graph);
     void ChangeConvertToReorder(MKLDNNGraph &graph);
+    void AddConvertToReorder(MKLDNNGraph &graph);
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);

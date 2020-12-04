@@ -40,6 +40,7 @@
 #include <memory>
 #include <set>
 #include <algorithm>
+#include <nodes/mkldnn_convert_node.h>
 
 #include "mkldnn_itt.h"
 
@@ -143,6 +144,9 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     graph.RemoveDroppedNodes();
 
     DropDoubleReorders(graph);
+    graph.RemoveDroppedNodes();
+
+    AddConvertToReorder(graph);
     graph.RemoveDroppedNodes();
 
     DropConvertReorder(graph);
@@ -2313,4 +2317,84 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
             mergePermuteAndReorder(parentNode, childNode);
         }
     }
+}
+
+static bool isReorderAvailable(const MKLDNNEdgePtr parentEdge, const MKLDNNEdgePtr childEdge, const mkldnn::engine& eng) {
+    MKLDNNMemoryDesc dstMemDesc(childEdge->getDesc());
+    MKLDNNMemoryDesc srcMemDesc(parentEdge->getDesc());
+
+    memory::primitive_desc dstPrimitiveDesc(dstMemDesc, eng);
+    memory::primitive_desc srcPrimitiveDesc(srcMemDesc, eng);
+    mkldnn::primitive_attr attr;
+
+    mkldnn_primitive_desc_t result = nullptr;
+    auto status = mkldnn_reorder_primitive_desc_create_v2(&result, srcPrimitiveDesc.get(), dstPrimitiveDesc.get(), attr.get());
+    if (result) {
+        mkldnn_primitive_desc_destroy(result);
+    }
+
+    return mkldnn_success == status;
+}
+
+void MKLDNNGraphOptimizer::AddConvertToReorder(MKLDNNGraph &graph) {
+    const auto& vecNodes = graph.GetNodes();
+//    size_t total = 0;
+//    size_t count = 0;
+    for (int i = 0; i < vecNodes.size(); i++) {
+        auto node = vecNodes[i];
+        if (Reorder == node->getType()) {
+            auto inpEdge = node->getParentEdgeAt(0);
+            auto outEdge = node->getChildEdgeAt(0);
+
+//            std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+//            isReorderAvailable(inpEdge, outEdge, graph.getEngine());
+//            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+//            auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
+//
+//            std::cout << "Time difference = " << time << "[ns]" << std::endl;
+//
+//            total += time;
+//            ++count;
+
+            // Check if there is a reorder that supports the type conversion
+            if (isReorderAvailable(inpEdge, outEdge, graph.getEngine())) {
+                continue;
+            }
+
+            std::string convertName = inpEdge->getParent()->getName() + "_" +
+                    inpEdge->getDesc().getPrecision().name() + "_" + outEdge->getDesc().getPrecision().name();
+            //Insert Convert before the reorder
+            // make CNNLayer
+            CNNLayerPtr convert(new  CNNLayer(LayerParams{convertName, "Convert", outEdge->getDesc().getPrecision()}));
+
+            auto oIndex = outEdge->getOutputNum();
+            auto iIndex = inpEdge->getInputNum();
+            if (iIndex < 0 || oIndex < 0)
+                THROW_IE_EXCEPTION << "Cannot insert node '" << node->getName() << "' between nodes: "
+                                   << inpEdge->getParent()->getName() << " and "
+                                   << outEdge->getChild()->getName() << ".";
+
+            auto convertNode = std::make_shared<MKLDNNConvertNode>(convert, graph.getEngine(), graph.weightsCache);
+            convertNode->setDescs(inpEdge->getDesc(), outEdge->getDesc());
+            graph.InsertNode(inpEdge->getParent(), outEdge->getChild(), convertNode, iIndex, oIndex);
+
+            if (inpEdge->getDesc().getBlockingDesc() != outEdge->getDesc().getBlockingDesc()) {
+                //input and output layouts are different so the reorder is still needed
+                auto edge = convertNode->getChildEdgeAt(0);
+                auto convertOutputDesc = convertNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
+
+                std::string reorderName = edge->getParent()->getName() + "_" +
+                        MKLDNNExtensionUtils::getReorderArgs(convertOutputDesc, outEdge->getDesc()) +
+                        "_" + edge->getChild()->getName();
+                graph.InsertReorder(edge, reorderName, convertOutputDesc, outEdge->getDesc());
+            }
+
+            inpEdge->drop();
+            outEdge->drop();
+            graph.DropNode(node);
+        }
+    }
+//    std::cout << "Total time = " << float(total) / 1000.f << "[mcs]" << std::endl;
+//    std::cout << "Average time = " << float(total) / 1000.f / count << "[mcs]" << std::endl;
 }
