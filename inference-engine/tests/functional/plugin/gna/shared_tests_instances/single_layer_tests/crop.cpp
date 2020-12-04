@@ -36,10 +36,14 @@ const std::vector<cropParams> params = {
     std::make_tuple(std::vector<size_t>{1, 16}, std::vector<int64_t>{0, 1}, std::vector<int64_t>{1, 8}, std::vector<int64_t>{0, 1}),
     std::make_tuple(std::vector<size_t>{1, 33}, std::vector<int64_t>{0, 1}, std::vector<int64_t>{1, 15}, std::vector<int64_t>{0, 1}),
     std::make_tuple(std::vector<size_t>{1, 1, 33}, std::vector<int64_t>{0, 1, 2}, std::vector<int64_t>{1, 1, 15}, std::vector<int64_t>{0, 0, 1}),
-    //std::make_tuple(std::vector<size_t>{1, 1, 65, 16}, std::vector<int64_t>{0, 1, 2, 3}, std::vector<int64_t>{1, 1, 65, 15}, std::vector<int64_t>{0, 0, 0, 1}),
-    //std::make_tuple(std::vector<size_t>{1, 2, 1, 16}, std::vector<int64_t>{0, 1, 2, 3}, std::vector<int64_t>{1, 1, 1, 16}, std::vector<int64_t>{0, 0, 0, 0}),
-    //std::make_tuple(std::vector<size_t>{1, 2, 1, 16}, std::vector<int64_t>{0, 1, 2, 3}, std::vector<int64_t>{1, 1, 1, 16}, std::vector<int64_t>{0, 1, 0, 0}),
-    //std::make_tuple(std::vector<size_t>{1, 2, 1, 16}, std::vector<int64_t>{0, 1, 2, 3}, std::vector<int64_t>{1, 2, 1, 8}, std::vector<int64_t>{0, 0, 0, 1})
+    //std::make_tuple(std::vector<size_t>{1, 1, 65, 16}, std::vector<int64_t>{0, 1, 2, 3},
+    //                std::vector<int64_t>{1, 1, 65, 15}, std::vector<int64_t>{0, 0, 0, 1}),
+    //std::make_tuple(std::vector<size_t>{1, 2, 1, 16}, std::vector<int64_t>{0, 1, 2, 3},
+    //                std::vector<int64_t>{1, 1, 1, 16}, std::vector<int64_t>{0, 0, 0, 0}),
+    //std::make_tuple(std::vector<size_t>{1, 8, 1, 16}, std::vector<int64_t>{0, 1, 2, 3},
+    //                std::vector<int64_t>{1, 4, 1, 16}, std::vector<int64_t>{0, 0, 0, 0}),
+    //std::make_tuple(std::vector<size_t>{1, 2, 1, 16}, std::vector<int64_t>{0, 1, 2, 3},
+    //                std::vector<int64_t>{1, 2, 1, 8}, std::vector<int64_t>{0, 0, 0, 1})
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_Crop_Basic, Crop4DLayerTest,
