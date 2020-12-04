@@ -201,7 +201,7 @@ public:
     }
 
     explicit operator bool() const noexcept {
-        return (nullptr != _so_loader) && (nullptr != _pointedObj);
+        return (nullptr != _pointedObj);
     }
 
     friend bool operator==(std::nullptr_t, const SOPointer& ptr) noexcept {
