@@ -37,7 +37,7 @@ namespace ngraph
     {
         namespace common
         {
-            const ngraph::element::Type& get_ngraph_element_type(std::int64_t onnx_type);
+            const ngraph::element::Type get_ngraph_element_type(std::int64_t onnx_type);
 
             /// \brief      Return a monotonic sequence.
             ///

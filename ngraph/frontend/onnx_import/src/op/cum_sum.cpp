@@ -41,8 +41,8 @@ namespace ngraph
                     }
                     else
                     {
-                        axis =
-                            default_opset::Constant::create(element::i64, Shape{}, {0}); // default
+                        axis = default_opset::Constant::create(
+                            element::Type_t::i64, Shape{}, {0}); // default
                     }
                     return OutputVector{
                         std::make_shared<default_opset::CumSum>(data, axis, exclusive, reverse)};

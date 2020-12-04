@@ -39,7 +39,6 @@
 #include <nodes/mkldnn_bin_conv_node.h>
 #include <nodes/mkldnn_def_conv_node.h>
 #include <nodes/mkldnn_mvn_node.h>
-#include <nodes/mkldnn_resample_node.h>
 #include <nodes/mkldnn_normalize_node.h>
 #include <nodes/mkldnn_reduce_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
@@ -123,7 +122,6 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Memory", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
         { "MVN", MVN},
-        { "Resample", Resample},
         { "Normalize", Normalize},
         { "ScatterUpdate", ScatterUpdate},
         { "ScatterElementsUpdate", ScatterElementsUpdate},

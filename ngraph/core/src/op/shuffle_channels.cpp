@@ -13,10 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include <numeric>
 
-#include "ngraph/op/shuffle_channels.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
+#include "ngraph/op/shuffle_channels.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/opt_kernel/reshape.hpp"
+#include "ngraph/type/element_type.hpp"
+#include "ngraph/type/element_type_traits.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -28,7 +33,7 @@ constexpr NodeTypeInfo op::ShuffleChannels::type_info;
 op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,
                                      const int64_t axis,
                                      const int64_t group)
-    : FusedOp({data})
+    : Op({data})
     , m_axis(axis)
     , m_group{group}
 {
@@ -61,8 +66,9 @@ size_t op::ShuffleChannels::get_zero_based_axis() const
     }
 }
 
-void op::ShuffleChannels::pre_validate_and_infer_types()
+void op::ShuffleChannels::validate_and_infer_types()
 {
+    const auto& data_type = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static())
     {
         const auto shape = get_input_shape(0);
@@ -84,18 +90,13 @@ void op::ShuffleChannels::pre_validate_and_infer_types()
             this,
             channel_dim_size % m_group == 0,
             "The channel dimension size has to be a multiple of the groups parameter value.");
+        set_output_size(1);
+        set_output_type(0, data_type, shape);
     }
-}
-
-OutputVector op::ShuffleChannels::decompose_op() const
-{
-    const auto data = input_value(0);
-    const auto& data_shape = data.get_shape();
-
-    const auto reshaped = builder::opset1::reshape(data, get_pre_shuffle_shape(data_shape));
-    const auto shuffled = builder::opset1::reorder_axes(reshaped, {0, 2, 1, 3});
-
-    return {builder::opset1::reshape(shuffled, data_shape)};
+    else
+    {
+        set_output_type(0, data_type, PartialShape::dynamic());
+    }
 }
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const
@@ -136,4 +137,47 @@ Shape op::ShuffleChannels::get_pre_shuffle_shape(const Shape& data_shape) const
     }
 
     return res;
+}
+
+bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
+                                   const HostTensorVector& inputs) const
+{
+    const auto arg = inputs[0]->get_data_ptr<const char>();
+    auto out = outputs[0]->get_data_ptr<char>();
+    Shape data_shape = inputs[0]->get_shape();
+    const Shape& ds = data_shape;
+    size_t elem_size = inputs[0]->get_element_type().size();
+
+    Shape reshaped_out_shape(4, 1);
+    size_t axis_zb = m_axis >= 0 ? m_axis : m_axis + data_shape.size();
+    for (size_t i = 0; i < axis_zb; ++i)
+    {
+        reshaped_out_shape[0] *= ds[i];
+    }
+
+    reshaped_out_shape[1] = m_group;
+    reshaped_out_shape[2] = ds[axis_zb] / m_group;
+
+    for (size_t i = axis_zb + 1; i < ds.size(); ++i)
+    {
+        reshaped_out_shape[3] *= ds[i];
+    }
+    size_t data_size = shape_size(data_shape) * elem_size;
+
+    // first reshape from data_shape to reshaped_out_shape is skipped since it doesn't affect out
+    // data
+
+    Shape transpose_axes_order = {0, 2, 1, 3};
+    Shape transposed_shape(transpose_axes_order.size());
+
+    for (size_t i = 0; i < transpose_axes_order.size(); ++i)
+    {
+        transposed_shape[i] = data_shape.at(transpose_axes_order.at(i));
+    }
+    auto axis_vector = AxisVector{begin(transpose_axes_order), end(transpose_axes_order)};
+    runtime::opt_kernel::reshape(
+        arg, out, reshaped_out_shape, axis_vector, transposed_shape, elem_size);
+
+    // last reshape from transposed_shape to data_shape is skipped since it doesn't affect out data
+    return true;
 }

@@ -74,6 +74,15 @@ INTERPRETER.fused_clamp_bfloat16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
+# Revise reference implementation
+onnx_dyn_model_hardmax
+onnx_model_one_hot_with_axis
+onnx_model_one_hot_with_axis
+onnx_model_quantize_linear_const_scale_const_zero_p
+onnx_model_quantize_linear
+onnx_model_quantize_linear_axis_zero
+onnx_model_quantize_linear_axis_negative
+
 # Backward conv
 INTERPRETER.convolution_2d_1item
 INTERPRETER.convolution_2d_1item_padded_1_1x1_1
@@ -118,12 +127,22 @@ onnx_model_lstm_bdir_short_input_seq_peepholes
 lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
 
+
+# Check 'n_data_channels % groups == 0' failed
+dyn_group_convolution_backprop_data
+
+# Check 'num_dyn_nodes_this_pass < num_dyn_nodes_last_pass' failed
+dyn_convolution_backprop_data
+
 # unsupported element type f16
 INTERPRETER.ctc_greedy_decoder_f16
 
+# Issue 37473. Fails on ia32 platforms only
+onnx_model_softmax_axis_0
+onnx_model_reshape_negative_dim
+
 # LogSoftmax's reference implementation doesn't handle scalar input properly
 onnx_model_logsoftmax_0D
-
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
 onnx_controlflow_loop_concat_values
