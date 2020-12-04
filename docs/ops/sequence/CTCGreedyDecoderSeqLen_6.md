@@ -30,10 +30,18 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
   * **Type**: `boolean`
   * **Default value**: true
   * **Required**: *no*
-  
-* *index_element_type*
+    
+* *classes_index_type*
 
-  * **Description**: the type of output tensor with indices
+  * **Description**: the type of output tensor with classes indices
+  * **Range of values**: "i64" or "i32"
+  * **Type**: string
+  * **Default value**: "i32"
+  * **Required**: *No*
+  
+* *sequence_length_type*
+
+  * **Description**: the type of output tensor with sequence length
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i32"
@@ -49,9 +57,9 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 **Output**
 
-* **1**: Output tensor of type *T_I* shape `[N, T]` and containing the decoded classes. Tensor of indices must be with lexicographically sorted indices. All elements that do not code sequence classes are filled with -1.
+* **1**: Output tensor of type *T_IND1* shape `[N, T]` and containing the decoded classes. All elements that do not code sequence classes are filled with -1.
 
-* **2**: Output tensor of type *T_I* shape `[N]` and containing length of decoded class sequence for each batch.
+* **2**: Output tensor of type *T_IND2* shape `[N]` and containing length of decoded class sequence for each batch.
 
 **Types**
 
@@ -59,10 +67,14 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * *T_I*: `int32` or `int64`.
 
+* *T_IND1*: `int32` or `int64` and depend from `classes_index_type` attribute.
+
+* *T_IND2*: `int32` or `int64` and depend from `sequence_length_type` attribute.
+
 **Example**
 
 ```xml
-<layer type="CTCGreedyDecoderSeqLen" merge_repeated="true" index_element_type="i64">
+<layer type="CTCGreedyDecoderSeqLen" merge_repeated="true" classes_index_type="i64" sequence_length_type="i64">
     <input>
         <port id="0">
             <dim>20</dim>
