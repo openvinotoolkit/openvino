@@ -49,6 +49,7 @@ TEST_P(SerializationTest, CompareFunctions) {
 
 INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
         testing::Values(std::make_tuple("add_abc.xml"),
+                        std::make_tuple("add_abc_f64.xml"),
                         std::make_tuple("split_equal_parts_2d.xml"),
                         std::make_tuple("addmul_abc.xml"),
                         std::make_tuple("add_abc_initializers.xml"),
