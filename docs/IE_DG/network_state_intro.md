@@ -5,39 +5,39 @@ This section provides description how to work with stateful networks in OpenVINO
 are represented in IR and Ngraph, how operations with state can be done. Section provides small examples 
 of stateful network and code to infer it.
 
-## What is a stateful network
+## What is stateful network
 
- Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
- we can process it with RNN like networks that contain a cycle inside. But in some cases, like online speech recognition of time series 
- forecasting, length of data sequence is unknown. Then data can be divided in small portions and processed step-by-step. But dependency 
- between data portions should be addressed. For that, networks save some data between inferences - state. When one dependent sequence is over,
+ Several use cases require processing of data sequences. When length of sequence is known and small enough, 
+ we can process it with RNN like networks which contains cycle inside. But in some cases like online speech recognition of time series 
+ forecasting length of data sequence is unknown. Then data can be divided in small portions and processed step by step. But dependency 
+ between data portions should be addressed. For that networks saved some data between inferences - state. When one dependent sequence is over,
  state should be reset to initial value and new sequence can be started.
  
- Several frameworks have special API for states in networks. For example, Keras have special option for RNNs `stateful` that turns on saving state 
- between inferences. Kaldi contains special specifier `Offset` to define time offset in a network. 
+ Several frameworks have special API for states in networks. For example, Keras have special option for RNNs `stateful` that turn on saving state 
+ between inferences. Kaldi contains special specifier `Offset` to define time offset in network. 
  
- OpenVINO also contains special API to simplify work with networks with states. State is automatically saved between inferences, 
- and there is a way to reset state when needed. You can also read state or set it to some new value between inferences.
+ OpenVINO contains special API to simplify work with networks with states too. State will be automatically saved between inferences 
+ and there is a way to reset state when needed. Also user can read state or set it to some new value between inferences.
  
 ## OpenVINO state representation
 
- OpenVINO contains special abstraction variable to represent state in a network. There are two operations to work with state: 
+ OpenVINO contains special abstraction Variable to represent state in network. There are 2 operations to work with state: 
 * `Assign` to save value in state
-* `ReadValue` to read value saved on previous iteration
+* `ReadValue` to read value saved on previous iteration.
 
-You can find more details on these operations in [ReadValue specification](../ops/infrastructure/ReadValue_3.md) and 
+More details on these operations you can find in [ReadValue specification](../ops/infrastructure/ReadValue_3.md) and 
 [Assign specification](../ops/infrastructure/Assign_3.md).
 
-## Examples of representation of a network with states
+## Examples of representation of network with states
 
-To get a model with states ready for inference, you can convert a model from another framework to IR with Model Optimizer or create an nGraph function 
+To get model with states ready for inference you can convert model from another framework with ModelOptimizer to IR or create ngraph function 
 (details can be found in [Build nGraph Function section](../nGraph_DG/build_function.md)). 
-Let's represent the following graph in both forms:
+Let's represent in both forms the following graph:
 ![state_network_example]
 
 ### Example of IR with state
 
-The `bin` file for this graph should contain float 0 in binary form. Content of `xml` is the following.
+`bin` file for this graph should contain float 0 in binary form. `xml` is the following.
 
 ```xml
 <?xml version="1.0" ?>
@@ -148,7 +148,7 @@ The `bin` file for this graph should contain float 0 in binary form. Content of 
 </net>
 ```
 
-### Example of creating model nGraph API
+### Example of creating model Ngraph API
 
 ```cpp
     auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 1});
@@ -163,13 +163,13 @@ The `bin` file for this graph should contain float 0 in binary form. Content of 
     auto f = make_shared<Function>(ResultVector({res}), ParameterVector({arg}), SinkVector({assign}));
 ```
 
-In this example, `SinkVector` is used to create `ngraph::Function`. For network with states, except inputs and outputs,  `Assign` nodes should also point to `Function` 
-to avoid deleting it during graph transformations. You can do it with the constructor, as shown in the example, or with the special method `add_sinks(const SinkVector& sinks)`. Also you can delete 
-sink from `ngraph::Function` after deleting the node from graph with the `delete_sink()` method.
+In this example `SinkVector` was used to create `ngraph::Function`. For network with states except inputs and outputs also Assign nodes should be pointed to Function 
+to avoid deleting it during graph transformations. It can be done with constructor as shown in example or with special method `add_sinks(const SinkVector& sinks)`. Also you can delete 
+sink from `ngraph::Function` after deleting node from graph with `delete_sink()` method.
 
 ## OpenVINO state API
 
- Inference Engine has the `InferRequest::QueryState` method  to get the list of states from a network and `IVariableState` interface to operate with states. Below you can find brief description of methods and the workable example of how to use this interface.  
+ InferenceEngine have method `InferRequest::QueryState` to get list of states from network and IVariableState interface to operate with state. Brief description of methods 
  is below and next section contains small workable example how this interface can be used.
  
  * `std::string GetName() const`
@@ -181,96 +181,18 @@ sink from `ngraph::Function` after deleting the node from graph with the `delete
  * `Blob::CPtr GetState() const`
    returns current value of state
 
-## Example of stateful network inference
+## Example of inference stateful network
 
-Let's take an IR from the previous section example. The example below demonstrates inference of two independent sequences of data. State should be reset between these sequences.
+Let's take IR from example in prevous sections. In this example inference of 2 independent sequences of data will be demonstrated. Between these sequences state should be reset.
 
 One infer request and one thread 
 will be used in this example. Using several threads is possible if you have several independent sequences. Then each sequence can be processed in its own infer 
 request. Inference of one sequence in several infer requests is not recommended. In one infer request state will be saved automatically between inferences, but 
-if the first step is done in one infer request and the second in another, state should be set in new infer request manually (using `IVariableState::SetState` method).
+if the first step done in one infer request and the second in another, state should be set in new infer request manually (using `IVariableState::SetState` method).
 
 @snippet openvino/docs/snippets/InferenceEngine_network_with_state_infer.cpp part1
 
-You can find more powerful examples demonstrating how to work with networks with states in speech sample and demo. 
+More powerfull examples of work with networks with states are sample and demo demonstrating work with speech. 
 Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
 
 [state_network_example]: ./img/state_network_example.png
-
-
-## LowLatency transformation
-
-If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain Assign/ReadValue layers. For example, if the original ONNX model contains RNN operations, IR will contain TensorIterator operations and the values will be obtained only after the execution of whole TensorIterator primitive, intermediate values from each iteration will not be available. To be able to work with these intermediate values of each iteration and receive them with a low latency after each infer request, a special LowLatency transformation was introduced.
-
-LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) by adding the ability to work with state, inserting Assign/ReadValue layers as it is shown in the picture below.
-
-![applying_low_latency_example](./img/applying_low_latency.png)
-
-### Steps to apply LowLatency transformation
-
-1. Get CNNNetwork. Any way is acceptable:
-
-	* [from IR or ONNX model](Integrate_with_customer_application_new_API.md#integration-steps)
-	* [from nGraph Function](../nGraph_DG/build_function.md)
-
-2. [Reshape](ShapeInference) CNNNetwork network if necessary 
-
-	**Necessary case:** the sequence_lengths dimention of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension exactly to 1.
- 
-	```cpp
-
-	// Network before reshape: Parameter (name: X, shape: [2 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 2, axis = 0) -> ...
-
-	cnnNetwork.reshape({“X” : {1, 1, 16});
-
-	// Network after reshape: Parameter (name: X, shape: [1 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 1, axis = 0) -> ...
-		
-	```
-3. Apply LowLatency transformation
-
-	```cpp
-	#include "ie_transformations.hpp"
-	
-	...
-
-	InferenceEngine::LowLatency(cnnNetwork);
-	```
-
-	**State naming rule:**  a name of state is a concatenation of names: original TensorIterator operation, Parameter of the body, and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator), for example:
-
-		tensor_iterator_name = "TI_name"
-		body_parameter_name = "param_name"
-
-		state_name = "TI_name/param_name/variable_0"
-
-4. [Use state API](#openvino-state-api)
-
- 
-### Known limitations
-1. Parameters are directly connected to States (ReadValues).
-
-	Removing Parameters from `ngraph::Function` is not possible.
-
-	![low_latency_limitation_1](./img/low_latency_limitation_1.png)
-
-	**Current solution:** replace Parameter with Constant (freeze) with the value [0, 0, 0 … 0] via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input` or `--freeze_placeholder_with_value`.
-
-2.  Non-reshapable network.
-
-	Value of shapes is hard-coded somewhere in the network. 
-
-	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
-
-	**Current solution:** trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output` or via nGraph.
-
-	```cpp
-		// nGraph example:
-		auto func = cnnNetwork.getFunction();
-		auto new_const = std::make_shared<ngraph::opset5::Constant>(); // type, shape, value
-		for (const auto& node : func->get_ops()) {
-			if (node->get_friendly_name() == "name_of_non_reshapable_const") {
-				auto bad_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(node);
-				ngraph::replace_node(bad_const, new_const); // replace constant
-			}
-		}
-	```
