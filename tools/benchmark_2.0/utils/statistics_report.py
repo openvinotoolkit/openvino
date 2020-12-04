@@ -88,7 +88,7 @@ class StatisticsReport:
             return
 
         if not perf_counts:
-            logger.info('Peformance counters are empty. No reports are dumped.')
+            logger.info('Performance counters are empty. No reports are dumped.')
             return
 
         filename = os.path.join(self.config.report_folder, 'benchmark_{}_report.csv'.format(self.config.report_type))
