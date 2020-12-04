@@ -15,6 +15,7 @@
 """
 import os
 from datetime import datetime
+import time
 from statistics import median
 from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
 
@@ -25,13 +26,14 @@ from .utils.statistics_report import StatisticsReport
 
 class Benchmark:
     def __init__(self, device: str, number_infer_requests: int = None, number_iterations: int = None,
-                 duration_seconds: int = None, api_type: str = 'async'):
+                 duration_seconds: int = None, api_type: str = 'async', mode : str = "old"):
         self.device = device
         self.ie = IECore()
         self.nireq = number_infer_requests
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
         self.api_type = api_type
+        self.mode = mode
 
     def __del__(self):
         del self.ie
@@ -67,12 +69,19 @@ class Benchmark:
         return ie_network
 
     def load_network(self, ie_network: IENetwork, config = {}):
-        exe_network = self.ie.load_network(ie_network,
+        if self.mode == "poc":
+            exe_network = self.ie.load_network(ie_network,
+                                               self.device,
+                                               config=config)
+            # Number of requests
+            self.nireq = 1 if self.api_type == 'sync' else self.nireq or 0
+        else:
+            exe_network = self.ie.load_network(ie_network,
                                            self.device,
                                            config=config,
                                            num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
-        # Number of requests
-        self.nireq = len(exe_network.requests)
+            # Number of requests
+            self.nireq = len(exe_network.requests)
 
         return exe_network
 
@@ -85,22 +94,34 @@ class Benchmark:
         self.nireq = len(exe_network.requests)
         return exe_network
 
-    def first_infer(self, exe_network):
-        infer_request = exe_network.requests[0]
-
+    def first_infer(self, exe_network, infer_requests=None):
+        if self.mode == "poc":
+            infer_request = infer_requests[0]
+        else:
+            infer_request = exe_network.requests[0]
+        latency = 0
         # warming up - out of scope
         if self.api_type == 'sync':
-            infer_request.infer()
+            if self.mode == "poc":
+                time1 = time.time()
+                infer_request.infer()
+                time2 = time.time()
+                latency = (time2-time1) * 1000.0
+            else:
+                infer_request.infer()
+                latency = infer_request.latency
         else:
             infer_request.async_infer()
             status = exe_network.wait()
             if status != StatusCode.OK:
                 raise Exception("Wait for all requests is failed with status code {}!".format(status))
-        return infer_request.latency
+            latency = infer_request.latency
+        return latency
 
-    def infer(self, exe_network, batch_size, progress_bar=None):
+    def infer(self, exe_network=None, batch_size=1, infer_requests=None, progress_bar=None):
         progress_count = 0
-        infer_requests = exe_network.requests
+        if self.mode == "old":
+            infer_requests = exe_network.requests
 
         start_time = datetime.utcnow()
         exec_time = 0
@@ -114,8 +135,14 @@ class Benchmark:
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (self.api_type == 'async' and iteration % self.nireq):
             if self.api_type == 'sync':
-                infer_requests[0].infer()
-                times.append(infer_requests[0].latency)
+                if self.mode == "poc":
+                    time1 = time.time()
+                    infer_requests[0].infer()
+                    time2 = time.time()
+                    times.append((time2-time1)*1000.0)
+                else:
+                    infer_requests[0].infer()
+                    times.append(infer_requests[0].latency)
             else:
                 infer_request_id = exe_network.get_idle_request_id()
                 if infer_request_id < 0:
@@ -147,9 +174,10 @@ class Benchmark:
                   progress_bar.add_progress(1)
 
         # wait the latest inference executions
-        status = exe_network.wait()
-        if status != StatusCode.OK:
-            raise Exception("Wait for all requests is failed with status code {}!".format(status))
+        if self.mode != "poc":
+            status = exe_network.wait()
+            if status != StatusCode.OK:
+                raise Exception("Wait for all requests is failed with status code {}!".format(status))
 
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         for infer_request_id in in_fly:

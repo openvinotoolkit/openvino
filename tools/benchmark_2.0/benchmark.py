@@ -152,6 +152,7 @@ class Benchmark:
                   progress_bar.add_progress(1)
 
         # wait the latest inference executions
+
         #status = exe_network.wait()
         # if status != StatusCode.OK:
         #     raise Exception("Wait for all requests is failed with status code {}!".format(status))
