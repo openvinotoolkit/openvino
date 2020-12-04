@@ -20,7 +20,6 @@ from mo.ops.op import Op
 
 class GatherElements(Op):
     op = 'GatherElements'
-    enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
@@ -30,6 +29,7 @@ class GatherElements(Op):
             'infer': self.infer,
             'in_ports_count': 2,
             'out_ports_count': 1,
+            'axis': 0,
         }, attrs)
 
     def backend_attrs(self):
@@ -37,6 +37,7 @@ class GatherElements(Op):
 
     @staticmethod
     def infer(node: Node):
-        node.in_port(1).data.get_shape()
+        indices_shape = node.in_port(1).data.get_shape()
+        node.out_port(0).data.set_shape(indices_shape)
 
         # todo: add value_inference

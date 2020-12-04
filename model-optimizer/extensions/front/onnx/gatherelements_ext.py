@@ -21,7 +21,7 @@ from mo.front.onnx.extractors.utils import onnx_attr
 
 class GatherElementsFrontExtractor(FrontExtractorOp):
     op = 'GatherElements'
-    enabled = False
+    enabled = True
 
     @classmethod
     def extract(cls, node):

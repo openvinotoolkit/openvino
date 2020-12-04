@@ -26,7 +26,7 @@ NGRAPH_RTTI_DEFINITION(op::v6::GatherElements, "GatherElements", 6);
 
 op::v6::GatherElements::GatherElements(const Output<Node>& data,
                                        const Output<Node>& indices,
-                                       const int axis)
+                                       const int64_t axis)
     : Op({data, indices})
     , m_axis(axis)
 {
@@ -53,7 +53,7 @@ void op::v6::GatherElements::validate_and_infer_types()
 
     if (data_rank.is_static())
     {
-        int data_rank_size = data_rank.get_length();
+        int64_t data_rank_size = data_rank.get_length();
 
         NODE_VALIDATION_CHECK(this, data_rank_size > 1, "data rank must be greater than 1.");
 
@@ -74,7 +74,7 @@ void op::v6::GatherElements::validate_and_infer_types()
             this, indices_rank.get_length() > 1, "indices rank must be greater than 1.");
     }
 
-    if (data_rank.is_static() && indices_rank.is_static())
+    if (indices_rank.is_static() && data_rank.is_static())
     {
         NODE_VALIDATION_CHECK(this,
                               data_rank.get_length() == indices_rank.get_length(),
@@ -83,28 +83,41 @@ void op::v6::GatherElements::validate_and_infer_types()
                               " and ",
                               indices_rank.get_length());
 
-        if (data_pshape.is_static() && indices_pshape.is_static())
+        PartialShape out_shape_info(indices_pshape);
+
+        for (int i = 0; i < indices_rank.get_length(); i++)
         {
-            // check if PartialShapes of data and indices are consistent
-            for (int i = 0; i < data_rank.get_length(); i++)
+            if (i != m_axis && data_pshape[i].is_static() && indices_pshape[i].is_static())
             {
-                if (i != m_axis)
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        data_pshape[i] == indices_pshape[i],
-                        "Sizes ",
-                        data_pshape[i],
-                        " and ",
-                        indices_pshape[i],
-                        " on axis ",
-                        i,
-                        " do not match. data and indices must have equal shapes except for axis ",
-                        m_axis);
+                NODE_VALIDATION_CHECK(
+                    this,
+                    data_pshape[i] == indices_pshape[i],
+                    "Sizes ",
+                    data_pshape[i],
+                    " and ",
+                    indices_pshape[i],
+                    " on axis ",
+                    i,
+                    " do not match. data and indices must have equal shapes except for axis ",
+                    m_axis);
+            }
+            // if indices.size of the current axis is unknown try to retrieve it from data
+            // if data_shape = {4, 4, ?} indices_shape = {1, ?, 5} and axis = 0
+            // make optimistic assumptions that data size along 2nd dim is also 5
+            else if (indices_pshape[i].is_dynamic() && data_pshape[i].is_static())
+            {
+                out_shape_info[i] = data_pshape[i];
             }
         }
+        set_output_type(0, data_type, out_shape_info);
     }
-
-    set_output_type(0, data_type, indices_pshape);
+    else // if (indices_rank.is_dynamic() || data_rank.is_dynamic())
+    {
+        // if at least one input has dynamic rank pass PartialShape of the other input
+        // in the optimistic scenario this input will have at least static rank
+        // in the worse scenario passing both PartialShapes is equivalent
+        set_output_type(0, data_type, data_rank.is_dynamic() ? indices_pshape : data_pshape);
+    }
 }
 
 bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor)

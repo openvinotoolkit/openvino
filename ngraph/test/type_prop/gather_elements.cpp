@@ -51,7 +51,7 @@ TEST(type_prop, gather_elements_3D_axis_0)
 {
     Shape data_shape{3, 3, 10000};
     Shape indices_shape{300, 3, 10000};
-    int axis = 0;
+    int64_t axis = 0;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
@@ -63,7 +63,7 @@ TEST(type_prop, gather_elements_3D_axis_2)
 {
     Shape data_shape{300, 3, 10};
     Shape indices_shape{300, 3, 10000};
-    int axis = 2;
+    int64_t axis = 2;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
@@ -75,12 +75,48 @@ TEST(type_prop, gather_elements_4D_axis_minus_1)
 {
     Shape data_shape{300, 3, 10, 1};
     Shape indices_shape{300, 3, 10, 33333};
-    int axis = -1;
+    int64_t axis = -1;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
     auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
     ASSERT_EQ(GE->get_element_type(), element::Type_t::f32);
     ASSERT_EQ(GE->get_shape(), indices_shape);
+}
+
+TEST(type_prop, gather_elements_nonfloat_data_type_int64_indices)
+{
+    Shape data_shape{300, 3, 10, 1};
+    Shape indices_shape{300, 3, 10, 33333};
+    int64_t axis = -1;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
+    ASSERT_EQ(GE->get_shape(), indices_shape);
+}
+
+TEST(type_prop, gather_elements_dynamic_consistent_shapes)
+{
+    PartialShape data_shape{4, 4, Dimension::dynamic()};
+    PartialShape indices_shape{1, Dimension::dynamic(), 5};
+    int64_t axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
+    ASSERT_EQ(GE->get_shape(), Shape({1, 4, 5}));
+}
+
+TEST(type_prop, gather_elements_dynamic_out_shape)
+{
+    PartialShape data_shape{4, 4, Dimension::dynamic()};
+    PartialShape indices_shape{1, Dimension::dynamic(), Dimension::dynamic()};
+    int64_t axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
+    ASSERT_EQ(GE->get_output_partial_shape(0), PartialShape({1, 4, Dimension::dynamic()}));
 }
 
 // --------------------- Negative tests ------------------------------
@@ -89,7 +125,7 @@ TEST(type_prop, gather_elements_type_inconsistency)
 {
     Shape data_shape{3, 3};
     Shape indices_shape{2, 1};
-    int axis = 1;
+    int64_t axis = 1;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::u32, indices_shape);
 
@@ -114,7 +150,7 @@ TEST(type_prop, gather_elements_data_rank_check)
 {
     Shape data_shape{3};
     Shape indices_shape{2, 333};
-    int axis = 0;
+    int64_t axis = 0;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
 
@@ -138,7 +174,7 @@ TEST(type_prop, gather_elements_out_of_bounds_axis)
 {
     Shape data_shape{3, 3};
     Shape indices_shape{2, 1};
-    int axis = -33;
+    int64_t axis = -33;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
 
@@ -162,7 +198,7 @@ TEST(type_prop, gather_elements_indices_rank_check)
 {
     Shape data_shape{3, 3};
     Shape indices_shape{333};
-    int axis = 0;
+    int64_t axis = 0;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
 
@@ -186,7 +222,7 @@ TEST(type_prop, gather_elements_rank_consistency_check)
 {
     Shape data_shape{3, 3};
     Shape indices_shape{2, 3, 3333};
-    int axis = 0;
+    int64_t axis = 0;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
 
@@ -210,7 +246,7 @@ TEST(type_prop, gather_elements_shapes_inconsistency)
 {
     Shape data_shape{3, 3};
     Shape indices_shape{2, 1};
-    int axis = 1;
+    int64_t axis = 1;
     auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
 
@@ -227,6 +263,31 @@ TEST(type_prop, gather_elements_shapes_inconsistency)
     }
     catch (...)
     {
-        FAIL() << "Deduced shape check failed for unexpected reason";
+        FAIL() << "Shape inconsistency check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, gather_elements_dynamic_inconsistent_shapes)
+{
+    PartialShape data_shape{4, 2, 4, Dimension::dynamic()};
+    PartialShape indices_shape{1, 3, Dimension::dynamic(), 5};
+    int64_t axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+
+    try
+    {
+        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Shape inconsistency check for dynamic PartialShape failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("data and indices must have equal shapes except for axis "));
+    }
+    catch (...)
+    {
+        FAIL() << "Shape inconsistency check for dynamic PartialShape failed for unexpected reason";
     }
 }

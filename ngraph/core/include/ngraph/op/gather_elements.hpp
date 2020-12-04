@@ -39,7 +39,7 @@ namespace ngraph
                 /// \param axis specifies axis along which indices are specified
                 GatherElements(const Output<Node>& data,
                                const Output<Node>& indices,
-                               const int axis);
+                               const int64_t axis);
 
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -48,7 +48,7 @@ namespace ngraph
 
                 size_t get_axis() const { return m_axis; }
             private:
-                int m_axis;
+                int64_t m_axis;
             };
         }
     }
