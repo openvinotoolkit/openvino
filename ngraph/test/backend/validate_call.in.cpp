@@ -38,13 +38,13 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_input_count)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
-    auto b = backend->create_tensor(element::Type_t::f32, shape);
-    auto c = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
+    auto b = backend->create_tensor(element::f32, shape);
+    auto c = backend->create_tensor(element::f32, shape);
 
     EXPECT_ANY_THROW(auto handle = backend->compile(f); handle->call_with_validate({c}, {a}));
 }
@@ -55,13 +55,13 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_input_type)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    auto a = backend->create_tensor(element::Type_t::i32, shape);
-    auto b = backend->create_tensor(element::Type_t::f32, shape);
-    auto c = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::i32, shape);
+    auto b = backend->create_tensor(element::f32, shape);
+    auto c = backend->create_tensor(element::f32, shape);
 
     EXPECT_ANY_THROW(auto handle = backend->compile(f); handle->call_with_validate({c}, {a, b}));
 }
@@ -72,13 +72,13 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_input_shape)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    auto a = backend->create_tensor(element::Type_t::f32, {2, 3});
-    auto b = backend->create_tensor(element::Type_t::f32, shape);
-    auto c = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, {2, 3});
+    auto b = backend->create_tensor(element::f32, shape);
+    auto c = backend->create_tensor(element::f32, shape);
 
     EXPECT_ANY_THROW(auto handle = backend->compile(f); handle->call_with_validate({c}, {a, b}));
 }
@@ -89,14 +89,14 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_output_count)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
-    auto b = backend->create_tensor(element::Type_t::f32, shape);
-    auto c = backend->create_tensor(element::Type_t::f32, shape);
-    auto d = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
+    auto b = backend->create_tensor(element::f32, shape);
+    auto c = backend->create_tensor(element::f32, shape);
+    auto d = backend->create_tensor(element::f32, shape);
 
     EXPECT_ANY_THROW(auto handle = backend->compile(f); handle->call_with_validate({c, d}, {a, b}));
 }
@@ -107,13 +107,13 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_output_type)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    auto a = backend->create_tensor(element::Type_t::i32, shape);
-    auto b = backend->create_tensor(element::Type_t::f32, shape);
-    auto c = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::i32, shape);
+    auto b = backend->create_tensor(element::f32, shape);
+    auto c = backend->create_tensor(element::f32, shape);
 
     EXPECT_ANY_THROW(auto handle = backend->compile(f); handle->call_with_validate({a}, {b, c}));
 }
@@ -124,13 +124,13 @@ NGRAPH_TEST(${BACKEND_NAME}, validate_call_output_shape)
 
     Shape shape{2, 2};
 
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto B = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    auto a = backend->create_tensor(element::Type_t::f32, {2, 3});
-    auto b = backend->create_tensor(element::Type_t::f32, shape);
-    auto c = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, {2, 3});
+    auto b = backend->create_tensor(element::f32, shape);
+    auto c = backend->create_tensor(element::f32, shape);
 
     EXPECT_ANY_THROW(auto handle = backend->compile(f); handle->call_with_validate({a}, {c, b}));
 }

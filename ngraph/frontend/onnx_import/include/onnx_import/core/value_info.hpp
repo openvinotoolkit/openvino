@@ -75,7 +75,7 @@ namespace ngraph
 
             const std::string& get_name() const { return m_value_info_proto->name(); }
             const PartialShape& get_shape() const { return m_partial_shape; }
-            element::Type get_element_type() const
+            const element::Type& get_element_type() const
             {
                 if (!m_value_info_proto->type().tensor_type().has_elem_type())
                 {

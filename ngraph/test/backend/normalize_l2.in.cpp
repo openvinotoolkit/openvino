@@ -41,8 +41,8 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_add)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{0, 1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 1});
     float eps = 1e-7;
     auto f = make_shared<Function>(
         make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::ADD),
@@ -51,9 +51,9 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_add)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -64,8 +64,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_add)
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_add)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{0}, vector<int64_t>{});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
     float eps = 1e-7;
     auto f = make_shared<Function>(
         make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::ADD),
@@ -74,9 +74,9 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_add)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -87,8 +87,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_add)
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_add)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{0});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{0});
     float eps = 1e-7;
     auto f = make_shared<Function>(
         make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::ADD),
@@ -97,9 +97,9 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_add)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -110,8 +110,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_add)
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_add)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{1});
     float eps = 1e-7;
     auto f = make_shared<Function>(
         make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::ADD),
@@ -120,9 +120,9 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_add)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -135,8 +135,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_add)
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_max)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{0, 1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 1});
     float eps = 1e-7;
     auto f = make_shared<Function>(
         make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::ADD),
@@ -145,9 +145,9 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_max)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -158,8 +158,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_all_mode_max)
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_max)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{0}, vector<int64_t>{});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
     float eps = 1e-7;
     auto f = make_shared<Function>(
         make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::MAX),
@@ -168,9 +168,9 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_max)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -181,8 +181,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_none_mode_max)
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_max)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{0});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{0});
     float eps = 1e-7;
     auto f = make_shared<Function>(
         make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::MAX),
@@ -191,9 +191,9 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_max)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
@@ -204,8 +204,8 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_zero_mode_max)
 NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_max)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{}, vector<int64_t>{1});
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axes = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{1});
     float eps = 1e-7;
     auto f = make_shared<Function>(
         make_shared<op::v0::NormalizeL2>(A, axes, eps, ngraph::op::EpsMode::MAX),
@@ -214,9 +214,9 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_one_mode_max)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::Type_t::f32, shape);
+    auto a = backend->create_tensor(element::f32, shape);
     copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::Type_t::f32, shape);
+    auto result = backend->create_tensor(element::f32, shape);
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});

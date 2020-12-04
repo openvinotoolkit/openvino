@@ -426,7 +426,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
         "TestMissingIn", 1, "com.intel.ai", [](const onnx_import::Node& node) -> OutputVector {
             OutputVector ng_inputs{node.get_ng_inputs()};
             std::shared_ptr<ngraph::Node> result = std::make_shared<ngraph::op::Constant>(
-                element::Type_t::f32, ngraph::Shape{2, 2}, std::vector<float>{1, 1, 1, 1});
+                element::f32, ngraph::Shape{2, 2}, std::vector<float>{1, 1, 1, 1});
 
             for (const auto& ng_input : ng_inputs)
             {
