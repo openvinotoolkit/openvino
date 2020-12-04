@@ -46,6 +46,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
             };
         }
         using v0::Relu;

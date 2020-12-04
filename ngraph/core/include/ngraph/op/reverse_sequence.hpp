@@ -56,7 +56,7 @@ namespace ngraph
                 void set_sequence_axis(int64_t sequence_axis) { m_seq_axis = sequence_axis; }
             private:
                 int64_t m_batch_axis;
-                int64_t m_seq_axis;
+                int64_t m_seq_axis = 1;
                 size_t m_normalized_batch_axis;
                 size_t m_normalized_seq_axis;
             };

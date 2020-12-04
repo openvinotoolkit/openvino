@@ -54,9 +54,9 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:
-                Shape m_output_size;
+                Shape m_output_size{0, 0};
                 float m_spatial_scale;
-                std::string m_method;
+                std::string m_method = "max";
             };
 
         } // namespace v0

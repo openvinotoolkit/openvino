@@ -33,9 +33,9 @@ namespace ngraph
             // variances      Values to adjust prior boxes with
             std::vector<float> widths;
             std::vector<float> heights;
-            bool clip = false;
-            float step_widths = 1.0f;
-            float step_heights = 1.0f;
+            bool clip = true;
+            float step_widths = 0.0f;
+            float step_heights = 0.0f;
             float offset = 0.0f;
             std::vector<float> variances;
         };

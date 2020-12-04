@@ -96,13 +96,31 @@ shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector
 
 bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("widths", m_attrs.widths);
-    visitor.on_attribute("heights", m_attrs.heights);
+    float step = 0;
+    float step_w_tmp = m_attrs.step_widths;
+    float step_h_tmp = m_attrs.step_heights;
+
+    visitor.on_attribute("step", step);
+    visitor.on_attribute("step_w", m_attrs.step_widths);
+    visitor.on_attribute("step_h", m_attrs.step_heights);
+    if (step != 0)
+    {
+        // deserialization:
+        // if step_w/h is 0 or did not change, replace it with step
+        if (m_attrs.step_widths == 0 || m_attrs.step_widths == step_w_tmp)
+        {
+            m_attrs.step_widths = step;
+        }
+        if (m_attrs.step_heights == 0 || m_attrs.step_heights == step_h_tmp)
+        {
+            m_attrs.step_heights = step;
+        }
+    }
+    visitor.on_attribute("width", m_attrs.widths);
+    visitor.on_attribute("height", m_attrs.heights);
     visitor.on_attribute("clip", m_attrs.clip);
-    visitor.on_attribute("step_widths", m_attrs.step_widths);
-    visitor.on_attribute("step_heights", m_attrs.step_heights);
     visitor.on_attribute("offset", m_attrs.offset);
-    visitor.on_attribute("variances", m_attrs.variances);
+    visitor.on_attribute("variance", m_attrs.variances);
     return true;
 }
 

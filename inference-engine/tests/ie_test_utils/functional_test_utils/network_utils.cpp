@@ -159,6 +159,9 @@ namespace FuncTestUtils {
                 }
             } else {
                 if (item.first == "originalLayersNames") continue;
+                // ROIPooling specification says that there should be two parameters- pooled_h and pooled_w
+                // our implementation of this op has a single parameter - output_size.
+                if (item.first == "output_size" && layer->type == "ROIPooling") continue;
                 // autob is a WA for nGraph ops
                 if ((item.first != "auto_broadcast" && item.first != "autob") || item.second != "numpy") {
                     success = false;

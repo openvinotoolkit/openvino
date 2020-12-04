@@ -147,6 +147,8 @@ shared_ptr<Node> op::ROIPooling::clone_with_new_inputs(const OutputVector& new_a
 bool op::ROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("output_size", m_output_size);
+    visitor.on_attribute("pooled_h", m_output_size[0]);
+    visitor.on_attribute("pooled_w", m_output_size[1]);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
     visitor.on_attribute("method", m_method);
     return true;

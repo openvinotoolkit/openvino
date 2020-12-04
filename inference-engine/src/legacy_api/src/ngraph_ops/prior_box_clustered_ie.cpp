@@ -37,3 +37,27 @@ std::shared_ptr<Node> op::PriorBoxClusteredIE::clone_with_new_inputs(const Outpu
     check_new_args_count(this, new_args);
     return make_shared<PriorBoxClusteredIE>(new_args.at(0), new_args.at(1), m_attrs);
 }
+
+bool op::PriorBoxClusteredIE::visit_attributes(AttributeVisitor& visitor)
+{
+    float step = 0;
+
+    visitor.on_attribute("step", step);
+    visitor.on_attribute("step_w", m_attrs.step_widths);
+    visitor.on_attribute("step_h", m_attrs.step_heights);
+    if(step != 0) {
+        // deserialization: if step_w/h is 0 replace it with step
+        if (m_attrs.step_widths == 0) {
+            m_attrs.step_widths = step;
+        }
+        if (m_attrs.step_heights == 0) {
+            m_attrs.step_heights = step;
+        }
+    }
+    visitor.on_attribute("width", m_attrs.widths);
+    visitor.on_attribute("height", m_attrs.heights);
+    visitor.on_attribute("clip", m_attrs.clip);
+    visitor.on_attribute("offset", m_attrs.offset);
+    visitor.on_attribute("variance", m_attrs.variances);
+    return true;
+}

@@ -866,6 +866,7 @@ def test_prior_box(int_dtype, fp_dtype):
         "offset": fp_dtype(0),
         "min_size": np.array([2, 3], dtype=fp_dtype),
         "aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
+        "scale_all_sizes": False
     }
 
     layer_shape = ng.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
@@ -896,8 +897,8 @@ def test_prior_box_clustered(int_dtype, fp_dtype):
     image_size = np.array([64, 64], dtype=int_dtype)
     attributes = {
         "offset": fp_dtype(0.5),
-        "widths": np.array([4.0, 2.0, 3.2], dtype=fp_dtype),
-        "heights": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
+        "width": np.array([4.0, 2.0, 3.2], dtype=fp_dtype),
+        "height": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
     }
 
     output_size = ng.constant(np.array([19, 19], dtype=int_dtype), int_dtype)
