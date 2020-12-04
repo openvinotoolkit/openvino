@@ -72,7 +72,8 @@ operation. Refer to the "Operation Extractor" section on the
 detailed instruction on how to implement it.
 
 > **NOTE:** In some cases you may need to implement some transformation to support the operation. This topic is covered
-> in the [Graph Transformation Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer#graph-transformations).
+> in the "Graph Transformation Extensions" section on the
+> [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 
 ## Custom Operations Extensions for the Inference Engine
 
@@ -83,7 +84,7 @@ Each device plugin includes a library of optimized implementations to execute kn
 execute a custom operation. The custom operation extension is implemented according to the target device:
 
 - Custom Layer CPU Extension
-   - A compiled shared library (.so, .dylib or .dll binary) needed by the CPU Plugin for executing the custom operation
+   - A compiled shared library (`.so`, `.dylib` or `.dll`) needed by the CPU Plugin for executing the custom operation
    on a CPU. Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more
    details.
 - Custom Layer GPU Extension
@@ -95,24 +96,28 @@ execute a custom operation. The custom operation extension is implemented accord
    operation description file (.xml) needed by the VPU Plugin for the custom operation kernel. Refer to the
    [How to Implement Custom Operations for VPU](../IE_DG/Extensibility_DG/VPU_Kernel.md) for more details.
 
+Also it is necessary to implement nGraph custom operation according to the
+[Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) so the Inference Engine can read an IR with this
+operation and correctly infer it shape.
+
 ## Enabling Magnetic Resonance Image Reconstruction Model
-This chapter provides a step-by-step instruction on how to enable the magnetic resonance image Reconstruction model
+This chapter provides a step-by-step instruction on how to enable the magnetic resonance image reconstruction model
 implemented in the [repository](https://github.com/rmsouza01/Hybrid-CS-Model-MRI/) using a custom operation on CPU. The
-example is prepared for a model generated from the repository with hash 2ede2f96161ce70dcdc922371fe6b6b254aafcc8.
+example is prepared for a model generated from the repository with hash `2ede2f96161ce70dcdc922371fe6b6b254aafcc8`.
 
 ### Download and Convert the Model to a Frozen TensorFlow\* Model Format
 The original pre-trained model is provided in the hdf5 format which is not supported by OpenVINO directly and needs to
 be converted to TensorFlow\* frozen model format first.
 
-1. Download repository `https://github.com/rmsouza01/Hybrid-CS-Model-MRI`:<br>
-    ```bash
+1. Download repository `https://github.com/rmsouza01/Hybrid-CS-Model-MRI`:<br
+```bash
     git clone https://github.com/rmsouza01/Hybrid-CS-Model-MRI
     git checkout 2ede2f96161ce70dcdc922371fe6b6b254aafcc8
-    ```
+```
 
 2. Convert pre-trained `.hdf5` to a frozen `.pb` graph using the following script (tested with TensorFlow==1.15.0 and
 Keras==2.2.4) which should be executed from the root of the cloned repository:<br>
-    ```py
+```py
     import keras as K
     import numpy as np
     import Modules.frequency_spatial_network as fsnet
@@ -136,7 +141,7 @@ Keras==2.2.4) which should be executed from the root of the cloned repository:<b
     graph_def = tf.graph_util.convert_variables_to_constants(sess, graph_def, ['conv2d_44/BiasAdd'])
     with tf.gfile.FastGFile('wnet_20.pb', 'wb') as f:
         f.write(graph_def.SerializeToString())    
-    ```
+```
    
 As a result the TensorFlow\* frozen model file "wnet_20.pb" is generated.
 
@@ -232,7 +237,7 @@ detailed instruction on how to implement the operation.
 
 Now it is necessary to implement extractor for the "IFFT2D" operation according to the
 "Operation Extractor" section on the 
-Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md). The
+[Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md). The
 following snippet provides two extractors: one for "IFFT2D", another one for "FFT2D", however only on of  them is used
 in this example. The implementation should be saved to the file `mo_extensions/front/tf/FFT_ext.py`.
 
@@ -262,13 +267,13 @@ information on how this type of transformation works. The code snippet should be
 
 Now lets implement a transformation which replace a "ComplexAbs" operation with a sub-graph of primitive operations
 which calculate the result using the following formulae: \f$module(z) = \sqrt{z.real \cdot z.real + z.imag \cdot z.imag}\f$.
-Original "IFFT2D" operation produces tensor of complex values but the "FFT" operation produces a real value tensor with
+Original "IFFT2D" operation produces tensor of complex values, but the "FFT" operation produces a real value tensor with
 the same format and shape as the input for the operation. So the input shape for the "ComplexAbs" will be `[N, H, W, 2]`
 with the innermost dimension containing tuple with real and imaginary part of a complex number. In order to calculate
 absolute values for the complex tensor we do the following:
 1. Raise all elements in the power of 2.0.
-2. Calculate a reduce sum over the last dimension.
-3. Take square root from the tensor.
+2. Calculate a reduced sum over the innermost dimension.
+3. Take square root from the previous step output tensor.
 
 The implementation should be saved to the file `mo_extensions/front/tf/ComplexAbs.py` and provided below:
 
@@ -276,7 +281,7 @@ The implementation should be saved to the file `mo_extensions/front/tf/ComplexAb
 
 Now it is possible to convert the model using the following command line:
 ```bash
-    ./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
+./<MO_INSTALL_DIR>/mo.py --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1 --extensions mo_extensions/
 ```
 
 The sub-graph corresponding to the originally non-supported one is depicted on the image below:
@@ -285,6 +290,62 @@ The sub-graph corresponding to the originally non-supported one is depicted on t
 
 > **NOTE:** Model Optimizer performed conversion of the model from NHWC to NCHW layout that is why the dimension with
 > the value 2 moved to another position.
+
+### Inference Engine Extension Implementation
+Now it is necessary to implement the extension for the CPU plugin with operation "FFT" introduced previously. The code
+below is based on the template extension described on the
+[Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md).
+
+#### CMake Build File
+The first step is to create a CMake configuration file which builds the extension. The content of the "CMakeLists.txt"
+file is the following:
+
+@snippet CMakeLists.txt fft_cmake_list:cmake
+
+The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the extension library is linked with
+"opencv_core" which comes with the OpenVINO.
+
+#### Custom nGraph Operation "FFT" Implementation
+The next step is to create the nGraph operation FFT. The header file "fft_op.hpp" has the following content:
+
+@snippet fft_op.hpp fft_op:header
+
+The operation has just one boolean attribute `inverse`. Implementation of the necessary nGraph operation functions are
+in the "fft_op.cpp" file with the following content:
+
+@snippet fft_op.cpp fft_op:implementation
+
+Refer to the [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) for more details.
+
+#### CPU FFT Kernel Implementation
+The operation implementation for CPU plugin uses OpenCV to perform the FFT. The header file "fft_kernel.hpp" has the
+following content:
+
+@snippet fft_kernel.hpp fft_kernel:header
+
+The "fft_kernel.cpp" with the implementation of the CPU has the following content:
+
+@snippet fft_kernel.cpp fft_kernel:implementation
+
+Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more details.
+
+### Building and Running the Custom Extension
+In order to build the extension run the following:<br>
+```bash
+mkdir build && cd build
+source /opt/intel/openvino/bin/setupvars.sh
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make --jobs=$(nproc)
+```
+
+The result of this command is a compiled shared library (`.so`, `.dylib` or `.dll`) which should be loaded in the
+application using `Core` instance method like this `core.AddExtension(make_so_pointer<IExtension>(compiled_library_file_name), "CPU");`.
+
+To test that the extension is implemented correctly we can run the [Benchmark App](../../inference-engine/tools/benchmark_tool/README.md)
+the following way:
+```bash
+./benchmark_app -m wnet_20.xml -l build/libfft_cpu_extension.so
+```
 
 ## Additional Resources
 
