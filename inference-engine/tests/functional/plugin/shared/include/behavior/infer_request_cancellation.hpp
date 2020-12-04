@@ -74,16 +74,8 @@ TEST_P(CancellationTests, canResetAfterCancelAsyncRequest) {
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
 
     req.StartAsync();
-    InferenceEngine::StatusCode cancelStatus = req.Cancel();
+    req.Cancel();
     InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), cancelStatus);
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::INFER_CANCELLED), waitStatus);
-    } else {
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::NOT_IMPLEMENTED), cancelStatus);
-        ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
-    }
 
     req.StartAsync();
     waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);

@@ -156,6 +156,14 @@ public:
         return _syncRequest->QueryState();
     }
 
+    StatusCode Cancel() override {
+        StatusCode status = Wait(IInferRequest::WaitMode::STATUS_ONLY);
+        if (status == INFER_NOT_STARTED) {
+            return status;
+        }
+        return _syncRequest->Cancel();
+    }
+
 protected:
     /**
      * @brief Each pipeline stage is a @ref Task that is executed by specified ITaskExecutor implementation
@@ -253,14 +261,6 @@ protected:
     ITaskExecutor::Ptr _syncCallbackExecutor;  //!< Used to run post inference callback in synchronous pipline
     Pipeline _pipeline;  //!< Pipeline variable that should be filled by inherited class.
     Pipeline _syncPipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
-
-    StatusCode Cancel_ThreadUnsafe() override {
-        StatusCode status = Wait(IInferRequest::WaitMode::STATUS_ONLY);
-        if (status == INFER_NOT_STARTED) {
-            return status;
-        }
-        return _syncRequest->Cancel();
-    }
 
     void StartAsync_ThreadUnsafe() override {
         _syncRequest->checkBlobs();

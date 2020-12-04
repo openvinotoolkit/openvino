@@ -102,10 +102,6 @@ public:
         setIsRequestBusy(false);
     }
 
-    StatusCode Cancel() override {
-        return Cancel_ThreadUnsafe();
-    }
-
     void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap) const override {
         CheckBusy();
         GetPerformanceCounts_ThreadUnsafe(perfMap);
@@ -173,8 +169,6 @@ protected:
      *       and calls this method after.
      */
     virtual void Infer_ThreadUnsafe() = 0;
-
-    virtual StatusCode Cancel_ThreadUnsafe() = 0;
 
     /**
      * @brief Gets the performance counts thread unsafe.
