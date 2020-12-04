@@ -32,11 +32,11 @@ class must not exceed `max_output_boxes_per_class`.
 * *sort_result_descending*
 
   * **Description**: *sort_result_descending* is a flag that specifies whenever it is necessary to sort selected boxes across batches or not.
-  * **Range of values**: True of False
-    * *True* - sort selected boxes across batches.
-    * *False* - do not sort selected boxes across batches (boxes are sorted per class).
+  * **Range of values**: true of false
+    * *true* - sort selected boxes across batches.
+    * *false* - do not sort selected boxes across batches (boxes are sorted per class).
   * **Type**: boolean
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**:

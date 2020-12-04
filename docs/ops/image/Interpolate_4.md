@@ -56,10 +56,10 @@
 
   * **Description**: *antialias* is a flag that specifies whether to perform anti-aliasing.
   * **Range of values**:
-    * False - do not perform anti-aliasing
-    * True - perform anti-aliasing
+    * false - do not perform anti-aliasing
+    * true - perform anti-aliasing
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *pads_begin*
@@ -219,7 +219,7 @@ class InterpolateCalculation:
         self.coordinate_transformation_mode = attrs.get('coordinate_transformation_mode', 'half_pixel')
         self.nearest_mode = attrs.get('nearest_mode', 'round_prefer_floor')
         self.cube_coeff = attrs.get('cube_coeff', -0.75)
-        self.antialias = attrs.get('antialias', False)
+        self.antialias = attrs.get('antialias', false)
 
         self.shape_calculation_mode = {
             'sizes': ShapeCalculationMode.SIZES,
@@ -312,7 +312,7 @@ class InterpolateCalculation:
     def linear_interpolation(self, input_data):
         result = np.zeros(self.output_shape)
         num_of_axes = len(self.axes)
-        is_downsample = False
+        is_downsample = false
 
         for scale in self.scales:
             is_downsample = is_downsample or (scale < 1)
