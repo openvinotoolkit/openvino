@@ -3,7 +3,6 @@
 //
 
 //! [fft_op:header]
-
 #pragma once
 
 #include <ngraph/ngraph.hpp>

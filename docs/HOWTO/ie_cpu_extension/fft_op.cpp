@@ -3,7 +3,6 @@
 //
 
 //! [fft_op:implementation]
-
 #include "fft_op.hpp"
 
 using namespace FFTExtension;

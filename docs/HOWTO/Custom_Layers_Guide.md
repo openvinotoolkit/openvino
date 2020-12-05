@@ -262,18 +262,18 @@ information on how this type of transformation works. The code snippet should be
 
 @snippet Complex.py complex:transformation
 
-> **NOTE:** The graph is in inconsistent state even more because the "ComplexAbs" operation consumes complex value
-> tensor but "FFT" produces real value tensor.
+> **NOTE:** The graph is in inconsistent state because the "ComplexAbs" operation consumes complex value tensor but
+>  "FFT" produces real value tensor.
 
 Now lets implement a transformation which replace a "ComplexAbs" operation with a sub-graph of primitive operations
-which calculate the result using the following formulae: \f$module(z) = \sqrt{z.real \cdot z.real + z.imag \cdot z.imag}\f$.
+which calculate the result using the following formulae: \f$module(z) = \sqrt{real(z) \cdot real(z) + imag(z) \cdot imag(z)}\f$.
 Original "IFFT2D" operation produces tensor of complex values, but the "FFT" operation produces a real value tensor with
 the same format and shape as the input for the operation. So the input shape for the "ComplexAbs" will be `[N, H, W, 2]`
 with the innermost dimension containing tuple with real and imaginary part of a complex number. In order to calculate
 absolute values for the complex tensor we do the following:
-1. Raise all elements in the power of 2.0.
+1. Raise all elements in the power of 2.
 2. Calculate a reduced sum over the innermost dimension.
-3. Take square root from the previous step output tensor.
+3. Calculate a square root.
 
 The implementation should be saved to the file `mo_extensions/front/tf/ComplexAbs.py` and provided below:
 
@@ -300,7 +300,7 @@ below is based on the template extension described on the
 The first step is to create a CMake configuration file which builds the extension. The content of the "CMakeLists.txt"
 file is the following:
 
-@snippet CMakeLists.txt fft_cmake_list:cmake
+@snippet ie_cpu_extension/CMakeLists.txt fft_cmake_list:cmake
 
 The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the extension library is linked with
 "opencv_core" which comes with the OpenVINO.
@@ -338,13 +338,17 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make --jobs=$(nproc)
 ```
 
-The result of this command is a compiled shared library (`.so`, `.dylib` or `.dll`) which should be loaded in the
-application using `Core` instance method like this `core.AddExtension(make_so_pointer<IExtension>(compiled_library_file_name), "CPU");`.
+The result of this command is a compiled shared library (`.so`, `.dylib` or `.dll`). It should be loaded in the
+application using `Core` class instance method `AddExtension` like this
+`core.AddExtension(make_so_pointer<IExtension>(compiled_library_file_name), "CPU");`.
 
 To test that the extension is implemented correctly we can run the [Benchmark App](../../inference-engine/tools/benchmark_tool/README.md)
 the following way:
 ```bash
-./benchmark_app -m wnet_20.xml -l build/libfft_cpu_extension.so
+python3 $INTEL_OPENVINO_DIR/deployment_tools/tools/benchmark_tool/benchmark_app.py \
+        -m <PATH_TO_IR>/wnet_20.xml \
+        -l <PATH_TO_BUILD_DIR>/libfft_cpu_extension.so \
+        -d CPU
 ```
 
 ## Additional Resources
@@ -366,6 +370,3 @@ the following way:
 - [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
 - [Convert Your ONNX* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
-
-
-

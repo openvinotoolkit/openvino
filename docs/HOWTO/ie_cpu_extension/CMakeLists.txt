@@ -13,7 +13,7 @@
 # to the corresponding section).
 # ===============================================================================
 
-#! [fft_cmake_list:cmake]
+# [fft_cmake_list:cmake]
 set(CPU_EXTENSIONS_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE INTERNAL "")
 
 set(CMAKE_CXX_STANDARD 11)
@@ -32,5 +32,5 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_
 target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES}
                                              ${NGRAPH_LIBRARIES}
                                              opencv_core)
-#! [fft_cmake_list:cmake]
+# [fft_cmake_list:cmake]
 
