@@ -32,18 +32,18 @@ if sys.platform == "win32":
     ngraph_dll = os.path.join(os.path.dirname(__file__), "..", "..", "..")
     os.environ["PATH"] = os.path.abspath(ngraph_dll) + ";" + os.environ["PATH"]
 
-from ngraph.pyngraph import Dimension
-from ngraph.pyngraph import Function
-from ngraph.pyngraph import Input
-from ngraph.pyngraph import Output
-from ngraph.pyngraph import Node
-from ngraph.pyngraph import Type
-from ngraph.pyngraph import PartialShape
-from ngraph.pyngraph import Shape
-from ngraph.pyngraph import Strides
-from ngraph.pyngraph import CoordinateDiff
-from ngraph.pyngraph import AxisSet
-from ngraph.pyngraph import AxisVector
-from ngraph.pyngraph import Coordinate
+from _pyngraph import Dimension
+from _pyngraph import Function
+from _pyngraph import Input
+from _pyngraph import Output
+from _pyngraph import Node
+from _pyngraph import Type
+from _pyngraph import PartialShape
+from _pyngraph import Shape
+from _pyngraph import Strides
+from _pyngraph import CoordinateDiff
+from _pyngraph import AxisSet
+from _pyngraph import AxisVector
+from _pyngraph import Coordinate
 
-from ngraph.pyngraph import util
+from _pyngraph import util
