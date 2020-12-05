@@ -1,4 +1,4 @@
-# Extending the Model Optimizer with Caffe* Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
+# Extending Model Optimizer with Caffe* Python Layers {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers}
 
 This section provides instruction on how to support a custom Caffe operation written only in Python. For example, the
 [Faster-R-CNN model]((http://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0)) implemented in

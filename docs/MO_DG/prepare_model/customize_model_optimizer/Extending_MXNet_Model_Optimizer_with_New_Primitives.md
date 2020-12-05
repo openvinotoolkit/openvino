@@ -1,4 +1,4 @@
-# Extending the Model Optimizer for Custom MXNet* Operations {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives}
+# Extending Model Optimizer for Custom MXNet* Operations {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives}
 
 This section provides instruction on how to support a custom MXNet operation (or as it called in the MXNet documentation
 "operator" or "layer") which is not a part of the MXNet operation set. For example, if the operator is implemented using

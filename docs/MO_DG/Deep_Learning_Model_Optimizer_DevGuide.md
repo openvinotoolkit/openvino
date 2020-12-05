@@ -93,12 +93,11 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
         * [Intermediate Representation and Operation Sets](IR_and_opsets.md)
         * [Operations Specification](../ops/opset.md)
         * [Intermediate Representation suitable for INT8 inference](prepare_model/convert_model/IR_suitable_for_INT8_inference.md)
-
     * [Model Optimizer Extensibility](prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
         * [Extending Model Optimizer with New Primitives](prepare_model/customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md)
         * [Extending Model Optimizer with Caffe Python Layers](prepare_model/customize_model_optimizer/Extending_Model_Optimizer_with_Caffe_Python_Layers.md)
+        * [Extending Model Optimizer with Custom MXNet* Operations](prepare_model/customize_model_optimizer/Extending_MXNet_Model_Optimizer_with_New_Primitives.md)
         * [Legacy Mode for Caffe* Custom Layers](prepare_model/customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md)
-
     * [Model Optimizer Frequently Asked Questions](prepare_model/Model_Optimizer_FAQ.md)
 
 * [Known Issues](Known_Issues_Limitations.md)
