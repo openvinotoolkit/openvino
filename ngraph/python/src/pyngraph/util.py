@@ -15,6 +15,6 @@
 # ******************************************************************************
 # flake8: noqa
 
-from ngraph.pyngraph import util
+from _pyngraph import util
 
 numpy_to_c = util.numpy_to_c

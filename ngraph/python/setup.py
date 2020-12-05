@@ -279,7 +279,7 @@ print("NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME", NGRAPH_CPP_LIBR
 
 ext_modules = [
     Extension(
-        "ngraph.pyngraph",
+        "_pyngraph",
         sources=sources,
         include_dirs=include_dirs,
         define_macros=[("VERSION_INFO", __version__)],
