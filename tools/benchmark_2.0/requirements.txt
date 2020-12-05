@@ -1,4 +1,0 @@
-py-cpuinfo
-numpy
-progress
-opencv-python
