@@ -22,7 +22,12 @@ unset(UWP_SDK_PATH)
 macro(ie_add_manifest)
     include(CMakeParseArguments)
     cmake_parse_arguments(MANIFEST "" "TARGET_NAME" "DEPENDENCIES" ${ARGN})
+
+    if(NOT TARGET ${MANIFEST_TARGET_NAME})
+        message(FATAL_ERROR "${MANIFEST_TARGET_NAME} does not represent a target")
+    endif()
     
+    get_target_property(MANIFEST_TARGET_TYPE ${MANIFEST_TARGET_NAME} TYPE)
     set(MANIFEST_GENERATE_SCRIPT "${OpenVINO_MAIN_SOURCE_DIR}/cmake/manifests/manifests_generate.cmake")
     set(MANIFEST_TOKEN "0000000000000000")
     set(MANIFEST_VERSION "2021.3.0.0")
@@ -38,6 +43,7 @@ macro(ie_add_manifest)
             -D MANIFEST_DEPENDENCIES=${MANIFEST_DEPENDENCIES_STR}
             -D MANIFEST_TOKEN=${MANIFEST_TOKEN}
             -D MANIFEST_VERSION=${MANIFEST_VERSION}
+            -D MANIFEST_TARGET_TYPE=${MANIFEST_TARGET_TYPE}
             -P ${MANIFEST_GENERATE_SCRIPT}
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         COMMENT "Embed manifest to ${MANIFEST_TARGET_NAME}"
@@ -45,7 +51,7 @@ macro(ie_add_manifest)
 
     foreach(var MANIFEST_TOKEN MANIFEST_VERSION MANIFEST_GENERATE_SCRIPT
                 MANIFEST_TARGET_NAME MANIFEST_DEPENDENCIES MANIFEST_FILE
-                MANIFEST_DEPENDENCIES_STR)
+                MANIFEST_DEPENDENCIES_STR MANIFEST_TARGET_TYPE)
         unset("${var}")
     endforeach()
 endmacro()

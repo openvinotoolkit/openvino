@@ -5,7 +5,7 @@
 cmake_policy(SET CMP0053 NEW)
 
 foreach(var MANIFEST_TOOL MANIFEST_FILE MANIFEST_TARGET_FILE MANIFEST_TARGET_NAME
-            MANIFEST_DEPENDENCIES MANIFEST_TOKEN MANIFEST_VERSION)
+            MANIFEST_DEPENDENCIES MANIFEST_TOKEN MANIFEST_VERSION MANIFEST_TARGET_TYPE)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is not defined")
     endif()
@@ -67,9 +67,15 @@ endif()
 
 # embed manifest into a binary
 
+if(MANIFEST_TARGET_TYPE STREQUAL "SHARED_LIBRARY")
+    set(resource_id "2")
+elseif(MANIFEST_TARGET_TYPE STREQUAL "EXECUTABLE")
+    set(resource_id "1")
+endif()
+
 execute_process(COMMAND ${MANIFEST_TOOL}
         -manifest "${MANIFEST_FILE}"
-        "-outputresource:${MANIFEST_TARGET_FILE};#2"
+        "-outputresource:${MANIFEST_TARGET_FILE};#${resource_id}"
     OUTPUT_VARIABLE error_message
     RESULT_VARIABLE exit_code
     OUTPUT_STRIP_TRAILING_WHITESPACE)
