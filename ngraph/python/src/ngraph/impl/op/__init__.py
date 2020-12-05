@@ -22,7 +22,7 @@ Low level wrappers for the nGraph c++ api in ngraph::op.
 
 import numpy as np
 
-from ngraph.pyngraph.op import Constant
+from _pyngraph.op import Constant
 
 """ Retrieve Constant inner data.
 
@@ -32,4 +32,4 @@ from ngraph.pyngraph.op import Constant
 """
 Constant.get_data = lambda self: np.array(self, copy=True)
 
-from ngraph.pyngraph.op import Parameter
+from _pyngraph.op import Parameter
