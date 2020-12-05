@@ -55,7 +55,7 @@ if(NOT BUILD_SHARED_LIBS)
     endif()
 
     if(ENABLE_MKL_DNN)
-        target_link_libraries(inference_engine PRIVATE MKLDNNPlugin)
+        ieTargetLinkWholeArchiveEx(inference_engine PUBLIC MKLDNNPlugin)
     endif()
 
     if(ENABLE_CLDNN)

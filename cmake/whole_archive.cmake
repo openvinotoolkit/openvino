@@ -3,15 +3,14 @@
 #
 
 #[[
-function links static library without removing any symbol from it.
+function links static library without removing any symbol from it with a custom visibility.
 
-ieTargetLinkWholeArchive(<target name> <lib1> [<lib2> ...])
+ieTargetLinkWholeArchiveEx(<target name> <visibility> <lib1> [<lib2> ...])
 Example:
-ieTargetLinkWholeArchive("MyriadFunctionalTests" "CommonLib" "AnotherLib")
+ieTargetLinkWholeArchiveEx("MyriadFunctionalTests" PRIVATE "CommonLib" "AnotherLib")
 
 #]]
-
-function(ieTargetLinkWholeArchive targetName)
+function(ieTargetLinkWholeArchiveEx targetName visibility)
     set(libs)
     foreach(staticLib ${ARGN})
         if (MSVC)
@@ -48,6 +47,22 @@ function(ieTargetLinkWholeArchive targetName)
         endif()
     endforeach()
     if (libs)
-        target_link_libraries(${targetName} PRIVATE ${libs})
+        if (visibility STREQUAL "INTERFACE")
+            set_property(TARGET ${targetName} PROPERTY INTERFACE_LINK_LIBRARIES ${libs})
+        else()
+            target_link_libraries(${targetName} ${visibility} ${libs})
+        endif()
     endif()
+endfunction()
+
+#[[
+function links static library without removing any symbol from it.
+
+ieTargetLinkWholeArchive(<target name> <lib1> [<lib2> ...])
+Example:
+ieTargetLinkWholeArchive("MyriadFunctionalTests" "CommonLib" "AnotherLib")
+
+#]]
+function(ieTargetLinkWholeArchive targetName)
+    ieTargetLinkWholeArchiveEx(${targetName} PRIVATE ${ARGN})
 endfunction()
