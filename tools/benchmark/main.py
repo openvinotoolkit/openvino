@@ -149,7 +149,7 @@ def run(args):
                 set_throughput_streams()
 
                 if MULTI_DEVICE_NAME in device_name and CPU_DEVICE_NAME in device_name:
-                    logger.warn("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " +
+                    logger.warn("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " \
                                 "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
                     config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
             elif device == MYRIAD_DEVICE_NAME:
@@ -313,7 +313,7 @@ def run(args):
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
         if args.mode == "poc":
-            duration_ms =  "{:.2f}".format(benchmark.first_infer(infer_requests))
+            duration_ms =  "{:.2f}".format(benchmark.first_infer(infer_requests=infer_requests))
         else:
             duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
         logger.info("First inference took {} ms".format(duration_ms))
@@ -322,10 +322,14 @@ def run(args):
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        if args.mode == "poc"
-            fps, latency_ms, total_duration_sec, iteration = benchmark.infer(infer_requests, batch_size, progress_bar)
+        if args.mode == "poc":
+            fps, latency_ms, total_duration_sec, iteration = benchmark.infer(infer_requests=infer_requests,
+                                                                             batch_size=batch_size,
+                                                                             progress_bar=progress_bar)
         else:
-            fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
+            fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network=exe_network,
+                                                                             batch_size=batch_size,
+                                                                             progress_bar=progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
