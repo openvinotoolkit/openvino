@@ -94,7 +94,7 @@ class Benchmark:
         self.nireq = len(exe_network.requests)
         return exe_network
 
-    def first_infer(self, exe_network, infer_requests=None):
+    def first_infer(self, exe_network=None, infer_requests=None):
         if self.mode == "poc":
             infer_request = infer_requests[0]
         else:
