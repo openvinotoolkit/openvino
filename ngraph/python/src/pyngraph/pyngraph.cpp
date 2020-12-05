@@ -43,7 +43,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(pyngraph, m)
+PYBIND11_MODULE(_pyngraph, m)
 {
     m.doc() = "Package ngraph.impl that wraps nGraph's namespace ngraph";
     regclass_pyngraph_PyRTMap(m);
