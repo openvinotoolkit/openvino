@@ -47,7 +47,7 @@ namespace ngraph
                 /// Example:
                 /// \code{.cpp}
                 /// auto add = a + b; // a and b are op::Parameter in this example
-                /// auto label = std::make_shared<pattern::op::Label>(element::Type_t::f32,
+                /// auto label = std::make_shared<pattern::op::Label>(element::f32,
                 ///                                                   Shape{2,2},
                 ///                                                   nullptr,
                 ///                                                   OutputVector{add});
@@ -61,7 +61,7 @@ namespace ngraph
                     set_output_type(0, type, s);
                 }
 
-                explicit Label(const element::Type& type = element::Type_t::dynamic,
+                explicit Label(const element::Type& type = element::dynamic,
                                const PartialShape& s = PartialShape::dynamic())
                     : Label(type, s, [](const Output<Node>&) { return true; }, OutputVector())
                 {

@@ -42,8 +42,7 @@ op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type)
 void op::v3::ShapeOf::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::Type_t::i64 ||
-                              m_output_type == element::Type_t::i32,
+                          m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
     set_input_is_relevant_to_value(0, false);
     set_output_type(0, m_output_type, PartialShape{get_input_partial_shape(0).rank()});
@@ -142,7 +141,7 @@ namespace shape_of
                     auto index = std::make_shared<op::v0::Constant>(
                         output_type, Shape{1}, std::vector<int64_t>{i});
                     auto axis = std::make_shared<op::v0::Constant>(
-                        element::Type_t::i64, Shape{}, std::vector<int64_t>{0});
+                        element::i64, Shape{}, std::vector<int64_t>{0});
                     auto temp = make_shared<op::v1::Gather>(shape_of, index, axis);
                     temp->set_friendly_name("DynDim/" + temp->get_name());
                     dimensions.push_back(temp);
@@ -183,7 +182,7 @@ op::v0::ShapeOf::ShapeOf(const Output<Node>& arg)
 void op::v0::ShapeOf::validate_and_infer_types()
 {
     set_input_is_relevant_to_value(0, false);
-    set_output_type(0, element::Type_t::i64, PartialShape{get_input_partial_shape(0).rank()});
+    set_output_type(0, element::i64, PartialShape{get_input_partial_shape(0).rank()});
 }
 
 bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor)

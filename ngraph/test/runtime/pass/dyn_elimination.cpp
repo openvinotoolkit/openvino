@@ -56,12 +56,12 @@ std::shared_ptr<op::Constant> make_range_replacement(const element::Type& et,
 
 void pass::DynElimination::construct_range()
 {
-    auto start_arg_label = make_shared<pattern::op::Label>(
-        element::Type_t::f32, Shape{}, pattern::has_class<op::Constant>());
-    auto stop_arg_label = make_shared<pattern::op::Label>(
-        element::Type_t::f32, Shape{}, pattern::has_class<op::Constant>());
-    auto step_arg_label = make_shared<pattern::op::Label>(
-        element::Type_t::f32, Shape{}, pattern::has_class<op::Constant>());
+    auto start_arg_label =
+        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+    auto stop_arg_label =
+        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+    auto step_arg_label =
+        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
 
     auto range_pat = make_shared<op::Range>(start_arg_label, stop_arg_label, step_arg_label);
 
