@@ -309,7 +309,7 @@ public:
  *        which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#ifdef USE_STATIC_IE_EXTENSIONS 
+#ifdef USE_STATIC_IE_EXTENSIONS
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(StaticFunctionName, PluginType, version, ...)  \
     IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(StaticFunctionName, INFERENCE_PLUGIN_STATIC_API, PluginType, version, __VA_ARGS__)
 #else

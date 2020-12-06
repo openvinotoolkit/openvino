@@ -99,8 +99,7 @@ namespace {
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
     extern "C" StatusCode InferenceEngineIRReader_CreateONNXReader(Reader*& reader, ResponseDesc* resp);
 #else // !NGRAPH_ONNX_IMPORT_ENABLE
-    StatusCode InferenceEngineIRReader_CreateONNXReader(Reader*& reader, ResponseDesc* resp)
-    {
+    StatusCode InferenceEngineIRReader_CreateONNXReader(Reader*& reader, ResponseDesc* resp) {
         reader = nullptr;
         return OK;
     }

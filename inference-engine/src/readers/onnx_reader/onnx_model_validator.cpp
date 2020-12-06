@@ -227,4 +227,4 @@ namespace InferenceEngineONNXReader {
         return detail::prototxt::contains_onnx_model_keys(
             std::string{std::begin(head_of_file), std::end(head_of_file)}, 2);
     }
-} // namespace InferenceEngine
+} // namespace InferenceEngineONNXReader

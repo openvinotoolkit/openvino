@@ -28,8 +28,7 @@ namespace details {
  * @return Object returned by the factory, will throw exception if creation failed.
  */
 template <typename T, typename FACTORY = std::function<StatusCode(T*&, ResponseDesc*)> >
-static inline T* InstantiatePluginObject(FACTORY && factory)
-{
+static inline T* InstantiatePluginObject(FACTORY && factory) {
     T* instance;
     ResponseDesc desc;
     StatusCode sts = factory(instance, &desc);
@@ -45,8 +44,7 @@ static inline T* InstantiatePluginObject(FACTORY && factory)
  * @return shared_ptr returned by the factory, will throw exception if creation failed.
  */
 template <typename T, typename FACTORY = std::function<StatusCode(T*&, ResponseDesc*)> >
-static inline std::shared_ptr<T> InstantiatePluginSharedPtr(FACTORY && factory)
-{
+static inline std::shared_ptr<T> InstantiatePluginSharedPtr(FACTORY && factory) {
     return details::shared_from_irelease(InstantiatePluginObject<T>(std::forward<FACTORY>(factory)));
 }
 

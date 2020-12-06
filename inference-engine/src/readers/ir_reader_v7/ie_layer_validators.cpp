@@ -2351,4 +2351,4 @@ LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(ScatterElementsUpdateValidator, ScatterElementsUpdate);
 }
 
-}  // namespace InferenceEngine
+} // namespace InferenceEngineIRReader

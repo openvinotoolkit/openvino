@@ -102,7 +102,7 @@ public:
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override;
 };
 }  // namespace details
-}  // namespace InferenceEngine
+}  // namespace InferenceEngineIRReader
 
 /***********************************************************************************/
 /******* End of Layer Parsers ******************************************************/

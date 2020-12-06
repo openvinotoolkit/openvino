@@ -11,19 +11,15 @@
 #define InferenceEngineIRReader InferenceEngineIRReaderV7
 #endif
 
-namespace InferenceEngine
-{
-    namespace details
-    {
-    } // namespace details
+namespace InferenceEngine {
+namespace details {
+} // namespace details
 } // namespace InferenceEngine
 
 // We just define the IR reader namespace and InferenceEngine symbols visibles into it
-namespace InferenceEngineIRReader
-{
+namespace InferenceEngineIRReader {
 using namespace InferenceEngine;
-namespace details
-{
+namespace details {
 using namespace InferenceEngine::details;
 } // namespace details
 } // namespace InferenceEngineIRReader

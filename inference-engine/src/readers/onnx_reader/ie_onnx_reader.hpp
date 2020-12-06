@@ -48,5 +48,4 @@ public:
     }
 };
 
-}  // namespace InferenceEngine
-
+}  // namespace InferenceEngineONNXReader

@@ -369,4 +369,4 @@ private:
 
 #endif  // IR_READER_V10
 
-}  // namespace InferenceEngine
+}  // namespace InferenceEngineIRReader

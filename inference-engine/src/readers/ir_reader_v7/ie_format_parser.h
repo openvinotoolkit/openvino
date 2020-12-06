@@ -108,4 +108,4 @@ private:
     static std::vector<std::shared_ptr<BaseCreator>> generateCreators(int version);
 };
 }  // namespace details
-}  // namespace InferenceEngine
+}  // namespace InferenceEngineIRReader

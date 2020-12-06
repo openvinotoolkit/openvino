@@ -14,4 +14,4 @@ namespace InferenceEngineONNXReader {
     bool is_valid_model(std::istream& model, onnx_format);
 
     bool is_valid_model(std::istream& model, prototxt_format);
-} // namespace InferenceEngine
+} // namespace InferenceEngineONNXReader

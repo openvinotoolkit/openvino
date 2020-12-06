@@ -68,4 +68,4 @@ public:
     }
 };
 
-}  // namespace InferenceEngine
+}  // namespace InferenceEngineIRReader

@@ -276,5 +276,5 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     return res;
 }
 
-}  // namespace details
-}  // namespace InferenceEngine
+} // namespace details
+} // namespace InferenceEngineIRReader

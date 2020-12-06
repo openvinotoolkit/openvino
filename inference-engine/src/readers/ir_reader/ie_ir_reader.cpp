@@ -14,7 +14,7 @@
 
 #include "ie_ir_parser.hpp"
 #include "ie_ir_itt.hpp"
-            
+
 using namespace InferenceEngineIRReader;
 
 bool IRReader::supportModel(std::istream& model) const {

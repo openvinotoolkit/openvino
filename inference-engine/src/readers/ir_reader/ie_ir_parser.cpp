@@ -1627,4 +1627,4 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::NonMaxSupp
             box_enc_type, sort_flag);
 }
 
-}  // namespace InferenceEngine
+}  // namespace InferenceEngineIRReader

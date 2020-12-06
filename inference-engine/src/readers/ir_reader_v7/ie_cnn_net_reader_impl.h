@@ -81,4 +81,4 @@ private:
 };
 
 }  // namespace details
-}  // namespace InferenceEngine
+}  // namespace InferenceEngineIRReader

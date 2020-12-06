@@ -76,8 +76,7 @@ INFERENCE_PLUGIN_API(StatusCode) InferenceEngineONNXReader::CreateReader(IReader
 }
 
 #ifdef USE_STATIC_IE_EXTENSIONS
-INFERENCE_PLUGIN_STATIC_API(StatusCode) InferenceEngineIRReader_CreateONNXReader(IReader*& reader, ResponseDesc *resp)
-{
+INFERENCE_PLUGIN_STATIC_API(StatusCode) InferenceEngineIRReader_CreateONNXReader(IReader*& reader, ResponseDesc *resp) {
     return InferenceEngineONNXReader::CreateReader(reader, resp);
 }
 #endif

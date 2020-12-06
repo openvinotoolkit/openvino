@@ -872,4 +872,4 @@ public:
 };
 
 }  // namespace details
-}  // namespace InferenceEngine
+}  // namespace InferenceEngineIRReader
