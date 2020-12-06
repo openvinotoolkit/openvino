@@ -31,8 +31,8 @@ TEST(type_prop, group_conv_v1_partial_auto_padding_same_lower)
     Strides dilations{1, 1};
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
@@ -52,8 +52,8 @@ TEST(type_prop, group_conv_v1_partial_auto_padding_same_upper)
     Strides dilations{1, 1};
     const auto auto_pad = op::PadType::SAME_UPPER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
@@ -73,8 +73,8 @@ TEST(type_prop, group_conv_v1_partial_auto_padding_same_lower_nc_dims_dynamic)
     Strides dilations{1, 1};
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
@@ -94,8 +94,8 @@ TEST(type_prop, group_conv_v1_partial_auto_padding_same_upper_nc_dims_dynamic)
     Strides dilations{1, 1};
     const auto auto_pad = op::PadType::SAME_UPPER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
@@ -115,8 +115,8 @@ TEST(type_prop, group_conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
     Strides dilations{1, 1};
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::GroupConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);

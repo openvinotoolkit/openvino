@@ -35,7 +35,7 @@ struct recurrent_sequence_parameters
     Dimension seq_length = 12;
     Dimension input_size = 8;
     Dimension hidden_size = 256;
-    ngraph::element::Type et = element::Type_t::f32;
+    ngraph::element::Type et = element::f32;
 };
 
 //
@@ -86,20 +86,19 @@ TEST(type_prop, lstm_sequence_forward)
     const size_t input_size = 4;
     const size_t hidden_size = 128;
 
-    const auto X = make_shared<opset5::Parameter>(element::Type_t::f32,
-                                                  Shape{batch_size, seq_length, input_size});
+    const auto X =
+        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
+        element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto initial_cell_state = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths =
-        make_shared<opset5::Parameter>(element::Type_t::i32, Shape{batch_size});
+        element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<opset5::Parameter>(element::i32, Shape{batch_size});
     const auto W = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{num_directions, 4 * hidden_size, input_size});
+        element::f32, Shape{num_directions, 4 * hidden_size, input_size});
     const auto R = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(element::Type_t::f32,
-                                                  Shape{num_directions, 4 * hidden_size});
+        element::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
+    const auto B =
+        make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
     const auto lstm_direction = op::RecurrentSequenceDirection::FORWARD;
 
@@ -121,13 +120,13 @@ TEST(type_prop, lstm_sequence_forward)
     EXPECT_EQ(lstm_sequence->get_activations()[1], "tanh");
     EXPECT_EQ(lstm_sequence->get_activations()[2], "tanh");
     EXPECT_EQ(lstm_sequence->get_clip(), 0.f);
-    EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::Type_t::f32);
+    EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_sequence->outputs().size(), 3);
     EXPECT_EQ(lstm_sequence->get_output_shape(0),
               (Shape{batch_size, num_directions, seq_length, hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::Type_t::f32);
+    EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(1), (Shape{batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::Type_t::f32);
+    EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(2), (Shape{batch_size, num_directions, hidden_size}));
 }
 
@@ -139,20 +138,19 @@ TEST(type_prop, lstm_sequence_bidirectional)
     const size_t input_size = 8;
     const size_t hidden_size = 256;
 
-    const auto X = make_shared<opset5::Parameter>(element::Type_t::f32,
-                                                  Shape{batch_size, seq_length, input_size});
+    const auto X =
+        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
+        element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto initial_cell_state = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths =
-        make_shared<opset5::Parameter>(element::Type_t::i32, Shape{batch_size});
+        element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<opset5::Parameter>(element::i32, Shape{batch_size});
     const auto W = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{num_directions, 4 * hidden_size, input_size});
+        element::f32, Shape{num_directions, 4 * hidden_size, input_size});
     const auto R = make_shared<opset5::Parameter>(
-        element::Type_t::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(element::Type_t::f32,
-                                                  Shape{num_directions, 4 * hidden_size});
+        element::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
+    const auto B =
+        make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
     const auto lstm_direction = opset5::LSTMSequence::direction::BIDIRECTIONAL;
     const std::vector<float> activations_alpha = {2.7, 7.0, 32.367};
@@ -179,12 +177,12 @@ TEST(type_prop, lstm_sequence_bidirectional)
     EXPECT_EQ(lstm_sequence->get_activations()[1], "sigmoid");
     EXPECT_EQ(lstm_sequence->get_activations()[2], "sigmoid");
     EXPECT_EQ(lstm_sequence->get_clip(), 0.f);
-    EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::Type_t::f32);
+    EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(0),
               (Shape{batch_size, num_directions, seq_length, hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::Type_t::f32);
+    EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(1), (Shape{batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::Type_t::f32);
+    EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(2), (Shape{batch_size, num_directions, hidden_size}));
 }
 
@@ -197,7 +195,7 @@ TEST(type_prop, lstm_sequence_dynamic_batch_size)
     param.seq_length = 12;
     param.input_size = 8;
     param.hidden_size = 256;
-    param.et = element::Type_t::f32;
+    param.et = element::f32;
 
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     lstm_sequence->validate_and_infer_types();
@@ -223,7 +221,7 @@ TEST(type_prop, lstm_sequence_dynamic_num_directions)
     param.seq_length = 12;
     param.input_size = 8;
     param.hidden_size = 256;
-    param.et = element::Type_t::f32;
+    param.et = element::f32;
 
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     lstm_sequence->validate_and_infer_types();
@@ -249,7 +247,7 @@ TEST(type_prop, lstm_sequence_dynamic_seq_length)
     param.seq_length = Dimension::dynamic();
     param.input_size = 8;
     param.hidden_size = 256;
-    param.et = element::Type_t::f32;
+    param.et = element::f32;
 
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     lstm_sequence->validate_and_infer_types();
@@ -275,7 +273,7 @@ TEST(type_prop, lstm_sequence_dynamic_hidden_size)
     param.seq_length = 12;
     param.input_size = 8;
     param.hidden_size = Dimension::dynamic();
-    param.et = element::Type_t::f32;
+    param.et = element::f32;
 
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     lstm_sequence->validate_and_infer_types();
@@ -301,7 +299,7 @@ TEST(type_prop, lstm_sequence_dynamic_inputs)
     param.hidden_size = Dimension::dynamic();
     param.num_directions = Dimension::dynamic();
     param.seq_length = Dimension::dynamic();
-    param.et = element::Type_t::f32;
+    param.et = element::f32;
 
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     lstm_sequence->validate_and_infer_types();
@@ -327,7 +325,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dimension)
     param.seq_length = 12;
     param.input_size = 8;
     param.hidden_size = 256;
-    param.et = element::Type_t::f32;
+    param.et = element::f32;
 
     auto lstm_sequence = lstm_seq_tensor_initialization(param);
     auto invalid_rank0_tensor = make_shared<opset5::Parameter>(param.et, PartialShape{});
@@ -352,7 +350,7 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank)
     param.seq_length = 12;
     param.input_size = 8;
     param.hidden_size = 256;
-    param.et = element::Type_t::f32;
+    param.et = element::f32;
 
     auto check_dynamic_lstm = [](const shared_ptr<opset5::LSTMSequence>& lstm) -> bool {
         return lstm->output(0).get_partial_shape() == PartialShape::dynamic() &&

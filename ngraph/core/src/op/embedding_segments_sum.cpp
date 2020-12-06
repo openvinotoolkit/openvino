@@ -56,18 +56,18 @@ op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table
 void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(SEGMENT_IDS) == element::Type_t::i64 ||
-                              get_input_element_type(SEGMENT_IDS) == element::Type_t::i32,
+                          get_input_element_type(SEGMENT_IDS) == element::i64 ||
+                              get_input_element_type(SEGMENT_IDS) == element::i32,
                           "SEGMENT_IDS type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(INDICES) == element::Type_t::i64 ||
-                              get_input_element_type(INDICES) == element::Type_t::i32,
+                          get_input_element_type(INDICES) == element::i64 ||
+                              get_input_element_type(INDICES) == element::i32,
                           "INDICES type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(NUM_SEGMENTS) == element::Type_t::i64 ||
-                              get_input_element_type(NUM_SEGMENTS) == element::Type_t::i32,
+                          get_input_element_type(NUM_SEGMENTS) == element::i64 ||
+                              get_input_element_type(NUM_SEGMENTS) == element::i32,
                           "NUM_SEGMENTS type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(
@@ -110,8 +110,8 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
     if (get_input_size() >= 5)
     {
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(DEFAULT_INDEX) == element::Type_t::i64 ||
-                                  get_input_element_type(DEFAULT_INDEX) == element::Type_t::i32,
+                              get_input_element_type(DEFAULT_INDEX) == element::i64 ||
+                                  get_input_element_type(DEFAULT_INDEX) == element::i32,
                               "DEFAULT_INDEX type must be i32 or i64");
 
         NODE_VALIDATION_CHECK(
