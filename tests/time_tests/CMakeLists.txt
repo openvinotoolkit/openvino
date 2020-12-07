@@ -9,6 +9,9 @@ if (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-find_package(InferenceEngineDeveloperPackage REQUIRED)
+find_package(InferenceEngineDeveloperPackage QUIET)
+if (NOT InferenceEngineDeveloperPackage_FOUND)
+    find_package(InferenceEngine REQUIRED)
+endif()
 
 add_subdirectory(src)
