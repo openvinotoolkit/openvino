@@ -39,9 +39,9 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 * *variance_encoded_in_target*
 
   * **Description**: *variance_encoded_in_target* is a flag that denotes if variance is encoded in target. If flag is false then it is necessary to adjust the predicted offset accordingly.
-  * **Range of values**: False or True
+  * **Range of values**: false or true
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *keep_top_k*
