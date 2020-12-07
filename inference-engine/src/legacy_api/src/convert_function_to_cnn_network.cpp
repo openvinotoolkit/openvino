@@ -186,7 +186,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
     // TODO - Remove "GreaterEq" once ngraph transitions to GreaterEqual
-    addSpecificCreator({"Eltwise", "Subtract", "Power", "Maximum", "Divide", "Greater", "GreaterEqual", "FloorMod", "LogicalOr", "LogicalAnd", "LogicalXor",
+    addSpecificCreator({"Eltwise", "Subtract", "Power", "Maximum", "Minimum", "Divide", "Greater", "GreaterEqual", "FloorMod", "LogicalOr", "LogicalAnd", "LogicalXor",
         "GreaterEq", "Less", "LessEqual", "Equal", "NotEqual", "Multiply", "Add"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
             LayerParams attrs = {node->get_friendly_name(), "Eltwise",
@@ -195,6 +195,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params = params;
             if (node->description() == "Maximum") {
                 res->params["operation"] = "max";
+            } else if (node->description() == "Minimum") {
+                res->params["operation"] = "min";
             } else if (node->description() == "Power") {
                 res->params["operation"] = "pow";
             } else if (node->description() == "Subtract") {
@@ -1232,7 +1234,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::FullyConnected>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::MaxPool>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Minimum>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
