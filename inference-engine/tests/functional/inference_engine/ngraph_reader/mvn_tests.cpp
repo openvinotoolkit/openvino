@@ -97,7 +97,7 @@ TEST_F(NGraphReaderTests, ReadMVNNetwork) {
     compareIRs(model, modelV5, 0);
 }
 
-TEST_F(NGraphReaderTests, ReadMVN6Network) {
+TEST_F(NGraphReaderTests, DISABLED_ReadMVN6Network) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
