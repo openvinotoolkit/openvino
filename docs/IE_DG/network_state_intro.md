@@ -196,3 +196,82 @@ More powerfull examples of work with networks with states are sample and demo de
 Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
 
 [state_network_example]: ./img/state_network_example.png
+
+
+## LowLatency transformation
+
+If the original framework does not have a special API for working with states, then after importing the model, OpenVINO representation will also not contain Assign/ReadValue layers. For example, if original ONNX model contain RNN operations, IR will contain TensorIterator operations and the values will be obtained only after the execution of whole TensorIterator primitive, intermediate values from each iteration will not be available. To be able to work with these intermediate values of each iteration and receive them with a low latency after each infer request, a special LowLatency transformation was introduced.
+
+LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) by adding the ability to work with state, inserting Assign/ReadValue layers as it shown on the picture below.
+
+[applying_low_latency_example]: ./img/applying_low_latency.png
+
+## Steps to apply LowLatency transformation
+
+1. Get CNNNetwork. Any way is acceptable:
+
+	* [from IR or ONNX model](Integrate_with_customer_application_new_API.md#integration-steps)
+	* [from nGraph Function](../nGraph_DG/build_function.md)
+
+2. [Reshape](ShapeInference) CNNNetwork network if necessary 
+
+	**Necessary case:** the sequence_lengths dimention of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension exactly to 1.
+ 
+	```cpp
+
+	// Network before reshape: Parameter (name: X, shape: [2 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 2, axis = 0) -> ...
+
+	cnnNetwork.reshape({“X” : {1, 1, 16});
+
+	// Network after reshape: Parameter (name: X, shape: [1 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 1, axis = 0) -> ...
+		
+	```
+3. Apply LowLatency transformation
+
+	```cpp
+	#include "ie_transformations.hpp"
+	
+	...
+
+	InferenceEngine::LowLatency(cnnNetwork);
+	```
+
+	**State naming rule:**  a name of state is a concatanation of names original TensorIterator operation, Parameter of the body and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator), e.g:
+
+		tensor_iterator_name = "TI_name"
+		body_parameter_name = "param_name"
+
+		state_name = "TI_name/param_name/variable_0"
+
+4. [Use state API](#openvino-state-api)
+
+ 
+## Known limitations
+1. Parameters are directly connected to States (ReadValues).
+
+	Removing Parameters from `ngraph::Function` are not possible.
+
+	[low_latency_limitation_1]: ./img/low_latency_limitation_1.png
+
+	**Current solution:** replace Parameter with Constant (freeze) with the value [0, 0, 0 … 0] via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input` or `--freeze_placeholder_with_value`.
+
+2.  Non-reshapable network.
+
+	Value of shapes is hardcoded somewhere in the network. 
+
+	[low_latency_limitation_2]: ./img/low_latency_limitation_2.png
+
+	**Current solution:** trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output` or via nGraph.
+
+	```cpp
+		// nGraph example:
+		auto func = cnnNetwork.getFunction();
+		auto new_const = std::make_shared<ngraph::opset5::Constant>(); // type, shape, value
+		for (const auto& node : func->get_ops()) {
+			if (node->get_friendly_name() == "name_of_non_reshapable_const") {
+				auto bad_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(node);
+				ngraph::replace_node(bad_const, new_const); // replace constant
+			}
+		}
+	```
+
