@@ -40,6 +40,7 @@ TEST(coordinate_range, slice_range_shape0d)
 
     auto slice_range = slice(s, start_corner, s);
     auto it = slice_range.begin();
+    EXPECT_EQ(it, begin(slice_range));
     EXPECT_FALSE(it == slice_range.end());
     EXPECT_TRUE(++it == slice_range.end());
 }
@@ -55,7 +56,7 @@ TEST(coordinate_range, slice_range_shape1d)
     auto expected_val = begin(expected);
     for (auto slice_range : slice(s, start_corner, s))
     {
-        auto index = slice_range.begin;
+        auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
         {
             EXPECT_EQ(index, expected_val->first);
@@ -82,7 +83,7 @@ TEST(coordinate_range, slice_range_shape2d)
     auto expected_val = begin(expected);
     for (auto slice_range : slice(s, start_corner, s))
     {
-        auto index = slice_range.begin;
+        auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
         {
             EXPECT_EQ(index, expected_val->first);
@@ -113,7 +114,7 @@ TEST(coordinate_range, slice_range_shape3d)
     auto expected_val = begin(expected);
     for (auto slice_range : slice(s, start_corner, s))
     {
-        auto index = slice_range.begin;
+        auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
         {
             EXPECT_EQ(index, expected_val->first);
@@ -193,7 +194,7 @@ TEST(coordinate_range, slice_range_corner)
     auto expected_val = begin(expected);
     for (auto slice_range : slice(s, source_start_corner, source_end_corner))
     {
-        auto index = slice_range.begin;
+        auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
         {
             EXPECT_EQ(index, expected_val->first);
@@ -228,7 +229,7 @@ TEST(coordinate_range, slice_range_strides)
     auto expected_val = begin(expected);
     for (auto slice_range : slice(s, source_start_corner, source_end_corner, source_strides))
     {
-        auto index = slice_range.begin;
+        auto index = slice_range.begin_index;
         for (size_t i = 0; i < slice_range.element_number; index += slice_range.step, ++i)
         {
             EXPECT_EQ(index, expected_val->first);
@@ -253,6 +254,7 @@ TEST(coordinate_range, reverse_range_shape0d)
 
     auto reverse_range = reverse(s, reverset_axis);
     auto it = reverse_range.begin();
+    EXPECT_EQ(it, begin(reverse_range));
     EXPECT_TRUE(++it == reverse_range.end());
 }
 
@@ -267,7 +269,7 @@ TEST(coordinate_range, reverse_range_shape1d)
     auto expected_val = begin(expected);
     for (auto reverse_range : reverse(s, reverset_axis))
     {
-        auto index = reverse_range.begin;
+        auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::forward);
         for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i)
         {
@@ -296,7 +298,7 @@ TEST(coordinate_range, reverse_range_shape2d)
     auto expected_val = begin(expected);
     for (auto reverse_range : reverse(s, reverset_axis))
     {
-        auto index = reverse_range.begin;
+        auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::forward);
         for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i)
         {
@@ -329,7 +331,7 @@ TEST(coordinate_range, reverse_range_shape3d)
     auto expected_val = begin(expected);
     for (auto reverse_range : reverse(s, reverset_axis))
     {
-        auto index = reverse_range.begin;
+        auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::forward);
         for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i)
         {
@@ -375,7 +377,7 @@ TEST(coordinate_range, reverse_range_2d)
     auto expected_val = begin(expected);
     for (auto reverse_range : reverse(s, reverset_axis))
     {
-        auto index = reverse_range.begin;
+        auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::reverse);
         for (size_t i = 0; i < reverse_range.element_number; index -= reverse_range.step, ++i)
         {
@@ -412,7 +414,7 @@ TEST(coordinate_range, reverse_1_range_3d)
     auto expected_val = begin(expected);
     for (auto reverse_range : reverse(s, reverset_axis))
     {
-        auto index = reverse_range.begin;
+        auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::forward);
         for (size_t i = 0; i < reverse_range.element_number; index += reverse_range.step, ++i)
         {
@@ -449,7 +451,7 @@ TEST(coordinate_range, reverse_2_range_3d)
     auto expected_val = begin(expected);
     for (auto reverse_range : reverse(s, reverset_axis))
     {
-        auto index = reverse_range.begin;
+        auto index = reverse_range.begin_index;
         ASSERT_EQ(reverse_range.direction, Direction::reverse);
         for (size_t i = 0; i < reverse_range.element_number; index -= reverse_range.step, ++i)
         {

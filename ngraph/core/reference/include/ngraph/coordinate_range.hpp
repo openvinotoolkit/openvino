@@ -39,6 +39,9 @@ namespace ngraph
                 }
 
             } // namespace
+
+            /// \brief Class which allow to iterate over a different ranges part by part
+            ///
             template <typename Range>
             class RangeIterator
             {
@@ -82,6 +85,8 @@ namespace ngraph
                 Range* m_r;
             };
 
+            /// \brief Describe slice range
+            ///
             struct CoordinateBounds
             {
                 CoordinateBounds(const Coordinate& lower, const Coordinate& upper)
@@ -99,6 +104,8 @@ namespace ngraph
                 size_t last_dim_size() const noexcept { return m_upper.back() - m_lower.back(); }
             };
 
+            /// \brief helper for iterator creation which allow to stay DRY
+            ///
             template <typename Range>
             struct RangeBase
             {
@@ -106,22 +113,31 @@ namespace ngraph
 
                 Iterator begin() { return Iterator(static_cast<Range*>(this)); }
                 Iterator end() { return Iterator(nullptr); }
+                friend Iterator begin(Range& r) { return r.begin(); }
+                friend Iterator end(Range& r) { return r.end(); }
             };
 
+            /// \brief Information how index in _Range_ should be change
+            ///
             enum class Direction
             {
                 forward,
                 reverse,
             };
 
+            /// \brief Range contain information which part of memory should be copied
+            ///
             struct Range
             {
-                const size_t begin;
+                const size_t begin_index;
                 const size_t element_number;
                 const size_t step;
                 const Direction direction;
             };
 
+            /// \brief Class allows to iterate over sliced Tensor part by part.
+            ///
+            /// To create SliceRange use _slice_ function.
             class SliceRange : public RangeBase<SliceRange>
             {
             public:
@@ -143,7 +159,6 @@ namespace ngraph
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
-                Coordinate coodinate() const { return m_coordinate; }
             private:
                 const Shape m_source_shape;
                 const CoordinateBounds m_bounds;
@@ -153,6 +168,8 @@ namespace ngraph
                 size_t m_index{0};
             };
 
+            /// \brief Create SliceRange which might be used in range-base for loop
+            ///
             inline SliceRange slice(const Shape& source_shape,
                                     const Coordinate& source_start_corner,
                                     const Coordinate& source_end_corner,
@@ -160,6 +177,9 @@ namespace ngraph
             {
                 return SliceRange{source_shape, source_start_corner, source_end_corner, strides};
             }
+
+            /// \brief Create SliceRange which might be used in range-base for loop
+            ///
             inline SliceRange slice(const Shape& source_shape,
                                     const Coordinate& source_start_corner,
                                     const Coordinate& source_end_corner)
@@ -170,6 +190,10 @@ namespace ngraph
                              Strides(source_shape.size(), 1));
             }
 
+            /// \brief Class allows to iterate over Tensor with reverted axies part by part.
+            ///
+            /// To create ReverseRange use _reverse_ function.
+            ///
             class ReverseRange : public RangeBase<ReverseRange>
             {
             public:
@@ -183,7 +207,6 @@ namespace ngraph
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
             private:
                 const Shape m_source_shape;
-                const Strides m_source_strides;
                 const std::vector<size_t> m_memory_strides;
                 const std::vector<Direction> m_axis_directions;
                 Coordinate m_coordinate;
@@ -196,8 +219,8 @@ namespace ngraph
             }
 
         } // namespace impl
+        using impl::Direction;
         using impl::reverse;
         using impl::slice;
-        using impl::Direction;
     } // namespace coordinates
 } // namespace ngraph

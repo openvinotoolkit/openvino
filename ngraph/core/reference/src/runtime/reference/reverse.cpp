@@ -49,7 +49,7 @@ namespace ngraph
                 auto dst_mem = out;
                 for (auto range : coordinates::reverse(arg_shape, reversed_axes))
                 {
-                    auto src_index = range.begin;
+                    auto src_index = range.begin_index;
 
                     if (range.direction == coordinates::Direction::forward)
                     {
