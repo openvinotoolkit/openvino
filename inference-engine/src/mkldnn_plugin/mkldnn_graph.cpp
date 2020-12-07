@@ -1095,44 +1095,17 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
     }
     reorderPtr->setDescs(inDesc, outDesc);
     reorderPtr->_scales = scales;
-
-    auto oIndex = edge->getOutputNum();
-    auto iIndex = edge->getInputNum();
-    if (iIndex < 0 || oIndex < 0)
-        THROW_IE_EXCEPTION << "Cannot create reorder for nodes: "
-                           << edge->getParent()->getName() << " and "
-                           << edge->getChild()->getName() << ".";
-
-    edge->drop();
-
-    MKLDNNEdgePtr beforeNode(new MKLDNNEdge(edge->getParent(), newReorder, iIndex, 0));
-    MKLDNNEdgePtr afterNode(new MKLDNNEdge(newReorder, edge->getChild(), 0, oIndex));
-
-    // Add edge for beforeNode
-    beforeNode->getChild()->parentEdges.push_back(beforeNode);
-    edge->getParent()->childEdges.push_back(beforeNode);
-
-    // Add edge for afterNode
-    afterNode->getParent()->childEdges.push_back(afterNode);
-    edge->getChild()->parentEdges.push_back(afterNode);
-
     reorderPtr->setOptimized(isOptimized);
 
-    newReorder->getSupportedDescriptors();
-    newReorder->initSupportedPrimitiveDescriptors();
-    newReorder->selectOptimalPrimitiveDescriptor();
-
-    graphEdges.push_back(beforeNode);
-    graphEdges.push_back(afterNode);
+    InsertNode(edge, newReorder);
 
     // Using the method MKLDNNEdge::getDesc() we can check that input and output tensor descriptors are equal.
     // Due to the specificity of MKLDNNGraphOptimizer::MergePermuteAndReorder() that isOptimized flag uses, we shouldn't do these checks.
     if (!isOptimized) {
-        beforeNode->getDesc();
-        afterNode->getDesc();
+        newReorder->getParentEdgeAt(0)->getDesc();
+        newReorder->getChildEdgeAt(0)->getDesc();
     }
 
-    graphNodes.push_back(newReorder);
     return newReorder;
 }
 
