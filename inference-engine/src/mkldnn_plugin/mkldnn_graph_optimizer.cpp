@@ -2338,12 +2338,22 @@ static bool isReorderAvailable(const MKLDNNEdgePtr parentEdge, const MKLDNNEdgeP
 
 void MKLDNNGraphOptimizer::AddConvertToReorder(MKLDNNGraph &graph) {
     const auto& vecNodes = graph.GetNodes();
+    std::set<MKLDNNNodePtr> insertedReorders;
 
     for (int i = 0; i < vecNodes.size(); i++) {
         auto node = vecNodes[i];
         if (Reorder == node->getType()) {
             auto inpEdge = node->getParentEdgeAt(0);
             auto outEdge = node->getChildEdgeAt(0);
+            // Some guard checks
+            if (inpEdge->getDesc().getPrecision() == outEdge->getDesc().getPrecision()) {
+                continue;
+            }
+
+            if (insertedReorders.count(node)) {
+                continue;
+            }
+
             // Check if there is a reorder that supports the type conversion
             if (isReorderAvailable(inpEdge, outEdge, graph.getEngine())) {
                 continue;
@@ -2374,7 +2384,10 @@ void MKLDNNGraphOptimizer::AddConvertToReorder(MKLDNNGraph &graph) {
                 std::string reorderName = edge->getParent()->getName() + "_" +
                         MKLDNNExtensionUtils::getReorderArgs(convertOutputDesc, outEdge->getDesc()) +
                         "_" + edge->getChild()->getName();
-                graph.InsertReorder(edge, reorderName, convertOutputDesc, outEdge->getDesc());
+                auto newReorder = graph.InsertReorder(edge, reorderName, convertOutputDesc, outEdge->getDesc());
+                if (newReorder) {
+                    insertedReorders.insert(newReorder);
+                }
             }
 
             inpEdge->drop();

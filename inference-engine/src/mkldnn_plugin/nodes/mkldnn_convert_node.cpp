@@ -42,7 +42,7 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
 
         const auto layout = config.inConfs[0].desc.getLayout(); // inp/out layouts must be the same
         auto outTensorDesc = output;
-        dataConfigOut.desc = TensorDesc(output.getPrecision(), output.getDims(), layout);
+        dataConfigOut.desc = TensorDesc(output.getPrecision(), input.getDims(), layout);
         config.outConfs.push_back(dataConfigOut);
         fmt = MKLDNNMemory::Convert(layout);
     } else if (!layer->insData.empty() && !layer->outData.empty()) {
