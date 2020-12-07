@@ -2338,25 +2338,12 @@ static bool isReorderAvailable(const MKLDNNEdgePtr parentEdge, const MKLDNNEdgeP
 
 void MKLDNNGraphOptimizer::AddConvertToReorder(MKLDNNGraph &graph) {
     const auto& vecNodes = graph.GetNodes();
-//    size_t total = 0;
-//    size_t count = 0;
+
     for (int i = 0; i < vecNodes.size(); i++) {
         auto node = vecNodes[i];
         if (Reorder == node->getType()) {
             auto inpEdge = node->getParentEdgeAt(0);
             auto outEdge = node->getChildEdgeAt(0);
-
-//            std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-//            isReorderAvailable(inpEdge, outEdge, graph.getEngine());
-//            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-
-//            auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count();
-//
-//            std::cout << "Time difference = " << time << "[ns]" << std::endl;
-//
-//            total += time;
-//            ++count;
-
             // Check if there is a reorder that supports the type conversion
             if (isReorderAvailable(inpEdge, outEdge, graph.getEngine())) {
                 continue;
@@ -2395,6 +2382,4 @@ void MKLDNNGraphOptimizer::AddConvertToReorder(MKLDNNGraph &graph) {
             graph.DropNode(node);
         }
     }
-//    std::cout << "Total time = " << float(total) / 1000.f << "[mcs]" << std::endl;
-//    std::cout << "Average time = " << float(total) / 1000.f / count << "[mcs]" << std::endl;
 }
