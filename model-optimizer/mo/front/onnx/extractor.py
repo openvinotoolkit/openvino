@@ -22,9 +22,7 @@ def node_pb_arg(pb_extractor: callable):
     return lambda node: pb_extractor(node.pb)
 
 
-onnx_op_extractors = {
-    'BatchNormalization': tf_fused_bn_extractor,
-}
+onnx_op_extractors = {}
 
 
 def common_onnx_fields(node: Node):

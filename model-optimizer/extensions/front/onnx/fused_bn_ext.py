@@ -13,23 +13,22 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
 
-from mo.graph.graph import Graph
-from mo.ops.op import Op
+from extensions.ops.BatchNormInference import BatchNormInference
+from mo.front.onnx.extractors.utils import onnx_attr
 
 
-class BNOp(Op):
-    """
-    Empty Op for BN layer. It will be replaced by BNToScaleShift FrontReplacer
-    """
-    op = 'BN'
+
+class BatchNormalizationExtractor(FrontExtractorOp):
+    op = 'BatchNormalization'
     enabled = True
 
-    def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': __class__.op,
-            'in_ports_count': 5,
-            'out_ports_count': 1,
-            'infer': None
-        }, attrs)
+    @classmethod
+    def extract(cls, node):
+        attr_dict = {
+           'data_format': 'NCHW',
+           'eps': onnx_attr(node, 'epsilon', 'f', 1e-5),
+        }
+        BatchNormInference.update_node_stat(node, attr_dict)
+        return cls.enabled

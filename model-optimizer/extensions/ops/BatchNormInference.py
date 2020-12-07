@@ -13,21 +13,23 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import logging as log
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.onnx.extractors.utils import onnx_attr
+from mo.graph.graph import Graph
+from mo.ops.op import Op
 
 
-def tf_fused_bn_extractor(node):
-    pb = node.pb
-    # This statement covers different opset versions
-    if onnx_attr(node, 'is_test', 'i', None) == 0:
-        log.error('FusedBatchNorm doesn\'t support is_test=False')
-        return None
+class BatchNormInference(Op):
+    """
+    Empty Op for BN layer. It will be replaced by BNToScaleShift FrontReplacer
+    """
+    op = 'batchNormInference'
+    enabled = False
 
-    return {
-        'data_format': 'NCHW',
-        'eps': onnx_attr(node, 'epsilon', 'f', 1e-5),
-        'infer': copy_shape_infer,
-    }
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'type': self.op,
+            'op': self.op,
+            'in_ports_count': 5,
+            'out_ports_count': 1,
+            'infer': None
+        }, attrs)
