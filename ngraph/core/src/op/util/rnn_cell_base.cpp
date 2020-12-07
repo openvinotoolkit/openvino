@@ -46,7 +46,7 @@ std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<No
     const auto& to = gate_order_map.at(to_format);
     size_t num_gates = 4;
 
-    auto axis_const = std::make_shared<opset4::Constant>(element::Type_t::i64, Shape{}, axis);
+    auto axis_const = std::make_shared<opset4::Constant>(element::i64, Shape{}, axis);
     OutputVector splitted_node =
         std::make_shared<opset4::Split>(node, axis_const, num_gates)->outputs();
     OutputVector nodes_in_new_format(num_gates);
