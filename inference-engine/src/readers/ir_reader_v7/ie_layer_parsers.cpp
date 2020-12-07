@@ -56,7 +56,11 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
         activation->type = type;
     } else {
         activation = activationBuilder->second->CreateLayer(node, layerParsePrms);
+        activation->type = activationBuilder->first;
     }
+
+    activation->params.erase("type");
+
 
     return activation;
 }
