@@ -118,7 +118,7 @@ namespace ngraph
     NGRAPH_API EnumNames<op::EpsMode>& EnumNames<op::EpsMode>::get()
     {
         static auto enum_names = EnumNames<op::EpsMode>(
-            "op::EpsMode", {{"ADD", op::EpsMode::ADD}, {"MAX", op::EpsMode::MAX}});
+            "op::EpsMode", {{"add", op::EpsMode::ADD}, {"max", op::EpsMode::MAX}});
         return enum_names;
     }
 
