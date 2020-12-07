@@ -415,7 +415,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
         std::make_shared<LayerCreator<ngraph::op::v1::NotEqual>>("NotEqual"),
-        std::make_shared<LayerCreator<ngraph::op::v1::FloorMod>>("FloorMod"),
         std::make_shared<LayerCreator<ngraph::op::MVN>>("MVN"),
         std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
         std::make_shared<LayerCreator<ngraph::op::v1::MaxPool>>("MaxPool"),
@@ -850,15 +849,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::NotEqual>:
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 2);
     return std::make_shared<ngraph::op::v1::NotEqual>(inputs[0], inputs[1]);
-}
-
-// FloorMod layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::FloorMod>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::FloorMod>(inputs[0], inputs[1]);
 }
 
 // MVN layer
