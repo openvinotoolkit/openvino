@@ -14,17 +14,17 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 namespace LayerTestsDefinitions {
-using concat4DParamsTuple = typename std::tuple<
+using trivialConcatParamsTuple = typename std::tuple<
     std::vector<size_t>,               // Inputs shape
     InferenceEngine::Precision,        // Network precision
     std::string,                       // Device name
     std::map<std::string, std::string> // Configuration
 >;
 
-class Concat4DLayerTest : public testing::WithParamInterface<concat4DParamsTuple>,
+class TrivialConcatLayerTest : public testing::WithParamInterface<trivialConcatParamsTuple>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<concat4DParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<trivialConcatParamsTuple> &obj);
 protected:
     void SetUp() override;
 };

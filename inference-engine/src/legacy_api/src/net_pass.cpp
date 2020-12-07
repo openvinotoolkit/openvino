@@ -1527,6 +1527,9 @@ void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
         case getPrecisionMask(Precision::FP16, Precision::FP32):
             convertPrecisionForAll<Precision::FP16, Precision::FP32>(net);
             break;
+        case getPrecisionMask(Precision::FP64, Precision::FP32):
+            convertPrecisionForAll<Precision::FP64, Precision::FP32>(net);
+            break;
         case getPrecisionMask(Precision::U8, Precision::I32):
             convertPrecisionForAll<Precision::U8, Precision::I32>(net);
             break;

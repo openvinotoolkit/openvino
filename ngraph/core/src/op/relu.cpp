@@ -81,3 +81,8 @@ bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector&
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Relu::evaluate");
     return relu::evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
+
+bool op::Relu::visit_attributes(AttributeVisitor& visitor)
+{
+    return true;
+}

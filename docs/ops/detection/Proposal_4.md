@@ -153,7 +153,7 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 
 *   **1**: tensor of type *T* and shape `[batch_size * post_nms_topn, 5]`.
 
-*   **2**: tensor of type *T* and shape `[batch_size * post_nms_topn]` with probabilities. *Optional*.
+*   **2**: tensor of type *T* and shape `[batch_size * post_nms_topn]` with probabilities.
 
 **Types**
 
