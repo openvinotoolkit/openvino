@@ -31,5 +31,10 @@ class BatchNormInference(Op):
             'op': self.op,
             'in_ports_count': 5,
             'out_ports_count': 1,
-            'infer': None
+            'infer': self.infer
         }, attrs)
+    @staticmethod
+    def infer(node):
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
+        if node.in_port(0).data.get_value() is not None:
+            node.out_port(0).data.set_value(node.in_port(0).data.get_value())
