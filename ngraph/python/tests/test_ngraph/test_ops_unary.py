@@ -110,7 +110,6 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip(reason="Wrong results are broadcasted along given axis")
 def test_softmax():
     axis = 0
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)

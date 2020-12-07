@@ -25,7 +25,6 @@ import onnx.backend.test
 
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 from tests import (BACKEND_NAME,
-                   skip_issue_38084,
                    xfail_issue_36535,
                    xfail_issue_39656,
                    xfail_issue_39658,
@@ -124,21 +123,6 @@ OnnxBackendPyTorchConvertedModelTest = None
 globals().update(backend_test.enable_report().test_cases)
 
 tests_expected_to_fail = [
-    (skip_issue_38084,
-        "OnnxBackendNodeModelTest.test_expand_dim_changed_cpu",
-        "OnnxBackendNodeModelTest.test_expand_dim_unchanged_cpu",
-        "OnnxBackendSimpleModelTest.test_expand_shape_model1_cpu",
-        "OnnxBackendSimpleModelTest.test_expand_shape_model2_cpu",
-        "OnnxBackendSimpleModelTest.test_expand_shape_model3_cpu",
-        "OnnxBackendSimpleModelTest.test_expand_shape_model4_cpu",
-        "OnnxBackendNodeModelTest.test_slice_default_axes_cpu",
-        "OnnxBackendNodeModelTest.test_top_k_cpu",
-        "OnnxBackendNodeModelTest.test_top_k_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_top_k_smallest_cpu",
-        "OnnxBackendNodeModelTest.test_nonzero_example_cpu",
-        "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_cpu",
-        "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_cpu",
-        "OnnxBackendNodeModelTest.test_upsample_nearest_cpu"),
     (xfail_issue_34314,
         "OnnxBackendNodeModelTest.test_rnn_seq_length_cpu",
         "OnnxBackendNodeModelTest.test_simple_rnn_defaults_cpu",

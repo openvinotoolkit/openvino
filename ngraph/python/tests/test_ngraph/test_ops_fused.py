@@ -19,7 +19,6 @@ import pytest
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests import (xfail_issue_40957,
-                   skip_segfault,
                    xfail_issue_34327,
                    xfail_issue_36485,
                    xfail_issue_36486,
@@ -58,7 +57,6 @@ def test_elu_operator_with_scalar():
     assert np.allclose(result, expected)
 
 
-@skip_segfault
 def test_fake_quantize():
     runtime = get_runtime()
 
