@@ -16,7 +16,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ngraph/op/strided_slice.hpp>
 #include <ngraph/op/not_equal.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset.hpp>
@@ -402,7 +401,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::SpaceToDepth>>("SpaceToDepth"),
         std::make_shared<LayerCreator<ngraph::op::DepthToSpace>>("DepthToSpace"),
         std::make_shared<LayerCreator<ngraph::op::v1::Subtract>>("Subtract"),
-        std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
         std::make_shared<LayerCreator<ngraph::op::v1::Gather>>("Gather"),
         std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolution>>("GroupConvolution"),
@@ -905,31 +903,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Result>::creat
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 1);
     return std::make_shared<ngraph::op::Result>(inputs[0]);
-}
-
-// StridedSlice layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::StridedSlice>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-
-    pugi::xml_node dn = node.child("data");
-
-    std::vector<int64_t> begin_mask = getParameters<int64_t>(dn, "begin_mask");
-    std::vector<int64_t> end_mask = getParameters<int64_t>(dn, "end_mask");
-    std::vector<int64_t> new_axis = getParameters<int64_t>(dn, "new_axis_mask");
-    std::vector<int64_t> shrink_axis = getParameters<int64_t>(dn, "shrink_axis_mask");
-    std::vector<int64_t> ellipsis_mask = getParameters<int64_t>(dn, "ellipsis_mask");
-
-    if (inputs.size() == 3) {
-        return std::make_shared<ngraph::op::v1::StridedSlice>(inputs[0], inputs[1], inputs[2], begin_mask,
-                                                              end_mask, new_axis, shrink_axis, ellipsis_mask);
-    } else if (inputs.size() == 4) {
-        return std::make_shared<ngraph::op::v1::StridedSlice>(inputs[0], inputs[1], inputs[2], inputs[3], begin_mask,
-                                                              end_mask, new_axis, shrink_axis, ellipsis_mask);
-    } else {
-        THROW_IE_EXCEPTION << "Incorrect number of inputs " << inputs.size() << " for " << getType() << " layer with name: " << layerParsePrms.name;
-    }
 }
 
 // Minimum layer
