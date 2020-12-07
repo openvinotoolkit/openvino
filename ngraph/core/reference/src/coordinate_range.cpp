@@ -90,7 +90,8 @@ namespace ngraph
 
             bool SliceRange::increment()
             {
-                if (m_coordinate.empty())
+                // during increment rage omit last dim so at least two dims are required to proceed
+                if (m_coordinate.size() < 2)
                 {
                     return false;
                 }
@@ -172,7 +173,8 @@ namespace ngraph
 
             bool ReverseRange::increment()
             {
-                if (m_coordinate.empty())
+                // during increment rage omit last dim so at least two dims are required to proceed
+                if (m_coordinate.size() < 2)
                 {
                     return false;
                 }
