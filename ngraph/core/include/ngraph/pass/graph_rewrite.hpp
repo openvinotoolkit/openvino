@@ -142,7 +142,7 @@ public:
     ///     anchor->add_matcher<MatcherPassB, false>();
     ///
     /// \return shared_ptr to the transformation instance
-    template <typename T, bool Enabled = true, class... Args>
+    template <typename T, bool Enabled = true, class... Args, typename std::enable_if<std::is_base_of<pass::MatcherPass, T>{}, bool>::type = true>
     std::shared_ptr<T> add_matcher(Args&&... args)
     {
         static_assert(std::is_base_of<pass::MatcherPass, T>::value,
@@ -157,6 +157,21 @@ public:
         m_matchers.push_back(pass);
         return pass;
     }
+
+    template <typename T, class... Args, typename std::enable_if<std::is_base_of<pass::GraphRewrite, T>{}, bool>::type = true>
+    void add_matcher(Args&&... args)
+    {
+        static_assert(std::is_base_of<pass::GraphRewrite, T>::value,
+                      "pass not derived from GraphRewrite");
+        auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+        auto pass_config = get_pass_config();
+
+        for (auto & matcher : pass->m_matchers)
+        {
+            m_matchers.push_back(matcher);
+        }
+    }
+
     NGRAPH_DEPRECATED("Use MatcherPass instead")
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback,

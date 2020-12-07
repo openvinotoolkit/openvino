@@ -58,6 +58,11 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
         }
     };
 
-    ngraph::traverse_nodes(f, init_node);
+    auto it = f->get_iterator();
+    while (it.get()) {
+        init_node(it.get());
+        it.next();
+    }
+
     return false;
 }

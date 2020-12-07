@@ -342,7 +342,10 @@ bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
 
     bool clobbered = false;
 
-    for (const auto& node : function->get_ops()) {
+    auto it = function->get_iterator();
+    while (it.get()) {
+        auto node = it.get();
+        it.next();
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
             if (auto sub_graph = sub_graph_node->get_function()) {

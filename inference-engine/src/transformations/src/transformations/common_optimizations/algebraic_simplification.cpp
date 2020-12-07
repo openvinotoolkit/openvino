@@ -241,7 +241,10 @@ bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f) {
          {opset3::Transpose::type_info, replace_transpose_with_reshape}};
 
     bool replaced = false;
-    for (auto n : f->get_ordered_ops()) {
+        auto it = f->get_iterator();
+    while (it.get()) {
+        auto n = it.get();
+        it.next();
         if (op::is_output(n) || op::is_parameter(n)) {
             continue;
         }

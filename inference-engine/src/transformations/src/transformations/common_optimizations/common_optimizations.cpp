@@ -64,16 +64,19 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
     manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
-    manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
-    manager.register_pass<ngraph::pass::MishFusion>();
-    manager.register_pass<ngraph::pass::SoftPlusFusion>();
-    manager.register_pass<ngraph::pass::SoftPlusToMishFusion>();
-    manager.register_pass<ngraph::pass::SwishFusion>();
-    manager.register_pass<ngraph::pass::HSwishFusion>();
-    manager.register_pass<ngraph::pass::HSigmoidFusion>();
-    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
-    manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
+
+    auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
+    common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::MishFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
+    common_fusions->add_matcher<ngraph::pass::SwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
+    common_fusions->add_matcher<ngraph::pass::ConvertPadToGroupConvolution, false>();
+    common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
+    common_fusions->set_name("ngraph::pass::CommonFusions");
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
@@ -114,7 +117,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
+//    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
