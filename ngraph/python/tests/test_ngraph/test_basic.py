@@ -26,9 +26,9 @@ from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_35929,
-                   xfail_issue_36476,
-                   xfail_issue_36480)
+from tests import (xfail_issue_36476,
+                   xfail_issue_36480,
+                   xfail_issue_40319)
 
 
 def test_ngraph_function_api():
@@ -59,7 +59,7 @@ def test_ngraph_function_api():
     "dtype",
     [
         np.float32,
-        pytest.param(np.float64, marks=xfail_issue_35929),
+        pytest.param(np.float64, marks=xfail_issue_40319),
         np.int8,
         np.int16,
         np.int32,
@@ -155,9 +155,9 @@ def test_convert_to_bool(destination_type, input_data):
     "destination_type, rand_range, in_dtype, expected_type",
     [
         pytest.param(np.float32, (-8, 8), np.int32, np.float32),
-        pytest.param(np.float64, (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
+        pytest.param(np.float64, (-16383, 16383), np.int64, np.float64),
         pytest.param("f32", (-8, 8), np.int32, np.float32),
-        pytest.param("f64", (-16383, 16383), np.int64, np.float64, marks=xfail_issue_35929),
+        pytest.param("f64", (-16383, 16383), np.int64, np.float64),
     ],
 )
 def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type):
@@ -169,7 +169,6 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -185,14 +184,13 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
 )
 def test_convert_to_int(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = np.ceil(-8 + np.random.rand(2, 3, 4) * 16)
+    input_data = (np.ceil(-8 + np.random.rand(2, 3, 4) * 16)).astype(np.float32)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ng.convert, destination_type)
     assert np.allclose(result, expected)
     assert np.array(result).dtype == expected_type
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "destination_type, expected_type",
     [
@@ -208,7 +206,7 @@ def test_convert_to_int(destination_type, expected_type):
 )
 def test_convert_to_uint(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
+    input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(np.float32)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ng.convert, destination_type)
     assert np.allclose(result, expected)
@@ -409,3 +407,22 @@ def test_runtime_info():
     runtime_info_after = relu_node.get_rt_info()
 
     assert runtime_info_after["affinity"] == "test_affinity"
+
+
+def test_mutiple_outputs():
+    input_shape = [4, 4]
+    input_data = np.arange(-8, 8).reshape(input_shape)
+
+    expected_output = np.split(input_data, 2, axis=1)[0]
+    expected_output[expected_output < 0] = 0
+
+    test_param = ng.parameter(input_shape, dtype=np.float32, name="A")
+    split = ng.split(test_param, axis=1, num_splits=2)
+    split_first_output = split.output(0)
+    relu = ng.relu(split_first_output)
+
+    runtime = get_runtime()
+    computation = runtime.computation(relu, test_param)
+    output = computation(input_data)
+
+    assert np.equal(output, expected_output).all()

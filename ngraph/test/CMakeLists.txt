@@ -235,7 +235,6 @@ endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
     list(APPEND SRC
-        backend_debug_api.cpp
         builder.cpp
         backend_api.cpp)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
@@ -303,6 +302,7 @@ set(MULTI_TEST_SRC
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/maximum.in.cpp
+    backend/max_pool.in.cpp
     backend/minimum.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -317,7 +317,6 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
-    backend/quantize_dequantize.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
