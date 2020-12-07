@@ -269,7 +269,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
         }
     }
 
-    std::map<std::string, DataPtr> outputs;
+    OutputsDataMap outputs;
     network.getOutputsInfo(outputs);
 
     for (const auto &output : outputs) {

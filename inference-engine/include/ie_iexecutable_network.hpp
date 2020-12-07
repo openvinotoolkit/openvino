@@ -25,11 +25,6 @@
 namespace InferenceEngine {
 
 /**
- * @brief A collection that contains string as key, and const Data smart pointer as value
- */
-using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
-
-/**
  * @brief This is an interface of an executable network
  */
 class IExecutableNetwork : public details::IRelease {

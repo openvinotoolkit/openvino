@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 
+#include <details/ie_alias_map.hpp>
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
@@ -158,11 +159,11 @@ protected:
 /**
  * @brief A collection that contains string as key, and InputInfo smart pointer as value
  */
-using InputsDataMap = std::map<std::string, InputInfo::Ptr>;
+using InputsDataMap = InferenceEngine::details::AliasMap<std::string, InputInfo::Ptr>;
 
 /**
  * @brief A collection that contains string as key, and const InputInfo smart pointer as value
  */
-using ConstInputsDataMap = std::map<std::string, InputInfo::CPtr>;
+using ConstInputsDataMap = InferenceEngine::details::AliasMap<std::string, InputInfo::CPtr>;
 
 }  // namespace InferenceEngine

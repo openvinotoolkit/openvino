@@ -132,7 +132,7 @@ CNNNetworkImpl::~CNNNetworkImpl() {
     }
 }
 
-void CNNNetworkImpl::getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept {
+void CNNNetworkImpl::getOutputsInfo(OutputsDataMap& out) const noexcept {
     out = _outputData;
 }
 

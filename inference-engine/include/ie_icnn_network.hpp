@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 
+#include <details/ie_alias_map.hpp>
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
@@ -30,7 +31,12 @@ namespace InferenceEngine {
 /**
  * @brief A collection that contains string as key, and Data smart pointer as value
  */
-using OutputsDataMap = std::map<std::string, DataPtr>;
+using OutputsDataMap = details::AliasMap<std::string, DataPtr>;
+
+/**
+ * @brief A collection that contains string as key, and const Data smart pointer as value
+ */
+using ConstOutputsDataMap = details::AliasMap<std::string, CDataPtr>;
 
 /**
  * @interface ICNNNetwork

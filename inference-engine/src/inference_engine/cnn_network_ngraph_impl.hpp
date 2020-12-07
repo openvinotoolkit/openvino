@@ -42,7 +42,7 @@ public:
     CNNNetworkNGraphImpl(const ICNNNetwork& nGraph);
     ~CNNNetworkNGraphImpl() override = default;
 
-    void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
+    void getOutputsInfo(OutputsDataMap& out) const noexcept override;
 
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;
 

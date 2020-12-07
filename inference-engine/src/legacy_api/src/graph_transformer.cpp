@@ -53,7 +53,7 @@ static std::vector<DataPtr> get_inputs(details::CNNNetworkImpl* _network) {
 static std::vector<DataPtr> get_outputs(details::CNNNetworkImpl* _network) {
     if (!_network) return {};
 
-    std::map<std::string, DataPtr> outs_info;
+    OutputsDataMap outs_info;
     _network->getOutputsInfo(outs_info);
 
     std::vector<DataPtr> outputs;

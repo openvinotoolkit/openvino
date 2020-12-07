@@ -133,7 +133,7 @@ public:
 
         // Verify that all input/output are in use
         InputsDataMap in_info_map;
-        std::map<std::string, DataPtr> out_info_map;
+        OutputsDataMap out_info_map;
         net->getInputsInfo(in_info_map);
         net->getOutputsInfo(out_info_map);
 
