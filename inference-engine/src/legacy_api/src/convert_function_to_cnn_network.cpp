@@ -481,7 +481,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"LogicalNot"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string> params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Activation",
+        LayerParams attrs = {node->get_friendly_name(), "not",
                               details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         // res->params["type"] = "not"; 
