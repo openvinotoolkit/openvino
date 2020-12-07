@@ -126,16 +126,12 @@ namespace
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
 {
-    InferenceEngine::Core ie;
     upgrade_and_validate_function(m_function);
-    auto cnn_network = InferenceEngine::CNNNetwork(m_function);
-
-    auto shapes = cnn_network.getInputShapes();
-    shapes["image:0"] = InferenceEngine::SizeVector{1, 1200, 1200, 3};
-    cnn_network.reshape(shapes);
-
+    const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
     m_network_outputs = cnn_network.getOutputsInfo();
+
+    InferenceEngine::Core ie;
     auto exe_network = ie.LoadNetwork(cnn_network, device);
     m_inference_req = exe_network.CreateInferRequest();
 }

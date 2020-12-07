@@ -456,29 +456,3 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power)
     test_case.add_expected_output<int64_t>(Shape{5}, {0, 1, 4, 9, 16});
     test_case.run();
 }
-
-NGRAPH_TEST(${BACKEND_NAME}, test_mobilenet)
-{
-    const auto function = onnx_import::import_onnx_model(
-        "/home/mbencer/workspace/models_to_loop_test/mlperf_ssd_mobilenet_300/"
-        "ssd_mobilenet_v1_coco_2018_01_28.onnx");
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, test_ssd)
-{
-    const auto function = onnx_import::import_onnx_model(
-        "/home/mbencer/workspace/models_to_loop_test/mlperf_ssd_resnet34_1200/"
-        "ssd_resnet34_mAP_20.2.onnx");
-
-    const std::string base_path = "/home/mbencer/workspace/ssd";
-
-    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
-
-    test_case.add_input_from_file<float>(Shape{1, 1200, 1200, 3}, base_path, "input_0.bin");
-
-    test_case.add_expected_output_from_file<float>(Shape{1, 400, 4}, base_path, "output_0.bin");
-    test_case.add_expected_output_from_file<float>(Shape{1, 400}, base_path, "output_1.bin");
-    test_case.add_expected_output_from_file<float>(Shape{1, 400}, base_path, "output_2.bin");
-
-    test_case.run();
-}
