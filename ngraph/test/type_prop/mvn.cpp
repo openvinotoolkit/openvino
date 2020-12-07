@@ -73,7 +73,7 @@ TEST(type_prop, mvn_6_partial)
         (PartialShape{1, Dimension::dynamic(), 5, 6})));
 
     // rank unknown
-    auto mvn_partial =
-        make_shared<op::v6::MVN>(make_shared<op::Parameter>(element::f32, PartialShape::dynamic()), axes);
+    auto mvn_partial = make_shared<op::v6::MVN>(
+        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()), axes);
     ASSERT_TRUE(mvn_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
