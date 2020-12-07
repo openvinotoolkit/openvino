@@ -19,15 +19,13 @@ namespace {
 struct type_attribute_walker : pugi::xml_tree_walker {
     std::vector<pugi::xml_attribute> attributes;
 
-    virtual bool for_each(pugi::xml_node& node) {
-        const std::string node_name{node.name()};
-        if (node_name == "layer") {
-            for (const auto& attribute : node.attributes()) {
-                const std::string attribute_name{attribute.name()};
-                if (attribute_name == "type") {
-                    attributes.push_back(attribute);
-                }
-            }
+    bool for_each(pugi::xml_node& node) override {
+        if (std::string {node.name()} == "layer") {
+            std::copy_if(node.attributes().begin(), node.attributes().end(),
+                         std::back_inserter(attributes),
+                         [](const pugi::xml_attribute& attribute) {
+                             return std::string {attribute.name()} == "type";
+                         });
         }
         return true;  // continue traversal
     }

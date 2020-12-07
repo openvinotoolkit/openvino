@@ -134,46 +134,41 @@ void visit_exec_graph_node(pugi::xml_node& data, std::string& node_type_name,
 
 NodeVector get_ordered_ops(const ngraph::Function& f) {
     NodeVector op_order;
-    std::stack<std::shared_ptr<Node>> stack;
+    std::stack<std::shared_ptr<Node>> nodes_to_visit;
     std::unordered_set<Node*> visited;
-
-    auto has_unvisited_inputs = [](const std::unordered_set<Node*>& visited,
-                                   const std::vector<Input<Node>>& inputs) {
-        for (auto input = inputs.crbegin(); input != inputs.crend(); ++input) {
-            const auto source_output =
-                input->get_source_output().get_node_shared_ptr();
-            if (visited.count(source_output.get()) == 0) {
-                return true;
-            }
-        }
-        return false;
-    };
 
     const auto& results = f.get_results();
     for (auto result = results.crbegin(); result != results.crend(); ++result) {
-        stack.push(*result);
+        nodes_to_visit.push(*result);
     }
 
     const auto& sinks = f.get_sinks();
     for (auto sink = sinks.crbegin(); sink != sinks.crend(); ++sink) {
-        stack.push(*sink);
+        nodes_to_visit.push(*sink);
     }
 
-    while (stack.size()) {
-        auto node = stack.top();
-        stack.pop();
+    while (!nodes_to_visit.empty()) {
+        auto node = nodes_to_visit.top();
+        nodes_to_visit.pop();
         visited.insert(node.get());
         const auto& inputs = node->inputs();
-        if (!has_unvisited_inputs(visited, inputs)) {
+
+        const bool has_unvisited_inputs = std::any_of(
+        inputs.crbegin(), inputs.crend(), [&visited](const Input<Node>& input) {
+            const auto source_output =
+                input.get_source_output().get_node_shared_ptr();
+            return visited.count(source_output.get()) == 0;
+        });
+
+        if (!has_unvisited_inputs) {
             op_order.push_back(node);
         } else {
-            stack.push(node);
-            for (auto input = inputs.crbegin(); input != inputs.crend();
-                 ++input) {
+            nodes_to_visit.push(node);
+            for (auto input = inputs.crbegin(); input != inputs.crend(); ++input) {
                 const auto source_output =
                     input->get_source_output().get_node_shared_ptr();
                 if (visited.count(source_output.get()) == 0) {
-                    stack.push(source_output);
+                    nodes_to_visit.push(source_output);
                     visited.insert(source_output.get());
                 }
             }
