@@ -453,7 +453,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
 
     // Check that operation in default opsets
     auto isDefaultOpSet = [](const std::string& version) -> bool {
-        for (size_t i = 1; i <= 5; i++) {
+        for (size_t i = 1; i <= 6; i++) {
             std::string opset_name = "opset" + std::to_string(i);
             if (version == opset_name)
                 return true;
