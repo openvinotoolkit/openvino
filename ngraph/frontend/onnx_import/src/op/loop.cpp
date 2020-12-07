@@ -193,6 +193,13 @@ namespace ngraph
                         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
                     }
 
+                    // Set-up parameters from parent graph not changed during Loop's iterations
+                    for (; body_inputs_it != body_inputs.end(); ++body_inputs_it)
+                    {
+                        loop->set_invariant_input(
+                            *body_inputs_it, (*body_inputs_it)->output(0).get_node_shared_ptr());
+                    }
+
                     // Set-up scan outputs
                     OutputVector scan_outputs;
                     for (; body_outputs_it != body_outputs.end(); body_outputs_it++)

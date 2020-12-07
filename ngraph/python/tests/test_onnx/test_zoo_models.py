@@ -28,7 +28,7 @@ from tests import (
     xfail_issue_43742,
     xfail_issue_43380,
     xfail_issue_43382,
-    xfail_issue_43439,
+    xfail_issue_44602,
     xfail_issue_39684,
     xfail_issue_40957,
     xfail_issue_39685,
@@ -138,7 +138,6 @@ if len(zoo_models) > 0:
 
             # Model MSFT
             (xfail_issue_43742, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
-            (xfail_issue_43439, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
         ]
         for test_case in import_xfail_list:
@@ -184,6 +183,7 @@ if len(zoo_models) > 0:
 
             (xfail_issue_43380, "test_MSFT_opset11_tinyyolov3_yolov3_tiny_cpu"),
             (xfail_issue_43382, "test_MSFT_opset10_yolov3_yolov3_cpu"),
+            (xfail_issue_44602, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
 
         ]
         for test_case in import_xfail_list + execution_xfail_list:
