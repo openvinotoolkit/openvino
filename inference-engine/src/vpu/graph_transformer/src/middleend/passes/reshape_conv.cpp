@@ -60,8 +60,8 @@ void PassImpl::run(const Model& model) {
 
         resultH = choiceDimH(name, inputC, outputC, dimH, dimW);
 
-        if (stage->origLayer()->params.count("ConvReshape")) {
-            std::string rtParam = stage->origLayer()->params.at("ConvReshape");
+        if (stage->origLayer()->params.count("alt_width")) {
+            std::string rtParam = stage->origLayer()->params.at("alt_width");
             try {
                 resultW = std::stoi(rtParam);
                 resultH = dimH * dimW / resultW;
