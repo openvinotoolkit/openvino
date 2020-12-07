@@ -16,6 +16,7 @@
 import logging as log
 
 from extensions.ops.BatchNormInference import BatchNormInference
+from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
 

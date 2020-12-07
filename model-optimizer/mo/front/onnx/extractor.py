@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-from mo.front.onnx.extractors.fused_bn import tf_fused_bn_extractor
 from mo.graph.graph import Node
 
 
