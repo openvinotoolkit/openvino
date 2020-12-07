@@ -1090,14 +1090,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "MVN",
                             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::MVNLayer>(attrs);
-        // below code needs to be changed after PR 3226 is merged and use
-        // CNNLayer.getBoolStrParamAsIntStr
-        auto v = params.at("normalize_variance");
-        res->params["normalize_variance"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
-        res->params["eps"] = params.at("eps");
-        v = params.at("across_channels");
-        res->params["across_channels"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
 
+        res->params["normalize_variance"] = params.at("normalize_variance");
+        res->params["normalize_variance"] = res->getBoolStrParamAsIntStr("normalize_variance");
+        res->params["eps"] = params.at("eps");
+        res->params["across_channels"] = params.at("across_channels");
+        res->params["across_channels"] = res->getBoolStrParamAsIntStr("across_channels");
         return res;
     });
 
@@ -1108,10 +1106,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::NormLayer>(attrs);
         
         res->params = params;
-        auto v = res->params["channel_shared"];
-        res->params["channel_shared"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
-        v = res->params["across_spatial"];
-        res->params["across_spatial"] = (v == "true" ? "1" : (v == "false" ? "0" : v));
+        res->params["channel_shared"] = res->getBoolStrParamAsIntStr("channel_shared");
+        res->params["across_spatial"] = res->getBoolStrParamAsIntStr("across_spatial");
 
         const auto weightsNode = node->input_value(1).get_node_shared_ptr();
         if (auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode)) {
