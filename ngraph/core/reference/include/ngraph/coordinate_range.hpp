@@ -133,6 +133,8 @@ namespace ngraph
                 const size_t element_number;
                 const size_t step;
                 const Direction direction;
+
+                static constexpr Range make_empyt() { return Range{0, 0, 1, Direction::forward}; }
             };
 
             /// \brief Class allows to iterate over sliced Tensor part by part.
@@ -149,6 +151,10 @@ namespace ngraph
 
                 value_type get_value() const
                 {
+                    if (m_source_shape.empty())
+                    {
+                        return Range::make_empyt();
+                    }
                     const size_t element_no =
                         (m_bounds.last_dim_size() + m_source_strides.back() - 1) /
                         m_source_strides.back();

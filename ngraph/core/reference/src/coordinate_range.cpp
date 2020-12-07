@@ -164,6 +164,11 @@ namespace ngraph
 
             ReverseRange::value_type ReverseRange::get_value() const
             {
+                if (m_source_shape.empty())
+                {
+                    return Range::make_empyt();
+                }
+
                 assert(m_memory_strides.back() == 1);
                 return Range{m_index,
                              m_source_shape.back(),

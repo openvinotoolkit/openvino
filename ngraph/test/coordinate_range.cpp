@@ -42,6 +42,8 @@ TEST(coordinate_range, slice_range_shape0d)
     auto it = slice_range.begin();
     EXPECT_EQ(it, begin(slice_range));
     EXPECT_FALSE(it == slice_range.end());
+    auto v = *it; // if it is not end it has to be dereferencable;
+    (void)v;
     EXPECT_TRUE(++it == slice_range.end());
 }
 
@@ -255,6 +257,8 @@ TEST(coordinate_range, reverse_range_shape0d)
     auto reverse_range = reverse(s, reverset_axis);
     auto it = reverse_range.begin();
     EXPECT_EQ(it, begin(reverse_range));
+    auto v = *it; // if it is not end it has to be dereferencable;
+    (void)v;
     EXPECT_TRUE(++it == reverse_range.end());
 }
 
