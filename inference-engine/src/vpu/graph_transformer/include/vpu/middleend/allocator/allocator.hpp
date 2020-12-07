@@ -77,7 +77,7 @@ public:
      * Allocates memory for single data node
      */
     bool allocateData(const Data& data);
-    ShapeLocation allocateShape(const Data& data);
+    ShapeLocation allocateShape(const Data& data, int dimsOffset = -1);
     void freeData(const Data& data, DeallocationMode mode = DeallocationMode::JustFree);
 
     void selfCheck();

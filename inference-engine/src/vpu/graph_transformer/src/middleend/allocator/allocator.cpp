@@ -296,7 +296,7 @@ bool Allocator::allocateData(const Data& data) {
     return chunk->memType == memoryType;
 }
 
-ShapeLocation Allocator::allocateShape(const Data& data) {
+ShapeLocation Allocator::allocateShape(const Data& data, int dimsOffset) {
     ShapeLocation shapeLocation;
 
     const auto dimsByteSize = data->desc().dimsByteSize();
@@ -316,8 +316,12 @@ ShapeLocation Allocator::allocateShape(const Data& data) {
     } else {
         // Static allocation
         shapeLocation.dimsLocation = Location::Blob;
-        shapeLocation.dimsOffset = _blobMemOffset;
-        _blobMemOffset += dimsByteSize;
+        if (dimsOffset == -1) {
+            shapeLocation.dimsOffset = _blobMemOffset;
+            _blobMemOffset += dimsByteSize;
+        } else {
+            shapeLocation.dimsOffset = dimsOffset;
+        }
     }
 
 

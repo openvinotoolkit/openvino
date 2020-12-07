@@ -206,10 +206,20 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
     //
 
     if (enableShapeAllocation == EnableShapeAllocation::YES) {
+        std::map<DimValues, int> offsets;
         for (const auto& stage : model->getStages()) {
-            const auto& allocateShape = [&allocator](const Data& data) {
+            const auto& allocateShape = [&allocator, &offsets](const Data& data) {
                 if (!data->isShapeAllocated()) {
-                    const auto shapeLocation = allocator.allocateShape(data);
+                    // Prevert allocation of same shapes multiple times
+                    const auto dimValues = data->desc().dims();
+                    int dims_offset = -1;
+                    auto itr = offsets.find(dimValues);
+                    if (itr != offsets.end()) {
+                        dims_offset = itr->second;
+                    }
+
+                    const auto shapeLocation = allocator.allocateShape(data, dims_offset);
+                    offsets.insert({dimValues, shapeLocation.dimsOffset});
                     data->setShapeAllocationInfo(shapeLocation);
                 }
             };
