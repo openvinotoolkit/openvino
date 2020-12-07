@@ -31,6 +31,19 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo).  |
 | Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
 
+**Could Be Optionally Installed**
+
+[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
+configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
+* [Model Downloader](@ref omz_tools_downloader_README)
+* [Intel® Open Model Zoo](@ref omz_models_intel_index)
+* [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Post-training Optimization Tool](@ref pot_README)
+* [Accuracy Checker](@ref omz_tools_accuracy_checker_README)
+* [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)
+
+Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
+
 ## System Requirements
 
 **Hardware**
