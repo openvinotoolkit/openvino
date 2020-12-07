@@ -72,10 +72,14 @@ NGRAPH_TEST(${BACKEND_NAME}, range_v0_float32)
 {
     element::Type_t et = element::f32;
     std::vector<RangeTest<float>> float32_tests = {
-        RangeTest<float>{0, 1, 0.25, Shape{4}, {0, 0.25, 0.5, 0.75}},
+        RangeTest<float>{0, 1, 0.25, Shape{4}, {0.0f, 0.25f, 0.5f, 0.75f}},
+        RangeTest<float>{-1,
+                         0.875,
+                         0.2,
+                         Shape{10},
+                         {-1.0f, -0.8f, -0.6f, -0.4f, -0.2f, 0.0f, 0.2f, 0.4f, 0.6f, 0.8f}},
         RangeTest<float>{
-            -1, 0.875, 0.2, Shape{10}, {-1, -0.8, -0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6, 0.8}},
-        RangeTest<float>{2, 0, -0.25, Shape{8}, {2, 1.75, 1.5, 1.25, 1, 0.75, 0.5, 0.25}}};
+            2, 0, -0.25, Shape{8}, {2.0f, 1.75f, 1.5f, 1.25f, 1.0f, 0.75f, 0.5f, 0.25f}}};
 
     for (auto& test : float32_tests)
     {
@@ -91,7 +95,7 @@ NGRAPH_TEST(${BACKEND_NAME}, range_v0_float32)
         auto test_case = test::TestCase<TestEngine>(f);
 
         test_case.add_expected_output<float>(test.expected_result_shape, test.expected_result);
-        test_case.run();
+        test_case.run_with_tolerance_as_fp(1.0e-4f);
     }
 }
 
@@ -149,11 +153,15 @@ NGRAPH_TEST(${BACKEND_NAME}, range_v4_float32)
 {
     element::Type_t et = element::f32;
     std::vector<RangeTest<float>> float32_tests = {
-        RangeTest<float>{0, 1, 0.25, Shape{4}, {0, 0.25, 0.5, 0.75}},
-        RangeTest<float>{
-            -1, 0.875, 0.2, Shape{10}, {-1, -0.8, -0.6, -0.4, -0.2, 0.0, 0.2, 0.4, 0.6, 0.8}},
+        RangeTest<float>{0, 1, 0.25, Shape{4}, {0.0f, 0.25f, 0.5f, 0.75f}},
+        RangeTest<float>{-1,
+                         0.875,
+                         0.2,
+                         Shape{10},
+                         {-1.0f, -0.8f, -0.6f, -0.4f, -0.2f, 0.0f, 0.2f, 0.4f, 0.6f, 0.8f}},
         RangeTest<float>{10, 0, 1, Shape{0}, {}},
-        RangeTest<float>{2, 0, -0.25, Shape{8}, {2, 1.75, 1.5, 1.25, 1, 0.75, 0.5, 0.25}}};
+        RangeTest<float>{
+            2, 0, -0.25, Shape{8}, {2.0f, 1.75f, 1.5f, 1.25f, 1.0f, 0.75f, 0.5f, 0.25f}}};
 
     for (auto& test : float32_tests)
     {
@@ -168,6 +176,6 @@ NGRAPH_TEST(${BACKEND_NAME}, range_v4_float32)
         auto test_case = test::TestCase<TestEngine>(f);
 
         test_case.add_expected_output<float>(test.expected_result_shape, test.expected_result);
-        test_case.run();
+        test_case.run_with_tolerance_as_fp(1.0e-4f);
     }
 }
