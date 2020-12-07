@@ -25,9 +25,8 @@ from collections import OrderedDict
 import numpy as np
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.graph.graph import Graph
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
@@ -35,6 +34,8 @@ from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mo
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
+from mo.utils.get_ov_update_message import get_ov_update_message
+from mo.utils.google_analytics import ga_track_event
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
@@ -218,18 +219,23 @@ def prepare_ir(argv: argparse.Namespace):
     if is_tf:
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        ga_track_event('ir_generation', 'framework', 'tf')
     elif is_caffe:
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        ga_track_event('ir_generation', 'framework', 'caffe')
     elif is_mxnet:
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        ga_track_event('ir_generation', 'framework', 'mxnet')
     elif is_kaldi:
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        ga_track_event('ir_generation', 'framework', 'kaldi')
     elif is_onnx:
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+        ga_track_event('ir_generation', 'framework', 'onnx')
     graph = unified_pipeline(argv)
     return graph
 
@@ -268,6 +274,7 @@ def driver(argv: argparse.Namespace):
 
     elapsed_time = datetime.datetime.now() - start_time
     print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+    ga_track_event('ir_generation', 'ir_generation_time', str(elapsed_time.total_seconds()))
 
     try:
         import resource
@@ -275,6 +282,7 @@ def driver(argv: argparse.Namespace):
         if sys.platform == 'darwin':
             mem_usage = round(mem_usage / 1024)
         print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
+        ga_track_event('ir_generation', 'memory_consumption', str(mem_usage))
     except ImportError:
         pass
 
@@ -320,4 +328,5 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
+        ga_track_event('ir_generation', 'error_message', str(err))
     return 1
