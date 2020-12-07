@@ -257,6 +257,7 @@ extensions/front/onnx/detectionoutput_ext.py
 extensions/front/onnx/dropout_ext.py
 extensions/front/onnx/elementwise_ext.py
 extensions/front/onnx/expand_ext.py
+extensions/front/onnx/faster_rcnn.json
 extensions/front/onnx/flatten_ext.py
 extensions/front/onnx/flattenONNX_to_reshape.py
 extensions/front/onnx/gather_ext.py

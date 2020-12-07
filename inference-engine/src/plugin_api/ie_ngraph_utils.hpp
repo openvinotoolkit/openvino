@@ -8,6 +8,7 @@
 #include <ngraph/type/element_type.hpp>
 #include <string>
 #include <algorithm>
+#include <cpp/ie_cnn_network.h>
 
 namespace InferenceEngine {
 namespace details {
@@ -19,6 +20,8 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::undefined);
     case Precision::FP32:
         return ::ngraph::element::Type(::ngraph::element::Type_t::f32);
+    case Precision::FP64:
+        return ::ngraph::element::Type(::ngraph::element::Type_t::f64);
     case Precision::FP16:
         return ::ngraph::element::Type(::ngraph::element::Type_t::f16);
     case Precision::BF16:
@@ -95,6 +98,8 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         return Precision(Precision::FP16);
     case ::ngraph::element::Type_t::f32:
         return Precision(Precision::FP32);
+    case ::ngraph::element::Type_t::f64:
+        return Precision(Precision::FP64);
     case ::ngraph::element::Type_t::bf16:
         return Precision(Precision::BF16);
     case ::ngraph::element::Type_t::i8:
@@ -121,6 +126,14 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         THROW_IE_EXCEPTION << "Incorrect precision " << precision.get_type_name() << "!";
     }
 }
+
+/**
+ * @brief Clones input network including all layers and internal data objects
+ * @note Blobs inside layers are reused
+ * @param network A network to clone
+ * @return A cloned object
+ */
+INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
 
 }  // namespace details
 }  // namespace InferenceEngine

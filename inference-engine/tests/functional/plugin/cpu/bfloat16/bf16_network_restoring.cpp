@@ -30,7 +30,7 @@ protected:
     std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
         //   +   Power1(FP32)
         //        |
-        //   +  AvgPooling1(FP32)
+        //   +  AvgPooling1(BF16)
         //        |
         //   + Convolution1(BF16)
         //        |
@@ -45,7 +45,7 @@ protected:
         //                |                         /
         //              ReLU3  (Fused to Conv2)   /
         //                |                     /
-        //             MaxPooling1 (FP32)      /
+        //             MaxPooling1 (BF16)      /
         //                   \            /
         //                      Eltwise
         //                         |
@@ -180,7 +180,7 @@ protected:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
         expectedPrecisions["Power1"] = "FP32";
-        expectedPrecisions["AvgPooling1"] = "FP32";
+        expectedPrecisions["AvgPooling1"] = "BF16";
         expectedPrecisions["Convolution1"] = "BF16";
         expectedPrecisions["ReLU1"] = "ndef";
         expectedPrecisions["Convolution2"] = "BF16";
@@ -189,7 +189,7 @@ protected:
         expectedPrecisions["Norm1"] = "FP32";
         expectedPrecisions["Eltwise1"] = "ndef";
         expectedPrecisions["ReLU3"] = "ndef";
-        expectedPrecisions["maxPooling1"] = "FP32";
+        expectedPrecisions["maxPooling1"] = "BF16";
         expectedPrecisions["Eltwise2"] = "FP32";
     }
 };

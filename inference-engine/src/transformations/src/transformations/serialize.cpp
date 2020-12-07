@@ -287,6 +287,8 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
         return "FP32";
     case ::ngraph::element::Type_t::bf16:
         return "BF16";
+    case ::ngraph::element::Type_t::f64:
+        return "FP64";
     case ::ngraph::element::Type_t::i8:
         return "I8";
     case ::ngraph::element::Type_t::i16:
@@ -348,15 +350,13 @@ bool is_exec_graph(const ngraph::Function& f) {
 }
 
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
-    const auto & f_results = f.get_results();
-    if (std::all_of(f_results.begin(), f_results.end(),
+    const auto & f_ops = f.get_ordered_ops();
+    if (std::all_of(f_ops.begin(), f_ops.end(),
             [](std::shared_ptr<Node> results) { return !results->is_dynamic(); })) {
         return false;
     }
 
     auto f_clone = ngraph::clone_function(f);
-
-    const auto & f_ops = f.get_ordered_ops();
     const auto & f_clone_ops = f_clone->get_ordered_ops();
     NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
 

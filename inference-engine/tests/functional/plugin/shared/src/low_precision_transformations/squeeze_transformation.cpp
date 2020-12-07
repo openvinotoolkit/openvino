@@ -13,7 +13,7 @@
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/squeeze_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "ngraph_functions/low_precision_transformations/squeeze_function.hpp"
+#include "lpt_ngraph_functions/squeeze_function.hpp"
 
 #include <ngraph/pass/visualize_tree.hpp>
 

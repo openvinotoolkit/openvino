@@ -84,7 +84,7 @@ void FusePermuteAndReorderTest::CreateGraph() {
 
     auto constOrder = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
     auto permute = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder);
-    permute->get_rt_info() = setCPUInfo({memFmt}, {memFmt}, {});
+    permute->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(permute)};
     function = std::make_shared<ngraph::Function>(results, params, "PermuteReorder");
@@ -145,17 +145,17 @@ void FusePermuteAndReorderTest1::CreateGraph() {
     auto constOrder1 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
     auto permute1 = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder1);
     auto memFmt1 = inputShape.size() == 5 ? ndhwc : nhwc;
-    permute1->get_rt_info() = setCPUInfo({memFmt1}, {memFmt1}, {});
+    permute1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
 
     auto constOrder2 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
     auto permute2 = std::make_shared<ngraph::opset5::Transpose>(permute1, constOrder2);
     auto memFmt2 = inputShape.size() == 5 ? ndhwc : nhwc;
-    permute2->get_rt_info() = setCPUInfo({memFmt2}, {memFmt2}, {});
+    permute2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
     auto constOrder3 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
     auto permute3 = std::make_shared<ngraph::opset5::Transpose>(permute2, constOrder3);
     auto memFmt3 = inputShape.size() == 5 ? ncdhw : nchw;
-    permute3->get_rt_info() = setCPUInfo({memFmt3}, {memFmt3}, {});
+    permute3->get_rt_info() = makeCPUInfo({memFmt3}, {memFmt3}, {});
 
     auto shape = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, permute3->get_output_shape(0));
     auto reshape = std::make_shared<ngraph::opset5::Reshape>(permute1, shape, false);
@@ -214,12 +214,12 @@ void FusePermuteAndReorderTest2::CreateGraph() {
     auto constOrder1 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
     auto permute1 = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder1);
     auto memFmt1 = inputShape.size() == 5 ? ndhwc : nhwc;
-    permute1->get_rt_info() = setCPUInfo({memFmt1}, {memFmt1}, {});
+    permute1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
 
     auto constOrder2 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
     auto permute2 = std::make_shared<ngraph::opset5::Transpose>(params[1], constOrder2);
     auto memFmt2 = inputShape.size() == 5 ? ncdhw : nchw;
-    permute2->get_rt_info() = setCPUInfo({memFmt2}, {memFmt2}, {});
+    permute2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
     auto concat = ngraph::builder::makeConcat({permute1, permute2}, 1);
 

@@ -33,7 +33,9 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+        const CNNNetwork& network,
+        const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
     auto parsedConfigCopy = _parsedConfig;
@@ -66,7 +68,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 }
 
 QueryNetworkResult Engine::QueryNetwork(
-        const ICNNNetwork& network,
+        const CNNNetwork& network,
         const std::map<std::string, std::string>& config) const {
     VPU_PROFILE(QueryNetwork);
     QueryNetworkResult res;
@@ -98,7 +100,7 @@ QueryNetworkResult Engine::QueryNetwork(
         ngraph::NodeVector splits;
         ngraph::NodeVector concats;
 
-        const auto isLayerSupported = [this, &splitNames, &concatNames, &concats, &splits](CNNNetworkIterator& layer) -> bool {
+        const auto isLayerSupported = [this, &splitNames, &concatNames, &concats, &splits](InferenceEngine::details::CNNNetworkIterator& layer) -> bool {
                 auto node = (*layer)->getNode();
                 if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
                     splitNames.emplace(node->get_friendly_name());
@@ -115,8 +117,8 @@ QueryNetworkResult Engine::QueryNetwork(
                 }
         };
 
-        for (CNNNetworkIterator itLayer{convertedNetwork.get()};
-             itLayer != CNNNetworkIterator();
+        for (InferenceEngine::details::CNNNetworkIterator itLayer{convertedNetwork.get()};
+             itLayer != InferenceEngine::details::CNNNetworkIterator();
              itLayer++) {
             const auto fusedNode = (*itLayer)->getNode();
             if (fusedNode == nullptr) {
@@ -124,7 +126,7 @@ QueryNetworkResult Engine::QueryNetwork(
             }
 
             for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
-                if (contains(originalOps, fusedLayerName)) {
+                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (isLayerSupported(itLayer)) {
                         supported.emplace(fusedLayerName);
                     } else {
@@ -135,7 +137,7 @@ QueryNetworkResult Engine::QueryNetwork(
         }
 
         for (const auto& layerName : supported) {
-            if (contains(unsupported, layerName)) {
+            if (InferenceEngine::details::contains(unsupported, layerName)) {
                 supported.erase(layerName);
             }
         }
@@ -147,13 +149,13 @@ QueryNetworkResult Engine::QueryNetwork(
             const auto inputs = split->inputs();
             for (const auto& input : inputs) {
                 const auto& parentName = input.get_source_output().get_node()->get_friendly_name();
-                if (contains(supported, parentName) &&
-                    contains(splitNames, parentName)) {
+                if (InferenceEngine::details::contains(supported, parentName) &&
+                    InferenceEngine::details::contains(splitNames, parentName)) {
                     markParentSplitAsUnsupported(input.get_source_output().get_node_shared_ptr());
                 }
             }
             const auto& name = split->get_friendly_name();
-            if (contains(supported, name)) {
+            if (InferenceEngine::details::contains(supported, name)) {
                 supported.erase(name);
             }
         };
@@ -165,9 +167,9 @@ QueryNetworkResult Engine::QueryNetwork(
             for (const auto& output : outputs) {
                 for (const auto& consumer : output.get_target_inputs()) {
                     const auto& name = consumer.get_node()->get_friendly_name();
-                    if (!contains(supported, name) &&
-                        !contains(concatNames, name) &&
-                        !contains(splitNames, name)) {
+                    if (!InferenceEngine::details::contains(supported, name) &&
+                        !InferenceEngine::details::contains(concatNames, name) &&
+                        !InferenceEngine::details::contains(splitNames, name)) {
                         is_supported = false;
                         break;
                     }
@@ -187,8 +189,8 @@ QueryNetworkResult Engine::QueryNetwork(
             const auto inputs = concat->inputs();
             for (const auto& input : inputs) {
                 const auto& name = input.get_source_output().get_node()->get_friendly_name();
-                if (!contains(supported, name) &&
-                    !contains(concatNames, name)) {
+                if (!InferenceEngine::details::contains(supported, name) &&
+                    !InferenceEngine::details::contains(concatNames, name)) {
                     is_supported = false;
                     break;
                 }
@@ -199,7 +201,7 @@ QueryNetworkResult Engine::QueryNetwork(
         }
 
         for (const auto& node : function->get_ops()) {
-            if (contains(supported, node->get_friendly_name())) {
+            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
                 for (const auto& inputNodeOutput : node->input_values()) {
                     if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());

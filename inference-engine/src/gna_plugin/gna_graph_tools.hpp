@@ -711,5 +711,4 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
 
     // removing layer->osp, and layer->isp connection not necessary - layer will delete it by itself
 }
-
 }  // namespace InferenceEngine
