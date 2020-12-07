@@ -204,9 +204,9 @@ If the original framework does not have a special API for working with states, t
 
 LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) by adding the ability to work with state, inserting Assign/ReadValue layers as it shown on the picture below.
 
-[applying_low_latency_example]: ./img/applying_low_latency.png
+![applying_low_latency_example](./img/applying_low_latency.png)
 
-## Steps to apply LowLatency transformation
+### Steps to apply LowLatency transformation
 
 1. Get CNNNetwork. Any way is acceptable:
 
@@ -246,12 +246,12 @@ LowLatency transformation changes the structure of the network containing [Tenso
 4. [Use state API](#openvino-state-api)
 
  
-## Known limitations
+### Known limitations
 1. Parameters are directly connected to States (ReadValues).
 
 	Removing Parameters from `ngraph::Function` are not possible.
 
-	[low_latency_limitation_1]: ./img/low_latency_limitation_1.png
+	![low_latency_limitation_1](./img/low_latency_limitation_1.png)
 
 	**Current solution:** replace Parameter with Constant (freeze) with the value [0, 0, 0 … 0] via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input` or `--freeze_placeholder_with_value`.
 
@@ -259,7 +259,7 @@ LowLatency transformation changes the structure of the network containing [Tenso
 
 	Value of shapes is hardcoded somewhere in the network. 
 
-	[low_latency_limitation_2]: ./img/low_latency_limitation_2.png
+	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
 
 	**Current solution:** trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output` or via nGraph.
 
