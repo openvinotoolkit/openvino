@@ -569,7 +569,7 @@ void program_impl::add_split_outputs() {
             primitive_id input_id = split_prim->input[0];
             auto split_num = split_prim->output_offsets.size();
 
-            // create crop for each split ouptut provided
+            // create crop for each split output provided
             for (decltype(split_num) i = 0; i < split_num; i++) {
                 primitive_id output_id = node->id() + ":" + split_prim->output_ids[i];
 

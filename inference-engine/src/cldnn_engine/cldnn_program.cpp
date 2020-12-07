@@ -4,6 +4,7 @@
 
 #include "cldnn_program.h"
 #include "ngraph/ops.hpp"
+#include "ngraph_ops/nms_ie_internal.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -63,7 +64,9 @@ bool Program::CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops,
         }
 
         // List of the operations which can lead to invalid dynamic batch processing
-        if (std::dynamic_pointer_cast<ngraph::op::v4::NonMaxSuppression>(op) ||
+        if (std::dynamic_pointer_cast<ngraph::op::internal::NonMaxSuppressionIEInternal>(op) ||
+            std::dynamic_pointer_cast<ngraph::op::v5::NonMaxSuppression>(op) ||
+            std::dynamic_pointer_cast<ngraph::op::v4::NonMaxSuppression>(op) ||
             std::dynamic_pointer_cast<ngraph::op::v3::NonMaxSuppression>(op) ||
             std::dynamic_pointer_cast<ngraph::op::v1::NonMaxSuppression>(op) ||
             std::dynamic_pointer_cast<ngraph::op::v0::PSROIPooling>(op) ||
@@ -200,7 +203,7 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
         // Creating topology object for each operation is supposed to be more time-consuming than
         // simple check by op type, but it has 2 big advantages:
         // 1. Code reuse. We don't need to have separate white-list of supported operations or
-        //    add any ugly macro/templates to apply single dunction to multiple cases.
+        //    add any ugly macro/templates to apply single function to multiple cases.
         // 2. We also check parameters of each operation, which means we have more
         //    reliable results of QueryNetwork call.
         PrepareBuild(network.getInputsInfo(), network.getOutputsInfo());

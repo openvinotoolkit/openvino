@@ -49,6 +49,8 @@
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
+#include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -142,6 +144,10 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
         manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
         manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
+        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
+        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
 
         std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
                 {ngraph::element::i64, ngraph::element::i32},
@@ -226,6 +232,19 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                 }
                 return true;
             });
+
+        pass_config->set_callback<ngraph::pass::ConvertNMS1ToNMS5,
+                                  ngraph::pass::ConvertNMS3ToNMS5,
+                                  ngraph::pass::ConvertNMS4ToNMS5,
+                                  ngraph::pass::ConvertNMSToNMSIEInternal>(
+                [](const_node_ptr &node) -> bool {
+                    return node->input_value(0).get_shape().back() == 4lu &&
+                           node->input_value(0).get_shape().front() == node->input_value(1).get_shape().front() &&
+                           node->input_value(0).get_shape()[1] == node->input_value(1).get_shape().back() &&
+                           node->input_value(0).get_shape().size() == 3lu &&
+                           node->input_value(1).get_shape().size() == 3lu;
+                });
+        manager.run_passes(nGraphFunc);
 
         // List of enabled/disabled transformations
         pass_config->disable<ngraph::pass::ConvertGELU>();

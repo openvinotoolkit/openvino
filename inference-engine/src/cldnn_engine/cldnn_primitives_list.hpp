@@ -122,7 +122,7 @@ REGISTER_FACTORY(v1, Maximum);
 REGISTER_FACTORY(v1, Minimum);
 REGISTER_FACTORY(v1, Multiply);
 REGISTER_FACTORY(v1, NotEqual);
-// REGISTER_FACTORY(v1, NonMaxSuppression); Supported via v1 -> v5 conversion
+// REGISTER_FACTORY(v1, NonMaxSuppression); Supported via v1 -> v5 internal conversion
 REGISTER_FACTORY(v1, OneHot);
 REGISTER_FACTORY(v1, Pad);
 REGISTER_FACTORY(v1, Power);
@@ -157,7 +157,7 @@ REGISTER_FACTORY(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
 REGISTER_FACTORY(v3, ExtractImagePatches);
-// REGISTER_FACTORY(v3, NonMaxSuppression); Supported via v3 -> v5 conversion
+// REGISTER_FACTORY(v3, NonMaxSuppression); Supported via v3 -> v5 internal conversion
 REGISTER_FACTORY(v3, ScatterUpdate);
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
@@ -178,7 +178,7 @@ REGISTER_FACTORY(v4, HSwish);
 REGISTER_FACTORY(v4, Interpolate);
 REGISTER_FACTORY(v4, LSTMCell);
 REGISTER_FACTORY(v4, Mish);
-// REGISTER_FACTORY(v4, NonMaxSuppression); Supported via v4 -> v5 conversion
+// REGISTER_FACTORY(v4, NonMaxSuppression); Supported via v4 -> v5 internal conversion
 REGISTER_FACTORY(v4, Proposal);
 REGISTER_FACTORY(v4, ReduceL1);
 REGISTER_FACTORY(v4, ReduceL2);
@@ -193,7 +193,7 @@ REGISTER_FACTORY(v4, Swish);
 REGISTER_FACTORY(v5, HSigmoid);
 REGISTER_FACTORY(v5, LogSoftmax);
 REGISTER_FACTORY(v5, LSTMSequence);
-REGISTER_FACTORY(v5, NonMaxSuppression);
+//REGISTER_FACTORY(v5, NonMaxSuppression); Supported via v5 -> v5 internal conversion
 REGISTER_FACTORY(v5, Round);
 
 // ----------------------------- Unsupported v5 ops ----------------------------- //
@@ -202,3 +202,6 @@ REGISTER_FACTORY(v5, Round);
 // REGISTER_FACTORY(v5, GRUSequence);
 // REGISTER_FACTORY(v5, Loop);
 // REGISTER_FACTORY(v5, RNNSequence);
+
+// --------------------------- Supported internal ops --------------------------- //
+REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
