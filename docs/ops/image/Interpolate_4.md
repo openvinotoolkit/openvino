@@ -219,7 +219,7 @@ class InterpolateCalculation:
         self.coordinate_transformation_mode = attrs.get('coordinate_transformation_mode', 'half_pixel')
         self.nearest_mode = attrs.get('nearest_mode', 'round_prefer_floor')
         self.cube_coeff = attrs.get('cube_coeff', -0.75)
-        self.antialias = attrs.get('antialias', false)
+        self.antialias = attrs.get('antialias', False)
 
         self.shape_calculation_mode = {
             'sizes': ShapeCalculationMode.SIZES,
@@ -312,7 +312,7 @@ class InterpolateCalculation:
     def linear_interpolation(self, input_data):
         result = np.zeros(self.output_shape)
         num_of_axes = len(self.axes)
-        is_downsample = false
+        is_downsample = False
 
         for scale in self.scales:
             is_downsample = is_downsample or (scale < 1)
