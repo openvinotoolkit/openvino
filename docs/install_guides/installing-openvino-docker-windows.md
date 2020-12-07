@@ -66,7 +66,7 @@ In case of proxy issues, please use an offline installer for Build Tools (follow
 
 ## Run the Docker* Image for CPU
 
-To install the OpenVINO toolkit from the prepared Docker image, run the image with the following command (currently support only CPU target):
+To install the OpenVINO toolkit from the prepared Docker image, run the image with the following command:
 ~~~
 docker run -it --rm <image_name>
 ~~~
@@ -75,6 +75,62 @@ If you want to try some demos then run image with the root privileges (some addi
 ~~~
 docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deployment_tools\demo && demo_security_barrier_camera.bat -d CPU -sample-options -no_show"
 ~~~
+
+## Build and Run the Docker* Image for GPU
+
+GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO toolkit and Docker* requirements:
+* [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration)
+  * The container host must be running Windows Server 2019 or Windows 10, version 1809 or newer.
+  * The container base image must be mcr.microsoft.com/windows:1809 or newer. Windows Server Core and Nano Server container images are not currently supported.
+  * The container host must be running Docker Engine 19.03 or newer.
+  * The container host must have a GPU running display drivers version WDDM 2.5 or newer.
+* [OpenVINO GPU requirement](https://docs.openvinotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_windows.html#Install-GPU)
+  * Intel Graphics Driver for Windows version 15.65 or higher.
+* [Docker isolation mode requirement](https://docs.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container)
+  *  Windows host and container version tags should be match.
+  *  [Windows host and container isolation process support](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility)
+
+##Build a Docker* Image for your host system
+
+1. You can re-use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). 
+2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility)
+3. Then find appropriate Windows container base image on [DockerHub*](https://hub.docker.com/_/microsoft-windows) and setup your host/container version in `FROM` Dockerfile instruction.
+For example, change in [openvino_c_dev_2021.dockerfile](https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/winserver2019/openvino_c_dev_2021.dockerfile)
+    ~~~
+    FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS ov_base
+    ~~~
+    to
+    ~~~
+    FROM mcr.microsoft.com/windows:20H2
+    ~~~
+4. Build the Docker image
+    ~~~
+    docker build --build-arg package_url=<OpenVINO pkg> -f <Dockerfile> -t <image_name> .
+    ~~~
+5. Copy OpenCL.dll from your C:\Windows\System32 host folder to any temp directory:
+    ~~~
+    mkdir C:\tmp
+    copy C:\Windows\System32\OpenCL.dll C:\tmp
+    ~~~
+## Run the Docker* Image for GPU
+
+1. To try infer on GPU, run the image with the following command:
+    ~~~
+    docker run -it --rm -u ContainerAdministrator --isolation process --device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599 -v C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409:C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409 -v C:\tmp:C:\tmp <image_name>
+    ~~~
+    where 
+    * `--device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599` reserved GPU device interface class GUID
+    * `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409` path to OpenCL driver home directory, please find it on your PC by `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_*` regular expression.
+    *  `C:\tmp` folder with copy OpenCL.dll from your C:\Windows\System32 host folder
+
+2. Then copy OpenCL.dll to C:\Windows\System32 folder inside the container and set appropriate registry entry. Now you can run inference on GPU device:
+    ~~~
+    copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
+    ~~~
+3. If you want to try demo_security_barrier_camera demo(some additional 3-rd party dependencies will be installed):
+    ~~~
+    cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
+    ~~~
 
 ## Troubleshooting
 
