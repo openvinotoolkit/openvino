@@ -28,20 +28,20 @@
 
   * **Description**: *flip* is a flag that denotes that each *aspect_ratio* is duplicated and flipped. For example, *flip* equals 1 and *aspect_ratio* equals to "4.0,2.0" mean that aspect_ratio is equal to "4.0,2.0,0.25,0.5".
   * **Range of values**:
-    * False - each *aspect_ratio* is flipped
-    * True  - each *aspect_ratio* is not flipped
+    * false - each *aspect_ratio* is flipped
+    * true  - each *aspect_ratio* is not flipped
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *clip*
 
   * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped to [0,1] interval.
   * **Range of values**:
-    * False - clipping is not performed
-    * True - each value in the output tensor is clipped to [0,1] interval.
+    * false - clipping is not performed
+    * true - each value in the output tensor is clipped to [0,1] interval.
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *step*
@@ -72,10 +72,10 @@
 
   * **Description**: *scale_all_sizes* is a flag that denotes type of inference. For example, *scale_all_sizes* equals 0 means that the PriorBox layer is inferred in MXNet-like manner. In particular, *max_size* attribute is ignored.
   * **Range of values**:
-    * False - *max_size* is ignored
-    * True  - *max_size* is used
+    * false - *max_size* is ignored
+    * true  - *max_size* is used
   * **Type**: boolean
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 * *fixed_ratio*
