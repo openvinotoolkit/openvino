@@ -22,9 +22,9 @@ Sequences in the batch can have different length. The lengths of sequences are c
 * *merge_repeated*
 
   * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation.
-  * **Range of values**: True or False
+  * **Range of values**: true or false 
   * **Type**: `boolean`
-  * **Default value**: True
+  * **Default value**: true 
   * **Required**: *no*
 
 **Inputs**

@@ -56,10 +56,10 @@
 
   * **Description**: *antialias* is a flag that specifies whether to perform anti-aliasing.
   * **Range of values**:
-    * False - do not perform anti-aliasing
-    * True - perform anti-aliasing
+    * false - do not perform anti-aliasing
+    * true - perform anti-aliasing
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *pads_begin*

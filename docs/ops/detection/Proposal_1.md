@@ -87,25 +87,25 @@
 * *clip_before_nms*
 
   * **Description**: *clip_before_nms* flag that specifies whether to perform clip bounding boxes before non-maximum suppression or not.
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 * *clip_after_nms*
 
   * **Description**: *clip_after_nms* is a flag that specifies whether to perform clip bounding boxes after non-maximum suppression or not.
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *normalize*
 
   * **Description**: *normalize* is a flag that specifies whether to perform normalization of output boxes to *[0,1]* interval or not.
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *box_size_scale*
