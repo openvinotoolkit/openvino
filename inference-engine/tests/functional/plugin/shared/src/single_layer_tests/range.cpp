@@ -75,21 +75,21 @@ TEST_P(RangeLayerTest, CompareWithRefs) {
 }
 
 std::string RangeNumpyLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Precision netPrc;
+    InferenceEngine::Precision paramPrc;
+    InferenceEngine::Precision outPrc;
     InferenceEngine::Layout inLayout, outLayout;
     float start, stop, step;
     std::string targetDevice;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = obj.param;
+    std::tie(start, stop, step, paramPrc, netPrc, outPrc, inLayout, outLayout, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
     result << "Start=" << start << separator;
     result << "Stop=" << stop << separator;
     result << "Step=" << step << separator;
-    result << "netPRC=" << netPrecision.name() << separator;
-    result << "inPRC=" << inPrc.name() << separator;
-    result << "outPRC=" << outPrc.name() << separator;
+    result << "paramPRC=" << paramPrc.name() << separator;
+    result << "netPRC=" << netPrc.name() << separator;
     result << "inL=" << inLayout << separator;
     result << "outL=" << outLayout << separator;
     result << "trgDev=" << targetDevice;
@@ -113,17 +113,18 @@ void RangeNumpyLayerTest::Infer() {
 }
 
 void RangeNumpyLayerTest::SetUp() {
-    InferenceEngine::Precision netPrecision;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
-    auto ngInPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-    auto ngOutPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
+    InferenceEngine::Precision netPrc;
+    InferenceEngine::Precision paramPrc;
+    std::tie(start, stop, step, paramPrc, netPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
+    auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
+    auto ngParamPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(paramPrc);
 
-    auto params = ngraph::builder::makeParams(ngInPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
+    auto params = ngraph::builder::makeParams(ngParamPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
     params[0]->set_friendly_name("start");
     params[1]->set_friendly_name("stop");
     params[2]->set_friendly_name("step");
 
-    auto range = std::make_shared<ngraph::opset4::Range>(params[0], params[1], params[2], ngOutPrc);
+    auto range = std::make_shared<ngraph::opset4::Range>(params[0], params[1], params[2], ngNetPrc);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(range)};
     function = std::make_shared<ngraph::Function>(results, params, "Range");
 }
