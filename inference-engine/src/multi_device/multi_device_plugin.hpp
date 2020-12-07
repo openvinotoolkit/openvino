@@ -24,7 +24,7 @@ public:
                                                                        const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
-    Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter> & options) const override;
+    InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork&        network,
                                                      const std::map<std::string, std::string>& config) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,

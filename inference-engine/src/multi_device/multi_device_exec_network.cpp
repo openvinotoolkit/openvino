@@ -54,6 +54,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                                                            const bool                                                           needPerfCounters) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
     _devicePriorities{networkDevices},
+    _devicePrioritiesInitial{networkDevices},
     _networksPerDevice{networksPerDevice},
     _config{config},
     _needPerfCounters{needPerfCounters} {
@@ -94,10 +95,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                     }
                     // try to return the request to the idle list (fails if the overall object destruction has began)
                     if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                        Task t;
                         // try pop the task, as we know there is at least one idle request
-                        if (_inferPipelineTasks.try_pop(workerRequestPtr->_task)) {
+                        if (_inferPipelineTasks.try_pop(t)) {
                             // if succeeded, let's schedule that
-                            ScheduleToWorkerInferRequest(std::move(workerRequestPtr->_task));
+                            ScheduleToWorkerInferRequest(std::move(t));
                         }
                     }
                 });
@@ -149,7 +151,20 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
 
 InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs);
+    auto num = _numRequestsCreated++;
+    size_t sum = 0;
+    InferenceEngine::InferRequest request_to_share_blobs_with;
+    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
+    // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
+    for (const auto& device : _devicePrioritiesInitial) {
+        auto& dev_requests = _workerRequests[device.deviceName];
+        if ((num - sum) < dev_requests.size()) {
+            request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
+            break;
+        }
+        sum += dev_requests.size();
+    }
+    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
 IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {

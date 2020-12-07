@@ -26,6 +26,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -52,6 +53,7 @@
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
+#include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -200,8 +202,10 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMod>();
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+    pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
 
     pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
+    pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
     manager.run_passes(nGraphFunc);
 
@@ -259,7 +263,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
     for (auto & precision : convert_precision_list) {
-        NetPass::ConvertIOPrecision(*clonedNetwork, convertPrecision(precision.first), convertPrecision(precision.second));
+        NetPass::ConvertIOPrecision(*clonedNetwork,
+            InferenceEngine::details::convertPrecision(precision.first),
+            InferenceEngine::details::convertPrecision(precision.second));
     }
 }
 
@@ -296,7 +302,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    std::shared_ptr<ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(network);
 
     bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
@@ -435,7 +441,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
             conf.batchLimit = static_cast<int>(network.getBatchSize());
         }
 
-        auto clonedNetwork = cloneNetwork(network);
+        auto clonedNetwork = InferenceEngine::cloneNetwork(network);
         Transformation(clonedNetwork, conf);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
@@ -450,7 +456,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 return true;
             } ();
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector((*itLayer)->getNode())) {
-                if (contains(originalOps, fusedLayerName)) {
+                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (layerIsSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
@@ -461,7 +467,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         for (auto&& node : function->get_ops()) {
-            if (!contains(unsupported, node->get_friendly_name())) {
+            if (!InferenceEngine::details::contains(unsupported, node->get_friendly_name())) {
                 for (auto&& inputNodeOutput : node->input_values()) {
                     if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
@@ -478,7 +484,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         for (auto&& layerName : supported) {
-            if (!contains(unsupported, layerName)) {
+            if (!InferenceEngine::details::contains(unsupported, layerName)) {
                 res.supportedLayersMap.emplace(layerName, GetName());
             }
         }

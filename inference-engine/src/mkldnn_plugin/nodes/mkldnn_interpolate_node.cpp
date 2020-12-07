@@ -1872,7 +1872,6 @@ void MKLDNNInterpolateNode::buildTblLinearOnnx(SizeVector& srcDimPad5d, SizeVect
         size_t scratchLen = rnd_up(OW + OW + OH + OH, 16);
         int idxType = 2;
         indexTable.resize(idxType * scratchLen);
-        std::vector<int> index(scratchLen, 0);
         int *indexLeft = static_cast<int*>(&indexTable[0]);
         int *indexRight = static_cast<int*>(&indexTable[OW]);
         int *indexTop = static_cast<int*>(&indexTable[2 * OW]);
@@ -2320,7 +2319,7 @@ void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr
                     arg.src_ptr[0] = in_ptr_cbd + blk_size * IW * index_h[h] * srcDataSize;
                     arg.index = static_cast<int*>(&(index_w_kernel[0]));
                     arg.work_amount = static_cast<size_t>(OW);
-                    arg.oc_off = cb * blk_size;
+                    arg.oc_off = cb * blk_size * sizeof(float);
                     (*interpolateKernel)(&arg);
                 }
             });
@@ -2351,7 +2350,7 @@ void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, 
         arg.src_ptr[0] = in_ptr;
         arg.dst = out_ptr;
         arg.index = static_cast<int*>(&index_kernel[0]);  // need index_h and index_w in kernel, it's in continous memory so one param
-        arg.oc_off = static_cast<size_t>(c);
+        arg.oc_off = static_cast<size_t>(c * sizeof(float));
         // work_amount is OH(out loop) and OW(inner loop), can get in kernel from jcp.
         (*interpolateKernel)(&arg);
     });
@@ -2391,7 +2390,7 @@ void MKLDNNInterpolateNode::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *ou
         arg.weight_ptr[0] = static_cast<float*>(&weight[0]);
         arg.dst = out_ptr_nc;
         arg.work_amount = OW * OH;
-        arg.oc_off = c;
+        arg.oc_off = static_cast<size_t>(c * sizeof(float));
         (*interpolateKernel)(&arg);
     });
 }
@@ -2666,7 +2665,7 @@ void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr
         arg.weight_ptr[0] = xFactor;
         arg.weight_ptr[1] = yFactor;
         arg.work_amount = static_cast<size_t>(OW * OH);
-        arg.oc_off = static_cast<size_t>(C);
+        arg.oc_off = static_cast<size_t>(c * sizeof(float));
         (*interpolateKernel)(&arg);
     });
 }
@@ -2788,7 +2787,7 @@ inline float MKLDNNInterpolateNode::coordTransToInput(int outCoord, float scale,
         }
         case InterpolateCoordTransMode::align_corners: {
             if (outShape > 1)
-                return outCoord * static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1);
+                return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
             else
                 return 0;
             break;
@@ -2844,10 +2843,9 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
     };
 
-    if (!mayiuse(cpu::sse42))
+    if (!mayiuse(cpu::sse42) || mode == InterpolateMode::linear) {
         return false;
-    if (mode == InterpolateMode::linear || mode == InterpolateMode::cubic)
-        return false;
+    }
 
     if (node->getType() == Quantize) {
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
@@ -2858,10 +2856,9 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
         if (eltwiseNode == nullptr)
             THROW_IE_EXCEPTION << "Cannot get eltwise node " << node->getName();
-        return isOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp,
+        return isOneOf(eltwiseNode->getOpType(), {Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp,
                                                   Tanh, Swish, Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt}) ||
-                ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
-                 (eltwiseNode->getOpType() == Prelu));
+                (eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2);
     }
 
     return false;

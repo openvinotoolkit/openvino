@@ -99,8 +99,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     return metaDevices;
 }
 
-Parameter MultiDeviceInferencePlugin::GetConfig(const std::string& name,
-        const std::map<std::string, Parameter> & options) const {
+InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::string& name,
+        const std::map<std::string, InferenceEngine::Parameter> & options) const {
     if (name == MULTI_CONFIG_KEY(DEVICE_PRIORITIES)) {
         auto it = _config.find(MULTI_CONFIG_KEY(DEVICE_PRIORITIES));
         if (it == _config.end()) {
@@ -219,7 +219,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
         }
         supportedLayers = supportedLayers.empty()
                         ? deviceSupportedLayers : (deviceSupportedLayers.empty()
-                        ? supportedLayers : Intersection(supportedLayers, deviceSupportedLayers));
+                        ? supportedLayers : InferenceEngine::details::Intersection(supportedLayers, deviceSupportedLayers));
     }
     for (auto&& supportedLayer : supportedLayers) {
         queryResult.supportedLayersMap[supportedLayer] = GetName();

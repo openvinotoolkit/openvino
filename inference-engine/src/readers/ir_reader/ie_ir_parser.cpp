@@ -397,7 +397,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
                                                     const GenericLayerParams& params) {
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
-        std::make_shared<LayerCreator<ngraph::op::Clamp>>("Clamp"),
         std::make_shared<LayerCreator<ngraph::op::Convert>>("Convert"),
         std::make_shared<LayerCreator<ngraph::op::CTCGreedyDecoder>>("CTCGreedyDecoder"),
         std::make_shared<LayerCreator<ngraph::op::v1::DeformableConvolution>>("DeformableConvolution"),
@@ -406,18 +405,13 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::DepthToSpace>>("DepthToSpace"),
         std::make_shared<LayerCreator<ngraph::op::v1::Subtract>>("Subtract"),
         std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Reshape>>("Reshape"),
         std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
-        std::make_shared<LayerCreator<ngraph::op::Elu>>("ELU"),
         std::make_shared<LayerCreator<ngraph::op::v1::Gather>>("Gather"),
-        std::make_shared<LayerCreator<ngraph::op::v1::GatherTree>>("GatherTree"),
         std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolution>>("GroupConvolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::ConvolutionBackpropData>>("ConvolutionBackpropData"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolutionBackpropData>>("GroupConvolutionBackpropData"),
         std::make_shared<LayerCreator<ngraph::op::v1::BinaryConvolution>>("BinaryConvolution"),
-        std::make_shared<LayerCreator<ngraph::op::GRN>>("GRN"),
-        std::make_shared<LayerCreator<ngraph::op::HardSigmoid>>("HardSigmoid"),
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
@@ -429,23 +423,11 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::Minimum>>("Minimum"),
         std::make_shared<LayerCreator<ngraph::op::v1::NonMaxSuppression>>("NonMaxSuppression"),
         std::make_shared<LayerCreator<ngraph::op::NormalizeL2>>("NormalizeL2"),
-        std::make_shared<LayerCreator<ngraph::op::PRelu>>("PReLU"),
-        std::make_shared<LayerCreator<ngraph::op::Relu>>("ReLU"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Power>>("Power"),
-        std::make_shared<LayerCreator<ngraph::op::ReverseSequence>>("ReverseSequence"),
-        std::make_shared<LayerCreator<ngraph::op::PriorBox>>("PriorBox"),
-        std::make_shared<LayerCreator<ngraph::op::PriorBoxClustered>>("PriorBoxClustered"),
         std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
-        std::make_shared<LayerCreator<ngraph::op::ROIPooling>>("ROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling"),
-        std::make_shared<LayerCreator<ngraph::op::v0::Selu>>("Selu"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Softmax>>("Softmax"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Split>>("Split"),
         std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit"),
-        std::make_shared<LayerCreator<ngraph::op::Tanh>>("TanH"),
-        std::make_shared<LayerCreator<ngraph::op::v0::Tile>>("Tile"),
         std::make_shared<LayerCreator<ngraph::op::TensorIterator>>("TensorIterator"),
         std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop"),
         std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd"),
@@ -501,11 +483,16 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         if (type == "Const") {
             type = "Constant";
         }
-        if (!opset.contains_type(type)) {
+        // ROIPooling was missing in opset1 and was added in opset2
+        if (type == "ROIPooling" && params.version == "opset1") {
+            opset = opsets.at("opset2");
+        }
+
+        if (!opset.contains_type_insensitive(type)) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         ngraphNode->set_friendly_name(params.name);
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights);
@@ -774,72 +761,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::opset5::Loop>::cre
     return fillSubGraphLayer(inputs, node, weights, layerParsePrms, loop);
 }
 
-// PriorBoxClustered layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBoxClustered>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::PriorBoxClusteredAttrs attr;
-    attr.widths = getParameters<float>(dn, "width");
-    attr.heights = getParameters<float>(dn, "height");
-    attr.variances = getParameters<float>(dn, "variance");
-    attr.offset = GetFloatAttr(dn, "offset");
-    float step = GetFloatAttr(dn, "step", 0);
-    attr.step_heights = GetFloatAttr(dn, "step_h", step);
-    attr.step_widths = GetFloatAttr(dn, "step_w", step);
-    if (step != 0) {
-        attr.step_heights = step;
-        attr.step_widths = step;
-    }
-    attr.clip = (GetIntAttr(dn, "clip") != 0);
-
-    return std::make_shared<ngraph::op::PriorBoxClustered>(inputs[0], inputs[1], attr);
-}
-
-// PriorBox layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PriorBox>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::PriorBoxAttrs attr;
-    attr.min_size = getParameters<float>(dn, "min_size", {});
-    attr.max_size = getParameters<float>(dn, "max_size", {});
-    attr.density = getParameters<float>(dn, "density", {});
-    attr.fixed_size = getParameters<float>(dn, "fixed_size", {});
-    attr.fixed_ratio = getParameters<float>(dn, "fixed_ratio", {});
-    attr.aspect_ratio = getParameters<float>(dn, "aspect_ratio", {});
-    attr.variance = getParameters<float>(dn, "variance", {});
-    attr.step = GetFloatAttr(dn, "step", 0);
-    attr.offset = GetFloatAttr(dn, "offset");
-    attr.clip = (GetIntAttr(dn, "clip") != 0);
-    attr.flip = (GetIntAttr(dn, "flip") != 0);
-    attr.scale_all_sizes = (GetIntAttr(dn, "scale_all_sizes", 1) != 0);
-
-    return std::make_shared<ngraph::op::PriorBox>(inputs[0], inputs[1], attr);
-}
-
-// ReverseSequence layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ReverseSequence>::createLayer(const ngraph::OutputVector & inputs, const pugi::xml_node& node,
-                                                                                                const Blob::CPtr& weights,
-                                                                                                const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-    return std::make_shared<ngraph::op::ReverseSequence>(inputs[0], inputs[1], GetIntAttr(dn, "batch_axis", 0), GetIntAttr(dn, "seq_axis", 1));
-}
-
 // Covnert layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Convert>::createLayer(
@@ -958,22 +879,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::MVN>::createLa
     return std::make_shared<ngraph::op::MVN>(inputs[0], across, normalize_variance, eps);
 }
 
-// Clamp layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Clamp>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    double maxVal = GetFloatAttr(dn, "max");
-    double minVal = GetFloatAttr(dn, "min");
-    return std::make_shared<ngraph::op::Clamp>(inputs[0], minVal, maxVal);
-}
-
 // VariadicSplit layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>::createLayer(
@@ -981,35 +886,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 3);
     return std::make_shared<ngraph::op::VariadicSplit>(inputs[0], inputs[1], inputs[2]);
-}
-
-// Split layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Split>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    int num_splits = GetIntAttr(dn, "num_splits");
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::Split>(inputs[0], inputs[1], num_splits);
-}
-
-// ELU layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Elu>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::Elu>(inputs[0], GetFloatAttr(dn, "alpha"));
 }
 
 // SpaceToDepth layer
@@ -1040,42 +916,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::DepthToSpace>:
     return std::make_shared<ngraph::op::DepthToSpace>(inputs[0], GetStrAttr(dn, "mode"), GetIntAttr(dn, "block_size", 1));
 }
 
-// SeLU layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::Selu>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    return std::make_shared<ngraph::op::v0::Selu>(inputs[0], inputs[1], inputs[2]);
-}
-
-// PReLU layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PRelu>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::PRelu>(inputs[0], inputs[1]);
-}
-
-// ReLU layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Relu>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    return std::make_shared<ngraph::op::Relu>(inputs[0]);
-}
-
-// Tanh layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Tanh>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    return std::make_shared<ngraph::op::Tanh>(inputs[0]);
-}
-
 // Result layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Result>::createLayer(
@@ -1083,15 +923,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Result>::creat
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 1);
     return std::make_shared<ngraph::op::Result>(inputs[0]);
-}
-
-// Tile layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::Tile>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v0::Tile>(inputs[0], inputs[1]);
 }
 
 // StridedSlice layer
@@ -1117,20 +948,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::StridedSli
     } else {
         THROW_IE_EXCEPTION << "Incorrect number of inputs " << inputs.size() << " for " << getType() << " layer with name: " << layerParsePrms.name;
     }
-}
-
-// Reshape layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Reshape>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::Reshape>(inputs[0], inputs[1], GetBoolAttr(dn, "special_zero"));
 }
 
 // Minimum layer
@@ -1162,29 +979,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Broadcast>
         return std::make_shared<ngraph::op::v1::Broadcast>(inputs[0], inputs[1], inputs[2]);
     }
     THROW_IE_EXCEPTION << "Invalid number of inputs: " << layerParsePrms.inputPorts.size();
-}
-
-// Power layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Power>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::Power>(inputs[0], inputs[1]);
-}
-
-// Softmax layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Softmax>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::v1::Softmax>(inputs[0], GetUIntAttr(dn, "axis"));
 }
 
 // RegionYolo layer
@@ -1482,25 +1276,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::MaxPool>::
                                                      pad_type);
 }
 
-// ROIPooling layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ROIPooling>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto pooled_h = GetUIntAttr(dn, "pooled_h");
-    auto pooled_w = GetUIntAttr(dn, "pooled_w");
-    auto spatial_scale = GetFloatAttr(dn, "spatial_scale");
-    auto method = GetStrAttr(dn, "method", "max");
-    return std::make_shared<ngraph::op::ROIPooling>(inputs[0], inputs[1],
-                                                    ngraph::Shape {pooled_h, pooled_w}, spatial_scale, method);
-}
-
 // PSROIPooling layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PSROIPooling>::createLayer(
@@ -1569,15 +1344,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Gather>::c
     return std::make_shared<ngraph::op::v1::Gather>(inputs[0], inputs[1], inputs[2]);
 }
 
-// GatherTree layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GatherTree>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 4);
-    return std::make_shared<ngraph::op::v1::GatherTree>(inputs[0], inputs[1], inputs[2], inputs[3]);
-}
-
 // NormalizeL2 layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::NormalizeL2>::createLayer(
@@ -1601,29 +1367,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::NormalizeL2>::
     }
 
     return std::make_shared<ngraph::op::NormalizeL2>(inputs[0], inputs[1], eps, em);
-}
-
-// HardSigmoid layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::HardSigmoid>::createLayer(
-    const ngraph::OutputVector & inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    return std::make_shared<ngraph::op::HardSigmoid>(inputs[0], inputs[1], inputs[2]);
-}
-
-// GRN layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::GRN>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::GRN>(inputs[0], GetFloatAttr(dn, "bias"));
 }
 
 // LogicalAnd layer

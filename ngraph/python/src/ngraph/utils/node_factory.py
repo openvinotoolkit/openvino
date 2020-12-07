@@ -1,9 +1,9 @@
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from _pyngraph import NodeFactory as _NodeFactory
 
-from ngraph.impl import Node
+from ngraph.impl import Node, Output
 
 DEFAULT_OPSET = "opset5"
 
@@ -19,7 +19,10 @@ class NodeFactory(object):
         self.factory = _NodeFactory(opset_version)
 
     def create(
-        self, op_type_name: str, arguments: List[Node], attributes: Optional[Dict[str, Any]] = None
+        self,
+        op_type_name: str,
+        arguments: List[Union[Node, Output]],
+        attributes: Optional[Dict[str, Any]] = None,
     ) -> Node:
         """! Create node object from provided description.
 
@@ -33,6 +36,8 @@ class NodeFactory(object):
         """
         if attributes is None:
             attributes = {}
+
+        arguments = self._arguments_as_outputs(arguments)
         node = self.factory.create(op_type_name, arguments, attributes)
 
         # Currently we don't support any attribute getters & setters for TensorIterator node.
@@ -49,12 +54,16 @@ class NodeFactory(object):
         # Please see test_dyn_attributes.py for more usage examples.
         all_attributes = node._get_attributes()
         for attr_name in all_attributes.keys():
-            setattr(node,
-                    self._normalize_attr_name_getter(attr_name),
-                    partial(NodeFactory._get_node_attr_value, node, attr_name))
-            setattr(node,
-                    self._normalize_attr_name_setter(attr_name),
-                    partial(NodeFactory._set_node_attr_value, node, attr_name))
+            setattr(
+                node,
+                self._normalize_attr_name_getter(attr_name),
+                partial(NodeFactory._get_node_attr_value, node, attr_name),
+            )
+            setattr(
+                node,
+                self._normalize_attr_name_setter(attr_name),
+                partial(NodeFactory._set_node_attr_value, node, attr_name),
+            )
 
         # Setup helper members for caching attribute values.
         # The cache would be lazily populated at first access attempt.
@@ -62,6 +71,16 @@ class NodeFactory(object):
         node._attr_cache_valid = False
 
         return node
+
+    @staticmethod
+    def _arguments_as_outputs(arguments: List[Union[Node, Output]]) -> List[Output]:
+        outputs = []
+        for argument in arguments:
+            if issubclass(type(argument), Output):
+                outputs.append(argument)
+            else:
+                outputs.extend(argument.outputs())
+        return outputs
 
     @staticmethod
     def _normalize_attr_name(attr_name: str, prefix: str) -> str:
