@@ -436,7 +436,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & netwo
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
-        std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(_network);
+        std::shared_ptr<ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(graph);
@@ -498,7 +498,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        passes->registerPass<Concat4Dto2DPass>();
+        passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         if (policy.PermutePolicy != Policy::Permute::DISABLED) {

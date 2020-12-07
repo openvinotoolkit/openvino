@@ -21,10 +21,6 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
 
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
-
 namespace InferenceEngine {
 
 namespace {
