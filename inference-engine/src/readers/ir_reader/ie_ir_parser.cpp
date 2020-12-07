@@ -206,8 +206,14 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const 
                 node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::AvgPool>>(*casted, in, out);
             } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v0::Clamp>(node)) {
                 node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v0::Clamp>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v0::ShapeOf>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v0::ShapeOf>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v1::Equal>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::Equal>>(*casted, in, out);
+            } else if (auto casted = std::dynamic_pointer_cast<ngraph::op::v1::Less>(node)) {
+                node = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::v1::Less>>(*casted, in, out);
             } else {
-                THROW_IE_EXCEPTION << "Unsupported TypeRelaxed: " << node;
+                std::cout << "Unsupported TypeRelaxed: " << node;
             }
         }
         node->validate_and_infer_types();
