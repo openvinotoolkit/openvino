@@ -13,9 +13,9 @@ TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
 
-    auto ie = InferenceEngine::Core();
+    auto ie = PluginCache::get().ie();
 
-    auto exec_net = ie.LoadNetwork(net, device_names);
+    auto exec_net = ie->LoadNetwork(net, device_names);
     if (expected_status) {
         InferenceEngine::RemoteContext::Ptr ctx;
         ASSERT_NE(ctx = exec_net.GetContext(), nullptr);

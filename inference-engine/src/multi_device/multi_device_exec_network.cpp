@@ -68,7 +68,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         unsigned int optimalNum = 0;
         try {
             optimalNum = network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-        } catch (const details::InferenceEngineException &iie) {
+        } catch (const InferenceEngine::details::InferenceEngineException &iie) {
             THROW_IE_EXCEPTION
                     << "Every device used with the Multi-Device should "
                     << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
@@ -167,7 +167,7 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n.GetContext();
-        } catch (InferenceEngineException& e) {
+        } catch (InferenceEngine::details::InferenceEngineException& e) {
             if (e.getStatus() != NOT_IMPLEMENTED)
                 throw;
         } catch (const NotImplemented& ex) {
@@ -259,7 +259,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::st
         for (auto n : _networksPerDevice) {
             try {
                 res += n.second.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-            } catch (const details::InferenceEngineException &iie) {
+            } catch (const InferenceEngine::details::InferenceEngineException &iie) {
                   THROW_IE_EXCEPTION
                         << "Every device used with the Multi-Device should "
                         << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "

@@ -21,7 +21,8 @@ static std::string getDeviceStringWithMulti(std::vector<std::string> names) {
     }
     return allDevices;
 }
-using DevicesNames = std::vector<std::string>;
+using DeviceName = std::string;
+using DevicesNames = std::vector<DeviceName>;
 using DevicesNamesAndSupportPair = std::pair<DevicesNames, bool>;
 
 class MultiDevice_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNames> {
@@ -30,8 +31,8 @@ class MultiDevice_Test : public CommonTestUtils::TestsCommon, public testing::Wi
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     }
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNamesAndSupportPair> &obj) {
-        auto s = getDeviceStringWithMulti(obj.param.first);
+    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames> &obj) {
+        auto s = getDeviceStringWithMulti(obj.param);
         std::replace(s.begin(), s.end(), ',', '_');
         return "device_names_" + s;
     }
