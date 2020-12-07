@@ -88,6 +88,18 @@ namespace ngraph
                 }
             }
 
+            SliceRange::value_type SliceRange::get_value() const
+            {
+                if (m_source_shape.empty())
+                {
+                    return Range::make_empyt();
+                }
+                const size_t element_no = (m_bounds.last_dim_size() + m_source_strides.back() - 1) /
+                                          m_source_strides.back();
+
+                return Range{m_index, element_no, m_source_strides.back(), Direction::forward};
+            }
+
             bool SliceRange::increment()
             {
                 // during increment rage omit last dim so at least two dims are required to proceed

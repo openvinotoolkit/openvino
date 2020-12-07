@@ -149,18 +149,7 @@ namespace ngraph
                            const Coordinate& source_end_corner,
                            const Strides& strides);
 
-                value_type get_value() const
-                {
-                    if (m_source_shape.empty())
-                    {
-                        return Range::make_empyt();
-                    }
-                    const size_t element_no =
-                        (m_bounds.last_dim_size() + m_source_strides.back() - 1) /
-                        m_source_strides.back();
-
-                    return Range{m_index, element_no, m_source_strides.back(), Direction::forward};
-                }
+                value_type get_value() const;
 
                 bool increment();
 
