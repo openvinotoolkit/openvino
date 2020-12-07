@@ -477,13 +477,12 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         if (type == "Const") {
             type = "Constant";
         }
-        // MVN was missing in opset1
-        if (type == "MVN" && params.version == "opset1") {
-            opset = opsets.at("opset2");
-        }
-        // ROIPooling was missing in opset1 and was added in opset2
-        if (type == "ROIPooling" && params.version == "opset1") {
-            opset = opsets.at("opset2");
+
+        if (params.version == "opset1") {
+            // MVN and ROIPooling were missing in opset1
+            if (type == "MVN" || type == "ROIPooling") {
+                opset = opsets.at("opset2");
+            }
         }
 
         if (!opset.contains_type_insensitive(type)) {
