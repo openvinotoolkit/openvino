@@ -186,8 +186,8 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
             input.replace_source_output(replacement->output(output_order[i]));
         }
     }
-
     replacement->add_node_control_dependents(target);
+    replacement->add_node_control_dependencies(target);
     target->clear_control_dependents();
 }
 
@@ -212,6 +212,7 @@ void ngraph::replace_node(const std::shared_ptr<Node>& target,
         if (replacement_nodes.find(replacement_node) == replacement_nodes.end())
         {
             replacement_node->add_node_control_dependents(target);
+            replacement_node->add_node_control_dependencies(target);
             target->transfer_provenance_tags(replacement_node);
             replacement_nodes.insert(replacement_node);
         }

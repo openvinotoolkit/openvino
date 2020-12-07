@@ -6,13 +6,17 @@ if(NOT ENABLE_DOCKER)
     add_subdirectory(snippets)
 
     # Detect nGraph
-    find_package(ngraph QUIET)
+    find_package(ngraph QUIET
+                 PATHS "${CMAKE_BINARY_DIR}/ngraph"
+                 NO_DEFAULT_PATH)
     if(NOT ngraph_FOUND)
         set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
     endif()
 
     # Detect InferenceEngine
-    find_package(InferenceEngine QUIET)
+    find_package(InferenceEngine QUIET
+                 PATHS "${CMAKE_BINARY_DIR}"
+                 NO_DEFAULT_PATH)
     if(NOT InferenceEngine_FOUND)
         set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
     endif()
@@ -62,10 +66,11 @@ function(build_docs)
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
     set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
     set(NGRAPH_PY_DIR "${NGRAPH_DIR}/python/src/ngraph/")
-    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/ ${NGRAPH_DIR}/frontend/onnx_import/include")
+    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
+    set(DOXY_LOG_SCRIPT "${DOXYGEN_DIR}/log.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
 
     file(GLOB_RECURSE doc_source_files
@@ -111,7 +116,7 @@ function(build_docs)
 
     # Tables of contents
     configure_file(${NGRAPH_CPP_LAYOUT_SOURCE} ${NGRAPH_CPP_LAYOUT_BUILD} @ONLY)
-    configure_file(${NGRAPH_PY_LAYOUT_SOURCE} ${NGRAPG_PY_LAYOUT_BUILD} @ONLY)
+    configure_file(${NGRAPH_PY_LAYOUT_SOURCE} ${NGRAPH_PY_LAYOUT_BUILD} @ONLY)
     configure_file(${IE_LAYOUT_SOURCE} ${IE_LAYOUT_BUILD} @ONLY)
     configure_file(${C_LAYOUT_SOURCE} ${C_LAYOUT_BUILD} @ONLY)
     configure_file(${PY_LAYOUT_SOURCE} ${PY_LAYOUT_BUILD} @ONLY)
@@ -189,10 +194,18 @@ function(build_docs)
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
 
+    add_custom_command(TARGET ie_docs
+                       POST_BUILD
+                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log ${DOCS_BUILD_DIR}/ie_docs.log
+                                                       --exclude-links ".*?(omz_|pot_|gst_|workbench_).*?"
+                       COMMENT "Parse doxygen log to find errors."
+                       VERBATIM
+                       )
+
     # Plugin API
 
     add_custom_target(plugin_api
-                      DEPENDS ie_docs
+                      DEPENDS ngraph_cpp_api ie_docs
                       COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating Plugin API Reference"
@@ -206,7 +219,19 @@ function(build_docs)
                       VERBATIM)
 
     set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
+                          ngraph_py_api ngraph_cpp_api
                           PROPERTIES FOLDER docs)
+
+    # added linkcheker
+
+    if(EXISTS "${LINKCHECKER}")
+        add_custom_target(docs_check
+                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER}" -v "${DOCS_BUILD_DIR}/html/"
+                            COMMENT "Check links in generated documentation"
+                            WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
+                            VERBATIM)
+        set_target_properties(docs_check PROPERTIES FOLDER docs)
+    endif()
 
     find_program(browser NAMES xdg-open)
     if(browser)
