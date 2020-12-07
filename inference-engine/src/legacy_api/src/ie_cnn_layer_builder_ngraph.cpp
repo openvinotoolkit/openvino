@@ -1187,19 +1187,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NormalizeIE>::createLayer(const std::sha
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::CTCGreedyDecoder>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "CTCGreedyDecoder",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::CTCGreedyDecoder>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["ctc_merge_repeated"] = castedLayer->get_ctc_merge_repeated() ? "1" : "0";
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Erf>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Erf",
                           details::convertPrecision(layer->get_output_element_type(0))};
