@@ -169,17 +169,10 @@ protected:
     InferenceEngine::CNNLayerPtr cnnLayer;
 };
 
-template <typename __prim>
-inline void extRegister(MKLDNNExtensions * extInstance, const char * __type) {
-    extInstance->AddExt(__type,
-                [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                    return new __prim(layer);
-                });
-}
-
 #define REG_FACTORY_FOR(__prim, __type) \
     void __prim ## __type(MKLDNNExtensions * extInstance) { \
-        extRegister<ImplFactory<__prim>>(extInstance, #__type); \
+        using namespace MKLDNNPlugin; \
+        extInstance->layersFactory.registerNodeIfRequired(MKLDNNPlugin, __type, OV_CC_TOSTRING(__type), ImplFactory<__prim>); \
     }
 
 }  // namespace Cpu

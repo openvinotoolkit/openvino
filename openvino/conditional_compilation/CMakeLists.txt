@@ -32,13 +32,16 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
  Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
     endif()
 
+    file(GLOB STAT_FILES ${SELECTIVE_BUILD_STAT})
+
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
 
     set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h)
     set(GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ccheader.py)
 
     add_custom_command(OUTPUT ${GENERATED_HEADER}
-                       COMMAND python3 ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER})
+                       COMMAND python3 ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER}
+                       DEPENDS ${STAT_FILES})
     add_custom_target(conditional_compilation_gen DEPENDS ${GENERATED_HEADER})
     add_dependencies(${TARGET_NAME} conditional_compilation_gen)
 

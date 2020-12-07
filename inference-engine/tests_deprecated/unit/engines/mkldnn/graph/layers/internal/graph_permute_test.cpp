@@ -18,6 +18,12 @@ using namespace InferenceEngine;
 using namespace Extensions;
 using namespace ::Cpu;
 
+namespace {
+
+OV_CC_DOMAINS(GraphPermuteTests);
+
+}   // namespace
+
 struct permute_test_params {
     Layout layout_in, layout_out;
     Precision precision;
@@ -255,10 +261,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_permute",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_permute>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(GraphPermuteTests, FakeLayer_permute, "FakeLayer_permute", Cpu::ImplFactory<FakeLayerImpl_permute>);
                 manager->AddExtension(defaultExt);
             }
             graph.CreateGraph(network, manager);
@@ -560,10 +563,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_permute",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_permute>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(GraphPermuteTests, FakeLayer_permute, "FakeLayer_permute", Cpu::ImplFactory<FakeLayerImpl_permute>);
                 manager->AddExtension(defaultExt);
             }
             MKLDNNGraphTestClass graph;

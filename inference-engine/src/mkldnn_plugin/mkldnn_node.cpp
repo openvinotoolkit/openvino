@@ -152,8 +152,8 @@ Type TypeFromName(const std::string type) {
 
 }  //  namespace MKLDNNPlugin
 
-MKLDNNNode::Factory & MKLDNNNode::factory() {
-    static Factory factoryInstance;
+MKLDNNNode::NodesFactory & MKLDNNNode::factory() {
+    static NodesFactory factoryInstance;
     return factoryInstance;
 }
 
@@ -1121,26 +1121,18 @@ void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops) {
     THROW_IE_EXCEPTION << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
-MKLDNNNode* MKLDNNNode::Factory::create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
+MKLDNNNode* MKLDNNNode::NodesFactory::create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+                                             const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
     MKLDNNNode *newNode = nullptr;
 
-    auto builder = builders.find(Generic);
-
-    if (builder != builders.end()) {
-        std::unique_ptr<MKLDNNNode> ol(builder->second(layer, eng, w_cache));
-        if (ol != nullptr && ol->created(extMgr))
-            newNode = ol.release();
-    }
+    std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, Generic, layer, eng, w_cache));
+    if (ol != nullptr && ol->created(extMgr))
+        newNode = ol.release();
 
     if (newNode == nullptr) {
-        builder = builders.find(TypeFromName(layer->type));
-
-        if (builder != builders.end()) {
-            std::unique_ptr<MKLDNNNode> ol(builder->second(layer, eng, w_cache));
-            if (ol != nullptr && ol->created(extMgr))
-                newNode = ol.release();
-        }
+        std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, TypeFromName(layer->type), layer, eng, w_cache));
+        if (ol != nullptr && ol->created(extMgr))
+            newNode = ol.release();
     }
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
@@ -1156,8 +1148,4 @@ MKLDNNNode* MKLDNNNode::Factory::create(const InferenceEngine::CNNLayerPtr& laye
         THROW_IE_EXCEPTION << "Unsupported primitive of type: " << layer->type << " name: " << layer->name;
 
     return newNode;
-}
-
-void MKLDNNNode::Factory::registerNode(Type type, builder_t builder) {
-    builders[type] = builder;
 }
