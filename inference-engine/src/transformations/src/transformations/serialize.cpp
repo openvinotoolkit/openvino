@@ -154,6 +154,11 @@ NodeVector get_ordered_ops(const ngraph::Function& f) {
         stack.push(*result);
     }
 
+    const auto& sinks = f.get_sinks();
+    for (auto sink = sinks.crbegin(); sink != sinks.crend(); ++sink) {
+        stack.push(*sink);
+    }
+
     while (stack.size()) {
         auto node = stack.top();
         stack.pop();
