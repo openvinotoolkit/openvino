@@ -46,7 +46,7 @@ struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
     mkldnn::impl::cpu::jit_generator *host;
     mkldnn::impl::cpu::cpu_isa_t host_isa;
-    const MKLDNNNode & node;
+    const MKLDNNNode * node;
     InferenceEngine::Precision exec_prc;
 };
 
@@ -404,12 +404,13 @@ private:
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(MKLDNNNode& node, Precision exec_prec) {
         auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
+        const MKLDNNNode * eltwiseNodePtr = dynamic_cast<const MKLDNNNode*>(&node);
 
         EltwiseEmitterContext ctx = {
             nullptr,
             this,
             isa,
-            eltwiseNode,
+            eltwiseNodePtr,
             exec_prec
         };
 
