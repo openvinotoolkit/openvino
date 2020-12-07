@@ -21,8 +21,10 @@ const std::vector<float> negativeStep = { -1.0f, -0.1f };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::FP16        // "[NOT_IMPLEMENTED] Input image format FP16 is not supported yet...
 };
+
+// ------------------------------ V0 ------------------------------
 
 INSTANTIATE_TEST_CASE_P(smoke_BasicPositive, RangeAddSubgraphTest,
                         ::testing::Combine(
@@ -49,4 +51,31 @@ INSTANTIATE_TEST_CASE_P(smoke_BasicNegative, RangeAddSubgraphTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeAddSubgraphTest::getTestCaseName);
+
+// ------------------------------ V4 ------------------------------
+INSTANTIATE_TEST_CASE_P(smoke_BasicPositive_v4, RangeNumpyAddSubgraphTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(positiveStart),
+                                ::testing::ValuesIn(positiveStop),
+                                ::testing::ValuesIn(positiveStep),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        RangeNumpyAddSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_BasicNegative_v4, RangeNumpyAddSubgraphTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(negativeStart),
+                                ::testing::ValuesIn(negativeStop),
+                                ::testing::ValuesIn(negativeStep),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        RangeNumpyAddSubgraphTest::getTestCaseName);
 }  // namespace
