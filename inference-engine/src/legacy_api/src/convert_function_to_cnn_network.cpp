@@ -1206,7 +1206,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
         };
         const static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Convert>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CTCGreedyDecoder>>(),
