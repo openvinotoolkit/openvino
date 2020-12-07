@@ -95,10 +95,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                     }
                     // try to return the request to the idle list (fails if the overall object destruction has began)
                     if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                        Task t;
                         // try pop the task, as we know there is at least one idle request
-                        if (_inferPipelineTasks.try_pop(workerRequestPtr->_task)) {
+                        if (_inferPipelineTasks.try_pop(t)) {
                             // if succeeded, let's schedule that
-                            ScheduleToWorkerInferRequest(std::move(workerRequestPtr->_task));
+                            ScheduleToWorkerInferRequest(std::move(t));
                         }
                     }
                 });
