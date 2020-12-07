@@ -162,8 +162,8 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
 
     const size_t itemSize = parentMem.GetDesc().GetElementSize();
 
-    const auto *src_data = reinterpret_cast<const float*>(parentMem.GetPtr());
-    float *dst_data = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetPtr());
+    const auto *src_data = reinterpret_cast<const uint8_t*>(parentMem.GetPtr());
+    auto *dst_data = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());
 
     if (OD == 1 && OH == 1 && OW == 1 && ID == 1 && IH == 1 && IW == 1) {
         parallel_for(ON, [&](int n) {

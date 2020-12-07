@@ -151,6 +151,18 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::lstm_forward::desc>() {
     return typeDesc->getPtr();
 }
 
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::gru_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::gru_forward::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::gru_forward::desc>() {
+    auto *typeDesc = dynamic_cast<DescFwdImpl<mkldnn::gru_forward::desc> *>(desc.get());
+    if (typeDesc == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
 MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::lbr_gru_forward::desc> desc) {
     this->desc.reset(new DescFwdImpl<mkldnn::lbr_gru_forward::desc>(desc));
 }
