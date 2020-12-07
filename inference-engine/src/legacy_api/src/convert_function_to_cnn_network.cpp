@@ -1047,8 +1047,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         case Precision::FP32:
             precision_str = "FP32";
             break;
+        case Precision::FP64:
+            precision_str = "FP64";
+            break;
         case Precision::I8:
-              precision_str = "I8";
+            precision_str = "I8";
             break;
         case Precision::I16:
             precision_str = "I16";
