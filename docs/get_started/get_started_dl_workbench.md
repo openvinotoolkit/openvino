@@ -1,4 +1,4 @@
-# Get Started with OpenVINO™ Toolkit via Deep Learninig Workbench {#openvino_docs_get_started_get_started_dl_workbench}
+# Get Started with OpenVINO™ Toolkit via Deep Learning Workbench {#openvino_docs_get_started_get_started_dl_workbench}
 
 The OpenVINO™ toolkit optimizes and runs Deep Learning Neural Network models on Intel® hardware. This guide helps you get started with the OpenVINO™ toolkit via the Deep Learning Workbench (DL Workbench) on Linux\*, Windows\*, or macOS\*. 
 
