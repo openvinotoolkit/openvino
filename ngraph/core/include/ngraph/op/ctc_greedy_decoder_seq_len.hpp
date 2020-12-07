@@ -28,8 +28,6 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                //static constexpr NodeTypeInfo type_info{"CTCGreedyDecoderSeqLen", 0};
-                //const NodeTypeInfo& get_type_info() const override { return type_info; }
                 CTCGreedyDecoderSeqLen() = default;
                 /// \brief Constructs a CTCGreedyDecoderSeqLen operation
                 ///

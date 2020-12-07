@@ -21,8 +21,6 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen, "CTCGreedyDecoderSeqLen", 6);
 
-//constexpr NodeTypeInfo op::CTCGreedyDecoderSeqLen::type_info;
-
 op::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                        const Output<Node>& seq_len,
                                        const bool merge_repeated,
