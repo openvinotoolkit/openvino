@@ -232,14 +232,16 @@ def test_squeeze():
     data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
     expected_output = data.reshape([2, 3])
 
-    node = onnx.helper.make_node("Squeeze", inputs=["x"], outputs=["y"], axes=[0, 3])
-    ng_results = run_node(node, [data])
+    axes = np.array([0, 3]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
     data = np.random.randn(1, 3, 4, 5).astype(np.float32)
     expected_output = np.squeeze(data, axis=0)
-    node = onnx.helper.make_node("Squeeze", inputs=["x"], outputs=["y"], axes=[0])
-    ng_results = run_node(node, [data])
+    axes = np.array([0]).astype(np.int64)
+    node = onnx.helper.make_node("Squeeze", inputs=["x", "axes"], outputs=["y"])
+    ng_results = run_node(node, [data, axes])
     assert np.array_equal(ng_results, [expected_output])
 
 

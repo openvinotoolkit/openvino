@@ -434,6 +434,7 @@ namespace ngraph
             REGISTER_OPERATOR("Split", 13, split);
             REGISTER_OPERATOR("Sqrt", 1, sqrt);
             REGISTER_OPERATOR("Squeeze", 1, squeeze);
+            REGISTER_OPERATOR("Squeeze", 13, squeeze);
             REGISTER_OPERATOR("Sub", 1, sub);
             REGISTER_OPERATOR("Sub", 7, sub);
             REGISTER_OPERATOR("Sum", 1, sum);
