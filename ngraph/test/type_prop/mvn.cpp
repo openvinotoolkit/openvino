@@ -50,7 +50,7 @@ TEST(type_prop, mvn_partial)
     ASSERT_TRUE(mvn_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-// ------------------------------ V0 ------------------------------
+// ------------------------------ V6 ------------------------------
 
 TEST(type_prop, mvn_6)
 {
@@ -59,7 +59,7 @@ TEST(type_prop, mvn_6)
 
     auto mvn_func = make_shared<op::v6::MVN>(data, axes);
     EXPECT_EQ(mvn_func->get_element_type(), element::f32);
-    EXPECT_EQ(mvn_func->get_shape(), (Shape{1, 3, 6}));
+    EXPECT_EQ(mvn_func->get_shape(), (Shape{1, 2, 3, 4}));
 }
 
 TEST(type_prop, mvn_6_partial)
