@@ -59,17 +59,17 @@ if(NOT BUILD_SHARED_LIBS)
     endif()
 
     if(ENABLE_CLDNN)
-        target_link_libraries(inference_engine PRIVATE clDNNPlugin)
+        ieTargetLinkWholeArchiveEx(inference_engine PRIVATE clDNNPlugin)
     endif()
 
     if(ENABLE_VPU)
-      target_link_libraries(inference_engine PRIVATE myriadPlugin)
+      ieTargetLinkWholeArchiveEx(inference_engine PRIVATE myriadPlugin)
     endif()
 
     if(ENABLE_GNA)
-        target_link_libraries(inference_engine PRIVATE GNAPlugin)
+        ieTargetLinkWholeArchiveEx(inference_engine PRIVATE GNAPlugin)
     endif()
 
-    target_link_libraries(inference_engine PRIVATE HeteroPlugin MultiDevicePlugin)
+    ieTargetLinkWholeArchiveEx(inference_engine PRIVATE HeteroPlugin MultiDevicePlugin)
 
 endif()

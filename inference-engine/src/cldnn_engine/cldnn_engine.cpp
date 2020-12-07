@@ -736,4 +736,4 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 };  // namespace CLDNNPlugin
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "clDNNPlugin" };
-IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(CLDNNPlugin_CreatePluginEngine, CLDNNPlugin::clDNNEngine, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(GPU, CLDNNPlugin::clDNNEngine, version)

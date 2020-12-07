@@ -30,12 +30,31 @@ using namespace InferenceEngine::PluginConfigParams;
 namespace InferenceEngine {
 
 #ifdef USE_STATIC_IE_EXTENSIONS
-extern "C" StatusCode CLDNNPlugin_CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp);
-extern "C" StatusCode GNAPlugin_CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp);
-extern "C" StatusCode HeteroPlugin_CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp);
-extern "C" StatusCode MKLDNNPlugin_CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp);
-extern "C" StatusCode MultiDevicePlugin_CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp);
-extern "C" StatusCode MyriadPlugin_CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp);
+
+using IEStaticPluginRegistryType = std::map<std::string, IEPluginFactory>;
+
+static void forStaticPluginRegistry(void (*callback)(IEStaticPluginRegistryType&, void*), void* user) {
+    static std::mutex factoriesMutex;
+    static IEStaticPluginRegistryType factories;
+
+    std::lock_guard<std::mutex> lock(factoriesMutex);
+    callback(factories, user);
+}
+
+template <typename Action>
+static void forStaticPluginRegistry(Action && callback) {
+    forStaticPluginRegistry([](IEStaticPluginRegistryType& registry, void* user) {
+        (*((Action *)user))(registry);
+    }, (void*)&callback);
+}
+
+StatusCode InferencePluginRegisterStaticFactory(std::string const & deviceName, IEPluginFactory factory) {
+    forStaticPluginRegistry([&](IEStaticPluginRegistryType& registry) {
+        registry[deviceName] = factory;
+    });
+    return StatusCode::OK;
+}
+
 #endif
 
 namespace {
@@ -346,78 +365,57 @@ public:
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
-#ifdef USE_STATIC_IE_EXTENSIONS
-        auto findStaticPlugin = [&](std::string const & name, auto && factory) {
-            if (deviceName == name) {
-                try {
-                    InferencePlugin plugin(InferenceEnginePluginPtr(
-                        details::InstantiatePluginSharedPtr<IInferencePlugin>(std::forward<decltype(factory)>(factory))));
-
-                    {
-                        plugin.SetName(deviceName);
-
-                        // Set Inference Engine class reference to plugins
-                        ICore* mutableCore = const_cast<ICore*>(static_cast<const ICore*>(this));
-                        plugin.SetCore(mutableCore);
-                    }
-
-                    // Add registered extensions to new plugin
-                    allowNotImplemented([&](){
-                        for (const auto& ext : extensions) {
-                            plugin.AddExtension(ext);
-                        }
-                    });
-
-                    plugins[deviceName] = plugin;
-                } catch (const details::InferenceEngineException& ex) {
-                    THROW_IE_EXCEPTION << "Failed to create static plugin for device " << deviceName
-                                       << "\n"
-                                       << "Please, check your environment\n"
-                                       << ex.what() << "\n";
-                }
-            }
-        };
-
-        findStaticPlugin("HETERO", HeteroPlugin_CreatePluginEngine);
-        findStaticPlugin("MULTI", MultiDevicePlugin_CreatePluginEngine);
-
-#ifdef ENABLE_MKL_DNN
-        findStaticPlugin("CPU", MKLDNNPlugin_CreatePluginEngine);
-#endif
-
-#ifdef ENABLE_CLDNN
-        findStaticPlugin("GPU", CLDNNPlugin_CreatePluginEngine);
-#endif
-
-#ifdef ENABLE_MYRIAD
-        findStaticPlugin("MYRIAD", MyriadPlugin_CreatePluginEngine);
-#endif
-
-#ifdef ENABLE_GNA
-        findStaticPlugin("GNA", GNAPlugin_CreatePluginEngine);
-#endif
-
         if (plugins.find(deviceName) != plugins.end()) {
             return plugins[deviceName];
         }
 
-        // If not found proceed with registry so we still have ability to extend through plugins.xml
-
-#endif // USE_STATIC_IE_EXTENSIONS
-
+        // Look for plugins definition in plugins.xml
         auto it = pluginRegistry.find(deviceName);
+        bool pluginFound = it != pluginRegistry.end();
 
-        if (it == pluginRegistry.end()) {
+#ifdef USE_STATIC_IE_EXTENSIONS
+        // If static extensions are supported lookup for static factory for the specified device as a fallback
+        IEPluginFactory staticFactory = nullptr;
+        forStaticPluginRegistry([&](IEStaticPluginRegistryType& staticRegistry)
+        {
+            auto itStatic(staticRegistry.find(deviceName));
+            if (itStatic != staticRegistry.end())
+            {
+                staticFactory = itStatic->second;
+                pluginFound = true;
+            }
+        });
+#endif
+
+        if (!pluginFound) {
             THROW_IE_EXCEPTION << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
 
         // Plugin is in registry, but not created, let's create
-
         if (plugins.find(deviceName) == plugins.end()) {
-            PluginDescriptor desc = it->second;
+            PluginDescriptor desc {};
+            if (it != pluginRegistry.end()) {
+                desc = it->second;
+            }
 
             try {
-                InferencePlugin plugin(desc.libraryLocation);
+                InferencePlugin plugin;
+
+                try {
+#ifdef USE_STATIC_IE_EXTENSIONS
+                    // To save incorrect initialization, when no library location, directly try static factory
+                    if (staticFactory != nullptr && desc.libraryLocation.empty()) {
+                        THROW_IE_EXCEPTION;
+                    }
+#endif
+                    plugin = InferencePlugin(desc.libraryLocation);
+                } catch (const details::InferenceEngineException& ex) {
+                    if (staticFactory == nullptr) {
+                        throw ex;
+                    }
+
+                    plugin = InferencePlugin(InferenceEnginePluginPtr(details::InstantiatePluginSharedPtr<IInferencePlugin>(staticFactory)));
+                }
 
                 {
                     plugin.SetName(deviceName);

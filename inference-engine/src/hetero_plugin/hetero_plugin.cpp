@@ -204,4 +204,4 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "heteroPlugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(HeteroPlugin_CreatePluginEngine, Engine, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(HETERO, Engine, version)

@@ -19,4 +19,5 @@ static const Version gnaPluginDescription = {
         "GNAPlugin"
 };
 
-IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(GNAPlugin_CreatePluginEngine, GNAPluginInternal, gnaPluginDescription)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(GNA, GNAPluginInternal, gnaPluginDescription)
+

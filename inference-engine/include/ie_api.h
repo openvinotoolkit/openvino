@@ -114,11 +114,7 @@
 #endif
 
 #ifdef USE_STATIC_IE_EXTENSIONS
-#if (__GNUC__ >= 4)  // NOLINT
-#define INFERENCE_PLUGIN_API(type) __attribute__((visibility("default"))) type
-#else
-#define INFERENCE_PLUGIN_API(type) type
-#endif
+#define INFERENCE_PLUGIN_API(type) static type
 #else
 #if defined(_WIN32)
 # ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN

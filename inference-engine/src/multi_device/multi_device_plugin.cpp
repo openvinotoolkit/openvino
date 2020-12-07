@@ -120,7 +120,7 @@ void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::stri
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(MultiDevicePlugin_CreatePluginEngine, MultiDeviceInferencePlugin, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(MULTI, MultiDeviceInferencePlugin, version)
 
 MultiDeviceInferencePlugin::MultiDeviceInferencePlugin() {
     _pluginName = "MULTI";

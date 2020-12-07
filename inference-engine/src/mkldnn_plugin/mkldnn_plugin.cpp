@@ -502,4 +502,4 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(MKLDNNPlugin_CreatePluginEngine, Engine, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(CPU, Engine, version)

@@ -147,6 +147,7 @@ public:
      */
     using Ptr = std::shared_ptr<InferencePlugin>;
 };
+
 }  // namespace InferenceEngine
 
 #undef CALL_STATEMENT

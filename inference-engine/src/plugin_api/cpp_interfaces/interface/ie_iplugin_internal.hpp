@@ -281,8 +281,8 @@ public:
  *        using specified APIMacro (for instance INFERENCE_PLUGIN_API)
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(FunctionName, APIMacro, PluginType, version, ...)           \
-    APIMacro(InferenceEngine::StatusCode) FunctionName(                                                     \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(FunctionName, PluginType, version, ...)                     \
+    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) FunctionName(                                         \
             InferenceEngine::IInferencePlugin *&plugin,                                                     \
             InferenceEngine::ResponseDesc *resp) noexcept {                                                 \
         try {                                                                                               \
@@ -295,24 +295,42 @@ public:
         }                                                                                                   \
     }
 
+#ifdef USE_STATIC_IE_EXTENSIONS
+
+namespace InferenceEngine {
+
+using IEPluginFactory = StatusCode(*)(IInferencePlugin*&, ResponseDesc*);
+INFERENCE_ENGINE_API_CPP(StatusCode) InferencePluginRegisterStaticFactory(std::string const & deviceName, IEPluginFactory factory);
+
+} // namespace InferenceEngine
+
+#define IE_REGISTER_STATIC_PLUGIN(deviceName, factory)                                      \
+    static struct factory##Registrar                                                        \
+    {                                                                                       \
+        factory##Registrar() { InferenceEngine::InferencePluginRegisterStaticFactory(deviceName, factory); } \
+    } factory##Registrar##Instance;
+
+#endif
+
 /**
  * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)  \
-    IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(CreatePluginEngine, INFERENCE_PLUGIN_API, PluginType, version, __VA_ARGS__)
+    IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(CreatePluginEngine, PluginType, version, __VA_ARGS__)
 
 /**
- * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(StaticFunctionName, PluginType, version)
- * @brief Defines the exported `CreatePluginEngine` (dynamic) or `StaticFunctionName` (static) function
- *        which is used to create a plugin instance
+ * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(deviceName, PluginType, version)
+ * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
+ *        If static IE extensions are enabled, registers this as the default plugin for the specified deviceName.
  * @ingroup ie_dev_api_plugin_api
  */
 #ifdef USE_STATIC_IE_EXTENSIONS
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(StaticFunctionName, PluginType, version, ...)  \
-    IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(StaticFunctionName, INFERENCE_PLUGIN_STATIC_API, PluginType, version, __VA_ARGS__)
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(deviceName, PluginType, version, ...)  \
+    IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, __VA_ARGS__) \
+    IE_REGISTER_STATIC_PLUGIN(#deviceName, CreatePluginEngine)
 #else
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(StaticFunctionName, PluginType, version, ...)  \
-    IE_DEFINE_PLUGIN_CREATE_FUNCTION_CUSTOM(CreatePluginEngine, INFERENCE_PLUGIN_API, PluginType, version, __VA_ARGS__)
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(deviceName, PluginType, version, ...)  \
+    IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, __VA_ARGS__)
 #endif
