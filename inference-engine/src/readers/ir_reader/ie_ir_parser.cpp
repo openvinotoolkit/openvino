@@ -473,7 +473,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
         std::string type = params.type;
-        
+
         if (type == "Const") {
             type = "Constant";
         }
