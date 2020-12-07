@@ -10,7 +10,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    TEST_P(VariadicSplitLayerTest, CompareWithRefs) {
+    TEST_P(VariadicSplitLayerTest, Serialize) {
         Serialize();
     }
 

@@ -211,7 +211,7 @@ void LayerTestsCommon::Serialize() {
     std::tie(success, message) =
             compare_functions(result.getFunction(), function);
 
-    ASSERT_TRUE(success) << message;
+    EXPECT_TRUE(success) << message;
 
     CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
 }
