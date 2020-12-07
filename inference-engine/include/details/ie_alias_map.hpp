@@ -160,6 +160,11 @@ public:
 
     const T& at(const Key& k) const { return mmap.at(k); }
 
+    std::pair<iterator, bool> insert(const value_type& v) { return mmap.insert(v); }
+    iterator insert(const_iterator p, const value_type& v) { return mmap.insert(p, v); }
+    template <class _InputIterator>
+    void insert(_InputIterator f, _InputIterator l) { return mmap.template insert<_InputIterator>(f, l); }
+
     iterator erase(const_iterator p) { return mmap.erase(p); }
     iterator erase(iterator p) { return mmap.erase(p); }
     typename std::map<Key, T, Compare, Allocator>::size_type erase(const Key& k) { return mmap.erase(k); }
@@ -199,98 +204,74 @@ public:
 };
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator==(const AliasMap<Key, T, Compare, Allocator>& x,
-           const std::map<Key, T, Compare, Allocator>& y)
-{
+bool operator==(const AliasMap<Key, T, Compare, Allocator>& x,
+                const std::map<Key, T, Compare, Allocator>& y) {
     return static_cast<const std::map<Key, T, Compare, Allocator>>(x) == y;
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator==(const AliasMap<Key, T, Compare, Allocator>& x,
-           const AliasMap<Key, T, Compare, Allocator>& y)
-{
+bool operator==(const AliasMap<Key, T, Compare, Allocator>& x,
+                const AliasMap<Key, T, Compare, Allocator>& y) {
     return x == static_cast<const std::map<Key, T, Compare, Allocator>>(y);
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator!=(const AliasMap<Key, T, Compare, Allocator>& x,
-           const std::map<Key, T, Compare, Allocator>& y)
-{
+bool operator!=(const AliasMap<Key, T, Compare, Allocator>& x,
+                const std::map<Key, T, Compare, Allocator>& y) {
     return static_cast<const std::map<Key, T, Compare, Allocator>>(x) != y;
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator!=(const AliasMap<Key, T, Compare, Allocator>& x,
-           const AliasMap<Key, T, Compare, Allocator>& y)
-{
+bool operator!=(const AliasMap<Key, T, Compare, Allocator>& x,
+                const AliasMap<Key, T, Compare, Allocator>& y) {
     return x != static_cast<const std::map<Key, T, Compare, Allocator>>(y);
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator<(const AliasMap<Key, T, Compare, Allocator>& x,
-          const std::map<Key, T, Compare, Allocator>& y)
-{
+bool operator<(const AliasMap<Key, T, Compare, Allocator>& x,
+               const std::map<Key, T, Compare, Allocator>& y) {
     return static_cast<const std::map<Key, T, Compare, Allocator>>(x) < y;
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator<(const AliasMap<Key, T, Compare, Allocator>& x,
-           const AliasMap<Key, T, Compare, Allocator>& y)
-{
+bool operator<(const AliasMap<Key, T, Compare, Allocator>& x,
+               const AliasMap<Key, T, Compare, Allocator>& y) {
     return x < static_cast<const std::map<Key, T, Compare, Allocator>>(y);
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator<=(const AliasMap<Key, T, Compare, Allocator>& x,
-           const std::map<Key, T, Compare, Allocator>& y)
-{
+bool operator<=(const AliasMap<Key, T, Compare, Allocator>& x,
+                const std::map<Key, T, Compare, Allocator>& y) {
     return static_cast<const std::map<Key, T, Compare, Allocator>>(x) <= y;
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator<=(const AliasMap<Key, T, Compare, Allocator>& x,
-           const AliasMap<Key, T, Compare, Allocator>& y)
-{
+bool operator<=(const AliasMap<Key, T, Compare, Allocator>& x,
+                const AliasMap<Key, T, Compare, Allocator>& y) {
     return x <= static_cast<const std::map<Key, T, Compare, Allocator>>(y);
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator>(const AliasMap<Key, T, Compare, Allocator>& x,
-          const std::map<Key, T, Compare, Allocator>& y)
-{
+bool operator>(const AliasMap<Key, T, Compare, Allocator>& x,
+               const std::map<Key, T, Compare, Allocator>& y) {
     return static_cast<const std::map<Key, T, Compare, Allocator>>(x) > y;
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator>(const AliasMap<Key, T, Compare, Allocator>& x,
-           const AliasMap<Key, T, Compare, Allocator>& y)
-{
+bool operator>(const AliasMap<Key, T, Compare, Allocator>& x,
+               const AliasMap<Key, T, Compare, Allocator>& y) {
     return x > static_cast<const std::map<Key, T, Compare, Allocator>>(y);
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator>=(const AliasMap<Key, T, Compare, Allocator>& x,
-           const std::map<Key, T, Compare, Allocator>& y)
-{
+bool operator>=(const AliasMap<Key, T, Compare, Allocator>& x,
+                const std::map<Key, T, Compare, Allocator>& y) {
     return static_cast<const std::map<Key, T, Compare, Allocator>>(x) >= y;
 }
 
 template <class Key, class T, class Compare, class Allocator>
-bool
-operator>=(const AliasMap<Key, T, Compare, Allocator>& x,
-           const AliasMap<Key, T, Compare, Allocator>& y)
-{
+bool operator>=(const AliasMap<Key, T, Compare, Allocator>& x,
+                const AliasMap<Key, T, Compare, Allocator>& y) {
     return x >= static_cast<const std::map<Key, T, Compare, Allocator>>(y);
 }
 
