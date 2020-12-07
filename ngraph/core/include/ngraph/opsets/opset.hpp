@@ -98,7 +98,7 @@ namespace ngraph
         {
             std::lock_guard<std::mutex> guard(get_mutex());
             return m_case_insensitive_type_info_map.find(to_upper_name(name)) !=
-                   m_name_type_info_map.end();
+                   m_case_insensitive_type_info_map.end();
         }
 
         /// \brief Return true if node's type is in the opset

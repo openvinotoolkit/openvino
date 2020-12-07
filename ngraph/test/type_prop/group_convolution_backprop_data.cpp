@@ -24,12 +24,12 @@ using namespace ngraph;
 TEST(type_prop, group_conv_backprop_data)
 {
     // GROUPS x C_IN x C_OUT x kH x kW
-    const auto weights = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 8, 2, 3, 3});
+    const auto weights = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
     // N x C_IN * GROUPS x H x W
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 16, 6, 6});
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 6, 6});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
-    EXPECT_EQ(gcbd->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(gcbd->get_element_type(), element::f32);
     EXPECT_EQ(gcbd->get_output_shape(0), (Shape{1, 4, 8, 8}));
     EXPECT_EQ(gcbd->get_strides(), (Strides{1, 1}));
     EXPECT_EQ(gcbd->get_dilations(), (Strides{1, 1}));
@@ -42,14 +42,14 @@ TEST(type_prop, group_conv_backprop_data)
 TEST(type_prop, group_conv_backprop_data_output_shape)
 {
     // N x C_IN * GROUPS x H x W
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 16, 5, 5});
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
     // GROUPS x C_IN x C_OUT x kH x kW
-    const auto weights = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 16, 2, 3, 3});
-    const auto output_shape = op::Constant::create(element::Type_t::i64, Shape{2}, {3, 3});
+    const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+    const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
 
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    EXPECT_EQ(gcbd->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(gcbd->get_element_type(), element::f32);
     EXPECT_EQ(gcbd->get_output_shape(0), (Shape{1, 2, 3, 3}));
     EXPECT_EQ(gcbd->get_strides(), (Strides{1, 1}));
     EXPECT_EQ(gcbd->get_dilations(), (Strides{1, 1}));
@@ -62,9 +62,9 @@ TEST(type_prop, group_conv_backprop_data_output_shape)
 TEST(type_prop, group_conv_bprop_data_v1_output_partial_shape_dynamic_static_rank)
 {
     PartialShape shape_filter{4, 5, 2, 3, 3};
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, shape_filter);
+    auto filters = make_shared<op::Parameter>(element::f32, shape_filter);
     PartialShape shape_data{Dimension(), 20, 224, 224};
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, shape_data);
+    auto data = make_shared<op::Parameter>(element::f32, shape_data);
     auto strides = Strides{2, 2};
     auto dilations = Strides{1, 1};
     auto padding_begin = CoordinateDiff{1, 1};
@@ -83,9 +83,9 @@ TEST(type_prop, group_conv_bprop_data_v1_output_partial_shape_dynamic_static_ran
 TEST(type_prop, group_conv_backprop_data_invalid_params)
 {
     // GROUPS x C_IN x C_OUT x kH x kW
-    auto weights = make_shared<op::Parameter>(element::Type_t::f32, Shape{21, 16, 20, 3, 3});
+    auto weights = make_shared<op::Parameter>(element::f32, Shape{21, 16, 20, 3, 3});
     // N x C_IN * GROUPS x H x W
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 16, 5, 5});
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
 
     try
     {
@@ -105,7 +105,7 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     }
 
     // GROUPS x C_IN x C_OUT x kH x kW
-    weights = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, 16, 20, 3, 3});
+    weights = make_shared<op::Parameter>(element::f32, Shape{4, 16, 20, 3, 3});
 
     try
     {
@@ -126,7 +126,7 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     }
 
     // GROUPS x C_IN x C_OUT x kH x kW
-    weights = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, 4, 20, 3, 3});
+    weights = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
 
     try
     {

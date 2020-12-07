@@ -34,9 +34,9 @@ TEST(type_prop, deformable_conv_v1_partial_auto_padding_same)
     const int64_t group = 4;
     const int64_t deformable_group = 2;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto deformable_values = make_shared<op::Parameter>(element::Type_t::f32, deformable_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto deformable_values = make_shared<op::Parameter>(element::f32, deformable_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
                                                                       deformable_values,
@@ -67,9 +67,9 @@ TEST(type_prop, deformable_conv_v1_partial_auto_padding_same_nc_dims_dynamic_sam
     const int64_t group = 4;
     const int64_t deformable_group = 2;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto deformable_values = make_shared<op::Parameter>(element::Type_t::f32, deformable_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto deformable_values = make_shared<op::Parameter>(element::f32, deformable_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
                                                                       deformable_values,
@@ -101,9 +101,9 @@ TEST(type_prop, deformable_conv_v1_partial_auto_padding_same_nc_dims_dynamic_sam
     const int64_t group = 4;
     const int64_t deformable_group = 2;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto deformable_values = make_shared<op::Parameter>(element::Type_t::f32, deformable_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto deformable_values = make_shared<op::Parameter>(element::f32, deformable_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
                                                                       deformable_values,
@@ -135,9 +135,9 @@ TEST(type_prop, deformable_conv_v1_partial_auto_padding_same_spatial_dims_dynami
     const int64_t group = 4;
     const int64_t deformable_group = 2;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto deformable_values = make_shared<op::Parameter>(element::Type_t::f32, deformable_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto deformable_values = make_shared<op::Parameter>(element::f32, deformable_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
                                                                       deformable_values,

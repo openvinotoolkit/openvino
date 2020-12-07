@@ -42,9 +42,9 @@ struct RangeTest
 NGRAPH_TEST(${BACKEND_NAME}, range)
 {
     // Create a graph for f(start,stop,step) = Range(start,stop,step).
-    auto start = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
-    auto stop = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
-    auto step = make_shared<op::Parameter>(element::Type_t::i32, Shape{});
+    auto start = make_shared<op::Parameter>(element::i32, Shape{});
+    auto stop = make_shared<op::Parameter>(element::i32, Shape{});
+    auto step = make_shared<op::Parameter>(element::i32, Shape{});
 
     auto range = make_shared<op::Range>(start, stop, step);
     ASSERT_TRUE(range->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(1)));
@@ -55,7 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, range)
 
     auto ex = backend->compile(f);
 
-    auto t_r = backend->create_dynamic_tensor(element::Type_t::i32, PartialShape::dynamic());
+    auto t_r = backend->create_dynamic_tensor(element::i32, PartialShape::dynamic());
 
     std::vector<RangeTest<int32_t>> int32_tests = {
         RangeTest<int32_t>{0, 10, 1, Shape{10}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
@@ -65,9 +65,9 @@ NGRAPH_TEST(${BACKEND_NAME}, range)
 
     for (auto& test : int32_tests)
     {
-        auto t_start = backend->create_tensor(element::Type_t::i32, Shape{});
-        auto t_stop = backend->create_tensor(element::Type_t::i32, Shape{});
-        auto t_step = backend->create_tensor(element::Type_t::i32, Shape{});
+        auto t_start = backend->create_tensor(element::i32, Shape{});
+        auto t_stop = backend->create_tensor(element::i32, Shape{});
+        auto t_step = backend->create_tensor(element::i32, Shape{});
 
         copy_data(t_start, std::vector<int32_t>{test.start});
         copy_data(t_stop, std::vector<int32_t>{test.stop});
@@ -75,7 +75,7 @@ NGRAPH_TEST(${BACKEND_NAME}, range)
 
         ex->call_with_validate({t_r}, {t_start, t_stop, t_step});
 
-        ASSERT_EQ(t_r->get_element_type(), element::Type_t::i32);
+        ASSERT_EQ(t_r->get_element_type(), element::i32);
         ASSERT_EQ(t_r->get_shape(), test.expected_result_shape);
 
         auto results = read_vector<int32_t>(t_r);

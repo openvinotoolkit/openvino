@@ -32,10 +32,10 @@ using namespace ngraph;
 TEST(op_eval, strided_slice1)
 {
     auto A_shape = Shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::i64, A_shape);
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto strides = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
+    auto A = make_shared<op::Parameter>(element::i64, A_shape);
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto strides = make_shared<op::Parameter>(element::i64, Shape{3});
     auto r = make_shared<op::v1::StridedSlice>(A,
                                                begin,
                                                end,
@@ -66,7 +66,7 @@ TEST(op_eval, strided_slice1)
                          make_host_tensor<element::Type_t::i64>(Shape{3}, begin_vecs[i]),
                          make_host_tensor<element::Type_t::i64>(Shape{3}, end_vecs[i]),
                          make_host_tensor<element::Type_t::i64>(Shape{3}, strides_vecs[i])}));
-        EXPECT_EQ(result->get_element_type(), element::Type_t::i64);
+        EXPECT_EQ(result->get_element_type(), element::i64);
         EXPECT_EQ(result->get_shape(), expected_shape[i]);
         EXPECT_EQ(read_vector<int64_t>(result), expected_results[i]);
     }
@@ -89,10 +89,10 @@ TEST(op_eval, strided_slice1)
 TEST(op_eval, strided_slice2)
 {
     auto A_shape = Shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::i64, A_shape);
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto strides = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
+    auto A = make_shared<op::Parameter>(element::i64, A_shape);
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto strides = make_shared<op::Parameter>(element::i64, Shape{3});
 
     std::vector<int64_t> begin_vec{1, 0, 0};
     std::vector<int64_t> end_vec{0, 0, 0};
@@ -123,7 +123,7 @@ TEST(op_eval, strided_slice2)
                              make_host_tensor<element::Type_t::i64>(Shape{3}, begin_vec),
                              make_host_tensor<element::Type_t::i64>(Shape{3}, end_vec),
                              make_host_tensor<element::Type_t::i64>(Shape{3}, strides_vec)}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::i64);
+    EXPECT_EQ(result->get_element_type(), element::i64);
     EXPECT_EQ(result->get_shape(), expected_shape);
     EXPECT_EQ(read_vector<int64_t>(result), expected);
 }
@@ -136,10 +136,10 @@ TEST(op_eval, strided_slice2)
 TEST(op_eval, strided_slice3)
 {
     auto A_shape = Shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::i64, A_shape);
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto strides = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
+    auto A = make_shared<op::Parameter>(element::i64, A_shape);
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto strides = make_shared<op::Parameter>(element::i64, Shape{3});
 
     std::vector<int64_t> begin_vec{0, 1, 0};
     std::vector<int64_t> end_vec{2, 0, 0};
@@ -170,7 +170,7 @@ TEST(op_eval, strided_slice3)
                              make_host_tensor<element::Type_t::i64>(Shape{3}, begin_vec),
                              make_host_tensor<element::Type_t::i64>(Shape{3}, end_vec),
                              make_host_tensor<element::Type_t::i64>(Shape{3}, strides_vec)}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::i64);
+    EXPECT_EQ(result->get_element_type(), element::i64);
     EXPECT_EQ(result->get_shape(), expected_shape);
     EXPECT_EQ(read_vector<int64_t>(result), expected);
 }
@@ -183,10 +183,10 @@ TEST(op_eval, strided_slice3)
 TEST(op_eval, strided_slice_reverse)
 {
     auto A_shape = Shape{3, 2, 3};
-    auto A = make_shared<op::Parameter>(element::Type_t::i64, A_shape);
-    auto begin = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto end = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto strides = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
+    auto A = make_shared<op::Parameter>(element::i64, A_shape);
+    auto begin = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto end = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto strides = make_shared<op::Parameter>(element::i64, Shape{3});
 
     std::vector<int64_t> begin_vec{0, 0, 0};
     std::vector<int64_t> end_vec{1, 0, 0};
@@ -217,7 +217,7 @@ TEST(op_eval, strided_slice_reverse)
                              make_host_tensor<element::Type_t::i64>(Shape{3}, begin_vec),
                              make_host_tensor<element::Type_t::i64>(Shape{3}, end_vec),
                              make_host_tensor<element::Type_t::i64>(Shape{3}, strides_vec)}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::i64);
+    EXPECT_EQ(result->get_element_type(), element::i64);
     EXPECT_EQ(result->get_shape(), expected_shape);
     EXPECT_EQ(read_vector<int64_t>(result), expected);
 }

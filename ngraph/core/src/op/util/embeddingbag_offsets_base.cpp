@@ -52,13 +52,13 @@ op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& e
 void op::util::EmbeddingBagOffsetsBase::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(OFFSETS) == element::Type_t::i64 ||
-                              get_input_element_type(OFFSETS) == element::Type_t::i32,
+                          get_input_element_type(OFFSETS) == element::i64 ||
+                              get_input_element_type(OFFSETS) == element::i32,
                           "OFFSETS type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(INDICES) == element::Type_t::i64 ||
-                              get_input_element_type(INDICES) == element::Type_t::i32,
+                          get_input_element_type(INDICES) == element::i64 ||
+                              get_input_element_type(INDICES) == element::i32,
                           "INDICES type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(
@@ -83,8 +83,8 @@ void op::util::EmbeddingBagOffsetsBase::validate_and_infer_types()
     if (get_input_size() >= 4)
     {
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(DEFAULT_INDEX) == element::Type_t::i64 ||
-                                  get_input_element_type(DEFAULT_INDEX) == element::Type_t::i32,
+                              get_input_element_type(DEFAULT_INDEX) == element::i64 ||
+                                  get_input_element_type(DEFAULT_INDEX) == element::i32,
                               "DEFAULT_INDEX type must be i32 or i64");
 
         NODE_VALIDATION_CHECK(

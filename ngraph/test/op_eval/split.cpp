@@ -32,8 +32,8 @@ using namespace ngraph;
 TEST(op_eval, split)
 {
     const auto data_shape = Shape{3, 8, 3};
-    const auto data = make_shared<op::Parameter>(element::Type_t::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const size_t num_splits = 4;
 
     auto split = make_shared<op::v1::Split>(data, axis, num_splits);
@@ -61,7 +61,7 @@ TEST(op_eval, split)
 
     for (int i = 0; i < num_splits; ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::i64);
+        EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{3, 2, 3}));
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
     }
@@ -70,8 +70,8 @@ TEST(op_eval, split)
 TEST(op_eval, split_neg_axis)
 {
     const auto data_shape = Shape{2, 1, 4, 1};
-    const auto data = make_shared<op::Parameter>(element::Type_t::i64, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const size_t num_splits = 4;
 
     auto split = make_shared<op::v1::Split>(data, axis, num_splits);
@@ -95,7 +95,7 @@ TEST(op_eval, split_neg_axis)
 
     for (int i = 0; i < num_splits; ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::i64);
+        EXPECT_EQ(results[i]->get_element_type(), element::i64);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, 1, 1}));
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
     }
@@ -104,8 +104,8 @@ TEST(op_eval, split_neg_axis)
 TEST(op_eval, split_boolean_type)
 {
     const auto data_shape = Shape{2, 1, 2, 1, 2};
-    const auto data = make_shared<op::Parameter>(element::Type_t::boolean, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
+    const auto data = make_shared<op::Parameter>(element::boolean, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const size_t num_splits = 2;
 
     auto split = make_shared<op::v1::Split>(data, axis, num_splits);
@@ -129,7 +129,7 @@ TEST(op_eval, split_boolean_type)
 
     for (int i = 0; i < num_splits; ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::boolean);
+        EXPECT_EQ(results[i]->get_element_type(), element::boolean);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, 1, 1, 2}));
         EXPECT_EQ(read_vector<char>(results[i]), expected_results[i]);
     }
@@ -138,8 +138,8 @@ TEST(op_eval, split_boolean_type)
 TEST(op_eval, split_1d)
 {
     const auto data_shape = Shape{8};
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto axis = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
     const size_t num_splits = 4;
 
     auto split = make_shared<op::v1::Split>(data, axis, num_splits);
@@ -164,7 +164,7 @@ TEST(op_eval, split_1d)
 
     for (int i = 0; i < num_splits; ++i)
     {
-        EXPECT_EQ(results[i]->get_element_type(), element::Type_t::f32);
+        EXPECT_EQ(results[i]->get_element_type(), element::f32);
         EXPECT_EQ(results[i]->get_shape(), (Shape{2}));
         EXPECT_EQ(read_vector<float>(results[i]), expected_results[i]);
     }

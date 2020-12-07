@@ -48,18 +48,18 @@ static string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(${BACKEND_NAME}, layer_norm_affine_stats)
 {
-    auto p_data = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
-    auto p_scale = make_shared<op::Parameter>(element::Type_t::f32, Shape{4});
-    auto p_bias = make_shared<op::Parameter>(element::Type_t::f32, Shape{4});
+    auto p_data = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto p_scale = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto p_bias = make_shared<op::Parameter>(element::f32, Shape{4});
     auto ln = make_shared<op::LayerNorm>(p_data, p_scale, p_bias);
     auto f = make_shared<Function>(ln->outputs(), ParameterVector{p_data, p_scale, p_bias});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
     // Create tensors for input
-    auto data = backend->create_tensor(element::Type_t::f32, Shape{2, 4});
-    auto scale = backend->create_tensor(element::Type_t::f32, Shape{4});
-    auto bias = backend->create_tensor(element::Type_t::f32, Shape{4});
+    auto data = backend->create_tensor(element::f32, Shape{2, 4});
+    auto scale = backend->create_tensor(element::f32, Shape{4});
+    auto bias = backend->create_tensor(element::f32, Shape{4});
     // Fill in input tensors
     vector<float> d_input{-4.0f, -3.0f, -2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 3.0f};
     copy_data(data, d_input);
@@ -68,9 +68,9 @@ NGRAPH_TEST(${BACKEND_NAME}, layer_norm_affine_stats)
     vector<float> b_input{-4.0f, -3.0f, -2.0f, -1.0f};
     copy_data(bias, b_input);
     // Create tensors for output
-    auto norm = backend->create_tensor(element::Type_t::f32, Shape{2, 4});
-    auto mean = backend->create_tensor(element::Type_t::f32, Shape{2});
-    auto var = backend->create_tensor(element::Type_t::f32, Shape{2});
+    auto norm = backend->create_tensor(element::f32, Shape{2, 4});
+    auto mean = backend->create_tensor(element::f32, Shape{2});
+    auto var = backend->create_tensor(element::f32, Shape{2});
 
     // Expected results (Manually computed)
     vector<float> exp_norm{-2.658364534378051758f,
