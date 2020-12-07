@@ -90,7 +90,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
     auto dst_desc = GetDescriptor();
     memory::desc src_desc{dst_desc.dims(), dataType, format};
 
-    IE_ASSERT(size == dst_desc.get_size());
+    IE_ASSERT(size <= dst_desc.get_size());
 
     if (dst_desc != src_desc) {
         auto memData = GetDescriptor().data;
