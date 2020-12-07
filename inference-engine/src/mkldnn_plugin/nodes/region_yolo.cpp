@@ -427,7 +427,7 @@ private:
                     float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
                 }
             } else if (Precision::BF16 == output_prec) {
-                auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
+                auto bf16_dst_data = reinterpret_cast<MKLDNNPlugin::bfloat16_t*>(dst_data);
                 for (int i = 0; i < count; i++) {
                     bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
                 }

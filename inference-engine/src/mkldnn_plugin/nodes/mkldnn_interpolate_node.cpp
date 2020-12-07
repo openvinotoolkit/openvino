@@ -2613,7 +2613,7 @@ void MKLDNNInterpolateNode::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_
     Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
     bool isByChannel = (layout == NHWC) ? true : false;
 
-    int blkSize = mayiuse(cpu::avx512_common) ? 16 : 8;
+    int blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     int CB = div_up(C, blkSize);
     int CSize = isByChannel ? C : blkSize * CB;
     int CGatherLen = isByChannel ? C : blkSize;
