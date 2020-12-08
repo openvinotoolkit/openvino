@@ -17,8 +17,10 @@ void MKLDNNConvertNode::getSupportedDescriptors() {
         outDims.push_back(MKLDNNDims(output.getDims()));
     if (inDims.empty() && input.getLayout() != InferenceEngine::Layout::ANY)
         inDims.push_back(MKLDNNDims(input.getDims()));
-    if (getParentEdges().size() != 1 || getChildEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Convert layer with name '" << getName() << "' has incorrect number of input/output edges";
+    if (getParentEdges().size() != 1)
+        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+    if (getChildEdges().empty())
+        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 }
 
 void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
@@ -41,11 +43,10 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.push_back(dataIn);
 
         const auto layout = config.inConfs[0].desc.getLayout(); // inp/out layouts must be the same
-        auto outTensorDesc = output;
         dataConfigOut.desc = TensorDesc(output.getPrecision(), input.getDims(), layout);
         config.outConfs.push_back(dataConfigOut);
         fmt = MKLDNNMemory::Convert(layout);
-    } else if (!layer->insData.empty() && !layer->outData.empty()) {
+    } else if (layer->insData.size() == 1 && layer->outData.size() == 1) {
         const SizeVector& ins_dims = layer->insData[0].lock()->getTensorDesc().getDims();
         const auto layout = layer->insData[0].lock()->getTensorDesc().getLayout(); // inp/out layouts must be the same
         dataIn.desc = TensorDesc(layer->insData[0].lock()->getTensorDesc().getPrecision(), ins_dims, layout);
@@ -55,6 +56,8 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
         dataConfigOut.desc = TensorDesc(layer->outData[0]->getTensorDesc().getPrecision(), out_dims, layout);
         config.outConfs.push_back(dataConfigOut);
         fmt = MKLDNNMemory::Convert(layout);
+    } else {
+        THROW_IE_EXCEPTION << "Convert layer with name '" << getName() << "' has incorrect number of input/output edges";
     }
 
     config.dynBatchSupport = false;

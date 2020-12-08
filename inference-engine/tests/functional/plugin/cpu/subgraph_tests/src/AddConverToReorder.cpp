@@ -45,6 +45,9 @@ public:
             case ngraph::element::Type_t::bf16:
                 ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_function(function);
                 break;
+            default:
+                // pass
+                break;
         }
 
         return LayerTestsUtils::LayerTestsCommon::CalculateRefs();
