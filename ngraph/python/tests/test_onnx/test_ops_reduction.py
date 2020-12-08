@@ -18,11 +18,11 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import xfail_issue_35925
+from tests import (xfail_issue_35925,
+                   xfail_issue_43523)
 
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
-    None,
     (0,),
     (1,),
     (2,),
@@ -36,7 +36,7 @@ reduce_operation_parameters = [
     ("ReduceMax", np.max),
     ("ReduceMin", np.min),
     ("ReduceMean", np.mean),
-    ("ReduceSum", np.sum),
+    pytest.param("ReduceSum", np.sum, marks=xfail_issue_43523),
     ("ReduceProd", np.prod)
 ]
 
@@ -47,15 +47,23 @@ def import_and_compute(op_type, input_data, **node_attrs):
     return run_node(node, data_inputs).pop()
 
 
+@pytest.mark.parametrize("operation, ref_operation", [
+    ("ReduceMax", np.max),
+    ("ReduceMin", np.min),
+    ("ReduceMean", np.mean),
+    ("ReduceSum", np.sum),
+    ("ReduceProd", np.prod)
+])
+def test_reduce_operation_keepdims_none_axes(operation, ref_operation):
+    assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=True),
+                          ref_operation(reduce_data, keepdims=True))
+
+
 @pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
 @pytest.mark.parametrize("axes", reduce_axis_parameters)
 def test_reduce_operation_keepdims(operation, ref_operation, axes):
-    if axes:
-        assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=True),
-                              ref_operation(reduce_data, keepdims=True, axis=axes))
-    else:
-        assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=True),
-                              ref_operation(reduce_data, keepdims=True))
+    assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=True),
+                          ref_operation(reduce_data, keepdims=True, axis=axes))
 
 
 @pytest.mark.parametrize("axes", [

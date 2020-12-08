@@ -170,6 +170,8 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "NegativeLogLikelihoodLoss")
+xfail_issue_43523 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError:"
+                                      " Unrecognized attribute: axes for operator ReduceSum")
 
 # Model ONNX Zoo issues:
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
