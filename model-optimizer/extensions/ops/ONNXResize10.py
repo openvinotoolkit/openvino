@@ -45,6 +45,6 @@ class ONNXResize10(Op):
         assert scale_value is not None, \
             "Node {} with op {} has no scales".format(node.soft_get('name', node.id), node.op)
         scale = np.array(scale_value)
-        output_shape = np.floor(input_shape * scale + 1.0e-6).astype(np.int64)
+        output_shape = np.floor(input_shape * (scale + 1.0e-6)).astype(np.int64)
 
         node.out_port(0).data.set_shape(output_shape.copy())
