@@ -3,6 +3,8 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <vpu/utils/shape_io.hpp>
+
 #include <ngraph/node.hpp>
 
 namespace vpu {
@@ -92,7 +94,7 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
 
     auto shapeDataObject = shape;
     if (dataOutput->usage() == DataUsage::Output && shapeDataObject->usage() != DataUsage::Output) {
-        const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
+        const auto& shapeOutput = model->addOutputData(createIOShapeName(dataOutput->name()), shape->desc());
 
         bindData(shapeOutput, shape->origData());
         for (const auto& shapeConsumerEdge : shape->consumerEdges()) {
