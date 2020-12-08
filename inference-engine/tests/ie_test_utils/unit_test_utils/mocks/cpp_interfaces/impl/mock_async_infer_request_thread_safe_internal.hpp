@@ -63,5 +63,5 @@ public:
     MOCK_METHOD1(SetBatch_ThreadUnsafe, void(int));
     MOCK_METHOD0(QueryState, std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>>(void));
 
-    MOCK_METHOD0(Cancel_ThreadUnsafe, InferenceEngine::StatusCode());
+    MOCK_METHOD0(Cancel, InferenceEngine::StatusCode());
 };
