@@ -57,7 +57,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool get_merge_repeated() const { return m_merge_repeated; }
-
                 element::Type get_classes_index_type() const { return m_classes_index_type; }
                 void set_classes_index_type(const element::Type& classes_index_type)
                 {
