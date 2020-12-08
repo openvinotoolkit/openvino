@@ -32,11 +32,14 @@ namespace ngraph
                         const T* arg1,
                         const T* arg2,
                         T* out,
-                        size_t count) // TODO: using char for bool, is this right?
+                        size_t arg0_count,
+                        size_t arg1_count,
+                        size_t arg2_count,
+                        size_t out_count)
             {
-                for (size_t i = 0; i < count; i++)
+                for (size_t i = 0; i < out_count; i++)
                 {
-                    out[i] = arg0[i] ? arg1[i] : arg2[i];
+                    out[i] = arg0[i % arg0_count] ? arg1[i % arg1_count] : arg2[i % arg2_count];
                 }
             }
 

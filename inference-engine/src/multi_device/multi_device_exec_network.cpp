@@ -98,10 +98,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                     if (idleGuard.Release()->try_push(workerRequestPtr)) {
                         // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                         // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
-                        if (_inferPipelineTasks.try_pop(workerRequestPtr->_task))
-                            ScheduleToWorkerInferRequest(std::move(workerRequestPtr->_task));
-                        else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(workerRequestPtr->_task))
-                            ScheduleToWorkerInferRequest(std::move(workerRequestPtr->_task), device);
+                        Task t;
+                        if (_inferPipelineTasks.try_pop(t))
+                            ScheduleToWorkerInferRequest(std::move(t));
+                        else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
+                            ScheduleToWorkerInferRequest(std::move(t), device);
                     }
                 });
         }

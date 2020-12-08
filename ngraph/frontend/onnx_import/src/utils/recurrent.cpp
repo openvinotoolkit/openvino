@@ -66,7 +66,8 @@ namespace ngraph
                     auto bias = ng_inputs.at(3);
                     auto split_bias = builder::opset1::split(bias, 2, 1);
                     NGRAPH_SUPPRESS_DEPRECATED_START
-                    m_map[OpInput::B] = split_bias.at(0) + split_bias.at(1);
+                    m_map[OpInput::B] =
+                        std::make_shared<ngraph::op::v1::Add>(split_bias.at(0), split_bias.at(1));
                     NGRAPH_SUPPRESS_DEPRECATED_END
                 }
                 else
@@ -81,9 +82,7 @@ namespace ngraph
                 else
                 {
                     m_map[OpInput::SEQ_LENGTHS] = std::make_shared<default_opset::Constant>(
-                        element::Type_t::i32,
-                        Shape{batch_size},
-                        m_map[OpInput::X].get_shape().at(1));
+                        element::i32, Shape{batch_size}, m_map[OpInput::X].get_shape().at(1));
                 }
                 // The initial value of the hidden.
                 if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))

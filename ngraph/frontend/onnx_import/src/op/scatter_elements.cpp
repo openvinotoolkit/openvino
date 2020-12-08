@@ -36,7 +36,7 @@ namespace ngraph
 
                     const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
                     const auto axis_node =
-                        default_opset::Constant::create(element::Type_t::i64, Shape{}, {axis});
+                        default_opset::Constant::create(element::i64, Shape{}, {axis});
 
                     return {std::make_shared<ngraph::opset3::ScatterElementsUpdate>(
                         data, indices, updates, axis_node)};

@@ -32,7 +32,7 @@ MockPlugin::LoadNetwork(const CNNNetwork &network,
     }
 }
 
-ExecutableNetworkInternal::Ptr
+InferenceEngine::ExecutableNetworkInternal::Ptr
 MockPlugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                const std::map<std::string, std::string>& config) {
     return {};

@@ -43,8 +43,7 @@ namespace ngraph
                     return {std::make_shared<default_opset::Gather>(
                         data,
                         indices,
-                        default_opset::Constant::create(
-                            element::Type_t::i64, Shape{}, {valid_axis}))};
+                        default_opset::Constant::create(element::i64, Shape{}, {valid_axis}))};
                 }
 
             } // namespace set_1

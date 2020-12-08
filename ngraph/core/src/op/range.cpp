@@ -363,7 +363,7 @@ void op::v0::Range::validate_and_infer_types()
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
 
-    element::Type result_et = element::Type_t::dynamic;
+    auto result_et = element::dynamic;
 
     NODE_VALIDATION_CHECK(
         this,
@@ -373,7 +373,7 @@ void op::v0::Range::validate_and_infer_types()
         "Element types for start, stop, and step do not match.");
 
     NODE_VALIDATION_CHECK(this,
-                          result_et != element::Type_t::boolean,
+                          result_et != element::boolean,
                           "Element type for start, stop, and step, must not be boolean.");
 
     NODE_VALIDATION_CHECK(

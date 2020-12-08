@@ -31,8 +31,8 @@ TYPED_TEST_CASE_P(topk_type_prop);
 TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
 {
     const auto data_shape = Shape{1, 2, 3, 4};
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto k = op::Constant::create(element::Type_t::i64, Shape{}, {2});
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto k = op::Constant::create(element::i64, Shape{}, {2});
     const int64_t axis = -2;
 
     const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
@@ -46,8 +46,8 @@ TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
 TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank)
 {
     const auto data_shape = PartialShape::dynamic();
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    const auto k = op::Constant::create(element::Type_t::i64, Shape{}, {2});
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto k = op::Constant::create(element::i64, Shape{}, {2});
     const int64_t axis = -2;
     const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
 
@@ -68,14 +68,14 @@ TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank)
 TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut)
 {
     auto data_shape = PartialShape{2, 10};
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
     {
-        auto k = make_shared<op::Parameter>(element::Type_t::i32, PartialShape({}));
+        auto k = make_shared<op::Parameter>(element::i32, PartialShape({}));
         auto topk = make_shared<TypeParam>(data, k, 1, "max", "value");
         EXPECT_EQ(topk->get_output_partial_shape(0), PartialShape({2, -1}));
     }
     {
-        auto k = make_shared<op::Constant>(element::Type_t::i32, Shape{}, 3);
+        auto k = make_shared<op::Constant>(element::i32, Shape{}, 3);
         auto topk = make_shared<TypeParam>(data, k, 1, "max", "value");
         EXPECT_EQ(topk->get_output_shape(0), Shape({2, 3}));
         EXPECT_EQ(topk->get_output_partial_shape(0), PartialShape({2, 3}));
@@ -86,18 +86,18 @@ TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
 {
     const int64_t axis = 1;
     const auto data_shape = Shape{1, 10, 100};
-    const auto data = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
     {
-        const auto k = make_shared<op::Parameter>(element::Type_t::i32, PartialShape({}));
+        const auto k = make_shared<op::Parameter>(element::i32, PartialShape({}));
         const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
 
         const PartialShape fully_dynamic_axis_shape{1, Dimension::dynamic(), 100};
         EXPECT_EQ(topk->get_output_partial_shape(0), fully_dynamic_axis_shape);
     }
     {
-        const auto k = make_shared<op::v0::Constant>(element::Type_t::i64, Shape{}, 5);
-        const auto convert_k = make_shared<op::v0::Convert>(k, element::Type_t::i32);
+        const auto k = make_shared<op::v0::Constant>(element::i64, Shape{}, 5);
+        const auto convert_k = make_shared<op::v0::Convert>(k, element::i32);
         const auto topk = make_shared<TypeParam>(data, convert_k, axis, "max", "value");
 
         const PartialShape ranged_dynamic_axis_shape{1, Dimension{5, 10}, 100};

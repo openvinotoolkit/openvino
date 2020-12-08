@@ -23,7 +23,7 @@ using namespace ngraph;
 
 TEST(type_prop, unary_arithmetic_bad_argument_element_types)
 {
-    auto tv0_2_4_param = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto tv0_2_4_param = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
     try
     {
         auto bc = make_shared<op::Negative>(tv0_2_4_param);
