@@ -19,4 +19,8 @@ void ImportNonZero::SetUp() {
     function = std::make_shared<ngraph::Function>(nonZero->outputs(), ngraph::ParameterVector{parameter}, "ExportImportNetwork");
 }
 
+TEST_P(ImportNonZero, CompareWithRefImpl) {
+    Run();
+};
+
 } // namespace LayerTestsDefinitions

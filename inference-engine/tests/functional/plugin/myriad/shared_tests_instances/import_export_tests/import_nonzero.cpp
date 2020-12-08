@@ -9,10 +9,6 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-TEST_P(ImportNonZero, CompareWithRefImpl) {
-    Run();
-};
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
 };
