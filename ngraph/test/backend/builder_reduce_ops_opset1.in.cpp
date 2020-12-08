@@ -36,7 +36,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean)
 {
     const Shape input_shape{4, 3, 2};
     const AxisSet axes{1, 2};
-    const auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
+    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 
@@ -53,7 +53,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean_dynamic)
 {
     const Shape input_shape{2, 4, 5};
     const AxisSet axes{0, 1};
-    const auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
+    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 
@@ -71,7 +71,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean_dynamic_2)
 {
     const Shape input_shape{2, 1, 3};
     const AxisSet axes{1, 2};
-    const auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
+    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 
@@ -91,7 +91,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_5d_to_3d)
 
     const auto elems_in_tensor = shape_size(shape_input);
 
-    const auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_input);
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
     const auto builder_collapse = builder::opset1::collapse(A, 1, shape_input.size() - 2);
     const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
 
@@ -112,7 +112,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_all_dims)
 
     const auto elems_in_tensor = shape_size(shape_input);
 
-    const auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_input);
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
     const auto builder_collapse = builder::opset1::collapse(A, 0, shape_input.size() - 1);
     const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
 
@@ -132,7 +132,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_none)
 
     const auto elems_in_tensor = shape_size(shape_input);
 
-    const auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_input);
+    const auto A = make_shared<op::Parameter>(element::f32, shape_input);
     const auto builder_collapse = builder::opset1::collapse(A, 2, shape_input.size() - 4);
     const auto f = make_shared<Function>(builder_collapse, ParameterVector{A});
 
@@ -151,7 +151,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_collapse_dyn_shape)
     PartialShape pshape_input{1, 2, 3, 4, 5, Dimension()};
     PartialShape pshape_output{1, 24, 5, Dimension()};
 
-    const auto A = make_shared<op::Parameter>(element::Type_t::f32, pshape_input);
+    const auto A = make_shared<op::Parameter>(element::f32, pshape_input);
     EXPECT_TRUE(A->get_output_partial_shape(0).same_scheme(
         PartialShape{1, 2, 3, 4, 5, Dimension::dynamic()}));
     const auto builder_collapse = builder::opset1::collapse(A, 1, 3);

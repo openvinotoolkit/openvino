@@ -77,13 +77,12 @@ namespace
         {
             NGRAPH_CHECK(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1,
                          "Begin input must be 1D");
-            return std::make_shared<op::v1::Broadcast>(
-                op::Constant::create(element::Type_t::i64, {}, {1}),
-                std::make_shared<op::ShapeOf>(begin));
+            return std::make_shared<op::v1::Broadcast>(op::Constant::create(element::i64, {}, {1}),
+                                                       std::make_shared<op::ShapeOf>(begin));
         }
 
         return op::Constant::create(
-            element::Type_t::i64, Shape{strides_length}, vector<int64_t>(strides_length, 1));
+            element::i64, Shape{strides_length}, vector<int64_t>(strides_length, 1));
     }
 }
 

@@ -62,36 +62,55 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
     bool inPrcSigned = function->get_parameters()[0]->get_element_type().is_signed();
     int32_t data_start_from;
     uint32_t data_range;
+    int32_t resolution;
 
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::Log: {
             data_start_from = 1;
             data_range = 20;
+            resolution = 32768;
             break;
         }
         case ngraph::helpers::ActivationTypes::Sqrt: {
             data_start_from = 0;
             data_range = 20;
+            resolution = 32768;
             break;
         }
         case ngraph::helpers::ActivationTypes::Asin: {
             data_start_from = -1;
             data_range = 2;
+            resolution = 32768;
             break;
         }
         case ngraph::helpers::ActivationTypes::Acos: {
             data_start_from = -1;
             data_range = 2;
+            resolution = 32768;
             break;
         }
         case ngraph::helpers::ActivationTypes::Ceiling: {
             data_start_from = -1000;
             data_range = 2000;
+            resolution = 32768;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::RoundHalfToEven: {
+            data_start_from = -10;
+            data_range = 20;
+            resolution = 4;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero: {
+            data_start_from = -10;
+            data_range = 20;
+            resolution = 4;
             break;
         }
         default: {
             data_start_from = -10;
             data_range = 20;
+            resolution = 32768;
             break;
         }
     }
@@ -112,7 +131,7 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
     }
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
                                             data_start_from,
-                                            32768);
+                                            resolution);
 }
 
 ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {

@@ -49,16 +49,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add)
     // Shape inference tests
     const auto& parameters = function->get_parameters();
     EXPECT_EQ(parameters.size(), 1);
-    EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::Type_t::f32);
+    EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::f32);
     EXPECT_TRUE(parameters.at(0)->get_partial_shape().is_static());
     EXPECT_EQ(parameters.at(0)->get_partial_shape().to_shape(), (Shape{1, 2}));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::Type_t::f32);
+    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
     EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
     EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
-    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::Type_t::f32);
+    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
     EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
     EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
 
@@ -375,10 +375,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skippe
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::Type_t::f32);
+    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
     EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
     EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
-    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::Type_t::f32);
+    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
     // scan_outputs shape is not know if trip_count and termination condition is not determined
     EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
 }
