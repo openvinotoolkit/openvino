@@ -47,9 +47,9 @@ struct SupportedPrecisions {
 
 struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
-    mkldnn::impl::cpu::x64::jit_generator *host;
-    mkldnn::impl::cpu::x64::cpu_isa_t host_isa;
-    const MKLDNNNode * node;
+    jit_generator *host;
+    cpu_isa_t host_isa;
+    const MKLDNNNode *node;
     InferenceEngine::Precision exec_prc;
 };
 
