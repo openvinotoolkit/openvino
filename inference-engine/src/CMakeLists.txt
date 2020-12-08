@@ -55,7 +55,7 @@ if(NOT BUILD_SHARED_LIBS)
     endif()
 
     if(ENABLE_MKL_DNN)
-        ieTargetLinkWholeArchiveEx(inference_engine PUBLIC MKLDNNPlugin)
+        ieTargetLinkWholeArchiveEx(inference_engine PRIVATE MKLDNNPlugin)
     endif()
 
     if(ENABLE_CLDNN)
@@ -63,7 +63,7 @@ if(NOT BUILD_SHARED_LIBS)
     endif()
 
     if(ENABLE_VPU)
-      ieTargetLinkWholeArchiveEx(inference_engine PRIVATE myriadPlugin)
+        ieTargetLinkWholeArchiveEx(inference_engine PRIVATE myriadPlugin)
     endif()
 
     if(ENABLE_GNA)
@@ -71,5 +71,4 @@ if(NOT BUILD_SHARED_LIBS)
     endif()
 
     ieTargetLinkWholeArchiveEx(inference_engine PRIVATE HeteroPlugin MultiDevicePlugin)
-
 endif()

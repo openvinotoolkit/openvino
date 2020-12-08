@@ -106,7 +106,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1:
                                              node->get_auto_pad());
 }
 
-matcher_pass_callback get_callback() {
+static matcher_pass_callback get_callback() {
     return [](pattern::Matcher& m) {
         auto node = m.get_match_root();
         if (node->input(0).get_partial_shape().rank().get_length() != 3) {

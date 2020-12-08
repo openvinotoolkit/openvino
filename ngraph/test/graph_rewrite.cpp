@@ -61,7 +61,7 @@ std::shared_ptr<Function> get_function()
                                               ngraph::ParameterVector{data});
 }
 
-ngraph::pass::param_callback get_callback()
+static ngraph::pass::param_callback get_callback()
 {
     return [](const std::shared_ptr<const Node>& node) -> bool {
         if (std::dynamic_pointer_cast<const opset3::Divide>(node))

@@ -44,8 +44,8 @@ static void forStaticPluginRegistry(void (*callback)(IEStaticPluginRegistryType&
 template <typename Action>
 static void forStaticPluginRegistry(Action && callback) {
     forStaticPluginRegistry([](IEStaticPluginRegistryType& registry, void* user) {
-        (*((Action *)user))(registry);
-    }, (void*)&callback);
+        (*static_cast<Action*>(user))(registry);
+    }, static_cast<void*>(&callback));
 }
 
 StatusCode InferencePluginRegisterStaticFactory(std::string const & deviceName, IEPluginFactory factory) {
@@ -376,11 +376,9 @@ public:
 #ifdef USE_STATIC_IE_PLUGINS
         // If static extensions are supported lookup for static factory for the specified device as a fallback
         IEPluginFactory staticFactory = nullptr;
-        forStaticPluginRegistry([&](IEStaticPluginRegistryType& staticRegistry)
-        {
+        forStaticPluginRegistry([&](IEStaticPluginRegistryType& staticRegistry) {
             auto itStatic(staticRegistry.find(deviceName));
-            if (itStatic != staticRegistry.end())
-            {
+            if (itStatic != staticRegistry.end()) {
                 staticFactory = itStatic->second;
                 pluginFound = true;
             }
