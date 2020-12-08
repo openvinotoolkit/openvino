@@ -20,7 +20,7 @@ from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
-class ONNXResize10Op(Op):
+class ONNXResize10(Op):
     op = 'ONNXResize10'
 
     def __init__(self, graph: Graph, attrs: dict):
@@ -28,7 +28,7 @@ class ONNXResize10Op(Op):
             'op': self.op,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': ONNXResize10Op.onnx_resize_infer
+            'infer': ONNXResize10.onnx_resize_infer
         }
         super().__init__(graph, mandatory_props, attrs)
 

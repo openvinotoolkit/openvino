@@ -137,7 +137,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         reshape_node = match['reshape']
 
         reshape_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
-        reshape_name = reshape_node.name
+        reshape_name = reshape_node.soft_get('name', reshape_node.id)
         rename_nodes([(reshape_node, reshape_name + '/delete'), (interp_node, reshape_name)])
 
         unsqueeze_connection = match['unsqueeze'].in_port(0).get_connection()

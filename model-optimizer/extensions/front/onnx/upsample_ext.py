@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-from extensions.ops.ONNXResize10 import ONNXResize10Op
+from extensions.ops.ONNXResize10 import ONNXResize10
 from extensions.ops.upsample import UpsampleOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
@@ -34,7 +34,7 @@ class UpsampleFrontExtractor(FrontExtractorOp):
         onnx_opset_version = get_onnx_opset_version(node)
         if onnx_opset_version is not None and onnx_opset_version >= 9:
             mode = onnx_attr(node, 'mode', 's', default='nearest', dst_type=lambda x: x.decode())
-            ONNXResize10Op.update_node_stat(node, {'mode': mode})
+            ONNXResize10.update_node_stat(node, {'mode': mode})
         else:
             mode = onnx_attr(node, 'mode', 's', default='nearest', dst_type=lambda x: x.decode())
             scales = onnx_attr(node, 'scales', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32))

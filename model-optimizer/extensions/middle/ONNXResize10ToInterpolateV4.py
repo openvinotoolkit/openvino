@@ -133,6 +133,5 @@ class ONNXResize10ToInterpolate4(MiddleReplacementPattern):
         return [InterpolateSequenceToInterpolate]
 
     def find_and_replace_pattern(self, graph: Graph):
-        resize10_ops = graph.get_op_nodes(op='ONNXResize10')
-        for resize in resize10_ops:
+        for resize in graph.get_op_nodes(op='ONNXResize10'):
             replace_resize(graph, resize)

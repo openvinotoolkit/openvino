@@ -85,7 +85,7 @@ class UpsampleToResample(MiddleReplacementPattern):
         if 1 in upsample.in_ports() and not upsample.in_port(1).disconnected():
             upsample.in_port(1).disconnect()
 
-        upsample_name = upsample.name
+        upsample_name = upsample.soft_get('name', upsample.id)
         shape = Shape(graph, {'name': upsample_name + '/0_port'}).create_node()
 
         layout = graph.graph['layout']
@@ -129,25 +129,25 @@ class UpsampleToResample(MiddleReplacementPattern):
 
         axes_node = Const(graph, {'name': upsample_name + '/axis_', 'value': axes}).create_node()
 
-        resample_op = Interpolate(graph, {'mode': upsample.attrs()['mode'], 'antialias': 0,
-                                          'convert_to_resample': True, 'pads_begin': int64_array([0]),
-                                          'pads_end': int64_array([0]), 'coordinate_transformation_mode': 'half_pixel',
+        interpolate = Interpolate(graph, {'mode': upsample.attrs()['mode'], 'antialias': 0,
+                                          'pads_begin': int64_array([0]), 'pads_end': int64_array([0]),
+                                          'coordinate_transformation_mode': 'half_pixel',
                                           'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75,
                                           'shape_calculation_mode': 'scales',
                                           'version': 'opset4', 'in_ports_count': 4}).create_node()
 
         upsample.add_input_port(1, skip_if_exist=True)
         assert upsample.in_port(1).disconnected()
-        mul.out_port(0).connect(resample_op.in_port(1))
-        axes_node.out_port(0).connect(resample_op.in_port(3))
+        mul.out_port(0).connect(interpolate.in_port(1))
+        axes_node.out_port(0).connect(interpolate.in_port(3))
 
         scales_node = Const(graph, {'name': upsample_name + '/scales_', 'value': factor_value}).create_node()
-        scales_node.out_port(0).connect(resample_op.in_port(2))
+        scales_node.out_port(0).connect(interpolate.in_port(2))
 
-        upsample.in_port(0).get_connection().set_destination(resample_op.in_port(0))
-        upsample.out_port(0).get_connection().set_source(resample_op.out_port(0))
+        upsample.in_port(0).get_connection().set_destination(interpolate.in_port(0))
+        upsample.out_port(0).get_connection().set_source(interpolate.out_port(0))
 
-        rename_nodes([(upsample, upsample_name + '/delete_'), (resample_op, upsample_name)])
+        rename_nodes([(upsample, upsample_name + '/delete_'), (interpolate, upsample_name)])
 
         convert_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
         convert_to_int = Cast(graph, dict(dst_type=np.int64)).create_node()

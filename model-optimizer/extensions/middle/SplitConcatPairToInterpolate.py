@@ -105,7 +105,7 @@ def replace_interpolate_pattern(graph: Graph, match: dict):
     cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
 
     interp_node = Interpolate(graph,
-                              dict(name=split_node_name + '/Interpolate_',
+                              dict(name=split_node_name + '/Interpolate',
                                    mode='nearest',
                                    antialias=0, pads_begin=int64_array([0]), pads_end=int64_array([0]),
                                    coordinate_transformation_mode='half_pixel', nearest_mode='round_prefer_floor',
