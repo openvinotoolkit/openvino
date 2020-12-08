@@ -19,6 +19,7 @@ import tests
 from operator import itemgetter
 from pathlib import Path
 import os
+from typing import Sequence, Any
 import numpy as np
 
 from tests.test_onnx.utils import OpenVinoOnnxBackend
@@ -46,7 +47,7 @@ from tests import (
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
-def yolov3_post_processing(outputs):
+def yolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
     concat_out_index = 2
     # remove all elements with value -1 from yolonms_layer_1/concat_2:0 output
     concat_out = outputs[concat_out_index][outputs[concat_out_index] != -1]

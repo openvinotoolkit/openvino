@@ -29,6 +29,15 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union, Callable, Sequence
 
 
+class ExtOnnxTestCase(OnnxTestCase):
+    def __new__(cls, name, model_name, url, model_dir, model, data_sets, kind, rtol, atol, post_processing):
+        self = super(ExtOnnxTestCase, cls).__new__(
+            cls, name, model_name, url, model_dir, model, data_sets, kind, rtol, atol
+        )
+        self.post_processing = post_processing
+        return self
+
+
 class ModelImportRunner(onnx.backend.test.BackendTest):
     def __init__(
         self,
@@ -51,7 +60,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 .replace("\\", "_") \
                 .replace("-", "_")
 
-            test_case = OnnxTestCase(
+            test_case = ExtOnnxTestCase(
                 name=test_name,
                 url=None,
                 model_name=model["model_name"],
@@ -61,9 +70,10 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 kind="OnnxBackendRealModelTest",
                 rtol=model.get("rtol", 0.001),
                 atol=model.get("atol", 1e-07),
+                post_processing=model.get("post_processing", None)
             )
             self._add_model_import_test(test_case)
-            self._add_model_execution_test(test_case, model.get("post_processing", None))
+            self._add_model_execution_test(test_case)
 
     @staticmethod
     def _load_onnx_model(model_dir: Path, filename: Path) -> ModelProto:
@@ -72,7 +82,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
 
         return onnx.load(model_dir / filename)
 
-    def _add_model_import_test(self, model_test: OnnxTestCase) -> None:
+    def _add_model_import_test(self, model_test: ExtOnnxTestCase) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
         model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
@@ -133,10 +143,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
             executed_tests = executed_tests + 1
         return executed_tests
 
-    def _add_model_execution_test(
-        self, model_test: OnnxTestCase,
-        post_processing: Callable[[Sequence[Any]], Sequence[Any]] = None
-    ) -> None:
+    def _add_model_execution_test(self, model_test: ExtOnnxTestCase) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
         model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
@@ -146,13 +153,14 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
             model_marker[0] = model
             prepared_model = self.backend.prepare(model, device)
             assert prepared_model is not None
-            print(type(post_processing))
             executed_tests = ModelImportRunner._execute_npz_data(
-                model_test.model_dir, prepared_model, model_test.rtol, model_test.atol, post_processing
+                model_test.model_dir, prepared_model, model_test.rtol, model_test.atol,
+                model_test.post_processing
             )
 
             executed_tests = executed_tests + ModelImportRunner._execute_pb_data(
-                model_test.model_dir, prepared_model, model_test.rtol, model_test.atol, post_processing
+                model_test.model_dir, prepared_model, model_test.rtol, model_test.atol,
+                model_test.post_processing
             )
             assert executed_tests > 0, "This model has no test data"
         self._add_test("ModelExecution", model_test.name, run_execution, model_marker)
