@@ -11,8 +11,17 @@ std::vector<std::string> disabledTestPatterns() {
     return {
         ".*ExclusiveAsyncRequests.*",
         ".*reusableCPUStreamsExecutor.*",
-        ".*registerPlugin.*",
-        ".*IEClassGetAvailableDevices.*",
         R"(.*SplitLayerTest.*numSplits\=30.*)"
+        // CVS-44775: for all cases below
+        ".*Hetero.*",
+        ".*QueryNetwork.*",
+        ".*SetAffinityWithKSO.*",
+        ".*queryNetworkResultContainAllAndOnlyInputLayers.*",
+        R"(.*IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*/2)",
+        R"(.*IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*/2)",
+        R"(.*IEClassExecutableNetworkGetMetricTest_NETWORK_NAME.*/2)",
+        R"(.*IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS.*/2)",
+        // CVS-44774
+        ".*PreprocessTest.*",
     };
 }

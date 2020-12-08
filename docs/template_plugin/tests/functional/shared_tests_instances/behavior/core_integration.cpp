@@ -17,11 +17,11 @@ namespace {
 //
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassBasicTestP, IEClassBasicTestP,
+        smoke_IEClassBasicTestP, IEClassBasicTestP,
         ::testing::Values(std::make_pair("templatePlugin", "TEMPLATE")));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassNetworkTestP, IEClassNetworkTestP,
+        smoke_IEClassNetworkTestP, IEClassNetworkTestP,
         ::testing::Values("TEMPLATE"));
 
 //
@@ -29,39 +29,39 @@ INSTANTIATE_TEST_CASE_P(
 //
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
+        smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
+        smoke_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
+        smoke_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+        smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        smoke_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
+        smoke_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
+        smoke_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetAvailableDevices, IEClassGetAvailableDevices,
+        smoke_IEClassGetAvailableDevices, IEClassGetAvailableDevices,
         ::testing::Values("TEMPLATE"));
 
 
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_CASE_P(
 
 using IEClassSetConfigTestHETERO = IEClassNetworkTest;
 
-TEST_F(IEClassSetConfigTestHETERO, nightly_SetConfigNoThrow) {
+TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     {
         Core ie;
         Parameter p;
@@ -112,12 +112,12 @@ TEST_F(IEClassSetConfigTestHETERO, nightly_SetConfigNoThrow) {
 //
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassGetConfigTest, IEClassGetConfigTest,
+        smoke_IEClassGetConfigTest, IEClassGetConfigTest,
         ::testing::Values("TEMPLATE"));
 
 using IEClassGetConfigTestTEMPLATE = IEClassNetworkTest;
 
-TEST_F(IEClassGetConfigTestTEMPLATE, nightly_GetConfigNoThrow) {
+TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
     Core ie;
     Parameter p;
     std::string deviceName = "TEMPLATE";
@@ -144,46 +144,46 @@ TEST_F(IEClassGetConfigTestTEMPLATE, nightly_GetConfigNoThrow) {
 //
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+        smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, IEClassExecutableNetworkGetMetricTest,
+        smoke_IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, IEClassExecutableNetworkGetMetricTest,
         ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 //
 // Executable Network GetConfig / SetConfig
 //
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
+        smoke_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
+        smoke_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
         ::testing::Values("TEMPLATE"));
 
 // IE Class Query network
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassQueryNetworkTest, IEClassQueryNetworkTest,
+        smoke_IEClassQueryNetworkTest, IEClassQueryNetworkTest,
         ::testing::Values("TEMPLATE"));
 
 // IE Class Load network
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassLoadNetworkTest, IEClassLoadNetworkTest,
+        smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTest,
         ::testing::Values("TEMPLATE"));
 
 //
@@ -193,19 +193,19 @@ INSTANTIATE_TEST_CASE_P(
 #ifdef ENABLE_MKL_DNN
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
+        smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::Values("TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
-        nightly_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
+        smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
         ::testing::Values("TEMPLATE"));
 
 #endif  // ENABLE_MKL_DNN
