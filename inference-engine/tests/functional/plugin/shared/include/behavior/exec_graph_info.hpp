@@ -250,7 +250,9 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice != CommonTestUtils::DEVICE_MULTI && targetDevice != CommonTestUtils::DEVICE_GNA) {
+    if (targetDevice != CommonTestUtils::DEVICE_MULTI &&
+        targetDevice != "TEMPLATE" &&
+        targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
