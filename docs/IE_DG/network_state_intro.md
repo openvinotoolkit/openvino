@@ -1,9 +1,11 @@
 Introduction to OpenVINO state API {#openvino_docs_IE_DG_network_state_intro}
 ==============================
 
-This section provides description how to work with stateful networks in OpenVINO: how such networks 
-are represented in IR and Ngraph, how operations with state can be done. Section provides small examples 
-of stateful network and code to infer it.
+This section describes how to work with stateful networks in OpenVINO toolkit, specifically:
+* How stateful networks are represented in IR and nGraph
+* How operations with state can be done
+
+The section additionally provides small examples of stateful network and code to infer it.
 
 ## What is a stateful network
 
@@ -221,7 +223,7 @@ LowLatency transformation changes the structure of the network containing [Tenso
 
 	// Network before reshape: Parameter (name: X, shape: [2 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 2, axis = 0) -> ...
 
-	cnnNetwork.reshape({“X” : {1, 1, 16});
+	cnnNetwork.reshape({"X" : {1, 1, 16});
 
 	// Network after reshape: Parameter (name: X, shape: [1 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 1, axis = 0) -> ...
 		
