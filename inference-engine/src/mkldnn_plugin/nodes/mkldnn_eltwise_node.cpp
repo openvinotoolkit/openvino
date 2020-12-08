@@ -865,23 +865,19 @@ MKLDNNEltwiseNode::initializers = {
             alpha = 0.0f;
             beta = 0.0f;
             opType = Hsigmoid;
-            // TODO [oneDNN]: not ported yet
-            THROW_IE_EXCEPTION << "Unsupported yet";
-//            algorithm = mkldnn::algorithm::eltwise_hsigmoid;
+            algorithm = mkldnn::algorithm::eltwise_hsigmoid;
         }},
         {"round", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = 0.0f;
             beta = 0.0f;
             opType = Round;
             std::string mode = activationLayer->GetParamAsString("mode", "half_to_even");
-            // TODO [oneDNN]: not ported yet
-            THROW_IE_EXCEPTION << "Unsupported yet";
-//            if (mode == "half_to_even")
-//                algorithm = mkldnn::eltwise_round_half_to_even;
-//            else if (mode == "half_away_from_zero")
-//                algorithm = mkldnn::eltwise_round_half_away_from_zero;
-//            else
-//                THROW_IE_EXCEPTION << "Round layer with name " << activationLayer->name << " doesn't support mode " << mode;
+            if (mode == "half_to_even")
+                algorithm = mkldnn::algorithm::eltwise_round_half_to_even;
+            else if (mode == "half_away_from_zero")
+                algorithm = mkldnn::algorithm::eltwise_round_half_away_from_zero;
+            else
+                THROW_IE_EXCEPTION << "Round layer with name " << activationLayer->name << " doesn't support mode " << mode;
         }},
 };
 
@@ -1721,10 +1717,9 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
         case mkldnn::algorithm::eltwise_swish:
         case mkldnn::algorithm::eltwise_hswish:
         case mkldnn::algorithm::eltwise_mish:
-        // TODO [oneDNN] : not ported
-//        case mkldnn::algorithm::eltwise_hsigmoid:
-//        case mkldnn::algorithm::eltwise_round_half_to_even:
-//        case mkldnn::algorithm::eltwise_round_half_away_from_zero:
+        case mkldnn::algorithm::eltwise_hsigmoid:
+        case mkldnn::algorithm::eltwise_round_half_to_even:
+        case mkldnn::algorithm::eltwise_round_half_away_from_zero:
             ops.append_eltwise(1.0, getAlgorithm(), getAlpha(), getBeta());
             break;
         case mkldnn::algorithm::depthwise_scale_shift:
