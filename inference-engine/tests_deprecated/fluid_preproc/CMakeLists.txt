@@ -22,6 +22,10 @@ target_include_directories(${TARGET} PRIVATE
           $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
           $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
 
+if (NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET} PRIVATE -DUSE_STATIC_FLUID_COMPUTATION)
+endif()
+
 target_link_libraries(${TARGET} PRIVATE opencv_core opencv_imgproc inference_engine fluid_test_computations gtest gtest_main)
 
 if(GAPI_TEST_PERF)

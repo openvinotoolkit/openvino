@@ -11,7 +11,7 @@
 #include <vector>
 
 #if defined(_WIN32)
-    #ifndef USE_STATIC_IE
+    #ifndef USE_STATIC_FLUID_COMPUTATION
         #ifdef IMPLEMENT_FLUID_COMPUTATION_API
             #define FLUID_COMPUTATION_VISIBILITY __declspec(dllexport)
         #else

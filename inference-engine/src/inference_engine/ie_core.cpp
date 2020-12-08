@@ -401,14 +401,17 @@ public:
             try {
                 InferencePlugin plugin;
 
-                try {
 #ifdef USE_STATIC_IE_EXTENSIONS
+                try {
                     // To save incorrect initialization, when no library location, directly try static factory
                     if (staticFactory != nullptr && desc.libraryLocation.empty()) {
                         THROW_IE_EXCEPTION;
                     }
 #endif
+
                     plugin = InferencePlugin(desc.libraryLocation);
+
+#ifdef USE_STATIC_IE_EXTENSIONS
                 } catch (const details::InferenceEngineException& ex) {
                     if (staticFactory == nullptr) {
                         throw ex;
@@ -416,6 +419,7 @@ public:
 
                     plugin = InferencePlugin(InferenceEnginePluginPtr(details::InstantiatePluginSharedPtr<IInferencePlugin>(staticFactory)));
                 }
+#endif
 
                 {
                     plugin.SetName(deviceName);
