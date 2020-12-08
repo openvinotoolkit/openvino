@@ -292,7 +292,7 @@ public:
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
-    QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+    QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         return GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);

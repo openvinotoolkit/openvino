@@ -131,7 +131,7 @@ protected:
         expectedPrecisions["ADD_1"] = "FP32";
         expectedPrecisions["CONV_1"] = "BF16";
         expectedPrecisions["CONV_2"] = "BF16";
-        expectedPrecisions["CONC_1_TEST"] = "FP32";
+        expectedPrecisions["CONC_1_TEST"] = "BF16";
         expectedPrecisions["RELU_1"] = "FP32";
     }
 };

@@ -17,7 +17,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/multiply_to_group_convolution_function.hpp"
+#include "lpt_ngraph_functions/multiply_to_group_convolution_function.hpp"
 
 #include <ngraph/pass/visualize_tree.hpp>
 
