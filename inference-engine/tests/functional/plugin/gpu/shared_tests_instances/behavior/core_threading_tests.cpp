@@ -23,30 +23,12 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    const FuncTestUtils::TestModel::TestModel models[] = {
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
-    };
     std::vector<InferenceEngine::CNNNetwork> networks;
-    for (auto & model : models) {
-        networks.emplace_back(ie.ReadNetwork(model.model_xml_str, model.weights_blob));
-    }
-
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
-
-    // [WA] old IR is not supported anymore. Removing all v7 networks from the list
-    auto it = networks.begin();
-    while (it != networks.end()) {
-        if (!it->getFunction()) {
-            it = networks.erase(it);
-        } else {
-            it++;
-        }
-    }
 
     auto ocl_instance = std::make_shared<OpenCL>();
     ie.SetConfig(config, deviceName);

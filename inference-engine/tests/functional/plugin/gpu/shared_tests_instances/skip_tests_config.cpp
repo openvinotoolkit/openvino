@@ -9,12 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-            // Issues - 34059
-            ".*BehaviorTests\\.pluginDoesNotChangeOriginalNetwork.*",
-            // CNNNetworkImpl is not supported anymore
-            R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIwithHETERONoThrowv7|QueryNetworkHETEROwithMULTINoThrow_v7).*)",
-            // CNNNetworkImpl is not supported anymore
-            R"(.*(CoreThreadingTests).*(smoke_QueryNetwork).*)",
             //TODO: Issue: 34748
             R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39014
@@ -24,8 +18,6 @@ std::vector<std::string> disabledTestPatterns() {
             // Expected behavior
             R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
-            // TODO: Issue: 40958
-            R"(.*(ConstantResultSubgraphTest).*)",
             // TODO: Issue: 43794
             R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
@@ -45,15 +37,12 @@ std::vector<std::string> disabledTestPatterns() {
 
             // These tests might fail due to accuracy loss a bit bigger than threshold
             R"(.*(GRUCellTest).*)",
-            // Unknown issue
-            R"(.*(smoke_DetectionOutput3In).*)",
-            R"(.*(smoke_DetectionOutput5In).*)",
-            // Not implemented yet
-            //R"(.*(smoke_LSTM).*)",
-            //R"(.*(smoke_LSTMSequence).*)",
-
             R"(.*(RNNSequenceTest).*)",
             R"(.*(GRUSequenceTest).*)",
+
+            // Unknown issues
+            R"(.*(smoke_DetectionOutput3In).*)",
+            R"(.*(smoke_DetectionOutput5In).*)",
             R"(.*(ScatterUpdateLayerTest).*)",
     };
 }
