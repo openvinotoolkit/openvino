@@ -671,8 +671,13 @@ relu_2Dbackprop
 relu_4Dbackprop
 
 # data [<name>] doesn't exist
-range
 parameter_as_output
+
+# MKLDNNGraph::CreateGraph: No inputs for the topology
+range_v0_int32
+range_v0_float32
+range_v4_int32
+range_v4_float32
 
 # Cannot cast ngraph node QuantizedDot to CNNLayer!
 quantized_dot_u8u8
@@ -1144,6 +1149,9 @@ IE_CPU.nonmaxsuppression_two_classes
 # Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
 IE_CPU.roi_pooling_1x1_bilinear
 
+# Unsupported dynamic op
+IE_CPU.range_v4_trunc_inputs
+
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
 
@@ -1513,3 +1521,4 @@ onnx_controlflow_loop_infinite
 
 # unsupported dynamic ops
 onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
+IE_GPU.range_v4_trunc_inputs
