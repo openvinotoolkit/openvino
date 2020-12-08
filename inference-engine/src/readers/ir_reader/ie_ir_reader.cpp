@@ -48,7 +48,7 @@ CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const 
     return CNNNetwork(parser.parse(root, weights));
 }
 
-INFERENCE_PLUGIN_API(StatusCode) InferenceEngineIRReader::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
     try {
         reader = new IRReader();
         return OK;
@@ -58,13 +58,13 @@ INFERENCE_PLUGIN_API(StatusCode) InferenceEngineIRReader::CreateReader(IReader*&
     }
 }
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
 #ifdef IR_READER_V10
 INFERENCE_PLUGIN_STATIC_API(StatusCode) InferenceEngineIRReaderV10_Create(IReader*& reader, ResponseDesc *resp)
 #else
 INFERENCE_PLUGIN_STATIC_API(StatusCode) InferenceEngineIRReaderV7_Create(IReader*& reader, ResponseDesc *resp)
 #endif
 {
-    return InferenceEngineIRReader::CreateReader(reader, resp);
+    return CreateReader(reader, resp);
 }
 #endif

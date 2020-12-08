@@ -93,7 +93,7 @@ public:
 };
 namespace {
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
     extern "C" StatusCode InferenceEngineIRReaderV7_Create(Reader*& reader, ResponseDesc* resp);
     extern "C" StatusCode InferenceEngineIRReaderV10_Create(Reader*& reader, ResponseDesc* resp);
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
@@ -104,7 +104,7 @@ namespace {
         return OK;
     }
 #endif // NGRAPH_ONNX_IMPORT_ENABLE
-#endif // USE_STATIC_IE_EXTENSIONS
+#endif // USE_STATIC_IE_PLUGINS
 
 // Extension to plugins creator
 std::multimap<std::string, Reader::Ptr> readers;
@@ -116,7 +116,7 @@ void registerReaders() {
     std::lock_guard<std::mutex> lock(readerMutex);
     if (initialized) return;
 
-#ifndef USE_STATIC_IE_EXTENSIONS
+#ifndef USE_STATIC_IE_PLUGINS
     // TODO: Read readers info from XML
     auto create_if_exists = [] (const std::string name, const std::string library_name) {
         FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
@@ -128,7 +128,7 @@ void registerReaders() {
     };
 #endif
 
-#ifndef USE_STATIC_IE_EXTENSIONS
+#ifndef USE_STATIC_IE_PLUGINS
     // try to load ONNX reader if library exists
     auto onnxReader = create_if_exists("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
 #else
@@ -139,7 +139,7 @@ void registerReaders() {
         readers.emplace("prototxt", onnxReader);
     }
 
-#ifndef USE_STATIC_IE_EXTENSIONS
+#ifndef USE_STATIC_IE_PLUGINS
     // try to load IR reader v10 if library exists
     auto irReaderv10 = create_if_exists("IRv10", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
 #else
@@ -148,7 +148,7 @@ void registerReaders() {
     if (irReaderv10)
         readers.emplace("xml", irReaderv10);
 
-#ifndef USE_STATIC_IE_EXTENSIONS
+#ifndef USE_STATIC_IE_PLUGINS
     // try to load IR reader v7 if library exists
     auto irReaderv7 = create_if_exists("IRv7", std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
 #else

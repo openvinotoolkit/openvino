@@ -13,7 +13,7 @@
 #include <gna2-inference-api.h>
 #include <gna2-model-export-api.h>
 #endif
-#if defined(_WIN32) && !defined(USE_STATIC_IE_EXTENSIONS)
+#if defined(_WIN32) && !defined(USE_STATIC_IE_PLUGINS)
     #ifdef libGNAStubs_EXPORTS
         #define GNA_STUBS_EXPORT __declspec(dllexport)
     #else

@@ -29,8 +29,6 @@ class Function;
 
 namespace InferenceEngineIRReader {
 
-INFERENCE_PLUGIN_API(StatusCode) CreateReader(IReader*& reader, ResponseDesc *resp) noexcept;
-
 /**
  * @brief This class is the main interface to build and parse a network from a given IR
  */

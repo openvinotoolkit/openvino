@@ -12,7 +12,14 @@ find_package(InferenceEngine REQUIRED)
 
 file(GLOB_RECURSE SRC *.cpp)
 
-add_library(${TARGET_NAME} ${SRC})
+# By default it should build a shared plugin
+if((NOT DEFINED BUILD_SHARED_LIBS) OR BUILD_SHARED_LIBS)
+    set(LIBRARY_TYPE SHARED)
+else()
+    set(LIBRARY_TYPE STATIC)
+endif()
+
+add_library(${TARGET_NAME} ${LIBRARY_TYPE} ${SRC})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine ${NGRAPH_LIBRARIES})

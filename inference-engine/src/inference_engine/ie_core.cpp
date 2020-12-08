@@ -29,7 +29,7 @@ using namespace InferenceEngine::PluginConfigParams;
 
 namespace InferenceEngine {
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
 
 using IEStaticPluginRegistryType = std::map<std::string, IEPluginFactory>;
 
@@ -373,7 +373,7 @@ public:
         auto it = pluginRegistry.find(deviceName);
         bool pluginFound = it != pluginRegistry.end();
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
         // If static extensions are supported lookup for static factory for the specified device as a fallback
         IEPluginFactory staticFactory = nullptr;
         forStaticPluginRegistry([&](IEStaticPluginRegistryType& staticRegistry)
@@ -401,7 +401,7 @@ public:
             try {
                 InferencePlugin plugin;
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
                 try {
                     // To save incorrect initialization, when no library location, directly try static factory
                     if (staticFactory != nullptr && desc.libraryLocation.empty()) {
@@ -411,7 +411,7 @@ public:
 
                     plugin = InferencePlugin(desc.libraryLocation);
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
                 } catch (const details::InferenceEngineException& ex) {
                     if (staticFactory == nullptr) {
                         throw ex;

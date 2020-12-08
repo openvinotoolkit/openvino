@@ -107,13 +107,13 @@
  * @param type A plugin type
  */
 
-#if (__GNUC__ >= 4)  // NOLINT
+#if defined(__GNUC__ ) && (__GNUC__ >= 4)  // NOLINT
 #define INFERENCE_PLUGIN_STATIC_API(type) extern "C" __attribute__((visibility("default"))) type
 #else
 #define INFERENCE_PLUGIN_STATIC_API(type) extern "C" type
 #endif
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
 #define INFERENCE_PLUGIN_API(type) static type
 #else
 #if defined(_WIN32)

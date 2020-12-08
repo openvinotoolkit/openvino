@@ -295,7 +295,7 @@ public:
         }                                                                                                   \
     }
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
 
 namespace InferenceEngine {
 
@@ -326,7 +326,7 @@ INFERENCE_ENGINE_API_CPP(StatusCode) InferencePluginRegisterStaticFactory(std::s
  *        If static IE extensions are enabled, registers this as the default plugin for the specified deviceName.
  * @ingroup ie_dev_api_plugin_api
  */
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION_EX(deviceName, PluginType, version, ...)  \
     IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, __VA_ARGS__) \
     IE_REGISTER_STATIC_PLUGIN(#deviceName, CreatePluginEngine)

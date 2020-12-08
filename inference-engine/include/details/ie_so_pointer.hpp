@@ -144,16 +144,6 @@ public:
      * @brief Constructs an object with existing reference
      * @param pointedObj Existing reference to wrap
      */
-    explicit SOPointer(T* pointedObj): _so_loader(), _pointedObj(pointedObj) {
-        if (_pointedObj == nullptr) {
-            THROW_IE_EXCEPTION << "Cannot create SOPointer<T, Loader> from nullptr";
-        }
-    }
-
-    /**
-     * @brief Constructs an object with existing reference
-     * @param pointedObj Existing reference to wrap
-     */
     explicit SOPointer(std::shared_ptr<T> pointedObj): _so_loader(), _pointedObj(pointedObj) {
         if (_pointedObj == nullptr) {
             THROW_IE_EXCEPTION << "Cannot create SOPointer<T, Loader> from nullptr";

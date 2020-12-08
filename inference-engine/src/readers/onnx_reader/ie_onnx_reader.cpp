@@ -65,7 +65,7 @@ CNNNetwork ONNXReader::read(std::istream& model, const std::vector<IExtensionPtr
     return CNNNetwork(ngraph::onnx_import::import_onnx_model(model, readPathFromStream(model)), exts);
 }
 
-INFERENCE_PLUGIN_API(StatusCode) InferenceEngineONNXReader::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
     try {
         reader = new ONNXReader();
         return OK;
@@ -75,8 +75,8 @@ INFERENCE_PLUGIN_API(StatusCode) InferenceEngineONNXReader::CreateReader(IReader
     }
 }
 
-#ifdef USE_STATIC_IE_EXTENSIONS
+#ifdef USE_STATIC_IE_PLUGINS
 INFERENCE_PLUGIN_STATIC_API(StatusCode) InferenceEngineIRReader_CreateONNXReader(IReader*& reader, ResponseDesc *resp) {
-    return InferenceEngineONNXReader::CreateReader(reader, resp);
+    return CreateReader(reader, resp);
 }
 #endif

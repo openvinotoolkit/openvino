@@ -3,7 +3,7 @@
 //
 
 // Check that we are not already statically linked to gna
-#if !(defined(USE_STATIC_IE_EXTENSIONS) && defined(ENABLE_GNA))
+#if !(defined(USE_STATIC_IE_PLUGINS) && defined(ENABLE_GNA))
 #define INTEL_GNA_DLLEXPORT 1
 #endif
 
@@ -28,7 +28,7 @@ GNACppApi :: ~GNACppApi() {
     current = nullptr;
 }
 
-#if !(defined(USE_STATIC_IE_EXTENSIONS) && defined(ENABLE_GNA))
+#if !(defined(USE_STATIC_IE_PLUGINS) && defined(ENABLE_GNA))
 #ifdef __cplusplus
 extern "C" {  // API uses C linkage so that it can be used by C and C++ applications
 #endif
@@ -466,4 +466,4 @@ DLLDECL void gmmSetThreads(
 }
 #endif
 
-#endif // defined(USE_STATIC_IE_EXTENSIONS) && defined(ENABLE_GNA)
+#endif // defined(USE_STATIC_IE_PLUGINS) && defined(ENABLE_GNA)
