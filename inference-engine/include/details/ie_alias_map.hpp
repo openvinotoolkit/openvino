@@ -40,10 +40,10 @@ public:
 
     AliasMap() = default;
     explicit AliasMap(const key_compare& comp): mmap(comp) {}
-    explicit AliasMap(const key_compare& comp, const allocator_type& type): mmap(comp, type) {}
-    explicit AliasMap(std::initializer_list<value_type> list, const key_compare& comp = key_compare()): mmap(list, comp) {}
-    explicit AliasMap(std::initializer_list<value_type> list, const key_compare& comp, const allocator_type& a): mmap(list, comp, a) {}
-    explicit AliasMap(std::initializer_list<value_type> list, const allocator_type& a): mmap(list, a) {}
+    AliasMap(const key_compare& comp, const allocator_type& type): mmap(comp, type) {}
+    AliasMap(std::initializer_list<value_type> list, const key_compare& comp = key_compare()): mmap(list, comp) {}
+    AliasMap(std::initializer_list<value_type> list, const key_compare& comp, const allocator_type& a): mmap(list, comp, a) {}
+    AliasMap(std::initializer_list<value_type> list, const allocator_type& a): mmap(list, a) {}
     AliasMap(const std::map<Key, T, Compare, Allocator>& map): mmap(map) {}
     AliasMap(std::map<Key, T, Compare, Allocator>&& map) noexcept: mmap(std::move(map)) {}
     AliasMap(const AliasMap& map): mmap(map.mmap) {}
