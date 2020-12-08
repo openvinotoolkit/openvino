@@ -14,7 +14,7 @@
  */
 
 
-#define BFLOAT16_ROUND_MODE_TRUNCATE
+#define BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
 
 namespace MKLDNNPlugin {
 class bfloat16_t {
