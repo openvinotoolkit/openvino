@@ -173,8 +173,10 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         // Pass should be located before "adjustDataBatch" because "adjustDataBatch" specifies "origConvOutput" attribute
         // for convolution in order to provide that information to "hwConvTiling" pass.
         // Otherwise, "hwConvTiling" will see incorrect values in "origConvOutput" attribute.
-        ADD_PASS(reshapeBeforeConvTiling);
-        ADD_DUMP_PASS("reshapeBeforeConvTiling");
+        if (env.config.enableCustomReshapeParam) {
+            ADD_PASS(reshapeBeforeConvTiling);
+            ADD_DUMP_PASS("reshapeBeforeConvTiling");
+        }
 
         ADD_PASS(upliftActivationStages);
         ADD_DUMP_PASS("upliftActivationStages");

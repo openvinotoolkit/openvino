@@ -58,23 +58,24 @@ void PassImpl::run(const Model& model) {
         int resultH = 0;
         int resultW = 0;
 
-        resultH = choiceDimH(name, inputC, outputC, dimH, dimW);
+        resultW = choiceDimW(name, inputC, outputC, dimH, dimW);
 
         if (stage->origLayer()->params.count("alt_width")) {
-            std::string rtParam = stage->origLayer()->params.at("alt_width");
+            std::string alt_width = stage->origLayer()->params.at("alt_width");
             try {
-                resultW = std::stoi(rtParam);
-                resultH = dimH * dimW / resultW;
+                resultW = std::stoi(alt_width);
             } catch (...) {
-                resultW = resultH = 0;
+                resultW = 0;
             }
         }
 
-        if (resultH == 0) {
+        if (resultW == 0) {
             continue;
         }
 
-        resultW = dimH * dimW / resultH;
+        resultH = dimH * dimW / resultW;
+
+        IE_ASSERT(dimH * dimW == resultH * resultW);
 
         auto inputNewDesc = inputDesc;
         inputNewDesc.setDim(Dim::W, resultW);
