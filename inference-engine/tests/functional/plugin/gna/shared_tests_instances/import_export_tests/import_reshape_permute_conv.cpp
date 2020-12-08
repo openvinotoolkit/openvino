@@ -4,11 +4,35 @@
 
 #include "import_export_tests/import_reshape_permute_conv.hpp"
 
+#include <fstream>
+#include <stdio.h>
+
 using namespace LayerTestsDefinitions;
 
 namespace {
 
-TEST_P(ImportReshapePermuteConv, CompareWithRefImpl) {
+class ImportReshapePermuteConvGNA : public ImportReshapePermuteConv {
+private:
+    void exportImportNetwork() override {
+        executableNetwork.Export(fileName);
+        std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
+        if (inputStream.fail()) {
+            FAIL() << "Cannot open file to import model: " << fileName;
+        }
+        executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+    }
+protected:
+    void TearDown() override {
+        if (remove(fileName.c_str()) != 0) {
+            FAIL() << "Error: could not delete file " << fileName;
+        }
+    }
+
+private:
+    std::string fileName = "exported_model.blob";
+};
+
+TEST_P(ImportReshapePermuteConvGNA, CompareWithRefImpl) {
     Run();
 };
 
@@ -35,12 +59,12 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkCase, ImportReshapePermuteConv,
+INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkCase, ImportReshapePermuteConvGNA,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),
                             ::testing::ValuesIn(importConfigs)),
-                        ImportReshapePermuteConv::getTestCaseName);
+                        ImportReshapePermuteConvGNA::getTestCaseName);
 
 } // namespace

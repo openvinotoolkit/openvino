@@ -26,6 +26,9 @@ public:
 protected:
     std::map<std::string, std::string> exportConfiguration;
     std::map<std::string, std::string> importConfiguration;
+
+private:
+    virtual void exportImportNetwork();
 };
 
 } // namespace FuncTestUtils

@@ -36,4 +36,8 @@ void ImportReshapePermuteConv::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
 }
 
+TEST_P(ImportReshapePermuteConv, CompareWithRefImpl) {
+    Run();
+};
+
 } // namespace LayerTestsDefinitions

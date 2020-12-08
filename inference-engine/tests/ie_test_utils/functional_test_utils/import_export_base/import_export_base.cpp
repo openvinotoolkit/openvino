@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "import_export_tests/import_export_base.hpp"
+#include "import_export_base.hpp"
 
 #include <fstream>
 
@@ -27,15 +27,18 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
     return result.str();
 }
 
+void ImportNetworkTestBase::exportImportNetwork() {
+    std::stringstream strm;
+    executableNetwork.Export(strm);
+    executableNetwork = core->ImportNetwork(strm, targetDevice, configuration);
+}
+
 void ImportNetworkTestBase::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
     LoadNetwork();
     Infer();
-
-    std::stringstream strm;
-    executableNetwork.Export(strm);
 
     const auto& actualOutputs = GetOutputs();
     auto referenceOutputs = CalculateRefs();
@@ -46,7 +49,8 @@ void ImportNetworkTestBase::Run() {
     }
 
     const auto compiledExecNetwork = executableNetwork;
-    const auto importedExecNetwork = executableNetwork = core->ImportNetwork(strm, targetDevice, configuration);
+    exportImportNetwork();
+    const auto importedExecNetwork = executableNetwork;
 
     Infer();
 
