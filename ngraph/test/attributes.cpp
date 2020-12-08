@@ -652,12 +652,12 @@ TEST(attributes, psroi_pooling_op)
     auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1024, 63, 38});
     auto coords = make_shared<op::Parameter>(element::f32, Shape{300, 5});
 
-    const int64_t output_dim = 882;
-    const int64_t group_size = 3;
+    const int64_t output_dim = 64;
+    const int64_t group_size = 4;
     const float spatial_scale = 0.0625;
     int spatial_bins_x = 1;
     int spatial_bins_y = 1;
-    string mode = "Avg";
+    string mode = "average";
 
     auto psroi_pool = make_shared<opset1::PSROIPooling>(
         input, coords, output_dim, group_size, spatial_scale, spatial_bins_x, spatial_bins_y, mode);

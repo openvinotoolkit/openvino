@@ -700,9 +700,9 @@ def test_roi_pooling():
 
 
 def test_psroi_pooling():
-    inputs = ng.parameter([1, 3, 4, 5], dtype=np.float32)
+    inputs = ng.parameter([1, 72, 4, 5], dtype=np.float32)
     coords = ng.parameter([150, 5], dtype=np.float32)
-    node = ng.psroi_pooling(inputs, coords, 2, 6, 0.0625, 0, 0, "Avg")
+    node = ng.psroi_pooling(inputs, coords, 2, 6, 0.0625, 0, 0, "average")
 
     assert node.get_type_name() == "PSROIPooling"
     assert node.get_output_size() == 1
