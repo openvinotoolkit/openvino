@@ -40,7 +40,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         _networkOutputs = plg->GetOutputs();
     }
 
-    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
+    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->LoadNetwork(network);
     }
@@ -49,7 +49,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         : GNAExecutableNetwork(aotFileName, std::make_shared<GNAPlugin>(config)) {
     }
 
-    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config)
+    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config)
         : GNAExecutableNetwork(network, std::make_shared<GNAPlugin>(config)) {
     }
 
@@ -59,12 +59,13 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         return std::make_shared<GNAInferRequest>(plg, networkInputs, networkOutputs);
     }
 
-
-
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState() override {
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
+        IE_SUPPRESS_DEPRECATED_START
         auto pluginStates = plg->QueryState();
-        std::vector<InferenceEngine::IMemoryStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
+        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
         return plg->QueryState();
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     void Export(const std::string &modelFileName) override {
@@ -77,8 +78,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config,
-                   InferenceEngine::ResponseDesc* /* resp */) override {
+    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
         using namespace InferenceEngine::GNAConfigParams;
         if (config.empty()) {
             THROW_IE_EXCEPTION << "The list of configuration values is empty";
@@ -90,8 +90,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
             }
         }
 
-        InferenceEngine::Parameter old_mode_parameter;
-        GetConfig(KEY_GNA_DEVICE_MODE, old_mode_parameter, {});
+        InferenceEngine::Parameter old_mode_parameter = GetConfig(KEY_GNA_DEVICE_MODE);
         auto old_mode = old_mode_parameter.as<std::string>();
         if (old_mode == InferenceEngine::GNAConfigParams::GNA_SW_FP32) {
             THROW_IE_EXCEPTION << "Dynamic switching from GNA_SW_FP32 mode is not supported for ExecutableNetwork.";
@@ -107,16 +106,12 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         plg->SetConfig(configForPlugin);
     }
 
-    void GetConfig(const std::string &name,
-                   InferenceEngine::Parameter &result,
-                   InferenceEngine::ResponseDesc* /*resp*/) const override {
-        result = plg->GetConfig(name, {});
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override {
+        return plg->GetConfig(name, {});
     }
 
-    void GetMetric(const std::string& name,
-                   InferenceEngine::Parameter& result,
-                   InferenceEngine::ResponseDesc* /* resp */) const override {
-        result = plg->GetMetric(name, {});
+    InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+        return plg->GetMetric(name, {});
     }
 };
 

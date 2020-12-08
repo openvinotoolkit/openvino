@@ -42,15 +42,15 @@ ParamsKey PoolingKernelGPUBfyxBlockOpt::GetSupportedKey() const {
 PoolingKernelBase::DispatchData PoolingKernelGPUBfyxBlockOpt::SetDefault(const pooling_params& params) const {
     const auto& output = params.output;
 
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    runInfo.gws1 = CeilDiv(output.Y().v, params.poolSize.y);
+    dispatchData.gws[1] = CeilDiv(output.Y().v, params.poolSize.y);
 
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants PoolingKernelGPUBfyxBlockOpt::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKernelGPUBfyxBlockOpt::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(
         MakeJitConstant("BLOCK_SIZE_Y", params.poolSize.y + params.poolSize.y * params.poolStride.y - 1));

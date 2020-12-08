@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -37,11 +40,19 @@ jobs:
           # MO requirements
           pip install -r requirements.txt
           pip install -r requirements_dev.txt
+          # requrements for CMake
+          sudo apt --assume-yes install libusb-1.0-0-dev
         working-directory: model-optimizer
 
       - name: Pylint
         run: pylint -d C,R,W mo/ mo.py extensions/
         working-directory: model-optimizer
+
+      - name: CMake
+        run: |
+          mkdir build
+          cd build
+          cmake ..
 
       - name: UT
         run: |

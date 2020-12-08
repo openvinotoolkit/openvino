@@ -15,11 +15,11 @@
 #include <functional_test_utils/precision_utils.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include <legacy/convert_function_to_cnn_network.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include "generic_ie.hpp"
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 

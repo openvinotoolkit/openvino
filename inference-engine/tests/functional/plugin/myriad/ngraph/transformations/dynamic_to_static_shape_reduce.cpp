@@ -160,7 +160,7 @@ protected:
 TEST_P(DynamicToStaticShapeReduce, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(Arithmetic, DynamicToStaticShapeReduce, arithmetic_combinations);
-INSTANTIATE_TEST_CASE_P(Logical, DynamicToStaticShapeReduce, logical_combinations);
+INSTANTIATE_TEST_CASE_P(smoke_Arithmetic, DynamicToStaticShapeReduce, arithmetic_combinations);
+INSTANTIATE_TEST_CASE_P(smoke_Logical, DynamicToStaticShapeReduce, logical_combinations);
 
 }  // namespace

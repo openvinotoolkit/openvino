@@ -20,7 +20,6 @@
 
 #include "hetero_infer_request.hpp"
 #include "ie_icore.hpp"
-#include <legacy/cnn_network_impl.hpp>
 #include "hetero_async_infer_request.hpp"
 
 namespace HeteroPlugin {
@@ -38,7 +37,7 @@ public:
     /**
     * @brief constructor
     */
-    HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&         network,
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork&          network,
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
     /**
@@ -53,18 +52,17 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
     void ExportImpl(std::ostream& modelFile) override;
 
 private:
-    void InitCNNImpl(const InferenceEngine::ICNNNetwork&    network);
-
-    void InitNgraph(const InferenceEngine::ICNNNetwork&     network);
+    void InitCNNImpl(const InferenceEngine::CNNNetwork&    network);
+    void InitNgraph(const InferenceEngine::CNNNetwork&     network);
 
     struct NetworkDesc {
         std::string                                 _device;

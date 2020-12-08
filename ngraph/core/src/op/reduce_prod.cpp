@@ -45,7 +45,7 @@ shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& n
     return make_shared<ReduceProd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace
+namespace reduce_prod
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg,
@@ -89,5 +89,6 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceProd::evaluate");
-    return evaluate_product(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    return reduce_prod::evaluate_product(
+        inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

@@ -22,7 +22,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(BasicLSTM, Basic_LSTM_S,
+INSTANTIATE_TEST_CASE_P(smoke_BasicLSTM, Basic_LSTM_S,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

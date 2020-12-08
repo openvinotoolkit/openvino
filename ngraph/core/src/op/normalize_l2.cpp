@@ -30,7 +30,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::NormalizeL2::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 
 op::NormalizeL2::NormalizeL2(const Output<Node>& data,
                              const Output<Node>& axes,
@@ -84,6 +84,7 @@ void op::NormalizeL2::pre_validate_and_infer_types()
             }
         }
     }
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 AxisSet op::NormalizeL2::get_reduction_axes() const
@@ -108,7 +109,7 @@ OutputVector op::NormalizeL2::decompose_op() const
     const auto axes = input_value(1);
     Output<Node> norm = builder::opset1::l2_norm(data, axes, m_eps, builder_bias_mode, true);
 
-    data = make_shared<op::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+    data = make_shared<op::v1::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
     return OutputVector{data};
 }

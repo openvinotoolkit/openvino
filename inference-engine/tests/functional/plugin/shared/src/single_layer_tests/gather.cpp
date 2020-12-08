@@ -25,15 +25,21 @@ std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gather
     std::vector<int> indices;
     std::vector<size_t> indicesShape, inputShape;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     std::string targetName;
-    std::tie(indices, indicesShape, axis, inputShape, netPrecision, targetName) = obj.param;
+    std::tie(indices, indicesShape, axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "axis=" << axis << "_";
     result << "indices=" << CommonTestUtils::vec2str(indices) << "_";
     result << "indicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetName << "_";
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetName << "_";
     return result.str();
 }
 
@@ -43,7 +49,7 @@ void GatherLayerTest::SetUp() {
     std::vector<size_t> indicesShape;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(indices, indicesShape, axis, inputShape, netPrecision, targetDevice) = this->GetParam();
+    std::tie(indices, indicesShape, axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
     ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
     << "Indices vector size and provided indices shape doesn't fit each other";
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

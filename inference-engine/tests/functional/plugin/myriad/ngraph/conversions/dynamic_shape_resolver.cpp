@@ -53,7 +53,7 @@ private:
 
 const char DynamicShapeResolverTests::s_FriendlyName[] = "DSR";
 
-TEST_F(DynamicShapeResolverTests, NGraphFunctionCanBeConvertedToCNNNetwork) {
+TEST_F(DynamicShapeResolverTests, smoke_NGraphFunctionCanBeConvertedToCNNNetwork) {
     ASSERT_EQ(cnnNetwork.getInputsInfo().size(), 2);
     ASSERT_EQ(cnnNetwork.layerCount(), cnnNetwork.getInputsInfo().size() + 1);
     ASSERT_EQ(cnnNetwork.getOutputsInfo().size(), 1);

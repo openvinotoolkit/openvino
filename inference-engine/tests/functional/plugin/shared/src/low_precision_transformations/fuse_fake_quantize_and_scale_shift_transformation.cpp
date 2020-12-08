@@ -18,7 +18,7 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShapes, targetDevice, params, fakeQuantizeOnData) = obj.param;
 
@@ -30,7 +30,7 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
 
@@ -43,33 +43,6 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
 
     EXPECT_EQ(1ul, function->get_output_size());
     EXPECT_EQ(1ul, function->get_output_op(0)->get_input_size());
-    const std::string referenceOutputLayerName = function->get_output_op(0)->get_input_node_ptr(0)->get_friendly_name();
-
-    validate(referenceOutputLayerName);
-}
-
-void FuseFakeQuantizeAndScaleShiftTransformation::validate(const std::string& referenceOutputLayerName) {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
-
-    auto transformations = getLowPrecisionTransformations(params);
-    const InferenceEngine::CNNNetwork network = transform(transformations);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("FakeQuantize", outputLayer->type);
-    EXPECT_EQ(referenceOutputLayerName, outputLayer->name);
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(FuseFakeQuantizeAndScaleShiftTransformation, CompareWithRefImpl) {

@@ -131,7 +131,7 @@ protected:
         expectedPrecisions["ADD_1"] = "FP32";
         expectedPrecisions["CONV_1"] = "BF16";
         expectedPrecisions["CONV_2"] = "BF16";
-        expectedPrecisions["CONC_1_TEST"] = "FP32";
+        expectedPrecisions["CONC_1_TEST"] = "BF16";
         expectedPrecisions["RELU_1"] = "FP32";
     }
 };
@@ -140,7 +140,7 @@ TEST_P(Concat_in_place, CompareWithRefImpl) {
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Concat_in_place,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Concat_in_place,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -149,7 +149,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Concat_in_place,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Concat_in_place::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Concat_in_place,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Concat_in_place,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),

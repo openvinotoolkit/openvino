@@ -46,13 +46,6 @@ class LayoutChangeForConstantShapePaths(MiddleReplacementPattern):
             next_in_ports.update(out_port.get_destinations())
         return next_in_ports
 
-    def mark_node_as_in_correct_layout_by_in_port(self, in_port):
-        next_in_ports = self.get_next_in_ports(in_port)
-        in_port.__setattr__('input_permutation', None)
-        mark_input_as_in_correct_layout(in_port.node, in_port.idx)
-        for port in next_in_ports:
-            mark_output_as_in_correct_layout(port.get_source().node, port.get_source().idx)
-
     def find_shape_subgraph_endpoints(self, out_ports: List[Port], visited: set = None,
                                       action: callable = None) -> Set[Port]:
         """
@@ -108,8 +101,7 @@ class LayoutChangeForConstantShapePaths(MiddleReplacementPattern):
             shape.out_port(0).get_connection().insert_node(gather)
 
         # 2. Inserting Gather/Transpose to NC* format
-        shape_sub_graph_end_points = self.find_shape_subgraph_endpoints(
-            [shape.out_port(0) for shape in shape_ops], None, self.mark_node_as_in_correct_layout_by_in_port)
+        shape_sub_graph_end_points = self.find_shape_subgraph_endpoints([shape.out_port(0) for shape in shape_ops])
         for in_port in shape_sub_graph_end_points:
             name = in_port.node.soft_get('name', in_port.node.id)
             shape = in_port.data.get_shape()

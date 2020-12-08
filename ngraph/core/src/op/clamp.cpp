@@ -27,9 +27,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::Clamp::type_info;
-
-namespace
+namespace clamp
 {
     template <element::Type_t ET, typename T>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count)
@@ -89,9 +87,11 @@ namespace
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Clamp::evaluate");
-    return evaluate_clamp(
+    return clamp::evaluate_clamp(
         inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
 }
+
+NGRAPH_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
 
 op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
     : FusedOp({data})
@@ -221,8 +221,8 @@ OutputVector op::Clamp::decompose_op() const
     default: throw runtime_error("Unsupported data type in op Clamp"); break;
     }
 
-    auto max = make_shared<op::Maximum>(clamp_min, data);
-    return {make_shared<op::Minimum>(clamp_max, max)};
+    auto max = make_shared<op::v1::Maximum>(clamp_min, data);
+    return {make_shared<op::v1::Minimum>(clamp_max, max)};
 }
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const

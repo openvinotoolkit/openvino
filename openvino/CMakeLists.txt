@@ -14,8 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-cmake_minimum_required(VERSION 3.10)
-
 add_subdirectory(itt)
+add_subdirectory(conditional_compilation)
 
-openvino_developer_export_targets(openvino::itt)
+openvino_developer_export_targets(openvino::itt openvino::conditional_compilation)

@@ -332,6 +332,16 @@ void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
 void MKLDNNRNN::createPrimitive() {
     if (prim) return;
 
+    std::string errorPrefix =  "RNN layer '" + getCnnLayer()->name + "'";
+    auto weightsIt = getCnnLayer()->blobs.find("weights");
+    if (weightsIt == getCnnLayer()->blobs.end())
+        THROW_IE_EXCEPTION << errorPrefix << " does not have weights blob.";
+    if (weightsIt->second->getTensorDesc().getPrecision() != Precision::FP32)
+        THROW_IE_EXCEPTION << errorPrefix << " has invalid weights precision: " << weightsIt->second->getTensorDesc().getPrecision();
+    if (getCnnLayer()->blobs.find("biases") != getCnnLayer()->blobs.end()
+            && getCnnLayer()->blobs["biases"]->getTensorDesc().getPrecision() != Precision::FP32)
+        THROW_IE_EXCEPTION << errorPrefix << " has invalid biases precision: " << getCnnLayer()->blobs["biases"]->getTensorDesc().getPrecision();
+
     std::shared_ptr<rnn_forward::desc> d = descs[0];
     rnn_forward::primitive_desc pd(*d, getEngine());
 
@@ -432,11 +442,8 @@ void MKLDNNRNN::createPrimitive() {
             auto b_ptr = static_cast<float*>(w_bias_mem->GetData());
             for (int g = 0; g < Gb; g++) {
                 float *l_b_ptr = b_ptr + gate_map[g]*SC;
-                for (int out_i = 0; out_i < SC; out_i++) {
-                    *l_b_ptr = *ie_b_ptr;
-                    ie_b_ptr++;
-                    l_b_ptr++;
-                }
+                const float *l_ie_b_ptr = ie_b_ptr + g * SC;
+                memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(float));
             }
         }
     }
@@ -513,5 +520,6 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         strm.submit({exec_after.begin(), exec_after.end()});
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNN);
+REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
+REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);
 }  // namespace MKLDNNPlugin

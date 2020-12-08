@@ -73,6 +73,7 @@ namespace ngraph
                 Shape m_padding_below;
                 Shape m_padding_above;
                 ngraph::op::PadType m_auto_pad;
+                ngraph::op::RoundingType m_rounding_type;
             };
 
             ///
@@ -84,18 +85,6 @@ namespace ngraph
             public:
                 explicit LocalPoolingFactory(const Node& node);
                 virtual ~LocalPoolingFactory() = default;
-            };
-
-            ///
-            /// \brief      Factory class which generates sub-graphs for ONNX 'global' pooling
-            ///             operators.
-            /// \note       In a 'global' pooling operation, the kernel shape is calculated
-            ///             based on spatial dims
-            class GlobalPoolingFactory : public PoolingFactory
-            {
-            public:
-                explicit GlobalPoolingFactory(const Node& node);
-                virtual ~GlobalPoolingFactory() = default;
             };
 
         } // namespace pooling

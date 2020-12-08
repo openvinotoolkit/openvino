@@ -40,7 +40,7 @@ shared_ptr<Node> op::v3::Asinh::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Asinh>(new_args.at(0));
 }
 
-namespace
+namespace asinhop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
@@ -77,5 +77,5 @@ namespace
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Asinh::evaluate");
-    return evaluate_asinh(inputs[0], outputs[0]);
+    return asinhop::evaluate_asinh(inputs[0], outputs[0]);
 }

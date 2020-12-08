@@ -79,9 +79,11 @@ event_impl::ptr gpu_queue::enqueue_kernel(kernels_cache::kernel_type const& kern
     std::vector<cl::Event> dep_events;
     auto dep_events_ptr = &dep_events;
     if (!context()->get_configuration().host_out_of_order) {
-        for (auto& dep : deps)
-            if (auto ocl_ev = dynamic_cast<base_event*>(dep.get()))
-                dep_events.push_back(ocl_ev->get());
+        for (auto& dep : deps) {
+            if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get())) {
+                dep_events.push_back(ocl_base_ev->get());
+            }
+        }
     } else {
         dep_events_ptr = nullptr;
 
@@ -113,9 +115,10 @@ event_impl::ptr gpu_queue::enqueue_marker(std::vector<event_impl::ptr> const& de
         cl::Event ret_ev;
         if (!enabled_single_kernel) {
             std::vector<cl::Event> dep_events;
-            for (auto& dep : deps)
-                if (auto ocl_ev = dynamic_cast<base_event*>(dep.get()))
-                    dep_events.push_back(ocl_ev->get());
+            for (auto& dep : deps) {
+                if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get()))
+                    dep_events.push_back(ocl_base_ev->get());
+            }
 
             try {
                 _command_queue.enqueueMarkerWithWaitList(&dep_events, &ret_ev);
@@ -169,8 +172,8 @@ void gpu_queue::release_pending_memory() {
 void gpu_queue::sync_events(std::vector<event_impl::ptr> const& deps) {
     bool needs_barrier = false;
     for (auto& dep : deps) {
-        auto* ocl_ev = dynamic_cast<ocl_base_event*>(dep.get());
-        if (ocl_ev->get_queue_stamp() > _last_barrier) {
+        auto* ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get());
+        if (ocl_base_ev->get_queue_stamp() > _last_barrier) {
             needs_barrier = true;
         }
     }

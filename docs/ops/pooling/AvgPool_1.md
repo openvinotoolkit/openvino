@@ -47,7 +47,7 @@
 * *exclude_pad*
 
   * **Description**: *exclude_pad* is a type of pooling strategy for values in the padding area. For example, if *exclude_pad* is "true", zero-values in the padding are not used.
-  * **Range of values**: True or False
+  * **Range of values**: true or false 
   * **Type**: boolean
   * **Default value**: None
   * **Required**: *yes*
@@ -78,9 +78,9 @@
 
 **Mathematical Formulation**
 
-    \f[
-    output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
-    \f]
+\f[
+output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
+\f]
 
 **Example**
 

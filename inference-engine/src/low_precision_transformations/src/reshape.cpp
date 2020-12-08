@@ -1,198 +1,271 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/reshape.hpp"
+#include "low_precision/reshape.hpp"
 
 #include <algorithm>
-#include <caseless.hpp>
 #include <memory>
 #include <string>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
-#include "low_precision_transformations/common/ie_lpt_exception.hpp"
-#include "low_precision_transformations/network_helper.hpp"
+#include "low_precision/common/ie_lpt_exception.hpp"
+#include "low_precision/network_helper.hpp"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+namespace ngraph {
+namespace pass {
+namespace low_precision {
 
-size_t getChannelVolume(const SizeVector& dims) {
-    size_t volume = 1ul;
-    for (size_t i = 2; i < dims.size(); ++i) {
-        volume = volume * dims[i];
+void ReshapeTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
+    addPattern(
+        pass,
+        context,
+        make_op_pattern<opset1::Reshape>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
+}
+
+void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
+    if (dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0).size() > 1ul) {
+        // Reshape Subtract or Multiply operation Constant.
+        //    1. modify reshape parameters to avoid reshape by spatial dimensions
+        //    2. broadcast element-wise constant if channels are changed
+        //    3. reshape element-wise constant with modified reshape parameters
+        auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<Node>& op) {
+            const size_t constantIndex = as_type<ngraph::opset1::Constant>(op->get_input_node_ptr(1)) ? 1 : 0;
+            const Shape constantShape = op->input(constantIndex).get_shape();
+            // reshape for element-wise constant is not required
+            if (constantShape.empty() || (constantShape.size() == 1ul)) {
+                return;
+            }
+
+            // simple broadcast operation Constant shape to shape on activations
+            auto newOperationConstantShape = op->input(1).get_shape();
+            auto const reshapeInputShape = reshape->input(0).get_shape();
+            Shape newOperationConstantBroadcastedShape(reshapeInputShape);
+            newOperationConstantBroadcastedShape[0] = 1ul;
+
+            if ((reshapeInputShape.size() - newOperationConstantShape.size()) == 1ul) {
+                newOperationConstantShape.insert(newOperationConstantShape.begin(), 1ul);
+            }
+            const std::shared_ptr<opset1::Constant> originalConstant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
+            const std::shared_ptr<opset1::Constant> newOperationConstant = std::make_shared<opset1::Constant>(
+                op->input(1).get_element_type(),
+                newOperationConstantShape,
+                originalConstant->cast_vector<float>());
+
+            // reshape -1 value hanling
+            auto getOverallValue = [](const Shape& shape, const std::vector<int>& reshapeValues, const bool specialZero) -> size_t {
+                size_t overallValue = shape_size(shape);
+                for (size_t i = 0; i < reshapeValues.size(); ++i) {
+                    auto reshapeValue = reshapeValues[i];
+                    if ((reshapeValue == 1ul) || (reshapeValue == -1) || ((reshapeValue == 0ul) && !specialZero)) {
+                        continue;
+                    }
+
+                    if ((reshapeValue == 0ul) && specialZero) {
+                        reshapeValue = shape[i];
+                    }
+
+                    overallValue = overallValue / reshapeValue;
+                }
+                return overallValue;
+            };
+
+            // modify reshape constant for element-wise constant reshape
+            // element-wise constant doesn't have spatial dimensions, as result we should remove spatial dimensions from reshape parameters
+            const std::vector<int> reshapeConstValues = as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1))->cast_vector<int>();
+
+            size_t overallValue = 0;
+            for (size_t i = 0; i < reshapeConstValues.size(); ++i) {
+                if (reshapeConstValues[i] == -1) {
+                    overallValue = getOverallValue(
+                        reshapeInputShape,
+                        reshapeConstValues,
+                        as_type_ptr<opset1::Reshape>(reshape)->get_special_zero());
+                    break;
+                }
+            }
+
+            std::vector<int> newReshapeConstValues(reshapeConstValues);
+            for (int i = static_cast<int>(newReshapeConstValues.size() - 1); i >= 0; --i) {
+                if (newOperationConstantShape.size() <= i) {
+                    // new dimension was added
+                    newReshapeConstValues[i] = 1;
+                } else if (newOperationConstantShape[i] == 1ul) {
+                    // keep the same
+                    newReshapeConstValues[i] = 1;
+                } else if (newReshapeConstValues[i] == -1) {
+                    // modified reshape parameters are different, but value instead '-1' has to be equal as original reshape
+                    newReshapeConstValues[i] = overallValue;
+                }
+            }
+
+            const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
+                reshape->input(1).get_element_type(),
+                Shape({ newReshapeConstValues.size() }),
+                newReshapeConstValues);
+
+            // if channels are different then broadcast spatial dimensions to reshape channels correctly
+            // limitation which has to be covered by canBeTransformed:
+            //    1. spatial dimensions have to be absent or equal to 1 after reshape
+            //    2. only second dimension can be changed
+
+            const bool shouldBroadcast = (shape_size(newReshapeConstValues) != 1ul) && (reshapeConstValues[1] != 0) &&
+                (((reshapeConstValues[1] != -1) && (constantShape[1] != reshapeConstValues[1])) ||
+                ((reshapeConstValues[1] == -1) && (constantShape[1] != overallValue)));
+
+            const std::shared_ptr<Node> broadcastedConstant = shouldBroadcast ?
+                fold<opset1::Broadcast>(
+                    newOperationConstant,
+                    std::make_shared<opset1::Constant>(
+                        element::i32,
+                        Shape({newOperationConstantBroadcastedShape.size()}),
+                        newOperationConstantBroadcastedShape)) :
+                newOperationConstant;
+
+            const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
+                broadcastedConstant,
+                newReshapeConstant,
+                reshape->get_special_zero());
+
+            replace_node(op->get_input_node_shared_ptr(1), resultConstant);
+        };
+
+        if (dequantization.subtract != nullptr) {
+            replaceConstant(reshape, dequantization.subtract);
+        }
+
+        if (dequantization.multiply != nullptr) {
+            replaceConstant(reshape, dequantization.multiply);
+        }
+    }
+}
+
+bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    std::shared_ptr<opset1::Reshape> reshape = as_type_ptr<opset1::Reshape>(m.get_match_root());
+    if ((reshape == nullptr) || (!canBeTransformed(context, reshape))) {
+        return false;
     }
 
+    reshape = as_type_ptr<opset1::Reshape>(separateInStandaloneBranch(reshape));
+    reshapeDequantizationConstant(reshape);
+    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
+    return true;
+}
+
+bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const noexcept {
+    return true;
+}
+
+size_t getLastNotBroadcastedChannel(const Shape& shape) {
+    for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
+        if (shape[i] != 1ul) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+size_t getFirstChangedChannel(const Shape& shape1, const Shape& shape2) {
+    const size_t minSize = std::min(shape1.size(), shape2.size());
+    size_t i = 0;
+    for (; i < minSize; ++i) {
+        if (shape1[i] != shape2[i]) {
+            return i;
+        }
+    }
+    return i;
+}
+
+bool ReshapeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    if (!LayerTransformation::canBeTransformed(context, op)) {
+        return false;
+    }
+
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
+    if (dequantization.empty()) {
+        return false;
+    }
+
+    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtract->input(1).get_shape();
+    Shape subtractShapeWithBatch = subtractShape;
+    const Shape inputShape = op->get_input_shape(0);
+    if ((dequantization.subtract != nullptr) &&
+        (subtractShapeWithBatch.size() > 1) &&
+        (subtractShapeWithBatch.size() < inputShape.size())) {
+        subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), inputShape[0]);
+    }
+
+    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiply->input(1).get_shape();
+    Shape multiplyShapeWithBatch = multiplyShape;
+    if ((dequantization.multiply != nullptr) &&
+        (multiplyShapeWithBatch.size() > 1) &&
+        (multiplyShapeWithBatch.size() < inputShape.size())) {
+        multiplyShapeWithBatch.insert(multiplyShapeWithBatch.begin(), inputShape[0]);
+    }
+
+    const Shape outputShape = op->get_output_shape(0);
+    return canBeTransformed(subtractShapeWithBatch, multiplyShapeWithBatch, inputShape, outputShape);
+}
+
+size_t getChannelVolume(const Shape& shape) {
+    size_t volume = 1ul;
+    for (size_t i = 2; i < shape.size(); ++i) {
+        volume = volume * shape[i];
+    }
     return volume;
 }
 
-void ReshapeTransformation::transform(TransformationContext& context, CNNLayer& layer) const {
-    if (!canBeTransformed(context, layer)) {
-        return;
+bool ReshapeTransformation::canBeTransformed(
+    const ngraph::Shape& subtractShape,
+    const ngraph::Shape& multiplyShape,
+    const ngraph::Shape& inputShape,
+    const ngraph::Shape& outputShape) {
+    if ((inputShape.size() < 2ul) || (outputShape.size() < 2ul) || (inputShape[0] != outputShape[0])) {
+        return false;
     }
 
-    if ((layer.insData.size() == 0) || layer.insData.size() > 2) {
-        THROW_IE_EXCEPTION << "layer inputs '" << layer.insData.size() << "' is not correct";
-    }
+    // TODO: story 38439
+    if ((inputShape.size() == 4ul) && (outputShape.size() == 2ul)) {
+        auto checkSpatialDimensions = [](const Shape& dequantizationConstShape) {
+            for (size_t i = (dequantizationConstShape.size() - 2); i < dequantizationConstShape.size(); ++i) {
+                if (dequantizationConstShape[i] != 1ul) {
+                    return false;
+                }
+            }
+            return true;
+        };
 
-    if (!CaselessEq<std::string>()(layer.type, "Reshape")) {
-        THROW_IE_EXCEPTION << "layer '" << layer.name << "' is not correct";
-    }
+        if (((subtractShape.size() >= 3ul) && (!checkSpatialDimensions(subtractShape))) ||
+            ((multiplyShape.size() >= 3ul) && (!checkSpatialDimensions(multiplyShape)))) {
+            return false;
+        }
 
-    if (layer.insData.size() > 1) {
-        transformOriginal(context, layer);
+        // custom validation for Layout::NCHW => Layout::NC
+        const size_t inputChannelsCount = inputShape.size() > 1ul ? inputShape[1] : inputShape[0];
+        const size_t outputChannelsCount = outputShape.size() > 1ul ? outputShape[1] : outputShape[0];
+        if ((inputShape[0] != outputShape[0]) || ((inputChannelsCount * getChannelVolume(inputShape)) != outputChannelsCount)) {
+            return false;
+        }
     } else {
-        transformConstPropagated(context, layer);
-    }
-}
-
-bool ReshapeTransformation::canTransformOriginal(const CNNLayer& layer) const {
-    const CNNLayerPtr constLayer = CNNNetworkHelper::getParent(layer, 1);
-    if (constLayer == nullptr) {
-        THROW_IE_EXCEPTION << "Layer '" << layer.name << "' does not have parent at 1 position";
-    }
-    if (constLayer->type != "Const") {
-        return false;
-    }
-
-    const Blob::Ptr paramsBlob = CNNNetworkHelper::getBlob(constLayer, "custom");
-    const Precision precision = paramsBlob->getTensorDesc().getPrecision();
-    if (!CNNNetworkHelper::isBlobPrecisionSupported(precision)) {
-        THROW_IE_EXCEPTION << "layer " << constLayer->type << " '" << constLayer->name << "' unexpected precision " << precision;
-    }
-
-    if (paramsBlob->size() < 2) {
-        return false;
-    }
-
-    const DataPtr inputData = layer.insData[0].lock();
-    if (inputData == nullptr) {
-        THROW_IE_EXCEPTION << "input data is absent";
-    }
-
-    const std::vector<size_t> inputDims = inputData->getTensorDesc().getDims();
-    if (inputDims.size() < 2) {
-        return false;
-    }
-
-    std::shared_ptr<float> paramsBufferData = CNNNetworkHelper::getFloatData(paramsBlob);
-    float* params = paramsBufferData.get();
-    if (((params[0] != -1) && (params[0] != 0) && (inputDims[0] != params[0])) ||
-        ((params[1] != -1) && (params[1] != 0) && (inputDims[1] != params[1]))) {
-        return false;
-    }
-
-    return true;
-}
-
-void ReshapeTransformation::transformOriginal(TransformationContext& context, CNNLayer& layer) const {
-    if (!canTransformOriginal(layer)) {
-        return;
-    }
-
-    const CNNLayerPtr constLayer = CNNNetworkHelper::getParent(layer, 1);
-    const Blob::Ptr paramsBlob = CNNNetworkHelper::getBlob(constLayer, "custom");
-    const signed int* paramsBuffer = paramsBlob->buffer().as<const signed int*>();
-    if (paramsBuffer[1] == -1) {
-        quantize(context, layer);
-        return;
-    }
-
-    TransparentBaseTransformation::transform(context, layer);
-}
-
-bool ReshapeTransformation::canTransformConstPropagated(const CNNLayer& layer) const {
-    if (layer.insData.size() != 1) {
-        THROW_IE_EXCEPTION << "unexpected input count " << layer.insData.size();
-    }
-    const DataPtr input = layer.insData[0].lock();
-    if (input == nullptr) {
-        THROW_IE_EXCEPTION << "input is absent";
-    }
-    const std::vector<size_t> inputDims = input->getDims();
-    if (inputDims.size() < 2) {
-        return false;
-    }
-
-    if (layer.outData.size() != 1) {
-        THROW_IE_EXCEPTION << "unexpected output count " << layer.outData.size();
-    }
-    const std::vector<size_t> outputDims = layer.outData[0]->getDims();
-    if (outputDims.size() < 2) {
-        return false;
-    }
-
-    const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::getParent(layer, 0ul);
-    if ((dequantizationLayer->outData[0]->getTensorDesc().getLayout() != Layout::NCHW) || (layer.outData[0]->getTensorDesc().getLayout() != Layout::NC)) {
-        for (size_t i = 0; i < 2; ++i) {
-            if (inputDims[i] != outputDims[i]) {
+        for (size_t i = 0; i < 2ul; ++i) {
+            if (inputShape[i] != outputShape[i]) {
                 return false;
             }
         }
+
+        const size_t lastNotBroadcastedChannel = std::max(getLastNotBroadcastedChannel(subtractShape), getLastNotBroadcastedChannel(multiplyShape));
+        const size_t firstChangedChannel = getFirstChangedChannel(inputShape, outputShape);
+        if (lastNotBroadcastedChannel >= firstChangedChannel) {
+            return false;
+        }
     }
 
     return true;
 }
 
-void ReshapeTransformation::transformConstPropagated(TransformationContext& context, CNNLayer& layer) const {
-    if (!canTransformConstPropagated(layer)) {
-        return;
-    }
-
-    const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::getParent(layer, 0ul);
-    if ((dequantizationLayer->outData[0]->getTensorDesc().getLayout() == Layout::NCHW) && (layer.outData[0]->getTensorDesc().getLayout() == Layout::NC)) {
-        quantize(context, layer);
-        return;
-    }
-
-    TransparentBaseTransformation::transform(context, layer);
-}
-
-void ReshapeTransformation::quantize(TransformationContext& context, CNNLayer& layer) const {
-    const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::getParent(layer, 0ul);
-    if ((dequantizationLayer == nullptr) || (dequantizationLayer->type != "ScaleShift")) {
-        return;
-    }
-
-    const size_t inputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(*dequantizationLayer);
-    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(layer);
-    const DataPtr insData = layer.insData[0].lock();
-    if (insData == nullptr) {
-        THROW_IE_LPT_EXCEPTION(layer) << "input data is absent";
-    }
-    const size_t channelVolume = getChannelVolume(insData->getTensorDesc().getDims());
-    const DataPtr dequantizationDataPtr = dequantizationLayer->insData[0].lock();
-    if (dequantizationDataPtr == nullptr) {
-        THROW_IE_LPT_EXCEPTION(*dequantizationLayer) << "input data is absent";
-    }
-    if (insData->getTensorDesc().getDims()[0] != dequantizationDataPtr->getTensorDesc().getDims()[0] ||
-        inputChannelsCount * channelVolume != outputChannelsCount)
-        return;
-
-    std::vector<float> originalDataDequantizationScales;
-    std::vector<float> originalDataDequantizationShifts;
-    fillFromDequantizationLayer(*dequantizationLayer, originalDataDequantizationScales, originalDataDequantizationShifts);
-
-    std::vector<float> dequantizationScales(outputChannelsCount);
-    std::vector<float> dequantizationShifts(outputChannelsCount);
-
-    for (size_t inputChannel = 0ul; inputChannel < inputChannelsCount; inputChannel++) {
-        for (size_t i = 0ul; i < channelVolume; i++) {
-            dequantizationScales[inputChannel * channelVolume + i] = originalDataDequantizationScales[inputChannel];
-            dequantizationShifts[inputChannel * channelVolume + i] = originalDataDequantizationShifts[inputChannel];
-        }
-    }
-
-    if (updatePrecisions) {
-        const Precision lowPrecision = getPrecisionBeforeParentDequantizationScaleShift(layer);
-        CNNNetworkHelper::setOutDataPrecision(layer, lowPrecision);
-    }
-
-    CNNNetworkHelper::removeLayer(context.network, dequantizationLayer);
-    context.removeLayer(*dequantizationLayer);
-
-    addDequantizationLayer(context, layer, dequantizationScales, dequantizationShifts);
-}
-
-bool ReshapeTransformation::isPrecisionPreserved(const CNNLayer& layer) const noexcept {
-    return (layer.insData.size() > 1) ? canTransformOriginal(layer) : canTransformConstPropagated(layer);
-}
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

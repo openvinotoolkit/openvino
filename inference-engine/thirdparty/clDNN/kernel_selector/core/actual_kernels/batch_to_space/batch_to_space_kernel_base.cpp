@@ -41,27 +41,16 @@ bool BatchToSpaceKernelBase::Validate(const Params& p, const optional_params& o)
 CommonDispatchData BatchToSpaceKernelBase::SetDefault(const batch_to_space_params& params, const optional_params&) const {
     const auto& out = params.output;
 
-    CommonDispatchData runInfo;
-    std::vector<size_t> global;
-    std::vector<size_t> local;
-
+    CommonDispatchData dispatchData;
     if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 && out.Feature().v % 16 == 0) {
-        global = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
-        local = {1, 16, 1};
+        dispatchData.gws = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
+        dispatchData.lws = { 1, 16, 1 };
     } else {
-        global = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
-        local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+        dispatchData.gws = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     }
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants BatchToSpaceKernelBase::GetJitConstants(const batch_to_space_params& params) const {
@@ -101,14 +90,14 @@ KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
         return {};
     }
 
-    auto runInfo = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams, options);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = estimatedTime;

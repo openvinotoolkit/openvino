@@ -11,6 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
+// TODO: use MatMulTransformation
 class GemmTransformation :
     public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
@@ -19,9 +20,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -17,13 +17,19 @@ class ReluReluFusionMatcher;
 
 // ! [graph_rewrite:template_transformation_hpp]
 // template_pattern_transformation.hpp
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Add transformation description.
+ */
 class ngraph::pass::DecomposeDivideMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     DecomposeDivideMatcher();
 };
 // ! [graph_rewrite:template_transformation_hpp]
 
 class ngraph::pass::ReluReluFusionMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ReluReluFusionMatcher();
 };

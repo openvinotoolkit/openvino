@@ -75,7 +75,7 @@ protected:
 TEST_P(DynamicToStaticShapeUnaryElementwise, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeUnaryElementwise, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeUnaryElementwise, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,
@@ -94,6 +94,7 @@ INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeUnaryElementwise, testing::C
         ngraph::opset3::Relu::type_info,
         ngraph::opset3::Sigmoid::type_info,
         ngraph::opset3::Softmax::type_info,
-        ngraph::opset3::Sqrt::type_info)));
+        ngraph::opset3::Sqrt::type_info,
+        ngraph::opset3::LogicalNot::type_info)));
 
 }  // namespace

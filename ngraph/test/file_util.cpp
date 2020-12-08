@@ -90,8 +90,30 @@ TEST(file_util, path_join)
     }
 }
 
-TEST(file_util, get_temp_directory_path)
+TEST(file_util, santize_path)
 {
-    string tmp = file_util::get_temp_directory_path();
-    EXPECT_NE(0, tmp.size());
+    {
+        string path = "../../tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "/../tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "..";
+        EXPECT_STREQ("", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "workspace/data/tensor.data";
+        EXPECT_STREQ("workspace/data/tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "..\\..\\tensor.data";
+        EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
+    }
+    {
+        string path = "C:\\workspace\\tensor.data";
+        EXPECT_STREQ("workspace\\tensor.data", file_util::sanitize_path(path).c_str());
+    }
 }

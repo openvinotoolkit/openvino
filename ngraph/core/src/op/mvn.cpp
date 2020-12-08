@@ -16,6 +16,7 @@
 #include <algorithm>
 
 #include "mvn.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -29,7 +30,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::MVN::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
 
 op::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : FusedOp({data})
@@ -48,6 +49,8 @@ op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_va
     , m_reduction_axes{reduction_axes}
 {
     constructor_validate_and_infer_types();
+    const size_t chanelAxis = 1;
+    m_across_channels = (m_reduction_axes.count(chanelAxis) > 0);
 }
 
 // decompose_op() relies on knowing the data type of input data which might
@@ -60,7 +63,6 @@ void op::MVN::validate_and_infer_types()
     if (m_reduction_axes.empty() && input_value(0).get_partial_shape().rank().is_static())
     {
         AxisSet reduction_axes;
-        reduction_axes.insert(0);
         size_t start_axis = m_across_channels ? 1 : 2;
         for (size_t i = start_axis; i < input_value(0).get_partial_shape().rank().get_length(); ++i)
         {
@@ -79,8 +81,8 @@ OutputVector op::MVN::decompose_op() const
 
     // calculate mean normalization
     auto mean = builder::opset1::mean(data, m_reduction_axes);
-    mean = std::make_shared<op::Broadcast>(mean, data_shape, m_reduction_axes);
-    auto mean_normalization = data - mean;
+    auto mean_normalization = std::make_shared<op::v1::Subtract>(
+        data, builder::opset1::make_broadcast(mean, data_shape, m_reduction_axes));
 
     if (!m_normalize_variance)
     {
@@ -90,14 +92,13 @@ OutputVector op::MVN::decompose_op() const
     {
         // calculate variance
         auto variance = builder::opset1::variance(data, m_reduction_axes);
-        variance = make_shared<op::Sqrt>(variance);
         // add epsilon
         auto eps_node = op::Constant::create(
             data.get_element_type(), Output<Node>(variance).get_shape(), vector<double>{m_eps});
-        variance = variance + eps_node;
-        variance = std::make_shared<op::Broadcast>(variance, data_shape, m_reduction_axes);
-
-        return OutputVector{mean_normalization / variance};
+        variance = std::make_shared<op::Sqrt>(std::make_shared<op::v1::Add>(variance, eps_node));
+        return OutputVector{std::make_shared<op::v1::Divide>(
+            mean_normalization,
+            builder::opset1::make_broadcast(variance, data_shape, m_reduction_axes))};
     }
 }
 

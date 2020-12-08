@@ -137,6 +137,7 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     deconv_info.add("stride", strd.to_string());
     deconv_info.add("input offset", desc->input_offset.to_string());
     deconv_info.add("split", split);
+    deconv_info.add("groups", desc->groups);
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());

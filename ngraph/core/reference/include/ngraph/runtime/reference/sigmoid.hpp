@@ -35,19 +35,6 @@ namespace ngraph
                     out[i] = 1 / (1 + exp_value);
                 }
             }
-
-            template <typename T>
-            void sigmoid_backprop(const T* arg, const T* delta_arg, T* out, size_t count)
-            {
-                T exp_value;
-                T func_x;
-                for (size_t i = 0; i < count; i++)
-                {
-                    exp_value = std::exp(-arg[i]);
-                    func_x = 1 / (1 + exp_value);
-                    out[i] = delta_arg[i] * func_x * (1 - func_x);
-                }
-            }
         }
     }
 }

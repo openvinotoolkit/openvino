@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,25 +48,17 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
 
 FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const fully_connected_params& params,
                                                                           int) const {
-    auto runInfo = Parent::SetDefault(params);
+    auto dispatchData = Parent::SetDefault(params);
 
-    std::vector<size_t> global = {params.output.Feature().v, params.output.Batch().v};
-    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { params.output.Feature().v, params.output.Batch().v, 1 };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = 1;
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = 1;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params,
-    const FullyConnectedKernelBase::DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+    const FullyConnectedKernelBase::DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     Datatype accumulator_dt;
     Datatype activation_dt;
 

@@ -29,7 +29,7 @@ public:
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
-    JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;
+    JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::SCALE,

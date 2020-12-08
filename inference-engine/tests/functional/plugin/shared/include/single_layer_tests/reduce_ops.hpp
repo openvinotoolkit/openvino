@@ -21,6 +21,9 @@ typedef std::tuple<
         bool,                           // Keep dims
         ngraph::helpers::ReductionType, // Reduce operation type
         InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
         std::vector<size_t>,            // Input shapes
         std::string                     // Target device name
 > reduceMeanParams;

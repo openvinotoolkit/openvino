@@ -55,7 +55,7 @@ streamDesc_t* getStreamById(void* fd, streamId_t id)
     int stream;
     for (stream = 0; stream < XLINK_MAX_STREAMS; stream++) {
         if (link->availableStreams[stream].id == id) {
-            sem_wait(&link->availableStreams[stream].sem);
+            XLink_sem_wait(&link->availableStreams[stream].sem);
 
             return &link->availableStreams[stream];
         }
@@ -70,7 +70,7 @@ streamDesc_t* getStreamByName(xLinkDesc_t* link, const char* name)
     for (stream = 0; stream < XLINK_MAX_STREAMS; stream++) {
         if (link->availableStreams[stream].id != INVALID_STREAM_ID &&
             strcmp(link->availableStreams[stream].name, name) == 0) {
-            sem_wait(&link->availableStreams[stream].sem);
+            XLink_sem_wait(&link->availableStreams[stream].sem);
 
             return &link->availableStreams[stream];
         }
@@ -81,7 +81,7 @@ streamDesc_t* getStreamByName(xLinkDesc_t* link, const char* name)
 void releaseStream(streamDesc_t* stream)
 {
     if (stream && stream->id != INVALID_STREAM_ID) {
-        sem_post(&stream->sem);
+        XLink_sem_post(&stream->sem);
     }
     else {
         mvLog(MVLOG_DEBUG,"trying to release a semaphore for a released stream\n");

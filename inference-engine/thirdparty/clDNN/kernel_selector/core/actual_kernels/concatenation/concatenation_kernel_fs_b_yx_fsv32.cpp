@@ -62,20 +62,20 @@ bool ConcatenationKernel_fs_b_yx_fsv32::Validate(const Params& p, const optional
 }
 
 ConcatenationKernelBase::DispatchData ConcatenationKernel_fs_b_yx_fsv32::SetDefault(const concatenation_params& params) const {
-    DispatchData runInfo = ConcatenationKernelBase::SetDefault(params);
+    DispatchData dispatchData = ConcatenationKernelBase::SetDefault(params);
     const auto& input = params.inputs[0];
 
-    runInfo.gws0 = input.X().v;
-    runInfo.gws1 = input.Y().v;
-    runInfo.gws2 = CeilDiv(input.Feature().v, fsv) * subGroupSize * input.Batch().v;
+    dispatchData.gws[0] = input.X().v;
+    dispatchData.gws[1] = input.Y().v;
+    dispatchData.gws[2] = CeilDiv(input.Feature().v, fsv) * subGroupSize * input.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = subGroupSize;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = subGroupSize;
 
-    runInfo.efficiency = FORCE_PRIORITY_1;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConcatenationKernel_fs_b_yx_fsv32::GetJitConstants(const concatenation_params& params) const {
@@ -113,13 +113,13 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         ifm_offset += ifm;
 
         auto& kernel = kd.kernels[i];
-        DispatchData runInfo = SetDefault(newParams);
+        DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
         auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, optParams);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
-        kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-        kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+        kernel.workGroups.global = dispatchData.gws;
+        kernel.workGroups.local = dispatchData.lws;
         kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
         kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -131,7 +131,7 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         kernel.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
-        efficiency = std::max(efficiency, runInfo.efficiency);
+        efficiency = std::max(efficiency, dispatchData.efficiency);
     }
 
     kd.estimatedTime = efficiency;

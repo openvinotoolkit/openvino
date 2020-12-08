@@ -32,8 +32,8 @@ ParamsKey FullyConnected_bf_io_ref::GetSupportedKey() const {
     return k;
 }
 
-JitConstants FullyConnected_bf_io_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants FullyConnected_bf_io_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);

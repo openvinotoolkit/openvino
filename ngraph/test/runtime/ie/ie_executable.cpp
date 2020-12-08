@@ -56,6 +56,7 @@ namespace
         switch (elem_type)
         {
         case element::Type_t::f32: blob = MAKE_IE_TBLOB(float, FP32, shape, layout); break;
+        case element::Type_t::f64: blob = MAKE_IE_TBLOB(double, FP64, shape, layout); break;
         case element::Type_t::i16: blob = MAKE_IE_TBLOB(int16_t, I16, shape, layout); break;
         case element::Type_t::u8: blob = MAKE_IE_TBLOB(uint8_t, U8, shape, layout); break;
         case element::Type_t::i8: blob = MAKE_IE_TBLOB(int8_t, I8, shape, layout); break;
@@ -85,6 +86,10 @@ namespace
         ie_ops.insert(opset2.begin(), opset2.end());
         auto& opset3 = get_opset3().get_type_info_set();
         ie_ops.insert(opset3.begin(), opset3.end());
+        auto& opset4 = get_opset4().get_type_info_set();
+        ie_ops.insert(opset4.begin(), opset4.end());
+        auto& opset5 = get_opset5().get_type_info_set();
+        ie_ops.insert(opset5.begin(), opset5.end());
         return ie_ops;
     }
 }
@@ -150,7 +155,10 @@ bool runtime::ie::IE_Executable::call(const vector<shared_ptr<runtime::Tensor>>&
     }
 
     //  Prepare output blobs
-    string output_name = m_network.getOutputsInfo().begin()->first;
+    auto outInfo = m_network.getOutputsInfo();
+    if (outInfo.size() != 1)
+        THROW_IE_EXCEPTION << "Networks should contain only one output!";
+    string output_name = outInfo.begin()->first;
 
     infer_request.Infer();
     InferenceEngine::Blob::Ptr output = infer_request.GetBlob(output_name);

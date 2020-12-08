@@ -34,7 +34,7 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionKernel_b_fs_yx_fsv16_1x1() : Con
 }
 
 ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16_1x1::GetAutoTuneOptions(const Params& params,
-                                                                                          int /*autoTuneIndex*/) const {
+                                                                                                            int /*autoTuneIndex*/) const {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
     auto x = cp.output.X().v;
     auto f = cp.output.Feature().v;
@@ -73,10 +73,10 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_1x1::GetSupportedKey() const {
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefault(const convolution_params& params,
                                                                                int autoTuneIndex) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
-    kd.cldnnStyle.blockWidth = autoTune.blockWidth;
+    dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
 
     const auto& input = params.inputs[0];
     const auto& out = params.output;
@@ -85,29 +85,29 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = CeilDiv(x * y, autoTune.blockWidth);
-    kd.gws1 = Align(f, feature_block_size);
-    kd.gws2 = b;
+    dispatchData.gws[0] = CeilDiv(x * y, autoTune.blockWidth);
+    dispatchData.gws[1] = Align(f, feature_block_size);
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = 1;
-    kd.lws1 = sub_group_size;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = sub_group_size;
+    dispatchData.lws[2] = 1;
 
     auto bBlockSizeX = x % autoTune.blockWidth == 0;
     auto bBlockSizeXY = out.X().pad.Total() + out.Y().pad.Total() == 0;
     auto bInputPad = input.X().pad.Total() + input.Y().pad.Total() != 0;
-    
+
     if (b == 1) {
         if ((bBlockSizeX || bBlockSizeXY) && !bInputPad) {
-            kd.efficiency = FORCE_PRIORITY_1;
+            dispatchData.efficiency = FORCE_PRIORITY_1;
         } else {
-            kd.efficiency = FORCE_PRIORITY_3;
+            dispatchData.efficiency = FORCE_PRIORITY_3;
         }
     } else {
-        kd.efficiency = FORCE_PRIORITY_7;
+        dispatchData.efficiency = FORCE_PRIORITY_7;
     }
 
-    return kd;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p, const optional_params& o) const {
@@ -134,10 +134,10 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p, const option
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolution_params& params,
-                                                             const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                                  const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
         FusedOpsConfiguration conf_vec = { "_VEC",

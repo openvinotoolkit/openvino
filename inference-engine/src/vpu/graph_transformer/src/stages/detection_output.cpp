@@ -240,7 +240,7 @@ void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& l
         size_num_priors_actual_buf +
         size_temp_data_buf;
 
-    model->addTempBuffer(stage, DataDesc({buffer_size}));
+    model->addTempBuffer(stage, buffer_size);
 }
 
 }  // namespace vpu

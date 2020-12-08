@@ -29,7 +29,7 @@ void ScaledContent::fillTempBuf(void *tempBuf) const {
 
     auto dstPtr = static_cast<fp16_t*>(tempBuf);
 
-    ie::parallel_for(totalSize, [this, srcPtr, dstPtr](int i) {
+    ie::parallel_for(totalSize, [this, srcPtr, dstPtr](size_t i) {
         dstPtr[i] = ie::PrecisionUtils::f32tof16(ie::PrecisionUtils::f16tof32(srcPtr[i]) * _factor);
     });
 }

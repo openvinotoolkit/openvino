@@ -235,9 +235,9 @@ void BackEnd::serialize(
         blobHdr.bss_mem_size = checked_cast<uint32_t>(usedMemory.BSS);
         blobHdr.number_of_cmx_slices = checked_cast<uint32_t>(env.resources.numCMXSlices);
         blobHdr.number_of_shaves = checked_cast<uint32_t>(env.resources.numSHAVEs);
-        blobHdr.has_hw_stage = checked_cast<uint32_t>(modelStagesStat.hasHwStage);
-        blobHdr.has_shave_stage = checked_cast<uint32_t>(modelStagesStat.hasShaveStage);
-        blobHdr.has_dma_stage = checked_cast<uint32_t>(modelStagesStat.hasDmaStage);
+        blobHdr.has_hw_stage = static_cast<uint32_t>(modelStagesStat.hasHwStage);
+        blobHdr.has_shave_stage = static_cast<uint32_t>(modelStagesStat.hasShaveStage);
+        blobHdr.has_dma_stage = static_cast<uint32_t>(modelStagesStat.hasDmaStage);
         blobHdr.input_info_section_offset = checked_cast<uint32_t>(hdrSize);
         blobHdr.output_info_section_offset = checked_cast<uint32_t>(blobHdr.input_info_section_offset + inputInfoSecSize);
         blobHdr.stage_section_offset = checked_cast<uint32_t>(blobHdr.output_info_section_offset + outputInfoSecSize);

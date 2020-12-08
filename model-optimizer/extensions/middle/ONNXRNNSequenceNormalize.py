@@ -24,7 +24,7 @@ from mo.ops.op import Op
 class ONNXRNNSequenceNormalize(MiddleReplacementPattern):
     """
         Convert blobs and shapes of ONNX-like LSTM, GRU, RNN cells to common form (internal for MO).
-        After this normalization pass passes for spliting bidirectional calls and
+        After this normalization pass passes for splitting bidirectional calls and
         multilayer cells will be applied.
 
         This transformation pass involves weights and shapes processing only:

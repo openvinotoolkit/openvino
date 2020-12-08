@@ -130,6 +130,11 @@ public:
     bool operator!=(const BlockingDesc& rhs) const;
 
 protected:
+    /**
+     * @brief Fills tensor descriptor based on blocking dimensions and specific order
+     * @param blocked_dims A vector representing blocking dimensions
+     * @param order A vector with specific dims order
+     */
     void fillDesc(const SizeVector& blocked_dims, const SizeVector& order);
 
 private:
@@ -330,6 +335,14 @@ struct ROI {
 
     ROI() = default;
 
+    /**
+     * @brief Creates a ROI objects with given parameters
+     * @param id ID of a ROI (offset over batch dimension)
+     * @param posX W upper left coordinate of ROI
+     * @param posY H upper left coordinate of ROI
+     * @param sizeX W size of ROI
+     * @param sizeY H size of ROI
+     */
     ROI(size_t id, size_t posX, size_t posY, size_t sizeX, size_t sizeY) :
         id(id), posX(posX), posY(posY), sizeX(sizeX), sizeY(sizeY) {
     }

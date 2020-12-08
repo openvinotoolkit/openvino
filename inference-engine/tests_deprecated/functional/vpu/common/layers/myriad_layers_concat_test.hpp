@@ -140,7 +140,7 @@ static  std::vector<int32_t> s_dimension = {
 };
 
 static  std::vector<int32_t> s_batch = {
-    1, 8
+    1 /*, 8 TODO: rewrite to ngraph to have reshape functionality */
 };
 
 static std::vector<InferenceEngine::SizeVector> s_concatCores = {

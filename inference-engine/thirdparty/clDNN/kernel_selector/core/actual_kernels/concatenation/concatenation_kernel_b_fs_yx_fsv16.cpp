@@ -109,23 +109,23 @@ bool ConcatenationKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional
 }
 
 ConcatenationKernelBase::DispatchData ConcatenationKernel_b_fs_yx_fsv16::SetDefault(const concatenation_params& params) const {
-    DispatchData runInfo = ConcatenationKernelBase::SetDefault(params);
+    DispatchData dispatchData = ConcatenationKernelBase::SetDefault(params);
     const auto& input = params.inputs[0];
     auto tileXY = getTileXY(params);
 
     size_t tileF = params.misalignment == 0 ? 1 : 2;
 
-    runInfo.gws0 = CeilDiv(input.X().v * input.Y().v, tileXY);
-    runInfo.gws1 = Align(input.Feature().v, 16 * tileF) / tileF;
-    runInfo.gws2 = input.Batch().v;
+    dispatchData.gws[0] = CeilDiv(input.X().v * input.Y().v, tileXY);
+    dispatchData.gws[1] = Align(input.Feature().v, 16 * tileF) / tileF;
+    dispatchData.gws[2] = input.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 16;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 16;
+    dispatchData.lws[2] = 1;
 
-    runInfo.efficiency = FORCE_PRIORITY_1;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConcatenationKernel_b_fs_yx_fsv16::GetJitConstants(const concatenation_params& params) const {

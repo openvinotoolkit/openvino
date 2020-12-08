@@ -61,6 +61,6 @@ class SparseReshape(Op):
         output_indices_shape = np.concatenate((input_indices_shape[0:1], new_shape_shape))
         node.out_port(0).data.set_shape(output_indices_shape)
 
-        # TODO: implement constant value propogation for common case
+        # TODO: implement constant value propagation for common case
         if np.array_equal(input_shape_value, output_shape_value) and input_indices_value is not None:
             node.out_port(0).data.set_value(input_indices_value)

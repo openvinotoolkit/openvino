@@ -29,6 +29,13 @@ namespace ngraph
             OperatorsBridge::register_operator(name, version, domain, std::move(fn));
         }
 
+        void unregister_operator(const std::string& name,
+                                 std::int64_t version,
+                                 const std::string& domain)
+        {
+            OperatorsBridge::unregister_operator(name, version, domain);
+        }
+
     } // namespace onnx_import
 
 } // namespace ngraph

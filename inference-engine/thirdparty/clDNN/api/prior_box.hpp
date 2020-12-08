@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -124,8 +124,9 @@ struct prior_box : public primitive_base<prior_box> {
               const float offset,
               const std::vector<float>& widths,
               const std::vector<float>& heights,
+              data_types output_dt,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}),
           img_size(img_size),
           flip(false),
           clip(clip),

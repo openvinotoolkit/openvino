@@ -14,8 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "rnn.hpp"
+#include <memory>
+
+#include "ngraph/builder/reshape.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/rnn.hpp"
 #include "onnx_import/utils/recurrent.hpp"
 
 namespace ngraph
@@ -55,27 +58,25 @@ namespace ngraph
                     RNNInputMap input_map{node, gates_count};
                     RNNAttributes attributes{node};
 
-                    recurrent::RecurrentSequence sequence_op(input_map, attributes.m_direction);
-                    auto results =
-                        sequence_op.run_sequence([&attributes](const recurrent::OpInputMap& args,
-                                                               const Output<ngraph::Node>& in_Xt,
-                                                               const Output<ngraph::Node> H_t) {
+                    auto rnn_sequence = std::make_shared<default_opset::RNNSequence>(
+                        input_map.at(recurrent::OpInput::X),
+                        input_map.at(recurrent::OpInput::INIT_H),
+                        input_map.at(recurrent::OpInput::SEQ_LENGTHS),
+                        input_map.at(recurrent::OpInput::W),
+                        input_map.at(recurrent::OpInput::R),
+                        input_map.at(recurrent::OpInput::B),
+                        attributes.m_hidden_size,
+                        attributes.m_direction,
+                        attributes.m_activations,
+                        attributes.m_activations_alpha,
+                        attributes.m_activations_beta,
+                        attributes.m_clip_threshold);
 
-                            const RNNInputMap& rnn_args = dynamic_cast<const RNNInputMap&>(args);
+                    const auto Y = rnn_sequence->output(0);
+                    const auto Y_h = rnn_sequence->output(1);
 
-                            return std::make_shared<default_opset::RNNCell>(
-                                in_Xt,
-                                H_t,
-                                rnn_args.at(recurrent::OpInput::W),
-                                rnn_args.at(recurrent::OpInput::R),
-                                rnn_args.at(recurrent::OpInput::B),
-                                attributes.m_hidden_size,
-                                attributes.m_activations,
-                                attributes.m_activations_alpha,
-                                attributes.m_activations_beta,
-                                attributes.m_clip_threshold);
-                        });
-                    return results;
+                    return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
+                            builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
                 }
             } // namespace set_1
         }     // namespace op

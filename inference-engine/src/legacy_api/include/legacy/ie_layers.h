@@ -362,6 +362,15 @@ public:
     std::string GetParamAsString(const char* param) const;
 
     /**
+     * @brief Returns a string containing an integer if parameters value was
+     * "true" or "false"
+     *
+     * @param param Name of the layer parameter
+     * @return A string containing an integer or the parameter as string
+     */
+    std::string getBoolStrParamAsIntStr(const char *param) const;
+
+    /**
      * @brief Gets the parameter as a std::vector<std::string>
      * @param param  The parameter name
      * @param def The default values if case of parameter is not found
@@ -2064,6 +2073,10 @@ public:
      * classes
      */
     bool sort_result_descending = true;
+    /**
+     * @brief Output type for first and third inputs
+     */
+    std::string output_type = "I64";
     /**
      * @brief Creates a new NonMaxSuppressionLayer instance.
      */

@@ -37,7 +37,7 @@ def is_value_is_constant(val: np.ndarray, const: [int, float]):
 class FlattenToReshapeableReshape(FrontReplacementSubgraph):
     """
     The TensorFlow implementation of the Flatten operation is not reshape-able because the batch size is hardcoded
-    during te constant propagation. This transform sets the 'dim' attribute for the Reshape to [0, -1].
+    during the constant propagation. This transform sets the 'dim' attribute for the Reshape to [0, -1].
     """
     enabled = True
 

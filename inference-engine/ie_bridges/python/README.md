@@ -14,7 +14,7 @@ pip3 install -r requirements.txt
 
 ## Building on Linux
 
-Build Inference Engine Python API alongside with the Inference Engine build. 
+Build Inference Engine Python API alongside with the Inference Engine build.
 You need to run Inference Engine build with the following flags:
 
 ```shellscript
@@ -36,7 +36,7 @@ You need to run Inference Engine build with the following flags:
 	mkdir build
 	cd build
 	set PATH=C:\Program Files\Python36\Scripts;%PATH%
-	cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
+	cmake -G "Visual Studio 15 2017 Win64" ^
 		-DENABLE_PYTHON=ON ^
 		-DPYTHON_EXECUTABLE="C:\Program Files\Python36\python.exe" ^
 		-DPYTHON_INCLUDE_DIR="C:\Program Files\Python36\include" ^
@@ -49,11 +49,11 @@ Then build generated solution INFERENCE_ENGINE_DRIVER.sln using Microsoft\* Visu
 ## Running sample
 
 Before running the Python samples:
-- add the folder with built `openvino` Python module (located at `inference-engine/bin/intel64/Release/lib/python_api/python3.6`) to the PYTHONPATH environment variable.
+- add the folder with built `openvino` Python module (located at `bin/intel64/Release/lib/python_api/python3.6` for Linux) to the PYTHONPATH environment variable.
 - add the folder with Inference Engine libraries to LD_LIBRARY_PATH variable on Linux (or PATH on Windows).
 
 Example of command line to run classification sample:
 
 ```bash
-python3 sample/classification_sample.py -m <path/to/xml> -i <path/to/input/image> -d CPU 
+python3 sample/classification_sample.py -m <path/to/xml> -i <path/to/input/image> -d CPU
 ```

@@ -38,6 +38,10 @@ runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
     {
         allocate_buffer();
     }
+    else
+    {
+        m_buffer_size = 0;
+    }
 }
 
 runtime::HostTensor::HostTensor(const element::Type& element_type,
@@ -52,6 +56,7 @@ runtime::HostTensor::HostTensor(const element::Type& element_type,
                                 const std::string& name)
     : runtime::Tensor(
           std::make_shared<ngraph::descriptor::Tensor>(element_type, partial_shape, name))
+    , m_buffer_size(0)
 {
     // Defer allocation until ptr is requested
 }

@@ -4,7 +4,7 @@ Inference Engine build infrastructure provides the Inference Engine Package for 
 
 To build an extension library, use the following CMake script:
 
-@snippet CMakeLists.txt cmake:extension
+@snippet template_extension/CMakeLists.txt cmake:extension
 
 This CMake script finds the Inference Engine and nGraph using the `find_package` CMake command.
 

@@ -16,7 +16,6 @@ TEST_P(LSTMCellTestBase, GNA_sw_fp32_single_lstm_test) {
 }
 
 TEST_P(LSTMCellTestBase, GNA_I16_single_lstm_test) {
-    DISABLE_TEST_ON_GNA2
     runSingleLSTMTest( {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_COMPACT_MODE", "NO"},
@@ -28,7 +27,6 @@ TEST_P(LSTMCellTestBase, GNA_I16_single_lstm_test) {
 }
 
 TEST_P(LSTMCellTestBase, GNA_I8_single_lstm_test) {
-    DISABLE_TEST_ON_GNA2
     runSingleLSTMTest({
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_COMPACT_MODE", "NO"},

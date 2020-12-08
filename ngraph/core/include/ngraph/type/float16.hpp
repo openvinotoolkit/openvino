@@ -48,6 +48,12 @@ namespace ngraph
 
         float16(float value);
 
+        template <typename I>
+        explicit float16(I value)
+            : m_value{float16{static_cast<float>(value)}.m_value}
+        {
+        }
+
         std::string to_string() const;
         size_t size() const;
         template <typename T>

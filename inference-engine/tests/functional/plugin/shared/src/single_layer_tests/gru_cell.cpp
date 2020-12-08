@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include <transformations/gru_cell_decomposition.hpp>
+#include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include "single_layer_tests/gru_cell.hpp"
 
 namespace LayerTestsDefinitions {
@@ -36,6 +36,10 @@ std::string GRUCellTest::getTestCaseName(const testing::TestParamInfo<GRUCellPar
     std::string targetDevice;
     std::tie(should_decompose, batch, hidden_size, input_size, activations, clip,
             linear_before_reset, netPrecision, targetDevice) = obj.param;
+    inputShapes = {
+            {{batch, input_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
+                    {3 * hidden_size, hidden_size}, {(linear_before_reset? 4 : 3) * hidden_size}},
+    };
     std::ostringstream result;
     result << "decomposition" << should_decompose << "_";
     result << "batch=" << batch << "_";

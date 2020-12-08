@@ -138,7 +138,7 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetSupportedKey() const {
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16_dw::SetDefault(const deconvolution_params& params) const {
-    DispatchData kd = DeconvolutionKernelBase::SetDefault(params);
+    DispatchData dispatchData = DeconvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -148,17 +148,17 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16_dw::Set
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = CeilDiv(x, GetDispatchParams(params).block_size_x) * y * z;
-    kd.gws1 = Align(f, feature_block_size);
-    kd.gws2 = b;
+    dispatchData.gws[0] = CeilDiv(x, GetDispatchParams(params).block_size_x) * y * z;
+    dispatchData.gws[1] = Align(f, feature_block_size);
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = 1;
-    kd.lws1 = sub_group_size;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = sub_group_size;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_2;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    return kd;
+    return dispatchData;
 }
 
 bool DeconvolutionKernel_b_fs_zyx_fsv16_dw::Validate(const Params& p, const optional_params& o) const {

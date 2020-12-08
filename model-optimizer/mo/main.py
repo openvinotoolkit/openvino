@@ -225,7 +225,6 @@ def prepare_ir(argv: argparse.Namespace):
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_kaldi:
-        argv.static_shape = True
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_onnx:

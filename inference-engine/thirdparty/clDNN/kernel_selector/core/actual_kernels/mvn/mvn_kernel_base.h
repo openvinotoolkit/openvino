@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <string>
 
@@ -52,9 +52,9 @@ struct mvn_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MVNKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class MVNKernelBase : public common_kernel_base {
+class MVNKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~MVNKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
@@ -68,7 +68,7 @@ public:
 
 protected:
     bool Validate(const Params&, const optional_params&) const override;
-    virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const mvn_params& params) const;
     virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;

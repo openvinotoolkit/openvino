@@ -213,30 +213,6 @@ TEST(autobroadcast, broadcast_with_leading_dim1)
     EXPECT_EQ(getShapeFromParam(ab_rhs), s1345);
 }
 
-TEST(autobroadcast, make_node_2_args)
-{
-    Shape s21{2, 1};
-    Shape s23{2, 3};
-    auto lhs = getParamFromShape(s21);
-    auto rhs = getParamFromShape(s23);
-
-    shared_ptr<Node> op = builder::make_with_numpy_broadcast<op::Add>(lhs, rhs);
-    EXPECT_NE(op, nullptr);
-}
-
-TEST(autobroadcast, make_node_3_args)
-{
-    Shape s21{2, 1};
-    Shape s23{2, 3};
-
-    auto predicates = make_shared<op::Parameter>(element::boolean, s23);
-    auto lhs = getParamFromShape(s21);
-    auto rhs = getParamFromShape(s23);
-
-    shared_ptr<Node> op = builder::make_with_numpy_broadcast<op::Select>(predicates, lhs, rhs);
-    EXPECT_NE(op, nullptr);
-}
-
 TEST(autobroadcast, numpy_broadcast_for_matmul_op_2d)
 {
     const Shape lhs{3, 1, 4, 6};

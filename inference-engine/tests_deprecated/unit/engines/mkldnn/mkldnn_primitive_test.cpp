@@ -33,7 +33,7 @@ protected:
 TEST_F(MKLDNNPrimitiveTest, DISABLED_canDeleteWeightInweitableLayer) {
     //simulate how convlayer gets created
     engine e(engine::cpu, 0);
-    //auto node = MKLDNNPlugin::MKLDNNNodePtr(MKLDNNPlugin::MKLDNNNode::CreateNode(MKLDNNPlugin::Generic, InferenceEngine::Precision::FP32, ""));
+    //auto node = MKLDNNPlugin::MKLDNNNodePtr(MKLDNNPlugin::MKLDNNNode::factory().create(MKLDNNPlugin::Generic, InferenceEngine::Precision::FP32, ""));
 //    ChildConv *conv = new ChildConv(e);
 //    EXPECT_CALL(*conv, die()).Times(1);
 

@@ -12,8 +12,6 @@ if (ENABLE_CLDNN)
             HeteroPlugin)
 endif()
 
-include(add_ie_target)
-
 addIeTarget(
         NAME myriadTestData
         DEVELOPER_PACKAGE
@@ -22,7 +20,6 @@ addIeTarget(
         LINK_LIBRARIES
         ieTestHelpers
         DEFINES
-        INSTANTIATE_TESTS=1
         PUBLIC
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"
@@ -43,8 +40,6 @@ addIeTarget(
         IESharedTests
         vpu_graph_transformer
         vpu_custom_kernels
-    DEFINES
-        INSTANTIATE_TESTS=1
     EXPORT_DEPENDENCIES
         vpu_custom_kernels
 )

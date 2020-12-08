@@ -32,14 +32,14 @@ class Unsqueeze(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'op': __class__.op,
-            'type': __class__.op,
+            'op': self.op,
+            'type': self.op,
             'version': 'opset1',
             'unsqueeze_dims': None,
             'reinterp_shape': True,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
 
     @staticmethod

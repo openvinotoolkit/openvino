@@ -21,16 +21,21 @@ std::string ExtractImagePatchesTest::getTestCaseName(const testing::TestParamInf
     std::vector<size_t> inputShape, kernel, strides, rates;
     ngraph::op::PadType pad_type;
     InferenceEngine::Precision netPrc;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     std::string targetName;
-    std::tie(inputShape, kernel, strides, rates, pad_type, netPrc, targetName) = obj.param;
+    std::tie(inputShape, kernel, strides, rates, pad_type, netPrc, inPrc, outPrc, inLayout, targetName) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrc.name() << "_";
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
     result << "K=" << CommonTestUtils::vec2str(kernel) << "_";
     result << "S=" << CommonTestUtils::vec2str(strides) << "_";
     result << "R=" << CommonTestUtils::vec2str(rates) << "_";
     result << "P=" << pad_type << "_";
-    result << "targetDevice=" << targetName;
+    result << "trgDev=" << targetName;
     return result.str();
 }
 
@@ -38,7 +43,7 @@ void ExtractImagePatchesTest::SetUp() {
     std::vector<size_t> inputShape, kernel, strides, rates;
     ngraph::op::PadType pad_type;
     InferenceEngine::Precision netPrecision;
-    std::tie(inputShape, kernel, strides, rates, pad_type, netPrecision, targetDevice) = this->GetParam();
+    std::tie(inputShape, kernel, strides, rates, pad_type, netPrecision, inPrc, outPrc, inLayout, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto inputNode = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(inputShape));

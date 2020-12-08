@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,19 +34,19 @@ ParamsKey ReorderWeightsWinograd6x3Kernel::GetSupportedKey() const {
 
 ReorderWeightsWinograd6x3Kernel::DispatchData ReorderWeightsWinograd6x3Kernel::SetDefault(
     const reorder_weights_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& input = params.input;
 
-    kd.gws0 = 1;
-    kd.gws1 = 3;
-    kd.gws2 = static_cast<size_t>(input.IFM().v * input.OFM().v);
+    dispatchData.gws[0] = 1;
+    dispatchData.gws[1] = 3;
+    dispatchData.gws[2] = static_cast<size_t>(input.IFM().v * input.OFM().v);
 
-    kd.lws0 = 1;
-    kd.lws1 = 1;
-    kd.lws2 = 32;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 32;
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ReorderWeightsWinograd6x3Kernel::GetKernelsData(const Params& params,

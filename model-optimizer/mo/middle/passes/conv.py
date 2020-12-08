@@ -117,7 +117,7 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
         weights.shape = np.array(weights.value.shape, dtype=np.int64)
 
     if bias.shape != weights.shape:
-        log.warning('Mul->Add to ScaleShift conversion stoped {} != {}'.format(weights.shape, bias.shape))
+        log.warning('Mul->Add to ScaleShift conversion stopped {} != {}'.format(weights.shape, bias.shape))
         return
 
     if bias.value.ndim != weights.value.ndim or bias.value.size != weights.value.size:

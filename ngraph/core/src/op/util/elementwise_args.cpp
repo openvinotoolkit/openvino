@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "elementwise_args.hpp"
+#include "binary_elementwise_arithmetic.hpp"
 
 using namespace ngraph;
 

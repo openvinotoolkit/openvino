@@ -161,6 +161,30 @@ struct data_type_traits {
                 return std::string("invalid data type: " + std::to_string(static_cast<int>(data_type)));
         }
     }
+
+    static data_types max_type(data_types dt1, data_types dt2) {
+        if (dt1 == data_types::bin)
+            return dt2;
+
+        if (dt2 == data_types::bin)
+            return dt1;
+
+        if (size_of(dt1) < size_of(dt2))
+            return dt2;
+
+        if (size_of(dt1) > size_of(dt2))
+            return dt1;
+
+        if (is_floating_point(dt2))
+            return dt2;
+
+        return dt1;
+    }
+
+    static bool is_quantized(data_types dt) {
+        return dt == data_types::u8 || dt == data_types::i8;
+    }
+
     template <typename T>
     static T max(data_types data_type) {
         switch (data_type) {

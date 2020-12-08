@@ -72,6 +72,13 @@ OutputInfo OutputInfo::fromNetwork(int ind) {
     return info;
 }
 
+InputInfo InputInfo::constant(const DataDesc& desc) {
+    InputInfo info;
+    info.type = InputType::Constant;
+    info.desc = desc;
+    return info;
+}
+
 OutputInfo OutputInfo::intermediate(const DataDesc& desc) {
     OutputInfo info;
     info.type = OutputType::Intermediate;
@@ -161,6 +168,8 @@ Stage TestModel::addStage(const std::vector<InputInfo>& curInputInfos, const std
     for (const auto& info : curInputInfos) {
         if (info.type == InputType::Original) {
             curInputs.push_back(_inputs.at(info.originalInputInd));
+        } else if (info.type == InputType::Constant) {
+            curInputs.push_back(_model->addConstData(formatString("Const {} / {}", _stages.size(), curInputs.size()), info.desc));
         } else {
             curInputs.push_back(_stages.at(info.prevStageInd)->output(info.prevStageOutputInd));
         }

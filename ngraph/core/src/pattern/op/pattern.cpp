@@ -95,6 +95,13 @@ namespace ngraph
                 [=](Output<Node> output) -> bool { return output.get_partial_shape().is_static(); };
         }
 
+        std::function<bool(Output<Node>)> has_static_rank()
+        {
+            return [=](Output<Node> output) -> bool {
+                return output.get_partial_shape().rank().is_static();
+            };
+        }
+
         std::function<bool(Output<Node>)> type_matches(const element::Type& type)
         {
             return [=](Output<Node> output) -> bool { return output.get_element_type() == type; };

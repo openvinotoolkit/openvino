@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -32,9 +32,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -25,7 +25,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace opset1_downgrade
 {
     shared_ptr<Node> op_cast(shared_ptr<op::v3::Broadcast> node)
     {
@@ -39,7 +39,14 @@ namespace
         {
             const auto const_filled_with_ones = make_shared<op::v1::Broadcast>(
                 op::Constant::create(data->get_element_type(), {}, {1}), target_shape);
-            replacement_node = make_shared<op::v1::Multiply>(data, const_filled_with_ones);
+            if (const_filled_with_ones->get_element_type() == element::boolean)
+            {
+                replacement_node = make_shared<op::v1::LogicalOr>(data, const_filled_with_ones);
+            }
+            else
+            {
+                replacement_node = make_shared<op::v1::Multiply>(data, const_filled_with_ones);
+            }
             break;
         }
         case op::BroadcastType::EXPLICIT:
@@ -118,12 +125,12 @@ namespace
         };
         return dispatch_map;
     }
-} // namespace
+} // namespace opset1_downgrade
 
 bool pass::Opset1Downgrade::run_on_node(shared_ptr<Node> node)
 {
     bool modified = false;
-    auto& dispatch_map = get_dispatch_map();
+    auto& dispatch_map = opset1_downgrade::get_dispatch_map();
     auto it = dispatch_map.find(node->get_type_info());
     if (it != dispatch_map.end())
     {

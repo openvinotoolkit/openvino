@@ -54,10 +54,14 @@ private:
         auto antialias = attrs().get<bool>("antialias");
         auto factor = attrs().get<float>("factor");
         auto sampleType = attrs().get<ResampleType>("type");
+        auto coordinateTransformationMode = attrs().get<InterpolateCoordTransMode>("coordinate_transformation_mode");
+        auto nearestMode = attrs().get<InterpolateNearestMode>("nearest_mode");
 
         serializer.append(static_cast<int32_t>(antialias));
         serializer.append(static_cast<float>(factor));
         serializer.append(static_cast<uint32_t>(sampleType));
+        serializer.append(static_cast<uint32_t>(coordinateTransformationMode));
+        serializer.append(static_cast<uint32_t>(nearestMode));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -71,20 +75,58 @@ private:
 
 }  // namespace
 
+Stage StageBuilder::addResampleNearestStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            bool antialias,
+            InterpolateCoordTransMode coordinateTransformationMode,
+            InterpolateNearestMode nearestMode,
+            float factor,
+            const Data& input,
+            const Data& output) {
+    auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, {input}, {output});
+
+    stage->attrs().set<bool>("antialias", antialias);
+    stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", coordinateTransformationMode);
+    stage->attrs().set<InterpolateNearestMode>("nearest_mode", nearestMode);
+    stage->attrs().set<float>("factor", factor);
+    stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
+
+    return stage;
+}
+
 void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
-    IE_ASSERT(outputs.size() == 1);
+    VPU_THROW_UNLESS(inputs.size() == 1,
+                     "Resample stage with name {} must have only 1 input, "
+                     "actually provided {}", layer->name, inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1,
+                     "Resample stage with name {} must have only 1 output, "
+                     "actually provided {}", layer->name, outputs.size());
 
     ie::details::CaselessEq<std::string> cmp;
+    const auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
+    const auto coord = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+    const auto nearest = layer->GetParamAsString("nearest_mode", "round_prefer_ceil");
+    InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+    InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
-    auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, inputs, outputs);
+    if (cmp(coord, "asymmetric")) {
+        coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
+    }
+    if (cmp(nearest, "floor")) {
+        nearestMode = InterpolateNearestMode::Floor;
+    }
 
-    stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
-    stage->attrs().set<float>("factor", layer->GetParamAsInt("factor", -1.0f));
-
-    auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
-        stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
+        _stageBuilder->addResampleNearestStage(model,
+                                               layer->name,
+                                               layer,
+                                               layer->GetParamAsInt("antialias", 0),
+                                               coordinateTransformationMode, nearestMode,
+                                               layer->GetParamAsFloat("factor", -1),
+                                               inputs[0],
+                                               outputs[0]);
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only caffe.ResampleParameter.NEAREST resample type";
     }

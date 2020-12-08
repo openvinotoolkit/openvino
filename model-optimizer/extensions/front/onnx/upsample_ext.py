@@ -52,7 +52,7 @@ class UpsampleFrontExtractor(FrontExtractorOp):
                 )
             if math.fabs(scales[0] - 1) > 1e-5 or math.fabs(scales[1] - 1) > 1e-5:
                 raise Error(
-                    'Upsampling of batch and feature dimentions is not supported for node {}.',
+                    'Upsampling of batch and feature dimensions is not supported for node {}.',
                     node.name
                 )
             height_scale = scales[2]

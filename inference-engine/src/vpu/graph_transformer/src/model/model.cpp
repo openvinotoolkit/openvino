@@ -425,6 +425,13 @@ StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& dat
 
 StageTempBuffer ModelObj::addTempBuffer(
         const Stage& stage,
+        size_t bufferSize) {
+    auto desc = DataDesc(DataType::U8, DimsOrder::C, {bufferSize});
+    return addTempBuffer(stage, desc);
+}
+
+StageTempBuffer ModelObj::addTempBuffer(
+        const Stage& stage,
         const DataDesc& desc) {
     //
     // Check that objects belong to the same Model.
@@ -2157,6 +2164,16 @@ void ModelObj::removeUnusedData(const Data& data) {
 
     _dataList.erase(data);
     _dataPtrList.erase(data->_ptrPosInModel);
+}
+
+bool ModelObj::isDynamic() const {
+    const auto& dataObjects = datas();
+    return std::any_of(dataObjects.begin(), dataObjects.end(),
+        [](const Data& data) { return data->parentDataToShapeEdge() || !data->childDataToShapeEdges().empty(); });
+}
+
+bool ModelObj::isStatic() const {
+    return !isDynamic();
 }
 
 }  // namespace vpu

@@ -19,6 +19,10 @@ using GatherTreeParamsTuple = typename std::tuple<
         std::vector<size_t>,               // Input tensors shape
         ngraph::helpers::InputLayerType,   // Secondary input type
         InferenceEngine::Precision,        // Network precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name
 
 class GatherTreeLayerTest : public testing::WithParamInterface<GatherTreeParamsTuple>,

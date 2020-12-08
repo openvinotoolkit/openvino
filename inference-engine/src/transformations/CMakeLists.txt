@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "inference_engine_transformations")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
@@ -23,13 +19,27 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+ie_faster_build(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "src/precomp.hpp"
+)
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine Transformations library")
+
 target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
-                                     PRIVATE openvino::itt ngraph::builder)
+                                     PRIVATE openvino::itt ngraph::builder pugixml)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+# LTO
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 

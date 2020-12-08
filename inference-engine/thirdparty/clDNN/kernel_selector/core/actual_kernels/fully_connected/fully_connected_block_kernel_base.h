@@ -24,7 +24,7 @@ public:
     virtual ~FullyConnectedBlockKernelBase() {}
 
 protected:
-    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
 
     // how many batches will a single work item compute
     virtual size_t GetBatchesPerWorkItem(const fully_connected_params& params) const;

@@ -46,6 +46,15 @@ def test_write_to_buffer_fp32():
     assert np.array_equal(blob.buffer, ones_arr)
 
 
+def test_write_to_buffer_fp64():
+    tensor_desc = TensorDesc("FP64", [1, 3, 127, 127], "NCHW")
+    array = np.zeros(shape=(1, 3, 127, 127), dtype=np.float64)
+    blob = Blob(tensor_desc, array)
+    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.float64)
+    blob.buffer[:] = ones_arr
+    assert np.array_equal(blob.buffer, ones_arr)
+
+
 @pytest.mark.skip(reason="Need to figure out how to implement right conversion")
 def test_write_to_buffer_fp16():
     tensor_desc = TensorDesc("FP16", [1, 3, 127, 127], "NCHW")
@@ -108,6 +117,15 @@ def test_write_to_buffer_int64():
     ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=np.int64)
     blob.buffer[:] = ones_arr
     assert np.array_equal(blob.buffer, ones_arr)
+
+
+def test_write_numpy_scalar_int64():
+    tensor_desc = TensorDesc("I64", [], "SCALAR")
+    scalar = np.array(0, dtype=np.int64)
+    blob = Blob(tensor_desc, scalar)
+    scalar_to_write = np.array(1, dtype=np.int64)
+    blob.buffer[:] = scalar_to_write
+    assert np.array_equal(blob.buffer, np.atleast_1d(scalar_to_write))
 
 
 def test_incompatible_array_and_td():

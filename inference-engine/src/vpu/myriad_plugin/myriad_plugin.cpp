@@ -17,15 +17,11 @@
 #include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset3.hpp>
-
-#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
-#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
+#include <ngraph/pass/manager.hpp>
 
 #include "generic_ie.hpp"
 
@@ -38,31 +34,14 @@ using namespace vpu::MyriadPlugin;
 
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-        const ICNNNetwork& network,
+        const CNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    auto clonedNetwork = cloneNetwork(network);
-    if (auto function = clonedNetwork->getFunction()) {
-        ngraph::op::GenericIE::DisableReshape noReshape(function);
-        ngraph::pass::Manager manager;
-        manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<vpu::DynamicToStaticShape>();
-        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
-        manager.run_passes(function);
-
-        ngraph::pass::Manager ti_manager;
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        ti_manager.run_passes(function);
-    }
-
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork,
-        _mvnc, _devicePool,
-        parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -88,11 +67,11 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     return result;
 }
 
-void Engine::QueryNetwork(
-        const ICNNNetwork& network,
-        const std::map<std::string, std::string>& config,
-        QueryNetworkResult& res) const {
+QueryNetworkResult Engine::QueryNetwork(
+        const CNNNetwork& network,
+        const std::map<std::string, std::string>& config) const {
     VPU_PROFILE(QueryNetwork);
+    QueryNetworkResult res;
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
@@ -121,7 +100,7 @@ void Engine::QueryNetwork(
         ngraph::NodeVector splits;
         ngraph::NodeVector concats;
 
-        const auto isLayerSupported = [this, &splitNames, &concatNames, &concats, &splits](CNNNetworkIterator& layer) -> bool {
+        const auto isLayerSupported = [this, &splitNames, &concatNames, &concats, &splits](InferenceEngine::details::CNNNetworkIterator& layer) -> bool {
                 auto node = (*layer)->getNode();
                 if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
                     splitNames.emplace(node->get_friendly_name());
@@ -138,8 +117,8 @@ void Engine::QueryNetwork(
                 }
         };
 
-        for (CNNNetworkIterator itLayer{convertedNetwork.get()};
-             itLayer != CNNNetworkIterator();
+        for (InferenceEngine::details::CNNNetworkIterator itLayer{convertedNetwork.get()};
+             itLayer != InferenceEngine::details::CNNNetworkIterator();
              itLayer++) {
             const auto fusedNode = (*itLayer)->getNode();
             if (fusedNode == nullptr) {
@@ -147,7 +126,7 @@ void Engine::QueryNetwork(
             }
 
             for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
-                if (contains(originalOps, fusedLayerName)) {
+                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (isLayerSupported(itLayer)) {
                         supported.emplace(fusedLayerName);
                     } else {
@@ -158,7 +137,7 @@ void Engine::QueryNetwork(
         }
 
         for (const auto& layerName : supported) {
-            if (contains(unsupported, layerName)) {
+            if (InferenceEngine::details::contains(unsupported, layerName)) {
                 supported.erase(layerName);
             }
         }
@@ -170,13 +149,13 @@ void Engine::QueryNetwork(
             const auto inputs = split->inputs();
             for (const auto& input : inputs) {
                 const auto& parentName = input.get_source_output().get_node()->get_friendly_name();
-                if (contains(supported, parentName) &&
-                    contains(splitNames, parentName)) {
+                if (InferenceEngine::details::contains(supported, parentName) &&
+                    InferenceEngine::details::contains(splitNames, parentName)) {
                     markParentSplitAsUnsupported(input.get_source_output().get_node_shared_ptr());
                 }
             }
             const auto& name = split->get_friendly_name();
-            if (contains(supported, name)) {
+            if (InferenceEngine::details::contains(supported, name)) {
                 supported.erase(name);
             }
         };
@@ -188,9 +167,9 @@ void Engine::QueryNetwork(
             for (const auto& output : outputs) {
                 for (const auto& consumer : output.get_target_inputs()) {
                     const auto& name = consumer.get_node()->get_friendly_name();
-                    if (!contains(supported, name) &&
-                        !contains(concatNames, name) &&
-                        !contains(splitNames, name)) {
+                    if (!InferenceEngine::details::contains(supported, name) &&
+                        !InferenceEngine::details::contains(concatNames, name) &&
+                        !InferenceEngine::details::contains(splitNames, name)) {
                         is_supported = false;
                         break;
                     }
@@ -210,8 +189,8 @@ void Engine::QueryNetwork(
             const auto inputs = concat->inputs();
             for (const auto& input : inputs) {
                 const auto& name = input.get_source_output().get_node()->get_friendly_name();
-                if (!contains(supported, name) &&
-                    !contains(concatNames, name)) {
+                if (!InferenceEngine::details::contains(supported, name) &&
+                    !InferenceEngine::details::contains(concatNames, name)) {
                     is_supported = false;
                     break;
                 }
@@ -222,7 +201,7 @@ void Engine::QueryNetwork(
         }
 
         for (const auto& node : function->get_ops()) {
-            if (contains(supported, node->get_friendly_name())) {
+            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
                 for (const auto& inputNodeOutput : node->input_values()) {
                     if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
@@ -258,6 +237,8 @@ void Engine::QueryNetwork(
             res.supportedLayersMap.insert({ layerName, GetName() });
         }
     }
+
+    return res;
 }
 
 Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
@@ -305,7 +286,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     return make_executable_network(executableNetwork);
 }
 
-IExecutableNetwork::Ptr Engine::ImportNetwork(
+InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);

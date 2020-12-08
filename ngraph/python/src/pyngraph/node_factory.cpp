@@ -49,7 +49,7 @@ namespace
         }
 
         std::shared_ptr<ngraph::Node> create(const std::string op_type_name,
-                                             const ngraph::NodeVector& arguments,
+                                             const ngraph::OutputVector& arguments,
                                              const py::dict& attributes = py::dict())
         {
             std::shared_ptr<ngraph::Node> op_node =
@@ -63,7 +63,7 @@ namespace
             if (op_type_name == "TensorIterator")
             {
                 // XXX: How to differentiate opsets?
-                return util::TensorIteratorBuilder(arguments, attributes)
+                return util::TensorIteratorBuilder(as_node_vector(arguments), attributes)
                     .configure(std::static_pointer_cast<ngraph::op::TensorIterator>(op_node));
             }
 
@@ -91,6 +91,7 @@ namespace
                 {"opset2", OpsetFunction(ngraph::get_opset2)},
                 {"opset3", OpsetFunction(ngraph::get_opset3)},
                 {"opset4", OpsetFunction(ngraph::get_opset4)},
+                {"opset5", OpsetFunction(ngraph::get_opset5)},
             };
 
             auto it = s_opsets.find(opset_ver);
@@ -101,7 +102,7 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset{ngraph::get_opset4()};
+        const ngraph::OpSet& m_opset{ngraph::get_opset5()};
     };
 }
 

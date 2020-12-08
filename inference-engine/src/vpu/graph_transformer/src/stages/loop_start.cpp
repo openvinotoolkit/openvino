@@ -60,7 +60,7 @@ protected:
         for (const auto& component : startCopies) {
             const auto& rule = component.first.second;
             auto axis = rule.axis;
-            auto axisInd = static_cast<int32_t>(input(component.first.first)->desc().dimsOrder().dimInd(axis));
+            auto axisInd = static_cast<int32_t>(input(static_cast<int>(component.first.first))->desc().dimsOrder().dimInd(axis));
 
             serializer.append(axisInd);
             serializer.append(rule.start);
@@ -78,8 +78,8 @@ protected:
         }
 
         for (const auto& iteration : startCopies) {
-            input(iteration.first.first)->serializeBuffer(serializer);
-            output(iteration.second)->serializeBuffer(serializer);
+            input(static_cast<int>(iteration.first.first))->serializeBuffer(serializer);
+            output(static_cast<int>(iteration.second))->serializeBuffer(serializer);
         }
     }
 };

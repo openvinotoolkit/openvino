@@ -20,6 +20,9 @@ using extractImagePatchesTuple = typename std::tuple<
         std::vector<size_t>,               // rates
         ngraph::op::PadType,               // pad type
         InferenceEngine::Precision,        // Network precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
         LayerTestsUtils::TargetDevice>;                      // Device name
 
 class ExtractImagePatchesTest : public testing::WithParamInterface<extractImagePatchesTuple>,

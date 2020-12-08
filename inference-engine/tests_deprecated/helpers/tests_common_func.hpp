@@ -8,7 +8,6 @@
 #include <fstream>
 #include <string>
 #include <legacy/details/ie_cnn_network_tools.h>
-#include "low_precision_transformations/network_helper.hpp"
 
 // use to display additional test info:
 //   1. low precision transformation parameters

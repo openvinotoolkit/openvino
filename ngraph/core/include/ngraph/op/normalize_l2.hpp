@@ -35,8 +35,8 @@ namespace ngraph
             class NGRAPH_API NormalizeL2 : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"NormalizeL2", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 NormalizeL2() = default;
                 ///
                 /// \brief      Constructs a Normalize operation.

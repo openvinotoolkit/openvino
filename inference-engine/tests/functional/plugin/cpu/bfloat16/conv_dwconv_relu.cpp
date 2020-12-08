@@ -127,7 +127,7 @@ TEST_P(ConvDWConvReLU, CompareWithRefImpl) {
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, ConvDWConvReLU,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvDWConvReLU,
                             ::testing::Combine(
                                     ::testing::Values(Precision::FP32),
                                     ::testing::Values(Precision::FP32),
@@ -136,7 +136,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, ConvDWConvReLU,
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvDWConvReLU::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, ConvDWConvReLU,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, ConvDWConvReLU,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

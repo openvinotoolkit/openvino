@@ -13,4 +13,5 @@ static auto params_myriad = ::testing::Combine(
         ::testing::Values(Precision::FP32, Precision::U8)  // TODO: What about U16/I8/FP16?
 );
 
-VPU_PLUGING_CASE_WITH_SUFFIX(_nightly, LayoutTTTest, params_myriad);
+// TODO: rewrite to ngraph to have reshape functionality
+// VPU_PLUGING_CASE_WITH_SUFFIX(_nightly, LayoutTTTest, params_myriad);

@@ -88,7 +88,7 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
                               \      |
                                \     |
                                Concat
-    In Left branch we have MemoryOffset with k > 0 so we wait until kth frame will be calcualted. In right branch
+    In Left branch we have MemoryOffset with k > 0 so we wait until kth frame will be calculated. In right branch
     we have no such offsets. As result we Concat (or use in any calculations with more than 1 input) kth frame from
     left branch and 0th from right branch. So we need to add synchronization before Concat node. it can be done with
     MemoryOffset(k) inserted before Concat.
@@ -100,8 +100,8 @@ class MemoryOffsetAdjustment(FrontReplacementSubgraph):
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_before(self):
-        from extensions.front.kaldi.split_memoryoffsets import SplitMemoryOffsets
-        return [SplitMemoryOffsets]
+        from extensions.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
+        return [SplitRecurrentMemoryOffset]
 
     def find_and_replace_pattern(self, graph: Graph):
         should_continue = False

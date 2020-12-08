@@ -65,7 +65,7 @@ ngraph::Shape& ngraph::Shape::operator=(const Shape& v)
 
 ngraph::Shape& ngraph::Shape::operator=(Shape&& v) noexcept
 {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
 

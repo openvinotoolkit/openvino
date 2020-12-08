@@ -10,7 +10,7 @@
 #include <ngraph/type/element_type.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/ops.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <limits>

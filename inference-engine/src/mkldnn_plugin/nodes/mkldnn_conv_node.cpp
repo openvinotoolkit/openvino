@@ -5,10 +5,8 @@
 #include "mkldnn_conv_node.h"
 #include "mkldnn_reorder_node.h"
 #include "mkldnn_input_node.h"
-#include "mkldnn_activation_node.h"
 #include "desc_iterator.hpp"
 #include "mkldnn_eltwise_node.h"
-#include "mkldnn_depthwise_node.h"
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_pooling_node.h"
 #include "mkldnn_concat_node.h"
@@ -110,6 +108,21 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     if (convLayer == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert convolution layer.";
 
+    withSum = false;
+    int expectedInputEdgesNum = baseInputsNumber;
+    for (int i = 0; i < fusedWith.size(); i++) {
+        auto *convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(fusedWith[i].get());
+        if (convolutionNode) {
+            expectedInputEdgesNum += convolutionNode->getBaseIntputsNumber() - 1;
+        }
+
+        auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+        if (eltwiseNode && eltwiseNode->isSum()) {
+            withSum = true;
+            expectedInputEdgesNum++;
+        }
+    }
+
     auto inputDataType = precisionToDataType(getCnnLayer()->insData[0].lock()->getPrecision());
     if (!inputZeroPoints.empty())
         inputDataType = memory::u8;
@@ -127,10 +140,10 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
         // We need to make sure that convolution output and second input of fused Eltwise operation
         // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale to FP32.
-        if (outputDataType != memory::f32 && outputDataType != memory::bf16 && isFusedWith(Eltwise)) {
+        if (outputDataType != memory::f32 && outputDataType != memory::bf16 && withSum) {
             for (int i = 0; i < fusedWith.size(); i++) {
                 auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
-                if (eltwiseNode) {
+                if (eltwiseNode && eltwiseNode->isSum()) {
                     eltwisePrecision = fusedEltwisePrecision(eltwiseNode, i);
                     if (MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType).size() != eltwisePrecision.size()) {
                         eltwisePrecision = Precision::FP32;
@@ -139,14 +152,6 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                     break;
                 }
             }
-        }
-    }
-
-    int expectedInputEdgesNum = baseInputsNumber + isFusedWith(Eltwise);
-    for (int i = 0; i < fusedWith.size(); i++) {
-        auto *convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(fusedWith[i].get());
-        if (convolutionNode) {
-            expectedInputEdgesNum += convolutionNode->getBaseIntputsNumber() - 1;
         }
     }
 
@@ -232,7 +237,6 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
     MKLDNNDims weightsDims = MKLDNNDims(weightDims);
 
-    withSum = isFusedWith(Eltwise);
     withDWConv = isFusedWith(Convolution);
 
     for (int i = 0; i < fusedWith.size(); i++) {
@@ -287,7 +291,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         eltwisePrecision = Precision::FP32;
         for (int i = 0; i < fusedWith.size(); i++) {
             auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
-            if (eltwiseNode) {
+            if (eltwiseNode && eltwiseNode->isSum()) {
                 eltwisePrecision = fusedEltwisePrecision(eltwiseNode, i);
                 // TODO(amalyshe): there might be situation when convolution can be executed in BF16,
                 // output is required in FP32 but eltwise inplace tensor would be in BF16
@@ -364,93 +368,16 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
         if (node->getType() == Split || node->getType() == Concatenation)
             continue;
 
-#if defined (COMPILED_CPU_MKLDNN_ELTWISE_NODE)
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode) {
-            if (eltwiseNode->getCnnLayer()->precision == Precision::I8) {
-                auto it = eltwiseNode->getCnnLayer()->blobs.find("eltwise-sum-scale");
-                if (it != eltwiseNode->getCnnLayer()->blobs.end()) {
-                    // currently there is the only one scale while we need scale by channel :(
-                    ops.append_sum(it->second->buffer().as<float*>()[0], mkldnn::memory::convert_to_c(precisionToDataType(eltwisePrecision)));
-                }
-            } else {
+        if (eltwiseNode && eltwiseNode->isSum()) {
                 ops.append_sum(1.0, mkldnn::memory::convert_to_c(precisionToDataType(eltwisePrecision)));
-            }
-
             continue;
         }
-#endif
 
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(),
-                               activationNode->getBeta());
+        if (eltwiseNode) {
+            eltwiseNode->appendPostOps(ops);
             continue;
         }
-#endif
-
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
-        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
-        if (depthwiseNode) {
-            auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
-
-            if (initWeights) {
-                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
-
-                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
-                PostOpsIntBlobMemory[blob_idx]->FillZero();
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
-                                                             depthwiseLayer->_weights->buffer(),
-                                                             depthwiseLayer->_weights->size() *
-                                                             MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                if (depthwiseNode->isBroadcast()) {
-                    float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
-                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                        static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
-                    }
-                }
-
-                if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
-                    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
-                                                                memory::format::x);
-                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                 depthwiseLayer->_biases->buffer(),
-                                                                 depthwiseLayer->_biases->size() *
-                                                                 MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                    if (depthwiseNode->isBroadcast()) {
-                        float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
-                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                            static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
-                        }
-                    }
-
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
-
-                    blob_idx += 2;
-                } else {
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         nullptr);
-
-                    blob_idx += 1;
-                }
-            } else {
-                ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                     nullptr,
-                                     nullptr);
-            }
-
-            continue;
-        }
-#endif
 
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
         if (quantizeNode) {

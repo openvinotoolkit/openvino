@@ -32,9 +32,23 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes)
     ngraph::Node::RTMap newInfo;
     for (auto& item : mergedInfo)
     {
-        if (auto merge_attr = item.second->merge(nodes))
+        size_t attributes_count = 0;
+        for (auto& node : nodes)
         {
-            newInfo[item.second->get_type_info().name] = merge_attr;
+            const auto& rt_info = node->get_rt_info();
+            if (rt_info.count(item.first))
+            {
+                attributes_count++;
+            }
+        }
+
+        if (attributes_count == 1)
+        {
+            newInfo[item.first] = item.second;
+        }
+        else if (auto merge_attr = item.second->merge(nodes))
+        {
+            newInfo[item.first] = merge_attr;
         }
     }
 

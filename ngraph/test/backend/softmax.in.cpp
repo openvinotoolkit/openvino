@@ -35,72 +35,16 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_dynamic_axes)
-{
-    Shape shape_A{2, 3};
-    Shape shape_B{2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_A);
-    auto B = make_shared<op::Parameter>(element::i64, shape_B);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, B), ParameterVector{A, B});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
-
-    auto a = backend->create_tensor(element::f32, shape_A);
-    auto b = backend->create_tensor(element::i64, shape_B);
-    copy_data(a, vector<float>{-3, -2, -1, 0, 1, 2});
-    copy_data(b, vector<int64_t>{0, 1});
-    auto result = backend->create_tensor(element::f32, shape_A);
-
-    auto d = expf(-3) + expf(-2) + expf(-1) + expf(0) + expf(1) + expf(2);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    vector<float> expected{
-        expf(-3) / d, expf(-2) / d, expf(-1) / d, expf(0) / d, expf(1) / d, expf(2) / d};
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, softmax_all)
-{
-    Shape shape{2, 3};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{0, 1}), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{-3, -2, -1, 0, 1, 2});
-    auto result = backend->create_tensor(element::f32, shape);
-
-    auto d = expf(-3) + expf(-2) + expf(-1) + expf(0) + expf(1) + expf(2);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    vector<float> expected{
-        expf(-3) / d, expf(-2) / d, expf(-1) / d, expf(0) / d, expf(1) / d, expf(2) / d};
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
-
-    // empty AxisSet is the same as "full" AxisSet
-    f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{}), ParameterVector{A});
-    backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto h1 = backend->compile(f);
-    h1->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d)
 {
     Shape shape{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{0}), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -137,7 +81,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double)
 {
     Shape shape{2, 2, 3};
     auto A = make_shared<op::Parameter>(element::f64, shape);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{0}), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -170,11 +114,11 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_double)
     EXPECT_TRUE(test::all_close(expected, read_vector<double>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_axis)
+NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_1)
 {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{1}), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 1), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -196,11 +140,11 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis)
     EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_2)
+NGRAPH_TEST(${BACKEND_NAME}, softmax_2d_axis_0)
 {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{0}), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -227,7 +171,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_axis_3d_trivial)
 {
     Shape shape{1, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{0}), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -245,7 +189,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_underflow)
 {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{0}), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -270,7 +214,7 @@ NGRAPH_TEST(${BACKEND_NAME}, softmax_overflow)
 {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Softmax>(A, AxisSet{0}), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::Softmax>(A, 0), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

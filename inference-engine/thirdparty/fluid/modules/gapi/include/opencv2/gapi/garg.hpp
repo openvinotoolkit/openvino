@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GARG_HPP
@@ -46,6 +46,7 @@ public:
     template<typename T, typename std::enable_if<!detail::is_garg<T>::value, int>::type = 0>
     explicit GArg(const T &t)
         : kind(detail::GTypeTraits<T>::kind)
+        , opaque_kind(detail::GOpaqueTraits<T>::kind)
         , value(detail::wrap_gapi_helper<T>::wrap(t))
     {
     }
@@ -53,6 +54,7 @@ public:
     template<typename T, typename std::enable_if<!detail::is_garg<T>::value, int>::type = 0>
     explicit GArg(T &&t)
         : kind(detail::GTypeTraits<typename std::decay<T>::type>::kind)
+        , opaque_kind(detail::GOpaqueTraits<typename std::decay<T>::type>::kind)
         , value(detail::wrap_gapi_helper<T>::wrap(t))
     {
     }
@@ -78,6 +80,7 @@ public:
     }
 
     detail::ArgKind kind = detail::ArgKind::OPAQUE_VAL;
+    detail::OpaqueKind opaque_kind = detail::OpaqueKind::CV_UNKNOWN;
 
 protected:
     util::any value;
@@ -89,16 +92,32 @@ using GArgs = std::vector<GArg>;
 // FIXME: Move to a separate file!
 using GRunArg  = util::variant<
 #if !defined(GAPI_STANDALONE)
-    cv::Mat,
     cv::UMat,
 #endif // !defined(GAPI_STANDALONE)
     cv::gapi::wip::IStreamSource::Ptr,
-    cv::gapi::own::Mat,
+    cv::Mat,
     cv::Scalar,
     cv::detail::VectorRef,
     cv::detail::OpaqueRef
     >;
 using GRunArgs = std::vector<GRunArg>;
+
+// TODO: Think about the addition operator
+/**
+ * @brief This operator allows to complement the input vector at runtime.
+ *
+ * It's an ordinary overload of addition assignment operator.
+ *
+ * Example of usage:
+ * @snippet dynamic_graph.cpp GRunArgs usage
+ *
+ */
+inline GRunArgs& operator += (GRunArgs &lhs, const GRunArgs &rhs)
+{
+    lhs.reserve(lhs.size() + rhs.size());
+    lhs.insert(lhs.end(), rhs.begin(), rhs.end());
+    return lhs;
+}
 
 namespace gapi
 {
@@ -122,15 +141,37 @@ struct Data: public GRunArg
 
 using GRunArgP = util::variant<
 #if !defined(GAPI_STANDALONE)
-    cv::Mat*,
     cv::UMat*,
 #endif // !defined(GAPI_STANDALONE)
-    cv::gapi::own::Mat*,
+    cv::Mat*,
     cv::Scalar*,
     cv::detail::VectorRef,
     cv::detail::OpaqueRef
     >;
 using GRunArgsP = std::vector<GRunArgP>;
+
+// TODO: Think about the addition operator
+/**
+ * @brief This operator allows to complement the output vector at runtime.
+ *
+ * It's an ordinary overload of addition assignment operator.
+ *
+ * Example of usage:
+ * @snippet dynamic_graph.cpp GRunArgsP usage
+ *
+ */
+inline GRunArgsP& operator += (GRunArgsP &lhs, const GRunArgsP &rhs)
+{
+    lhs.reserve(lhs.size() + rhs.size());
+    lhs.insert(lhs.end(), rhs.begin(), rhs.end());
+    return lhs;
+}
+
+namespace gapi
+{
+    GAPI_EXPORTS cv::GRunArgsP bind(cv::GRunArgs &results);
+    GAPI_EXPORTS cv::GRunArg   bind(cv::GRunArgP &out);     // FIXME: think more about it
+}
 
 template<typename... Ts> inline GRunArgs gin(const Ts&... args)
 {

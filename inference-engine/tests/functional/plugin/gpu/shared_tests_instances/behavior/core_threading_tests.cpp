@@ -13,6 +13,7 @@ namespace {
 Params params[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(CACHE_DIR), "cache" }}},
 };
 
 }  // namespace
@@ -46,9 +47,9 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     }, numIterations, numThreads);
 }
 
-INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_GPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTestsWithIterations,
+INSTANTIATE_TEST_CASE_P(smoke_GPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(4),
                      testing::Values(20)),

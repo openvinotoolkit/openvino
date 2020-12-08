@@ -144,7 +144,7 @@ class SmartInputMatcher(MiddleReplacementPattern):
             if shape['kind'] == 'op' and shape['op'] == 'Const':
                 start = 0
                 end = shape.value[0]
-                log.warning("You network cannot be reshaped since shapes of placeholders is a contants."
+                log.warning("Your network cannot be reshaped since shapes of placeholders are constants."
                             "Please, provide non-constant shapes. ")
 
         # Create input node with params

@@ -104,6 +104,10 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
     auto src_ptr = get_data(values);
 
     switch (blob->getTensorDesc().getPrecision()) {
+        case InferenceEngine::Precision::U64:
+        case InferenceEngine::Precision::I64:
+            copy_7D<uint64_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
+            break;
         case InferenceEngine::Precision::FP32:
         case InferenceEngine::Precision::I32:
             copy_7D<uint32_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
@@ -187,6 +191,12 @@ InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &b
     auto new_tdesc = TensorDesc(blob->getTensorDesc().getPrecision(), new_shape, TensorDesc::getLayoutByDims(new_shape));
     auto new_blob = make_blob_with_precision(new_tdesc, orig_ptr);
     return new_blob;
+}
+
+size_t byte_size(const InferenceEngine::TensorDesc &tdesc) {
+    auto prc = tdesc.getPrecision();
+    auto dims = tdesc.getDims();
+    return prc.size() * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
 }
 
 /**

@@ -12,18 +12,22 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
-typedef std::vector<size_t> TileSpecificParams;
+namespace LayerTestsDefinitions {
+
+typedef std::vector<int64_t> TileSpecificParams;
 typedef std::tuple<
         TileSpecificParams,
         InferenceEngine::Precision,    // Net precision
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
+        InferenceEngine::Layout,       // Input layout
+        InferenceEngine::Layout,       // Output layout
         InferenceEngine::SizeVector,   // Input shapes
         LayerTestsUtils::TargetDevice  // Device name
 > TileLayerTestParamsSet;
 
-namespace LayerTestsDefinitions {
-
 class TileLayerTest : public testing::WithParamInterface<TileLayerTestParamsSet>,
-                      public LayerTestsUtils::LayerTestsCommon {
+                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<TileLayerTestParamsSet> obj);
 

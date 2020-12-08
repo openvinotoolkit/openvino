@@ -37,9 +37,6 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::softmax_forward::desc> desc);
     operator std::shared_ptr<mkldnn::softmax_forward::desc>();
 
-    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::depthwise_forward::desc> desc);
-    operator std::shared_ptr<mkldnn::depthwise_forward::desc>();
-
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::rnn_forward::desc> desc);
     operator std::shared_ptr<mkldnn::rnn_forward::desc>();
 

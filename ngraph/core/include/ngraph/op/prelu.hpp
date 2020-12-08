@@ -35,8 +35,7 @@ namespace ngraph
             class NGRAPH_API PRelu : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"PRelu", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 PRelu() = default;
                 /// \brief Constructs a PRelu operation.
                 ///

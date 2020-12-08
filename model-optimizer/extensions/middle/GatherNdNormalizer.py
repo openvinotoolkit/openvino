@@ -25,11 +25,14 @@ from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.reshape import Reshape
 
 
-class GatherNdNormalize(MiddleReplacementPattern):
+class GatherNDNormalize(MiddleReplacementPattern):
     """
     Hot fix for new speech-to-text model enabling while GatherND is not implemented in IE.
-    We can replace GatherNd to Reshape + Gather in case when GatherNd indices have just one
+    We can replace GatherND to Reshape + Gather in case when GatherND indices have just one
     meaningful dimension.
+    TODO: Investigate whether we must replace GatherND with Reshape + Gather always (due to performance benefits)
+          for this particular case or only if the plugin does not support GatherND.
+          And the best place for the transformation is nGraph so we need to move it.
     """
     enabled = True
     force_clean_up = True
@@ -44,7 +47,7 @@ class GatherNdNormalize(MiddleReplacementPattern):
 
     def pattern(self):
         return dict(
-            nodes=[('GatherNd', dict(kind='op', op='GatherNd'))],
+            nodes=[('GatherND', dict(kind='op', op='GatherND', batch_dims=0))],
             edges=[]
         )
 
@@ -67,7 +70,7 @@ class GatherNdNormalize(MiddleReplacementPattern):
         return non_zero
 
     def replace_pattern(self, graph: Graph, match: dict):
-        gather = match['GatherNd']
+        gather = match['GatherND']
         gather_name = gather.soft_get('name', gather.id)
         input_shape = gather.in_node(0).shape
         indices = gather.in_node(1).value
@@ -75,16 +78,16 @@ class GatherNdNormalize(MiddleReplacementPattern):
             # We can't do such special pass without indices value
             return
 
-        # 0. All needed checks that we can replace GatherNd by Gather
+        # 0. All needed checks that we can replace GatherND by Gather
         gather_idx = self.indices_check(indices, input_shape)
         if gather_idx is None:
-            log.warning('Node {} with op=GatherNd  can\'t be normalized to op=Gather.'.format(gather_name))
+            log.warning('Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
             return
 
         # 1. Add Reshape and connect
         new_shape = int64_array([-1] + list(input_shape[indices.shape[-1]:]))
         reshape = create_op_node_with_second_input(graph, Reshape, new_shape,
-                                                   {'name': gather_name + '/Reshape_for_GatherNd/'})
+                                                   {'name': gather_name + '/Reshape_for_GatherND/'})
         gather.in_port(0).get_connection().set_destination(reshape.in_port(0))
 
         # 2. Change indices from Nd to 1d:

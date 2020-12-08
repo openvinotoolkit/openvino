@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include <iostream>
 #include "quantize_kernel_ref.h"
 #include "kernel_selector_utils.h"
 #include <string>
@@ -41,35 +39,33 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
 }
 
 CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
     auto output = params.output;
 
     if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
-        runInfo.gws0 = output.Batch().v;
-        runInfo.gws1 = Align(output.Feature().v, sub_group_size);
-        runInfo.gws2 = output.Y().v * output.X().v * output.Z().v;
+        dispatchData.gws[0] = output.Batch().v;
+        dispatchData.gws[1] = Align(output.Feature().v, sub_group_size);
+        dispatchData.gws[2] = output.Y().v * output.X().v * output.Z().v;
 
-        runInfo.lws0 = 1;
-        runInfo.lws1 = sub_group_size;
-        runInfo.lws2 = 1;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = sub_group_size;
+        dispatchData.lws[2] = 1;
     } else {
-        runInfo.gws0 = output.Batch().v;
-        runInfo.gws1 = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
-        runInfo.gws2 = Align(output.X().v * output.Y().v * output.Z().v, 16);
+        dispatchData.gws[0] = output.Batch().v;
+        dispatchData.gws[1] = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
+        dispatchData.gws[2] = Align(output.X().v * output.Y().v * output.Z().v, 16);
 
-        runInfo.lws0 = 1;
-        runInfo.lws1 = 1;
-        runInfo.lws2 = 16;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 16;
     }
 
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params, const CommonDispatchData& runInfo) const {
-    JitConstants jit = Parent::GetJitConstants(params, runInfo);
+JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     }

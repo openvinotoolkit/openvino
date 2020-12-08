@@ -65,7 +65,7 @@ std::vector<DataType> precisions = {
         ngraph::element::i32
 };
 
-INSTANTIATE_TEST_CASE_P(StridedSlice, DSR_StridedSlice,
+INSTANTIATE_TEST_CASE_P(smoke_StridedSlice, DSR_StridedSlice,
                         ::testing::Combine(
                             ::testing::ValuesIn(testCases),
                             ::testing::ValuesIn(precisions),

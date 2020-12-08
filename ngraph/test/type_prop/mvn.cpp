@@ -34,12 +34,12 @@ TEST(type_prop, mvn_partial)
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto mvn_func = make_shared<op::MVN>(data);
     EXPECT_EQ(mvn_func->get_element_type(), element::f32);
-    EXPECT_EQ(mvn_func->get_reduction_axes(), (AxisSet{0, 1, 2}));
+    EXPECT_EQ(mvn_func->get_reduction_axes(), (AxisSet{1, 2}));
     ASSERT_TRUE(mvn_func->get_output_partial_shape(0).same_scheme(
         (PartialShape{1, Dimension::dynamic(), 6})));
 
     // across_channels = false
-    EXPECT_EQ(make_shared<op::MVN>(data, false)->get_reduction_axes(), (AxisSet{0, 2}));
+    EXPECT_EQ(make_shared<op::MVN>(data, false)->get_reduction_axes(), (AxisSet{2}));
 
     // rank unknown
     auto mvn_partial =

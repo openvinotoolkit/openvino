@@ -14,11 +14,15 @@
 namespace LayerTestsDefinitions {
 
 using spaceToBatchParamsTuple = typename std::tuple<
-        std::vector<size_t>,               // block_shape
-        std::vector<size_t>,               // pads_begin
-        std::vector<size_t>,               // pads_end
+        std::vector<int64_t>,               // block_shape
+        std::vector<int64_t>,               // pads_begin
+        std::vector<int64_t>,               // pads_end
         std::vector<size_t>,               // Input shapes
         InferenceEngine::Precision,        // Network precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name>;
 
 class SpaceToBatchLayerTest : public testing::WithParamInterface<spaceToBatchParamsTuple>,

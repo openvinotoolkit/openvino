@@ -20,8 +20,13 @@ using concatParamsTuple = typename std::tuple<
         size_t,                            // Concat axis
         std::vector<std::vector<size_t>>,  // Input shapes
         InferenceEngine::Precision,        // Network precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name
 
+// Multichannel
 class ConcatLayerTest : public testing::WithParamInterface<concatParamsTuple>,
                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:

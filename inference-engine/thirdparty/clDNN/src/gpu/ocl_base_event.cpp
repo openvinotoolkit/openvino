@@ -102,59 +102,90 @@ bool base_event::get_profiling_info_impl(std::list<instrumentation::profiling_in
 }
 
 void base_events::wait_impl() {
-    if (!_events.empty()) {
-        for (size_t i = 0; i < _events.size(); i++) {
-            _events[i]->wait();
+    if (_last_ocl_event.get() != nullptr) {
+        _last_ocl_event.wait();
+        if (get_context()->logging_enabled()) {
+            get_context()->log(0, "Wait for event: " + std::to_string(_queue_stamp));
         }
     }
 }
 
 bool base_events::is_set_impl() {
-    if (!_events.empty()) {
-        for (size_t i = 0; i < _events.size(); i++) {
-            if (!_events[i]->is_set())
-                return false;
-        }
-        return true;
+    if (_last_ocl_event.get() != nullptr) {
+        return _last_ocl_event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
     }
     return true;
 }
 
 bool base_events::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
-    cl_ulong min_queue = CL_ULONG_MAX;
-    cl_ulong min_sub = CL_ULONG_MAX;
-    cl_ulong min_start = CL_ULONG_MAX;
-    uint64_t execution_time = 0;
+
+    // For every profiling period (i.e. submission / starting / executing),
+    // the goal is to sum up all disjoint durations of its projection on the time axis
+
+    std::map<std::string, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
 
     for (size_t i = 0; i < _events.size(); i++) {
         auto be = dynamic_cast<base_event*>(_events[i].get());
         if (!is_event_profiled(be->_event))
             continue;
 
-        cl_ulong curr_queue;
-        cl_ulong curr_sub;
-        cl_ulong curr_start;
-        cl_ulong curr_end;
-        be->_event.getProfilingInfo(CL_PROFILING_COMMAND_QUEUED, &curr_queue);
-        be->_event.getProfilingInfo(CL_PROFILING_COMMAND_SUBMIT, &curr_sub);
-        be->_event.getProfilingInfo(CL_PROFILING_COMMAND_START, &curr_start);
-        be->_event.getProfilingInfo(CL_PROFILING_COMMAND_END, &curr_end);
+        for (auto& period : profiling_periods) {
+            cl_ulong ev_start;
+            cl_ulong ev_end;
+            be->_event.getProfilingInfo(period.start, &ev_start);
+            be->_event.getProfilingInfo(period.stop, &ev_end);
+            auto ev_duration = std::make_pair(static_cast<unsigned long long>(ev_start),
+                                              static_cast<unsigned long long>(ev_end));
 
-        if (curr_queue < min_queue)
-            min_queue = curr_queue;
+            auto& durations = all_durations[period.name];
+            bool ev_duration_merged = false;
+            auto it = durations.begin();
 
-        if (curr_sub < min_sub)
-            min_sub = curr_sub;
+            while (it != durations.end()) {
+                auto& duration = *it;
+                if ((duration.second >= ev_duration.first) && (duration.first <= ev_duration.second)) {
+                    if ((duration.first == ev_duration.first) && (duration.second == ev_duration.second)) {
+                        if (!ev_duration_merged) {
+                            ev_duration_merged = true;
+                            break;
+                        } else {
+                            it = durations.erase(it);
+                        }
+                    } else {
+                        if (!ev_duration_merged) {
+                            duration.first = std::min(duration.first, ev_duration.first);
+                            duration.second = std::max(duration.second, ev_duration.second);
+                            ev_duration = duration;
+                            ev_duration_merged = true;
+                            it++;
+                        } else {
+                            if (duration.second > ev_duration.second) {
+                                ev_duration.second = duration.second;
+                                it--;
+                                it->second = ev_duration.second;
+                                it++;
+                            }
+                            it = durations.erase(it);
+                        }
+                    }
+                } else {
+                    it++;
+                }
+            }
 
-        if (curr_start < min_start)
-            min_start = curr_start;
-
-        execution_time += curr_end - curr_start;
+            if (!ev_duration_merged) {
+                durations.insert(it, ev_duration);
+            }
+        }
     }
 
-    info.push_back(get_profiling_interval(profiling_periods[0].name, min_sub, min_queue));
-    info.push_back(get_profiling_interval(profiling_periods[1].name, min_start, min_sub));
-    info.push_back(get_profiling_interval(profiling_periods[2].name, 0, execution_time));
+    for (auto& period : profiling_periods) {
+        unsigned long long sum = 0;
+        for (auto& duration : all_durations[period.name]) {
+            sum += (duration.second - duration.first);
+        }
+        info.push_back(get_profiling_interval(period.name, 0, sum));
+    }
 
     return true;
 }

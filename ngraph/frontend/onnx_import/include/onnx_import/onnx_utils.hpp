@@ -44,6 +44,17 @@ namespace ngraph
                                const std::string& domain,
                                Operator fn);
 
+        /// \brief      Unregisters ONNX custom operator.
+        ///             The function unregisters previously registered operator.
+        ///
+        /// \param      name      The ONNX operator name.
+        /// \param      version   The ONNX operator set version.
+        /// \param      domain    The domain the ONNX operator is registered to.
+        ONNX_IMPORTER_API
+        void unregister_operator(const std::string& name,
+                                 std::int64_t version,
+                                 const std::string& domain);
+
     } // namespace onnx_import
 
 } // namespace ngraph

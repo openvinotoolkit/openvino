@@ -55,6 +55,9 @@ function(ie_add_plugin)
     add_library(${IE_PLUGIN_NAME} SHARED ${input_files})
     target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
+    ie_add_vs_version_file(NAME ${TARGET_NAME}
+                           FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
+
     if(TARGET IE::inference_engine_plugin_api)
         target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine_plugin_api)
     else()
@@ -103,7 +106,6 @@ function(ie_add_plugin)
 
         install(TARGETS ${IE_PLUGIN_NAME}
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${install_component}
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${install_component}
             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${install_component})
     endif()
 endfunction()

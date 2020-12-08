@@ -144,8 +144,7 @@ void CompileEnv::free() {
 
 namespace {
 
-CompiledGraph::Ptr compileImpl(ie::ICNNNetwork& network,
-                               const ie::ICore* core) {
+CompiledGraph::Ptr compileImpl(const ie::ICNNNetwork& network, const ie::ICore* core) {
     const auto& env = CompileEnv::get();
 
     env.log->debug("Compile network [%s]", network.getName());
@@ -193,12 +192,8 @@ CompiledGraph::Ptr compileImpl(const Model& model) {
 
 }  // namespace
 
-CompiledGraph::Ptr compileNetwork(
-        ie::ICNNNetwork& network,
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log,
-        const ie::ICore* core) {
+CompiledGraph::Ptr compileNetwork(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+    const ie::ICore* core) {
     CompileEnv::init(platform, config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
@@ -224,10 +219,7 @@ CompiledGraph::Ptr compileModel(
     return compileImpl(model);
 }
 
-CompiledGraph::Ptr compileSubNetwork(
-        ie::ICNNNetwork& network,
-        const CompilationConfig& subConfig,
-        const ie::ICore* core) {
+CompiledGraph::Ptr compileSubNetwork(const ie::ICNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core) {
     VPU_PROFILE(compileSubNetwork);
 
     const auto& env = CompileEnv::get();
@@ -261,10 +253,7 @@ std::set<std::string> getSupportedLayers(
 
     auto stageBuilder = std::make_shared<StageBuilder>();
     auto frontEnd = std::make_shared<FrontEnd>(stageBuilder, core);
-
-    auto clonedNetworkImpl = ie::cloneNet(network);
-
-    return frontEnd->checkSupportedLayers(*clonedNetworkImpl);
+    return frontEnd->checkSupportedLayers(network);
 }
 
 int DeviceResources::numShaves(const Platform& platform) {

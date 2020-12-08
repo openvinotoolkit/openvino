@@ -50,21 +50,12 @@ protected:
         m_parameterVector.push_back(inDataShapeParam);
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
-                inDataParam, inDataShapeParam);
+                inDataParam, inDataShapeParam, ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE);
 
         return dsr;
     }
 
     virtual std::shared_ptr<ngraph::Node> createTestedOp() = 0;
-
-    void switchDSRMode(const ngraph::vpu::op::DynamicShapeResolverMode& mode) {
-        for (const auto& op : function->get_ordered_ops()) {
-            if (const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(op)) {
-                dsr->setMode(mode);
-            }
-        }
-        function->validate_nodes_and_infer_types();
-    }
 
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
@@ -74,23 +65,15 @@ protected:
         }
 
         const auto testedOp = createTestedOp();
-        const auto result = std::make_shared<ngraph::opset3::Result>(testedOp);
+        ngraph::ResultVector results{};
+        for (const auto& output : testedOp->outputs()) {
+            results.emplace_back(std::make_shared<ngraph::opset3::Result>(output));
+        }
 
         function = std::make_shared<ngraph::Function>(
-                ngraph::NodeVector{result},
+                results,
                 m_parameterVector,
                 "DSR-" + std::string(testedOp->get_type_name()));
-
-        // Get the output shape as if it was in a graph with dynamism
-        switchDSRMode(ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE);
-        const auto outputDynamicShape = testedOp->get_output_partial_shape(0);
-
-        // Switch DSR mode back to INFER_UPPER_BOUND_SHAPE but set dynamic output shape for tested op.
-        // It is needed to trigger appropriate DTS transformation.
-        switchDSRMode(ngraph::vpu::op::DynamicShapeResolverMode::INFER_UPPER_BOUND_SHAPE);
-        testedOp->set_output_type(0, testedOp->get_input_element_type(0), outputDynamicShape);
-
-        ::vpu::DynamicToStaticShape().run_on_function(function);
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
@@ -108,12 +91,6 @@ protected:
         }
 
         return blob;
-    }
-
-    void Validate() override {
-        switchDSRMode(ngraph::vpu::op::DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE);
-        LayerTestsCommon::Validate();
-        switchDSRMode(ngraph::vpu::op::DynamicShapeResolverMode::INFER_UPPER_BOUND_SHAPE);
     }
 };
 

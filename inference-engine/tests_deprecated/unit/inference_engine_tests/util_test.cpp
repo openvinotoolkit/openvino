@@ -100,7 +100,7 @@ TEST(UtilTests, cloneLayers) {
 namespace {
 IE::CNNLayerPtr getLayer(const IE::details::CNNNetworkImplPtr n,
                          const char* name) {
-    if (contains(n->allLayers(), name)) {
+    if (InferenceEngine::details::contains(n->allLayers(), name)) {
         return n->allLayers().find(name)->second;
     }
     return nullptr;
@@ -464,7 +464,7 @@ TEST(UtilTests, cloneNet_const) {
     ASSERT_EQ("custom_val3", getLayer(cloned, "input3")->params["custom_param3"]);
 }
 
-TEST(UtilTests, getRootDataObjects) {
+TEST(UtilTests, DISABLED_getRootDataObjects) {
     //
     // I1-d1-L1-d7
     //            \

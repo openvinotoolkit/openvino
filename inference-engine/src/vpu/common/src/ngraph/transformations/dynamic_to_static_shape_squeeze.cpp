@@ -5,6 +5,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_squeeze.hpp"
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include "vpu/ngraph/utilities.hpp"
 #include <vpu/utils/error.hpp>
 
 #include "ngraph/graph_util.hpp"
@@ -18,6 +19,10 @@
 namespace vpu {
 
 void dynamicToStaticShapeSqueeze(std::shared_ptr<ngraph::Node> target) {
+    const auto squeeze = ngraph::as_type_ptr<ngraph::opset3::Squeeze>(target);
+    VPU_THROW_UNLESS(squeeze, "dynamicToStaticShapeSqueeze transformation is not applicable for {}, it should be {} instead",
+                     target, ngraph::opset3::Squeeze::type_info);
+
     const auto dsr = target->input_value(0).get_node_shared_ptr();
     VPU_THROW_UNLESS(std::dynamic_pointer_cast<ngraph::vpu::op::DynamicShapeResolver>(dsr),
         "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
@@ -27,7 +32,6 @@ void dynamicToStaticShapeSqueeze(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(axes, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
         target->get_friendly_name(), target->get_type_info(), ngraph::op::Constant::type_info, 1);
 
-    const auto squeeze = std::dynamic_pointer_cast<ngraph::opset3::Squeeze>(target);
     const auto copied = squeeze->clone_with_new_inputs(target->input_values());
     const auto shape = dsr->input(1).get_source_output();
 

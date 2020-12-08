@@ -5,6 +5,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_strided_slice.hpp"
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include "vpu/ngraph/utilities.hpp"
 #include <vpu/utils/error.hpp>
 
 #include "ngraph/graph_util.hpp"
@@ -37,12 +38,12 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
 
     VPU_THROW_UNLESS(begin.size() == end.size() && begin.size() == strides.size(),
         "Begin, end and strides inputs must be of the same size, but {}, {} and {} given accordingly", begin.size(), end.size(), strides.size());
-    const auto inputShapeRank = input_shape.get_partial_shape()[0].get_length();
+    const auto inputShapeRank = static_cast<size_t>(input_shape.get_partial_shape()[0].get_length());
     VPU_THROW_UNLESS(inputShapeRank >= begin.size(),
         "Input shape rank must not be less than begin/end/strides size, but {} and {} given accordingly", inputShapeRank, begin.size());
 
     ngraph::OutputVector output_dimensions;
-    for (int64_t axis = 0; axis < begin.size(); ++axis) {
+    for (size_t axis = 0; axis < begin.size(); ++axis) {
         auto lb = begin[axis], ub = end[axis], stride = strides[axis];
 
         ngraph::Output<ngraph::Node> lower_bound = ngraph::opset3::Constant::create(shape_type, {1}, {lb});
@@ -108,14 +109,7 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
     }
 
     if (output_dimensions.size() < inputShapeRank) {
-        std::vector<std::int64_t> indices(inputShapeRank - output_dimensions.size());
-        std::iota(indices.begin(), indices.end(), static_cast<std::int64_t>(output_dimensions.size()));
-
-        const auto tail = std::make_shared<ngraph::opset3::Gather>(
-            input_shape,
-            ngraph::opset3::Constant::create(ngraph::element::i64, {indices.size()}, indices),
-            ngraph::opset3::Constant::create(shape_type, {}, {0}));
-        output_dimensions.push_back(tail);
+        output_dimensions.push_back(gatherShapeElements(input_shape, output_dimensions.size(), inputShapeRank - output_dimensions.size()));
     }
 
     VPU_THROW_UNLESS(output_dimensions.size() == inputShapeRank,

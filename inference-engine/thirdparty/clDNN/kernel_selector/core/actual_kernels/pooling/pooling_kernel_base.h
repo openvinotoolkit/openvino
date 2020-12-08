@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -54,9 +54,9 @@ struct pooling_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PoolingKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class PoolingKernelBase : public common_kernel_base {
+class PoolingKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~PoolingKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
@@ -65,7 +65,7 @@ public:
 
 protected:
     bool Validate(const Params&, const optional_params&) const override;
-    virtual JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const pooling_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
     Datatype GetAccumulatorType(const pooling_params& p) const;

@@ -5,7 +5,6 @@
 #pragma once
 #include <tuple>
 
-#include "ie_api.h"
 #include <legacy/ie_layers.h>
 #include "legacy/ie_util_internal.hpp"
 

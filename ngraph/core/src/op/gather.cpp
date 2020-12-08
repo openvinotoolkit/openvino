@@ -16,7 +16,9 @@
 
 #include "ngraph/op/gather.hpp"
 #include "itt.hpp"
+#include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/squeeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/shape.hpp"
@@ -28,77 +30,12 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-static const int PARAMS = 0;
-static const int INDICES = 1;
-static const int AXIS = 2;
-
-constexpr NodeTypeInfo op::v0::Gather::type_info;
-
-op::v0::Gather::Gather(const Output<Node>& params, const Output<Node>& indices, size_t axis)
-    : Op({params, indices})
-    , m_axis(axis)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v0::Gather::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Gather>(new_args.at(PARAMS), new_args.at(INDICES), m_axis);
-}
-
-void op::v0::Gather::validate_and_infer_types()
-{
-    element::Type result_et = get_input_element_type(PARAMS);
-    element::Type indices_et = get_input_element_type(INDICES);
-
-    const PartialShape& params_shape = get_input_partial_shape(PARAMS);
-    const PartialShape& indices_shape = get_input_partial_shape(INDICES);
-
-    NODE_VALIDATION_CHECK(this,
-                          indices_et == element::i32 || indices_et == element::i64,
-                          "Indices element type must be i64 or i32");
-
-    // params rank must be at least (axis + 1)
-    // indices value must be in range [0, params.shape[axis]).
-    // output rank is rank(params) + rank(indices) - 1
-    NODE_VALIDATION_CHECK(this,
-                          params_shape.rank().is_dynamic() ||
-                              params_shape.rank().get_length() > static_cast<size_t>(m_axis),
-                          "params rank is expected to be at least axis + 1");
-
-    PartialShape result_shape;
-    if (params_shape.rank().is_static() && indices_shape.rank().is_static())
-    {
-        std::vector<Dimension> result_dims(params_shape.rank().get_length() +
-                                           indices_shape.rank().get_length() - 1);
-        size_t i = 0;
-        for (; i < static_cast<size_t>(m_axis); i++)
-        {
-            result_dims[i] = params_shape[i];
-        }
-        for (size_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
-        {
-            result_dims[i] = indices_shape[j];
-        }
-        for (size_t j = static_cast<size_t>(m_axis) + 1; j < params_shape.rank().get_length();
-             i++, j++)
-        {
-            result_dims[i] = params_shape[j];
-        }
-
-        result_shape = PartialShape(result_dims);
-    }
-    else
-    {
-        result_shape = PartialShape::dynamic();
-    }
-
-    set_output_type(0, result_et, result_shape);
-}
-
 constexpr NodeTypeInfo op::v1::Gather::type_info;
 const int64_t op::v1::Gather::AXIS_NOT_SET_VALUE;
+
+const int op::v1::Gather::PARAMS = 0;
+const int op::v1::Gather::INDICES = 1;
+const int op::v1::Gather::AXIS = 2;
 
 op::v1::Gather::Gather(const Output<Node>& params,
                        const Output<Node>& indices,
@@ -202,7 +139,7 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
 
-namespace
+namespace gather
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -285,13 +222,73 @@ namespace
         }
         return rc;
     }
-}
 
-bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Gather::evaluate");
-    return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
-}
+    bool cf_gather_with_subgraph(OutputVector& output_values,
+                                 const OutputVector& input_values,
+                                 const PartialShape& gather_ps)
+    {
+        if (gather_ps.is_dynamic() || input_values.size() != 3)
+        {
+            return false;
+        }
+
+        const auto concat =
+            std::dynamic_pointer_cast<op::Concat>(input_values[0].get_node_shared_ptr());
+        const auto indices =
+            std::dynamic_pointer_cast<op::Constant>(input_values[1].get_node_shared_ptr());
+        const auto axis =
+            std::dynamic_pointer_cast<op::Constant>(input_values[2].get_node_shared_ptr());
+
+        if (!concat || !indices || !axis)
+        {
+            return false;
+        }
+
+        // only along axis=0
+        if (axis->cast_vector<int64_t>()[0] != 0 || concat->get_axis() != 0)
+        {
+            return false;
+        }
+        // only single indices are accepted
+        const auto indices_shape = indices->get_shape();
+        if (indices_shape.size() > 1 || (indices_shape.size() == 1 && indices_shape[0] > 1))
+        {
+            return false;
+        }
+        // concat inputs are 1D and their count is equal to Concat output shape
+        if (concat->get_output_partial_shape(0).is_dynamic())
+        {
+            return false;
+        }
+        const auto concat_inputs = concat->inputs();
+        // concat inputs must be single elements
+        if (concat_inputs.size() != shape_size(concat->get_shape()))
+        {
+            return false;
+        }
+
+        const int64_t rank = concat->get_shape()[0];
+        const int64_t raw_index = indices->cast_vector<int64_t>()[0];
+        const int64_t positive_index = raw_index < 0 ? rank + raw_index : raw_index;
+        NGRAPH_CHECK(positive_index >= 0 && positive_index < rank);
+
+        // gather takes exactly one element out of the Concat output
+        const auto gathered_concat_input =
+            concat_inputs[positive_index].get_source_output().get_node_shared_ptr();
+        // Concat inputs are 1D, resulting tensor shape depends on Gather indices
+        auto gathered = gathered_concat_input;
+        if (indices_shape.empty())
+        {
+            // gathering a scalar
+            const auto axes = op::Constant::create(element::i64, Shape{1}, {0});
+            gathered = make_shared<op::v0::Squeeze>(gathered_concat_input, axes);
+        }
+
+        output_values[0] = gathered;
+
+        return true;
+    }
+} // namespace gather
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
@@ -318,5 +315,19 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
             axis += input_rank.get_length();
         }
     }
-    return evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+}
+
+bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)
+{
+    // try the regular constant folding just for the Gather node
+    if (Node::constant_fold(output_values, input_values))
+    {
+        return true;
+    }
+    else
+    {
+        return gather::cf_gather_with_subgraph(
+            output_values, input_values, get_output_partial_shape(0));
+    }
 }

@@ -844,11 +844,7 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = cnn_network_ngraph_impl.hpp \
-                         ie_imemory_state_internal.hpp \
-                         ie_memory_state_internal.hpp \
-                         ie_memory_state_base.hpp \
-                         generic_ie.hpp \
+EXCLUDE_PATTERNS       = generic_ie.hpp \
                          function_name.hpp \
                          macro_overload.hpp
 
@@ -868,13 +864,13 @@ EXCLUDE_SYMBOLS        =
 # command).
 
 EXAMPLE_PATH           = ../template_plugin/src \
-						 ../template_plugin/include \
+                         ../template_plugin/include \
                          ../template_plugin/src/CMakeLists.txt \
                          ../template_plugin/tests/functional/CMakeLists.txt \
                          ../template_plugin/tests/functional/transformations \
                          ../template_plugin/tests/functional/shared_tests_instances/ \
                          ../../inference-engine/tests/functional/plugin/shared/include \
-                         ../examples
+                         ../snippets
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp and

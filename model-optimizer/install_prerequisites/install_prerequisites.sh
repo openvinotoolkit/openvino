@@ -31,14 +31,14 @@ V_ENV=0
 for ((i=1;i <= $#;i++)) {
     case "${!i}" in
         caffe|tf|tf2|mxnet|kaldi|onnx)
-            postfix="_"$1""
+            postfix="_$1"
             ;;
         "venv")
             V_ENV=1
             ;;
         *)
             if [[ "$1" != "" ]]; then
-                echo "\""${!i}"\" is unsupported parameter"
+                echo "\"${!i}\" is unsupported parameter"
                 echo $"Usage: $0 {caffe|tf|tf2|mxnet|kaldi|onnx} {venv}"
                 exit 1
             fi
@@ -55,7 +55,9 @@ elif [[ -f /etc/lsb-release ]]; then
 fi
 
 if [[ $DISTRO == "centos" ]]; then
-    if command -v python3.7 >/dev/null 2>&1; then
+    if command -v python3.8 >/dev/null 2>&1; then
+        python_binary=python3.8
+    elif command -v python3.7 >/dev/null 2>&1; then
         python_binary=python3.7
     elif command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
@@ -65,33 +67,36 @@ if [[ $DISTRO == "centos" ]]; then
 
     if [ -z "$python_binary" ]; then
         sudo -E yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-        #sudo -E yum install -y python36u easy_install python36u-pip
         sudo -E yum install -y python36u python36u-pip
         sudo -E pip3.6 install virtualenv
         python_binary=python3.6
     fi
+    # latest pip is needed to install tensorflow
+    sudo -E "$python_binary" -m pip install --upgrade pip
 elif [[ $DISTRO == "ubuntu" ]]; then
     sudo -E apt update
-    sudo -E apt -y install python3-pip python3-venv libgfortran5
+    sudo -E apt -y --no-install-recommends install python3-pip python3-venv
     python_binary=python3
+    sudo -E "$python_binary" -m pip install --upgrade pip
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     python_binary=python3
+    python3 -m pip install --upgrade pip
 fi
 
 
 if [[ $V_ENV -eq 1 ]]; then
-    $python_binary -m venv $SCRIPTDIR/../venv
-    source $SCRIPTDIR/../venv/bin/activate
-    $SCRIPTDIR/../venv/bin/$python_binary -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+    "$python_binary" -m venv "$SCRIPTDIR/../venv${postfix}"
+    source "$SCRIPTDIR/../venv${postfix}/bin/activate"
+    "$SCRIPTDIR/../venv${postfix}/bin/$python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     echo
-    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv/bin/activate\""
+    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv${postfix}/bin/activate\""
 else
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        python3 -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+        python3 -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     else
-        sudo -E $python_binary -m pip install -r $SCRIPTDIR/../requirements${postfix}.txt
+        sudo -E $python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     fi
-    echo [WARNING] All Model Optimizer dependencies are installed globally.
-    echo [WARNING] If you want to keep Model Optimizer in separate sandbox
-    echo [WARNING] run install_prerequisites.sh venv "{caffe|tf|tf2|mxnet|kaldi|onnx}"
+    echo "[WARNING] All Model Optimizer dependencies are installed globally."
+    echo "[WARNING] If you want to keep Model Optimizer in separate sandbox"
+    echo "[WARNING] run install_prerequisites.sh \"{caffe|tf|tf2|mxnet|kaldi|onnx}\" venv"
 fi

@@ -158,7 +158,7 @@ int XLinkPlatformBootFirmware(deviceDesc_t* deviceDesc, const char* firmware, si
             printf("Path to your boot util is too long for the char array here!\n");
         }
         // Boot it
-        int rc = usb_boot(deviceDesc->name, firmware, length);
+        int rc = usb_boot(deviceDesc->name, firmware, (unsigned)length);
 
         if(!rc) {
             mvLog(MVLOG_DEBUG, "Boot successful, device address %s", deviceDesc->name);
@@ -228,7 +228,7 @@ libusb_device_handle *usbLinkOpen(const char *path)
     libusb_device *dev = NULL;
     double waittm = seconds() + statuswaittimeout;
     while(seconds() < waittm){
-        int size = strlen(path);
+        int size = (int)strlen(path);
 
 #if (!defined(_WIN32) && !defined(_WIN64))
         uint16_t  bcdusb = -1;

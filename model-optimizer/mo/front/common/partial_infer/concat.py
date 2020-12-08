@@ -59,7 +59,7 @@ def concat_infer(node):
 
     node.out_node(0).shape = shape
     if len(shape) != 4:
-        # exclude it from NHWC to NCHW convertion
+        # exclude it from NHWC to NCHW conversion
         if 'axis' in node.dim_attrs:
             node.dim_attrs.remove('axis')
 

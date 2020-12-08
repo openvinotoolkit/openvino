@@ -45,18 +45,26 @@ const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 16, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 16, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
@@ -89,18 +97,26 @@ const auto groupConv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 4, 10, 10, 10})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(GroupConvolution3D_AutoPadValid, GroupConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D_AutoPadValid, GroupConvolutionLayerTest,
                         ::testing::Combine(
                                 groupConv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 4, 10, 10, 10})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);

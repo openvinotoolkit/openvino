@@ -9,7 +9,6 @@
 #include <memory>
 #include <ie_iextension.h>
 #include <legacy/ie_layers.h>
-#include <legacy/ie_ishape_infer_extension.hpp>
 #include "nodes/list.hpp"
 
 namespace MKLDNNPlugin {

@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-"""Factory functions for all ngraph ops."""
+"""! Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
@@ -66,16 +66,16 @@ def batch_to_space(
     crops_end: NodeInput,
     name: Optional[str] = None,
 ) -> Node:
-    """Perform BatchToSpace operation on the input tensor.
+    """! Perform BatchToSpace operation on the input tensor.
 
     BatchToSpace permutes data from the batch dimension of the data tensor into spatial dimensions.
 
-    :param data: Node producing the data tensor.
-    :param block_shape: The sizes of the block of values to be moved.
-    :param crops_begin: Specifies the amount to crop from the beginning along each axis of `data`.
-    :param crops_end: Specifies the amount to crop from the end along each axis of `data`.
-    :param name: Optional output node name.
-    :return: The new node performing a BatchToSpace operation.
+    @param data: Node producing the data tensor.
+    @param block_shape: The sizes of the block of values to be moved.
+    @param crops_begin: Specifies the amount to crop from the beginning along each axis of `data`.
+    @param crops_end: Specifies the amount to crop from the end along each axis of `data`.
+    @param name: Optional output node name.
+    @return The new node performing a BatchToSpace operation.
     """
     return _get_node_factory_opset2().create(
         "BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end)
@@ -84,18 +84,18 @@ def batch_to_space(
 
 @unary_op
 def gelu(node: NodeInput, name: Optional[str] = None) -> Node:
-    r"""Perform Gaussian Error Linear Unit operation element-wise on data from input node.
+    r"""! Perform Gaussian Error Linear Unit operation element-wise on data from input node.
 
     Computes GELU function:
 
-    .. math:: f(x) = 0.5\cdot x\cdot(1 + erf( \dfrac{x}{\sqrt{2}})
+    \f[ f(x) = 0.5\cdot x\cdot(1 + erf( \dfrac{x}{\sqrt{2}}) \f]
 
     For more information refer to:
     `Gaussian Error Linear Unit (GELU) <https://arxiv.org/pdf/1606.08415.pdf>`_
 
-    :param node: Input tensor. One of: input node, array or scalar.
-    :param name: Optional output node name.
-    :return: The new node performing a GELU operation on its input data element-wise.
+    @param node: Input tensor. One of: input node, array or scalar.
+    @param name: Optional output node name.
+    @return The new node performing a GELU operation on its input data element-wise.
     """
     return _get_node_factory_opset2().create("Gelu", [node])
 
@@ -108,19 +108,19 @@ def mvn(
     eps: float = 1e-9,
     name: str = None,
 ) -> Node:
-    r"""Perform Mean Variance Normalization operation on data from input node.
+    r"""! Perform Mean Variance Normalization operation on data from input node.
 
-    Computes MVN on the input tensor :code:`data` (called `X`) using formula:
+    Computes MVN on the input tensor `data` (called `X`) using formula:
 
-    .. math:: Y = \dfrac{X-EX}{\sqrt{E(X-EX)^2}}
+    \f[ Y = \dfrac{X-EX}{\sqrt{E(X-EX)^2}} \f]
 
-    :param data: The node with data tensor.
-    :param across_channels: Denotes if mean values are shared across channels.
-    :param normalize_variance: Denotes whether to perform variance normalization.
-    :param eps: The number added to the variance to avoid division by zero
+    @param data: The node with data tensor.
+    @param across_channels: Denotes if mean values are shared across channels.
+    @param normalize_variance: Denotes whether to perform variance normalization.
+    @param eps: The number added to the variance to avoid division by zero
                when normalizing the value. Scalar value.
-    :param name: Optional output node name.
-    :return: The new node performing a MVN operation on input tensor.
+    @param name: Optional output node name.
+    @return The new node performing a MVN operation on input tensor.
     """
     return _get_node_factory_opset2().create(
         "MVN",
@@ -131,12 +131,12 @@ def mvn(
 
 @nameable_op
 def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
-    """Return a node which produces the ReorgYolo operation.
+    """! Return a node which produces the ReorgYolo operation.
 
-    :param input:   Input data
-    :param stride:  Stride to reorganize input by
-    :param name:    Optional name for output node.
-    :return: ReorgYolo node
+    @param input:   Input data
+    @param stride:  Stride to reorganize input by
+    @param name:    Optional name for output node.
+    @return ReorgYolo node
     """
     return _get_node_factory_opset2().create("ReorgYolo", [input], {"stride": stride})
 
@@ -150,14 +150,14 @@ def roi_pooling(
     method: str,
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which produces an ROIPooling operation.
+    """! Return a node which produces an ROIPooling operation.
 
-    :param input:          Input feature map {N, C, ...}
-    :param coords:         Coordinates of bounding boxes
-    :param output_size:    Height/Width of ROI output features (shape)
-    :param spatial_scale:  Ratio of input feature map over input image size (float)
-    :param method:         Method of pooling - string: "max" or "bilinear"
-    :return:               ROIPooling node
+    @param input:          Input feature map {N, C, ...}
+    @param coords:         Coordinates of bounding boxes
+    @param output_size:    Height/Width of ROI output features (shape)
+    @param spatial_scale:  Ratio of input feature map over input image size (float)
+    @param method:         Method of pooling - string: "max" or "bilinear"
+    @return               ROIPooling node
     """
     method = method.lower()
     return _get_node_factory_opset2().create(
@@ -175,18 +175,18 @@ def space_to_batch(
     pads_end: NodeInput,
     name: Optional[str] = None,
 ) -> Node:
-    """Perform SpaceToBatch operation on the input tensor.
+    """! Perform SpaceToBatch operation on the input tensor.
 
     SpaceToBatch permutes data tensor blocks of spatial data into batch dimension.
     The operator returns a copy of the input tensor where values from spatial blocks dimensions
     are moved in the batch dimension
 
-    :param data: Node producing the data tensor.
-    :param block_shape: The sizes of the block of values to be moved.
-    :param pads_begin: Specifies the padding for the beginning along each axis of `data`.
-    :param pads_end: Specifies the padding for the ending along each axis of `data`.
-    :param name: Optional output node name.
-    :return: The new node performing a SpaceToBatch operation.
+    @param data: Node producing the data tensor.
+    @param block_shape: The sizes of the block of values to be moved.
+    @param pads_begin: Specifies the padding for the beginning along each axis of `data`.
+    @param pads_end: Specifies the padding for the ending along each axis of `data`.
+    @param name: Optional output node name.
+    @return The new node performing a SpaceToBatch operation.
     """
     return _get_node_factory_opset2().create(
         "SpaceToBatch", as_nodes(data, block_shape, pads_begin, pads_end)

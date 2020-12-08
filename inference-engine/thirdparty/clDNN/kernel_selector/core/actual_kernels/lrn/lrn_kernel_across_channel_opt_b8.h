@@ -36,6 +36,6 @@ private:
                  FusedOpType::ACTIVATION };
     }
     bool Validate(const Params& params, const optional_params& options) const override;
-    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

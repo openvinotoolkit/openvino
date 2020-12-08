@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,23 +27,6 @@ using namespace cldnn;
 namespace cldnn {
 namespace gpu {
 
-kernel_selector::tile_axis convert_axis(tile::tile_axis axis) {
-    switch (axis) {
-        case tile::along_x:
-            return kernel_selector::tile_axis::X;
-        case tile::along_y:
-            return kernel_selector::tile_axis::Y;
-        case tile::along_z:
-            return kernel_selector::tile_axis::Z;
-        case tile::along_f:
-            return kernel_selector::tile_axis::FEATURE;
-        case tile::along_b:
-            return kernel_selector::tile_axis::BATCH;
-        default:
-            return kernel_selector::tile_axis::X;
-    }
-}
-
 struct tile_gpu : typed_primitive_gpu_impl<tile> {
     using parent = typed_primitive_gpu_impl<tile>;
     using parent::parent;
@@ -53,9 +36,6 @@ public:
         auto tile_params = get_default_params<kernel_selector::tile_params>(arg);
         auto tile_optional_params =
             get_default_optional_params<kernel_selector::tile_optional_params>(arg.get_program());
-
-        tile_params.axis = convert_axis(arg.get_primitive()->axis);
-        tile_params.tiles = arg.get_primitive()->tiles;
 
         auto& kernel_selector = kernel_selector::tile_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(tile_params, tile_optional_params);
@@ -76,10 +56,23 @@ namespace detail {
 attach_tile_gpu::attach_tile_gpu() {
     auto val_fw = tile_gpu::create;
 
-    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
     implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
     implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
+    implementation_map<tile>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
 }
 
 }  // namespace detail

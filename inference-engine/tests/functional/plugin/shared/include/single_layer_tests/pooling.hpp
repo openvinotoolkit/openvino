@@ -30,6 +30,10 @@ typedef std::tuple<
 typedef std::tuple<
         poolSpecificParams,
         InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
         std::vector<size_t>,            // Input shape
         std::string                     // Device name
 > poolLayerTestParamsSet;
@@ -37,6 +41,10 @@ typedef std::tuple<
 typedef std::tuple<
         poolSpecificParams,
         InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
         size_t,                         // Channel number
         std::string                     // Device name
 > globalPoolLayerTestParamsSet;

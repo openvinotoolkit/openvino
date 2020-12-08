@@ -24,25 +24,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-// ----------------------------- v0 --------------------------------------------
-
-constexpr NodeTypeInfo op::v0::Less::type_info;
-
-op::v0::Less::Less(const Output<Node>& arg0,
-                   const Output<Node>& arg1,
-                   const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseComparison(arg0, arg1, auto_broadcast)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v0::Less::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<op::v0::Less>(new_args.at(0), new_args.at(1), this->get_autob());
-}
-
-namespace
+namespace lessop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -88,12 +70,6 @@ namespace
     }
 }
 
-bool op::v0::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Less::evaluate");
-    return evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
-}
-
 // ----------------------------- v1 --------------------------------------------
 
 NGRAPH_RTTI_DEFINITION(op::v1::Less, "Less", 1);
@@ -115,5 +91,5 @@ shared_ptr<Node> op::v1::Less::clone_with_new_inputs(const OutputVector& new_arg
 bool op::v1::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Less::evaluate");
-    return evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
+    return lessop::evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
 }

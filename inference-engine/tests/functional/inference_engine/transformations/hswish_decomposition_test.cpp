@@ -10,7 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/hswish_decomposition.hpp>
+#include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -21,7 +21,7 @@ using namespace testing;
 TEST(TransformationTests, HSwishDecompositionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hswish = std::make_shared<ngraph::opset4::HSwish>(input);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});

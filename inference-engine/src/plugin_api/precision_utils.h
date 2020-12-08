@@ -38,8 +38,8 @@ namespace InferenceEngine {
  * @defgroup ie_dev_api_async_infer_request_api Asynchronous Inference Request base classes
  * @brief A set of base and helper classes to implement asynchronous inference request class
  * 
- * @defgroup ie_dev_api_mem_state_api Memory state base classes
- * @brief A set of base and helper classes to implement memory state
+ * @defgroup ie_dev_api_variable_state_api Variable state base classes
+ * @brief A set of base and helper classes to implement variable state
  * 
  * @defgroup ie_dev_api_threading Threading utilities
  * @brief Threading API providing task executors for asynchronous operations
@@ -129,12 +129,18 @@ f16tof32Arrays(float* dst, const ie_fp16* src, size_t nelem, float scale = 1.f, 
 INFERENCE_ENGINE_API_CPP(void)
 f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, float bias = 0.f);
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4018)
+#endif
+
 /**
  * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
  *             into destination type range
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class OutT, class InT, typename std::enable_if<
         std::is_integral<OutT>::value && std::is_integral<InT>::value &&
@@ -152,7 +158,7 @@ inline OutT saturate_cast(const InT& value) {
     const InT min = std::numeric_limits<OutT>::min() > std::numeric_limits<InT>::min() ? std::numeric_limits<OutT>::min() :
                     std::numeric_limits<InT>::min();
 
-    return std::min(std::max(value, min), max);
+    return static_cast<OutT>(std::min(std::max(value, min), max));
 }
 
 /**
@@ -161,6 +167,7 @@ inline OutT saturate_cast(const InT& value) {
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class OutT, class InT, typename std::enable_if<
         std::is_integral<OutT>::value && std::is_integral<InT>::value &&
@@ -175,8 +182,12 @@ inline OutT saturate_cast(const InT& value) {
     const InT max = std::numeric_limits<OutT>::max() < std::numeric_limits<InT>::max() ? std::numeric_limits<OutT>::max() :
                     std::numeric_limits<InT>::max();
 
-    return std::min(value, max);
+    return static_cast<OutT>(std::min(value, max));
 }
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 /**
  * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
@@ -184,6 +195,7 @@ inline OutT saturate_cast(const InT& value) {
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
+ * @return     A saturated value
  */
 template <class InT>
 inline InT saturate_cast(const InT& value) {

@@ -8,8 +8,8 @@
 #include "subgraph_tests/conv_eltwise_fusion.hpp"
 #include <transformations/common_optimizations/conv_mul_fusion.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <transformations/op_conversions/convert_convolutions.hpp>
+#include <transformations/common_optimizations/conv_bias_fusion.hpp>
 
 namespace LayerTestsDefinitions {
 

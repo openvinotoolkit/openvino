@@ -126,8 +126,10 @@ Framework-agnostic parameters:
                         value, for example: "node_name->True". It will be
                         DEPRECATED in future releases. Use --input option to
                         specify a value for freezing.
-  --static_shape        Enables `ShapeOf` operation with all children folding to `Constant`.
-                        This option makes model not reshapable in Inference Engine
+  --static_shape        Enables IR generation for fixed input shape (folding
+                        `ShapeOf` operations and shape-calculating sub-graphs
+                        to `Constant`). Changing model input shape using
+                        the Inference Engine API in runtime may fail for such an IR.
   --disable_weights_compression
                         Disable compression and store weights with original
                         precision.

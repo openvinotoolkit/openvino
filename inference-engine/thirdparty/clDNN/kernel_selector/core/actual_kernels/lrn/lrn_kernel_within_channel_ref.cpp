@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,22 +38,22 @@ ParamsKey LRNKernelWithinChannel::GetSupportedKey() const {
 }
 
 CommonDispatchData LRNKernelWithinChannel::SetDefault(const lrn_params& params) const {
-    CommonDispatchData runInfo = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
 
-    runInfo.gws0 = 128 * 128;
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
+    dispatchData.gws[0] = 128 * 128;
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
 
-    runInfo.lws0 = 128;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 128;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants LRNKernelWithinChannel::GetJitConstants(const lrn_params& params,
-                                                     const LRNKernelWithinChannel::Parent::DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+                                                     const LRNKernelWithinChannel::Parent::DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     const auto& input_dt = params.inputs[0].GetDType();
 
     if (!params.fused_ops.empty()) {

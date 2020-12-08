@@ -111,7 +111,7 @@ def check_node_usages_out_of_match(match: dict, node_name_in_match_group: str):
 
 
 def node_match(data1: dict, data2: dict):
-    # We have to skip _in_ports/_out_ports attributes for comparision as they are not comparable
+    # We have to skip _in_ports/_out_ports attributes for comparison as they are not comparable
     return dict_includes(data1, data2, skip_attr_names=['_in_ports', '_out_ports'])
 
 

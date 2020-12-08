@@ -16,6 +16,21 @@ macro (ie_dependent_option variable description def_value condition fallback_val
     list(APPEND IE_OPTIONS ${variable})
 endmacro()
 
+macro (ie_option_enum variable description value)
+    set(OPTIONS)
+    set(ONE_VALUE_ARGS)
+    set(MULTI_VALUE_ARGS ALLOWED_VALUES)
+    cmake_parse_arguments(IE_OPTION_ENUM "${OPTIONS}" "${ONE_VALUE_ARGS}" "${MULTI_VALUE_ARGS}" ${ARGN})
+
+    if(NOT ${value} IN_LIST IE_OPTION_ENUM_ALLOWED_VALUES)
+        message(FATAL_ERROR "variable must be one of ${IE_OPTION_ENUM_ALLOWED_VALUES}")
+    endif()
+
+    list(APPEND IE_OPTIONS ${variable})
+
+    set(${variable} ${value} CACHE STRING "${description}")
+endmacro()
+
 function (print_enabled_features)
     message(STATUS "Inference Engine enabled features: ")
     message(STATUS "")

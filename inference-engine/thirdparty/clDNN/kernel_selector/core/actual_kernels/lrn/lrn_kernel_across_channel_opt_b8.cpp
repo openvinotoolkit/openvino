@@ -36,12 +36,12 @@ ParamsKey LRNKernelAcrossChannel_b8::GetSupportedKey() const {
 }
 
 CommonDispatchData LRNKernelAcrossChannel_b8::SetDefault(const lrn_params& params) const {
-    CommonDispatchData run_info = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
 
-    run_info.gws0 /= 8;
-    run_info.lws0 = 8;  // gws0 is dividable by 64, so after correction it will be dividable by 8.
+    dispatchData.gws[0] /= 8;
+    dispatchData.lws[0] = 8;  // gws[0] is dividable by 64, so after correction it will be dividable by 8.
 
-    return run_info;
+    return dispatchData;
 }
 
 bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params& o) const {
@@ -62,8 +62,8 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params&
     return true;
 }
 
-JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     const auto& input_dt = params.inputs[0].GetDType();
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", 8));

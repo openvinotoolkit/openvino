@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -42,9 +42,9 @@ struct embedding_bag_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EmbeddingBagKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class EmbeddingBagKernelRef : public common_kernel_base {
+class EmbeddingBagKernelRef : public KernelBaseOpenCL {
 public:
-    EmbeddingBagKernelRef() : common_kernel_base("embedding_bag_ref") {}
+    EmbeddingBagKernelRef() : KernelBaseOpenCL("embedding_bag_ref") {}
     virtual ~EmbeddingBagKernelRef() = default;
 
 protected:

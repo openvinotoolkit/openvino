@@ -30,7 +30,7 @@ public:
 
 protected:
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     ParamsKey GetSupportedKey() const override;
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
         return WeightsLayout::os_is_yx_isv16_osv16;

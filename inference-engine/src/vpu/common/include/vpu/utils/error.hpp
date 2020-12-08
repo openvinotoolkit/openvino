@@ -35,45 +35,45 @@ void throwFormat(const char* fileName, int lineNumber, const char* messageFormat
 
 }  // namespace details
 
-#define VPU_THROW_FORMAT(...)                                                         \
-    vpu::details::throwFormat<vpu::details::VPUException>(__FILE__, __LINE__, __VA_ARGS__)
+#define VPU_THROW_FORMAT(...)                                                                   \
+    ::vpu::details::throwFormat<::vpu::details::VPUException>(__FILE__, __LINE__, __VA_ARGS__)
 
-#define VPU_THROW_UNLESS(condition, ...)                                                       \
-    do {                                                                                       \
-        if (!(condition)) {                                                                    \
+#define VPU_THROW_UNLESS(condition, ...)                                                                \
+    do {                                                                                                \
+        if (!(condition)) {                                                                             \
             ::vpu::details::throwFormat<::vpu::details::VPUException>(__FILE__, __LINE__, __VA_ARGS__); \
-        }                                                                                      \
+        }                                                                                               \
     } while (false)
 
-#define VPU_THROW_UNSUPPORTED_UNLESS(condition, ...)                                                        \
-    do {                                                                                                    \
-        if (!(condition)) {                                                                                 \
-            vpu::details::throwFormat<vpu::details::UnsupportedLayerException>(__FILE__, __LINE__, __VA_ARGS__); \
-        }                                                                                                   \
+#define VPU_THROW_UNSUPPORTED_UNLESS(condition, ...)                                                                    \
+    do {                                                                                                                \
+        if (!(condition)) {                                                                                             \
+            ::vpu::details::throwFormat<::vpu::details::UnsupportedLayerException>(__FILE__, __LINE__, __VA_ARGS__);    \
+        }                                                                                                               \
     } while (false)
 
 #ifdef NDEBUG
-#   define VPU_INTERNAL_CHECK(condition, ...)                     \
-        do {                                                      \
-            if (!(condition)) {                                   \
-                vpu::details::throwFormat<details::VPUException>( \
-                    __FILE__, __LINE__,                           \
-                    "[Internal Error]: " __VA_ARGS__);            \
-            }                                                     \
+#   define VPU_INTERNAL_CHECK(condition, ...)                               \
+        do {                                                                \
+            if (!(condition)) {                                             \
+                ::vpu::details::throwFormat<::vpu::details::VPUException>(  \
+                    __FILE__, __LINE__,                                     \
+                    "[Internal Error]: " __VA_ARGS__);                      \
+            }                                                               \
         } while (false)
 #else
-#   define VPU_INTERNAL_CHECK(condition, ...)                     \
-        assert((condition) || !formatString(__VA_ARGS__).empty())
+#   define VPU_INTERNAL_CHECK(condition, ...)                       \
+        assert((condition) || !::vpu::formatString(__VA_ARGS__).empty())
 #endif
 
 #ifdef NDEBUG
-#   define VPU_INTERNAL_FAIL(...)                              \
-        vpu::details::throwFormat<details::VPUException>(      \
-            __FILE__, __LINE__,                                \
+#   define VPU_INTERNAL_FAIL(...)                                   \
+        ::vpu::details::throwFormat<::vpu::details::VPUException>(  \
+            __FILE__, __LINE__,                                     \
             "[Internal Error] Unreachable code: " __VA_ARGS__)
 #else
 #   define VPU_INTERNAL_FAIL(...)                           \
-        assert(false && !formatString(__VA_ARGS__).empty())
+        assert(false && !::vpu::formatString(__VA_ARGS__).empty())
 #endif
 
 }  // namespace vpu

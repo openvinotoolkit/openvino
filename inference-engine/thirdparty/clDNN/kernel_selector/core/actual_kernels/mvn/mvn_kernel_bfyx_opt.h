@@ -39,6 +39,6 @@ private:
         };
     }
     DispatchData SetDefault(const mvn_params& params) const override;
-    JitConstants GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData kd) const override;
+    JitConstants GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData dispatchData) const override;
 };
 }  // namespace kernel_selector

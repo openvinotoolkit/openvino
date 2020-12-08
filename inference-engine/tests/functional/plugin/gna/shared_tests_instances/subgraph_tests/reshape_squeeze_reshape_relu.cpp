@@ -36,7 +36,7 @@ namespace {
             ngraph::helpers::SqueezeOpType::UNSQUEEZE
     };
 
-    INSTANTIATE_TEST_CASE_P(reshape_squeeze_reshape_relu, ReshapeSqueezeReshapeRelu,
+    INSTANTIATE_TEST_CASE_P(smoke_reshape_squeeze_reshape_relu, ReshapeSqueezeReshapeRelu,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),

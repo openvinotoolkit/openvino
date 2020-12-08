@@ -88,11 +88,22 @@ namespace ngraph
                     {
                         ng_constant = tensor.get_ng_constant();
                     }
+                    catch (const error::invalid_external_data&)
+                    {
+                        // invalid external data makes initializers creation impossible
+                        throw;
+                    }
                     catch (const ngraph::ngraph_error& exc)
                     {
-                        NGRAPH_WARN << "Could not create an nGraph Constant for initializer '"
-                                    << initializer_tensor.name() << "'. Detailed error:\n"
-                                    << exc.what();
+                        NGRAPH_WARN
+                            << "\nCould not create an nGraph Constant for initializer '"
+                            << initializer_tensor.name() << "'. \n"
+                            << "Constant with a 0 value was created, make sure connected input is "
+                               "optional.\n"
+                            << "Otherwise verify if the initializer contains a correct number of "
+                               "elements matching the initializer's shape. \n"
+                            << "Detailed error:\n"
+                            << exc.what();
                         ng_constant =
                             default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
                     }
@@ -289,6 +300,11 @@ namespace ngraph
                 as_node_vector(ng_node_vector),
                 [&tag](std::shared_ptr<ngraph::Node> ng_node) { ng_node->add_provenance_tag(tag); },
                 as_node_vector(ng_inputs));
+        }
+
+        const OpsetImports& Graph::get_opset_imports() const
+        {
+            return m_model->get_opset_imports();
         }
 
         Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,

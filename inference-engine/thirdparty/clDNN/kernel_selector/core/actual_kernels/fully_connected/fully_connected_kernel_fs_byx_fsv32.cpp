@@ -44,28 +44,28 @@ ParamsKey FullyConnected_fs_byx_fsv32::GetSupportedKey() const {
 FullyConnected_fs_byx_fsv32::Parent::DispatchData FullyConnected_fs_byx_fsv32::SetDefault(
     const fully_connected_params& params,
     int autoTuneIndex) const {
-    auto runInfo = Parent::SetDefault(params, autoTuneIndex);
+    auto dispatchData = Parent::SetDefault(params, autoTuneIndex);
 
     auto blockSizeB = std::min(outputBlockSizeB, params.output.Batch().v);
     auto blockNumB = CeilDiv(params.output.Batch().v, blockSizeB);
     auto wgHeight = std::min(preferredWGHeight, blockNumB);
 
-    runInfo.gws0 = CeilDiv(params.output.Feature().v, outputBlockSizeF);
-    runInfo.gws1 = RoundUp(blockNumB, wgHeight);
-    runInfo.gws2 = subGroupSize;
+    dispatchData.gws[0] = CeilDiv(params.output.Feature().v, outputBlockSizeF);
+    dispatchData.gws[1] = RoundUp(blockNumB, wgHeight);
+    dispatchData.gws[2] = subGroupSize;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = wgHeight;
-    runInfo.lws2 = subGroupSize;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = wgHeight;
+    dispatchData.lws[2] = subGroupSize;
 
-    runInfo.efficiency = FORCE_PRIORITY_5;
+    dispatchData.efficiency = FORCE_PRIORITY_5;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants FullyConnected_fs_byx_fsv32::GetJitConstants(const fully_connected_params& params,
-                                                          const DispatchData& kd) const {
-    auto jit = Parent::GetJitConstants(params, kd);
+                                                          const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto blockSizeB = std::min(outputBlockSizeB, params.output.Batch().v);
     auto blockNumB = CeilDiv(params.output.Batch().v, blockSizeB);

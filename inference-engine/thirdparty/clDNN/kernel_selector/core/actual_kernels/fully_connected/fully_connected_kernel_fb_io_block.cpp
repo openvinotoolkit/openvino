@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ ParamsKey FullyConnected_fb_io_block::GetSupportedKey() const {
 
 FullyConnected_fb_io_block::DispatchData FullyConnected_fb_io_block::SetDefault(const fully_connected_params& arg,
                                                                                 int) const {
-    auto kd = FullyConnectedKernelBase::SetDefault(arg);
+    auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
     const auto& output = arg.output;
 
     auto batch_size = output.Batch().v;
@@ -50,37 +50,37 @@ FullyConnected_fb_io_block::DispatchData FullyConnected_fb_io_block::SetDefault(
     // for at least one input data set from batch.
     auto rg_count = CeilDiv(response_size, units_per_sg_read);
 
-    kd.lws0 = sub_group_size;
+    dispatchData.lws[0] = sub_group_size;
     // Number of work items needed to process all response groups.
-    kd.gws0 = rg_count * sub_group_size;
-    kd.lws1 = 1;
-    kd.gws1 = batch_size / units_per_sg_read;
+    dispatchData.gws[0] = rg_count * sub_group_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.gws[1] = batch_size / units_per_sg_read;
 
-    kd.unit_byte_size = unit_byte_size;
-    kd.chunk_type = chunk_type;
-    kd.chunk_byte_size = chunk_byte_size;
-    kd.units_per_chunk = units_per_chunk;
-    kd.bytes_per_sg_read = sub_group_size * chunk_byte_size;
-    kd.units_per_sg_read = units_per_sg_read;
-    kd.rg_count = (uint32_t)rg_count;
-    kd.last_rg_size = response_size % units_per_sg_read;
-    return kd;
+    dispatchData.unit_byte_size = unit_byte_size;
+    dispatchData.chunk_type = chunk_type;
+    dispatchData.chunk_byte_size = chunk_byte_size;
+    dispatchData.units_per_chunk = units_per_chunk;
+    dispatchData.bytes_per_sg_read = sub_group_size * chunk_byte_size;
+    dispatchData.units_per_sg_read = units_per_sg_read;
+    dispatchData.rg_count = (uint32_t)rg_count;
+    dispatchData.last_rg_size = response_size % units_per_sg_read;
+    return dispatchData;
 }
 
 JitConstants FullyConnected_fb_io_block::GetJitConstants(const fully_connected_params& params,
-                                                         const FullyConnectedKernelBase::DispatchData& run_info) const {
-    auto cldnn_jit = FullyConnectedKernelBase::GetJitConstants(params, run_info);
+                                                         const FullyConnectedKernelBase::DispatchData& dispatchData) const {
+    auto cldnn_jit = FullyConnectedKernelBase::GetJitConstants(params, dispatchData);
     cldnn_jit.AddConstants({
-        MakeJitConstant("SUB_GROUP_SIZE", run_info.lws0),
-        MakeJitConstant("WORK_ITEMS_PER_BATCH", run_info.gws1),
-        MakeJitConstant("UNIT_BYTE_SIZE", run_info.unit_byte_size),
-        MakeJitConstant("CHUNK_TYPE", run_info.chunk_type),
-        MakeJitConstant("CHUNK_BYTE_SIZE", run_info.chunk_byte_size),
-        MakeJitConstant("UNITS_PER_CHUNK", run_info.units_per_chunk),
-        MakeJitConstant("BYTES_PER_SG_READ", run_info.bytes_per_sg_read),
-        MakeJitConstant("UNITS_PER_SG_READ", run_info.units_per_sg_read),
-        MakeJitConstant("RG_COUNT", run_info.rg_count),
-        MakeJitConstant("LAST_RG_SIZE", run_info.last_rg_size),
+        MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]),
+        MakeJitConstant("WORK_ITEMS_PER_BATCH", dispatchData.gws[1]),
+        MakeJitConstant("UNIT_BYTE_SIZE", dispatchData.unit_byte_size),
+        MakeJitConstant("CHUNK_TYPE", dispatchData.chunk_type),
+        MakeJitConstant("CHUNK_BYTE_SIZE", dispatchData.chunk_byte_size),
+        MakeJitConstant("UNITS_PER_CHUNK", dispatchData.units_per_chunk),
+        MakeJitConstant("BYTES_PER_SG_READ", dispatchData.bytes_per_sg_read),
+        MakeJitConstant("UNITS_PER_SG_READ", dispatchData.units_per_sg_read),
+        MakeJitConstant("RG_COUNT", dispatchData.rg_count),
+        MakeJitConstant("LAST_RG_SIZE", dispatchData.last_rg_size),
     });
     return cldnn_jit;
 }

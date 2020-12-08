@@ -43,10 +43,8 @@ ParamsKey BinaryConvolutionKernel1x1::GetSupportedKey() const {
     return k;
 }
 
-BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1::SetDefault(
-    const binary_convolution_params& params,
-    int) const {
-    DispatchData kd = BinaryConvolutionKernelBase::SetDefault(params);
+BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1::SetDefault(const binary_convolution_params& params, int) const {
+    DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -55,17 +53,17 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1::SetDefault
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = Align(x * y, sub_group_size);
-    kd.gws1 = CeilDiv(f, 2 * sub_group_size);  // 1 WI calcs 32 OC
-    kd.gws2 = b;
+    dispatchData.gws[0] = Align(x * y, sub_group_size);
+    dispatchData.gws[1] = CeilDiv(f, 2 * sub_group_size);  // 1 WI calcs 32 OC
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = sub_group_size;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = sub_group_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_1;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    return kd;
+    return dispatchData;
 }
 
 bool BinaryConvolutionKernel1x1::Validate(const Params& p, const optional_params& o) const {
@@ -89,8 +87,8 @@ bool BinaryConvolutionKernel1x1::Validate(const Params& p, const optional_params
 }
 
 JitConstants BinaryConvolutionKernel1x1::GetJitConstants(const binary_convolution_params& params,
-                                                         const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                         const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("INPUT0_FEATURE_NUM_PACKED", CeilDiv(params.inputs[0].Feature().v, ic_pack_size)));

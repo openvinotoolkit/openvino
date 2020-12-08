@@ -52,9 +52,9 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             }
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
-                _streams = getAvailableNUMANodes().size();
+                _streams = static_cast<int>(getAvailableNUMANodes().size());
             } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
-                const int sockets = getAvailableNUMANodes().size();
+                const int sockets = static_cast<int>(getAvailableNUMANodes().size());
                 // bare minimum of streams (that evenly divides available number of core)
                 const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
                 if (0 == num_cores % 4)

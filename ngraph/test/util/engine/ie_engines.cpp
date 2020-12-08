@@ -88,6 +88,9 @@ namespace
         case InferenceEngine::Precision::FP32:
             return compare_blobs<float>(computed, expected, tolerance_bits);
             break;
+        case InferenceEngine::Precision::FP64:
+            return compare_blobs<double>(computed, expected, tolerance_bits);
+            break;
         case InferenceEngine::Precision::I8:
             return compare_blobs<int8_t>(computed, expected, tolerance_bits);
             break;
@@ -205,6 +208,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset3.begin(), opset3.end());
     const auto& opset4 = get_opset4().get_type_info_set();
     ie_ops.insert(opset4.begin(), opset4.end());
+    const auto& opset5 = get_opset5().get_type_info_set();
+    ie_ops.insert(opset5.begin(), opset5.end());
     return ie_ops;
 }
 

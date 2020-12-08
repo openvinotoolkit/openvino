@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API NopElimination;
 
 class ngraph::pass::NopElimination: public ngraph::pass::FunctionPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<Function>) override;
 };

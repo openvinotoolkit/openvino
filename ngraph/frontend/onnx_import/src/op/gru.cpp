@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "gru.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/null_node.hpp"
@@ -57,8 +58,10 @@ namespace ngraph
                                     const int split_parts = 2 * 3;
                                     const auto split_bias =
                                         builder::opset1::split(bias, split_parts, 1);
-                                    const auto wr_z_bias = split_bias.at(0) + split_bias.at(3);
-                                    const auto wr_r_bias = split_bias.at(1) + split_bias.at(4);
+                                    const auto wr_z_bias = std::make_shared<ngraph::op::v1::Add>(
+                                        split_bias.at(0), split_bias.at(3));
+                                    const auto wr_r_bias = std::make_shared<ngraph::op::v1::Add>(
+                                        split_bias.at(1), split_bias.at(4));
                                     // The result has shape: [num_directions, 4 * hidden_size]
                                     // and data layout:
                                     //       [
@@ -119,28 +122,26 @@ namespace ngraph
                     GRUInputMap input_map{node, gates_count};
                     GRUAttributes attributes{node};
 
-                    recurrent::RecurrentSequence sequence_op(input_map, attributes.m_direction);
-                    auto results =
-                        sequence_op.run_sequence([&attributes](const recurrent::OpInputMap& args,
-                                                               const Output<ngraph::Node>& in_Xt,
-                                                               const Output<ngraph::Node> H_t) {
+                    auto gru_sequence = std::make_shared<default_opset::GRUSequence>(
+                        input_map.at(recurrent::OpInput::X),
+                        input_map.at(recurrent::OpInput::INIT_H),
+                        input_map.at(recurrent::OpInput::SEQ_LENGTHS),
+                        input_map.at(recurrent::OpInput::W),
+                        input_map.at(recurrent::OpInput::R),
+                        input_map.at(recurrent::OpInput::B),
+                        attributes.m_hidden_size,
+                        attributes.m_direction,
+                        attributes.m_activations,
+                        attributes.m_activations_alpha,
+                        attributes.m_activations_beta,
+                        attributes.m_clip_threshold,
+                        attributes.m_linear_before_reset);
 
-                            const GRUInputMap& gru_args = dynamic_cast<const GRUInputMap&>(args);
+                    const auto Y = gru_sequence->output(0);
+                    const auto Y_h = gru_sequence->output(1);
 
-                            return std::make_shared<default_opset::GRUCell>(
-                                in_Xt,
-                                H_t,
-                                gru_args.at(recurrent::OpInput::W),
-                                gru_args.at(recurrent::OpInput::R),
-                                gru_args.at(recurrent::OpInput::B),
-                                attributes.m_hidden_size,
-                                attributes.m_activations,
-                                attributes.m_activations_alpha,
-                                attributes.m_activations_beta,
-                                attributes.m_clip_threshold,
-                                attributes.m_linear_before_reset);
-                        });
-                    return results;
+                    return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
+                            builder::opset1::reorder_axes(Y_h, {1, 0, 2})};
                 }
 
             } // namespace set_1

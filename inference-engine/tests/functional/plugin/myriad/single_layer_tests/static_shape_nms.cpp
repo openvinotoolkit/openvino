@@ -6,6 +6,7 @@
 #include <functional_test_utils/blob_utils.hpp>
 
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/op/non_max_suppression.hpp>
 #include "vpu/ngraph/operations/static_shape_non_maximum_suppression.hpp"
 
 using TensorShape = InferenceEngine::SizeVector;
@@ -16,7 +17,8 @@ using StaticShapeNMSParam = std::tuple<
         int64_t, // Number of classes
         int64_t, // Maximum output boxes per class
         float, // IOU threshold
-        float>; // Score threshold
+        float,  // Score threshold
+        float>; // Soft NMS sigma
 
 using StaticShapeNMSTestParam = std::tuple<
         StaticShapeNMSParam,             // NMS params
@@ -66,6 +68,7 @@ protected:
         const auto maxOutputBoxesPerClass = std::get<3>(NMSParams);
         const auto iouThreshold = std::get<4>(NMSParams);
         const auto scoreThreshold = std::get<5>(NMSParams);
+        const auto softNMSSigma = std::get<6>(NMSParams);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
 
@@ -79,10 +82,12 @@ protected:
                 ngraph::element::f32, ngraph::Shape{}, iouThreshold);
         const auto scoreThresholdConst = std::make_shared<ngraph::opset3::Constant>(
                 ngraph::element::f32, ngraph::Shape{}, scoreThreshold);
+        const auto softNMSSigmaConst = std::make_shared<ngraph::opset3::Constant>(
+                ngraph::element::f32, ngraph::Shape{1}, softNMSSigma);
 
         const auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
-                inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst,
-                ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER, false, ngraph::element::i32);
+                inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst, softNMSSigmaConst,
+                0, false, ngraph::element::i32);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(staticShapeNMS->output(0)),
                                      std::make_shared<ngraph::opset3::Result>(staticShapeNMS->output(1))};
@@ -95,11 +100,11 @@ TEST_P(StaticShapeNMSLayerTest, accuracy) {
 }
 
 std::vector<StaticShapeNMSParam> NMSParams = {
-        std::make_tuple(1, 10, 5, 10, 0., 0.),
-        std::make_tuple(2, 100, 5, 10, 0., 0.),
-        std::make_tuple(3, 10, 5, 2, 0.5, 0.),
-        std::make_tuple(1, 1000, 1, 2000, 0.5, 0.),
-        std::make_tuple(1, 8200, 1, 8200, 0.5, 0.),
+        std::make_tuple(1, 10, 5, 10, 0., 0., 0.),
+        std::make_tuple(2, 100, 5, 10, 0., 0., 0.),
+        std::make_tuple(3, 10, 5, 2, 0.5, 0., 0.),
+        std::make_tuple(1, 1000, 1, 2000, 0.5, 0., 0.),
+        std::make_tuple(1, 8200, 1, 8200, 0.5, 0., 0.),
 };
 
 std::vector<InferenceEngine::Precision> NMSPrecisions = {

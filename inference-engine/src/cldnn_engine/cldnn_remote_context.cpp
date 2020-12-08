@@ -262,7 +262,8 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
             m_config.queuePriority,
             m_config.queueThrottle,
             m_config.memory_pool_on,
-            m_config.throughput_streams));
+            m_config.throughput_streams,
+            m_config.kernels_cache_dir));
 }
 
 ParamMap CLDNNExecutionContextImpl::getParams() const {

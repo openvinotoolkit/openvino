@@ -44,7 +44,7 @@ bool ngraph::op::v1::LogicalXor::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-namespace
+namespace logxor
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -94,7 +94,7 @@ bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalXor::evaluate");
-    return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+    return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 constexpr NodeTypeInfo op::v0::Xor::type_info;
@@ -116,5 +116,5 @@ shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args
 bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Xor::evaluate");
-    return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+    return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }

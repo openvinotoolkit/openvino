@@ -91,10 +91,10 @@ TEST(resample_gpu, basic_in2x3x2x2_nearest) {
         12.f,12.f, 9.f,   9.f,  -17.f,  -17.f,
     };
 
-    for (int i = 0; i < 2; ++i) { //B
-        for (int j = 0; j < 2; ++j) { //F
-            for (int k = 0; k < 4; ++k) { //Y
-                for (int l = 0; l < 6; ++l) { //X
+    for (int i = 0; i < 2; ++i) { // B
+        for (int j = 0; j < 2; ++j) { // F
+            for (int k = 0; k < 4; ++k) { // Y
+                for (int l = 0; l < 6; ++l) { // X
                     auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
                     EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id]));
                 }
@@ -146,8 +146,8 @@ TEST(resample_gpu, basic_in2x3x2x2_bilinear) {
         3.f, 3.25f, 3.75f, 4.f,
     };
 
-    for (int k = 0; k < 4; ++k) { //Y
-        for (int l = 0; l < 4; ++l) { //X
+    for (int k = 0; k < 4; ++k) { // Y
+        for (int l = 0; l < 4; ++l) { // X
             auto linear_id = l + k * 4;
             EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
@@ -172,7 +172,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(resample("upsampling", "input", output_size, 0, 0, 0, resample_type::bilinear));
+    topology.add(resample("upsampling", "input", output_size, {0, 0, 0, 0}, {0, 0, 0, 0}, 0, resample_type::bilinear));
 
     set_values(input, {
         1.f, 2.f,
@@ -196,8 +196,8 @@ TEST(resample_gpu, basic_in1x1x2x2_interp) {
         3.0f, 3.5f, 4.0f, 4.0f,
     };
 
-    for (int k = 0; k < 4; ++k) { //Y
-        for (int l = 0; l < 4; ++l) { //X
+    for (int k = 0; k < 4; ++k) { // Y
+        for (int l = 0; l < 4; ++l) { // X
             auto linear_id = l + k * 4;
             EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
@@ -223,7 +223,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_f16) {
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
     topology.add(reorder("input_to_b_fs_yx_fsv16", "input", format::b_fs_yx_fsv16, data_types::f32));
-    topology.add(resample("resample", "input_to_b_fs_yx_fsv16", output_size, 0, 0, 0, resample_type::bilinear));
+    topology.add(resample("resample", "input_to_b_fs_yx_fsv16", output_size, {0, 0, 0, 0}, {0, 0, 0, 0}, 0, resample_type::bilinear));
     topology.add(reorder("res_to_bfyx", "resample", format::bfyx, data_types::f32));
 
     set_values(input, {
@@ -254,8 +254,8 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_f16) {
         3.0f, 3.5f, 4.0f, 4.0f,
     };
 
-    for (int k = 0; k < 4; ++k) { //Y
-        for (int l = 0; l < 4; ++l) { //X
+    for (int k = 0; k < 4; ++k) { // Y
+        for (int l = 0; l < 4; ++l) { // X
             auto linear_id = l + k * 4;
             EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
@@ -281,7 +281,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_fsv32) {
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
     topology.add(reorder("input_to_fs_b_yx_fsv32", "input", format::fs_b_yx_fsv32, data_types::f16));
-    topology.add(resample("resample", "input_to_fs_b_yx_fsv32", output_size, 0, 0, 0, resample_type::bilinear));
+    topology.add(resample("resample", "input_to_fs_b_yx_fsv32", output_size, {0, 0, 0, 0}, {0, 0, 0, 0}, 0, resample_type::bilinear));
     topology.add(reorder("res_to_bfyx", "resample", format::bfyx, data_types::f32));
 
     set_values(input, {
@@ -312,8 +312,8 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_fsv32) {
         3.0f, 3.5f, 4.0f, 4.0f,
     };
 
-    for (int k = 0; k < 4; ++k) { //Y
-        for (int l = 0; l < 4; ++l) { //X
+    for (int k = 0; k < 4; ++k) { // Y
+        for (int l = 0; l < 4; ++l) { // X
             auto linear_id = l + k * 4;
             EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
@@ -339,7 +339,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_align_1) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(resample("upsampling", "input", output_size, 0, 0, 1, resample_type::bilinear));
+    topology.add(resample("upsampling", "input", output_size, {0, 0, 0, 0}, {0, 0, 0, 0}, 1, resample_type::bilinear));
 
     set_values(input, {
             1.f, 2.f,
@@ -363,8 +363,8 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_align_1) {
             3.000000f, 3.333333f, 3.666667f, 4.000000f
     };
 
-    for (int k = 0; k < 4; ++k) { //Y
-        for (int l = 0; l < 4; ++l) { //X
+    for (int k = 0; k < 4; ++k) { // Y
+        for (int l = 0; l < 4; ++l) { // X
             auto linear_id = l + k * 4;
             EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
@@ -414,8 +414,8 @@ TEST(resample_gpu, nearest_asymmetric) {
         3.f, 3.f, 3.f, 4.f, 4.f,
     };
 
-    for (int k = 0; k < 4; ++k) { //Y
-        for (int l = 0; l < 5; ++l) { //X
+    for (int k = 0; k < 4; ++k) { // Y
+        for (int l = 0; l < 5; ++l) { // X
             auto linear_id = l + k * 5;
             EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 1e-05F);
         }
@@ -465,8 +465,8 @@ TEST(resample_gpu, nearest_asymmetric_i8) {
             3, 3, 3, 4, 4,
     };
 
-    for (int k = 0; k < 4; ++k) { //Y
-        for (int l = 0; l < 5; ++l) { //X
+    for (int k = 0; k < 4; ++k) { // Y
+        for (int l = 0; l < 5; ++l) { // X
             auto linear_id = l + k * 5;
             EXPECT_EQ(answers[linear_id], output_ptr[linear_id]);
         }
@@ -516,8 +516,8 @@ TEST(resample_gpu, bilinear_asymmetric) {
         3.f, 3.f, 3.33333f, 3.66667f, 4.f, 4.f,
     };
 
-    for (int k = 0; k < 4; ++k) { //Y
-        for (int l = 0; l < 6; ++l) { //X
+    for (int k = 0; k < 4; ++k) { // Y
+        for (int l = 0; l < 6; ++l) { // X
             auto linear_id = l + k * 6;
             EXPECT_NEAR(answers[linear_id], output_ptr[linear_id], 5e-03F) << l << " " << k;
         }
@@ -776,3 +776,1082 @@ INSTANTIATE_TEST_CASE_P(smoke,
                             .smoke_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                         ), );
+
+TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::half_pixel;
+    nearest_mode nm = nearest_mode::ceil;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    float answers[96] = {
+         0.f,  1.f,  1.f,  1.f,
+         2.f,  3.f,  3.f,  3.f,
+         2.f,  3.f,  3.f,  3.f,
+         4.f,  5.f,  5.f,  5.f,
+         4.f,  5.f,  5.f,  5.f,
+         4.f,  5.f,  5.f,  5.f,
+
+         6.f,  7.f,  7.f,  7.f,
+         8.f,  9.f,  9.f,  9.f,
+         8.f,  9.f,  9.f,  9.f,
+        10.f, 11.f, 11.f, 11.f,
+        10.f, 11.f, 11.f, 11.f,
+        10.f, 11.f, 11.f, 11.f,
+
+        12.f, 13.f, 13.f, 13.f,
+        14.f, 15.f, 15.f, 15.f,
+        14.f, 15.f, 15.f, 15.f,
+        16.f, 17.f, 17.f, 17.f,
+        16.f, 17.f, 17.f, 17.f,
+        16.f, 17.f, 17.f, 17.f,
+
+        18.f, 19.f, 19.f, 19.f,
+        20.f, 21.f, 21.f, 21.f,
+        20.f, 21.f, 21.f, 21.f,
+        22.f, 23.f, 23.f, 23.f,
+        22.f, 23.f, 23.f, 23.f,
+        22.f, 23.f, 23.f, 23.f,
+    };
+
+    for (int i = 0; i < 2; ++i) { // B
+        for (int j = 0; j < 2; ++j) { // F
+            for (int k = 0; k < 4; ++k) { // Y
+                for (int l = 0; l < 6; ++l) { // X
+                    auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
+                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                }
+            }
+        }
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::half_pixel;
+    nearest_mode nm = nearest_mode::round_prefer_floor;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    float answers[96] = {
+         0.f,  0.f,  1.f,  1.f,
+         0.f,  0.f,  1.f,  1.f,
+         2.f,  2.f,  3.f,  3.f,
+         2.f,  2.f,  3.f,  3.f,
+         4.f,  4.f,  5.f,  5.f,
+         4.f,  4.f,  5.f,  5.f,
+
+         6.f,  6.f,  7.f,  7.f,
+         6.f,  6.f,  7.f,  7.f,
+         8.f,  8.f,  9.f,  9.f,
+         8.f,  8.f,  9.f,  9.f,
+        10.f, 10.f, 11.f, 11.f,
+        10.f, 10.f, 11.f, 11.f,
+
+        12.f, 12.f, 13.f, 13.f,
+        12.f, 12.f, 13.f, 13.f,
+        14.f, 14.f, 15.f, 15.f,
+        14.f, 14.f, 15.f, 15.f,
+        16.f, 16.f, 17.f, 17.f,
+        16.f, 16.f, 17.f, 17.f,
+
+        18.f, 18.f, 19.f, 19.f,
+        18.f, 18.f, 19.f, 19.f,
+        20.f, 20.f, 21.f, 21.f,
+        20.f, 20.f, 21.f, 21.f,
+        22.f, 22.f, 23.f, 23.f,
+        22.f, 22.f, 23.f, 23.f,
+    };
+
+    for (int i = 0; i < 2; ++i) { // B
+        for (int j = 0; j < 2; ++j) { // F
+            for (int k = 0; k < 4; ++k) { // Y
+                for (int l = 0; l < 6; ++l) { // X
+                    auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
+                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                }
+            }
+        }
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::half_pixel;
+    nearest_mode nm = nearest_mode::round_prefer_ceil;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    float answers[96] = {
+         0.f,  0.f,  1.f,  1.f,
+         0.f,  0.f,  1.f,  1.f,
+         2.f,  2.f,  3.f,  3.f,
+         2.f,  2.f,  3.f,  3.f,
+         4.f,  4.f,  5.f,  5.f,
+         4.f,  4.f,  5.f,  5.f,
+
+         6.f,  6.f,  7.f,  7.f,
+         6.f,  6.f,  7.f,  7.f,
+         8.f,  8.f,  9.f,  9.f,
+         8.f,  8.f,  9.f,  9.f,
+        10.f, 10.f, 11.f, 11.f,
+        10.f, 10.f, 11.f, 11.f,
+
+        12.f, 12.f, 13.f, 13.f,
+        12.f, 12.f, 13.f, 13.f,
+        14.f, 14.f, 15.f, 15.f,
+        14.f, 14.f, 15.f, 15.f,
+        16.f, 16.f, 17.f, 17.f,
+        16.f, 16.f, 17.f, 17.f,
+
+        18.f, 18.f, 19.f, 19.f,
+        18.f, 18.f, 19.f, 19.f,
+        20.f, 20.f, 21.f, 21.f,
+        20.f, 20.f, 21.f, 21.f,
+        22.f, 22.f, 23.f, 23.f,
+        22.f, 22.f, 23.f, 23.f,
+    };
+
+    for (int i = 0; i < 2; ++i) { // B
+        for (int j = 0; j < 2; ++j) { // F
+            for (int k = 0; k < 4; ++k) { // Y
+                for (int l = 0; l < 6; ++l) { // X
+                    auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
+                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                }
+            }
+        }
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::half_pixel;
+    nearest_mode nm = nearest_mode::floor;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    float answers[96] = {
+         0.f,  0.f,  0.f,  1.f,
+         0.f,  0.f,  0.f,  1.f,
+         0.f,  0.f,  0.f,  1.f,
+         2.f,  2.f,  2.f,  3.f,
+         2.f,  2.f,  2.f,  3.f,
+         4.f,  4.f,  4.f,  5.f,
+
+         6.f,  6.f,  6.f,  7.f,
+         6.f,  6.f,  6.f,  7.f,
+         6.f,  6.f,  6.f,  7.f,
+         8.f,  8.f,  8.f,  9.f,
+         8.f,  8.f,  8.f,  9.f,
+        10.f, 10.f, 10.f, 11.f,
+
+        12.f, 12.f, 12.f, 13.f,
+        12.f, 12.f, 12.f, 13.f,
+        12.f, 12.f, 12.f, 13.f,
+        14.f, 14.f, 14.f, 15.f,
+        14.f, 14.f, 14.f, 15.f,
+        16.f, 16.f, 16.f, 17.f,
+
+        18.f, 18.f, 18.f, 19.f,
+        18.f, 18.f, 18.f, 19.f,
+        18.f, 18.f, 18.f, 19.f,
+        20.f, 20.f, 20.f, 21.f,
+        20.f, 20.f, 20.f, 21.f,
+        22.f, 22.f, 22.f, 23.f,
+    };
+
+    for (int i = 0; i < 2; ++i) { // B
+        for (int j = 0; j < 2; ++j) { // F
+            for (int k = 0; k < 4; ++k) { // Y
+                for (int l = 0; l < 6; ++l) { // X
+                    auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
+                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                }
+            }
+        }
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    auto output_size = tensor(batch(b), feature(f), spatial(x*2, y*2));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::half_pixel;
+    nearest_mode nm = nearest_mode::simple;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    float answers[96] = {
+         0.f,  0.f,  0.f,  1.f,
+         0.f,  0.f,  0.f,  1.f,
+         0.f,  0.f,  0.f,  1.f,
+         2.f,  2.f,  2.f,  3.f,
+         2.f,  2.f,  2.f,  3.f,
+         4.f,  4.f,  4.f,  5.f,
+
+         6.f,  6.f,  6.f,  7.f,
+         6.f,  6.f,  6.f,  7.f,
+         6.f,  6.f,  6.f,  7.f,
+         8.f,  8.f,  8.f,  9.f,
+         8.f,  8.f,  8.f,  9.f,
+        10.f, 10.f, 10.f, 11.f,
+
+        12.f, 12.f, 12.f, 13.f,
+        12.f, 12.f, 12.f, 13.f,
+        12.f, 12.f, 12.f, 13.f,
+        14.f, 14.f, 14.f, 15.f,
+        14.f, 14.f, 14.f, 15.f,
+        16.f, 16.f, 16.f, 17.f,
+
+        18.f, 18.f, 18.f, 19.f,
+        18.f, 18.f, 18.f, 19.f,
+        18.f, 18.f, 18.f, 19.f,
+        20.f, 20.f, 20.f, 21.f,
+        20.f, 20.f, 20.f, 21.f,
+        22.f, 22.f, 22.f, 23.f,
+    };
+
+    for (int i = 0; i < 2; ++i) { // B
+        for (int j = 0; j < 2; ++j) { // F
+            for (int k = 0; k < 4; ++k) { // Y
+                for (int l = 0; l < 6; ++l) { // X
+                    auto linear_id = l + k * 6 + j * 4 * 6 + i * 2 * 4 * 6;
+                    EXPECT_TRUE(are_equal(answers[linear_id], output_ptr[linear_id])) << linear_id;
+                }
+            }
+        }
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 2;
+    x = 3;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::half_pixel;
+    nearest_mode nm = nearest_mode::round_prefer_floor;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+         0.f,  0.f,  1.f,
+         4.f,  4.f,  5.f,
+
+         6.f,  6.f,  7.f,
+        10.f, 10.f, 11.f,
+
+        12.f, 12.f, 13.f,
+        16.f, 16.f, 17.f,
+
+        18.f, 18.f, 19.f,
+        22.f, 22.f, 23.f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 1;
+    x = 3;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::pytorch_half_pixel;
+    nearest_mode nm = nearest_mode::round_prefer_floor;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+         0.f,  0.f,  1.f,
+         6.f,  6.f,  7.f,
+
+        12.f, 12.f, 13.f,
+        18.f, 18.f, 19.f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 2;
+    x = 3;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::asymmetric;
+    nearest_mode nm = nearest_mode::round_prefer_floor;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+         0.f,  1.f,  1.f,
+         2.f,  3.f,  3.f,
+
+         6.f,  7.f,  7.f,
+         8.f,  9.f,  9.f,
+
+        12.f, 13.f, 13.f,
+        14.f, 15.f, 15.f,
+
+        18.f, 19.f, 19.f,
+        20.f, 21.f, 21.f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 2;
+    x = 3;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::tf_half_pixel_for_nn;
+    nearest_mode nm = nearest_mode::round_prefer_floor;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+         2.f,  3.f,  3.f,
+         4.f,  5.f,  5.f,
+
+         8.f,  9.f,  9.f,
+        10.f, 11.f, 11.f,
+
+        14.f, 15.f, 15.f,
+        16.f, 17.f, 17.f,
+
+        20.f, 21.f, 21.f,
+        22.f, 23.f, 23.f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 2;
+    x = 3;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::nearest;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::align_corners;
+    nearest_mode nm = nearest_mode::round_prefer_floor;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+         0.f,  0.f,  1.f,
+         4.f,  4.f,  5.f,
+
+         6.f,  6.f,  7.f,
+        10.f, 10.f, 11.f,
+
+        12.f, 12.f, 13.f,
+        16.f, 16.f, 17.f,
+
+        18.f, 18.f, 19.f,
+        22.f, 22.f, 23.f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 2;
+    x = 3;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::cubic;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+         0.29600694f,  0.8828125f,  1.46961806f,
+         3.53038194f,  4.1171875f,  4.70399306f,
+
+         6.29600694f,  6.8828125f,  7.46961806f,
+         9.53038194f, 10.1171875f, 10.70399306f,
+
+        12.29600694f, 12.8828125f, 13.46961806f,
+        15.53038194f, 16.1171875f, 16.70399306f,
+
+        18.29600694f, 18.8828125f, 19.46961806f,
+        21.53038194f, 22.1171875f, 22.70399306f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 1;
+    int f = 1;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    x = 3;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::cubic;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+
+    set_values(input, {
+        5.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+          5.34722222f,  3.f, 0.65277778f,
+          1.91319444f, 2.5f, 3.08680556f,
+          3.91319444f, 4.5f, 5.08680556f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 2;
+    int f = 2;
+    int y = 3;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 2;
+    x = 3;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::caffe_bilinear;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+
+    set_values(input, {
+        0.f, 1.f, 2.f,
+        3.f, 4.f, 5.f,
+        6.f, 7.f, 8.f,
+        9.f, 10.f, 11.f,
+        12.f, 13.f, 14.f,
+        15.f, 16.f, 17.f,
+        18.f, 19.f, 20.f,
+        21.f, 22.f, 23.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+         0.5f,  1.f,  1.5f,
+         3.5f,  4.f,  4.5f,
+
+         6.5f,  7.f,  7.5f,
+         9.5f, 10.f, 10.5f,
+
+        12.5f, 13.f, 13.5f,
+        15.5f, 16.f, 16.5f,
+
+        18.5f, 19.f, 19.5f,
+        21.5f, 22.f, 22.5f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in2x2x3x2_linear_onnx) {
+    //  Input  : 2x2x3x2
+    //  Output : 2x2x6x4
+    //  Sample Type: Nearest
+
+    const auto& engine = get_test_engine();
+
+    int b = 1;
+    int f = 1;
+    int y = 2;
+    int x = 2;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 4;
+    x = 4;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::bilinear;
+    coordinate_transformation_mode ctm = coordinate_transformation_mode::asymmetric;
+    resample::AxesAndScales axesAndScales;
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::sizes;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm));
+
+    set_values(input, {
+        1.f, 2.f,
+        3.f, 4.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+             1.f, 1.33333f, 1.66667f,      2.f,
+        1.66667f,      2.f, 2.33333f, 2.66667f,
+        2.33333f, 2.66667f,      3.f, 3.33333f,
+             3.f, 3.33333f, 3.66667f,      4.f,
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}
+
+TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
+    //  Input  : 1x1x2x4
+    //  Output : 1x1x1x2
+    //  Sample Type: Linear
+
+    const auto& engine = get_test_engine();
+
+    int b = 1;
+    int f = 1;
+    int y = 2;
+    int x = 4;
+    tensor shape = tensor{batch(b), feature(f), spatial(x, y)};
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+
+    y = 1;
+    x = 2;
+    auto output_size = tensor(batch(b), feature(f), spatial(x, y));
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    int32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    resample_type mode = resample_type::caffe_bilinear;
+    resample::AxesAndScales axesAndScales = {
+        {cldnn::resample::resample_axis::along_y, 0.6f},
+        {cldnn::resample::resample_axis::along_x, 0.6f},
+    };
+    shape_calculation_mode shapeCalcMode = shape_calculation_mode::scales;
+    topology.add(resample("interpolate", "input", output_size, axesAndScales, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+
+    set_values(input, {
+        1.f, 2.f, 3.f, 4.f,
+        5.f, 6.f, 7.f, 8.f,
+    });
+
+    cldnn::network net {engine, topology };
+
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("interpolate").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    std::vector<float> answers = {
+         2.6666665f,  4.3333331f
+    };
+
+    ASSERT_EQ(answers.size(), output_ptr.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+    }
+}

@@ -58,7 +58,7 @@ private:
     static bool isTrivialPermute(const PermutationIndexVector& permutation, const vpu::DimValues& dims) {
         InferenceEngine::SizeVector dimsVector(dims.size());
         for (const auto& dim : dims) {
-            auto index = dimToIeInd(dim.first, dims.size());
+            auto index = dimToIeInd(dim.first, static_cast<int>(dims.size()));
             dimsVector[dims.size() - 1 - index] = dim.second;
         }
 

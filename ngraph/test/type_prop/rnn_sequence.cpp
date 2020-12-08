@@ -16,7 +16,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset4.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -31,20 +31,20 @@ TEST(type_prop, rnn_sequence_forward)
     const size_t hidden_size = 128;
 
     const auto X =
-        make_shared<opset4::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
-    const auto initial_hidden_state = make_shared<opset4::Parameter>(
+        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto initial_hidden_state = make_shared<opset5::Parameter>(
         element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
 
-    const auto W = make_shared<opset4::Parameter>(element::f32,
+    const auto W = make_shared<opset5::Parameter>(element::f32,
                                                   Shape{num_directions, hidden_size, input_size});
-    const auto R = make_shared<opset4::Parameter>(element::f32,
+    const auto R = make_shared<opset5::Parameter>(element::f32,
                                                   Shape{num_directions, hidden_size, hidden_size});
-    const auto B = make_shared<opset4::Parameter>(element::f32, Shape{num_directions, hidden_size});
+    const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size});
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto sequence = make_shared<op::v5::RNNSequence>(
+    const auto sequence = make_shared<opset5::RNNSequence>(
         X, initial_hidden_state, sequence_lengths, W, R, B, hidden_size, direction);
 
     EXPECT_EQ(sequence->get_hidden_size(), hidden_size);

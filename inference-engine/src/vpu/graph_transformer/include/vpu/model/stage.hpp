@@ -144,7 +144,6 @@ VPU_DECLARE_ENUM(StageType,
     ScatterUpdate = 103,
     ReduceMin = 105,
     ExpDetectionOutput = 106,  // ExperimentalDetectronDetectionOutput
-    NonMaxSuppression = 107,
     ROIFeatureExtractor = 108,
     SCRelu = 109,
     Erf = 110,
@@ -172,6 +171,9 @@ VPU_DECLARE_ENUM(StageType,
     StridedSlice = 133,
     SoftPlus = 134,
     Swish = 135,
+    GatherND = 136,
+    HSwish = 137,
+    Ceiling = 138,
 )
 
 //
@@ -262,11 +264,27 @@ VPU_DECLARE_ENUM(ConcatInferRequirement,
 // Modes for Broadcast operation according to specification
 VPU_DECLARE_ENUM(BroadcastMode,
     NUMPY = 0,
-    EXPLICIT = 1)
+    EXPLICIT = 1,
+    BIDIRECTIONAL = 2)
 
 //
 // StageDataInfo
 //
+
+VPU_DECLARE_ENUM(InterpolateCoordTransMode,
+    HalfPixel = 0,
+    PytorchHalfPixel = 1,
+    Asymmetric = 2,
+    TfHalfPixelForNn = 3,
+    AlignCorners = 4
+)
+VPU_DECLARE_ENUM(InterpolateNearestMode,
+    RoundPreferFloor = 0,
+    RoundPreferCeil = 1,
+    Floor = 2,
+    Ceil = 3,
+    Simple = 4
+)
 
 template <typename Val>
 class StageDataInfo final {
@@ -466,11 +484,11 @@ private:
 public:
     inline int numInputs() const { return _inputEdges.size(); }
     inline StageInput inputEdge(int ind) const {
-        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _inputEdges.size());
+        IE_ASSERT(ind >= 0 && ind < _inputEdges.size());
         return _inputEdges[ind];
     }
     inline Data input(int ind) const {
-        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _inputEdges.size());
+        IE_ASSERT(ind >= 0 && ind < _inputEdges.size());
         return _inputEdges[ind]->input();
     }
     inline auto inputs() const -> decltype(mapRange<InputAccess>(inputEdges())) {
@@ -479,11 +497,11 @@ public:
 
     inline int numOutputs() const { return _outputEdges.size(); }
     inline StageOutput outputEdge(int ind) const {
-        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _outputEdges.size());
+        IE_ASSERT(ind >= 0 && ind < _outputEdges.size());
         return _outputEdges[ind];
     }
     inline Data output(int ind) const {
-        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _outputEdges.size());
+        IE_ASSERT(ind >= 0 && ind < _outputEdges.size());
         return _outputEdges[ind]->output();
     }
     inline auto outputs() const -> decltype(mapRange<OutputAccess>(outputEdges())) {
@@ -499,11 +517,11 @@ public:
 
     inline int numTempBuffers() const { return _tempBufferEdges.size(); }
     inline StageTempBuffer tempBufferEdge(int ind) const {
-        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _tempBufferEdges.size());
+        IE_ASSERT(ind >= 0 && ind < _tempBufferEdges.size());
         return _tempBufferEdges[ind];
     }
     inline Data tempBuffer(int ind) const {
-        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _tempBufferEdges.size());
+        IE_ASSERT(ind >= 0 && ind < _tempBufferEdges.size());
         return _tempBufferEdges[ind]->tempBuffer();
     }
     inline auto tempBuffers() const -> decltype(mapRange<TempBufferAccess>(tempBufferEdges())) {

@@ -4,6 +4,8 @@ This topic demonstrates how to run the Neural Style Transfer sample application,
 inference of style transfer models.
 
 > **NOTE**: The OpenVINO™ toolkit does not include a pre-trained model to run the Neural Style Transfer sample. A public model from the [Zhaw's Neural Style Transfer repository](https://github.com/zhaw/neural_style) can be used. Read the [Converting a Style Transfer Model from MXNet*](../../../../../docs/MO_DG/prepare_model/convert_model/mxnet_specific/Convert_Style_Transfer_From_MXNet.md) topic from the [Model Optimizer Developer Guide](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to learn about how to get the trained model and how to convert it to the Inference Engine format (\*.xml + \*.bin).
+> 
+> The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 ## How It Works
 
@@ -41,13 +43,13 @@ Options:
   -nt NUMBER_TOP, --number_top NUMBER_TOP
                         Optional. Number of top results
   --mean_val_r MEAN_VAL_R, -mean_val_r MEAN_VAL_R
-                        Optional. Mean value of red chanel for mean value subtraction in
+                        Optional. Mean value of red channel for mean value subtraction in
                         postprocessing
   --mean_val_g MEAN_VAL_G, -mean_val_g MEAN_VAL_G
-                        Optional. Mean value of green chanel for mean value subtraction
+                        Optional. Mean value of green channel for mean value subtraction
                         in postprocessing
   --mean_val_b MEAN_VAL_B, -mean_val_b MEAN_VAL_B
-                        Optional. Mean value of blue chanel for mean value subtraction
+                        Optional. Mean value of blue channel for mean value subtraction
                         in postprocessing
 ```
 

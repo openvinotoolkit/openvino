@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -43,9 +43,9 @@ struct PyramidROIAlign_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PyramidROIAlignKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class PyramidROIAlignKernelBase : public common_kernel_base {
+class PyramidROIAlignKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~PyramidROIAlignKernelBase() {}
 
     using DispatchData = CommonDispatchData;

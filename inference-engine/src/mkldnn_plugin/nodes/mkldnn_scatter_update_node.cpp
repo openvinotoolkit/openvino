@@ -5,8 +5,6 @@
 #include "mkldnn_scatter_update_node.h"
 #include "desc_iterator.hpp"
 #include "mkldnn_quantize_node.h"
-#include "mkldnn_depthwise_node.h"
-#include "mkldnn_activation_node.h"
 #include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
@@ -16,21 +14,11 @@
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
-
-#include "jit_generator.hpp"
-#include "jit_uni_eltwise.hpp"
-#include "jit_uni_depthwise.hpp"
-#include "jit_uni_quantization.hpp"
 #include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::utils;
-using namespace Xbyak;
-
 
 MKLDNNScatterUpdateNode::MKLDNNScatterUpdateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(layer, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu),

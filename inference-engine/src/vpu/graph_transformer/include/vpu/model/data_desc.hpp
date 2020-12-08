@@ -409,7 +409,7 @@ public:
 
     DimsOrder() = default;
     static DimsOrder fromCode(StorageOrder64 code);
-    static DimsOrder fromNumDims(int numDims);
+    static DimsOrder fromNumDims(size_t numDims);
     static DimsOrder fromPermutation(const DimVector& perm);
     static DimsOrder fromLayout(ie::Layout const& layout);
 
@@ -513,7 +513,7 @@ public:
             int ind = 0;
             for (auto i = dimsBegin; i < dimsEnd; i++) {
                 auto val = *i;
-                _dims.set(perm[ind], val);
+                _dims.set(perm[ind], static_cast<int>(val));
                 ++ind;
             }
         } else {

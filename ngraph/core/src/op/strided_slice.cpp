@@ -106,7 +106,7 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
 {
 }
 
-bool ngraph::op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
+bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("begin_mask", m_begin_mask);
     visitor.on_attribute("end_mask", m_end_mask);
@@ -228,7 +228,7 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                          m_ellipsis_mask);
 }
 
-namespace
+namespace strided_slice
 {
     inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
@@ -274,14 +274,14 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::StridedSlice::evaluate");
-    return evaluate_strided_slice(input_values[0],
-                                  input_values[1],
-                                  input_values[2],
-                                  input_values[3],
-                                  convert_mask_to_axis_set(get_begin_mask()),
-                                  convert_mask_to_axis_set(get_end_mask()),
-                                  convert_mask_to_axis_set(get_new_axis_mask()),
-                                  convert_mask_to_axis_set(get_shrink_axis_mask()),
-                                  convert_mask_to_axis_set(get_ellipsis_mask()),
-                                  output_values[0]);
+    return strided_slice::evaluate_strided_slice(input_values[0],
+                                                 input_values[1],
+                                                 input_values[2],
+                                                 input_values[3],
+                                                 convert_mask_to_axis_set(get_begin_mask()),
+                                                 convert_mask_to_axis_set(get_end_mask()),
+                                                 convert_mask_to_axis_set(get_new_axis_mask()),
+                                                 convert_mask_to_axis_set(get_shrink_axis_mask()),
+                                                 convert_mask_to_axis_set(get_ellipsis_mask()),
+                                                 output_values[0]);
 }

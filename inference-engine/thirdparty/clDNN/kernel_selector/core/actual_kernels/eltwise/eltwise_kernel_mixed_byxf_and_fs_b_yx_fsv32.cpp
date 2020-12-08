@@ -21,26 +21,6 @@
 
 namespace kernel_selector {
 
-namespace {
-std::shared_ptr<JitConstant> GetJit_GetIndexForDataLayout(std::string jitName,
-                                                          std::string prefix,
-                                                          DataLayout dataLayout) {
-    std::string jitValue;
-    switch (dataLayout) {
-        case DataLayout::byxf:
-            jitValue += "GET_DATA_INDEX(";
-            break;
-        case DataLayout::fs_b_yx_fsv32:
-            jitValue += "GET_DATA_FS_B_YX_FSV32_INDEX(";
-            break;
-        default:
-            throw std::runtime_error("incorrect data_layout");
-    }
-    jitValue += prefix + ",b,f,y,x)";
-
-    return MakeJitConstant(jitName, jitValue);
-}
-}  // namespace
 // TODO: [blocked_formats] does fp32 work well with kernel?
 ParamsKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetSupportedKey() const {
     ParamsKey k;

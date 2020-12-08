@@ -19,10 +19,12 @@
 namespace LayerTestsDefinitions {
 std::string SqueezeUnsqueezeLayerTest::getTestCaseName(testing::TestParamInfo<squeezeParams> obj) {
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     ShapeAxesTuple shapeItem;
     std::string targetDevice;
     ngraph::helpers::SqueezeOpType opType;
-    std::tie(shapeItem, opType, netPrecision, targetDevice) = obj.param;
+    std::tie(shapeItem, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -30,7 +32,11 @@ std::string SqueezeUnsqueezeLayerTest::getTestCaseName(testing::TestParamInfo<sq
     result << "IS=" << CommonTestUtils::vec2str(shapeItem.first) << separator;
     result << "Axes=" << CommonTestUtils::vec2str(shapeItem.second) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << separator;
+    result << "outPRC=" << outPrc.name() << separator;
+    result << "inL=" << inLayout << separator;
+    result << "outL=" << outLayout << separator;
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
@@ -40,7 +46,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     std::vector<int> axesVector;
     ShapeAxesTuple shapeItem;
     ngraph::helpers::SqueezeOpType opType;
-    std::tie(shapeItem, opType, netPrecision, targetDevice) = GetParam();
+    std::tie(shapeItem, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
     std::tie(inputShapes, axesVector) = shapeItem;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});

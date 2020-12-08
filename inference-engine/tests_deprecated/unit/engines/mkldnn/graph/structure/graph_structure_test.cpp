@@ -186,10 +186,9 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReorders) {
     for (auto &node : nodes) {
         if (node->getType() == MKLDNNPlugin::Reorder) {
             reorders_num++;
-            ASSERT_EQ(MKLDNNPlugin::Output, node->getChildEdgeAt(0)->getChild()->getType());
         }
     }
-    ASSERT_EQ(reorders_num, 1);
+    ASSERT_EQ(reorders_num, 3);
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestRedundantReorderBeforeConvWithC_3) {
@@ -1203,8 +1202,7 @@ TEST_F(MKLDNNGraphStructureTests, TestOutputAfterInplacePlusConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 2, 2}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
@@ -1719,8 +1717,7 @@ TEST_F(MKLDNNGraphStructureTests, TestResnetPart) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 224, 224}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
@@ -1869,8 +1866,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatAfterConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2050,8 +2046,7 @@ TEST_F(MKLDNNGraphStructureTests, Test2ConcatFromConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 2, 2}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2382,8 +2377,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithConstLayer) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2530,8 +2524,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -3787,7 +3780,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersForXceptionTopology) {
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
@@ -4026,7 +4019,7 @@ TEST_F(MKLDNNGraphStructureTests, TestFailedPartPlateRecognitionBarrier0001) {
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
 
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
@@ -4635,7 +4628,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionDWConvolutionSumFusing) {
     memset((float *) weights->buffer(), 0, weights->size());
 
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     network = core.ReadNetwork(model, weights_ptr);
@@ -5133,7 +5126,7 @@ TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWithConcat) {
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
@@ -5418,7 +5411,7 @@ TEST_F(MKLDNNGraphStructureTests, TestRefPoolingWithConcat) {
     weights->allocate();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-    
+
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
@@ -5572,7 +5565,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2DepthwiseOpFusing) {
     ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
     ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Reorder);
     ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Convolution);
-    ASSERT_TRUE(nodes[2].get()->isFusedWith(MKLDNNPlugin::Type::Depthwise));
+    ASSERT_TRUE(nodes[2].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
     ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Reorder);
     ASSERT_EQ(nodes[4].get()->getType(), MKLDNNPlugin::Type::Output);
 
@@ -5710,7 +5703,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2EltwiseOpFusing) {
     ASSERT_EQ(nodes.size(), 4);
     ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
     ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Convolution);
-    ASSERT_TRUE(nodes[1].get()->isFusedWith(MKLDNNPlugin::Type::Activation));
+    ASSERT_TRUE(nodes[1].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
     ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Reorder);
     ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Output);
 
@@ -5852,7 +5845,7 @@ TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWith2DepthwiseOpFusing) {
     ASSERT_EQ(nodes.size(), 3);
     ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
     ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Convolution);
-    ASSERT_TRUE(nodes[1].get()->isFusedWith(MKLDNNPlugin::Type::Depthwise));
+    ASSERT_TRUE(nodes[1].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
     ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Output);
 
     InferenceEngine::TensorDesc src_desc(InferenceEngine::Precision::FP32, {1, 8, 300, 600}, InferenceEngine::NCHW);

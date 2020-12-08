@@ -46,6 +46,8 @@ void runtime::reference::reshape(const char* arg,
 
     for (const Coordinate& input_coord : input_transform)
     {
+        if (output_it == output_transform.end())
+            break;
         const Coordinate& output_coord = *output_it;
 
         memcpy(out + output_transform.index(output_coord) * elem_size,

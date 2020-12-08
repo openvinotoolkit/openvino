@@ -43,11 +43,14 @@ namespace {
         testing::Values(true, false),
         testing::ValuesIn(reductionTypes),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapes),
         testing::Values(CommonTestUtils::DEVICE_GPU));
 
     INSTANTIATE_TEST_CASE_P(
-        ReduceOneAxis,
+        smoke_ReduceOneAxis,
         ReduceOpsLayerTest,
         paramsOneAxis,
         ReduceOpsLayerTest::getTestCaseName);
@@ -58,11 +61,14 @@ namespace {
         testing::Values(true, false),
         testing::ValuesIn(reductionTypes),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapes),
         testing::Values(CommonTestUtils::DEVICE_GPU));
 
     INSTANTIATE_TEST_CASE_P(
-        Reduce,
+        smoke_Reduce,
         ReduceOpsLayerTest,
         params,
         ReduceOpsLayerTest::getTestCaseName);

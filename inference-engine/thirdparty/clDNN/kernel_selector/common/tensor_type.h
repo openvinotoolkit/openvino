@@ -69,6 +69,7 @@ enum WeightsLayout {
     oi = 0,
     io,
     oiyx,
+    ioyx,
     oyxi,
     iyxo,
     yxio,
@@ -122,11 +123,14 @@ enum WeightsLayout {
     os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
     os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
     oizyx,
+    iozyx,
     os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
     os_i_yxs_osv4_yxsv4,                 // for weights for depthwise IMAD convolution
     goiyx,
+    gioyx,
     goizyx,
+    giozyx,
     gyxio,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
@@ -195,10 +199,12 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::oi:
         case WeightsLayout::io:
         case WeightsLayout::oiyx:
+        case WeightsLayout::ioyx:
         case WeightsLayout::oyxi:
         case WeightsLayout::iyxo:
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
+        case WeightsLayout::iozyx:
         case WeightsLayout::dlstm_dir_io:
             return true;
         default:

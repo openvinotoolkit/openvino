@@ -57,7 +57,7 @@ shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalNot>(new_args.at(0));
 }
 
-namespace
+namespace notop
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
@@ -99,35 +99,5 @@ bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalNot::evaluate");
-    return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-}
-
-constexpr NodeTypeInfo op::v0::Not::type_info;
-
-op::v0::Not::Not(const Output<Node>& arg)
-    : Op({arg})
-{
-    constructor_validate_and_infer_types();
-}
-
-// TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
-void op::v0::Not::validate_and_infer_types()
-{
-    auto args_et_pshape = ngraph::op::util::validate_and_infer_elementwise_args(this);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
-
-    set_output_type(0, args_et, args_pshape);
-}
-
-shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Not>(new_args.at(0));
-}
-
-bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Not::evaluate");
-    return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

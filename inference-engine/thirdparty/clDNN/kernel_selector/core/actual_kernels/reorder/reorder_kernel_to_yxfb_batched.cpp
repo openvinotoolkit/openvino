@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,21 +67,21 @@ JitConstants ReorderKernel_to_yxfb_batched::GetJitConstants(const reorder_params
 }
 
 ReorderKernelBase::DispatchData ReorderKernel_to_yxfb_batched::SetDefault(const reorder_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& input = params.inputs[0];
 
     unsigned int gws = (unsigned int)input.LogicalSize();
 
-    kd.gws0 = Align(gws, 8 * input.Batch().v) / input.Batch().v;
-    kd.gws1 = 1;
-    kd.gws2 = 1;
+    dispatchData.gws[0] = Align(gws, 8 * input.Batch().v) / input.Batch().v;
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
 
-    kd.lws0 = 8;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 8;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ReorderKernel_to_yxfb_batched::GetKernelsData(const Params& params, const optional_params& options) const {

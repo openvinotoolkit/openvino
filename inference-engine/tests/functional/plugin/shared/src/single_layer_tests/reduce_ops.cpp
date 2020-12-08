@@ -21,13 +21,15 @@ namespace LayerTestsDefinitions {
 
 std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj) {
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout;
     bool keepDims;
     ngraph::helpers::ReductionType reductionType;
     std::vector<size_t> inputShape;
     std::vector<int> axes;
     CommonTestUtils::OpType opType;
     std::string targetDevice;
-    std::tie(axes, opType, keepDims, reductionType, netPrecision, inputShape, targetDevice) = obj.param;
+    std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
@@ -35,7 +37,10 @@ std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMea
     result << "type=" << reductionType << "_";
     if (keepDims) result << "KeepDims_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
@@ -49,7 +54,7 @@ void ReduceOpsLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     std::vector<int> axes;
     CommonTestUtils::OpType opType;
-    std::tie(axes, opType, keepDims, reductionType, netPrecision, inputShape, targetDevice) = GetParam();
+    std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

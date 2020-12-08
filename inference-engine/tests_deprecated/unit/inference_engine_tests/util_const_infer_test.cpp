@@ -732,12 +732,12 @@ TEST_F(AdvancedShapeInferTests, canReshape) {
             .finalize();
     originalLayersNum = net->allLayers().size();
     IE::CNNNetwork cnnNetwork(net);
-    IE::SizeVector newShape = {1, 3, 1};
+    IE::SizeVector newShape = {1, 1, 1};
     std::map<std::string, IE::SizeVector> inputShapes = {{"data2", newShape}};
     cnnNetwork.reshape(inputShapes);
 
     ASSERT_NO_THROW(CommonTestUtils::getLayerByName(cnnNetwork, "layer2"));
-    ASSERT_EQ(getData("data3")->getTensorDesc().getDims(), IE::SizeVector{3});
+    ASSERT_EQ(getData("data3")->getTensorDesc().getDims(), IE::SizeVector{1});
     ASSERT_EQ(net->allLayers().size(), originalLayersNum);
 
     IE::ConstTransformer transformator(net.get());
@@ -803,17 +803,17 @@ TEST_F(AdvancedShapeInferTests, canReshape2) {
             .finalize();
     originalLayersNum = net->allLayers().size();
     IE::CNNNetwork cnnNetwork(net);
-    IE::SizeVector newShape = {5, 9, 3};
-    std::map<std::string, IE::SizeVector> inputShapes = {{"data1", {135}},
-                                                         {"data2", {2, 1, 1}},
-                                                         {"data3", {1, 3, 1}}};
+    IE::SizeVector newShape = {1, 1, 1};
+    std::map<std::string, IE::SizeVector> inputShapes = {{"data1", {1}},
+                                                         {"data2", {1, 1, 1}},
+                                                         {"data3", {1, 1, 1}}};
     getLayer("layer4")->params = {{"power", "1"},
                                   {"scale", "2"},
                                   {"shift", "1"}};
 
     cnnNetwork.reshape(inputShapes);
 
-    ASSERT_EQ(getData("data7")->getTensorDesc().getDims(), IE::SizeVector{3});
+    ASSERT_EQ(getData("data7")->getTensorDesc().getDims(), IE::SizeVector{1});
     ASSERT_EQ(net->allLayers().size(), originalLayersNum);
 
     IE::ConstTransformer transformator(net.get());
@@ -846,7 +846,7 @@ TEST_F(AdvancedShapeInferTests, canReshapeConst) {
     originalLayersNum = net->allLayers().size();
     IE::CNNNetwork cnnNetwork(net);
     initConstLayers({"const1"});
-    IE::SizeVector newOutShape = {1, 2, 3};
+    IE::SizeVector newOutShape = {1, 1, 1};
     IE::SizeVector newInShape = {IE::details::product(newOutShape)};
 
     std::map<std::string, IE::SizeVector> inputShapes = {{"data1", newInShape}};
@@ -885,7 +885,7 @@ TEST_F(AdvancedShapeInferTests, canReshapeCHWConst) {
 
     cnnNetwork.reshape({});
 
-    IE::SizeVector expectedDims = {2, 1, 3};
+    IE::SizeVector expectedDims = {1, 1, 1};
     ASSERT_EQ(getData("data2")->getTensorDesc().getDims(), expectedDims);
 }
 

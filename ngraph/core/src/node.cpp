@@ -55,6 +55,26 @@ Node::Node(const Node& node)
     }
 }
 
+Node& Node::operator=(const Node& node)
+{
+    this->m_control_dependents = node.m_control_dependents;
+    this->m_control_dependencies = node.m_control_dependencies;
+    this->m_instance_id = m_next_instance_id.fetch_add(1);
+    this->m_friendly_name = node.m_friendly_name;
+    this->m_provenance_tags = node.m_provenance_tags;
+    this->m_provenance_group = node.m_provenance_group;
+    this->m_inputs = node.m_inputs;
+    this->m_op_annotations = node.m_op_annotations;
+    this->m_rt_info = node.m_rt_info;
+    // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
+    for (auto& input : m_inputs)
+    {
+        input = descriptor::Input(this, input.get_index(), input.get_output());
+        input.get_output().add_input(&input);
+    }
+    return *this;
+}
+
 Node::Node(size_t output_size)
     : Node()
 {
@@ -207,25 +227,10 @@ void Node::set_argument(size_t position, const Output<Node>& argument)
     get_input_descriptor(position).replace_output(output_descriptor);
 }
 
-// While we are still doing validation and type inference in the constructor, this is true
-// The #define can be commented out to debug doing validation/inference after construction.
-// When that is working, these two functions will be removed.
-#define IN_TRANSITION
-
 void Node::constructor_validate_and_infer_types()
 {
-#ifdef IN_TRANSITION
     validate_and_infer_types();
-#endif
 }
-
-void Node::delayed_validate_and_infer_types()
-{
-#ifndef IN_TRANSITION
-    validate_and_infer_types();
-#endif
-}
-#undef IN_TRANSITION
 
 void Node::set_output_size(size_t n)
 {

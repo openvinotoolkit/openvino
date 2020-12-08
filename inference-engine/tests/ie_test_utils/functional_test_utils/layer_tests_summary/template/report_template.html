@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="extensions/filter-control/bootstrap-table-filter-control.css">
+    <title>Report</title>
+</head>
+<body>
+<script src="extensions/filter-control/bootstrap-table-filter-control.js"></script>
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<!--
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+        integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+        crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+        integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+        crossorigin="anonymous"></script>
+-->
+<hr class="my-4">
+<h2>Operations coverage summary {{ timestamp }}</h2>
+<hr class="my-4">
+<table class="table table-hover" id="report">
+    <thead>
+    <tr>
+        <th scope="col">Operation</th>
+        {% for d in devices -%}
+        <th>{{ d }}</th>
+        {% endfor %}
+    </tr>
+    </thead>
+    <tbody>
+    {% for op in ordered_ops -%}
+    <tr>
+        <th scope="row">{{ op }}</th>
+        {% for d in devices -%}
+        {% if op in results[d] -%}
+        <td>
+            {{ results[d][op].passrate }}% (<span style="color: green">p:{{ results[d][op].passed }}</span>,
+            <span style="color: red">f:{{ results[d][op].failed }}</span>,s:{{ results[d][op].skipped }})
+        </td>
+        {% else -%}
+        <td class="table-warning">No tests</td>
+        {% endif -%}
+
+        {% endfor %}
+    </tr>
+    {% endfor -%}
+    <tr>
+        <th scope="row">Total: {{ordered_ops|length}}</th>
+        {% for d in devices -%}
+        <td>{{results[d]|length}}</td>
+        {% endfor %}
+
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

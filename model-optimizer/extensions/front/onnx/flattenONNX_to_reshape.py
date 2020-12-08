@@ -36,10 +36,6 @@ class FlattenONNXToReshape(FrontReplacementSubgraph):
     """
     enabled = True
 
-    def run_before(self):
-        from extensions.front.LogSoftmax import LogSoftmaxFrontReplacer
-        return [LogSoftmaxFrontReplacer]
-
     def pattern(self):
         return dict(nodes=[('flatten', dict(op='FlattenONNX'))],
                     edges=[])

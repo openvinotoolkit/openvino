@@ -88,7 +88,7 @@ namespace ngraph
                 template <typename T>
                 inline T get_value(const ONNX_NAMESPACE::AttributeProto& attribute)
                 {
-                    throw error::attribute::UnsupportedType{attribute.type()};
+                    throw ngraph::onnx_import::error::attribute::UnsupportedType{attribute.type()};
                 }
 
                 template <>

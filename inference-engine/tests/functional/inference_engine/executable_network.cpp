@@ -46,8 +46,10 @@ TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedQueryState) {
+    IE_SUPPRESS_DEPRECATED_START
     ExecutableNetwork exec;
     ASSERT_THROW(exec.QueryState(), InferenceEngine::details::InferenceEngineException);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedSetConfig) {

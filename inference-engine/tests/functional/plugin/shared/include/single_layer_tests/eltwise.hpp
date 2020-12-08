@@ -23,6 +23,9 @@ typedef std::tuple<
     ngraph::helpers::InputLayerType,              // secondary input type
     CommonTestUtils::OpType,                      // op type
     InferenceEngine::Precision,                   // Net precision
+    InferenceEngine::Precision,                   // Input precision
+    InferenceEngine::Precision,                   // Output precision
+    InferenceEngine::Layout,                      // Input layout
     std::string,                                  // Device name
     std::map<std::string, std::string>            // Additional network configuration
 > EltwiseTestParams;
@@ -30,6 +33,7 @@ typedef std::tuple<
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void SetUp() override;
 
 public:

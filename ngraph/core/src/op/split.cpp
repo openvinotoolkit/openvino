@@ -23,104 +23,11 @@
 #include "ngraph/validation_util.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
-constexpr NodeTypeInfo op::v0::Split::type_info;
-
-op::v0::Split::Split(const Output<Node>& data, const Output<Node>& axis, const size_t num_split)
-    : FusedOp({data, axis})
-    , m_split_evenly{true}
-    , m_num_split{num_split}
-{
-    constructor_validate_and_infer_types();
-}
-
-op::v0::Split::Split(const Output<Node>& data,
-                     const Output<Node>& axis,
-                     const std::vector<size_t>& splits)
-    : FusedOp({data, axis})
-    , m_split_evenly{false}
-    , m_num_split{0}
-    , m_splits{splits}
-{
-    constructor_validate_and_infer_types();
-}
-
-void op::v0::Split::pre_validate_and_infer_types()
-{
-    const auto axis_shape = get_input_shape(1);
-    NODE_VALIDATION_CHECK(this, is_scalar(axis_shape), "The 'axis' input node must be scalar");
-
-    const auto axis_node = input_value(1).get_node_shared_ptr();
-    NODE_VALIDATION_CHECK(
-        this, op::is_constant(axis_node), "The 'axis' input node must be constant");
-    const auto axis_node_const = as_type_ptr<op::Constant>(axis_node);
-    m_axis = axis_node_const->get_data_ptr<int64_t>()[0];
-
-    // Create dynamic-typed outputs. Actual shape/type will be computed during shape inference
-    for (size_t i = 0; i < std::max(m_splits.size(), m_num_split); i++)
-    {
-        set_output_type(i, get_input_element_type(0), PartialShape::dynamic());
-    }
-
-    if (is_dynamic())
-    {
-        return;
-    }
-
-    const auto shape = get_input_shape(0);
-
-    const auto data_rank = get_input_partial_shape(0).rank();
-    m_axis = ngraph::normalize_axis(this, m_axis, data_rank);
-    const auto dimension_at_axis = shape.at(m_axis);
-    if (m_split_evenly)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              dimension_at_axis % m_num_split == 0,
-                              "The input tensor's dimension pointed by the 'axis' parameter: ",
-                              dimension_at_axis,
-                              " has to be a multiple of the 'num_split' parameter value: ",
-                              m_num_split);
-
-        m_splits.assign(m_num_split, dimension_at_axis / m_num_split);
-    }
-    else
-    {
-        const auto sum_splits = accumulate(begin(m_splits), end(m_splits), 0UL);
-        NODE_VALIDATION_CHECK(this,
-                              sum_splits == dimension_at_axis,
-                              "The input tensor's dimension pointed by the 'axis' parameter: ",
-                              dimension_at_axis,
-                              " has to be equal to the sum of splits passed to the op: ",
-                              sum_splits);
-
-        const bool all_splits_positive =
-            all_of(begin(m_splits), end(m_splits), [](const size_t v) { return v > 0; });
-
-        NODE_VALIDATION_CHECK(this,
-                              all_splits_positive == true,
-                              "All values of the 'splits' attribute must be greater than zero");
-    }
-    set_input_is_relevant_to_shape(0);
-}
-
-OutputVector op::v0::Split::decompose_op() const
-{
-    return builder::split(input_value(0), m_splits, m_axis);
-}
-
-shared_ptr<Node> op::v0::Split::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<Split>(new_args.at(0), new_args.at(1), m_splits);
-}
-
-constexpr NodeTypeInfo op::v1::Split::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Split, "Split", 1);
 
 op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const size_t num_splits)
     : Op({data, axis})
@@ -141,15 +48,19 @@ void op::v1::Split::validate_and_infer_types()
     const auto axis_ps = input_value(1).get_partial_shape();
     const auto axis_et = input_value(1).get_element_type();
 
-    NODE_VALIDATION_CHECK(this,
-                          axis_ps.rank().is_static() && axis_ps.rank().get_length() == 0,
-                          "The 'axis' input is expected to be a scalar. Got: ",
-                          axis_ps);
+    if (axis_ps.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              axis_ps.rank().get_length() == 0,
+                              "The 'axis' input is expected to be a scalar. Got: ",
+                              axis_ps);
+    }
 
     NODE_VALIDATION_CHECK(
         this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
 
-    if (op::is_constant(input_value(1).get_node()) && data_ps.is_static())
+    PartialShape each_output_shape{data_ps};
+    if (op::is_constant(input_value(1).get_node()) && data_ps.rank().is_static())
     {
         const auto axis_input = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
         auto axis = axis_input->cast_vector<int64_t>()[0];
@@ -157,33 +68,35 @@ void op::v1::Split::validate_and_infer_types()
         const auto data_rank = get_input_partial_shape(0).rank();
         axis = ngraph::normalize_axis(this, axis, data_rank);
 
-        const auto data_shape = data_ps.to_shape();
-        const auto dimension_at_axis = data_shape.at(axis);
-
-        NODE_VALIDATION_CHECK(this,
-                              dimension_at_axis % m_num_splits == 0,
-                              "The input tensor's dimension pointed by the 'axis' parameter: ",
-                              dimension_at_axis,
-                              " has to be a multiple of the 'num_splits' attribute value: ",
-                              m_num_splits);
-
-        Shape each_output_shape{data_shape};
-        each_output_shape.at(axis) = dimension_at_axis / m_num_splits;
-
-        for (size_t i = 0; i < m_num_splits; ++i)
+        if (data_ps[axis].is_static())
         {
-            set_output_type(i, get_input_element_type(0), each_output_shape);
+            const auto dimension_at_axis = data_ps[axis].get_length();
+
+            NODE_VALIDATION_CHECK(this,
+                                  dimension_at_axis % m_num_splits == 0,
+                                  "The input tensor's dimension pointed by the 'axis' parameter: ",
+                                  dimension_at_axis,
+                                  " has to be a multiple of the 'num_splits' attribute value: ",
+                                  m_num_splits);
+
+            each_output_shape[axis] = dimension_at_axis / m_num_splits;
+        }
+        else
+        {
+            each_output_shape[axis] = Dimension::dynamic();
         }
     }
     else
     {
-        for (size_t i = 0; i < m_num_splits; ++i)
-        {
-            set_output_type(i, get_input_element_type(0), PartialShape::dynamic());
-        }
-
-        set_input_is_relevant_to_shape(0);
+        each_output_shape = PartialShape::dynamic(data_ps.rank());
     }
+
+    for (size_t i = 0; i < m_num_splits; ++i)
+    {
+        set_output_type(i, get_input_element_type(0), each_output_shape);
+    }
+
+    set_input_is_relevant_to_shape(0);
 }
 
 shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_args) const
@@ -192,7 +105,7 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
 }
 
-namespace
+namespace split
 {
     inline bool evaluate(const HostTensorPtr& data_tensor,
                          const HostTensorVector& outputs,
@@ -222,22 +135,11 @@ namespace
                         const int64_t num_splits,
                         const Node* split_node)
     {
-        int64_t axis;
-        switch (axis_tensor->get_element_type())
-        {
-        case element::Type_t::i32: axis = read_vector<int32_t>(axis_tensor)[0]; break;
-        case element::Type_t::i64: axis = read_vector<int64_t>(axis_tensor)[0]; break;
-        case element::Type_t::u64:
-            axis = static_cast<int64_t>(read_vector<uint64_t>(axis_tensor)[0]);
-            break;
-        default:
-            NODE_VALIDATION_CHECK(split_node,
-                                  false,
-                                  "Not supported axis type: ",
-                                  axis_tensor->get_element_type(),
-                                  " during evaluate Split:v1");
-            break;
-        }
+        NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(),
+                     "axis element type is not integral data type");
+
+        int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
+
         axis = ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
         evaluate(data_tensor, outputs, axis, num_splits);
         return true;
@@ -249,5 +151,5 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
 
-    return evaluate_split(data, axis, outputs, m_num_splits, this);
+    return split::evaluate_split(data, axis, outputs, m_num_splits, this);
 }

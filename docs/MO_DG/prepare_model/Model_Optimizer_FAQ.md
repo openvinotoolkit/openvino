@@ -365,7 +365,7 @@ Keep in mind that there is no space between and inside the brackets for input sh
 
 #### 58. What does the message "Please provide input layer names for input layer shapes" mean? <a name="question-58"></a>
 
-When specifying input shapes for several layers, you must provide names for inputs, whose shapes will be overwritten. For usage examples, see [Converting a Caffe\* Model](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe.html). Additional information for `--input_shape` is in FAQ [#57](#question-57).
+When specifying input shapes for several layers, you must provide names for inputs, whose shapes will be overwritten. For usage examples, see [Converting a Caffe* Model](convert_model/Convert_Model_From_Caffe.md. Additional information for `--input_shape` is in FAQ [#57](#question-57).
 
 #### 59. What does the message "Values cannot be parsed" mean? <a name="question-59"></a>
 
@@ -615,3 +615,16 @@ You need to specify values for each input of the model. For more information, re
 #### 102. What does the message "Operation _contrib_box_nms is not supported ..." mean? <a name="question-102"></a>
 
 It means that you trying to convert the topology which contains '_contrib_box_nms' operation which is not supported directly. However the sub-graph of operations including the '_contrib_box_nms' could be replaced with DetectionOutput layer if your topology is one of the gluoncv topologies. Specify '--enable_ssd_gluoncv' command line parameter for the Model Optimizer to enable this transformation.
+
+\htmlonly
+
+<script>
+  window.addEventListener('load', function(){
+    var questionID = getURLParameter('question'); /* this function is defined in openvino-layout.js */
+    if (questionID) {
+      window.location = window.location.pathname + '#' + encodeURI(questionID);
+    }
+  });
+</script>
+
+\endhtmlonly

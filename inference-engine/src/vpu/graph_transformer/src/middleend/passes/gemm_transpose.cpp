@@ -56,15 +56,28 @@ void PassImpl::run(const Model& model) {
 
         const auto inputDimsA = inputA->desc().dims();
 
-        const auto K = inputDimsA[Dim::H];
-        const auto M = inputDimsA[Dim::W];
-        const auto batch1 = inputDimsA[Dim::N];
-        const auto batch2 = inputDimsA[Dim::C];
+        VPU_THROW_UNLESS(inputDimsA.size() >= 2 && inputDimsA.size() <= 4,
+            "Processing layer {} with type {} failed: first inputs' ({} with usage {}) dimensions number should be in range [2, 4], but it actually has {}",
+            stage->name(), stage->type(), inputA->name(), inputA->usage(), inputDimsA.size());
 
-        const auto inputATranspose = model->duplicateData(inputA, "@reshape", DataDesc{K, M, batch2, batch1});
+        const auto perm = DimsOrder::fromNumDims(inputDimsA.size()).toPermutation();
+
+        std::vector<int> batchDims;
+        DimValues_<Dim> permMap = { {perm[0], perm[1]}, {perm[1], perm[0]} };
+        for (std::size_t i = 2; i < inputDimsA.size(); i++) {
+            batchDims.push_back(inputDimsA[perm[i]]);
+            permMap.set(perm[i], perm[i]);
+        }
+
+        std::vector<int> transposedDims = {inputDimsA[perm[1]], inputDimsA[perm[0]]};
+        transposedDims.insert(transposedDims.end(), batchDims.begin(), batchDims.end());
+
+        const auto inputATranspose = model->duplicateData(inputA, "@reshape", DataDesc{transposedDims});
 
         stage->attrs().set<bool>("transposeA", false);
         model->replaceStageInput(stage->inputEdge(0), inputATranspose);
+
+
 
         _stageBuilder->addPermuteStage(
             model,
@@ -72,7 +85,7 @@ void PassImpl::run(const Model& model) {
             stage->origLayer(),
             inputA,
             inputATranspose,
-            DimValues_<Dim>{{Dim::W, Dim::H}, {Dim::H, Dim::W}, {Dim::D, Dim::D}, {Dim::C, Dim::C}, {Dim::N, Dim::N}});
+            permMap);
     }
 }
 

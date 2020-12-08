@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2018 Intel Corporation
+# Copyright (c) 2018 - 2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -79,18 +79,10 @@ if [ -f /etc/lsb-release ]; then
         PKGS+=( libgtk2.0-0 )
     else
         if [ "$system_ver" = "20.04" ]; then
-            PKGS+=( libglib2.0-0
-                    gstreamer1.0-plugins-ugly
+            PKGS+=( gstreamer1.0-plugins-ugly
                     gstreamer1.0-libav
                     libgstreamer-plugins-base1.0-dev
-                    gstreamer1.0-doc
-                    gstreamer1.0-tools
-                    gstreamer1.0-x
                     gstreamer1.0-alsa
-                    gstreamer1.0-gl
-                    gstreamer1.0-gtk3
-                    gstreamer1.0-qt5
-                    gstreamer1.0-pulseaudio
                     libgstrtspserver-1.0-dev
                     python3-gst-1.0
                     libfluidsynth2
@@ -98,34 +90,24 @@ if [ -f /etc/lsb-release ]; then
                     libopenexr24
                     python3.8
                     libpython3.8
+                    libglib2.0-0
                 )
         elif [ "$system_ver" = "18.04" ]; then
-            PKGS+=( libglib2.0
-                    libfluidsynth1
+            PKGS+=( libfluidsynth1
                     libnettle6
                     libopenexr22
                     gstreamer1.0-plugins-ugly
                     gstreamer1.0-alsa
-                    gstreamer1.0-gtk3
+                    libglib2.0
                 )
         fi
         PKGS+=( flex
-                bison
-                libgsl23
-                gobject-introspection
                 libgl-dev
                 libtag-extras1
                 libusb-1.0-0-dev
-                libdirectfb-1.7-7
                 libfaac0
-                libfdk-aac1
-                liblrdf0
-                libmjpegtools-dev
-                libopenni2-0
-                libmpeg2-4
-                libopencore-amrnb0
-                libopencore-amrwb0
-                liba52-0.7.4
+                python3-gi                
+
         )
     fi
     apt update
@@ -161,10 +143,8 @@ else
         python36-pip
         glib2-devel
         flex
-        bison
         gmp
         gsl
-        gobject-introspection
         libcap
         libcap
         gettext
@@ -251,8 +231,6 @@ else
             zbar
             libnice
             libxkbcommon
-            libmpeg2
-            libcdio
             opencore-amr
             libva
             python36-gobject

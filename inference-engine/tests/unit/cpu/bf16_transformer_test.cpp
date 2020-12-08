@@ -6,11 +6,10 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 
-#include <inference_engine.hpp>
-#include <details/ie_cnn_network_tools.h>
-#include <convert_function_to_cnn_network.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <bf16transformer.h>
 
 using ngraph::Shape;
@@ -69,7 +68,7 @@ TEST(BF16TransformerTest, KeepMemoryPrecision) {
     auto mem_r = make_shared<ReadValue>(mem_i, "id");
     mem_r->set_friendly_name("mem_r");
 
-    auto mul = make_shared<Multiply>(mem_r, input);
+    auto mul = make_shared<ngraph::op::v1::Multiply>(mem_r, input);
     auto sig = make_shared<Sigmoid>(mul);
 
     auto fc1_w = make_shared<Constant>(type, Shape{2, 2}, 1);
@@ -132,7 +131,7 @@ TEST(BF16TransformerTest, DISABLED_KeepMemoryPrecisionWithGEMM) {
     auto mem_r = make_shared<ReadValue>(mem_i, "id");
     mem_r->set_friendly_name("mem_r");
 
-    auto mul = make_shared<Multiply>(mem_r, input);
+    auto mul = make_shared<ngraph::op::v1::Multiply>(mem_r, input);
     auto sig = make_shared<Sigmoid>(mul);
 
     auto fc1_w = make_shared<Constant>(type, Shape{2, 2}, 1);

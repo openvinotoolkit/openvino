@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_topk3.hpp>
+#include <transformations/op_conversions/convert_topk3.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -153,7 +153,7 @@ TEST(TransformationTests, ConvertTopK3I64Output1) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{convert}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
+    auto res = compare_functions(f, f_ref, false, false, false, false);
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);

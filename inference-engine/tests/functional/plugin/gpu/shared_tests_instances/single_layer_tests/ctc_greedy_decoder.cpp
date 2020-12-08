@@ -18,12 +18,16 @@ namespace {
 
     const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({ 10, 1, 16 }),
                           std::vector<size_t>({ 20, 2, 8 })),
         ::testing::Values(true, false),
         ::testing::Values(CommonTestUtils::DEVICE_GPU));
 
-    INSTANTIATE_TEST_CASE_P(CTC_Greedy_decoder_Basic, CTCGreedyDecoderLayerTest,
+    INSTANTIATE_TEST_CASE_P(smoke_CTC_Greedy_decoder_Basic, CTCGreedyDecoderLayerTest,
                             basicCases,
                             CTCGreedyDecoderLayerTest::getTestCaseName);
 }  // namespace

@@ -36,7 +36,7 @@ def serialize_constants(graph: Graph, bin_file_name:str, data_type=np.float32):
     Args:
         @graph: input graph with op and data nodes
         @bin_file_name: path to file to write blobs to
-        @data_type: numpy data type to convert all blob elemnts to
+        @data_type: numpy data type to convert all blob elements to
 
     """
     bin_hashes = {}
@@ -392,7 +392,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
                    mean_size: tuple = (), meta_info: dict = dict()):
     """
     Extracts IE/IR attributes from kind='op' nodes in three ways:
-      (1) node.IE xml scheme that set correspondance from existing attributes to generated xml elements
+      (1) node.IE xml scheme that sets correspondence from existing attributes to generated xml elements
       (2) input/output edges that don't have 'bin' attributes are transformed to input/output ports
       (3) input edges that has 'bin' attributes are handled in special way like weights/biases
 

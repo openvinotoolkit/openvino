@@ -27,6 +27,7 @@
 #include <nodes/mkldnn_input_node.h>
 #include <functional>
 #include <cmath>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 #define GARB_VAL(x) ((x + 100.0f + sin(x)) / (x + 150.f))
 
@@ -212,13 +213,66 @@ public:
         return graphNodes;
     }
 
+    void MoveInternalBlobsToConstLayers(InferenceEngine::details::CNNNetworkImpl* netImpl) {
+        auto createConstInputTo = [&](InferenceEngine::CNNLayerPtr layer, InferenceEngine::Blob::Ptr blob, std::string name) {
+            InferenceEngine::LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", InferenceEngine::Precision::FP32};
+            auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+            constLayer->blobs["custom"] = blob;
+
+            std::vector<size_t> constDims(layer->insData[0].lock()->getDims().size(), 1);
+            if (constDims.size() > 1)
+                constDims[1] = blob.get()->size();
+            else
+                constDims[0] = blob.get()->size();
+            const InferenceEngine::TensorDesc& td = {InferenceEngine::Precision::FP32, constDims, InferenceEngine::TensorDesc::getLayoutByDims(constDims)};
+
+            InferenceEngine::DataPtr newEdgeAfterLayer(new InferenceEngine::Data(constLayer->name, td));
+            newEdgeAfterLayer->setName(constLayer->name);
+            getCreatorLayer(newEdgeAfterLayer) = constLayer;
+            getInputTo(newEdgeAfterLayer).clear();
+
+
+            netImpl->addData(constLayer->name.c_str(), newEdgeAfterLayer);
+            IE_SUPPRESS_DEPRECATED_START
+            netImpl->addLayer(constLayer);
+            IE_SUPPRESS_DEPRECATED_END
+
+            constLayer->outData.push_back(newEdgeAfterLayer);
+            getInputTo(newEdgeAfterLayer)[layer->name] = layer;
+            layer->insData.push_back(newEdgeAfterLayer);
+        };
+
+        auto all_layers = InferenceEngine::details::CNNNetSortTopologically(*netImpl);
+        for (auto &layer : all_layers) {
+            if (layer->type == "ScaleShift" && layer->insData.size() == 1) {
+                InferenceEngine::Blob::Ptr scalesBlob = layer->blobs["weights"];
+                if (scalesBlob != nullptr)
+                    createConstInputTo(layer, scalesBlob, "weights");
+
+                InferenceEngine::Blob::Ptr shiftBlob = layer->blobs["biases"];
+                if (shiftBlob != nullptr)
+                    createConstInputTo(layer, shiftBlob, "biases");
+            } else if (layer->type == "PReLU" && layer->insData.size() == 1) {
+                InferenceEngine::Blob::Ptr scalesBlob = layer->blobs["weights"];
+                if (scalesBlob != nullptr)
+                    createConstInputTo(layer, scalesBlob, "weights");
+            }
+        }
+    }
+
     void CreateGraph(InferenceEngine::ICNNNetwork &network, const MKLDNNPlugin::MKLDNNExtensionManager::Ptr& extMgr,
             MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache = {}) {
         if (network.getFunction()) {
             auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+            MoveInternalBlobsToConstLayers(convertedNetwork.get());
             MKLDNNGraph::CreateGraph(static_cast<InferenceEngine::ICNNNetwork&>(*convertedNetwork),
-                extMgr, cache);            
+                extMgr, cache);
         } else {
+            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&network);
+            if (netImpl == nullptr) {
+                THROW_IE_EXCEPTION << "unexpected network type";
+            }
+            MoveInternalBlobsToConstLayers(netImpl);
             MKLDNNGraph::CreateGraph(network, extMgr, cache);
         }
     }
@@ -227,9 +281,15 @@ public:
         MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
         if (network.getFunction()) {
             auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+            MoveInternalBlobsToConstLayers(convertedNetwork.get());
             MKLDNNGraph::CreateGraph(static_cast<InferenceEngine::ICNNNetwork&>(*convertedNetwork),
                 extensionManager, cache);            
         } else {
+            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&network);
+            if (netImpl == nullptr) {
+                THROW_IE_EXCEPTION << "unexpected network type";
+            }
+            MoveInternalBlobsToConstLayers(netImpl);
             MKLDNNGraph::CreateGraph(network, extensionManager, cache);
         }
     }

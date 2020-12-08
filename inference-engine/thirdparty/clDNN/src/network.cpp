@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -368,7 +368,7 @@ void network_impl::set_input_data(const primitive_id& id, memory_impl& data) {
     primitive_inst = find_primitive(id);
 
     if (primitive_inst == nullptr)
-        throw std::runtime_error("topology doesn't contain prmitive:" + id);
+        throw std::runtime_error("topology doesn't contain primitive:" + id);
 
     if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");

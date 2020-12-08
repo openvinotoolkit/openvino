@@ -103,7 +103,7 @@ DimsOrder DimsOrder::fromCode(StorageOrder64 code) {
     return out;
 }
 
-DimsOrder DimsOrder::fromNumDims(int numDims) {
+DimsOrder DimsOrder::fromNumDims(size_t numDims) {
     static const StorageOrder64 FULL_ORDER_DEFAULT =
             maskOrder(static_cast<StorageOrder64>(0x0fedcba987654321ull), MAX_DIMS_64);
 
@@ -118,7 +118,7 @@ DimsOrder DimsOrder::fromNumDims(int numDims) {
     } else if (numDims == 5) {
         return DimsOrder::NCDHW;
     } else {
-        return DimsOrder::fromCode(maskOrder(FULL_ORDER_DEFAULT, numDims));
+        return DimsOrder::fromCode(maskOrder(FULL_ORDER_DEFAULT, static_cast<int>(numDims)));
     }
 }
 
@@ -300,7 +300,7 @@ void printTo(std::ostream& os, DimsOrder order) {
     }
 
     for (; i >= 0; i--) {
-        auto curDim = (code >> (i * 4)) & 0xF;
+        auto curDim = static_cast<int>((code >> (i * 4)) & 0xF);
 
         auto it = DIM_NAMES.find(curDim);
         if (it != DIM_NAMES.end()) {
@@ -343,7 +343,7 @@ DataDesc::DataDesc(const ie::TensorDesc& ieDesc) {
     // IE dims are always in ChannelMajor Layout, so we need to use fromNumDims() layout to perform permutation.
     const auto perm = DimsOrder::fromNumDims(ieDims.size()).toPermutation();
     for (size_t i = 0; i < perm.size(); ++i) {
-        _dims.set(perm[i], ieDims[ieDims.size() - 1 - i]);
+        _dims.set(perm[i], static_cast<int>(ieDims[ieDims.size() - 1 - i]));
     }
 }
 
@@ -510,7 +510,7 @@ StridesRequirement StridesRequirement::fixed(const std::vector<int>& strides, co
     };
 
     for (const auto& dim : dimOrderVec) {
-        const auto idx = dimToIeInd(dim, dims.size());
+        const auto idx = dimToIeInd(dim, static_cast<int>(dims.size()));
         setStride(dim, strides[idx]);
     }
 
@@ -576,7 +576,7 @@ DimValues calcStrides(const DataDesc& desc, const StridesRequirement& reqs) {
 
         for (std::size_t i = 1; i < perm.size(); i++) {
             strides.set(perm[i], strides[perm[i - 1]] * desc.dim(perm[i - 1]));
-            strides.set(perm[i], applyStrideRequirement(strides[perm[i]], i, reqs));
+            strides.set(perm[i], applyStrideRequirement(strides[perm[i]], static_cast<int>(i), reqs));
         }
     }
 

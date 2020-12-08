@@ -27,6 +27,7 @@ enum DnnActivationType : uint8_t {
     kActNegHalfLog,
     kActSoftSign,
     kActPow,
+    kActFakeQuantize,
     kActNumType
 };
 
@@ -43,8 +44,16 @@ struct DnnActivation {
             float offset;
         } pow;
         struct {
-            float reserved[3];
-        };
+            int32_t levels;
+            // if input is per-channel quantization - input pointers contains per-channel ranges
+            int8_t  inputPerChannel;
+            float  *input_low;
+            float  *input_high;
+            // if output is per-channel quantization - output pointers contains per-channel ranges
+            int8_t  outputPerChannel;
+            float  *output_low;
+            float  *output_high;
+        } fakeQuantize;
     } args;
     operator DnnActivationType () const noexcept {
         return type;
@@ -75,7 +84,8 @@ static const char *intel_dnn_activation_name[kActNumType] = {
         "kActNegHalfLog",
         "kActCustom",
         "kActSoftSign",
-        "kActPow"
+        "kActPow",
+        "kActFakeQuantize"
 };
 
 typedef enum DnnSoftmaxType {
@@ -232,9 +242,7 @@ typedef struct {
     void *ptr_outputs;
     float output_scale_factor;
     float input_scale_factor;
-#ifdef PLOT
     const char * original_layer_name = nullptr;
-#endif
 } intel_dnn_component_t;
 
 typedef struct {

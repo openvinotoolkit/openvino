@@ -27,6 +27,6 @@ public:
 
 private:
     DispatchData SetDefault(const lrn_params& params) const override;
-    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

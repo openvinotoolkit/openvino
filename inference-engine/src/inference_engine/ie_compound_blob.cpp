@@ -18,7 +18,7 @@ namespace InferenceEngine {
 
 namespace {
 
-void verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
+TensorDesc verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
     // Y and UV must be valid pointers
     if (y == nullptr || uv == nullptr) {
         THROW_IE_EXCEPTION << "Y and UV planes must be valid Blob objects";
@@ -91,9 +91,11 @@ void verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
         THROW_IE_EXCEPTION << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
                            << yDims[3] << "(Y plane) and " << uvDims[3] << "(UV plane)";
     }
+
+    return {Precision::U8, {}, Layout::NCHW};
 }
 
-void verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v) {
+TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v) {
     // Y and UV must be valid pointers
     if (y == nullptr || u == nullptr || v == nullptr) {
         THROW_IE_EXCEPTION << "Y, U and V planes must be valid Blob objects";
@@ -190,21 +192,85 @@ void verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr
         THROW_IE_EXCEPTION << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
                            << yDims[3] << "(Y plane) and " << vDims[3] << "(V plane)";
     }
+
+    return {Precision::U8, {}, Layout::NCHW};
+}
+
+TensorDesc getBlobTensorDesc(const Blob::Ptr& blob) {
+    if (auto nv12 = dynamic_cast<NV12Blob*>(blob.get())) {
+        auto yDesc = nv12->y()->getTensorDesc();
+        yDesc.getDims()[1] += 2;
+        return yDesc;
+    }
+
+    if (auto i420 = dynamic_cast<I420Blob*>(blob.get())) {
+        auto yDesc = i420->y()->getTensorDesc();
+        yDesc.getDims()[1] += 2;
+        return yDesc;
+    }
+
+    return blob->getTensorDesc();
+}
+
+TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
+    // verify invariants
+    if (blobs.empty()) {
+        THROW_IE_EXCEPTION << "BatchedBlob cannot be created from empty vector of Blob, Please, make sure vector contains at least one Blob";
+    }
+
+    // Cannot create a compound blob from nullptr Blob objects
+    if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
+            return blob == nullptr;
+        })) {
+        THROW_IE_EXCEPTION << "Cannot create a compound blob from nullptr Blob objects";
+    }
+
+    const auto subBlobDesc = getBlobTensorDesc(blobs[0]);
+
+    if (std::any_of(blobs.begin(), blobs.end(),
+                    [&subBlobDesc](const Blob::Ptr& blob) {
+                        return getBlobTensorDesc(blob) != subBlobDesc;
+                    })) {
+        THROW_IE_EXCEPTION << "All blobs tensors should be equal";
+    }
+
+    auto subBlobLayout = subBlobDesc.getLayout();
+
+    auto blobLayout = Layout::ANY;
+    SizeVector blobDims = subBlobDesc.getDims();
+    switch (subBlobLayout) {
+    case NCHW:
+    case NHWC:
+    case NCDHW:
+    case NDHWC:
+    case NC:
+    case CN:
+        blobLayout = subBlobLayout;
+        if (blobDims[0] != 1) {
+            THROW_IE_EXCEPTION << "All blobs should be batch 1";
+        }
+        blobDims[0] = blobs.size();
+        break;
+    case C:
+        blobLayout = NC;
+        blobDims.insert(blobDims.begin(), blobs.size());
+        break;
+    case CHW:
+        blobLayout = NCHW;
+        blobDims.insert(blobDims.begin(), blobs.size());
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported sub-blobs layout - to be one of: [NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW]";
+    }
+
+    return TensorDesc{subBlobDesc.getPrecision(), blobDims, blobLayout};
 }
 
 }  // anonymous namespace
 
-CompoundBlob::CompoundBlob(): Blob(TensorDesc(Precision::UNSPECIFIED, {}, Layout::ANY)) {}
+CompoundBlob::CompoundBlob(const TensorDesc& tensorDesc): Blob(tensorDesc) {}
 
-CompoundBlob::CompoundBlob(const CompoundBlob& blob): CompoundBlob() {
-    this->_blobs = blob._blobs;
-}
-
-CompoundBlob::CompoundBlob(CompoundBlob&& blob): CompoundBlob() {
-    this->_blobs = std::move(blob._blobs);
-}
-
-CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs): CompoundBlob() {
+CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs): CompoundBlob(TensorDesc{}) {
     // Cannot create a compound blob from nullptr Blob objects
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
@@ -223,7 +289,7 @@ CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs): CompoundBlob() 
     this->_blobs = blobs;
 }
 
-CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs): CompoundBlob() {
+CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs): CompoundBlob(TensorDesc{}) {
     // Cannot create a compound blob from nullptr Blob objects
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
@@ -295,22 +361,14 @@ void* CompoundBlob::getHandle() const noexcept {
     return nullptr;
 }
 
-NV12Blob::NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv) {
-    // verify data is correct
-    verifyNV12BlobInput(y, uv);
-    // set blobs
-    _blobs.emplace_back(y);
-    _blobs.emplace_back(uv);
-    tensorDesc = TensorDesc(Precision::U8, {}, Layout::NCHW);
+NV12Blob::NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv)
+    : CompoundBlob(verifyNV12BlobInput(y, uv)) {
+    this->_blobs = {y, uv};
 }
 
-NV12Blob::NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv) {
-    // verify data is correct
-    verifyNV12BlobInput(y, uv);
-    // set blobs
-    _blobs.emplace_back(std::move(y));
-    _blobs.emplace_back(std::move(uv));
-    tensorDesc = TensorDesc(Precision::U8, {}, Layout::NCHW);
+NV12Blob::NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv)
+    : CompoundBlob(verifyNV12BlobInput(y, uv)) {
+    this->_blobs = {std::move(y), std::move(uv)};
 }
 
 Blob::Ptr& NV12Blob::y() noexcept {
@@ -346,27 +404,15 @@ Blob::Ptr NV12Blob::createROI(const ROI& roi) const {
     return std::make_shared<NV12Blob>(yRoiBlob, uvRoiBlob);
 }
 
-I420Blob::I420Blob(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v) {
-    // verify data is correct
-    verifyI420BlobInput(y, u, v);
-    // set blobs
-    _blobs.emplace_back(y);
-    _blobs.emplace_back(u);
-    _blobs.emplace_back(v);
-    tensorDesc = TensorDesc(Precision::U8, {}, Layout::NCHW);
+I420Blob::I420Blob(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v)
+    : CompoundBlob(verifyI420BlobInput(y, u, v)) {
+    this->_blobs = {y, u, v};
 }
 
-I420Blob::I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v) {
-    // verify data is correct
-    verifyI420BlobInput(y, u, v);
-    // set blobs
-    _blobs.emplace_back(std::move(y));
-    _blobs.emplace_back(std::move(u));
-    _blobs.emplace_back(std::move(v));
-    tensorDesc = TensorDesc(Precision::U8, {}, Layout::NCHW);
+I420Blob::I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v)
+    : CompoundBlob(verifyI420BlobInput(y, u, v)) {
+    this->_blobs = {std::move(y), std::move(u), std::move(v)};
 }
-
-I420Blob::~I420Blob() {}
 
 Blob::Ptr& I420Blob::y() noexcept {
     // NOTE: Y plane is a memory blob, which is checked in the constructor
@@ -410,6 +456,16 @@ Blob::Ptr I420Blob::createROI(const ROI& roi) const {
     const auto vRoiBlob = v()->createROI(uvROI);
 
     return std::make_shared<I420Blob>(yRoiBlob, uRoiBlob, vRoiBlob);
+}
+
+BatchedBlob::BatchedBlob(const std::vector<Blob::Ptr>& blobs)
+    : CompoundBlob(verifyBatchedBlobInput(blobs)) {
+    this->_blobs = blobs;
+}
+
+BatchedBlob::BatchedBlob(std::vector<Blob::Ptr>&& blobs)
+    : CompoundBlob(verifyBatchedBlobInput(blobs)) {
+    this->_blobs = std::move(blobs);
 }
 
 }  // namespace InferenceEngine

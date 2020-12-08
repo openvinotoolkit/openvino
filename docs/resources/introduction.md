@@ -4,7 +4,7 @@
 ## Samples
 
 - [Inference Engine Samples](../IE_DG/Samples_Overview.md)
-- [DL Streamer Samples](../IE_DG/Tools_Overview.md)
+- [DL Streamer Samples](@ref gst_samples_README)
 
 ## Demos
 
@@ -13,7 +13,7 @@
 
 ## Additional Tools
 
-- [Tools for models calibration and accuracy measurement](../IE_DG/Tools_Overview.md)
+- A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other
 
 ## Pre-Trained Models
 

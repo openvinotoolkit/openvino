@@ -16,9 +16,11 @@ To add your custom nGraph operation, create a new class that extends `ngraph::Op
 
 5. Override the `visit_attributes` method, which allows serialization and deserialization of attributes. An `AttributeVisitor` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware `on_attribute` helper. Helpers are already implemented for standard C++ types like `int64_t`, `float`, `bool`, `vector` and for existing nGraph defined types.
 
+6. Override `evaluate`, which is an optional method that enables the application of constant folding if there is a custom operation on the constant branch.
+
 Based on that, declaration of a operation class can look as follows:
 
-@snippet op.hpp op:header
+@snippet template_extension/op.hpp op:header
 
 ### Class Fields
 
@@ -31,31 +33,37 @@ The provided implementation has several fields:
 
 nGraph operation contains two constructors: a default constructor, which allows to create operation without attributes and a constructor that creates and validates operation with specified inputs and attributes.
 
-@snippet op.cpp op:ctor
+@snippet template_extension/op.cpp op:ctor
 
 ### `validate_and_infer_types()`
 
 `ngraph::Node::validate_and_infer_types` method validates operation attributes and calculates output shapes using attributes of operation.
 
-@snippet op.cpp op:validate
+@snippet template_extension/op.cpp op:validate
 
 ### `clone_with_new_inputs()`
 
 `ngraph::Node::clone_with_new_inputs` method creates a copy of nGraph operation with new inputs.
 
-@snippet op.cpp op:copy
+@snippet template_extension/op.cpp op:copy
 
 ### `visit_attributes()`
 
 `ngraph::Node::visit_attributes` method allows to visit all operation attributes.
 
-@snippet op.cpp op:visit_attributes
+@snippet template_extension/op.cpp op:visit_attributes
+
+### `evaluate()`
+
+`ngraph::Node::evaluate` method allows to apply constant folding to an operation.
+
+@snippet template_extension/op.cpp op:evaluate
 
 ## Register Custom Operations in Extension Class
 
 To add custom operations to the [Extension](Extension.md) class, create an operation set with custom operations and implement the `InferenceEngine::IExtension::getOpSets` method:
 
-@snippet extension.cpp extension:getOpSets
+@snippet template_extension/extension.cpp extension:getOpSets
 
 This method returns a map of opsets that exist in the extension library.
 
@@ -70,20 +78,3 @@ When specifying opset names, follow the rules below:
 Operations from the default opset cannot be redefined.
 
 Use a custom opset to create a new operation or extend functionality of an existing operation from another opset.
-
-## Deprecation Notice
-
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*

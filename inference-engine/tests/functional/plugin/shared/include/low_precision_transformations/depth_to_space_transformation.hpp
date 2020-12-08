@@ -11,11 +11,18 @@
 
 namespace LayerTestsDefinitions {
 
+typedef std::tuple<
+    ngraph::element::Type,
+    ngraph::Shape,
+    std::string,
+    ngraph::opset1::DepthToSpace::DepthToSpaceMode,
+    size_t> DepthToSpaceTransformationParams;
+
 class DepthToSpaceTransformation :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+    public testing::WithParamInterface<DepthToSpaceTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceTransformationParams> obj);
 
 protected:
     void SetUp() override;

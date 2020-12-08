@@ -495,8 +495,9 @@ protected:
 
 TEST_P(MKLDNNGraphDynBatchConvolutionTests, TestsDynBatchConvolution) {}
 
+// TODO: rewrite to ngraph to have reshape functionality
 INSTANTIATE_TEST_CASE_P(
-    TestDynBatchConvolution, MKLDNNGraphDynBatchConvolutionTests,
+    DISABLED_TestDynBatchConvolution, MKLDNNGraphDynBatchConvolutionTests,
     ::testing::Values(
                 conv_test_params{{1, 8, 16, 32},
                                  {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "same_upper", 7, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1,
@@ -519,6 +520,7 @@ INSTANTIATE_TEST_CASE_P(
                 conv_test_params{{1, 9, 32, 16},
                                  {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::ref_any,
                                  false, {MKLDNNPlugin::impl_desc_type::ref_any} } ));
+
 #ifdef USE_MKL
 INSTANTIATE_TEST_CASE_P(
     MKLTestDynBatchConvolution, MKLDNNGraphDynBatchConvolutionTests,

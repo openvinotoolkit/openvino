@@ -24,7 +24,7 @@ from mo.utils.version import get_version
 
 class TestingVersion(unittest.TestCase):
     def test_unknown_version(self):
-        self.assertEqual(get_version(), "unknown version")
+        self.assertNotEqual(get_version(), "unknown version")
 
     @patch('os.path.isfile')
     @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='2021.1.0-1028-55e4d5673a8')
