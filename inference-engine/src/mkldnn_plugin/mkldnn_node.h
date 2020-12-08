@@ -581,7 +581,7 @@ protected:
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
 
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims& dims) const;
+    virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims& dims) const;
     int batchToProcess();
 
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, bool weights, bool is_grouped = false);
