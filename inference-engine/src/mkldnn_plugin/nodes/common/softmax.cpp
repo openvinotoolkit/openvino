@@ -202,15 +202,10 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                if (mayiuse(avx512_core_bf16)) {
+                if (mayiuse(avx512_core_bf16))
                     vcvtneps2bf16(ymm_dst, vmm_dst);
-                } else {
-                    std::vector<size_t> in_idxs;
-                    in_idxs.push_back(vmm_dst.getIdx());
-                    std::vector<size_t> out_idxs;
-                    out_idxs.push_back(ymm_dst.getIdx());
-                    bf16_emu_emitter->emit(in_idxs, out_idxs);
-                }
+                else
+                    bf16_emu_emitter->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             default:
