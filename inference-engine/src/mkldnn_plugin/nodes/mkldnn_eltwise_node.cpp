@@ -109,12 +109,10 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
             }
         }
 
-        this->preamble();
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            bf16_emu_emitter.reset(new jit_bf16_emu_emitter(this, isa, nullptr));
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
-            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
-                bf16_emu_reserv_3, bf16_emu_reserv_4));
-        }
+        this->preamble();
 
         for (int i = 0; i < jep.inputs_number; i++)
             mov(get_src_reg(i), ptr[reg_params + GET_OFF(src_ptr[0]) + i * sizeof(size_t)]);
@@ -279,6 +277,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            bf16_emu_emitter->emit_table();
+
         eltwise_emitter->emit_table();
         for (int i = 0; i < post_op_emitters.size(); i++) {
             post_op_emitters[i]->emit_table();
@@ -326,11 +327,7 @@ private:
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
 
-    Vmm bf16_emu_reserv_1 = Vmm(28);
-    Vmm bf16_emu_reserv_2 = Vmm(29);
-    Vmm bf16_emu_reserv_3 = Vmm(30);
-    Vmm bf16_emu_reserv_4 = Vmm(31);
-    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
+    std::unique_ptr<jit_bf16_emu_emitter> bf16_emu_emitter;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
@@ -628,10 +625,18 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
+                if (mayiuse(avx512_core_bf16)) {
                     vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    bf16_emu_->r_vcvtneps2bf16(ymm_dst, vmm_dst);
+                } else {
+                    std::vector<size_t> in_idxs;
+                    in_idxs.push_back(vmm_dst.getIdx());
+                    std::vector<size_t> aux_idxs;
+                    aux_idxs.push_back(get_aux_vmm(0).getIdx());
+                    aux_idxs.push_back(get_aux_vmm(1).getIdx());
+                    std::vector<size_t> out_idxs;
+                    out_idxs.push_back(ymm_dst.getIdx());
+                    bf16_emu_emitter->emit(in_idxs, out_idxs, aux_idxs);
+                }
                 vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:

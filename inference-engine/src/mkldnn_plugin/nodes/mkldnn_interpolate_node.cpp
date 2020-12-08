@@ -59,12 +59,10 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             }
         }
 
-        this->preamble();
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            bf16_emu_emitter.reset(new jit_bf16_emu_emitter(this, isa, nullptr));
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
-            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
-                bf16_emu_reserv_3, bf16_emu_reserv_4));
-        }
+        this->preamble();
 
         if (attr_.post_ops_.len_ != 0)
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
@@ -139,6 +137,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            bf16_emu_emitter->emit_table();
+
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
         if ((jcp_.mode == InterpolateMode::cubic) && (jcp_.layout == InterpolateLayoutType::planar)) {
@@ -153,6 +154,10 @@ private:
             Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
+
+    Vmm get_aux_vmm(int idx) {
+        return Vmm(30 + idx);
+    }
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_src_aux = r15;
@@ -229,11 +234,7 @@ private:
     Xbyak::Label l_table_constant;
     Opmask k_mask = Xbyak::Opmask(1);
 
-    Vmm bf16_emu_reserv_1 = Vmm(28);
-    Vmm bf16_emu_reserv_2 = Vmm(29);
-    Vmm bf16_emu_reserv_3 = Vmm(30);
-    Vmm bf16_emu_reserv_4 = Vmm(31);
-    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
+    std::unique_ptr<jit_bf16_emu_emitter> bf16_emu_emitter;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -1289,10 +1290,18 @@ private:
                     movd(op, xmm_dst);
             }
         } else if (dst_dt == memory::bf16) {
-            if (mayiuse(avx512_core_bf16))
+            if (mayiuse(avx512_core_bf16)) {
                 vcvtneps2bf16(ymm_dst, vmm_dst);
-            else
-                bf16_emu_->r_vcvtneps2bf16(ymm_dst, vmm_dst);
+            } else {
+                std::vector<size_t> in_idxs;
+                in_idxs.push_back(vmm_dst.getIdx());
+                std::vector<size_t> aux_idxs;
+                aux_idxs.push_back(get_aux_vmm(0).getIdx());
+                aux_idxs.push_back(get_aux_vmm(1).getIdx());
+                std::vector<size_t> out_idxs;
+                out_idxs.push_back(ymm_dst.getIdx());
+                bf16_emu_emitter->emit(in_idxs, out_idxs, aux_idxs);
+            }
             vmovdqu16(op, ymm_dst);
         }
     }

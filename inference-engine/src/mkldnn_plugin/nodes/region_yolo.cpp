@@ -16,8 +16,9 @@
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise.hpp"
 
-using namespace MKLDNNPlugin;
 using namespace mkldnn;
+using namespace MKLDNNPlugin;
+using namespace InferenceEngine;
 using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::utils;
 
@@ -56,12 +57,10 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jit_uni_logistic_kernel(), jit_generator() {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
 
-        this->preamble();
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            bf16_emu_emitter.reset(new jit_bf16_emu_emitter(this, isa, nullptr));
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
-            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
-                bf16_emu_reserv_3, bf16_emu_reserv_4));
-        }
+        this->preamble();
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
@@ -108,6 +107,9 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            bf16_emu_emitter->emit_table();
+
         exp_injector->prepare_table();
 
         prepare_table();
@@ -116,8 +118,12 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == sse42, Xbyak::Xmm, isa == avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
+
+    Vmm get_aux_vmm(int idx) {
+        return Vmm(30 + idx);
+    }
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
 
@@ -135,11 +141,7 @@ private:
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
-    Vmm bf16_emu_reserv_1 = Vmm(28);
-    Vmm bf16_emu_reserv_2 = Vmm(29);
-    Vmm bf16_emu_reserv_3 = Vmm(30);
-    Vmm bf16_emu_reserv_4 = Vmm(31);
-    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
+    std::unique_ptr<jit_bf16_emu_emitter> bf16_emu_emitter;
 
     Xbyak::Label l_table;
 
@@ -159,10 +161,10 @@ private:
         uni_vmovups(vmm_aux2, table_val(1));
         uni_vsubps(vmm_aux2, vmm_aux2, vmm_src);
 
-        if (isa == sse42) {
+        if (isa == cpu::sse42) {
             uni_vblendvps(vmm_aux2, vmm_aux2, vmm_src, vmm_aux0);
             uni_vmovups(vmm_src, vmm_aux2);
-        } else if (isa == avx2) {
+        } else if (isa == cpu::avx2) {
             uni_vblendvps(vmm_src, vmm_aux2, vmm_src, vmm_aux0);
         } else {
             vptestmd(k_mask, vmm_aux0, vmm_aux0);
@@ -210,10 +212,18 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case InferenceEngine::Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
+                if (mayiuse(avx512_core_bf16)) {
                     vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    bf16_emu_->r_vcvtneps2bf16(ymm_dst, vmm_dst);
+                } else {
+                    std::vector<size_t> in_idxs;
+                    in_idxs.push_back(vmm_dst.getIdx());
+                    std::vector<size_t> aux_idxs;
+                    aux_idxs.push_back(get_aux_vmm(0).getIdx());
+                    aux_idxs.push_back(get_aux_vmm(1).getIdx());
+                    std::vector<size_t> out_idxs;
+                    out_idxs.push_back(ymm_dst.getIdx());
+                    bf16_emu_emitter->emit(in_idxs, out_idxs, aux_idxs);
+                }
                 vmovdqu16(op, ymm_dst);
                 break;
             default:
@@ -283,14 +293,14 @@ public:
             jcp.src_data_size = jcp.dst_data_size = output_prec.size();
 
             block_size = 1;
-            if (mayiuse(avx512_common)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<avx512_common>(jcp));
+            if (mayiuse(cpu::avx512_common)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::avx512_common>(jcp));
                 block_size = 16;
-            } else if (mayiuse(avx2)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<avx2>(jcp));
+            } else if (mayiuse(cpu::avx2)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::avx2>(jcp));
                 block_size = 8;
-            } else if (mayiuse(sse42)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<sse42>(jcp));
+            } else if (mayiuse(cpu::sse42)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::sse42>(jcp));
                 block_size = 4;
             }
 
@@ -397,7 +407,7 @@ private:
     inline void calculate_logistic(size_t start_index, int count, uint8_t * dst_data) {
         auto dst_data_size = output_prec.size();
         if (logistic_kernel) {
-            int blocks_num = div_up(count, block_size);
+            int blocks_num = MKLDNNPlugin::div_up(count, block_size);
             parallel_for(blocks_num, [&](int ib) {
                 int idx = ib * block_size;
                 int work_amount = std::min(count - idx, block_size);

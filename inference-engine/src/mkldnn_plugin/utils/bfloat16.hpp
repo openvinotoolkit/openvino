@@ -7,7 +7,7 @@
 #include <cmath>
 #include <limits>
 #include "utils.hpp"
-#include "jit_generator.hpp"
+#include "nodes/common/emitter.h"
 
 /**
  * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the float data type.
@@ -72,6 +72,70 @@ private:
         uint32_t vint;
     };
     uint16_t m_value;
+};
+
+
+class jit_bf16_emu_emitter : public jit_emitter {
+public:
+    jit_bf16_emu_emitter(mkldnn::impl::cpu::jit_generator* host, mkldnn::impl::cpu::cpu_isa_t host_isa, const MKLDNNNode* node,
+        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::BF16) : jit_emitter(host, host_isa, node, exec_prc) {
+        prepare_table();
+    };
+
+    size_t get_inputs_num() { return 1; };
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
+        const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs) {
+        if (host_isa_ == mkldnn::impl::cpu::cpu_isa_t::avx512_common) {
+            Xbyak::Zmm in = Xbyak::Zmm(in_vec_idxs[0]);
+            Xbyak::Ymm out = Xbyak::Ymm(out_vec_idxs[0]);
+            Xbyak::Zmm aux = Xbyak::Zmm(aux_vec_idxs[0]);
+            Xbyak::Zmm aux1 = Xbyak::Zmm(aux_vec_idxs[1]);
+
+            h->uni_vpsrld(aux, in, 16);
+            h->vpandd(aux, aux, table_val("one"));
+            h->uni_vmovups(aux1, table_val("even"));
+            h->uni_vpaddd(aux, aux1, aux);
+            h->uni_vpaddd(aux, in, aux);
+            h->vfixupimmps(aux, in, table_val("selector"), 0);
+            h->vpsrad(aux, aux, 16);
+            h->vpmovdw(out, aux);
+        }
+        else {
+            assert(!"unsupported isa");
+        }
+    };
+
+
+    inline int encode_fixup_selector(int input, int output) {
+        return ((output) << (4 * (input)));
+    }
+
+    void register_table_entries() {
+        enum {
+            fixup_input_code_qnan_ = 0,
+            fixup_input_code_snan_ = 1,
+            fixup_input_code_ninf_ = 4,
+            fixup_input_code_pinf_ = 5,
+            fixup_output_code_copy_input_ = 1,
+            fixup_output_code_qnan_input_ = 2,
+        };
+        const int selector_int32 =
+            /* qnan input to qnan output (presenrving input bits 0..21) */
+            encode_fixup_selector(fixup_input_code_snan_, fixup_output_code_qnan_input_) |
+            /* snan input to qnan output (presenrving input bits 0..21) */
+            encode_fixup_selector(fixup_input_code_qnan_, fixup_output_code_qnan_input_) |
+            /* neg inf input copied to output */
+            encode_fixup_selector(fixup_input_code_ninf_, fixup_output_code_copy_input_) |
+            /* pos inf input copied to output */
+            encode_fixup_selector(fixup_input_code_pinf_, fixup_output_code_copy_input_);
+        push_arg_entry_of("one", 0x00000001, true);
+        push_arg_entry_of("even", 0x00007fff, true);
+        push_arg_entry_of("selector", selector_int32, true);
+    }
+
+    size_t aux_vecs_count() const { return 2; }
 };
 } // namespace MKLDNNPlugin
 
@@ -142,73 +206,3 @@ public:
 };
 } // namespace std
 
-namespace mkldnn {
-namespace impl {
-using namespace mkldnn::impl::utils;
-namespace cpu {
-
-template <cpu_isa_t isa>
-struct bf16_emulation_t {
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-
-    bf16_emulation_t(jit_generator* host, Vmm one, Vmm even, Vmm selector, Vmm tr)
-        : one_(one), even_(even), selector_(selector), tr_(tr), host_(host) {
-        Xbyak::Reg64 scratch_ = Xbyak::util::rsi;
-        host_->push(scratch_);
-        const int selector_int32 =
-            /* qnan input to qnan output (presenrving input bits 0..21) */
-            encode_fixup_selector(fixup_input_code_snan_, fixup_output_code_qnan_input_) |
-            /* snan input to qnan output (presenrving input bits 0..21) */
-            encode_fixup_selector(fixup_input_code_qnan_, fixup_output_code_qnan_input_) |
-            /* neg inf input copied to output */
-            encode_fixup_selector(fixup_input_code_ninf_, fixup_output_code_copy_input_) |
-            /* pos inf input copied to output */
-            encode_fixup_selector(fixup_input_code_pinf_, fixup_output_code_copy_input_);
-
-        host_->xor_(scratch_, scratch_);
-        host_->mov(scratch_.cvt32(), 0x1);
-        host_->vpbroadcastd(one_, scratch_.cvt32());
-
-        host_->xor_(scratch_, scratch_);
-        host_->mov(scratch_.cvt32(), 0x7fff);
-        host_->vpbroadcastd(even_, scratch_.cvt32());
-
-        host_->xor_(scratch_, scratch_);
-        host_->mov(scratch_.cvt32(), selector_int32);
-        host_->vpbroadcastd(selector_, scratch_.cvt32());
-        host_->pop(scratch_);
-    }
-
-    void r_vcvtneps2bf16(const Xbyak::Ymm& out, Vmm in) {
-        host_->uni_vpsrld(tr_, in, 16);
-        host_->vpandd(tr_, tr_, one_);
-        host_->uni_vpaddd(tr_, even_, tr_);
-        host_->uni_vpaddd(tr_, in, tr_);
-        host_->vfixupimmps(tr_, in, selector_, 0);
-        host_->vpsrad(tr_, tr_, 16);
-        host_->vpmovdw(out, tr_);
-    }
-
-private:
-    Vmm one_;
-    Vmm even_;
-    Vmm selector_;
-    Vmm tr_;
-    jit_generator* const host_;
-
-    inline int encode_fixup_selector(int input, int output) {
-        return ((output) << (4 * (input)));
-    }
-
-    enum {
-        fixup_input_code_qnan_ = 0,
-        fixup_input_code_snan_ = 1,
-        fixup_input_code_ninf_ = 4,
-        fixup_input_code_pinf_ = 5,
-        fixup_output_code_copy_input_ = 1,
-        fixup_output_code_qnan_input_ = 2,
-    };
-}; // struct bf16_emulation_t
-}  // namespace cpu
-}  // namespace impl
-}  // namespace mkldnn

@@ -48,12 +48,11 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp) : jit_uni_softmax_kernel(), jit_generator() {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            bf16_emu_emitter.reset(new jit_bf16_emu_emitter(this, isa, nullptr));
+
         this->preamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core)) {
-            bf16_emu_.reset(new bf16_emulation_t<isa>(this, bf16_emu_reserv_1, bf16_emu_reserv_2,
-                bf16_emu_reserv_3, bf16_emu_reserv_4));
-        }
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
@@ -77,16 +76,16 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
             load_vector(vmm_val, ptr[aux_reg_src], jcp.src_dt);
 
-            if (isa == sse42) {
+            if (isa == cpu::sse42) {
                 uni_vmovups(vmm_mask, vmm_val);
                 uni_vcmpgtps(vmm_mask, vmm_mask, vmm_max);
-            } else if (isa == avx2) {
+            } else if (isa == cpu::avx2) {
                 uni_vcmpgtps(vmm_mask, vmm_val, vmm_max);
             } else {
                 vcmpps(k_mask, vmm_val, vmm_max, _cmp_nle_us);
             }
 
-            if (isa == avx512_common) {
+            if (isa == cpu::avx512_common) {
                 vptestmd(k_mask, vmm_mask, vmm_mask);
                 vblendmps(vmm_max | k_mask, vmm_max, vmm_val);
             } else {
@@ -148,14 +147,22 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            bf16_emu_emitter->emit_table();
+
         exp_injector->prepare_table();
 
         ker_ = (decltype(ker_))this->getCode();
     }
 
 private:
-    using Vmm = typename conditional3<isa == sse42, Xbyak::Xmm, isa == avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
+            Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
+
+    Vmm get_aux_vmm(int idx) {
+        return Vmm(30 + idx);
+    }
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 aux_reg_src = r13;
@@ -174,11 +181,7 @@ private:
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
-    Vmm bf16_emu_reserv_1 = Vmm(28);
-    Vmm bf16_emu_reserv_2 = Vmm(29);
-    Vmm bf16_emu_reserv_3 = Vmm(30);
-    Vmm bf16_emu_reserv_4 = Vmm(31);
-    std::unique_ptr<bf16_emulation_t<isa>> bf16_emu_;
+    std::unique_ptr<jit_bf16_emu_emitter> bf16_emu_emitter;
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
@@ -203,10 +206,18 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                if (mayiuse(avx512_core_bf16))
+                if (mayiuse(avx512_core_bf16)) {
                     vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    bf16_emu_->r_vcvtneps2bf16(ymm_dst, vmm_dst);
+                } else {
+                    std::vector<size_t> in_idxs;
+                    in_idxs.push_back(vmm_dst.getIdx());
+                    std::vector<size_t> aux_idxs;
+                    aux_idxs.push_back(get_aux_vmm(0).getIdx());
+                    aux_idxs.push_back(get_aux_vmm(1).getIdx());
+                    std::vector<size_t> out_idxs;
+                    out_idxs.push_back(ymm_dst.getIdx());
+                    bf16_emu_emitter->emit(in_idxs, out_idxs, aux_idxs);
+                }
                 vmovdqu16(op, ymm_dst);
                 break;
             default:
@@ -228,14 +239,14 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     jcp.src_dt = inpPrc;
     jcp.dst_dt = outPrc;
 
-    if (mayiuse(avx512_common)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<avx512_common>(jcp));
+    if (mayiuse(cpu::avx512_common)) {
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::avx512_common>(jcp));
         block_size = 16;
-    } else if (mayiuse(avx2)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<avx2>(jcp));
+    } else if (mayiuse(cpu::avx2)) {
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::avx2>(jcp));
         block_size = 8;
-    } else if (mayiuse(sse42)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<sse42>(jcp));
+    } else if (mayiuse(cpu::sse42)) {
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::sse42>(jcp));
         block_size = 4;
     }
 }
