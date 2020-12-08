@@ -17,7 +17,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::DisableShapeOfConstantFolding, "DisableShap
 NGRAPH_RTTI_DEFINITION(ngraph::pass::EnableShapeOfConstantFolding, "EnableShapeOfConstantFolding", 0);
 
 ngraph::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding() {
-    auto shape_of = ngraph::pattern::wrap_type<ngraph::opset5::ShapeOf>();
+    auto shape_of = pattern::any_input([](Output<Node> output) -> bool {
+        auto node = output.get_node_shared_ptr();
+        return std::dynamic_pointer_cast<opset1::ShapeOf>(node) || std::dynamic_pointer_cast<opset5::ShapeOf>(node);
+    });
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto shape_of = m.get_match_root();
@@ -32,7 +35,10 @@ ngraph::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding() {
 }
 
 ngraph::pass::EnableShapeOfConstantFolding::EnableShapeOfConstantFolding() {
-    auto shape_of = ngraph::pattern::wrap_type<ngraph::opset1::ShapeOf>();
+    auto shape_of = pattern::any_input([](Output<Node> output) -> bool {
+        auto node = output.get_node_shared_ptr();
+        return std::dynamic_pointer_cast<opset1::ShapeOf>(node) || std::dynamic_pointer_cast<opset5::ShapeOf>(node);
+    });
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto shape_of = m.get_match_root();
