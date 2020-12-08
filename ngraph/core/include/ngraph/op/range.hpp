@@ -35,12 +35,12 @@ namespace ngraph
 
                 /// \brief Constructs a range operation.
                 ///
-                /// \param start The tensor producing the start value. Must be a scalar of integer
-                ///              element type, and same element type as `stop` and `step`.
-                /// \param stop The tensor producing the stop value. Must be a scalar of integer
-                ///             element type, and same element type as `start` and `step`.
-                /// \param step The tensor producing the step value. Must be a scalar of integer
-                ///             element type, and same element type as `start` and `stop`.
+                /// \param start The tensor producing the start value. Must be a scalar of numeric
+                ///              element type.
+                /// \param stop The tensor producing the stop value. Must be a scalar of numeric
+                ///             element type.
+                /// \param step The tensor producing the step value. Must be a scalar of numeric
+                ///             element type.
                 /// \param output_type The type of the output.
                 Range(const Output<Node>& start,
                       const Output<Node>& stop,

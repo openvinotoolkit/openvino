@@ -30,6 +30,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 34518
         R"(.*RangeLayerTest.*)",
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
+        R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
         // TODO: Issue: 34083
 #if (defined(_WIN32) || defined(_WIN64))
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",

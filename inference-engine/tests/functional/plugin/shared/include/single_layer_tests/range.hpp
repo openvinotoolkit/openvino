@@ -36,4 +36,15 @@ protected:
     void SetUp() override;
 };
 
+class RangeNumpyLayerTest : public testing::WithParamInterface<RangeParams>,
+                            virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
+    void Infer() override;
+protected:
+    void SetUp() override;
+private:
+    float start, stop, step;
+};
+
 }  // namespace LayerTestsDefinitions

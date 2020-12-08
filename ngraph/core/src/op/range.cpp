@@ -46,6 +46,11 @@ bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
 
 void op::v4::Range::validate_and_infer_types()
 {
+    NODE_VALIDATION_CHECK(this,
+                          m_output_type.is_integral_number() || m_output_type.is_real(),
+                          "output tensor type should be a numeric type. Got: ",
+                          m_output_type);
+
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
@@ -56,6 +61,22 @@ void op::v4::Range::validate_and_infer_types()
         this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
     NODE_VALIDATION_CHECK(
         this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).is_integral_number() ||
+                              get_input_element_type(0).is_real(),
+                          "'start' input scalar should be a numeric type. Got: ",
+                          get_input_element_type(0));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(1).is_integral_number() ||
+                              get_input_element_type(1).is_real(),
+                          "'stop' input scalar should be a numeric type. Got: ",
+                          get_input_element_type(1));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(2).is_integral_number() ||
+                              get_input_element_type(2).is_real(),
+                          "'step' input scalar should be a numeric type. Got: ",
+                          get_input_element_type(2));
 
     auto const_start = as_type_ptr<op::Constant>(this->input_value(0).get_node_shared_ptr());
     auto const_stop = as_type_ptr<op::Constant>(this->input_value(1).get_node_shared_ptr());
@@ -96,8 +117,23 @@ void op::v4::Range::validate_and_infer_types()
 
     if (const_start != nullptr && const_stop != nullptr && const_step != nullptr)
     {
-        double span;
+        // all inputs must be casted to output_type before
+        // the rounding for casting values are done towards zero
+        if (m_output_type.is_integral_number() && get_input_element_type(0).is_real())
+        {
+            start = std::trunc(start);
+        }
+        if (m_output_type.is_integral_number() && get_input_element_type(1).is_real())
+        {
+            stop = std::trunc(stop);
+        }
+        if (m_output_type.is_integral_number() && get_input_element_type(2).is_real())
+        {
+            step = std::trunc(step);
+        }
 
+        // the number of elements is: max(ceil((stop − start) / step), 0)
+        double span;
         if ((step > 0 && start >= stop) || (step < 0 && start <= stop))
         {
             span = 0;
@@ -182,7 +218,8 @@ bool evaluate_v4_range(const HostTensorPtr& out,
     }
     Shape out_shape = Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
-    runtime::reference::range(&start_val, &step_val, out_shape, out->get_data_ptr<ET>());
+    runtime::reference::range(
+        &start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
 }
 
@@ -457,7 +494,8 @@ bool try_evaluate_range(const HostTensorPtr& out,
         }
         Shape out_shape = Shape({static_cast<size_t>(out_size)});
         out->set_shape(out_shape);
-        runtime::reference::range(&start_val, &step_val, out_shape, out->get_data_ptr<ET>());
+        runtime::reference::range(
+            &start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
         return true;
     }
     else
