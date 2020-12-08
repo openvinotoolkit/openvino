@@ -168,9 +168,6 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         const auto& n  = _networksPerDevice.at(device.deviceName);
         try {
             return n.GetContext();
-        } catch (InferenceEngine::details::InferenceEngineException& e) {
-            if (e.getStatus() != NOT_IMPLEMENTED)
-                throw;
         } catch (const NotImplemented& ex) {
         }
     }
