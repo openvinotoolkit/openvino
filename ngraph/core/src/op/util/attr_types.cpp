@@ -130,23 +130,6 @@ namespace ngraph
     }
 
     template <>
-    NGRAPH_API EnumNames<op::MVNEpsMode>& EnumNames<op::MVNEpsMode>::get()
-    {
-        static auto enum_names =
-            EnumNames<op::MVNEpsMode>("op::MVNEpsMode",
-                                      {{"OUTSIDE_SQRT", op::MVNEpsMode::OUTSIDE_SQRT},
-                                       {"INSIDE_SQRT", op::MVNEpsMode::INSIDE_SQRT}});
-        return enum_names;
-    }
-
-    constexpr DiscreteTypeInfo AttributeAdapter<op::MVNEpsMode>::type_info;
-
-    std::ostream& op::operator<<(std::ostream& s, const op::MVNEpsMode& type)
-    {
-        return s << as_string(type);
-    }
-
-    template <>
     NGRAPH_API EnumNames<op::TopKSortType>& EnumNames<op::TopKSortType>::get()
     {
         static auto enum_names =

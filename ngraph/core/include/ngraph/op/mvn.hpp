@@ -18,7 +18,6 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
 namespace ngraph
@@ -91,6 +90,19 @@ namespace ngraph
 
         NGRAPH_SUPPRESS_DEPRECATED_END
 
+        
+        /// \brief Specifies how eps is applied in MVN
+        enum class MVNEpsMode
+        {
+            // Apply eps inside sqrt
+            INSIDE_SQRT,
+            // Apply eps outside sqrt
+            OUTSIDE_SQRT
+        };
+
+        NGRAPH_API
+        std::ostream& operator<<(std::ostream& s, const MVNEpsMode& type);
+
         namespace v6
         {
             /// \brief Operator performing Mean Variance Normalization
@@ -133,4 +145,18 @@ namespace ngraph
             };
         } // namespace v6
     }     // namespace op
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::MVNEpsMode>
+        : public EnumAttributeAdapterBase<op::MVNEpsMode>
+    {
+    public:
+        AttributeAdapter(op::MVNEpsMode& value)
+            : EnumAttributeAdapterBase<op::MVNEpsMode>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MVNEpsMode>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
 } // namespace ngraph
