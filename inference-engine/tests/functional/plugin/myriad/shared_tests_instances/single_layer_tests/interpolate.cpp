@@ -73,6 +73,9 @@ const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordina
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesNearestMore = {
         ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModesWithoutNearest = {
