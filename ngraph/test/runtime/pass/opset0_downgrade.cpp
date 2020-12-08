@@ -83,7 +83,7 @@ namespace opset0_downgrade
                 reshaped_output_shape.insert(reshaped_output_shape.begin() + axis, 1);
             }
             auto shape_pattern = op::Constant::create(
-                element::Type_t::u64, {reshaped_output_shape.size()}, reshaped_output_shape);
+                element::u64, {reshaped_output_shape.size()}, reshaped_output_shape);
             auto reshaped_product =
                 make_shared<op::v1::Reshape>(replacement_node->output(0), shape_pattern, false);
             return reshaped_product;
