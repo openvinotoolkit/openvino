@@ -29,8 +29,9 @@ using CancellationTests = BehaviorTestsUtils::BehaviorTestsBasic;
 TEST_P(CancellationTests, canCancelAsyncRequest) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> largeNetwork = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, 640, 640});
     // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
+    InferenceEngine::CNNNetwork cnnNet(largeNetwork);
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
