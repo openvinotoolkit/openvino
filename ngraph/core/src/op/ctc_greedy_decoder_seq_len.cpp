@@ -21,11 +21,11 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen, "CTCGreedyDecoderSeqLen", 6);
 
-op::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
-                                       const Output<Node>& seq_len,
-                                       const bool merge_repeated,
-                                       const element::Type& classes_index_type,
-                                       const element::Type& sequence_length_type)
+op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
+                                                       const Output<Node>& seq_len,
+                                                       const bool merge_repeated,
+                                                       const element::Type& classes_index_type,
+                                                       const element::Type& sequence_length_type)
     : Op({input, seq_len})
     , m_merge_repeated(merge_repeated)
     , m_classes_index_type(classes_index_type)
@@ -34,14 +34,28 @@ op::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
     constructor_validate_and_infer_types();
 }
 
-void op::CTCGreedyDecoderSeqLen::validate_and_infer_types()
+op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
+                                                       const Output<Node>& seq_len,
+                                                       const Output<Node>& blank_index,
+                                                       const bool merge_repeated,
+                                                       const element::Type& classes_index_type,
+                                                       const element::Type& sequence_length_type)
+        : Op({input, seq_len, blank_index})
+        , m_merge_repeated(merge_repeated)
+        , m_classes_index_type(classes_index_type)
+        , m_sequence_length_type(sequence_length_type)
+{
+    constructor_validate_and_infer_types();
+}
+
+void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
 {
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_len_pshape = get_input_partial_shape(1);
     auto input_et = get_input_element_type(0);
 
     // output dynamic rank tensor if all inputs are of dynamic rank
-    if (logits_pshape.rank().is_dynamic() && seq_len_pshape.rank().is_dynamic())
+    if (logits_pshape.rank().is_dynamic() || seq_len_pshape.rank().is_dynamic())
     {
         set_output_type(
             0, input_et, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1});
@@ -91,7 +105,7 @@ void op::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     set_output_type(0, input_et, PartialShape{batch_size, time_size});
 }
 
-bool op::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor)
+bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("merge_repeated", m_merge_repeated);
     visitor.on_attribute("classes_index_type", m_classes_index_type);
@@ -99,10 +113,29 @@ bool op::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-shared_ptr<Node> op::CTCGreedyDecoderSeqLen::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v6::CTCGreedyDecoderSeqLen::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    auto new_v6_ctc = make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0), new_args.at(1), m_merge_repeated,
-                                               m_classes_index_type, m_sequence_length_type);
-    return std::move(new_v6_ctc);
+
+    if (new_args.size() == 2)
+    {
+        return make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0),
+                                                   new_args.at(1),
+                                                   m_merge_repeated,
+                                                   m_classes_index_type,
+                                                   m_sequence_length_type);
+    }
+    else if (new_args.size() == 3)
+    {
+        return make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0),
+                                                   new_args.at(1),
+                                                   new_args.at(2),
+                                                   m_merge_repeated,
+                                                   m_classes_index_type,
+                                                   m_sequence_length_type);
+    }
+    else
+    {
+        throw ngraph_error("Incorrect number of arguments");
+    }
 }

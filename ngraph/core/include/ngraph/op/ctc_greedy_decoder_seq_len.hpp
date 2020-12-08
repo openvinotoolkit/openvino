@@ -31,11 +31,21 @@ namespace ngraph
                 CTCGreedyDecoderSeqLen() = default;
                 /// \brief Constructs a CTCGreedyDecoderSeqLen operation
                 ///
-                /// \param input              Logits on which greedy decoding is performed
-                /// \param seq_len            Sequence lengths
-                /// \param merge_repeated Whether to merge repeated labels
+                /// \param input                Logits on which greedy decoding is performed
+                /// \param seq_len              Sequence lengths
+                /// \param blank_index          Blank index
+                /// \param merge_repeated       Whether to merge repeated labels
+                /// \param classes_index_type   Specifies the output classes_index tensor type
+                /// \param sequence_length_type Specifies the output sequence_length tensor type
                 CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                        const Output<Node>& seq_len,
+                                       const bool merge_repeated,
+                                       const element::Type& classes_index_type = element::i32,
+                                       const element::Type& sequence_length_type = element::i32);
+
+                CTCGreedyDecoderSeqLen(const Output<Node>& input,
+                                       const Output<Node>& seq_len,
+                                       const Output<Node>& blank_index,
                                        const bool merge_repeated,
                                        const element::Type& classes_index_type = element::i32,
                                        const element::Type& sequence_length_type = element::i32);
@@ -58,12 +68,12 @@ namespace ngraph
                 {
                     m_sequence_length_type = sequence_length_type;
                 }
+
             private:
                 bool m_merge_repeated;
                 element::Type m_classes_index_type{element::i32};
                 element::Type m_sequence_length_type{element::i32};
             };
         } // namespace v6
-        using v6::CTCGreedyDecoderSeqLen;
     } // namespace op
 } // namespace ngraph
