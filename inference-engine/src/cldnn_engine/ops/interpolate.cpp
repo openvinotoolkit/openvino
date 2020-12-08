@@ -55,19 +55,6 @@ static cldnn::shape_calculation_mode GetShapeCalculationMode(ngraph::op::v4::Int
     THROW_IE_EXCEPTION << "Unknown shape calculation mode: " << static_cast<int>(mode);
 }
 
-static cldnn::resample_type GetResampleType(const std::string &mode) {
-    static const caseless_map<std::string, cldnn::resample_type> UpsamplingTypeNameToType = {
-        { "Interp" , cldnn::resample_type::bilinear },
-        { "linear" , cldnn::resample_type::bilinear },
-        { "nearest" , cldnn::resample_type::nearest },
-    };
-    auto it = UpsamplingTypeNameToType.find(mode);
-    if (it != UpsamplingTypeNameToType.end())
-        return it->second;
-    else
-        THROW_IE_EXCEPTION << "Unknown interpolation mode: " << mode;
-}
-
 static cldnn::resample_type GetResampleType(ngraph::op::v4::Interpolate::InterpolateMode mode) {
     switch (mode) {
     case ngraph::op::v4::Interpolate::InterpolateMode::nearest: return cldnn::resample_type::nearest;
@@ -114,144 +101,107 @@ static cldnn::resample::resample_axis GetInterpolationAxis(int axis, unsigned sz
 }
 
 void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    if (auto op = std::dynamic_pointer_cast<ngraph::op::v4::Interpolate>(node)) {
-        p.ValidateInputs(op, {3, 4});
-        auto inputPrimitives = p.GetInputPrimitiveIDs(op);
-        std::string layerName = layer_type_name_ID(op);
+    auto op = std::dynamic_pointer_cast<ngraph::op::v4::Interpolate>(node);
+    if (!op)
+        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
 
-        static const size_t SCALES_INDEX = 2;
-        static const size_t AXES_INDEX = 3;
+    p.ValidateInputs(op, {3, 4});
+    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    std::string layerName = layer_type_name_ID(op);
 
-        auto attrs = op->get_attrs();
-        auto inputRank = op->get_input_shape(0).size();
-        auto outDims = op->get_output_shape(0).size();
-        auto outTensor = CldnnTensorFromIEDims(op->get_output_shape(0));
+    static const size_t SCALES_INDEX = 2;
+    static const size_t AXES_INDEX = 3;
 
-        std::vector<int> pad_begin(attrs.pads_begin.begin(), attrs.pads_begin.end());
-        std::vector<int> pad_end(attrs.pads_end.begin(), attrs.pads_end.end());
+    auto attrs = op->get_attrs();
+    auto inputRank = op->get_input_shape(0).size();
+    auto outDims = op->get_output_shape(0).size();
+    auto outTensor = CldnnTensorFromIEDims(op->get_output_shape(0));
 
-        for (size_t i = pad_begin.size(); i < outDims || i < 4; ++i)
-            pad_begin.push_back(0);
-        for (size_t i = pad_end.size(); i < outDims || i < 4; ++i)
-            pad_end.push_back(0);
+    std::vector<int> pad_begin(attrs.pads_begin.begin(), attrs.pads_begin.end());
+    std::vector<int> pad_end(attrs.pads_end.begin(), attrs.pads_end.end());
 
-        int antialias = attrs.antialias;
-        float cube_coeff = attrs.cube_coeff;
+    for (size_t i = pad_begin.size(); i < outDims || i < 4; ++i)
+        pad_begin.push_back(0);
+    for (size_t i = pad_end.size(); i < outDims || i < 4; ++i)
+        pad_end.push_back(0);
 
-        auto cldnnSampleType = GetResampleType(attrs.mode);
-        auto shapeCalcMode = GetShapeCalculationMode(attrs.shape_calculation_mode);
-        auto coordTransMode = GetCoordinateTransformationMode(attrs.coordinate_transformation_mode);
-        auto nearestMode = GetNearestMode(attrs.nearest_mode);
+    int antialias = attrs.antialias;
+    float cube_coeff = attrs.cube_coeff;
 
-        auto scales_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
-        if (!scales_constant) {
+    auto cldnnSampleType = GetResampleType(attrs.mode);
+    auto shapeCalcMode = GetShapeCalculationMode(attrs.shape_calculation_mode);
+    auto coordTransMode = GetCoordinateTransformationMode(attrs.coordinate_transformation_mode);
+    auto nearestMode = GetNearestMode(attrs.nearest_mode);
+
+    auto scales_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
+    if (!scales_constant) {
+        THROW_IE_EXCEPTION << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    }
+    std::vector<float> scales = scales_constant->cast_vector<float>();
+
+    std::vector<cldnn::resample::resample_axis> axes;
+    if (op->get_input_size() == 4) {
+        auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(AXES_INDEX));
+        if (!axes_constant) {
             THROW_IE_EXCEPTION << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
-        std::vector<float> scales = scales_constant->cast_vector<float>();
-
-        std::vector<cldnn::resample::resample_axis> axes;
-        if (op->get_input_size() == 4) {
-            auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(AXES_INDEX));
-            if (!axes_constant) {
-                THROW_IE_EXCEPTION << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-            }
-            auto ie_axes = axes_constant->cast_vector<int32_t>();
-            for (auto axis : ie_axes) {
-                axes.push_back(GetInterpolationAxis(axis, inputRank));
-            }
-        } else {
-            for (int i = 0; i < inputRank; ++i) {
-                axes.push_back(GetInterpolationAxis(i, inputRank));
-            }
+        auto ie_axes = axes_constant->cast_vector<int32_t>();
+        for (auto axis : ie_axes) {
+            axes.push_back(GetInterpolationAxis(axis, inputRank));
         }
-
-        if (axes.size() != scales.size())
-            THROW_IE_EXCEPTION << op->get_friendly_name() << " Incorrect axes and scales should be the same size";
-
-        cldnn::resample::AxesAndScales axesAndScales;
-        for (size_t i = 0; i < axes.size(); ++i) {
-            axesAndScales[axes[i]] = scales[i];
-        }
-
-        if (cldnnSampleType == cldnn::resample_type::linear_onnx) {
-            if (inputRank != 2 && inputRank != 4)
-                THROW_IE_EXCEPTION << "mode 'linear_onnx' supports only 2D or 4D tensors";
-            if (axes.size() != 2 && inputRank != axes.size())
-                THROW_IE_EXCEPTION << "mode 'linear_onnx' supports only axes with size 2 or equal to input rank";
-            bool correctAxes =
-                ((axes[0] == cldnn::resample::resample_axis::along_b) &&
-                 (axes[1] == cldnn::resample::resample_axis::along_f)) ||
-                ((axes[0] == cldnn::resample::resample_axis::along_y) &&
-                 (axes[1] == cldnn::resample::resample_axis::along_x));
-            if (axes.size() == 4 && inputRank == 4) {
-                correctAxes = axes[0] == cldnn::resample::resample_axis::along_b &&
-                              axes[1] == cldnn::resample::resample_axis::along_f &&
-                              axes[2] == cldnn::resample::resample_axis::along_y &&
-                              axes[3] == cldnn::resample::resample_axis::along_x;
-            }
-            if (!correctAxes)
-                THROW_IE_EXCEPTION <<
-                    "mode 'linear_onnx' supports only case when axes = {2, 3} or "
-                    "axes = {0, 1} or axes = {0, 1, 2, 3}";
-        }
-
-        auto resamplePrim = cldnn::resample(layerName,
-                                            inputPrimitives[0],
-                                            outTensor,
-                                            axesAndScales,
-                                            pad_begin,
-                                            pad_end,
-                                            antialias,
-                                            cube_coeff,
-                                            cldnnSampleType,
-                                            shapeCalcMode,
-                                            coordTransMode,
-                                            nearestMode);
-
-        p.AddPrimitive(resamplePrim);
-        p.AddPrimitiveToProfiler(op);
-    } else if (auto op = std::dynamic_pointer_cast<ngraph::op::v0::Interpolate>(node)) {
-        p.ValidateInputs(op, {1, 2});
-        auto inputPrimitives = p.GetInputPrimitiveIDs(op);
-        std::string layerName = layer_type_name_ID(op);
-
-        auto attrs = op->get_attrs();
-        auto insData0dims = op->get_input_shape(0).size();
-        auto outDims = op->get_output_shape(0).size();
-        auto outTensor = CldnnTensorFromIEDims(op->get_output_shape(0));
-        auto mode = attrs.mode;
-        auto num_of_spatial_vars = op->get_input_shape(0).size() - 2;
-        auto interpolate_axes = attrs.axes;
-        if (num_of_spatial_vars == 2 && interpolate_axes != ngraph::AxisSet{2, 3}) {
-            THROW_IE_EXCEPTION << "Unsupported interpolation parameters in " << op->get_friendly_name();
-        }
-
-        std::vector<int> pad_begin(attrs.pads_begin.begin(), attrs.pads_begin.end());
-        std::vector<int> pad_end(attrs.pads_end.begin(), attrs.pads_end.end());
-
-        for (size_t i = pad_begin.size(); i < outDims || i < 4; ++i)
-            pad_begin.push_back(0);
-        for (size_t i = pad_end.size(); i < outDims || i < 4; ++i)
-            pad_end.push_back(0);
-
-        int align_corners = attrs.align_corners;
-
-        auto resamplePrim = cldnn::resample(layerName,
-                                            inputPrimitives[0],
-                                            outTensor,
-                                            pad_begin,
-                                            pad_end,
-                                            align_corners,
-                                            GetResampleType(mode));
-
-        p.AddPrimitive(resamplePrim);
-        p.AddPrimitiveToProfiler(op);
     } else {
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
+        for (int i = 0; i < inputRank; ++i) {
+            axes.push_back(GetInterpolationAxis(i, inputRank));
+        }
     }
+
+    if (axes.size() != scales.size())
+        THROW_IE_EXCEPTION << op->get_friendly_name() << " Incorrect axes and scales should be the same size";
+
+    cldnn::resample::AxesAndScales axesAndScales;
+    for (size_t i = 0; i < axes.size(); ++i) {
+        axesAndScales[axes[i]] = scales[i];
+    }
+
+    if (cldnnSampleType == cldnn::resample_type::linear_onnx) {
+        if (inputRank != 2 && inputRank != 4)
+            THROW_IE_EXCEPTION << "mode 'linear_onnx' supports only 2D or 4D tensors";
+        if (axes.size() != 2 && inputRank != axes.size())
+            THROW_IE_EXCEPTION << "mode 'linear_onnx' supports only axes with size 2 or equal to input rank";
+        bool correctAxes =
+            ((axes[0] == cldnn::resample::resample_axis::along_b) &&
+                (axes[1] == cldnn::resample::resample_axis::along_f)) ||
+            ((axes[0] == cldnn::resample::resample_axis::along_y) &&
+                (axes[1] == cldnn::resample::resample_axis::along_x));
+        if (axes.size() == 4 && inputRank == 4) {
+            correctAxes = axes[0] == cldnn::resample::resample_axis::along_b &&
+                            axes[1] == cldnn::resample::resample_axis::along_f &&
+                            axes[2] == cldnn::resample::resample_axis::along_y &&
+                            axes[3] == cldnn::resample::resample_axis::along_x;
+        }
+        if (!correctAxes)
+            THROW_IE_EXCEPTION <<
+                "mode 'linear_onnx' supports only case when axes = {2, 3} or "
+                "axes = {0, 1} or axes = {0, 1, 2, 3}";
+    }
+
+    auto resamplePrim = cldnn::resample(layerName,
+                                        inputPrimitives[0],
+                                        outTensor,
+                                        axesAndScales,
+                                        pad_begin,
+                                        pad_end,
+                                        antialias,
+                                        cube_coeff,
+                                        cldnnSampleType,
+                                        shapeCalcMode,
+                                        coordTransMode,
+                                        nearestMode);
+
+    p.AddPrimitive(resamplePrim);
+    p.AddPrimitiveToProfiler(op);
 }
 
-REGISTER_FACTORY_IMPL(v0, Interpolate);
 REGISTER_FACTORY_IMPL(v4, Interpolate);
 
 }  // namespace CLDNNPlugin

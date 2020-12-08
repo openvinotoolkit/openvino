@@ -51,6 +51,7 @@
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -150,7 +151,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
 
         std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
-                {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
                 {ngraph::element::u16, ngraph::element::i32},
                 {ngraph::element::u32, ngraph::element::i32},
@@ -244,7 +244,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                            node->input_value(0).get_shape().size() == 3lu &&
                            node->input_value(1).get_shape().size() == 3lu;
                 });
-        manager.run_passes(nGraphFunc);
 
         // List of enabled/disabled transformations
         pass_config->disable<ngraph::pass::ConvertGELU>();
@@ -255,6 +254,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
         pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
         pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+
+        pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
         manager.run_passes(nGraphFunc);
 

@@ -31,7 +31,7 @@ REGISTER_FACTORY(v0, Floor);
 REGISTER_FACTORY(v0, Gelu);
 REGISTER_FACTORY(v0, GRN);
 REGISTER_FACTORY(v0, HardSigmoid);
-REGISTER_FACTORY(v0, Interpolate);
+// REGISTER_FACTORY(v0, Interpolate); Supported via v0 -> v4 conversion
 REGISTER_FACTORY(v0, Log);
 REGISTER_FACTORY(v0, LRN);
 REGISTER_FACTORY(v0, MatMul);
