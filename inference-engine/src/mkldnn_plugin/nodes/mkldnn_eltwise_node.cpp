@@ -630,12 +630,9 @@ private:
                 } else {
                     std::vector<size_t> in_idxs;
                     in_idxs.push_back(vmm_dst.getIdx());
-                    std::vector<size_t> aux_idxs;
-                    aux_idxs.push_back(get_aux_vmm(0).getIdx());
-                    aux_idxs.push_back(get_aux_vmm(1).getIdx());
                     std::vector<size_t> out_idxs;
                     out_idxs.push_back(ymm_dst.getIdx());
-                    bf16_emu_emitter->emit(in_idxs, out_idxs, aux_idxs);
+                    bf16_emu_emitter->emit(in_idxs, out_idxs);
                 }
                 vmovdqu16(op, ymm_dst);
                 break;
