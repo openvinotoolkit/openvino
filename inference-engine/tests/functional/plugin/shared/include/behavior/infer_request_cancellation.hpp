@@ -76,10 +76,10 @@ TEST_P(CancellationTests, canResetAfterCancelAsyncRequest) {
 
     req.StartAsync();
     req.Cancel();
-    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
 
     req.StartAsync();
-    waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    InferenceEngine::StatusCode waitStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
 
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
 }

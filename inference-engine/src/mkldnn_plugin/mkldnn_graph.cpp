@@ -767,6 +767,11 @@ void MKLDNNGraph::Infer(int batch) {
 
     mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
     for (int i = 0; i < graphNodes.size(); i++) {
+        if (IsCancellationRequested()) {
+            ResetCancellationRequest();
+            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::INFER_CANCELLED;
+        }
+
         PERF(graphNodes[i]);
 
         if (batch > 0)
@@ -780,11 +785,6 @@ void MKLDNNGraph::Infer(int batch) {
         }
 
         ENABLE_DUMP(do_after(DUMP_DIR, graphNodes[i]));
-
-        if (IsCancellationRequested()) {
-            ResetCancellationRequest();
-            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::INFER_CANCELLED;
-        }
     }
 
     if (infer_count != -1) infer_count++;
