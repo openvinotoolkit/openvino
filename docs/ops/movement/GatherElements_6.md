@@ -85,11 +85,10 @@ data = [
 
 **Inputs**:
 
-* **1**:  Tensor of type *T*. This is a tensor of a `rank >= 1`. Required.
+* **1**:  Tensor of type *T*. This is a tensor of a `rank >= 1`. **Required**.
 
 * **2**:  Tensor of type *T_IND* with the same rank as the input. All index values are expected to be within
- bounds `[0, s-1]`, where `s` is size along `axis` dimension of the `data` tensor. It is an error if any of the index 
- values are out of bounds. Required.
+ bounds `[0, s-1]`, where `s` is size along `axis` dimension of the `data` tensor. **Required**.
 
 **Outputs**:
 
@@ -105,21 +104,24 @@ data = [
 
 ```xml
 <... type="GatherElements" ...>
-    <data axis=1 />
+    <data axis="1" />
     <input>
         <port id="0">
-            <dim>2</dim>
-            <dim>2</dim>
+            <dim>3</dim>
+            <dim>7</dim>
+            <dim>5</dim>
         </port>
         <port id="1">
-            <dim>2</dim>
             <dim>3</dim>
+            <dim>10</dim>
+            <dim>5</dim>
         </port>
     </input>
     <output>
         <port id="2">
-            <dim>2</dim>
             <dim>3</dim>
+            <dim>10</dim>
+            <dim>5</dim>
         </port>
     </output>
 </layer>
