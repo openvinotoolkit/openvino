@@ -40,10 +40,10 @@ op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input
                                                        const bool merge_repeated,
                                                        const element::Type& classes_index_type,
                                                        const element::Type& sequence_length_type)
-        : Op({input, seq_len, blank_index})
-        , m_merge_repeated(merge_repeated)
-        , m_classes_index_type(classes_index_type)
-        , m_sequence_length_type(sequence_length_type)
+    : Op({input, seq_len, blank_index})
+    , m_merge_repeated(merge_repeated)
+    , m_classes_index_type(classes_index_type)
+    , m_sequence_length_type(sequence_length_type)
 {
     constructor_validate_and_infer_types();
 }
@@ -73,6 +73,16 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
         NODE_VALIDATION_CHECK(this,
                               seq_len_pshape.rank().get_length() == 1,
                               "The rank of sequence len tensor must be equal to 1.");
+    }
+
+    // check optional input type: blank index
+    if (get_input_size() == 3)
+    {
+        const auto& blank_index_type = get_input_element_type(2);
+        NODE_VALIDATION_CHECK(this,
+                              blank_index_type.is_integral_number(),
+                              "The blank index type is expected to be an integer type. Got: ",
+                              blank_index_type);
     }
 
     // validate input shapes and compute output shape
@@ -113,7 +123,8 @@ bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-shared_ptr<Node> op::v6::CTCGreedyDecoderSeqLen::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node>
+        op::v6::CTCGreedyDecoderSeqLen::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
 

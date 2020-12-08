@@ -52,6 +52,7 @@ namespace ngraph
 
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
+
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -75,5 +76,5 @@ namespace ngraph
                 element::Type m_sequence_length_type{element::i32};
             };
         } // namespace v6
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph
