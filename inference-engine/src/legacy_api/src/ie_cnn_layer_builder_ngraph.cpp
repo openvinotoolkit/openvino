@@ -338,61 +338,6 @@ CNNLayer::Ptr NodeConverter<ngraph::opset5::Loop>::createLayer(const std::shared
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Convert",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto p = details::convertPrecision(layer->get_output_element_type(0));
-    std::string precision_str;
-    switch (p) {
-    case Precision::FP16:
-        precision_str = "FP16";
-        break;
-    case Precision::BF16:
-        precision_str = "BF16";
-        break;
-    case Precision::FP32:
-        precision_str = "FP32";
-        break;
-    case Precision::FP64:
-        precision_str = "FP64";
-        break;
-    case Precision::I8:
-        precision_str = "I8";
-        break;
-    case Precision::I16:
-        precision_str = "I16";
-        break;
-    case Precision::I32:
-        precision_str = "I32";
-        break;
-    case Precision::I64:
-        precision_str = "I64";
-        break;
-    case Precision::U8:
-        precision_str = "U8";
-        break;
-    case Precision::U16:
-        precision_str = "U16";
-        break;
-    case Precision::U32:
-        precision_str = "U32";
-        break;
-    case Precision::U64:
-        precision_str = "U64";
-        break;
-    case Precision::BOOL:
-        precision_str = "BOOL";
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported type";
-    }
-
-    res->params["precision"] = precision_str;
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Ceiling>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Ceiling",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -454,23 +399,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Exp>::createLayer(const std::shared_ptr<
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::MVN>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "MVN", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::MVNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::MVN>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["eps"] = asString(castedLayer->get_eps());
-
-    const size_t chanelAxis = 1;
-    ngraph::AxisSet reductionAxes = castedLayer->get_reduction_axes();
-    res->params["across_channels"] = asString(reductionAxes.count(chanelAxis) > 0);
-
-    res->params["normalize_variance"] = asString(castedLayer->get_normalize_variance());
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::CropIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Crop",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -499,15 +427,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::CropIE>::createLayer(const std::shared_p
     }
     res->params["offset"] = value;
 
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::Subtract>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Eltwise",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
-    res->params["operation"] = "sub";
     return res;
 }
 
