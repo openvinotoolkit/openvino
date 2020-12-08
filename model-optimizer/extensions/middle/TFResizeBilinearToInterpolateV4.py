@@ -88,7 +88,7 @@ def replace_resize_bilinear(graph: Graph, resize: Node):
                                                },
                                                {
                                                    'name': resize_name + '/interpolate_4',
-                                                   'mode': coordinate_transformation_mode,
+                                                   'mode': 'linear',
                                                    'antialias': False,
                                                    'coordinate_transformation_mode': coordinate_transformation_mode,
                                                    'pads_begin': int64_array([0]),
