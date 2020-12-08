@@ -90,7 +90,6 @@ namespace ngraph
 
         NGRAPH_SUPPRESS_DEPRECATED_END
 
-        
         /// \brief Specifies how eps is applied in MVN
         enum class MVNEpsMode
         {

@@ -139,7 +139,6 @@ std::ostream& op::operator<<(std::ostream& s, const op::MVNEpsMode& type)
     return s << as_string(type);
 }
 
-
 NGRAPH_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
 
 op::v6::MVN::MVN(const Output<Node>& data,
