@@ -78,7 +78,7 @@ OutputVector op::GRN::decompose_op() const
         data = builder::opset1::reshape(data, data_shape);
     }
 
-    const auto axis_set_const = op::Constant::create(element::Type_t::i64, {}, {1});
+    const auto axis_set_const = op::Constant::create(element::i64, {}, {1});
     // Calculate l2 norm across channels.
     shared_ptr<Node> norm = builder::opset1::l2_norm(data, axis_set_const, m_bias);
     // Get back reduced axis.

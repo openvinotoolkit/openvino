@@ -47,7 +47,7 @@ namespace not_equalop
                             const op::AutoBroadcastSpec& broadcast_spec)
     {
         bool rc = true;
-        out->set_broadcast(broadcast_spec, arg0, arg1, element::Type_t::boolean);
+        out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
         switch (arg0->get_element_type())
         {
             TYPE_CASE(boolean)(arg0, arg1, out, broadcast_spec);
@@ -93,4 +93,9 @@ bool op::v1::NotEqual::evaluate(const HostTensorVector& outputs,
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::NotEqual::evaluate");
     return not_equalop::evaluate_not_equal(inputs[0], inputs[1], outputs[0], get_autob());
+}
+
+bool op::v1::NotEqual::visit_attributes(AttributeVisitor& visitor)
+{
+    return true;
 }

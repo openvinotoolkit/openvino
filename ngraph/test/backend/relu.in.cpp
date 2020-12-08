@@ -33,16 +33,16 @@ static string s_manifest = "${MANIFEST}";
 NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop)
 {
     auto shape_a = Shape{2, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto relu = make_shared<op::Relu>(A);
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(relu, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, shape_a);
     copy_data(a, vector<float>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5});
-    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
+    auto result = backend->create_tensor(element::f32, shape_rt);
     vector<float> expected{1, 8, 0, 17, 0, 1, 8, 0, 17, 0};
 
     auto handle = backend->compile(f);
@@ -53,16 +53,16 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop)
 NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32)
 {
     auto shape_a = Shape{2, 5};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape_a);
+    auto A = make_shared<op::Parameter>(element::i32, shape_a);
     auto relu = make_shared<op::Relu>(A);
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(relu, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::i32, shape_a);
+    auto a = backend->create_tensor(element::i32, shape_a);
     copy_data(a, vector<int32_t>{1, 8, -8, 17, -2, 1, 8, -8, 17, -1});
-    auto result = backend->create_tensor(element::Type_t::i32, shape_rt);
+    auto result = backend->create_tensor(element::i32, shape_rt);
     vector<int32_t> expected{1, 8, 0, 17, 0, 1, 8, 0, 17, 0};
 
     auto handle = backend->compile(f);
@@ -73,16 +73,16 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_2Dfprop_i32)
 NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop)
 {
     auto shape_a = Shape{2, 2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto relu = make_shared<op::Relu>(A);
     auto shape_rt = Shape{2, 2, 2, 2};
     auto f = make_shared<Function>(relu, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto a = backend->create_tensor(element::Type_t::f32, shape_a);
+    auto a = backend->create_tensor(element::f32, shape_a);
     copy_data(a, vector<float>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1});
-    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
+    auto result = backend->create_tensor(element::f32, shape_rt);
     vector<float> expected{1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1};
 
     auto handle = backend->compile(f);
@@ -93,17 +93,17 @@ NGRAPH_TEST(${BACKEND_NAME}, relu_4Dfprop)
 NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu)
 {
     auto shape_a = Shape{2, 5};
-    auto A = op::Constant::create(element::Type_t::f32, shape_a, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
-    auto B = make_shared<op::Parameter>(element::Type_t::f32, shape_a);
+    auto A = op::Constant::create(element::f32, shape_a, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
+    auto B = make_shared<op::Parameter>(element::f32, shape_a);
     auto max = make_shared<op::v1::Maximum>(A, B);
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(max, ParameterVector{B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto b = backend->create_tensor(element::Type_t::f32, shape_a);
+    auto b = backend->create_tensor(element::f32, shape_a);
     copy_data(b, vector<float>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5});
-    auto result = backend->create_tensor(element::Type_t::f32, shape_rt);
+    auto result = backend->create_tensor(element::f32, shape_rt);
     vector<float> expected{1, 8, 0, 17, 0, 1, 8, 0, 17, 0};
 
     auto handle = backend->compile(f);

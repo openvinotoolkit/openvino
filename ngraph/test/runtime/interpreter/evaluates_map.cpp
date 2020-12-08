@@ -56,6 +56,7 @@
 #include "ngraph/runtime/reference/lrn.hpp"
 #include "ngraph/runtime/reference/mvn.hpp"
 #include "ngraph/runtime/reference/normalize_l2.hpp"
+#include "ngraph/runtime/reference/psroi_pooling.hpp"
 #include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/roi_pooling.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
@@ -1626,6 +1627,26 @@ namespace
                                            outputs[0]->get_data_ptr<T>(),
                                            op->get_output_shape(0),
                                            AxisSet{(size_t)i_axis});
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::PSROIPooling>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+                                             inputs[0]->get_shape(),
+                                             inputs[1]->get_data_ptr<T>(),
+                                             inputs[1]->get_shape(),
+                                             outputs[0]->get_data_ptr<T>(),
+                                             outputs[0]->get_shape(),
+                                             op->get_mode(),
+                                             op->get_spatial_scale(),
+                                             op->get_spatial_bins_x(),
+                                             op->get_spatial_bins_y());
+
         return true;
     }
 

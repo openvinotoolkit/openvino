@@ -44,7 +44,7 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
     NODE_VALIDATION_CHECK(this,
-                          args_et.is_dynamic() || args_et != element::Type_t::boolean,
+                          args_et.is_dynamic() || args_et != element::boolean,
                           "Arguments cannot have boolean element type (argument element type: ",
                           args_et,
                           ").");
