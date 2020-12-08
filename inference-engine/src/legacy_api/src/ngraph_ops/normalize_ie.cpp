@@ -35,3 +35,10 @@ shared_ptr<Node> op::NormalizeIE::clone_with_new_inputs(const OutputVector& new_
     check_new_args_count(this, new_args);
     return make_shared<op::NormalizeIE>(new_args.at(0), new_args.at(1), m_eps, m_across_spatial, m_channel_shared, m_output_type);
 }
+
+bool op::NormalizeIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("eps", m_eps);
+    visitor.on_attribute("channel_shared", m_channel_shared);
+    visitor.on_attribute("across_spatial", m_across_spatial);
+    return true;
+}

@@ -49,6 +49,8 @@ op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_va
     , m_reduction_axes{reduction_axes}
 {
     constructor_validate_and_infer_types();
+    const size_t chanelAxis = 1;
+    m_across_channels = (m_reduction_axes.count(chanelAxis) > 0);
 }
 
 // decompose_op() relies on knowing the data type of input data which might
