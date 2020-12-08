@@ -138,6 +138,9 @@ PartialBlkDesc PartialBlkDesc::makeCBlocked(const InferenceEngine::SizeVector &d
 }
 
 PartialBlkDesc PartialBlkDesc::extractFrom(const InferenceEngine::TensorDesc &desc) {
+    if (desc.getLayout() == InferenceEngine::ANY)
+        THROW_IE_EXCEPTION << "Cannot extract partial blocked descriptor for `ANY` layout";
+
     const auto &dims = desc.getDims();
     const auto &blk = desc.getBlockingDesc();
     const auto &blk_dims = blk.getBlockDims();
