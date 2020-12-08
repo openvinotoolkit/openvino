@@ -156,6 +156,10 @@ public:
         return _syncRequest->QueryState();
     }
 
+    /**
+     * @brief Get the "hardware" timestamp
+     * @note
+     */
     virtual std::chrono::high_resolution_clock::time_point GetHardwareTimeStamp() {
         return _syncRequest->GetHardwareTimeStamp();
     }
