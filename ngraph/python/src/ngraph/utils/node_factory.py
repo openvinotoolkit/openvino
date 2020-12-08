@@ -9,10 +9,10 @@ DEFAULT_OPSET = "opset4"
 
 
 class NodeFactory(object):
-    """! Factory front-end to create node objects."""
+    """Factory front-end to create node objects."""
 
     def __init__(self, opset_version: str = DEFAULT_OPSET) -> None:
-        """! Create the NodeFactory object.
+        """Create the NodeFactory object.
 
         @param      opset_version:  The opset version the factory will use to produce ops from.
         """
@@ -21,7 +21,7 @@ class NodeFactory(object):
     def create(
         self, op_type_name: str, arguments: List[Node], attributes: Optional[Dict[str, Any]] = None
     ) -> Node:
-        """! Create node object from provided description.
+        """Create node object from provided description.
 
         The user does not have to provide all node's attributes, but only required ones.
 
@@ -65,7 +65,7 @@ class NodeFactory(object):
 
     @staticmethod
     def _normalize_attr_name(attr_name: str, prefix: str) -> str:
-        """! Normalize attribute name.
+        """Normalize attribute name.
 
         @param      attr_name:  The attribute name.
         @param      prefix:     The prefix to attach to attribute name.
@@ -79,7 +79,7 @@ class NodeFactory(object):
 
     @classmethod
     def _normalize_attr_name_getter(cls, attr_name: str) -> str:
-        """! Normalize atr name to be suitable for getter function name.
+        """Normalize atr name to be suitable for getter function name.
 
         @param      attr_name:  The attribute name to normalize
 
@@ -89,7 +89,7 @@ class NodeFactory(object):
 
     @classmethod
     def _normalize_attr_name_setter(cls, attr_name: str) -> str:
-        """! Normalize attribute name to be suitable for setter function name.
+        """Normalize attribute name to be suitable for setter function name.
 
         @param      attr_name:  The attribute name to normalize
 
@@ -99,7 +99,7 @@ class NodeFactory(object):
 
     @staticmethod
     def _get_node_attr_value(node: Node, attr_name: str) -> Any:
-        """! Get provided node attribute value.
+        """Get provided node attribute value.
 
         @param      node:       The node we retrieve attribute value from.
         @param      attr_name:  The attribute name.
@@ -113,7 +113,7 @@ class NodeFactory(object):
 
     @staticmethod
     def _set_node_attr_value(node: Node, attr_name: str, value: Any) -> None:
-        """! Set the node attribute value.
+        """Set the node attribute value.
 
         @param      node:       The node we change attribute value for.
         @param      attr_name:  The attribute name.
