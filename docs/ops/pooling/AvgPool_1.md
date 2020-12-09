@@ -60,15 +60,16 @@
     * *floor*
   * **Type**: string
   * **Default value**: *floor*
+  * **Required**: *no*
 
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
-    * None (not specified): use explicit padding values.
-    * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
-    * *valid* - do not use padding.
+    * *explicit*: use explicit padding values.
+    * *same_upper (same_lower)*: the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
+    * *valid*: do not use padding.
   * **Type**: string
-  * **Default value**: None
+  * **Default value**: *explicit*
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
 
