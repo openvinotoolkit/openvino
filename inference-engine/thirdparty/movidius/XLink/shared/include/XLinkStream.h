@@ -2,41 +2,70 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef _XLINKSTREAM_H
-#define _XLINKSTREAM_H
+#ifndef OPENVINO_XLINKSTREAM_H
+#define OPENVINO_XLINKSTREAM_H
 
 #include "XLinkPublicDefines.h"
-#include "XLinkSemaphore.h"
+#include "XLinkPacket.h"
 
-/**
- * @brief Streams opened to device
- */
-typedef struct{
-    char name[MAX_STREAM_NAME_LENGTH];
-    streamId_t id;
-    uint32_t writeSize;
-    uint32_t readSize;  /*No need of read buffer. It's on remote,
-    will read it directly to the requested buffer*/
-    streamPacketDesc_t packets[XLINK_MAX_PACKETS_PER_STREAM];
-    uint32_t availablePackets;
-    uint32_t blockedPackets;
+// ------------------------------------
+// Stream API. Begin.
+// ------------------------------------
 
-    uint32_t firstPacket;
-    uint32_t firstPacketUnused;
-    uint32_t firstPacketFree;
+typedef enum{
+    IN_CHANNEL = 0,
+    OUT_CHANNEL,
+} ChannelType_t;
 
-    uint32_t remoteFillLevel;
-    uint32_t localFillLevel;
-    uint32_t remoteFillPacketLevel;
+typedef struct Stream_t Stream;
 
-    uint32_t closeStreamInitiated;
+Stream* Stream_Create(streamId_t streamId);
+void Stream_Destroy(Stream* stream);
 
-    XLink_sem_t sem;
-}streamDesc_t;
+XLinkError_t Stream_SetName(Stream* stream, const char* name);
+streamId_t Stream_GetId(Stream* stream);
 
-XLinkError_t XLinkStreamInitialize(
-    streamDesc_t* stream, streamId_t id, const char* name);
+PacketNew* Stream_GetPacket(Stream* stream, ChannelType_t channelType);
+PacketNew* Stream_FindPendingPacket(Stream* stream, packetId_t packetId);
+XLinkError_t Stream_FreePendingPackets(Stream* stream, packetStatus_t status);
 
-void XLinkStreamReset(streamDesc_t* stream);
+// ------------------------------------
+// Stream API. End.
+// ------------------------------------
 
-#endif //_XLINKSTREAM_H
+// ------------------------------------
+// StreamDispatcher API. Begin.
+// ------------------------------------
+
+typedef struct StreamDispatcher_t StreamDispatcher;
+
+StreamDispatcher* StreamDispatcher_Create();
+void StreamDispatcher_Destroy(StreamDispatcher* streamDispatcher);
+
+Stream* StreamDispatcher_OpenStream(StreamDispatcher* streamDispatcher, const char* streamName);
+Stream* StreamDispatcher_OpenStreamById(StreamDispatcher* streamDispatcher, const char* streamName, streamId_t streamId);
+XLinkError_t StreamDispatcher_CloseStream(StreamDispatcher* streamDispatcher, streamId_t streamId);
+
+Stream* StreamDispatcher_GetStream(StreamDispatcher* streamDispatcher, streamId_t streamId);
+Stream* StreamDispatcher_GetStreamByName(StreamDispatcher* streamDispatcher, const char* streamName);
+
+PacketNew* StreamDispatcher_GetPacket(StreamDispatcher* streamDispatcher,
+    streamId_t streamId, ChannelType_t channelType);
+PacketNew* StreamDispatcher_FindPendingPacket(StreamDispatcher* streamDispatcher,
+    streamId_t streamId, packetId_t packetId);
+XLinkError_t StreamDispatcher_FreePendingPackets(StreamDispatcher* streamDispatcher,
+    streamId_t streamId, packetStatus_t status);
+
+XLinkError_t StreamDispatcher_Lock(StreamDispatcher* streamDispatcher);
+XLinkError_t StreamDispatcher_Unlock(StreamDispatcher* streamDispatcher);
+
+XLinkError_t StreamDispatcher_GetOpenedStreamIds(StreamDispatcher* streamDispatcher,
+    int openedStreamIds[MAX_STREAMS_NEW], int* count);
+
+// ------------------------------------
+// StreamDispatcher API. End.
+// ------------------------------------
+
+//Metrics
+
+#endif //OPENVINO_XLINKSTREAM_H
