@@ -20,7 +20,8 @@ from mo.ops.op import Op
 
 class BatchNormInference(Op):
     """
-    Empty Op for BN layer. It will be replaced by BNToScaleShift FrontReplacer
+    BatchNormInference will be replaced by BNToScaleShift FrontReplacer for Caffe or convert_batch_norm 
+    function for other frameworks
     """
     op = 'batchNormInference'
     enabled = False
