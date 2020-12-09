@@ -82,4 +82,5 @@ void regclass_InputInfo(py::module m) {
         });
     cls.def_property_readonly("tensor_desc", &InferenceEngine::InputInfo::getTensorDesc);
     cls.def_property_readonly("name", &InferenceEngine::InputInfo::name);
+    // cls.def_property_readonly("preprocess_info", );
 }

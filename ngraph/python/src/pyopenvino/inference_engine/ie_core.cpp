@@ -180,4 +180,10 @@ void regclass_IECore(py::module m)
     }, py::arg("device_name"), py::arg("config_name"));
 
     cls.def_property_readonly("available_devices", &InferenceEngine::Core::GetAvailableDevices);
+
+    // cls.def("query_network", );
+    // cls.def("register_plugin", );
+    // cls.def("register_plugins", );
+    // cls.def("unregister_plugin", );
+    // cls.def("get_metric", );
 }
