@@ -70,7 +70,6 @@ make -j2 object_detection_sample_ssd
 ```
 3. Download the pre-trained Face Detection model with the Model Downloader:
 
-   - To download the `.bin` file with weights:
    ```sh
    git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
    cd open_model_zoo/tools/downloader
