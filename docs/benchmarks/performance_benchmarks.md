@@ -92,7 +92,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2021.2. 
 
-Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at [intel.com](intel.com), or from the OEM or retailer. Performance results are based on testing as of December 9, 2020 and may not reflect all publicly available security updates. See configuration disclosure for details. No product can be absolutely secure. 
+Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of December 9, 2020 and may not reflect all publicly available security updates. See configuration disclosure for details. No product can be absolutely secure. 
 
 Software and workloads used in performance tests may have been optimized for performance only on Intel microprocessors. Performance tests, such as SYSmark and MobileMark, are measured using specific computer systems, components, software, operations and functions. Any change to any of those factors may cause the results to vary. You should consult other information and performance tests to assist you in fully evaluating your contemplated purchases, including the performance of that product when combined with other products. For more complete information, see [Performance Benchmark Test Disclosure](https://www.intel.com/content/www/us/en/benchmarks/benchmark.html).
 
