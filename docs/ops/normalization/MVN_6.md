@@ -17,11 +17,11 @@ If *normalize_variance* is set to `true`, the output blob is divided by variance
 
 * If `eps_mode` is `inside_sqrt`:
 \f[
-o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2+\epsilon}}
+o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}+\epsilon}}
 \f]
 * If `eps_mode` is `outside_sqrt`:
 \f[
-o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
+o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
 \f]
 
 **Attributes**
