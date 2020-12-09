@@ -14,6 +14,7 @@
  limitations under the License.
 """
 from extensions.ops.interpolate import Interpolate
+from extensions.ops.TFResizeNearestNeighbor import TFResizeNearestNeighborOp
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 
@@ -24,10 +25,17 @@ class ResizeNearestNeighborFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        mapping_rule = {
-            'mode': 'nearest',
-            'antialias': 0,
-            'axes': int64_array([1, 2]),
+        align_corners = False
+        if 'align_corners' in node.pb.attr:
+            align_corners = node.pb.attr['align_corners'].b
+
+        half_pixel_centers = False
+        if 'half_pixel_centers' in node.pb.attr:
+            half_pixel_centers = node.pb.attr['half_pixel_centers'].b
+
+        attrs = {
+            'align_corners': align_corners,
+            'half_pixel_centers': half_pixel_centers
         }
-        Interpolate.update_node_stat(node, mapping_rule)
+        TFResizeNearestNeighborOp.update_node_stat(node, attrs)
         return cls.enabled
