@@ -107,11 +107,12 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ~~~
    docker build --build-arg package_url=<OpenVINO pkg> -f <Dockerfile> -t <image_name> .
    ~~~
-5. Copy OpenCL.dll from your C:\Windows\System32 host folder to any temp directory:
-    ~~~
-    mkdir C:\tmp
-    copy C:\Windows\System32\OpenCL.dll C:\tmp
-    ~~~
+5. Copy `OpenCL.dll` from your `C:\Windows\System32` host folder to any `temp` directory:
+   ~~~
+   mkdir C:\tmp
+   copy C:\Windows\System32\OpenCL.dll C:\tmp
+   ~~~
+    
 ## Run the Docker* Image for GPU
 
 1. To try infer on GPU, run the image with the following command:
