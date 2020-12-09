@@ -61,7 +61,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
     InferenceEngine::CNNNetwork execGraph;
     if (targetDevice != CommonTestUtils::DEVICE_MULTI && targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
         // Create InferRequest
         InferenceEngine::InferRequest req;
@@ -135,8 +135,8 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
             ASSERT_GE(layer.second, 0);
         }
     } else {
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
-                InferenceEngine::details::InferenceEngineException);
+        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration).GetExecGraphInfo(),
+                InferenceEngine::NotImplemented);
     }
 }
 
@@ -148,7 +148,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
     InferenceEngine::CNNNetwork execGraph;
     if (targetDevice != CommonTestUtils::DEVICE_MULTI && targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
         // Create InferRequest
         InferenceEngine::InferRequest req;
@@ -235,8 +235,8 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
             ASSERT_GE(layer.second, 0);
         }
     } else {
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
-                InferenceEngine::details::InferenceEngineException);
+        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration).GetExecGraphInfo(),
+                InferenceEngine::NotImplemented);
     }
 }
 
@@ -252,7 +252,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
     InferenceEngine::CNNNetwork execGraph;
     if (targetDevice != CommonTestUtils::DEVICE_MULTI && targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
         // Create InferRequest
         InferenceEngine::InferRequest req;
@@ -261,8 +261,8 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
         ASSERT_EQ(0, std::remove(out_xml_path.c_str()));
         ASSERT_EQ(0, std::remove(out_bin_path.c_str()));
     } else {
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
-                     InferenceEngine::details::InferenceEngineException);
+        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration).GetExecGraphInfo(),
+                     InferenceEngine::NotImplemented);
     }
 }
 }  // namespace BehaviorTestsDefinitions
