@@ -173,7 +173,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel® Core™ i5-8500               | Intel® Core™ i5-10500TE               | Intel® Core™ i5-10500TE<br>(iEi Corp. Flex-BX210AI)|
+|                      | Intel® Core™ i5-8500               | Intel® Core™ i5-10500TE               | Intel® Core™ i5-10500TE<br>(iEi Flex-BX210AI)|
 | -------------------- | ---------------------------------- | -----------------------------------   |-------------------------------------- |
 | Motherboard          | ASUS* PRIME Z370-A                 | GIGABYTE* Z490 AORUS PRO AX           | iEi / B595                            |
 | CPU                  | Intel® Core™ i5-8500 CPU @ 3.00GHz | Intel® Core™ i5-10500TE CPU @ 2.30GHz | Intel® Core™ i5-10500TE CPU @ 2.30GHz |
@@ -228,7 +228,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Precision                               | FP16                                  | FP16                                  |
 | Number of concurrent inference requests | 4                                     | 32                                    |
 | Power dissipation, TDP in Watt          | 2.5                                   | [30](https://www.mouser.com/ProductDetail/IEI/MUSTANG-V100-MX8-R10?qs=u16ybLDytRaZtiUUvsd36w%3D%3D)          |
-| CPU Price, USD<br>Prices may vary | [69](https://ark.intel.com/content/www/us/en/ark/products/140109/intel-neural-compute-stick-2.html) (from September 29, 2020) | [768](https://www.mouser.com/ProductDetail/IEI/MUSTANG-V100-MX8-R10?qs=u16ybLDytRaZtiUUvsd36w%3D%3D) (from May 15, 2020)                           |
+| CPU Price, USD<br>Prices may vary | [69](https://ark.intel.com/content/www/us/en/ark/products/140109/intel-neural-compute-stick-2.html) (from December 9, 2020) | [214](https://www.arrow.com/en/products/mustang-v100-mx8-r10/iei-technology?gclid=Cj0KCQiA5bz-BRD-ARIsABjT4ng1v1apmxz3BVCPA-tdIsOwbEjTtqnmp_rQJGMfJ6Q2xTq6ADtf9OYaAhMUEALw_wcB) (from December 9, 2020)                           |
 | Host Computer                           | Intel® Core™ i7                       | Intel® Core™ i5                       |
 | Motherboard                             | ASUS* Z370-A II                       | Uzelinfo* / US-E1300                  |
 | CPU                                     | Intel® Core™ i7-8700 CPU @ 3.20GHz    | Intel® Core™ i5-6600 CPU @ 3.30GHz    |
@@ -240,7 +240,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | BIOS Vendor                             | American Megatrends Inc.*             | American Megatrends Inc.*             |
 | BIOS Version                            | 411                                   | 5.12                                  |
 | BIOS Release                            | September 21, 2018                    | September 21, 2018                    |
-| Test Date                               | December 9, 2020                    | December 9, 2020                    |        
+| Test Date                               | December 9, 2020                      | December 9, 2020                      |        
 
 Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvinotoolkit.org/resources/benchmark_files/system_configurations_2021.2.html)
 
