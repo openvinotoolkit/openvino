@@ -53,7 +53,7 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
         """
         return node.has_and_set('reinterp_shape') and \
                not is_input_data_in_correct_layout(node, 0) and \
-               len(node.in_port(0).data.get_shape()) >= 4 and \
+               len(node.in_port(0).data.get_shape()) in [4, 5] and \
                all([port.data.get_value() is None for port in node.out_ports().values() if not port.disconnected()])
 
     @staticmethod
@@ -70,7 +70,7 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
         """
         return node.has_and_set('reinterp_shape') and \
                not is_output_data_in_correct_layout(node, 0) and \
-               len(node.out_port(0).data.get_shape()) >= 4 and \
+               len(node.out_port(0).data.get_shape()) in [4, 5] and \
                all([port.data.get_value() is None for port in node.out_ports().values() if not port.disconnected()])
 
     def find_and_replace_pattern(self, graph: Graph):

@@ -136,13 +136,18 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
         cur_node_name = d.popleft()
         sub_graph_nodes.append(cur_node_name)
         if cur_node_name not in end_nodes:  # do not add output nodes of the end_nodes
-            for _, dst_node_name in graph.out_edges(cur_node_name):
-                if dst_node_name not in visited:
-                    d.append(dst_node_name)
-                    visited.add(dst_node_name)
-                    graph.node[dst_node_name]['prev'] = cur_node_name
+            for out_port in Node(graph, cur_node_name).out_ports().values():
+                for dest_port in out_port.get_destinations():
+                    dst_node_name = dest_port.node.id
+                    if dst_node_name not in visited:
+                        d.append(dst_node_name)
+                        visited.add(dst_node_name)
+                        graph.node[dst_node_name]['prev'] = cur_node_name
 
-        for src_node_name, _ in graph.in_edges(cur_node_name):
+        for in_port in Node(graph, cur_node_name).in_ports().values():
+            if in_port.disconnected():
+                continue
+            src_node_name = in_port.get_source().node.id
             # add input nodes for the non-start_nodes
             if cur_node_name not in start_nodes and src_node_name not in visited:
                 if detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_name)):

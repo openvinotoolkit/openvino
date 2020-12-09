@@ -606,6 +606,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         if argv.tensorflow_object_detection_api_pipeline_config is None:
             raise Error(missing_param_error)
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
+        custom_attributes = match.custom_replacement_desc.custom_attributes
 
         num_classes = _value_or_raise(match, pipeline_config, 'num_classes')
         max_proposals = _value_or_raise(match, pipeline_config, 'first_stage_max_proposals')
@@ -630,18 +631,27 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         current_node = skip_nodes_by_condition(match.single_input_node(0)[0].in_node(0),
                                                lambda x: x['kind'] == 'op' and x.has_and_set('reinterp_shape'))
 
-        reshape_loc_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, num_classes, 1, 4]),
-                                                            dict(name='reshape_loc'), current_node)
+        share_location = int(custom_attributes.get('share_location', False))
+        background_label_id = int(custom_attributes.get('background_label_id', 0))
+        if share_location:
+            reshape_loc_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 1, 1, 4]),
+                                                                dict(name='reshape_loc'), current_node)
+        else:
+            reshape_loc_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, num_classes, 1, 4]),
+                                                                dict(name='reshape_loc'), current_node)
         mark_as_correct_data_layout(reshape_loc_node)
 
         # constant node with variances
         variances_const_op = Const(graph, dict(value=_variance_from_pipeline_config(pipeline_config)))
         variances_const_node = variances_const_op.create_node([])
 
-        # TF produces locations tensor without boxes for background.
-        # Inference Engine DetectionOutput layer requires background boxes so we generate them
-        loc_node = add_fake_background_loc(graph, reshape_loc_node)
-        PermuteAttrs.set_permutation(reshape_loc_node, loc_node, None)
+        if share_location:
+            loc_node = reshape_loc_node
+        else:
+            # TF produces locations tensor without boxes for background.
+            # Inference Engine DetectionOutput layer requires background boxes so we generate them
+            loc_node = add_fake_background_loc(graph, reshape_loc_node)
+            PermuteAttrs.set_permutation(reshape_loc_node, loc_node, None)
 
         # reshape locations tensor to 2D so it could be passed to Eltwise which will be converted to ScaleShift
         reshape_loc_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 4]),
@@ -659,7 +669,6 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # calculate the second dimension so the batch value will be deduced from it with help of "-1".
         reshape_loc_do_op = Reshape(graph, dict(name='do_reshape_locs'))
 
-        custom_attributes = match.custom_replacement_desc.custom_attributes
         coordinates_swap_method = 'add_convolution'
         if 'coordinates_swap_method' not in custom_attributes:
             log.error('The ObjectDetectionAPIDetectionOutputReplacement sub-graph replacement configuration file '
@@ -683,8 +692,12 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         else:
             reshape_loc_do_node = reshape_loc_do_op.create_node([eltwise_locs_node])
 
-        reshape_loc_do_dims = Const(graph, {'value': int64_array([-1, (num_classes + 1) * max_proposals * 4]),
-                                            'name': reshape_loc_do_node.name + '/Dim'}).create_node()
+        if share_location:
+            reshape_loc_do_dims = Const(graph, {'value': int64_array([-1, max_proposals * 4]),
+                                                'name': reshape_loc_do_node.name + '/Dim'}).create_node()
+        else:
+            reshape_loc_do_dims = Const(graph, {'value': int64_array([-1, (num_classes + 1) * max_proposals * 4]),
+                                                'name': reshape_loc_do_node.name + '/Dim'}).create_node()
         reshape_loc_do_dims.out_port(0).connect(reshape_loc_do_node.in_port(1))
 
         mark_as_correct_data_layout(reshape_loc_do_node)
@@ -716,7 +729,10 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
 
         detection_output_node = detection_output_op.create_node(
             [reshape_loc_do_node, reshape_conf_node, reshape_priors_node],
-            dict(name=detection_output_op.attrs['type'], share_location=0, variance_encoded_in_target=1,
+            dict(name=detection_output_op.attrs['type'],
+                 share_location=int(share_location),
+                 variance_encoded_in_target=1,
+                 background_label_id=background_label_id,
                  code_type='caffe.PriorBoxParameter.CENTER_SIZE', pad_mode='caffe.ResizeParameter.CONSTANT',
                  resize_mode='caffe.ResizeParameter.WARP',
                  num_classes=num_classes,
@@ -843,7 +859,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         return [ObjectDetectionAPIPreprocessorReplacement]
 
     def run_before(self):
-        return [CropAndResizeReplacement, TransposeOrderNormalizer]
+        return [CropAndResizeReplacement, TransposeOrderNormalizer, Pack]
 
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['proposal_node'].id}
@@ -856,6 +872,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         return new_list
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
+        log.debug('Matched sub-graph {}'.format(match.matched_nodes_names()))
         argv = graph.graph['cmd_params']
         if argv.tensorflow_object_detection_api_pipeline_config is None:
             raise Error(missing_param_error)
@@ -957,18 +974,18 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         mark_input_as_in_correct_layout(proposal_reshape_2d_node, 0)
 
         # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
-        # find the first CropAndResize node in the BFS order
+        # find the first CropAndResize node in the BFS order. This is neede for TF 1.X models only
         crop_and_resize_nodes_ids = [node_id for node_id in bfs_search(graph, [match.single_input_node(0)[0].id]) if
                                      graph.node[node_id]['op'] == 'CropAndResize']
-        assert len(crop_and_resize_nodes_ids) != 0, "Didn't find any CropAndResize nodes in the graph."
-        if 'do_not_swap_proposals' not in match.custom_replacement_desc.custom_attributes or not \
-                match.custom_replacement_desc.custom_attributes['do_not_swap_proposals']:
-            crop_and_resize_node = Node(graph, crop_and_resize_nodes_ids[0])
-            # set a marker that the input with box coordinates has been pre-processed so the CropAndResizeReplacement
-            # transform doesn't try to merge the second and the third inputs
-            crop_and_resize_node['inputs_preprocessed'] = True
-            graph.remove_edge(crop_and_resize_node.in_node(1).id, crop_and_resize_node.id)
-            graph.create_edge(proposal_reshape_2d_node, crop_and_resize_node, out_port=0, in_port=1)
+        if len(crop_and_resize_nodes_ids) != 0:
+            if 'do_not_swap_proposals' not in match.custom_replacement_desc.custom_attributes or not \
+                    match.custom_replacement_desc.custom_attributes['do_not_swap_proposals']:
+                crop_and_resize_node = Node(graph, crop_and_resize_nodes_ids[0])
+                # set a marker that the input with box coordinates has been pre-processed so the CropAndResizeReplacement
+                # transform doesn't try to merge the second and the third inputs
+                crop_and_resize_node['inputs_preprocessed'] = True
+                graph.remove_edge(crop_and_resize_node.in_node(1).id, crop_and_resize_node.id)
+                graph.create_edge(proposal_reshape_2d_node, crop_and_resize_node, out_port=0, in_port=1)
 
         tf_proposal_reshape_4d_node = create_op_node_with_second_input(graph, Reshape,
                                                                        int64_array([-1, 1, max_proposals, 5]),
