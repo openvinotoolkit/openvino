@@ -11,7 +11,7 @@
 #endif
 
 #include "XLink.h"
-#include "XLinkErrorUtils.h"
+#include "XLinkTool.h"
 
 #include "XLinkMacros.h"
 #include "XLinkPrivateFields.h"
@@ -28,14 +28,8 @@
 // Helpers declaration. Begin.
 // ------------------------------------
 
-#ifdef __PC__
-static XLinkError_t checkEventHeader(xLinkEventHeader_t header);
-#endif
-
 static float timespec_diff(struct timespec *start, struct timespec *stop);
-static XLinkError_t addEvent(xLinkEvent_t *event);
-static XLinkError_t addEventWithPerf(xLinkEvent_t *event, float* opTime);
-static XLinkError_t getLinkByStreamId(streamId_t streamId, xLinkDesc_t** out_link);
+static XLinkError_t getLinkByStreamId(streamId_t streamId, Connection** out_connection);
 
 // ------------------------------------
 // Helpers declaration. End.
@@ -43,59 +37,24 @@ static XLinkError_t getLinkByStreamId(streamId_t streamId, xLinkDesc_t** out_lin
 
 streamId_t XLinkOpenStream(linkId_t id, const char* name, int stream_write_size)
 {
-    XLINK_RET_ERR_IF(name == NULL, INVALID_STREAM_ID);
-    XLINK_RET_ERR_IF(stream_write_size < 0, INVALID_STREAM_ID);
+    XLINK_RET_IF(name == NULL);
+    XLINK_RET_IF(stream_write_size <= 0);
 
-    xLinkDesc_t* link = getLinkById(id);
-    mvLog(MVLOG_DEBUG,"%s() id %d link %p\n", __func__, id, link);
-    XLINK_RET_ERR_IF(link == NULL, INVALID_STREAM_ID);
-    XLINK_RET_ERR_IF(getXLinkState(link) != XLINK_UP, INVALID_STREAM_ID);
-    XLINK_RET_ERR_IF(strlen(name) >= MAX_STREAM_NAME_LENGTH, INVALID_STREAM_ID);
+    mvLog(MVLOG_DEBUG, "linkId_t=%u, name=%s, stream_write_size=%d", id, name, stream_write_size);
+    Connection* connection = getLinkById(id);
+    XLINK_RET_WITH_ERR_IF(connection == NULL, INVALID_STREAM_ID);
 
-    if(stream_write_size > 0)
-    {
-        stream_write_size = ALIGN_UP(stream_write_size, __CACHE_LINE_SIZE);
+    stream_write_size = ALIGN_UP(stream_write_size, __CACHE_LINE_SIZE);
+    streamId_t streamId = Connection_OpenStream(connection, name, stream_write_size);
+    XLINK_RET_WITH_ERR_IF(streamId == INVALID_STREAM_ID, INVALID_STREAM_ID);
 
-        xLinkEvent_t event = {0};
-        XLINK_INIT_EVENT(event, INVALID_STREAM_ID, XLINK_CREATE_STREAM_REQ,
-                         stream_write_size, NULL, link->deviceHandle);
-        mv_strncpy(event.header.streamName, MAX_STREAM_NAME_LENGTH,
-                   name, MAX_STREAM_NAME_LENGTH - 1);
-
-        DispatcherAddEvent(EVENT_LOCAL, &event);
-        XLINK_RET_ERR_IF(
-            DispatcherWaitEventComplete(&link->deviceHandle),
-            INVALID_STREAM_ID);
-
-#ifdef __PC__
-        XLinkError_t eventStatus = checkEventHeader(event.header);
-        if (eventStatus != X_LINK_SUCCESS) {
-            mvLog(MVLOG_ERROR, "Got wrong package from device, error code = %s", XLinkErrorToStr(eventStatus));
-            // FIXME: not good solution, but seems the only in the case of such XLink API
-            if (eventStatus == X_LINK_OUT_OF_MEMORY) {
-                return INVALID_STREAM_ID_OUT_OF_MEMORY;
-            } else {
-                return INVALID_STREAM_ID;
-            }
-        }
-#endif
-    }
-    streamId_t streamId = getStreamIdByName(link, name);
-
-#ifdef __PC__
     if (streamId > 0x0FFFFFFF) {
         mvLog(MVLOG_ERROR, "Cannot find stream id by the \"%s\" name", name);
         mvLog(MVLOG_ERROR,"Max streamId reached!");
         return INVALID_STREAM_ID;
     }
-#else
-    if (streamId == INVALID_STREAM_ID) {
-        mvLog(MVLOG_ERROR,"Max streamId reached %x!", streamId);
-        return INVALID_STREAM_ID;
-    }
-#endif
 
-    COMBINE_IDS(streamId, id);
+    COMBIN_IDS(streamId, id);
     return streamId;
 }
 
@@ -104,15 +63,14 @@ streamId_t XLinkOpenStream(linkId_t id, const char* name, int stream_write_size)
 // and on the remote side we are freeing the read buffer
 XLinkError_t XLinkCloseStream(streamId_t streamId)
 {
-    xLinkDesc_t* link = NULL;
-    XLINK_RET_IF(getLinkByStreamId(streamId, &link));
+    Connection* connection = NULL;
+    mvLog(MVLOG_DEBUG, "streamId=%u", streamId);
+    XLINK_RET_IF(getLinkByStreamId(streamId, &connection));
+    XLINK_RET_WITH_ERR_IF(connection == NULL, INVALID_STREAM_ID);
     streamId = EXTRACT_STREAM_ID(streamId);
 
-    xLinkEvent_t event = {0};
-    XLINK_INIT_EVENT(event, streamId, XLINK_CLOSE_STREAM_REQ,
-        0, NULL, link->deviceHandle);
+    XLINK_RET_IF(Connection_CloseStream(connection, streamId));
 
-    XLINK_RET_IF(addEvent(&event));
     return X_LINK_SUCCESS;
 }
 
@@ -120,22 +78,15 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
                             int size)
 {
     XLINK_RET_IF(buffer == NULL);
+    XLINK_RET_IF(size < 0);
 
-    float opTime = 0;
-    xLinkDesc_t* link = NULL;
-    XLINK_RET_IF(getLinkByStreamId(streamId, &link));
+    mvLog(MVLOG_DEBUG, "streamId=%u, buffer=%p, size=%d", streamId, buffer, size);
+    Connection* connection = NULL;
+    XLINK_RET_IF(getLinkByStreamId(streamId, &connection));
+    XLINK_RET_WITH_ERR_IF(connection == NULL, INVALID_STREAM_ID);
     streamId = EXTRACT_STREAM_ID(streamId);
 
-    xLinkEvent_t event = {0};
-    XLINK_INIT_EVENT(event, streamId, XLINK_WRITE_REQ,
-        size,(void*)buffer, link->deviceHandle);
-
-    XLINK_RET_IF(addEventWithPerf(&event, &opTime));
-
-    if( glHandler->profEnable) {
-        glHandler->profilingData.totalWriteBytes += size;
-        glHandler->profilingData.totalWriteTime += opTime;
-    }
+    XLINK_RET_IF(Connection_Write(connection, streamId, buffer, size));
 
     return X_LINK_SUCCESS;
 }
@@ -144,92 +95,45 @@ XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
 {
     XLINK_RET_IF(packet == NULL);
 
-    float opTime = 0;
-    xLinkDesc_t* link = NULL;
-    XLINK_RET_IF(getLinkByStreamId(streamId, &link));
+    mvLog(MVLOG_DEBUG, "streamId=%d, packet=%s, stream_write_size=%p", streamId, packet);
+    Connection* connection = NULL;
+    XLINK_RET_IF(getLinkByStreamId(streamId, &connection));
+    XLINK_RET_WITH_ERR_IF(connection == NULL, INVALID_STREAM_ID);
     streamId = EXTRACT_STREAM_ID(streamId);
 
-    xLinkEvent_t event = {0};
-    XLINK_INIT_EVENT(event, streamId, XLINK_READ_REQ,
-        0, NULL, link->deviceHandle);
-
-    XLINK_RET_IF(addEventWithPerf(&event, &opTime));
-
-    *packet = (streamPacketDesc_t *)event.data;
-    if(*packet == NULL) {
-        return X_LINK_ERROR;
-    }
-
-    if( glHandler->profEnable) {
-        glHandler->profilingData.totalReadBytes += (*packet)->length;
-        glHandler->profilingData.totalReadTime += opTime;
-    }
+    XLINK_RET_IF(Connection_Read(connection, streamId, packet));
 
     return X_LINK_SUCCESS;
 }
 
 XLinkError_t XLinkReleaseData(streamId_t streamId)
 {
-    xLinkDesc_t* link = NULL;
-    XLINK_RET_IF(getLinkByStreamId(streamId, &link));
+    mvLog(MVLOG_DEBUG, "streamId=%d", streamId);
+    Connection* connection = NULL;
+    XLINK_RET_IF(getLinkByStreamId(streamId, &connection));
+    XLINK_RET_WITH_ERR_IF(connection == NULL, INVALID_STREAM_ID);
     streamId = EXTRACT_STREAM_ID(streamId);
 
-    xLinkEvent_t event = {0};
-    XLINK_INIT_EVENT(event, streamId, XLINK_READ_REL_REQ,
-        0, NULL, link->deviceHandle);
-
-    XLINK_RET_IF(addEvent(&event));
+    XLINK_RET_IF(Connection_ReleaseData(connection, streamId));
 
     return X_LINK_SUCCESS;
 }
 
 XLinkError_t XLinkGetFillLevel(streamId_t streamId, int isRemote, int* fillLevel)
 {
-    xLinkDesc_t* link = NULL;
-    XLINK_RET_IF(getLinkByStreamId(streamId, &link));
+    Connection* connection = NULL;
+    XLINK_RET_IF(getLinkByStreamId(streamId, &connection));
+    XLINK_RET_WITH_ERR_IF(connection == NULL, INVALID_STREAM_ID);
     streamId = EXTRACT_STREAM_ID(streamId);
 
-    streamDesc_t* stream =
-        getStreamById(link->deviceHandle.xLinkFD, streamId);
-    ASSERT_XLINK(stream);
+    XLINK_RET_IF(Connection_GetFillLevel(connection, streamId, isRemote, fillLevel));
 
-    if (isRemote) {
-        *fillLevel = stream->remoteFillLevel;
-    }
-    else {
-        *fillLevel = stream->localFillLevel;
-    }
-
-    releaseStream(stream);
     return X_LINK_SUCCESS;
 }
 
 // ------------------------------------
 // Helpers declaration. Begin.
 // ------------------------------------
-
-XLinkError_t checkEventHeader(xLinkEventHeader_t header) {
-    mvLog(MVLOG_DEBUG, "header.flags.bitField: ack:%u, nack:%u, sizeTooBig:%u, block:%u, bufferFull:%u, localServe:%u, noSuchStream:%u, terminate:%u",
-          header.flags.bitField.ack,
-          header.flags.bitField.nack,
-          header.flags.bitField.sizeTooBig,
-          header.flags.bitField.block,
-          header.flags.bitField.bufferFull,
-          header.flags.bitField.localServe,
-          header.flags.bitField.noSuchStream,
-          header.flags.bitField.terminate);
-
-
-    if (header.flags.bitField.ack) {
-        return X_LINK_SUCCESS;
-    } else if (header.flags.bitField.nack) {
-        return X_LINK_COMMUNICATION_FAIL;
-    } else if (header.flags.bitField.sizeTooBig) {
-        return X_LINK_OUT_OF_MEMORY;
-    } else {
-        return X_LINK_ERROR;
-    }
-}
 
 float timespec_diff(struct timespec *start, struct timespec *stop)
 {
@@ -241,55 +145,19 @@ float timespec_diff(struct timespec *start, struct timespec *stop)
         start->tv_nsec = stop->tv_nsec - start->tv_nsec;
     }
 
-    return start->tv_nsec/ 1000000000.0f + start->tv_sec;
+    return start->tv_nsec/ 1000000000.0 + start->tv_sec;
 }
 
-XLinkError_t addEvent(xLinkEvent_t *event)
-{
-    ASSERT_XLINK(event);
-
-    xLinkEvent_t* ev = DispatcherAddEvent(EVENT_LOCAL, event);
-    if(ev == NULL) {
-        mvLog(MVLOG_ERROR, "Dispatcher failed on adding event. type: %s, id: %d, stream name: %s\n",
-            TypeToStr(event->header.type), event->header.id, event->header.streamName);
-        return X_LINK_ERROR;
-    }
-
-    if (DispatcherWaitEventComplete(&event->deviceHandle)) {
-        return X_LINK_TIMEOUT;
-    }
-
-    XLINK_RET_ERR_IF(
-        event->header.flags.bitField.ack != 1,
-        X_LINK_COMMUNICATION_FAIL);
-
-    return X_LINK_SUCCESS;
-}
-
-XLinkError_t addEventWithPerf(xLinkEvent_t *event, float* opTime)
-{
-    ASSERT_XLINK(opTime);
-
-    struct timespec start, end;
-    clock_gettime(CLOCK_REALTIME, &start);
-
-    XLINK_RET_IF_FAIL(addEvent(event));
-
-    clock_gettime(CLOCK_REALTIME, &end);
-    *opTime = timespec_diff(&start, &end);
-
-    return X_LINK_SUCCESS;
-}
-
-static XLinkError_t getLinkByStreamId(streamId_t streamId, xLinkDesc_t** out_link) {
-    ASSERT_XLINK(out_link != NULL);
+XLinkError_t getLinkByStreamId(streamId_t streamId, Connection** out_connection) {
+    ASSERT_XLINK(out_connection);
 
     linkId_t id = EXTRACT_LINK_ID(streamId);
-    *out_link = getLinkById(id);
+    *out_connection = getLinkById(id);
 
-    XLINK_RET_ERR_IF(*out_link == NULL, X_LINK_ERROR);
-    XLINK_RET_ERR_IF(getXLinkState(*out_link) != XLINK_UP,
-                    X_LINK_COMMUNICATION_NOT_OPEN);
+    ASSERT_XLINK(*out_connection != NULL);
+
+    ConnectionStatus_t connectionStatus = Connection_GetStatus(*out_connection);
+    XLINK_RET_IF (connectionStatus != CONNECTION_UP);
 
     return X_LINK_SUCCESS;
 }

@@ -5,7 +5,8 @@
 #ifndef _XLINKPRIVATEFIELDS_H
 #define _XLINKPRIVATEFIELDS_H
 
-#include "XLinkDispatcher.h"
+#include "XLinkConnection.h"
+#include "XLinkPrivateDefines.h"
 
 #define LINK_ID_MASK 0xFF
 #define LINK_ID_SHIFT ((sizeof(uint32_t) - sizeof(uint8_t)) * 8)
@@ -20,13 +21,8 @@
 // ------------------------------------
 // Global fields declaration. Begin.
 // ------------------------------------
-
-extern XLinkGlobalHandler_t* glHandler; //TODO need to either protect this with semaphor
-                                        //or make profiling data per device
-
-extern xLinkDesc_t availableXLinks[MAX_LINKS];
-extern DispatcherControlFunctions controlFunctionTbl;
-extern sem_t  pingSem; //to b used by myriad
+extern XLinkGlobalHandler_t* glHandler;
+extern Connection availableConnections[MAX_LINKS];
 
 // ------------------------------------
 // Global fields declaration. End.
@@ -37,17 +33,7 @@ extern sem_t  pingSem; //to b used by myriad
 // Helpers declaration. Begin.
 // ------------------------------------
 
-xLinkDesc_t* getLinkById(linkId_t id);
-xLinkDesc_t* getLink(void* fd);
-xLinkState_t getXLinkState(xLinkDesc_t* link);
-
-
-streamId_t getStreamIdByName(xLinkDesc_t* link, const char* name);
-
-streamDesc_t* getStreamById(void* fd, streamId_t id);
-streamDesc_t* getStreamByName(xLinkDesc_t* link, const char* name);
-
-void releaseStream(streamDesc_t* stream);
+Connection* getLinkById(linkId_t id);
 
 // ------------------------------------
 // Helpers declaration. End.
