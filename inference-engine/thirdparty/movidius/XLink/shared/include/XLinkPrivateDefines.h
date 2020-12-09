@@ -102,6 +102,22 @@ typedef enum
     IPC_CLOSE_STREAM_RESP,
 } xLinkEventType_t;
 
+xLinkEventType_t getResponseType(xLinkEventType_t requestType) {
+    switch(requestType)
+    {
+        case XLINK_WRITE_REQ:        return XLINK_WRITE_RESP;
+        case XLINK_READ_REQ:         return XLINK_READ_RESP;
+        case XLINK_READ_REL_REQ:     return XLINK_READ_REL_RESP;
+        case XLINK_CREATE_STREAM_REQ:return XLINK_CREATE_STREAM_RESP;
+        case XLINK_CLOSE_STREAM_REQ: return XLINK_CLOSE_STREAM_RESP;
+        case XLINK_PING_REQ:         return XLINK_PING_RESP;
+        case XLINK_RESET_REQ:        return XLINK_RESET_RESP;
+        default:
+            break;
+    }
+    return XLINK_RESP_LAST;
+}
+
 typedef enum
 {
     EVENT_LOCAL,
