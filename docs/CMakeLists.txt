@@ -224,9 +224,9 @@ function(build_docs)
 
     # added linkcheker
 
-    if(EXISTS "${LINKCHECKER}")
+    if(EXISTS "${LINKCHECKER_PY}")
         add_custom_target(docs_check
-                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER}" -v "${DOCS_BUILD_DIR}/html/"
+                            COMMAND ${Python3_EXECUTABLE} "${LINKCHECKER_PY}" -v "${DOCS_BUILD_DIR}/html/"
                             COMMENT "Check links in generated documentation"
                             WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
                             VERBATIM)
