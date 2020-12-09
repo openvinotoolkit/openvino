@@ -119,6 +119,19 @@ TEST(type_prop, gather_elements_dynamic_out_shape)
     ASSERT_EQ(GE->get_output_partial_shape(0), PartialShape({1, 4, Dimension::dynamic()}));
 }
 
+TEST(type_prop, gather_elements_interval_shapes)
+{
+    //    PartialShape data_shape{4, 4, Dimension(0, 100)};
+    //    PartialShape indices_shape{1, Dimension(0, 5), Dimension(0, 100)};
+    PartialShape data_shape{4, Dimension(1, 7), 5};
+    PartialShape indices_shape{1, Dimension(5, 10), 5};
+    int64_t axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
+    ASSERT_EQ(GE->get_output_partial_shape(0), PartialShape({1, Dimension(5, 7), 5}));
+}
 // --------------------- Negative tests ------------------------------
 
 TEST(type_prop, gather_elements_type_inconsistency)
@@ -146,30 +159,6 @@ TEST(type_prop, gather_elements_type_inconsistency)
     }
 }
 
-TEST(type_prop, gather_elements_data_rank_check)
-{
-    Shape data_shape{3};
-    Shape indices_shape{2, 333};
-    int64_t axis = 0;
-    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
-
-    try
-    {
-        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "data rank check failed";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("data rank must be greater than 1"));
-    }
-    catch (...)
-    {
-        FAIL() << "data rank check failed for unexpected reason";
-    }
-}
-
 TEST(type_prop, gather_elements_out_of_bounds_axis)
 {
     Shape data_shape{3, 3};
@@ -191,30 +180,6 @@ TEST(type_prop, gather_elements_out_of_bounds_axis)
     catch (...)
     {
         FAIL() << "axis out of bounds check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, gather_elements_indices_rank_check)
-{
-    Shape data_shape{3, 3};
-    Shape indices_shape{333};
-    int64_t axis = 0;
-    auto D = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
-    auto I = make_shared<op::Parameter>(element::Type_t::i32, indices_shape);
-
-    try
-    {
-        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "indices rank check failed";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("indices rank must be greater than 1"));
-    }
-    catch (...)
-    {
-        FAIL() << "indices rank check failed for unexpected reason";
     }
 }
 
@@ -259,7 +224,9 @@ TEST(type_prop, gather_elements_shapes_inconsistency)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("data and indices must have equal shapes except for axis "));
+            error.what(),
+            std::string(
+                "data and indices must have equal or intersecting shapes except for axis "));
     }
     catch (...)
     {
@@ -284,7 +251,35 @@ TEST(type_prop, gather_elements_dynamic_inconsistent_shapes)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("data and indices must have equal shapes except for axis "));
+            error.what(),
+            std::string(
+                "data and indices must have equal or intersecting shapes except for axis "));
+    }
+    catch (...)
+    {
+        FAIL() << "Shape inconsistency check for dynamic PartialShape failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, gather_elements_incosistent_interval_shapes)
+{
+    PartialShape data_shape{4, 4, 5};
+    PartialShape indices_shape{1, Dimension(5, 10), 5};
+    int64_t axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+    try
+    {
+        auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Shape inconsistency check for dynamic PartialShape failed";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string(
+                "data and indices must have equal or intersecting shapes except for axis "));
     }
     catch (...)
     {
