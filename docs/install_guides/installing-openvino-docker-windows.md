@@ -115,14 +115,14 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
     
 ## Run the Docker* Image for GPU
 
-1. To try infer on GPU, run the image with the following command:
-    ~~~
-    docker run -it --rm -u ContainerAdministrator --isolation process --device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599 -v C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409:C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409 -v C:\tmp:C:\tmp <image_name>
-    ~~~
-    where 
-    * `--device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599` reserved GPU device interface class GUID
-    * `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409` path to OpenCL driver home directory, please find it on your PC by `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_*` regular expression.
-    *  `C:\tmp` folder with copy OpenCL.dll from your C:\Windows\System32 host folder
+1. To try inference on a GPU, run the image with the following command:  
+   ~~~
+   docker run -it --rm -u ContainerAdministrator --isolation process --device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599 -v C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409:C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409 -v C:\tmp:C:\tmp <image_name>
+   ~~~  
+   where 
+   * `--device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599` is a reserved GPU device interface class GUID.
+   * `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409` is the path to OpenCL driver home directory. To find it on your PC, run the `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_*` regular expression.
+   *  `C:\tmp` is the folder with the copy of `OpenCL.dll` from your `C:\Windows\System32` host folder.
 
 2. Copy `OpenCL.dll` to the `C:\Windows\System32` folder inside the container and set appropriate registry entry. Now you can run inference on a GPU device:
    ~~~
