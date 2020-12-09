@@ -502,7 +502,9 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
             constantsNames.emplace(node->get_friendly_name());
             constants.push_back(node);
             return false;
-        } else if (prog.IsOpSupported(network, node)) {
+        } else if (prog.IsOpSupported(network, node) &&
+                   !ngraph::op::is_parameter(node) &&
+                   !ngraph::op::is_output(node)) {
             return true;
         } else {
             return false;
