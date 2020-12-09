@@ -1,0 +1,100 @@
+import os.path
+import sys
+import fnmatch
+import re
+from pathlib import Path
+from setuptools import setup, find_packages, Extension
+from setuptools.command.build_ext import build_ext
+from distutils.errors import DistutilsSetupError
+from distutils.file_util import copy_file
+
+
+class PrebuiltExtension(Extension):
+    def __init__(self, name, sources, *args, **kw):
+        if len(sources) != 1:
+            raise DistutilsSetupError(
+                "PrebuiltExtension can accept only one source.")
+        super(PrebuiltExtension, self).__init__(name, sources, *args, **kw)
+
+
+class copy_ext(build_ext):
+    def run(self):
+        for extension in self.extensions:
+            if not isinstance(extension, PrebuiltExtension):
+                raise DistutilsSetupError(
+                    "copy_ext can accept PrebuiltExtension only")
+            src = extension.sources[0]
+            dst = self.get_ext_fullpath(extension.name)
+            try:
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+            except OSError as exc:
+                if exc.errno != errno.EEXIST:
+                    raise
+            copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+
+
+def find_data_files(src_dirs, install_subdir):
+    data_files = []
+    for dir in src_dirs.split(';'):
+        local_base_dir = Path(dir)
+        for root, directories, filenames in os.walk(local_base_dir):
+            for filename in filenames:
+                data_files.append([os.path.join(install_subdir, os.path.relpath(root, local_base_dir)), [os.path.join(root, filename)]])
+    
+    return list(data_files)
+
+
+def find_prebuilt_extensions(base_dir, ext_pattern):
+    extensions = []
+    for path in Path(base_dir).glob(ext_pattern):
+        relpath = path.relative_to(base_dir)
+        if relpath.parent != ".":
+            package_names = str(relpath.parent).split(os.path.sep)
+        else:
+            package_names = []
+        package_names.append(path.name.split(".", 1)[0])
+        name = ".".join(package_names)
+        extensions.append(PrebuiltExtension(name, sources=[str(path)]))
+    return extensions
+
+# reading description from README.md
+with open("pypi_overview.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
+python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+runtime_dirs = '${LIB_DIRS}'
+binding_dir = os.path.join(python_version)
+
+if sys.platform == "linux":
+    content_pattern = "**/*.so"
+    libs_subdir = f"lib/{python_version}/dist-packages/openvino/libs"
+elif sys.platform == "win32":
+    content_pattern = "**/*.pyd"
+    libs_subdir = "Lib/site-packages/openvino/inference_engine"
+elif sys.platform == "darwin":
+    content_pattern = "**/*.so"
+    libs_subdir = f"lib/{python_version}/dist-packages/openvino/libs"
+else:
+    print("Unsupported OS: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
+    exit(2)
+
+
+setup(
+    version='${WHEEL_VERSION}',
+    author_email="${WHEEL_AUTOR_EMAIL}",
+    name="${WHEEL_PACKAGE_NAME}",
+    license="${WHEEL_LICENCE_TYPE}", 
+    author="${WHEEL_AUTOR}",
+    description="${WHEEL_DESC}",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    cmdclass={"build_ext": copy_ext},
+    ext_modules=find_prebuilt_extensions(binding_dir, content_pattern),
+    packages=find_packages(binding_dir),
+    package_dir={"": binding_dir},
+    data_files=find_data_files(runtime_dirs, libs_subdir),
+    zip_safe=False,
+    install_requires=[
+        "numpy>=1.16.3"
+    ],
+)
