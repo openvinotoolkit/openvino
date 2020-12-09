@@ -79,7 +79,7 @@ docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deploymen
 ## Build and Run the Docker* Image for GPU
 
 GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO toolkit and Docker* requirements:
-* [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration)
+* [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration):
   * The container host must be running Windows Server 2019 or Windows 10 of version 1809 or higher.
   * The container base image must be `mcr.microsoft.com/windows:1809` or higher. Windows Server Core and Nano Server container images are not currently supported.
   * The container host must be running Docker Engine 19.03 or higher.
