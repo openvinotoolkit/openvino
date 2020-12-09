@@ -83,22 +83,22 @@ Inference Engine provides extensions mechanism to support new operations. This m
 Each device plugin includes a library of optimized implementations to execute known operations which must be extended to
 execute a custom operation. The custom operation extension is implemented according to the target device:
 
-- Custom Layer CPU Extension
+- Custom Operation CPU Extension
    - A compiled shared library (`.so`, `.dylib` or `.dll`) needed by the CPU Plugin for executing the custom operation
    on a CPU. Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more
    details.
-- Custom Layer GPU Extension
+- Custom Operation GPU Extension
    - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the GPU along with a
    operation description file (.xml) needed by the GPU Plugin for the custom operation kernel. Refer to the
    [How to Implement Custom GPU Operations](../IE_DG/Extensibility_DG/GPU_Kernel.md) for more details.
-- Custom Layer VPU Extension
+- Custom Operation VPU Extension
    - OpenCL source code (.cl) for the custom operation kernel that will be compiled to execute on the VPU along with a
    operation description file (.xml) needed by the VPU Plugin for the custom operation kernel. Refer to the
    [How to Implement Custom Operations for VPU](../IE_DG/Extensibility_DG/VPU_Kernel.md) for more details.
 
-Also it is necessary to implement nGraph custom operation according to the
+Also, it is necessary to implement nGraph custom operation according to the
 [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) so the Inference Engine can read an IR with this
-operation and correctly infer it shape.
+operation and correctly infer output tensors shape and type.
 
 ## Enabling Magnetic Resonance Image Reconstruction Model
 This chapter provides a step-by-step instruction on how to enable the magnetic resonance image reconstruction model
