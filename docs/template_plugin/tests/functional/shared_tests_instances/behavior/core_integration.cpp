@@ -18,11 +18,11 @@ namespace {
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassBasicTestP, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("templatePlugin", "TEMPLATE")));
+        ::testing::Values(std::make_pair("templatePlugin", CommonTestUtils::DEVICE_TEMPLATE)));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassNetworkTestP, IEClassNetworkTestP,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 //
 // IE Class GetMetric
@@ -30,39 +30,39 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetAvailableDevices, IEClassGetAvailableDevices,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 
 //
@@ -113,14 +113,14 @@ TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 using IEClassGetConfigTestTEMPLATE = IEClassNetworkTest;
 
 TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
     Core ie;
     Parameter p;
-    std::string deviceName = "TEMPLATE";
+    std::string deviceName = CommonTestUtils::DEVICE_TEMPLATE;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
@@ -145,46 +145,46 @@ TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, IEClassExecutableNetworkGetMetricTest,
-        ::testing::Values("TEMPLATE", "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "MULTI:TEMPLATE", "HETERO:TEMPLATE"));
 //
 // Executable Network GetConfig / SetConfig
 //
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 // IE Class Query network
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassQueryNetworkTest, IEClassQueryNetworkTest,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 // IE Class Load network
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTest,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 //
 // Hetero Executable Network GetMetric
@@ -194,19 +194,19 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
-        ::testing::Values("TEMPLATE"));
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
 
 #endif  // ENABLE_MKL_DNN
 } // namespace
