@@ -22,9 +22,12 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
     p.ValidateInputs(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
-    auto inputID = prev->get_friendly_name();
-    if (prev->get_output_size() > 1) {
-        inputID += "." + std::to_string(op->get_input_source_output(0).get_index());
+    auto inputID = op->get_input_source_output(0).get_tensor().get_name();
+    if (inputID.empty()) {
+        inputID = prev->get_friendly_name();
+        if (prev->get_output_size() > 1) {
+            inputID += "." + std::to_string(op->get_input_source_output(0).get_index());
+        }
     }
     auto it = networkOutputs.find(inputID);
     if (it == networkOutputs.end()) {
