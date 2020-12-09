@@ -78,7 +78,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_40485,
                    xfail_issue_41894,
                    xfail_issue_43523,
-                   xfail_issue_43742)
+                   xfail_issue_43742,
+                   xfail_issue_44839)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -638,7 +639,29 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_sum_negative_axes_keepdims_random_cpu"),
     (xfail_issue_43742,
         "OnnxBackendNodeModelTest.test_if_cpu",
-        "OnnxBackendNodeModelTest.test_if_seq_cpu")
+        "OnnxBackendNodeModelTest.test_if_seq_cpu"),
+    (xfail_issue_44839,
+        "OnnxBackendNodeModelTest.test_logsoftmax_axis_0_cpu",
+        "OnnxBackendNodeModelTest.test_logsoftmax_axis_0_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_logsoftmax_axis_1_cpu",
+        "OnnxBackendNodeModelTest.test_logsoftmax_axis_1_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_logsoftmax_axis_2_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_logsoftmax_default_axis_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_logsoftmax_large_number_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_logsoftmax_negative_axis_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_axis_0_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_axis_0_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_axis_1_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_axis_1_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_axis_2_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_default_axis_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_default_axis_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_large_number_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_softmax_negative_axis_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_convtranspose_3d_cpu",
+        "OnnxBackendNodeModelTest.test_hardmax_axis_0_cpu",
+        "OnnxBackendNodeModelTest.test_hardmax_axis_1_cpu",
+        "OnnxBackendNodeModelTest.test_hardmax_default_axis_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:

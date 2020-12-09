@@ -110,7 +110,6 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
                                       "with index 0 contains dynamic shapes: {<value>}. Try to use "
                                       "CNNNetwork::reshape() method in order to specialize shapes "
                                       "before the conversion.")
-xfail_issue_38085 = xfail_test(reason="RuntimeError: Interpolate operation should be converted to Interp")
 xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
 xfail_issue_38087 = xfail_test(reason="RuntimeError: Cannot cast to tensor desc. Format is unsupported!")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
@@ -172,6 +171,7 @@ xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "NegativeLogLikelihoodLoss")
 xfail_issue_43523 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError:"
                                       " Unrecognized attribute: axes for operator ReduceSum")
+xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 
 # Model ONNX Zoo issues:
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
