@@ -48,9 +48,28 @@ void op::DetectionOutput::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, m_attrs.num_classes > 0, "Number of classes must be greater than zero");
 
+    auto box_logits_et = get_input_element_type(0);
+    NODE_VALIDATION_CHECK(this,
+                          box_logits_et.is_real(),
+                          "Box logits' data type must be floating point. Got " +
+                              box_logits_et.get_type_name());
+    auto class_preds_et = get_input_element_type(1);
+    NODE_VALIDATION_CHECK(this,
+                          class_preds_et.is_real(),
+                          "Class predictions' data type must be floating point. Got " +
+                              class_preds_et.get_type_name());
+    auto proposals_et = get_input_element_type(2);
+    NODE_VALIDATION_CHECK(this,
+                          proposals_et.is_real(),
+                          "Proposals' data type must be floating point. Got " +
+                              proposals_et.get_type_name());
+
     const PartialShape& box_logits_pshape = get_input_partial_shape(0);
     const PartialShape& class_preds_pshape = get_input_partial_shape(1);
     const PartialShape& proposals_pshape = get_input_partial_shape(2);
+
+    int num_loc_classes = m_attrs.share_location ? 1 : m_attrs.num_classes;
+    int prior_box_size = m_attrs.normalized ? 4 : 5;
 
     Dimension num_images = Dimension::dynamic();
     if (box_logits_pshape.rank().is_static())
@@ -60,6 +79,16 @@ void op::DetectionOutput::validate_and_infer_types()
                               "Box logits rank must be 2. Got " +
                                   std::to_string(box_logits_pshape.rank().get_length()));
         num_images = box_logits_pshape[0];
+        if (box_logits_pshape[1].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                (box_logits_pshape[1].get_length() % (num_loc_classes * 4)) == 0,
+                "Box logits' second dimension must be a multiply of num_loc_classes * 4 (" +
+                    std::to_string(num_loc_classes * 4) + "). Current value is: ",
+                box_logits_pshape[1].get_length(),
+                ".");
+        }
     }
     if (class_preds_pshape.rank().is_static())
     {
@@ -67,6 +96,27 @@ void op::DetectionOutput::validate_and_infer_types()
                               class_preds_pshape.rank().get_length() == 2,
                               "Class predictions rank must be 2. Got " +
                                   std::to_string(class_preds_pshape.rank().get_length()));
+        if (num_images.is_dynamic() && class_preds_pshape[0].is_static())
+        {
+            num_images = class_preds_pshape[0];
+        }
+        else
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                class_preds_pshape[0].compatible(num_images),
+                "Class predictions' first dimension is not compatible with batch size.");
+        }
+        if (class_preds_pshape[1].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                class_preds_pshape[1].get_length() % m_attrs.num_classes == 0,
+                "Class predictions' second dimension must be a multiply of num_classes (" +
+                    std::to_string(m_attrs.num_classes) + "). Current value is: ",
+                class_preds_pshape[1].get_length(),
+                ".");
+        }
     }
     if (proposals_pshape.rank().is_static())
     {
@@ -74,6 +124,63 @@ void op::DetectionOutput::validate_and_infer_types()
                               proposals_pshape.rank().get_length() == 3,
                               "Proposals rank must be 3. Got " +
                                   std::to_string(proposals_pshape.rank().get_length()));
+        if (num_images.is_dynamic() && proposals_pshape[0].is_static())
+        {
+            num_images = proposals_pshape[0];
+        }
+        else
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  proposals_pshape[0].compatible(num_images),
+                                  "Proposals' first dimension is not compatible with batch size.");
+        }
+        if (proposals_pshape[1].is_static())
+        {
+            size_t proposals_expected_2nd_dim = m_attrs.variance_encoded_in_target ? 1 : 2;
+            NODE_VALIDATION_CHECK(this,
+                                  proposals_pshape[1].compatible(proposals_expected_2nd_dim),
+                                  "Proposals' second dimension is mismatched. Current value is: ",
+                                  proposals_pshape[1].get_length(),
+                                  ", expected: ",
+                                  proposals_expected_2nd_dim,
+                                  ".");
+        }
+        if (proposals_pshape[2].is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                proposals_pshape[2].get_length() % prior_box_size == 0,
+                "Proposals' third dimension must be a multiply of prior_box_size (" +
+                    std::to_string(prior_box_size) + "). Current value is: ",
+                proposals_pshape[2].get_length(),
+                ".");
+        }
+    }
+
+    if (get_input_size() > 3)
+    {
+        auto aux_class_preds_et = get_input_element_type(3);
+        NODE_VALIDATION_CHECK(
+            this,
+            aux_class_preds_et.is_real(),
+            "Additional class predictions' data type must be floating point. Got " +
+                aux_class_preds_et.get_type_name());
+        auto aux_box_preds_et = get_input_element_type(4);
+        NODE_VALIDATION_CHECK(this,
+                              aux_box_preds_et.is_real(),
+                              "Additional box predictions' data type must be floating point. Got " +
+                                  aux_box_preds_et.get_type_name());
+
+        const PartialShape& aux_class_preds_pshape = get_input_partial_shape(3);
+        const PartialShape& aux_box_preds_pshape = get_input_partial_shape(4);
+        NODE_VALIDATION_CHECK(
+            this,
+            aux_class_preds_pshape.compatible(class_preds_pshape),
+            "Additional class predictions' shape must be compatible with class predictions shape.");
+        NODE_VALIDATION_CHECK(
+            this,
+            aux_box_preds_pshape.compatible(box_logits_pshape),
+            "Additional box predictions' shape must be compatible with box logits shape.");
     }
 
     std::vector<Dimension> output_shape{1, 1};

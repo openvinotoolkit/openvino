@@ -1476,8 +1476,8 @@ TEST(attributes, detection_output_op)
     const auto box_logits = make_shared<op::Parameter>(element::f32, Shape{1, 3 * 32 * 32});
     const auto class_preds = make_shared<op::Parameter>(element::f32, Shape{1, 32});
     const auto proposals = make_shared<op::Parameter>(element::f32, Shape{1, 2, 128});
-    const auto aux_class_preds = make_shared<op::Parameter>(element::f32, Shape{1, 16});
-    const auto aux_box_pred = make_shared<op::Parameter>(element::f32, Shape{32, 2});
+    const auto aux_class_preds = make_shared<op::Parameter>(element::f32, Shape{1, 32});
+    const auto aux_box_pred = make_shared<op::Parameter>(element::f32, Shape{1, 3 * 32 * 32});
 
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 32;

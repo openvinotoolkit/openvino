@@ -565,6 +565,147 @@ NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_keep_all_bboxes)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, detection_output_3_inputs_center_size)
+{
+    op::DetectionOutputAttrs attrs;
+    attrs.num_classes = 3;
+    attrs.background_label_id = -1;
+    attrs.top_k = -1;
+    attrs.variance_encoded_in_target = true;
+    attrs.keep_top_k = {2};
+    attrs.code_type = "caffe.PriorBoxParameter.CENTER_SIZE";
+    attrs.share_location = false;
+    attrs.nms_threshold = 0.5;
+    attrs.confidence_threshold = 0.3;
+    attrs.clip_after_nms = false;
+    attrs.clip_before_nms = true;
+    attrs.decrease_label_id = false;
+    attrs.normalized = true;
+    attrs.input_height = 0;
+    attrs.input_width = 0;
+    attrs.objectness_score = 0;
+
+    size_t num_prior_boxes = 2;
+    size_t num_loc_classes = attrs.share_location ? 1 : attrs.num_classes;
+    size_t prior_box_size = attrs.normalized ? 4 : 5;
+    size_t num_images = 2;
+    Shape loc_shape{num_images, num_prior_boxes * num_loc_classes * prior_box_size};
+    Shape conf_shape{num_images, num_prior_boxes * attrs.num_classes};
+    Shape prior_boxes_shape{
+        num_images, attrs.variance_encoded_in_target ? 1UL : 2UL, num_prior_boxes * prior_box_size};
+
+    auto loc = make_shared<op::Parameter>(element::f32, loc_shape);
+    auto conf = make_shared<op::Parameter>(element::f32, conf_shape);
+    auto prior_boxes = make_shared<op::Parameter>(element::f32, prior_boxes_shape);
+    auto f = make_shared<Function>(make_shared<op::DetectionOutput>(loc, conf, prior_boxes, attrs),
+                                   ParameterVector{loc, conf, prior_boxes});
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    // locations
+    test_case.add_input<float>({
+        // batch 0, class 0
+        0.1,
+        0.1,
+        0.2,
+        0.2,
+        0.0,
+        0.1,
+        0.2,
+        0.15,
+        // batch 0, class 1
+        0.3,
+        0.2,
+        0.5,
+        0.3,
+        0.2,
+        0.1,
+        0.42,
+        0.66,
+        // batch 0, class 2
+        0.05,
+        0.1,
+        0.2,
+        0.3,
+        0.2,
+        0.1,
+        0.33,
+        0.44,
+        // batch 1, class 0
+        0.2,
+        0.1,
+        0.4,
+        0.2,
+        0.1,
+        0.05,
+        0.2,
+        0.25,
+        // batch 1, class 1
+        0.1,
+        0.2,
+        0.5,
+        0.3,
+        0.1,
+        0.1,
+        0.12,
+        0.34,
+        // batch 1, class 2
+        0.25,
+        0.11,
+        0.4,
+        0.32,
+        0.2,
+        0.12,
+        0.38,
+        0.24,
+    });
+    test_case.add_input<float>({
+        // batch 0
+        0.1,
+        0.9,
+        0.4,
+        0.7,
+        0,
+        0.2,
+        // batch 1
+        0.7,
+        0.8,
+        0.42,
+        0.33,
+        0.81,
+        0.2,
+    });
+    test_case.add_input<float>({
+        // batch 0
+        0.0,
+        0.5,
+        0.1,
+        0.2,
+        0.0,
+        0.3,
+        0.1,
+        0.35,
+        // batch 1
+        0.33,
+        0.2,
+        0.52,
+        0.37,
+        0.22,
+        0.1,
+        0.32,
+        0.36,
+    });
+    Shape output_shape{1, 1, num_images * static_cast<size_t>(attrs.keep_top_k[0]), 7};
+    test_case.add_expected_output<float>(
+        output_shape,
+        {
+            0, 0, 0.7,  0,          0.28163019,  0.14609808, 0.37836978,
+            0, 1, 0.9,  0,          0.49427515,  0.11107014, 0.14572485,
+            1, 1, 0.81, 0.22040875, 0.079573378, 0.36959124, 0.4376266,
+            1, 1, 0.8,  0.32796675, 0.18435785,  0.56003326, 0.40264216,
+        });
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, detection_output_5_inputs)
 {
     op::DetectionOutputAttrs attrs;

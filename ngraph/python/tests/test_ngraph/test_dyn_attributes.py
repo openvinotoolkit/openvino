@@ -84,11 +84,11 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
         "objectness_score": fp_dtype(0.77),
     }
 
-    box_logits = ng.parameter([4, 25], fp_dtype, "box_logits")
-    class_preds = ng.parameter([4, 20], fp_dtype, "class_preds")
-    proposals = ng.parameter([2, 1, 20], fp_dtype, "proposals")
-    aux_class_preds = ng.parameter([4, 20], fp_dtype, "aux_class_preds")
-    aux_box_preds = ng.parameter([4, 25], fp_dtype, "aux_box_preds")
+    box_logits = ng.parameter([4, 680], fp_dtype, "box_logits")
+    class_preds = ng.parameter([4, 170], fp_dtype, "class_preds")
+    proposals = ng.parameter([4, 1, 8], fp_dtype, "proposals")
+    aux_class_preds = ng.parameter([4, 170], fp_dtype, "aux_class_preds")
+    aux_box_preds = ng.parameter([4, 680], fp_dtype, "aux_box_preds")
 
     node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
 
