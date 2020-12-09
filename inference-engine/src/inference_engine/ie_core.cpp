@@ -311,7 +311,7 @@ public:
         // MULTI case
         {
             if (deviceName.find("MULTI:") == 0) {
-                THROW_IE_EXCEPTION
+                THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
                     << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
                        "To get individual devices's metrics call GetMetric for each device separately";
             }
@@ -609,10 +609,10 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Pt
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
     if (deviceName.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support remote context";
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "HETERO device does not support remote context";
     }
     if (deviceName.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support remote context";
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "MULTI device does not support remote context";
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, params);
@@ -621,10 +621,10 @@ RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const Para
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     if (deviceName.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support remote context";
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "HETERO device does not support remote context";
     }
     if (deviceName.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support remote context";
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "MULTI device does not support remote context";
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
@@ -633,11 +633,11 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
     if (deviceName_.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
             << "HETERO device does not support extensions. Please, set extensions directly to fallback devices";
     }
     if (deviceName_.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
             << "MULTI device does not support extensions. Please, set extensions directly to fallback devices";
     }
 
@@ -647,10 +647,10 @@ void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_)
 ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
     if (deviceName.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support ImportNetwork";
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "HETERO device does not support ImportNetwork";
     }
     if (deviceName.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support ImportNetwork";
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "MULTI device does not support ImportNetwork";
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
@@ -688,7 +688,7 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
     // HETERO case
     {
         if (deviceName.find("HETERO:") == 0) {
-            THROW_IE_EXCEPTION << "SetConfig is supported only for HETERO itself (without devices). "
+            THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "SetConfig is supported only for HETERO itself (without devices). "
                                   "You can configure the devices with SetConfig before creating the HETERO on top.";
         }
     }
@@ -696,7 +696,7 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
     // MULTI case
     {
         if (deviceName.find("MULTI:") == 0) {
-            THROW_IE_EXCEPTION << "SetConfig is supported only for MULTI itself (without devices). "
+            THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "SetConfig is supported only for MULTI itself (without devices). "
                                   "You can configure the devices with SetConfig before creating the MULTI on top.";
         }
     }
@@ -713,7 +713,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     // HETERO case
     {
         if (deviceName.find("HETERO:") == 0) {
-            THROW_IE_EXCEPTION
+            THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
                 << "You can only GetConfig of the HETERO itself (without devices). "
                    "GetConfig is also possible for the individual devices before creating the HETERO on top.";
         }
@@ -721,7 +721,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     // MULTI case
     {
         if (deviceName.find("MULTI:") == 0) {
-            THROW_IE_EXCEPTION
+            THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
                 << "You can only GetConfig of the MULTI itself (without devices). "
                    "GetConfig is also possible for the individual devices before creating the MULTI on top.";
         }

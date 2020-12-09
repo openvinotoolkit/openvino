@@ -26,6 +26,8 @@ namespace InferenceEngine {
     } catch (const InferenceEngine::details::InferenceEngineException& iex) {                                \
         return InferenceEngine::DescriptionBuffer((iex.hasStatus() ? iex.getStatus() : GENERAL_ERROR), resp) \
                << iex.what();                                                                                \
+    } catch (const InferenceEngine::NotImplemented & ex) {                                                                     \
+        return InferenceEngine::DescriptionBuffer(NOT_IMPLEMENTED, resp) << ex.what();                         \
     } catch (const std::exception& ex) {                                                                     \
         return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();                         \
     } catch (...) {                                                                                          \
@@ -85,6 +87,18 @@ namespace InferenceEngine {
  * @brief Defines the `not found` message
  */
 #define NOT_FOUND_str std::string("[NOT_FOUND] ")
+
+/**
+ * @def UNEXPECTED_str
+ * @brief Defines the `unexpected` message
+ */
+#define UNEXPECTED_str std::string("[UNEXPECTED] ")
+
+/**
+ * @def GENERAL_ERROR_str
+ * @brief Defines the `general error` message
+ */
+#define GENERAL_ERROR_str std::string("[GENERAL ERROR] ")
 
 /**
  * @def RESULT_NOT_READY_str

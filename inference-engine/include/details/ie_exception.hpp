@@ -20,9 +20,17 @@
 
 /**
  * @def THROW_IE_EXCEPTION
- * @brief A macro used to throw the exception with a notable description
+ * @brief A macro used to throw general exception with a description, for better type-zation ALWAYS prefer the next macro
  */
 #define THROW_IE_EXCEPTION throw InferenceEngine::details::InferenceEngineException(__FILE__, __LINE__)
+/**
+ * @def THROW_IE_EXCEPTION_WITH_STATUS
+ * @brief Throws an exception along with the status (which is converted to the typed exception)
+ * This preferable way of throwing, as it is is  easier to handle compared to parsing raw exception's msg
+ * (e.g. specifying the NOT_IMPLEMENTED status is automatically converted into exception of the type 'NotImplemented')
+ */
+#define THROW_IE_EXCEPTION_WITH_STATUS(__status) THROW_IE_EXCEPTION << \
+                        InferenceEngine::details::as_status << InferenceEngine::StatusCode::__status << __status##_str
 
 /**
  * @def IE_ASSERT
