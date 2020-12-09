@@ -37,16 +37,18 @@ def is_image_info(blob):
 
 
 def set_inputs(paths_to_input, batch_size, input_info, requests, mode):
-  requests_input_data = get_inputs(paths_to_input, batch_size, input_info, requests)
-  for i in range(len(requests)):
-    if mode == "poc":
-        inputs = {"data" : requests[i].get_blob("data")}
-    else:
-        inputs = requests[i].input_blobs
-    for k, v in requests_input_data[i].items():
-        if k not in inputs.keys():
-            raise Exception("No input with name {} found!".format(k))
-        inputs[k].buffer[:] = v
+    requests_input_data = get_inputs(paths_to_input, batch_size, input_info, requests)
+    inputs = {}
+    for i in range(len(requests)):
+        if mode == "poc":
+            for input, value in input_info.items():
+                inputs[input] = requests[i].get_blob(input)
+        else:
+            inputs = requests[i].input_blobs
+        for k, v in requests_input_data[i].items():
+            if k not in inputs.keys():
+                raise Exception("No input with name {} found!".format(k))
+            inputs[k].buffer[:] = v
 
 
 def get_inputs(paths_to_input, batch_size, input_info, requests):
