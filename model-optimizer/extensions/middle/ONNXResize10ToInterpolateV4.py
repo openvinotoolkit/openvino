@@ -105,7 +105,7 @@ def replace_resize(graph: Graph, resize: Node):
     cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
     add_node.out_port(0).connect(mul_node.in_port(1))
     mul_node.out_port(0).connect(floor_node.in_port(0))
-    floor_node.out_port(cast_mul_result_to_int.in_port(0))
+    floor_node.out_port(0).connect(cast_mul_result_to_int.in_port(0))
     cast_mul_result_to_int.out_port(0).connect(sizes_ss.in_port(0))
     sizes_ss.out_port(0).connect(interpolate_node.in_port(1))
 
