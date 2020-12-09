@@ -90,7 +90,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
   *  Windows host and container version tags must match.
   *  [Windows host and container isolation process support](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility)
 
-##Build a Docker* Image for your host system
+## Build a Docker* Image for Your Host System
 
 1. You can reuse [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
