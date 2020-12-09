@@ -61,11 +61,11 @@ void PassImpl::run(const Model& model) {
         resultW = choiceDimW(name, inputC, outputC, dimH, dimW);
 
         if (stage->origLayer()->params.count("alt_width")) {
-            std::string alt_width = stage->origLayer()->params.at("alt_width");
-            try {
-                resultW = std::stoi(alt_width);
-            } catch (...) {
-                resultW = 0;
+            const auto alt_width = stage->origLayer()->params.at("alt_width");
+            if (!alt_width.empty() &&
+                std::find_if(alt_width.begin(), alt_width.end(),
+                             [](unsigned char c) { return !std::isdigit(c); }) == alt_width.end()) {
+                resultW = std::stoul(alt_width);
             }
         }
 
