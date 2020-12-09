@@ -295,7 +295,7 @@ def proposal(
                                                   Object Detection API models
                     Default value: "" (empty string)
                     Required: no
-    
+
     Example of attribute dictionary:
     @code{.py}
         # just required ones
