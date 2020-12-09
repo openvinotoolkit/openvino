@@ -10,7 +10,7 @@
 #ifndef _XLINKPRIVATEDEFINES_H
 #define _XLINKPRIVATEDEFINES_H
 
-#include "XLinkStream.h"
+#include "XLinkPublicDefines.h"
 
 #if !defined(XLINK_ALIGN_TO_BOUNDARY)
 # if defined(_WIN32) && !defined(__GNUC__)
@@ -29,15 +29,6 @@ extern "C"
 #define __CACHE_LINE_SIZE 64
 
 typedef int32_t eventId_t;
-
-/**
- * @brief State for xLinkDesc_t
- */
-typedef enum {
-    XLINK_NOT_INIT,
-    XLINK_UP,
-    XLINK_DOWN,
-}xLinkState_t;
 
 /**
  * @brief Device description
@@ -102,21 +93,6 @@ typedef enum
     IPC_CLOSE_STREAM_RESP,
 } xLinkEventType_t;
 
-xLinkEventType_t getResponseType(xLinkEventType_t requestType) {
-    switch(requestType)
-    {
-        case XLINK_WRITE_REQ:        return XLINK_WRITE_RESP;
-        case XLINK_READ_REQ:         return XLINK_READ_RESP;
-        case XLINK_READ_REL_REQ:     return XLINK_READ_REL_RESP;
-        case XLINK_CREATE_STREAM_REQ:return XLINK_CREATE_STREAM_RESP;
-        case XLINK_CLOSE_STREAM_REQ: return XLINK_CLOSE_STREAM_RESP;
-        case XLINK_PING_REQ:         return XLINK_PING_RESP;
-        case XLINK_RESET_REQ:        return XLINK_RESET_RESP;
-        default:
-            break;
-    }
-    return XLINK_RESP_LAST;
-}
 
 typedef enum
 {

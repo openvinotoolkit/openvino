@@ -7,12 +7,22 @@
 #include "string.h"
 #include "stdlib.h"
 
+#if (defined(_WIN32) || defined(_WIN64))
+# include "win_pthread.h"
+# include "win_semaphore.h"
+#else
+# include <pthread.h>
+# ifndef __APPLE__
+#  include <semaphore.h>
+# endif
+#endif
+
 #include "XLink.h"
-#include "XLinkErrorUtils.h"
+#include "XLinkTool.h"
 
 #include "XLinkPlatform.h"
 #include "XLinkPrivateFields.h"
-#include "XLinkDispatcherImpl.h"
+#include "XLinkConnection.h"
 
 #ifdef MVLOG_UNIT_NAME
 #undef MVLOG_UNIT_NAME
@@ -29,11 +39,15 @@
 
 XLinkGlobalHandler_t* glHandler; //TODO need to either protect this with semaphor
                                  //or make profiling data per device
+int g_IsInitialized = 0;
 
-xLinkDesc_t availableXLinks[MAX_LINKS];
-sem_t  pingSem; //to b used by myriad
-DispatcherControlFunctions controlFunctionTbl;
+#define FREE_CONNECTION_FLAG 0
+#define BUSY_CONNECTION_FLAG 1
+
+Connection availableConnections[MAX_LINKS];
+int freeConnectionsIds[MAX_PACKET_PER_STREAM];
 linkId_t nextUniqueLinkId = 0; //incremental number, doesn't get decremented.
+sem_t  pingSem; //to b used by myriad
 
 // ------------------------------------
 // Global fields. End.
@@ -46,11 +60,13 @@ linkId_t nextUniqueLinkId = 0; //incremental number, doesn't get decremented.
 // ------------------------------------
 
 static linkId_t getNextAvailableLinkUniqueId();
-static xLinkDesc_t* getNextAvailableLink();
+static Connection* getNextAvailableConnection();
+static XLinkError_t releaseConnection(Connection* connection);
 
 #ifdef __PC__
 
 static XLinkError_t parsePlatformError(xLinkPlatformErrorCode_t rc);
+static linkId_t getNextAvailableLinkUniqueId();
 
 #endif // __PC__
 
@@ -71,13 +87,13 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     mvLogDefaultLevelSet(MVLOG_FATAL);
 #endif
 
-    XLINK_RET_IF(globalHandler == NULL);
+    ASSERT_XLINK(globalHandler);
     ASSERT_XLINK(XLINK_MAX_STREAMS <= MAX_POOLS_ALLOC);
     glHandler = globalHandler;
-    if (sem_init(&pingSem,0,0)) {
-        mvLog(MVLOG_ERROR, "Can't create semaphore\n");
+
+    if(g_IsInitialized) {
+        return X_LINK_SUCCESS;
     }
-    int i;
 
     XLinkPlatformInit();
 
@@ -87,52 +103,19 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     //Using deprecated fields. End.
 
     memset((void*)globalHandler, 0, sizeof(XLinkGlobalHandler_t));
+    memset(availableConnections, 0, MAX_LINKS * sizeof(Connection));
 
     //Using deprecated fields. Begin.
     globalHandler->loglevel = loglevel;
     globalHandler->protocol = protocol;
     //Using deprecated fields. End.
 
-    controlFunctionTbl.eventReceive      = &dispatcherEventReceive;
-    controlFunctionTbl.eventSend         = &dispatcherEventSend;
-    controlFunctionTbl.localGetResponse  = &dispatcherLocalEventGetResponse;
-    controlFunctionTbl.remoteGetResponse = &dispatcherRemoteEventGetResponse;
-    controlFunctionTbl.closeLink         = &dispatcherCloseLink;
-    controlFunctionTbl.closeDeviceFd     = &dispatcherCloseDeviceFd;
-
-    XLINK_RET_IF(DispatcherInitialize(&controlFunctionTbl));
-
-    //initialize availableStreams
-    memset(availableXLinks, 0, sizeof(availableXLinks));
-
-    xLinkDesc_t* link;
-    for (i = 0; i < MAX_LINKS; i++) {
-        link = &availableXLinks[i];
-
-        link->id = INVALID_LINK_ID;
-        link->deviceHandle.xLinkFD = NULL;
-        link->peerState = XLINK_NOT_INIT;
-        int stream;
-        for (stream = 0; stream < XLINK_MAX_STREAMS; stream++)
-            link->availableStreams[stream].id = INVALID_STREAM_ID;
+    for (int i = 0; i < MAX_LINKS; ++i) {
+        availableConnections[i].id = INVALID_LINK_ID;
+        freeConnectionsIds[i] = FREE_CONNECTION_FLAG;
     }
 
-#ifndef __PC__
-    link = getNextAvailableLink();
-    if (link == NULL)
-        return X_LINK_COMMUNICATION_NOT_OPEN;
-
-    link->id = getNextAvailableLinkUniqueId();
-    link->peerState = XLINK_UP;
-    link->deviceHandle.xLinkFD = NULL;
-
-    xLinkDeviceHandle_t temp = {0};
-    temp.protocol = X_LINK_ANY_PROTOCOL;
-    XLINK_RET_IF_FAIL(DispatcherStart(&temp)); //myriad has one
-
-    sem_wait(&pingSem);
-#endif
-
+    g_IsInitialized = 1;
     return X_LINK_SUCCESS;
 }
 
@@ -146,7 +129,7 @@ XLinkError_t XLinkFindFirstSuitableDevice(XLinkDeviceState_t state,
                                           const deviceDesc_t in_deviceRequirements,
                                           deviceDesc_t *out_foundDevice)
 {
-    XLINK_RET_IF(out_foundDevice == NULL);
+    ASSERT_XLINK(out_foundDevice);
 
     xLinkPlatformErrorCode_t rc;
     rc = XLinkPlatformFindDeviceName(state, in_deviceRequirements, out_foundDevice);
@@ -158,9 +141,9 @@ XLinkError_t XLinkFindAllSuitableDevices(XLinkDeviceState_t state,
                                          deviceDesc_t *out_foundDevicesPtr,
                                          const unsigned int devicesArraySize,
                                          unsigned int* out_foundDevicesCount) {
-    XLINK_RET_IF(out_foundDevicesPtr == NULL);
-    XLINK_RET_IF(devicesArraySize <= 0);
-    XLINK_RET_IF(out_foundDevicesCount == NULL);
+    ASSERT_XLINK(out_foundDevicesPtr);
+    ASSERT_XLINK(devicesArraySize > 0);
+    ASSERT_XLINK(out_foundDevicesCount);
 
     xLinkPlatformErrorCode_t rc;
     rc = XLinkPlatformFindArrayOfDevicesNames(
@@ -173,47 +156,26 @@ XLinkError_t XLinkFindAllSuitableDevices(XLinkDeviceState_t state,
 //Called only from app - per device
 XLinkError_t XLinkConnect(XLinkHandler_t* handler)
 {
-    XLINK_RET_IF(handler == NULL);
+    ASSERT_XLINK(handler);
     if (strnlen(handler->devicePath, MAX_PATH_LENGTH) < 2) {
         mvLog(MVLOG_ERROR, "Device path is incorrect");
         return X_LINK_ERROR;
     }
 
-    xLinkDesc_t* link = getNextAvailableLink();
-    XLINK_RET_IF(link == NULL);
-    mvLog(MVLOG_DEBUG,"%s() device name %s glHandler %p protocol %d\n", __func__, handler->devicePath, glHandler, handler->protocol);
+    XLinkError_t isCompleted = X_LINK_ERROR;
+    Connection* connection = getNextAvailableConnection();
+    XLINK_RET_IF(Connection_Init(connection, getNextAvailableLinkUniqueId()));
+    mvLog(MVLOG_DEBUG,"device name=%s glHandler=%p protocol=%d\n", handler->devicePath, glHandler, handler->protocol);
 
-    link->deviceHandle.protocol = handler->protocol;
-    int connectStatus = XLinkPlatformConnect(handler->devicePath2, handler->devicePath,
-                                             link->deviceHandle.protocol, &link->deviceHandle.xLinkFD);
+    XLINK_OUT_IF(Connection_Connect(connection, handler));
+    handler->linkId = Connection_GetId(connection);
 
-    if (connectStatus < 0) {
-        /**
-         * Connection may be unsuccessful at some amount of first tries.
-         * In this case, asserting the status provides enormous amount of logs in tests.
-         */
-        return X_LINK_COMMUNICATION_NOT_OPEN;
+    isCompleted = X_LINK_SUCCESS;
+    XLINK_OUT:
+    if(isCompleted != X_LINK_SUCCESS) {
+        Connection_Clean(connection);
     }
-
-    XLINK_RET_ERR_IF(
-        DispatcherStart(&link->deviceHandle) != X_LINK_SUCCESS, X_LINK_TIMEOUT);
-
-    xLinkEvent_t event = {0};
-
-    event.header.type = XLINK_PING_REQ;
-    event.deviceHandle = link->deviceHandle;
-    DispatcherAddEvent(EVENT_LOCAL, &event);
-
-    if (DispatcherWaitEventComplete(&link->deviceHandle)) {
-        DispatcherClean(&link->deviceHandle);
-        return X_LINK_TIMEOUT;
-    }
-
-    link->id = getNextAvailableLinkUniqueId();
-    link->peerState = XLINK_UP;
-    link->hostClosedFD = 0;
-    handler->linkId = link->id;
-    return X_LINK_SUCCESS;
+    return isCompleted;
 }
 
 XLinkError_t XLinkBoot(deviceDesc_t* deviceDesc, const char* binaryPath)
@@ -225,38 +187,19 @@ XLinkError_t XLinkBoot(deviceDesc_t* deviceDesc, const char* binaryPath)
     return X_LINK_COMMUNICATION_FAIL;
 }
 
-XLinkError_t XLinkBootFirmware(deviceDesc_t* deviceDesc, const char* firmware, unsigned long length) {
-    if (!XLinkPlatformBootFirmware(deviceDesc, firmware, length)) {
-        return X_LINK_SUCCESS;
-    }
-
-    return X_LINK_COMMUNICATION_FAIL;
-}
-
 XLinkError_t XLinkResetRemote(linkId_t id)
 {
-    xLinkDesc_t* link = getLinkById(id);
-    XLINK_RET_IF(link == NULL);
+    Connection* connection = getLinkById(id);
+    ASSERT_XLINK(connection != NULL);
+    ConnectionStatus_t connectionStatus = Connection_GetStatus(connection);
 
-    if (getXLinkState(link) != XLINK_UP) {
-        mvLog(MVLOG_WARN, "Link is down, close connection to device without reset");
-        XLinkPlatformCloseRemote(&link->deviceHandle);
-        return X_LINK_COMMUNICATION_NOT_OPEN;
+    if (connectionStatus == CONNECTION_UP) {
+        ASSERT_RC_XLINK(Connection_Reset(connection));
+    } else {
+        mvLog(MVLOG_WARN, "Link is down");
     }
 
-    // Add event to reset device. After sending it, dispatcher will close fd link
-    xLinkEvent_t event = {0};
-    event.header.type = XLINK_RESET_REQ;
-    event.deviceHandle = link->deviceHandle;
-    mvLog(MVLOG_DEBUG, "sending reset remote event\n");
-    DispatcherAddEvent(EVENT_LOCAL, &event);
-    XLINK_RET_ERR_IF(DispatcherWaitEventComplete(&link->deviceHandle),
-        X_LINK_TIMEOUT);
-
-    if(XLink_sem_wait(&link->dispatcherClosedSem)) {
-        mvLog(MVLOG_ERROR,"can't wait dispatcherClosedSem\n");
-        return X_LINK_ERROR;
-    }
+    XLINK_RET_IF(releaseConnection(connection));
 
     return X_LINK_SUCCESS;
 }
@@ -266,26 +209,8 @@ XLinkError_t XLinkResetAll()
 #if defined(NO_BOOT)
     mvLog(MVLOG_INFO, "Devices will not be restarted for this configuration (NO_BOOT)");
 #else
-    int i;
-    for (i = 0; i < MAX_LINKS; i++) {
-        if (availableXLinks[i].id != INVALID_LINK_ID) {
-            xLinkDesc_t* link = &availableXLinks[i];
-            int stream;
-            for (stream = 0; stream < XLINK_MAX_STREAMS; stream++) {
-                if (link->availableStreams[stream].id != INVALID_STREAM_ID) {
-                    streamId_t streamId = link->availableStreams[stream].id;
-                    mvLog(MVLOG_DEBUG,"%s() Closing stream (stream = %d) %d on link %d\n",
-                          __func__, stream, (int) streamId, (int) link->id);
-                    COMBINE_IDS(streamId, link->id);
-                    if (XLinkCloseStream(streamId) != X_LINK_SUCCESS) {
-                        mvLog(MVLOG_WARN,"Failed to close stream");
-                    }
-                }
-            }
-            if (XLinkResetRemote(link->id) != X_LINK_SUCCESS) {
-                mvLog(MVLOG_WARN,"Failed to reset");
-            }
-        }
+    for (int i = 0; i < MAX_LINKS; ++i) {
+        XLinkResetRemote(Connection_GetId(&availableConnections[i]));
     }
 #endif
     return X_LINK_SUCCESS;
@@ -357,8 +282,8 @@ static linkId_t getNextAvailableLinkUniqueId()
         int i;
         for (i = 0; i < MAX_LINKS; i++)
         {
-            if (availableXLinks[i].id != INVALID_LINK_ID &&
-                availableXLinks[i].id == nextUniqueLinkId)
+            if (availableConnections[i].id != INVALID_LINK_ID &&
+                availableConnections[i].id == nextUniqueLinkId)
                 break;
         }
         if (i >= MAX_LINKS)
@@ -371,31 +296,31 @@ static linkId_t getNextAvailableLinkUniqueId()
             nextUniqueLinkId = 0;
         }
     } while (start != nextUniqueLinkId);
-    mvLog(MVLOG_ERROR, "%s():- no next available unique link id!\n", __func__);
+    mvLog(MVLOG_ERROR, "%s():- no next available link!\n", __func__);
     return INVALID_LINK_ID;
 }
 
-static xLinkDesc_t* getNextAvailableLink() {
-    int i;
-    for (i = 0; i < MAX_LINKS; i++) {
-        if (availableXLinks[i].id == INVALID_LINK_ID) {
-            break;
+static Connection* getNextAvailableConnection() {
+    for (int i = 0; i < MAX_LINKS; ++i) {
+        if(freeConnectionsIds[i] == FREE_CONNECTION_FLAG) {
+            freeConnectionsIds[i] = BUSY_CONNECTION_FLAG;
+            return &availableConnections[i];
         }
     }
 
-    if(i >= MAX_LINKS) {
-        mvLog(MVLOG_ERROR,"%s():- no next available link!\n", __func__);
-        return NULL;
-    }
+    return NULL;
+}
 
-    xLinkDesc_t* link = &availableXLinks[i];
+static XLinkError_t releaseConnection(Connection* connection) {
+    XLINK_RET_IF(connection == NULL);
 
-    if (XLink_sem_init(&link->dispatcherClosedSem, 0 ,0)) {
-        mvLog(MVLOG_ERROR, "Cannot initialize semaphore\n");
-        return NULL;
-    }
+    linkId_t id = Connection_GetId(connection);
+    freeConnectionsIds[id] = FREE_CONNECTION_FLAG;
 
-    return link;
+    Connection_Clean(connection);
+    connection->id = INVALID_LINK_ID;
+
+    return X_LINK_SUCCESS;
 }
 
 #ifdef __PC__
