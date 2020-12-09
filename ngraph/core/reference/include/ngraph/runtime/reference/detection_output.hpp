@@ -38,7 +38,6 @@ namespace ngraph
                     dataType ymin = dataType(0);
                     dataType xmax = dataType(0);
                     dataType ymax = dataType(0);
-                    dataType size = dataType(0);
                 };
                 using LabelBBox = std::map<int, std::vector<NormalizedBBox>>;
 
@@ -164,9 +163,14 @@ namespace ngraph
                             bbox.ymin = priorData[start_idx + 1 + offset];
                             bbox.xmax = priorData[start_idx + 2 + offset];
                             bbox.ymax = priorData[start_idx + 3 + offset];
+                            if (!attrs.normalized)
+                            {
+                                bbox.xmin /= attrs.input_width;
+                                bbox.ymin /= attrs.input_height;
+                                bbox.xmax /= attrs.input_width;
+                                bbox.ymax /= attrs.input_height;
+                            }
 
-                            dataType bbox_size = BBoxSize(bbox);
-                            bbox.size = bbox_size;
                             currPrBbox.push_back(bbox);
                         }
                         if (!attrs.variance_encoded_in_target)
@@ -197,30 +201,12 @@ namespace ngraph
                     dataType priorXmax = priorBboxes.xmax;
                     dataType priorYmax = priorBboxes.ymax;
 
-                    if (!attrs.normalized)
-                    {
-                        priorXmin /= attrs.input_width;
-                        priorYmin /= attrs.input_height;
-                        priorXmax /= attrs.input_width;
-                        priorYmax /= attrs.input_height;
-                    }
-
                     if (attrs.code_type == "caffe.PriorBoxParameter.CORNER")
                     {
-                        if (attrs.variance_encoded_in_target)
-                        {
-                            decodeBbox.xmin = priorXmin + bbox.xmin;
-                            decodeBbox.ymin = priorYmin + bbox.ymin;
-                            decodeBbox.xmax = priorXmax + bbox.xmax;
-                            decodeBbox.ymax = priorYmax + bbox.ymax;
-                        }
-                        else
-                        {
-                            decodeBbox.xmin = priorXmin + priorVariances[0] * bbox.xmin;
-                            decodeBbox.ymin = priorYmin + priorVariances[1] * bbox.ymin;
-                            decodeBbox.xmax = priorXmax + priorVariances[2] * bbox.xmax;
-                            decodeBbox.ymax = priorYmax + priorVariances[3] * bbox.ymax;
-                        }
+                        decodeBbox.xmin = priorXmin + priorVariances[0] * bbox.xmin;
+                        decodeBbox.ymin = priorYmin + priorVariances[1] * bbox.ymin;
+                        decodeBbox.xmax = priorXmax + priorVariances[2] * bbox.xmax;
+                        decodeBbox.ymax = priorYmax + priorVariances[3] * bbox.ymax;
                     }
                     else if (attrs.code_type == "caffe.PriorBoxParameter.CENTER_SIZE")
                     {
@@ -230,41 +216,52 @@ namespace ngraph
                         dataType priorCenterY = (priorYmin + priorYmax) / 2;
                         dataType decodeBboxCenterX, decodeBboxCenterY;
                         dataType decodeBboxWidth, decodeBboxHeight;
-                        if (attrs.variance_encoded_in_target)
-                        {
-                            decodeBboxCenterX = bbox.xmin * priorWidth + priorCenterX;
-                            decodeBboxCenterY = bbox.ymin * priorHeight + priorCenterY;
-                            decodeBboxWidth = std::exp(bbox.xmax) * priorWidth;
-                            decodeBboxHeight = std::exp(bbox.ymax) * priorHeight;
-                        }
-                        else
-                        {
-                            decodeBboxCenterX =
-                                priorVariances[0] * bbox.xmin * priorWidth + priorCenterX;
-                            decodeBboxCenterY =
-                                priorVariances[1] * bbox.ymin * priorHeight + priorCenterY;
-                            decodeBboxWidth = std::exp(priorVariances[2] * bbox.xmax) * priorWidth;
-                            decodeBboxHeight =
-                                std::exp(priorVariances[3] * bbox.ymax) * priorHeight;
-                        }
+                        decodeBboxCenterX =
+                            priorVariances[0] * bbox.xmin * priorWidth + priorCenterX;
+                        decodeBboxCenterY =
+                            priorVariances[1] * bbox.ymin * priorHeight + priorCenterY;
+                        decodeBboxWidth = std::exp(priorVariances[2] * bbox.xmax) * priorWidth;
+                        decodeBboxHeight = std::exp(priorVariances[3] * bbox.ymax) * priorHeight;
                         decodeBbox.xmin = decodeBboxCenterX - decodeBboxWidth / 2;
                         decodeBbox.ymin = decodeBboxCenterY - decodeBboxHeight / 2;
                         decodeBbox.xmax = decodeBboxCenterX + decodeBboxWidth / 2;
                         decodeBbox.ymax = decodeBboxCenterY + decodeBboxHeight / 2;
                     }
-                    if (attrs.clip_before_nms)
+                }
+
+                void DecodeBBox(const NormalizedBBox& priorBboxes,
+                                const NormalizedBBox& bbox,
+                                NormalizedBBox& decodeBbox)
+                {
+                    dataType priorXmin = priorBboxes.xmin;
+                    dataType priorYmin = priorBboxes.ymin;
+                    dataType priorXmax = priorBboxes.xmax;
+                    dataType priorYmax = priorBboxes.ymax;
+
+                    if (attrs.code_type == "caffe.PriorBoxParameter.CORNER")
                     {
-                        decodeBbox.xmin =
-                            std::max<dataType>(0, std::min<dataType>(1, decodeBbox.xmin));
-                        decodeBbox.ymin =
-                            std::max<dataType>(0, std::min<dataType>(1, decodeBbox.ymin));
-                        decodeBbox.xmax =
-                            std::max<dataType>(0, std::min<dataType>(1, decodeBbox.xmax));
-                        decodeBbox.ymax =
-                            std::max<dataType>(0, std::min<dataType>(1, decodeBbox.ymax));
+                        decodeBbox.xmin = priorXmin + bbox.xmin;
+                        decodeBbox.ymin = priorYmin + bbox.ymin;
+                        decodeBbox.xmax = priorXmax + bbox.xmax;
+                        decodeBbox.ymax = priorYmax + bbox.ymax;
                     }
-                    dataType bboxSize = BBoxSize(decodeBbox);
-                    decodeBbox.size = bboxSize;
+                    else if (attrs.code_type == "caffe.PriorBoxParameter.CENTER_SIZE")
+                    {
+                        dataType priorWidth = priorXmax - priorXmin;
+                        dataType priorHeight = priorYmax - priorYmin;
+                        dataType priorCenterX = (priorXmin + priorXmax) / 2;
+                        dataType priorCenterY = (priorYmin + priorYmax) / 2;
+                        dataType decodeBboxCenterX, decodeBboxCenterY;
+                        dataType decodeBboxWidth, decodeBboxHeight;
+                        decodeBboxCenterX = bbox.xmin * priorWidth + priorCenterX;
+                        decodeBboxCenterY = bbox.ymin * priorHeight + priorCenterY;
+                        decodeBboxWidth = std::exp(bbox.xmax) * priorWidth;
+                        decodeBboxHeight = std::exp(bbox.ymax) * priorHeight;
+                        decodeBbox.xmin = decodeBboxCenterX - decodeBboxWidth / 2;
+                        decodeBbox.ymin = decodeBboxCenterY - decodeBboxHeight / 2;
+                        decodeBbox.xmax = decodeBboxCenterX + decodeBboxWidth / 2;
+                        decodeBbox.ymax = decodeBboxCenterY + decodeBboxHeight / 2;
+                    }
                 }
 
                 void DecodeBBoxes(const std::vector<NormalizedBBox>& priorBboxes,
@@ -276,7 +273,27 @@ namespace ngraph
                     for (int i = 0; i < numBboxes; ++i)
                     {
                         NormalizedBBox decodeBbox;
-                        DecodeBBox(priorBboxes[i], priorVariances[i], labelLocPreds[i], decodeBbox);
+
+                        if (attrs.variance_encoded_in_target)
+                        {
+                            DecodeBBox(priorBboxes[i], labelLocPreds[i], decodeBbox);
+                        }
+                        else
+                        {
+                            DecodeBBox(
+                                priorBboxes[i], priorVariances[i], labelLocPreds[i], decodeBbox);
+                        }
+                        if (attrs.clip_before_nms)
+                        {
+                            decodeBbox.xmin =
+                                std::max<dataType>(0, std::min<dataType>(1, decodeBbox.xmin));
+                            decodeBbox.ymin =
+                                std::max<dataType>(0, std::min<dataType>(1, decodeBbox.ymin));
+                            decodeBbox.xmax =
+                                std::max<dataType>(0, std::min<dataType>(1, decodeBbox.xmax));
+                            decodeBbox.ymax =
+                                std::max<dataType>(0, std::min<dataType>(1, decodeBbox.ymax));
+                        }
                         decodeBboxes.push_back(decodeBbox);
                     }
                 }
