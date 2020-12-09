@@ -60,7 +60,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         }
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            bf16_emu_emitter.reset(new jit_bf16_emu_emitter(this, isa, nullptr));
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
 
@@ -138,7 +138,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         this->postamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            bf16_emu_emitter->emit_table();
+            emu_vcvtneps2bf16->emit_table();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -230,7 +230,7 @@ private:
     Xbyak::Label l_table_constant;
     Opmask k_mask = Xbyak::Opmask(1);
 
-    std::unique_ptr<jit_bf16_emu_emitter> bf16_emu_emitter;
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -1289,7 +1289,7 @@ private:
             if (mayiuse(avx512_core_bf16))
                 vcvtneps2bf16(ymm_dst, vmm_dst);
             else
-                bf16_emu_emitter->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
             vmovdqu16(op, ymm_dst);
         }
     }

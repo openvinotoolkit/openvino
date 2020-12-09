@@ -79,7 +79,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            bf16_emu_emitter.reset(new jit_bf16_emu_emitter(this, isa, nullptr));
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
 
@@ -107,7 +107,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         this->postamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            bf16_emu_emitter->emit_table();
+            emu_vcvtneps2bf16->emit_table();
 
         if (jcp_.reduce_mode == Reduce::And || jcp_.reduce_mode == Reduce::L1 || jcp_.reduce_mode == Reduce::Max ||
             jcp_.reduce_mode == Reduce::Min || jcp_.reduce_mode == Reduce::Prod || jcp_.reduce_mode == Reduce::Or) {
@@ -152,7 +152,7 @@ private:
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
-    std::unique_ptr<jit_bf16_emu_emitter> bf16_emu_emitter;
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     Xbyak::Label l_table;
 
@@ -616,7 +616,7 @@ private:
                 if (mayiuse(avx512_core_bf16))
                     vcvtneps2bf16(ymm_dst, vmm_dst);
                 else
-                    bf16_emu_emitter->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::s8:
@@ -818,7 +818,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         log_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_log, 0.f, 0.f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            bf16_emu_emitter.reset(new jit_bf16_emu_emitter(this, isa, nullptr));
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
 
@@ -838,7 +838,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         this->postamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            bf16_emu_emitter->emit_table();
+            emu_vcvtneps2bf16->emit_table();
 
         if (jcp_.reduce_mode == Reduce::LogSum || jcp_.reduce_mode == Reduce::LogSumExp) {
             log_injector->prepare_table();
@@ -872,7 +872,7 @@ private:
     Xbyak::Xmm xmm_aux2 = Xbyak::Xmm(5);
     Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(6);
 
-    std::unique_ptr<jit_bf16_emu_emitter> bf16_emu_emitter;
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> log_injector;
 
@@ -1085,7 +1085,7 @@ private:
                 if (mayiuse(avx512_core_bf16))
                     vcvtneps2bf16(ymm_dst, vmm_dst);
                 else
-                    bf16_emu_emitter->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::s8:

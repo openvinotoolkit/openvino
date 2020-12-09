@@ -75,9 +75,9 @@ private:
 };
 
 
-class jit_bf16_emu_emitter : public jit_emitter {
+class jit_emu_vcvtneps2bf16 : public jit_emitter {
 public:
-    jit_bf16_emu_emitter(mkldnn::impl::cpu::jit_generator* host, mkldnn::impl::cpu::cpu_isa_t host_isa, const MKLDNNNode* node,
+    jit_emu_vcvtneps2bf16(mkldnn::impl::cpu::jit_generator* host, mkldnn::impl::cpu::cpu_isa_t host_isa, const MKLDNNNode* node,
         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::BF16) : jit_emitter(host, host_isa, node, exec_prc) {
         prepare_table();
     };
@@ -101,8 +101,7 @@ private:
             h->vfixupimmps(aux, in, table_val("selector"), 0);
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
-        }
-        else {
+        } else {
             assert(!"unsupported isa");
         }
     };
