@@ -98,15 +98,17 @@ def replace_resize(graph: Graph, resize: Node):
 
     cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
     mul_node = Mul(graph, {'name': resize_name + '/Mul_'}).create_node()
+    floor_node = Floor(graph, {'name': resize_name + '/Floor_'}).create_node()
+    cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
+
     shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
     cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
-    cast_add_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
-    floor_node = Floor(graph, {'name': resize_name + '/Floor_'}).create_node()
-    mul_node.out_port(0).connect(add_node.in_port(0))
-    add_node.out_port(0).connect(floor_node.in_port(0))
-    floor_node.out_port(0).connect(cast_add_result_to_int.in_port(0))
-    cast_add_result_to_int.out_port(0).connect(sizes_ss.in_port(0))
+    add_node.out_port(0).connect(mul_node.in_port(1))
+    mul_node.out_port(0).connect(floor_node.in_port(0))
+    floor_node.out_port(cast_mul_result_to_int.in_port(0))
+    cast_mul_result_to_int.out_port(0).connect(sizes_ss.in_port(0))
     sizes_ss.out_port(0).connect(interpolate_node.in_port(1))
+
     scales_ss.out_port(0).connect(interpolate_node.in_port(2))
 
     connection_of_resize_input = resize.in_port(0).get_connection()
@@ -116,7 +118,7 @@ def replace_resize(graph: Graph, resize: Node):
     connection_of_scales.set_destination(scales_ss.in_port(0))
 
     connection_of_resize_input.get_source().connect(shape_of.in_port(0))
-    connection_of_scales.get_source().connect(mul_node.in_port(1))
+    connection_of_scales.get_source().connect(add_node.in_port(0))
 
     rename_nodes([(resize, resize_name + '/delete'), (interpolate_node, resize_name)])
     resize.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
