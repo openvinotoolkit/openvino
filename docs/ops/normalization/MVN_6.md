@@ -33,8 +33,8 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
     * `false` -- Do not normalize variance
     * `true` -- Normalize variance
   * **Type**: `boolean`
-  * **Default value**: `false`
-  * **Required**: *no*
+  * **Default value**: None
+  * **Required**: *yes*
 
 * *eps*
 
