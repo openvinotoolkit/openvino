@@ -91,7 +91,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2021.1. 
 
-Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of September 25, 2020 and may not reflect all publicly available security updates. See configuration disclosure for details. No product can be absolutely secure. 
+Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of December 9, 2020 and may not reflect all publicly available security updates. See configuration disclosure for details. No product can be absolutely secure. 
 
 Software and workloads used in performance tests may have been optimized for performance only on Intel microprocessors. Performance tests, such as SYSmark and MobileMark, are measured using specific computer systems, components, software, operations and functions. Any change to any of those factors may cause the results to vary. You should consult other information and performance tests to assist you in fully evaluating your contemplated purchases, including the performance of that product when combined with other products. For more complete information, see [Performance Benchmark Test Disclosure](https://www.intel.com/content/www/us/en/benchmarks/benchmark.html).
 
@@ -104,6 +104,28 @@ Optimization Notice: Intel’s compilers may or may not optimize to the same deg
 Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines**
+
+|                                 | Intel® Xeon® E-2124G  | Intel® Xeon® W1290P | Intel® Xeon® Silver 4216R    | Intel® Xeon® Gold 5218T      | Intel® Xeon® Platinum 8270   | 
+| ------------------------------- | ----------------------| --------------------| ---------------------------- | ---------------------------- | ---------------------------- |
+| Motherboard                     | ASUS* WS C246 PRO     | ASUS* WS W480-ACE   | Intel® Server Board S2600STB | Intel® Server Board S2600STB | Intel® Server Board S2600STB |
+| CPU                             | Intel® Xeon® E-2124G CPU @ 3.40GHz | Intel® Xeon® W-1290P CPU @ 3.70GHz    | Intel® Xeon® Silver 4216R CPU @ 2.20GHz | Intel® Xeon® Gold 5218T CPU @ 2.10GHz | Intel® Xeon® Platinum 8270 CPU @ 2.70GHz |
+| Hyper Threading                 | OFF                   | ON                  | ON                           | ON                           | ON                           |
+| Turbo Setting                   | ON                    | ON                  | ON                           | ON                           | ON                           |
+| Memory                          | 2 x 16 GB DDR4 2666MHz| 4 x 16 GB DDR4 @ 2666MHz     |12 x 32 GB DDR4 2666MHz       | 12 x 32 GB DDR4 2666MHz      | 12 x 32 GB DDR4 2933MHz  |
+| Operating System                | Ubuntu* 18.04 LTS     | Ubuntu* 18.04 LTS   | Ubuntu* 18.04 LTS            | Ubuntu* 18.04 LTS            | Ubuntu* 18.04 LTS            |
+| Kernel Version                  | 5.3.0-24-generic      | 5.3.0-24-generic    | 5.3.0-24-generic             | 5.3.0-24-generic             | 5.3.0-24-generic             |
+| BIOS Vendor                     | American Megatrends Inc.* | American Megatrends Inc. | Intel Corporation            | Intel Corporation   | Intel Corporation            |
+| BIOS Version                    | 0904                  | 607                 | SE5C620.86B.02.01.<br>0009.092820190230 | SE5C620.86B.02.01.<br>0009.092820190230 | SE5C620.86B.02.01.<br>0009.092820190230    |
+| BIOS Release                    | April 12, 2019        | May 29, 2020        | September 28, 2019           | September 28, 2019           | September 28, 2019           |
+| BIOS Settings        | Select optimized default settings, <br>save & exit | Select optimized default settings, <br>save & exit | Select optimized default settings, <br>change power policy <br>to "performance", <br>save & exit | Select optimized default settings, <br>change power policy to "performance", <br>save & exit | Select optimized default settings, <br>change power policy to "performance", <br>save & exit |
+| Batch size                      | 1                     | 1                            | 1                            | 1                            | 1                            |
+| Precision                       | INT8                  | INT8                         | INT8                         | INT8                         | INT8                         |
+| Number of concurrent inference requests | 4             | 5                            | 32                           | 32                           | 52                           |
+| Test Date                       | December 9, 2020      | December 9, 2020             | December 9, 2020             |  December 9, 2020            |  December 9, 2020            |
+| Power dissipation, TDP in Watt  | [71](https://ark.intel.com/content/www/us/en/ark/products/134854/intel-xeon-e-2124g-processor-8m-cache-up-to-4-50-ghz.html#tab-blade-1-0-1)                    | [125](https://ark.intel.com/content/www/us/en/ark/products/199336/intel-xeon-w-1290p-processor-20m-cache-3-70-ghz.html)                          | [125](https://ark.intel.com/content/www/us/en/ark/products/193394/intel-xeon-silver-4216-processor-22m-cache-2-10-ghz.html#tab-blade-1-0-1)                          | [105](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html#tab-blade-1-0-1)             | [205](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html#tab-blade-1-0-1)                          |
+| CPU Price on September 29, 2020, USD<br>Prices may vary  | [213](https://ark.intel.com/content/www/us/en/ark/products/134854/intel-xeon-e-2124g-processor-8m-cache-up-to-4-50-ghz.html)     | [539](https://ark.intel.com/content/www/us/en/ark/products/199336/intel-xeon-w-1290p-processor-20m-cache-3-70-ghz.html)     |[1,002](https://ark.intel.com/content/www/us/en/ark/products/193394/intel-xeon-silver-4216-processor-22m-cache-2-10-ghz.html)                 | [1,349](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html)                        | [7,405](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html)                        |
+
+**CPU Inference Engines (continue)**
 
 |                                 | Intel® Xeon® E-2124G  | Intel® Xeon® Silver 4216R    | Intel® Xeon® Gold 5218T      | Intel® Xeon® Platinum 8270   | 
 | ------------------------------- | ----------------------| ---------------------------- | ---------------------------- | ---------------------------- |
@@ -121,9 +143,12 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size                      | 1                     | 1                            | 1                            | 1                            |
 | Precision                       | INT8                  | INT8                         | INT8                         | INT8                         |
 | Number of concurrent inference requests | 4             | 32                           | 32                           | 52                           |
-| Test Date                       |  September 25, 2020        |  September 25, 2020               |  September 25, 2020               |  September 25, 2020               |
+| Test Date                       |  December 9, 2020     |  December 9, 2020            |  December 9, 2020            |  December 9, 2020               |
 | Power dissipation, TDP in Watt  | [71](https://ark.intel.com/content/www/us/en/ark/products/134854/intel-xeon-e-2124g-processor-8m-cache-up-to-4-50-ghz.html#tab-blade-1-0-1)                    | [125](https://ark.intel.com/content/www/us/en/ark/products/193394/intel-xeon-silver-4216-processor-22m-cache-2-10-ghz.html#tab-blade-1-0-1)                          | [105](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html#tab-blade-1-0-1)             | [205](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html#tab-blade-1-0-1)                          |
 | CPU Price on September 29, 2020, USD<br>Prices may vary  | [213](https://ark.intel.com/content/www/us/en/ark/products/134854/intel-xeon-e-2124g-processor-8m-cache-up-to-4-50-ghz.html)     | [1,002](https://ark.intel.com/content/www/us/en/ark/products/193394/intel-xeon-silver-4216-processor-22m-cache-2-10-ghz.html)                 | [1,349](https://ark.intel.com/content/www/us/en/ark/products/193953/intel-xeon-gold-5218t-processor-22m-cache-2-10-ghz.html)                        | [7,405](https://ark.intel.com/content/www/us/en/ark/products/192482/intel-xeon-platinum-8270-processor-35-75m-cache-2-70-ghz.html)                        |
+
+
+
 
 **CPU Inference Engines (continue)**
 
@@ -143,7 +168,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size           | 1                                  | 1                                   | 1                                    | 1                                            |
 | Precision            | INT8                               | INT8                                | INT8                                 | INT8                                         |
 | Number of concurrent inference requests | 3               | 4                                   | 24                                   | 4                                            |
-| Test Date            | September 25, 2020                 | September 25, 2020                  | September 25, 2020                   | September 25, 2020                           |
+| Test Date            | December 9, 2020                 | December 9, 2020                  | December 9, 2020                   | December 9, 2020                           |
 | Power dissipation, TDP in Watt | [65](https://ark.intel.com/content/www/us/en/ark/products/129939/intel-core-i5-8500-processor-9m-cache-up-to-4-10-ghz.html#tab-blade-1-0-1)                                 | [35](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html#tab-blade-1-0-1) | [165](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [28](https://ark.intel.com/content/www/us/en/ark/products/208081/intel-core-i5-1145g7e-processor-8m-cache-up-to-4-10-ghz.html) |
 | CPU Price on September 29, 2020, USD<br>Prices may vary  | [192](https://ark.intel.com/content/www/us/en/ark/products/129939/intel-core-i5-8500-processor-9m-cache-up-to-4-10-ghz.html)                               | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html)                                 | [700](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [309](https://mysamples.intel.com/SAM_U_Product/ProductDetail.aspx?InputMMID=99A3D1&RequestID=0&ProductID=1213750) |
 
@@ -165,7 +190,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | Batch size           | 1                                     | 1                                  |
 | Precision            | INT8                                  | INT8                               |
 | Number of concurrent inference requests | 4                  | 4                                  |
-| Test Date            | September 25, 2020                         | September 25, 2020                      |
+| Test Date            | December 9, 2020                         | December 9, 2020                      |
 | Power dissipation, TDP in Watt | [9.5](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html)                                                              | [65](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html#tab-blade-1-0-1)|
 | CPU Price on September 29, 2020, USD<br>Prices may vary  | [34](https://ark.intel.com/content/www/us/en/ark/products/96485/intel-atom-x5-e3940-processor-2m-cache-up-to-1-80-ghz.html)                                                        | [117](https://ark.intel.com/content/www/us/en/ark/products/126688/intel-core-i3-8100-processor-6m-cache-3-60-ghz.html)       |
 
@@ -193,7 +218,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | BIOS Vendor                             | American Megatrends Inc.*             | American Megatrends Inc.*             |
 | BIOS Version                            | 411                                   | 5.12                                  |
 | BIOS Release                            | September 21, 2018                    | September 21, 2018                    |
-| Test Date                               | September 25, 2020                    | September 25, 2020                    |        
+| Test Date                               | December 9, 2020                    | December 9, 2020                    |        
 
 Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvinotoolkit.org/resources/benchmark_files/system_configurations_2021.1.html)
 
