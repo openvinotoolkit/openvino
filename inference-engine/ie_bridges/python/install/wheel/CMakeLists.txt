@@ -9,14 +9,14 @@ set(WHEEL_AUTOR "Intel Corporation" CACHE STRING "Package author’s name")
 set(WHEEL_AUTOR_EMAIL "openvino_pushbot@intel.com" CACHE STRING "Email address of the package author")
 set(WHEEL_DESC "Inference Engine Python* API" CACHE STRING "Short, summary description of the package")
 set(WHEEL_VERSION "0.0.0" CACHE STRING "Version of this release")
-set(WHEEL_BUILD "000" CACHE STRING "Build number of this package")
-
-string(REGEX MATCH "([0-9?]+)\\.([0-9?]+)\\.([0-9?]+)" WHEEL_VERSION "${CI_BUILD_NUMBER}")
-string(REGEX MATCH "-([0-9?]+)-" WHEEL_BUILD "${CI_BUILD_NUMBER}")
-
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
 set(LIBS_CPACK_PATH "libs")
+
+# set version using CI value
+if (WHEEL_VERSION STREQUAL  "0.0.0")
+    string(REGEX MATCH "([0-9?]+)\\.([0-9?]+)\\.([0-9?]+)" WHEEL_VERSION "${CI_BUILD_NUMBER}")
+endif()
 
 # runtime libs
 set(LIB_DIRS    ${CMAKE_INSTALL_PREFIX}/${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH})
@@ -65,22 +65,25 @@ endif()
 
 add_custom_target(ie_wheel ALL DEPENDS ${runtime_targets} ${plugin_targets})
 
-# install
+# install wheel specific files
 install(FILES ${SETUP_PY} ${CMAKE_CURRENT_SOURCE_DIR}/pypi_overview.md
     DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}
     COMPONENT ${PYTHON_VERSION}
 )
 
+# install runtime libs
 install(TARGETS ${runtime_targets}
                 ${plugin_targets}
         RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
         COMPONENT ${PYTHON_VERSION}
 )
 
+# install targets specific files
 install(FILES ${target_files}
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
         COMPONENT ${PYTHON_VERSION})
 
+# install tbb libs
 if(EXISTS "${TBB}/bin")
     file(GLOB tbb_libs
          LIST_DIRECTORIES false
