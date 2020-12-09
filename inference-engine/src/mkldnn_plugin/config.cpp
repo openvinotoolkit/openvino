@@ -33,7 +33,7 @@ Config::Config() {
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
 #endif
 
-    if (!with_cpu_x86_bfloat16())
+    if (!with_cpu_x86_avx512_core())
         enforceBF16 = false;
 
     updateProperties();

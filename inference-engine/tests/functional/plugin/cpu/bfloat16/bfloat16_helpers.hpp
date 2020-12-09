@@ -180,8 +180,8 @@ public:
 
     void test() {
         if (!InferenceEngine::with_cpu_x86_avx512_core()) {
-            // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
-            // tests are useless on such platforms
+            // We are enabling bf16 tests on platforms with native support bfloat16, and on platforms with AVX512 ISA
+            // On platforms with AVX512 ISA but w/o native bfloat16 support computations are done via simulation mode
             GTEST_SKIP();
         }
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
