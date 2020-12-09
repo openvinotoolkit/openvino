@@ -35,10 +35,22 @@ void MKLDNNSplitNode::getSupportedDescriptors() {
 }
 
 void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
+    constexpr size_t expectedPdVectorSize = 5ul;
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision inpPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+    if (getCnnLayer()->insData.empty()) {
+        THROW_IE_EXCEPTION << "Split node '" << getName() << "' has an empty input in the CNN layer";
+    }
+
+    auto inpData = getCnnLayer()->insData[0].lock();
+    if (!inpData) {
+        THROW_IE_EXCEPTION << "Split node '" << getName() << "' input data is empty";
+    }
+
+    supportedPrimitiveDescriptors.reserve(expectedPdVectorSize);
+
+    InferenceEngine::Precision inpPrecision = inpData->getPrecision();
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inpPrecision);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outPrecision);

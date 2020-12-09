@@ -288,7 +288,6 @@ bool MKLDNNMemory::IsGroupedFormat(memory::format format) {
 memory::format MKLDNNMemory::GetPlainFormat(memory::dims dims) {
     switch (dims.size()) {
         case 0:
-            return memory::x;
         case 1:
             return memory::x;
         case 2:
@@ -307,7 +306,6 @@ memory::format MKLDNNMemory::GetPlainFormat(memory::dims dims) {
 memory::format MKLDNNMemory::GetPerChannelFormat(memory::dims dims) {
     switch (dims.size()) {
         case 0:
-            return memory::x;
         case 1:
             return memory::x;
         case 2:
