@@ -58,8 +58,6 @@ void PassImpl::run(const Model& model) {
         int resultH = 0;
         int resultW = 0;
 
-        resultW = choiceDimW(name, inputC, outputC, dimH, dimW);
-
         if (stage->origLayer()->params.count("alt_width")) {
             const auto alt_width = stage->origLayer()->params.at("alt_width");
             if (!alt_width.empty() &&
