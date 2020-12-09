@@ -30,7 +30,7 @@ namespace ngraph {
                                   const Shape& data_shape,
                                   const Shape& output_shape,
                                   const int64_t& axis,
-                                  const int64_tMove some ref& group,
+                                  const int64_t& group,
                                   const size_t& elem_size) {
                 Shape reshaped_out_shape(4, 1);
                 size_t axis_zb = axis >= 0 ? axis : axis + data_shape.size();
