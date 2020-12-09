@@ -30,10 +30,8 @@ Example 1 with concrete values:
   ]
   axis = 0
   output = [
-      [
         [1, 4],
         [1, 2],
-      ],
   ]
 ```
 Example 2 with `axis` = 1 and `indices` having greater (than `data`) shape:
@@ -48,10 +46,8 @@ data = [
   ]
   axis = 1
   output = [
-      [
         [7, 7, 1],
         [3, 4, 3],
-      ],
   ]
 ```
 
@@ -68,10 +64,8 @@ data = [
   ]
   axis = 0
   output = [
-      [
         [4, 2, 6],
         [4, 8, 3],
-      ],
   ]
 ```
 
