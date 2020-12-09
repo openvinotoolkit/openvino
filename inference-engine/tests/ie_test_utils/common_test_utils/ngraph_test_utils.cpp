@@ -13,20 +13,20 @@
 #include <ngraph/pass/visualize_tree.hpp>
 #include "ngraph_test_utils.hpp"
 
-bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
-    const auto actualValues = constant->cast_vector<float>();
-    if (actualValues.size() != expectedValues.size()) {
+
+template<typename T>
+bool compareVec(const std::vector<T>& c1values, const std::vector<T>& c2values) {
+    if (c1values.size() != c2values.size()) {
         return false;
     }
 
-    static const float threshold = 1e-4f;
-    for (size_t i = 0; i < expectedValues.size(); ++i) {
-        if (abs(expectedValues[i] - actualValues[i]) > threshold) {
-            return false;
-        }
-    }
+    const auto float_equal = [&](float v1, float v2) {
+        static const float threshold = 1e-4f;
+        return abs(v1-v2) <= threshold;
+    };
 
-    return true;
+
+    return std::equal(begin(c1values), end(c1values), begin(c2values), float_equal);
 }
 
 bool isTypeRelaxed(const std::string& type) {
@@ -149,14 +149,27 @@ std::pair<bool, std::string> compare_functions(
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
             if (compareConstValues) {
-                std::shared_ptr<ngraph::opset1::Constant> const1 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node1->get_input_node_shared_ptr(i));
-                std::shared_ptr<ngraph::opset1::Constant> const2 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node2->get_input_node_shared_ptr(i));
-                if ((const1 != nullptr) && (const2 != nullptr)) {
-                    if (!compare(const1->cast_vector<float>(), const2)) {
-                        err_log << "Different Constant values detected" << std::endl
+                using Constant = ngraph::opset1::Constant;
+                auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
+                auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
+
+                const auto equal = [](const Constant& c1, const Constant& c2){
+                    //this works on real values
+                    std::stringstream c1ss;
+                    std::stringstream c2ss;
+                    c1ss << c1;
+                    c2ss << c2;
+                    float newc1;
+                    float newc2;
+                    c1ss >> newc1;
+                    c2ss >> newc2;
+                    return std::abs(newc1 - newc2) < 0.001;
+                };
+
+                if (const1 && const2 && !equal(*const1, *const2)) {
+                        err_log << "Different Constant values detected \n"
                             << node1->description() << " Input(" << i << ") and "
                             << node2->description() << " Input(" << i << ")" << std::endl;
-                    }
                 }
             }
 

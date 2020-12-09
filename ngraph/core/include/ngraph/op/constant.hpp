@@ -479,8 +479,7 @@ namespace ngraph
                                    [](IN_T c) { return static_cast<OUT_T>(c); });
                 }
 
-                /// \brief Allocate a buffer and return a pointer to it
-                void* allocate_buffer();
+                void allocate_buffer();
 
                 void* get_data_ptr_nc() { return (m_data ? m_data->get_ptr() : nullptr); }
                 template <element::Type_t ET>
@@ -507,7 +506,7 @@ namespace ngraph
                 }
 
                 template <typename T, typename U>
-                void write_buffer(void* target, const std::vector<U>& source, size_t count)
+                static void write_buffer(void* target, const std::vector<U>& source, size_t count)
                 {
                     T* p = reinterpret_cast<T*>(target);
                     for (size_t i = 0; i < count; i++)
@@ -517,11 +516,11 @@ namespace ngraph
                 }
 
                 template <typename T>
-                void write_to_buffer(const element::Type& target_type,
-                                     const Shape& /* target_shape */,
-                                     const std::vector<T>& source,
-                                     void* target,
-                                     size_t target_element_count)
+                static void write_to_buffer(const element::Type& target_type,
+                                            const Shape& /* target_shape */,
+                                            const std::vector<T>& source,
+                                            void* target,
+                                            size_t target_element_count)
                 {
                     if (source.size() != target_element_count)
                     {
