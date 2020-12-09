@@ -13,6 +13,7 @@ properties([
                name: 'library_version')
     ])
 ])
+x
 loadOpenVinoLibrary {
     entrypoint(this)
 }
