@@ -120,7 +120,6 @@ function(build_docs)
     set(C_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_c_api.xml")
     set(PY_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_py_api.xml")
     set(PLUGIN_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_plugin_api.xml")
-    set(MAIN_LAYOUT "${DOCS_BUILD_DIR}/main_layout.xml")
 
     # Tables of contents
     configure_file(${NGRAPH_CPP_LAYOUT_SOURCE} ${NGRAPH_CPP_LAYOUT_BUILD} @ONLY)
@@ -275,7 +274,7 @@ function(build_docs)
     add_custom_command(TARGET preprocess_docs
                        PRE_BUILD
                        ${commands}
-                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LAYOUT_SCRIPT} --openvino ${OPENVINO_LAYOUT_BUILD} --out_file ${MAIN_LAYOUT}
+                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LAYOUT_SCRIPT} --openvino ${OPENVINO_LAYOUT_BUILD}
                        COMMAND ${Python3_EXECUTABLE} ${DOXY_MD_FILTER} ${DOCS_BUILD_DIR}
                        COMMENT "Pre-process markdown and image links")
 
