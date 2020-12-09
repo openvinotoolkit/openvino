@@ -555,3 +555,19 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_in_padding)
                                               op::RoundingType::FLOOR),
                  NodeValidationFailure);
 }
+
+TEST(type_prop, avg_pool_default_values)
+{
+    const PartialShape arg_shape{1, 3, 32, 32};
+    const Strides strides{1, 1};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{0, 0};
+    const Shape kernel_shape{2, 2};
+    const bool exclude_pad{true};
+
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto ap = make_shared<op::v1::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad);
+
+    ASSERT_EQ(ap->get_rounding_type(), op::RoundingType::FLOOR);
+    ASSERT_EQ(ap->get_auto_pad(), op::PadType::EXPLICIT);
+}
