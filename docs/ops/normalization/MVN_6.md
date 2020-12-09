@@ -74,7 +74,7 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
 
 ```xml
 <layer ... type="MVN">
-    <data eps="1e-9" how_eps_applied="in_sqrt" normalize_variance="true"/>
+    <data eps="1e-9" eps_mode="inside_sqrt" normalize_variance="true"/>
     <input>
         <port id="0">
             <dim>6</dim>
