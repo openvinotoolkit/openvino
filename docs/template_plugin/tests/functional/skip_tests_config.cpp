@@ -17,10 +17,13 @@ std::vector<std::string> disabledTestPatterns() {
         ".*QueryNetwork.*",
         ".*SetAffinityWithKSO.*",
         ".*queryNetworkResultContainAllAndOnlyInputLayers.*",
-        R"(.*IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*/2)",
+        R"(.*IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*)",
         R"(.*IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS.*/2)",
         R"(.*IEClassExecutableNetworkGetMetricTest_NETWORK_NAME.*/2)",
         R"(.*IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS.*/2)",
+        ".*LoadNetworkActualHeteroDeviceNoThrow.*",
+        ".*LoadNetworkActualHeteroDevice2NoThrow.*",
+        ".*IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS.*",
         // CVS-44774
         ".*PreprocessTest.*",
     };
