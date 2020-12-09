@@ -123,10 +123,10 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
     * `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409` path to OpenCL driver home directory, please find it on your PC by `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_*` regular expression.
     *  `C:\tmp` folder with copy OpenCL.dll from your C:\Windows\System32 host folder
 
-2. Then copy OpenCL.dll to C:\Windows\System32 folder inside the container and set appropriate registry entry. Now you can run inference on GPU device:
-    ~~~
-    copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
-    ~~~
+2. Copy `OpenCL.dll` to the `C:\Windows\System32` folder inside the container and set appropriate registry entry. Now you can run inference on a GPU device:
+   ~~~
+   copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
+   ~~~
 3. If you want to try demo_security_barrier_camera demo(some additional 3-rd party dependencies will be installed):
     ~~~
     cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
