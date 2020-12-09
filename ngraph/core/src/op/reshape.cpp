@@ -83,11 +83,10 @@ namespace
                                           "'0' dimension is out of range");
                     output_shape[i] = input_pshape[i];
                     // we do not include dimension to output product here and won't include in input
-                    // product later
-                    // because we will divide output_product by input_product. This dimension
-                    // contributes to both products equally, but in case this dimension is dynamic
-                    // and others are not
-                    // we could fully define output dimension that is masked by -1
+                    // product later because we will divide output_product by input_product. This
+                    // dimension contributes to both products equally, but in case this dimension
+                    // is dynamic and others are not we could fully define output dimension that
+                    // is masked by -1
                 }
             }
             else
@@ -202,6 +201,7 @@ void op::v1::Reshape::validate_and_infer_types()
     Rank output_rank =
         shape_pattern_shape.rank().is_dynamic() ? Rank::dynamic() : shape_pattern_shape[0];
     set_output_type(0, get_input_element_type(0), PartialShape::dynamic(output_rank));
+    set_input_is_relevant_to_shape(1);
 
     std::vector<Dimension> reshape_pattern;
     int64_t minus_one_idx = -1;
