@@ -593,6 +593,7 @@ extensions/middle/TensorIteratorMerge.py
 extensions/middle/TensorIteratorOutput.py
 extensions/middle/TF_lstm_cell_to_generic.py
 extensions/middle/TFResizeBilinearToInterpolateV4.py
+extensions/middle/TFResizeNearestNeighborToInterpolateV4.py
 extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
