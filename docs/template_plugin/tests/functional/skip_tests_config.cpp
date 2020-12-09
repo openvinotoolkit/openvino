@@ -11,7 +11,7 @@ std::vector<std::string> disabledTestPatterns() {
     return {
         ".*ExclusiveAsyncRequests.*",
         ".*reusableCPUStreamsExecutor.*",
-        R"(.*SplitLayerTest.*numSplits\=30.*)"
+        R"(.*SplitLayerTest.*numSplits\=30.*)",
         // CVS-44775: for all cases below
         ".*Hetero.*",
         ".*QueryNetwork.*",
