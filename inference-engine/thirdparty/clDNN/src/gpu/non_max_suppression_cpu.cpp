@@ -94,7 +94,7 @@ std::vector<result_indices> run_nms(
                     if (currBox.score <= score_threshold)
                         break;
                 }
-                currBox.suppress_begin_index = fb.size();
+                currBox.suppress_begin_index = static_cast<int>(fb.size());
                 if (box_is_selected) {
                     if (currBox.score == origScore) {
                         fb.push_back(result_indices{ currBox.score, static_cast<int>(bi), static_cast<int>(ci), currBox.idx });
@@ -324,7 +324,7 @@ template <typename T>
 void store_third_output_impl(memory_impl& mem, const std::vector<result_indices>& result) {
     mem_lock<T> lock(mem);
     auto ptr = lock.data();
-    ptr[0] = result.size();
+    ptr[0] = static_cast<T>(result.size());
 }
 
 void store_third_output(memory_impl& mem, const std::vector<result_indices>& result) {
