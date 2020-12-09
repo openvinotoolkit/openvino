@@ -71,7 +71,8 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 8. <a href="#install-VPU">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPU</a><br>
 After installing your Intel® Movidius™ VPU, you will return to this guide to complete OpenVINO™ installation.
 9. <a href="#run-a-sample">Run a Sample Application</a>
-10. <a href="#Hello-World-Face-Detection-Tutorial">Use the Face Detection Tutorial</a>
+10. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit.</a>
+11. <a href="#Hello-World-Face-Detection-Tutorial">Use the Face Detection Tutorial</a>
 
 ## <a name="install-openvino"></a>Install the Intel® Distribution of OpenVINO™ Toolkit Core Components
 
@@ -102,7 +103,7 @@ toolkit installed, rename or delete these two directories:
 
    **Installation Notes:**
    - Choose an installation option and run the related script as root.
-   - You can use either a GUI installation wizard or command-line instructions (CLI).
+   - You can use either a GUI installation wizard or command line instructions (CLI).
    - Screenshots are provided for the GUI, but not for CLI. The following information also applies to CLI and will be helpful to your installation where you will be presented with the same choices and tasks.
 
 5.  Choose your installation option:
@@ -110,11 +111,11 @@ toolkit installed, rename or delete these two directories:
 ```sh
 sudo ./install_GUI.sh
 ```
-   - **Option 2:** Command-Line Instructions:
+   - **Option 2:** Command Line Instructions:
 ```sh
 sudo ./install.sh
 ```
-   - **Option 3:** Command-Line Silent Instructions:
+   - **Option 3:** Command Line Silent Instructions:
 ```sh
 sudo sed -i 's/decline/accept/g' silent.cfg
 sudo ./install.sh -s silent.cfg
@@ -128,16 +129,15 @@ messages such as the following in case you must complete additional
 steps:
 ![](../img/openvino-install-linux-01.png)
 
-7. If you select the default options, the **Installation summary** GUI screen
-looks like this:
+7. If you select the default options, the **Installation summary** GUI screen looks like this:
 ![](../img/openvino-install-linux-02.png)
-    - **Optional:** You can choose **Customize** to change the installation directory or the components you want to install:
-        ![](../img/openvino-install-linux-03.png)
-    When installed as **root** the default installation directory for the Intel Distribution of OpenVINO is
-    `/opt/intel/openvino_<version>/`.<br>
-    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`.
+**Optional:** You can choose **Customize** to change the installation directory or the components you want to install:
+![](../img/openvino-install-linux-03.png)
+By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
+   - For root or administrator: `/opt/intel/openvino_<version>/`
+   - For regular users: `/home/<USER>/intel/openvino_<version>/`
+For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`.
    > **NOTE**: The Intel® Media SDK component is always installed in the `/opt/intel/mediasdk` directory regardless of the OpenVINO installation path chosen.
-
 8. A Complete screen indicates that the core components have been installed:
 
 ![](../img/openvino-install-linux-04.png)
@@ -440,6 +440,32 @@ Congratulations, you have finished the installation of the Intel® Distribution 
 ## <a name="Hello-World-Face-Detection-Tutorial"></a>Hello World Face Detection Tutorial
 
 See the [OpenVINO™ Hello World Face Detection Exercise](https://github.com/intel-iot-devkit/inference-tutorials-generic).
+
+## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+Choose one of the options provided below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system.
+
+### Uninstall with GUI
+1. Run the uninstallation script from `<INSTALL_DIR>/openvino_toolkit_uninstaller`:
+   ```sh
+   sudo ./uninstall_GUI.sh
+   ```
+2. Follow the uninstallation wizard instructions.
+
+
+### Uninstall with Command Line (Interactive Mode)
+1. Run the uninstallation script from `<INSTALL_DIR>/openvino_toolkit_uninstaller`:
+   ```sh
+   sudo ./uninstall.sh
+   ```
+2. Follow the instructions on your screen.
+4. When uninstallation is complete, press **Enter**.
+
+### Uninstall with Command Line (Silent Mode)
+1. Run the following command from `<INSTALL_DIR>/openvino_toolkit_uninstaller`:
+   ```sh
+   sudo ./uninstall.sh -s
+   ```
+2. Intel® Distribution of OpenVINO™ Toolkit is now uninstalled from your system.
 
 ## Troubleshooting
 
