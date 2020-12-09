@@ -69,4 +69,6 @@ void regclass_TBlob(py::module m, std::string typestring)
         auto shape = self.getTensorDesc().getDims(); // copy shape from TensorDesc
         return py::array_t<T>(shape, &blob_out[0]);
     });
+
+    // cls.def_property_readonly("tensor_desc", );
 }

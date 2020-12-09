@@ -41,4 +41,5 @@ void regclass_Data(py::module m) {
     cls.def_property_readonly("shape", &InferenceEngine::Data::getDims);
 
     cls.def_property_readonly("name", &InferenceEngine::Data::getName);
+    // cls.def_property_readonly("initialized", );
 }

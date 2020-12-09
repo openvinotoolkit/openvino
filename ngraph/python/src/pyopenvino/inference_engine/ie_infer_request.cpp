@@ -53,13 +53,19 @@ void regclass_InferRequest(py::module m)
 //    cls.def_property_readonly("input_blobs", [](){
 //
 //    });
+//    cls.def_property_readonly("output_blobs", [](){
+//
+//    });
+//    cls.def("set_batch", );
+//    cls.def("get_perf_counts", );
 //    cls.def("wait");
 //    cls.def("set_completion_callback")
-//    async_infer()
+//    cls.def("async_infer",);
 //    latency
-//            input_blobs
-//    get_perf_counts()
-
+//    cls.def_property_readonly("preprocess_info", [](){
+//
+//    });
+//   set_blob
 
     //&InferenceEngine::InferRequest::SetOutput);
 }
