@@ -17,6 +17,7 @@
 import logging as log
 import numpy as np
 
+from extensions.ops.activation_ops import Floor
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
@@ -130,7 +131,14 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
                                        version='opset4', shape_calculation_mode='scales',
                                        in_ports_count=4,
                                        maybe_part_of_sequence=True)).create_node()
-        mul_node.out_port(0).connect(interp_node.in_port(1))
+
+        floor_node = Floor(graph, {'name': unsqueeze_name + '/Floor_'}).create_node()
+        cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
+
+        mul_node.out_port(0).connect(floor_node.in_port(0))
+        floor_node.out_port(0).connect(cast_mul_result_to_int.in_port(0))
+
+        cast_mul_result_to_int.out_port(0).connect(interp_node.in_port(1))
         scales_node.out_port(0).connect(interp_node.in_port(2))
         axis_node.out_port(0).connect(interp_node.in_port(3))
 
