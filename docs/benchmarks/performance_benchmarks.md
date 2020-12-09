@@ -89,9 +89,9 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 ## Platform Configurations
 
-Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2021.1. 
+Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2021.2. 
 
-Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of December 9, 2020 and may not reflect all publicly available security updates. See configuration disclosure for details. No product can be absolutely secure. 
+Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at [intel.com](intel.com), or from the OEM or retailer. Performance results are based on testing as of December 9, 2020 and may not reflect all publicly available security updates. See configuration disclosure for details. No product can be absolutely secure. 
 
 Software and workloads used in performance tests may have been optimized for performance only on Intel microprocessors. Performance tests, such as SYSmark and MobileMark, are measured using specific computer systems, components, software, operations and functions. Any change to any of those factors may cause the results to vary. You should consult other information and performance tests to assist you in fully evaluating your contemplated purchases, including the performance of that product when combined with other products. For more complete information, see [Performance Benchmark Test Disclosure](https://www.intel.com/content/www/us/en/benchmarks/benchmark.html).
 
@@ -150,25 +150,25 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               | Intel® Core™ i9-10900TE<br>(iEi Flex BX210AI)|
-| -------------------- | ----------------------------------- |--------------------------------------| -------------------------|
-| Motherboard          | GIGABYTE* Z370M DS3H-CF             | ASUS* PRIME X299-A II                | iEi / B595               |
-| CPU                  | Intel® Core™ i7-8700T CPU @ 2.40GHz | Intel® Core™ i9-10920X CPU @ 3.50GHz | Intel® Core™ i9-10900TE CPU @ 1.80GHz |
-| Hyper Threading      | ON                                  | ON                                   | ON                                           |
-| Turbo Setting        | ON                                  | ON                                   | ON                                           |
-| Memory               | 4 x 16 GB DDR4 2400MHz              | 4 x 16 GB DDR4 2666MHz               | 2 x 8 GB DDR4 @ 2400MHz                      |
-| Operating System     | Ubuntu* 18.04 LTS                   | Ubuntu* 18.04 LTS                    | Ubuntu* 18.04 LTS                            |
-| Kernel Version       | 5.3.0-24-generic                    | 5.3.0-24-generic                     | 5.8.0-05-generic                             |
-| BIOS Vendor          | American Megatrends Inc.*           | American Megatrends Inc.*            | American Megatrends Inc.*                    |
-| BIOS Version         | F11                                 | 505                                  | Z667AR10                                     |
-| BIOS Release         | March 13, 2019                      | December 17, 2019                    | July 15, 2020                                |
-| BIOS Settings        | Select optimized default settings, <br>set OS type to "other", <br>save & exit | Default Settings | Default Settings |
-| Batch size           | 1                                   | 1                                    | 1                                            |
-| Precision            | INT8                                | INT8                                 | INT8                                         |
-| Number of concurrent inference requests |4                 | 24                                   | 4                                            |
-| Test Date            | December 9, 2020                    | December 9, 2020                     | December 9, 2020                             |
-| Power dissipation, TDP in Watt                             | [35](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html#tab-blade-1-0-1) | [165](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [35](https://ark.intel.com/content/www/us/en/ark/products/203901/intel-core-i9-10900te-processor-20m-cache-up-to-4-60-ghz.html)  |
-| CPU Price on September 29, 2020, USD<br>Prices may vary    | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html)                | [700](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [444](https://ark.intel.com/content/www/us/en/ark/products/203901/intel-core-i9-10900te-processor-20m-cache-up-to-4-60-ghz.html) |
+|                      | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               | Intel® Core™ i9-10900TE<br>(iEi Flex BX210AI)| 11th Gen Intel® Core™ i7-1185G7 |
+| -------------------- | ----------------------------------- |--------------------------------------| ---------------------------------------------|---------------------------------|
+| Motherboard          | GIGABYTE* Z370M DS3H-CF             | ASUS* PRIME X299-A II                | iEi / B595                                   | Intel Corporation<br>internal/Reference<br>Validation Platform |
+| CPU                  | Intel® Core™ i7-8700T CPU @ 2.40GHz | Intel® Core™ i9-10920X CPU @ 3.50GHz | Intel® Core™ i9-10900TE CPU @ 1.80GHz        | 11th Gen Intel® Core™ i7-1185G7 @ 3.00GHz |
+| Hyper Threading      | ON                                  | ON                                   | ON                                           | ON                                        |
+| Turbo Setting        | ON                                  | ON                                   | ON                                           | ON                                        |
+| Memory               | 4 x 16 GB DDR4 2400MHz              | 4 x 16 GB DDR4 2666MHz               | 2 x 8 GB DDR4 @ 2400MHz                      | 2 x 8 GB DDR4 3200MHz                     |
+| Operating System     | Ubuntu* 18.04 LTS                   | Ubuntu* 18.04 LTS                    | Ubuntu* 18.04 LTS                            | Ubuntu* 18.04 LTS                         |
+| Kernel Version       | 5.3.0-24-generic                    | 5.3.0-24-generic                     | 5.8.0-05-generic                             | 5.8.0-05-generic                          |
+| BIOS Vendor          | American Megatrends Inc.*           | American Megatrends Inc.*            | American Megatrends Inc.*                    | Intel Corporation                         |
+| BIOS Version         | F11                                 | 505                                  | Z667AR10                                     | TGLSFWI1.R00.3425.<br>A00.2010162309      |
+| BIOS Release         | March 13, 2019                      | December 17, 2019                    | July 15, 2020                                | October 16, 2020                          |
+| BIOS Settings        | Select optimized default settings, <br>set OS type to "other", <br>save & exit | Default Settings | Default Settings      | Default Settings                          |
+| Batch size           | 1                                   | 1                                    | 1                                            | 1                                         |
+| Precision            | INT8                                | INT8                                 | INT8                                         | INT8                                      |
+| Number of concurrent inference requests |4                 | 24                                   | 5                                            | 4                                         |
+| Test Date            | December 9, 2020                    | December 9, 2020                     | December 9, 2020                             | December 9, 2020                          |
+| Power dissipation, TDP in Watt                             | [35](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html#tab-blade-1-0-1) | [165](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [35](https://ark.intel.com/content/www/us/en/ark/products/203901/intel-core-i9-10900te-processor-20m-cache-up-to-4-60-ghz.html)  | [28](https://ark.intel.com/content/www/us/en/ark/products/208081/intel-core-i5-1145g7e-processor-8m-cache-up-to-4-10-ghz.html) |
+| CPU Price on September 29, 2020, USD<br>Prices may vary    | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html)                | [700](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) | [444](https://ark.intel.com/content/www/us/en/ark/products/203901/intel-core-i9-10900te-processor-20m-cache-up-to-4-60-ghz.html) | [426](https://mysamples.intel.com/SAM_U_Product/ProductDetail.aspx?InputMMID=99A3D1&RequestID=0&ProductID=1213750)             |
 
 
 **CPU Inference Engines (continue)**
