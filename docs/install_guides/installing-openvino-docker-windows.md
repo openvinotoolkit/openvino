@@ -95,14 +95,14 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
 1. You can reuse [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles). 
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
 3. Find the appropriate Windows container base image on [DockerHub*](https://hub.docker.com/_/microsoft-windows) and set up your host/container version in the `FROM` Dockerfile instruction.  
-For example, change in [openvino_c_dev_2021.dockerfile](https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/winserver2019/openvino_c_dev_2021.dockerfile)
-    ~~~
-    FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS ov_base
-    ~~~
-    to
-    ~~~
-    FROM mcr.microsoft.com/windows:20H2
-    ~~~
+   For example, in [openvino_c_dev_2021.dockerfile](https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/winserver2019/openvino_c_dev_2021.dockerfile), change:  
+   ~~~
+   FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS ov_base
+   ~~~
+   to  
+   ~~~
+   FROM mcr.microsoft.com/windows:20H2
+   ~~~
 4. Build the Docker image
     ~~~
     docker build --build-arg package_url=<OpenVINO pkg> -f <Dockerfile> -t <image_name> .
