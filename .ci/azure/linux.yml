@@ -90,7 +90,16 @@ jobs:
   - task: CMake@1
     inputs:
       # CMake must get Python 3.x version by default
-      cmakeArgs: -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DENABLE_TESTS=ON -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
+      cmakeArgs: >
+        -GNinja
+        -DVERBOSE_BUILD=ON
+        -DENABLE_TEMPLATE_PLUGIN=ON
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+        -DENABLE_PYTHON=ON
+        -DPYTHON_EXECUTABLE=/usr/bin/python3.6
+        -DENABLE_TESTS=ON
+        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
   - script: ninja
@@ -130,6 +139,10 @@ jobs:
 
   - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
+    continueOnError: false
+
+  - script: $(BIN_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
+    displayName: 'TEMPLATE FuncTests'
     continueOnError: false
 
   - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
