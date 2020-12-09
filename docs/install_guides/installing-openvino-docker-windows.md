@@ -103,10 +103,10 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ~~~
    FROM mcr.microsoft.com/windows:20H2
    ~~~
-4. Build the Docker image
-    ~~~
-    docker build --build-arg package_url=<OpenVINO pkg> -f <Dockerfile> -t <image_name> .
-    ~~~
+4. Build the Docker image  
+   ~~~
+   docker build --build-arg package_url=<OpenVINO pkg> -f <Dockerfile> -t <image_name> .
+   ~~~
 5. Copy OpenCL.dll from your C:\Windows\System32 host folder to any temp directory:
     ~~~
     mkdir C:\tmp
