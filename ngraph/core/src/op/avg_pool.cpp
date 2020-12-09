@@ -45,24 +45,6 @@ op::v1::AvgPool::AvgPool(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-op::v1::AvgPool::AvgPool(const Output<Node>& arg,
-                         const Strides& strides,
-                         const Shape& pads_begin,
-                         const Shape& pads_end,
-                         const Shape& kernel,
-                         bool exclude_pad,
-                         op::RoundingType rounding_type)
-    : AvgPool(arg,
-              strides,
-              pads_begin,
-              pads_end,
-              kernel,
-              exclude_pad,
-              rounding_type,
-              op::PadType::EXPLICIT)
-{
-}
-
 bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("kernel", m_kernel);
