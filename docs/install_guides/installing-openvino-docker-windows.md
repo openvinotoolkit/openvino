@@ -127,10 +127,11 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ~~~
    copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
    ~~~
-3. If you want to try demo_security_barrier_camera demo(some additional 3-rd party dependencies will be installed):
-    ~~~
-    cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
-    ~~~
+3. For example, run the `demo_security_barrier_camera` demo with the command below:  
+   ~~~
+   cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
+   ~~~
+   > **NOTE**: Addittional third-party dependencies will be installed.
 
 ## Troubleshooting
 
