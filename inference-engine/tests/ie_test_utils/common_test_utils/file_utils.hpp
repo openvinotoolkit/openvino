@@ -17,6 +17,7 @@
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
+
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -115,4 +116,50 @@ inline bool directoryExists(const std::string &path) {
     return false;
 }
 
+inline void directoryFileListRecursive(const std::string& name, std::vector<std::string>& file_list) {
+    DIR *directory;
+    struct dirent *entire;
+    directory = opendir(name.c_str());
+    if (directory) {
+        while ((entire = readdir(directory)) != nullptr) {
+            if (std::string(entire->d_name) == ".." || std::string(entire->d_name) == ".") {
+                continue;
+            }
+            std::string path = name + CommonTestUtils::FileSeparator + entire->d_name;
+            if (directoryExists(path)) {
+                directoryFileListRecursive(path, file_list);
+            }
+            if (fileExists(path)) {
+                file_list.push_back(path);
+            }
+        }
+        closedir(directory);
+    }
+}
+
+inline int createDirectory(const std::string& dirPath) {
+#ifdef _WIN32
+    return _mkdir(dirPath.c_str());
+#else
+    return mkdir(dirPath.c_str(), mode_t(0777));
+#endif
+}
+
+inline int createDirectoryRecursive(const std::string& dirPath) {
+    std::string copyDirPath = dirPath;
+    std::vector<std::string> paths;
+    while (!directoryExists(copyDirPath)) {
+        auto pos = copyDirPath.rfind(CommonTestUtils::FileSeparator);
+        paths.push_back(copyDirPath.substr(pos, copyDirPath.length() - pos));
+        copyDirPath = copyDirPath.substr(0, pos);
+    }
+    while (!paths.empty()) {
+        std::string a = copyDirPath + paths.back();
+        if (createDirectory(a) != 0) {
+            return -1;
+        }
+        paths.pop_back();
+    }
+    return 0;
+}
 }  // namespace CommonTestUtils
