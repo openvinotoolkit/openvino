@@ -92,18 +92,15 @@ namespace
             else
             {
                 // Dimension(Interval) is a private ctor, so we use public one here
-                const auto defined_dim =
-                    Dimension(pattern_dim.get_min_length(), pattern_dim.get_max_length());
-                output_shape[i] = defined_dim;
-                output_product *= defined_dim;
+                output_shape[i] = pattern_dim;
+                output_product *= pattern_dim;
             }
         }
         Dimension input_product(1);
         if (input_pshape.rank().is_static())
             for (size_t i = 0; i < input_pshape.rank().get_length(); ++i)
             {
-                if (i < reshape_pattern.size() && reshape_pattern[i] == 0 &&
-                    reshape_pattern[i] == 0)
+                if (i < reshape_pattern.size() && reshape_pattern[i] == 0)
                     continue;
                 input_product *= input_pshape[i];
             }
@@ -149,21 +146,22 @@ namespace
         PartialShape output_pshape(output_shape);
         if (input_pshape.is_static() && output_pshape.is_static())
         {
-            Shape output_shape = output_pshape.to_shape();
-
             size_t zero_dims =
                 std::count_if(reshape_pattern.begin(), reshape_pattern.end(), [](Dimension dim) {
                     return dim.get_max_length() == 0 && dim.get_min_length() == 0;
                 });
 
-            NODE_VALIDATION_CHECK(
-                reshape_node,
-                (zero_dims && reshape_node->get_special_zero()) || minus_one_idx != -1 ||
-                    shape_size(reshape_node->get_input_shape(0)) == shape_size(output_shape),
-                "Requested output shape ",
-                output_shape,
-                " is incompatible with input shape ",
-                reshape_node->get_input_shape(0));
+            bool backward_compatible_check =
+                (zero_dims && reshape_node->get_special_zero()) || minus_one_idx != -1;
+            bool in_out_elements_equal = shape_size(reshape_node->get_input_shape(0)) ==
+                                         shape_size(output_pshape.to_shape());
+
+            NODE_VALIDATION_CHECK(reshape_node,
+                                  backward_compatible_check || in_out_elements_equal,
+                                  "Requested output shape ",
+                                  output_shape,
+                                  " is incompatible with input shape ",
+                                  reshape_node->get_input_shape(0));
         }
     }
 }
