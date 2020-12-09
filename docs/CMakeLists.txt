@@ -40,6 +40,11 @@ if(NOT ENABLE_DOCKER)
     endforeach()
 endif()
 
+set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation")
+set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation")
+set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation")
+set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation")
+
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
     find_package(Python3 COMPONENTS Interpreter)
@@ -284,8 +289,11 @@ function(build_docs)
 
     add_custom_command(TARGET ie_docs
                        POST_BUILD
-                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log ${DOCS_BUILD_DIR}/ie_docs.log
-                                                       --exclude-links ".*?(omz_|pot_|gst_|workbench_).*?"
+                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log "${DOCS_BUILD_DIR}/ie_docs.log"
+                                                                        --include_omz $<BOOL:${OMZ_DOCS_DIR}>
+                                                                        --include_wb $<BOOL:${WORKBENCH_DOCS_DIR}>
+                                                                        --include_pot $<BOOL:${POT_DOCS_DIR}>
+                                                                        --include_gst $<BOOL:${GST_DOCS_DIR}>
                        COMMENT "Parse doxygen log to find errors."
                        VERBATIM
                        )
