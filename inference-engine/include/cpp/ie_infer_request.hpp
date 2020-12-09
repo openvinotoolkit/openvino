@@ -14,6 +14,7 @@
 #include <string>
 
 #include "cpp/ie_memory_state.hpp"
+#include "ie_remote_context.hpp"
 #include "ie_iinfer_request.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
@@ -123,8 +124,9 @@ public:
         CALL_STATUS_FNC(GetBlob, name.c_str(), data);
         std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
         auto blobPtr = data.get();
+        const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
         if (blobPtr == nullptr) THROW_IE_EXCEPTION << error;
-        if (blobPtr->buffer() == nullptr) THROW_IE_EXCEPTION << error;
+        if (!remoteBlobPassed && blobPtr->buffer() == nullptr) THROW_IE_EXCEPTION << error;
         return data;
     }
 
