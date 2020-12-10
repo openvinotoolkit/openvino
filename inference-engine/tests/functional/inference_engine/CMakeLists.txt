@@ -224,11 +224,10 @@ if(UNIX)
                                                  PLUGIN_API)
     endif()
 else()
-    # TODO: enable
-    # ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
-    #                                          HEADERS_TO_SKIP "generic_ie.hpp"
-    #                                          FLAGS  "/we4996 /W4 /WX"
-    #                                          PLUGIN_API)
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
+                                             HEADERS_TO_SKIP "generic_ie.hpp"
+                                             FLAGS  "/we4996 /W4 /WX"
+                                             PLUGIN_API)
 endif()
 
 # ir serialization functional tests variables
