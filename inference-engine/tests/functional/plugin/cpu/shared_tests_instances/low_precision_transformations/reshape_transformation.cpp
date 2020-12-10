@@ -26,7 +26,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         ngraph::Shape{ 1, 3, 32 },
         { 1, 3, 4, 8 },
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ngraph::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
     },
     // 4D -> 3D
     {

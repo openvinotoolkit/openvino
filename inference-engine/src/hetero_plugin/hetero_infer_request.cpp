@@ -5,7 +5,6 @@
 #include "hetero_infer_request.hpp"
 #include "hetero_itt.hpp"
 #include <ie_blob.h>
-#include <legacy/ie_util_internal.hpp>
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
 #include <ie_algorithm.hpp>
@@ -38,9 +37,9 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
         std::tie(itBlob, emplaced) = _blobs.emplace(intermediateBlobName, Blob::Ptr{});
         if (emplaced) {
             itBlob->second = r->GetBlob(blobName);
-            if (contains(networkInputs, blobName)) {
+            if (InferenceEngine::details::contains(networkInputs, blobName)) {
                 _inputs[blobName] = itBlob->second;
-            } else if (contains(networkOutputs, blobName)) {
+            } else if (InferenceEngine::details::contains(networkOutputs, blobName)) {
                 _outputs[blobName] = itBlob->second;
             }
         } else {

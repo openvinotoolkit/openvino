@@ -79,6 +79,7 @@ set(SRC
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/roi_align.cpp
+    op_eval/roi_pooling.cpp
     op_eval/round.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
@@ -152,6 +153,7 @@ set(SRC
     type_prop/parameter.cpp
     type_prop/prelu.cpp
     type_prop/proposal.cpp
+    type_prop/psroi_pooling.cpp
     type_prop/quantize.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
@@ -162,6 +164,7 @@ set(SRC
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
+    type_prop/roi_pooling.cpp
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
@@ -233,7 +236,6 @@ endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
     list(APPEND SRC
-        backend_debug_api.cpp
         builder.cpp
         backend_api.cpp)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
@@ -301,6 +303,7 @@ set(MULTI_TEST_SRC
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/maximum.in.cpp
+    backend/max_pool.in.cpp
     backend/minimum.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -315,7 +318,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
-    backend/quantize_dequantize.in.cpp
+    backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
@@ -328,6 +331,7 @@ set(MULTI_TEST_SRC
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
+    backend/roi_pooling.in.cpp
     backend/round.in.cpp
     backend/select.in.cpp
     backend/shape_of.in.cpp
