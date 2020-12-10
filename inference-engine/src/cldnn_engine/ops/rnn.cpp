@@ -61,11 +61,7 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
     }
 }
 
-void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v4::LSTMCell>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
     p.ValidateInputs(op, {6});
     int lstm_batch_size, lstm_input_size, lstm_hidden_size;
     bool hasBias = true;
@@ -172,11 +168,7 @@ void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
     p.AddPrimitiveToProfiler(layerName, op, outputHiddenID);
 }
 
-void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v5::LSTMSequence>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v5::LSTMSequence>& op) {
     p.ValidateInputs(op, {7});
 
     std::string layerName = layer_type_name_ID(op);

@@ -57,11 +57,7 @@ static cldnn::gather::gather_axis GetGatherAxis(int32_t axis, cldnn::format inpu
     }
 }
 
-void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Gather>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather>& op) {
     p.ValidateInputs(op, {2, 3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

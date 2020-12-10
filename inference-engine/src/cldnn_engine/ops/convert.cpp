@@ -12,11 +12,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ConvertLike>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvertLike>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -29,11 +25,7 @@ void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::Node>& node) 
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateConvertOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Convert>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateConvertOp(Program& p, const std::shared_ptr<ngraph::op::v0::Convert>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

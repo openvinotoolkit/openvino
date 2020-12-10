@@ -12,12 +12,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    // v4 is derived from v0, so it can be also processed by the same method as there's no difference in attributes.
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Proposal>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
     p.ValidateInputs(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 

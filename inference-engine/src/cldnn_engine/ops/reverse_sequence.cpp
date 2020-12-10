@@ -11,11 +11,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::ReverseSequence>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReverseSequence>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

@@ -12,7 +12,6 @@
 
 namespace CLDNNPlugin {
 
-
 void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -58,20 +57,12 @@ void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
     p.InitProfileInfo(op->get_friendly_name(), op->get_type_name(), false, InferenceEngine::InferenceEngineProfileInfo::OPTIMIZED_OUT);
 }
 
-void CreateSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Split>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSplitOp(Program& p, const std::shared_ptr<ngraph::op::v1::Split>& op) {
     p.ValidateInputs(op, {2});
     CreateCommonSplitOp(p, op);
 }
 
-void CreateVariadicSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::VariadicSplit>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateVariadicSplitOp(Program& p, const std::shared_ptr<ngraph::op::v1::VariadicSplit>& op) {
     p.ValidateInputs(op, {3});
     CreateCommonSplitOp(p, op);
 }

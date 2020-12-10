@@ -19,7 +19,6 @@
 
 namespace CLDNNPlugin {
 
-
 struct ConvoltuionParameters {
     cldnn::tensor stride;
     cldnn::tensor padding;
@@ -60,11 +59,7 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
     return {stride, padding, dilation, groups};
 }
 
-void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -77,7 +72,7 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& n
     auto weightsName = inputs[1];
     // WA: For non-constant weights (such as FakeQuantize op) dimensions order is GOIYZ, but
     // the selected format is OIZYX by default.
-    if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(node->get_input_node_shared_ptr(1)) == nullptr) {
+    if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1)) == nullptr) {
         std::string reshapeName = layerName + "_cldnn_weights_reshape";
         std::string reorderName = layerName + "_cldnn_weights_reorder";
 
@@ -92,7 +87,7 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& n
                                           CldnnTensorFromIEDims(new_weights_shape));
 
         p.AddPrimitive(reshapePrim);
-        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, node);
+        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
 
         auto reorderPrim = cldnn::reorder(reorderName,
                                           reshapeName,
@@ -100,7 +95,7 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& n
                                           DataTypeFromPrecision(op->get_input_element_type(1)));
 
         p.AddPrimitive(reorderPrim);
-        p.AddInnerPrimitiveToProfiler(reorderName, layerName, node);
+        p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
 
         weightsName = reorderName;
     }
@@ -121,11 +116,7 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& n
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Convolution>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -150,11 +141,7 @@ void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& node) 
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ConvolutionBackpropData>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData>& op) {
     // 3rd input is an optional output shape
     p.ValidateInputs(op, {2, 3});
     auto inputs = p.GetInputPrimitiveIDs(op);
@@ -183,11 +170,7 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::N
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolutionBackpropData>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -216,11 +199,7 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::DeformableConvolution>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op) {
     p.ValidateInputs(op, {3});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -288,11 +267,7 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::Nod
     }
 }
 
-void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::BinaryConvolution>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

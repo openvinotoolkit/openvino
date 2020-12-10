@@ -24,11 +24,7 @@ static bool GetCenterPointBox(ngraph::op::v5::NonMaxSuppression::BoxEncodingType
     return false;
 }
 
-void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::internal::NonMaxSuppressionIEInternal>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::NonMaxSuppressionIEInternal>& op) {
     p.ValidateInputs(op, {2, 3, 4, 5, 6});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 

@@ -53,27 +53,15 @@ void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) 
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReshapeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Reshape>& op) {
     CreateCommonReshapeOp(p, op);
 }
 
-void CreateSqueezeOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Squeeze>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSqueezeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Squeeze>& op) {
     CreateCommonReshapeOp(p, op);
 }
 
-void CreateUnsqueezeOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Unsqueeze>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateUnsqueezeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Unsqueeze>& op) {
     CreateCommonReshapeOp(p, op);
 }
 

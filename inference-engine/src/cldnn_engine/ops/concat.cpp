@@ -38,11 +38,7 @@ static cldnn::concatenation::concatenation_axis GetConcatAxis(int32_t axis, size
     return cldnn::concatenation::concatenation_axis::along_f;  // shouldn't get here
 }
 
-void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Concat>& op) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     auto concatPrim = cldnn::concatenation(

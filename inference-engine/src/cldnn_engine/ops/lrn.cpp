@@ -20,11 +20,7 @@ static cldnn::lrn_norm_region GetNormRegion(std::vector<int64_t> axis_value) {
     }
 }
 
-void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::LRN>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::LRN>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

@@ -25,10 +25,6 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 }
 
 void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    if (std::dynamic_pointer_cast<ngraph::op::v3::Broadcast>(node) == nullptr &&
-        std::dynamic_pointer_cast<ngraph::op::v1::Broadcast>(node) == nullptr)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
     CreateCommonBroadcastOp(p, node);
 }
 

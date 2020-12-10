@@ -19,8 +19,6 @@
 
 #include "api/data.hpp"
 
-using namespace InferenceEngine;
-
 namespace CLDNNPlugin {
 
 struct ConstProperties {
@@ -52,11 +50,7 @@ static ConstProperties getConstProperties(const std::shared_ptr<ngraph::op::Cons
     return {false, false, false};
 }
 
-void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
     auto constDims = op->get_shape();
     cldnn::tensor constTensor;
     switch (constDims.size()) {
@@ -164,10 +158,9 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
     if (std::accumulate(constDims.begin(), constDims.end(), 1, std::multiplies<size_t>()) == 0)
         constTensor = cldnn::tensor{1};
 
-    cldnn::layout constLayout = cldnn::layout(
-        DataTypeFromPrecision(op->get_output_element_type(0)),
-        constFormat,
-        constTensor);
+    cldnn::layout constLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)),
+                                              constFormat,
+                                              constTensor);
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;

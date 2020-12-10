@@ -13,12 +13,8 @@ using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
 
-void CreateResultOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Result>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
-    InferenceEngine::OutputsDataMap networkOutputs = p.GetNetworkOutputs();
+void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
+    OutputsDataMap networkOutputs = p.GetNetworkOutputs();
     p.ValidateInputs(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
@@ -34,22 +30,22 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
         THROW_IE_EXCEPTION << "Can't find output " << inputID << " in OutputsDataMap";
     }
     std::string originalOutName = it->first;
-    InferenceEngine::DataPtr outputData = it->second;
+    DataPtr outputData = it->second;
 
     auto inputs = p.GetInputPrimitiveIDs(op);
     const auto outputDesc = outputData->getTensorDesc();
     const auto outputlayout = outputDesc.getLayout();
 
     // TODO: add precision check once there's an outputInfo object
-    if (outputlayout != InferenceEngine::NCHW &&
+    if (outputlayout != NCHW &&
         // TODO: change 6d case once new layout added in IE
-        outputlayout != InferenceEngine::BLOCKED &&
-        outputlayout != InferenceEngine::NCDHW &&
-        outputlayout != InferenceEngine::NHWC &&
-        outputlayout != InferenceEngine::CHW &&
-        outputlayout != InferenceEngine::NC &&
-        outputlayout != InferenceEngine::C &&
-        outputlayout != InferenceEngine::SCALAR) {
+        outputlayout != BLOCKED &&
+        outputlayout != NCDHW &&
+        outputlayout != NHWC &&
+        outputlayout != CHW &&
+        outputlayout != NC &&
+        outputlayout != C &&
+        outputlayout != SCALAR) {
         THROW_IE_EXCEPTION << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
     }
 

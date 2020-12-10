@@ -12,7 +12,7 @@
 
 namespace CLDNNPlugin {
 
-static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int axis, unsigned rank) {
+static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t rank) {
     if (axis < 0)
         axis += rank;
     if (axis < 0 || axis >= rank)
@@ -20,7 +20,7 @@ static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int axis, unsigned rank
 
     // Difference in dimension ordering between IE and clDNN,
     // reverse spatial dimensions after batch and feature.
-    unsigned cldnn_axis = axis;
+    uint32_t cldnn_axis = axis;
     if (axis >= 2) {
         auto spatial_axis = axis - 2;
         // Default and minimum number of dimensions is 4
@@ -41,11 +41,7 @@ static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int axis, unsigned rank
     return cldnn::cum_sum::cum_sum_axis::along_f;  // shouldn't get here
 }
 
-void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::CumSum>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& op) {
     p.ValidateInputs(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -63,12 +59,11 @@ void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
         axis = axes_constant->cast_vector<int32_t>()[0];
     }
 
-    auto primitive = cldnn::cum_sum(
-            layerName,
-            inputPrimitives[0],
-            GetCumSumAxis(axis, rank),
-            exclusive,
-            reverse);
+    auto primitive = cldnn::cum_sum(layerName,
+                                    inputPrimitives[0],
+                                    GetCumSumAxis(axis, rank),
+                                    exclusive,
+                                    reverse);
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

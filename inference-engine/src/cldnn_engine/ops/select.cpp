@@ -13,11 +13,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Select>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& op) {
     p.ValidateInputs(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -31,19 +27,6 @@ void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
         broadcast_type.m_type != ngraph::op::AutoBroadcastType::NUMPY) {
         THROW_IE_EXCEPTION << "Unsupported broadcast type (" << broadcast_type.m_type << ") in layer " + op->get_friendly_name();
     }
-
-    auto selectSpecificTensor = [](const InferenceEngine::SizeVector& dims, int def = 1) {
-        switch (dims.size()) {
-        case 0: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
-        case 1: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(def), cldnn::spatial(def, def));
-        case 2: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(def, def));
-        case 3: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(def, dims[2]));
-        case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
-        case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
-        case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-        default: THROW_IE_EXCEPTION << "Invalid dimensions size(" << dims.size() << ") for Select layer";
-        }
-    };
 
     if (broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY) {
         // Preprocess inputs
@@ -72,7 +55,7 @@ void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
                 // Extend input dimensions to the same size as output dimensions by prepending ones
                 inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
 
-                auto targetShape = selectSpecificTensor(inputDims);
+                auto targetShape = CldnnTensorFromIEDims(inputDims);
 
                 auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
 

@@ -22,11 +22,7 @@ static cldnn::depth_to_space_mode GetDepthMode(ngraph::op::v0::DepthToSpace::Dep
     return cldnn::depth_to_space_mode::blocks_first;
 }
 
-void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::DepthToSpace>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v0::DepthToSpace>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

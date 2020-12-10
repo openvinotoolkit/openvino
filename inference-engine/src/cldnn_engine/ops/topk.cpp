@@ -39,11 +39,7 @@ static cldnn::arg_max_min::axis_name GetAxis(int32_t axis, size_t in_rank) {
     return cldnn::arg_max_min::axis_name::batch;
 }
 
-void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::TopK>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

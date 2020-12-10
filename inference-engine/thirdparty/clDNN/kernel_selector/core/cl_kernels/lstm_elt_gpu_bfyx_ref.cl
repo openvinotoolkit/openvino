@@ -15,9 +15,6 @@
 
 #include "include/include_all.cl"
 
-#define ACTIVATION_LOGISTIC(input)                      (UNIT_VAL_ONE/(UNIT_VAL_ONE + exp(-input)))
-#define ACTIVATION_HYPERBOLIC_TAN(input)                (tanh(input))
-
 // tempGEMM = [ batch, 1, direction, 4 * hidden_size ]
 // cell     = [ batch, 1, direction, hidden_size ] optional
 // output   = [ batch, 1, direction, hidden_size ] output

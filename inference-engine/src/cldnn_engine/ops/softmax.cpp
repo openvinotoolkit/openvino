@@ -13,7 +13,7 @@
 
 namespace CLDNNPlugin {
 
-static cldnn::softmax::dimension_t toSoftmaxAxis(int64_t axis, size_t rank) {
+static cldnn::softmax::dimension_t GetSoftmaxAxis(int64_t axis, size_t rank) {
     switch (axis) {
     // FIXME: it seems that axis=0 should correspond to normalize_b;
     case 0: return cldnn::softmax::normalize_all;
@@ -35,26 +35,18 @@ static cldnn::softmax::dimension_t toSoftmaxAxis(int64_t axis, size_t rank) {
     return cldnn::softmax::normalize_fyx;
 }
 
-void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Softmax>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::Softmax>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     auto softmaxPrim = cldnn::softmax(layerName,
                                       inputPrimitives[0],
-                                      toSoftmaxAxis(op->get_axis(), op->get_input_shape(0).size()));
+                                      GetSoftmaxAxis(op->get_axis(), op->get_input_shape(0).size()));
     p.AddPrimitive(softmaxPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v5::LogSoftmax>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5::LogSoftmax>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -66,7 +58,7 @@ void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
 
     auto softmaxPrim = cldnn::softmax(layerNameSoftmax,
                                       inputPrimitives[0],
-                                      toSoftmaxAxis(static_cast<size_t>(axis), op->get_input_shape(0).size()));
+                                      GetSoftmaxAxis(static_cast<size_t>(axis), op->get_input_shape(0).size()));
 
     auto logPrim = cldnn::activation(layerName, layerNameSoftmax, cldnn::activation_func::log);
 

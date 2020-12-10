@@ -16,11 +16,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v3::EmbeddingBagOffsetsSum>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::op::v3::EmbeddingBagOffsetsSum>& op) {
     p.ValidateInputs(op, {3, 4, 5});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -72,11 +68,7 @@ void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngraph::No
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v3::EmbeddingBagPackedSum>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngraph::op::v3::EmbeddingBagPackedSum>& op) {
     p.ValidateInputs(op, {2, 3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -112,11 +104,7 @@ void CreateEmbeddingBagPackedSumOp(Program& p, const std::shared_ptr<ngraph::Nod
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v3::EmbeddingSegmentsSum>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngraph::op::v3::EmbeddingSegmentsSum>& op) {
     p.ValidateInputs(op, {4, 5, 6});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

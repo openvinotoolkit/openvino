@@ -4,7 +4,6 @@
 
 #ifndef REGISTER_FACTORY
 #error "REGISTER_FACTORY is not defined"
-#define REGISTER_FACTORY(op_version, op_name)
 #endif
 
 // ------------------------------ Supported v0 ops ------------------------------ //
@@ -91,7 +90,7 @@ REGISTER_FACTORY(v0, Unsqueeze);
 // REGISTER_FACTORY(v0, ShapeOf);
 // REGISTER_FACTORY(v0, TensorIterator);
 
-// ------------------------------ Supported v0 ops ------------------------------ //
+// ------------------------------ Supported v1 ops ------------------------------ //
 REGISTER_FACTORY(v1, Add);
 REGISTER_FACTORY(v1, AvgPool);
 REGISTER_FACTORY(v1, BatchToSpace);
@@ -158,9 +157,9 @@ REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
 REGISTER_FACTORY(v3, ExtractImagePatches);
 // REGISTER_FACTORY(v3, NonMaxSuppression); Supported via v3 -> v5 internal conversion
-REGISTER_FACTORY(v3, ScatterUpdate);
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
+// REGISTER_FACTORY(v3, ScatterUpdate); // There is the scatter_update primitive, but seems like it produces wrong results
 // REGISTER_FACTORY(v3, Assign);
 // REGISTER_FACTORY(v3, Bucketize);
 // REGISTER_FACTORY(v3, GRUCell);

@@ -15,24 +15,21 @@ using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
 
-void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Parameter>& op) {
     auto networkInputs = p.GetNetworkInputs();
     if (networkInputs.find(op->get_friendly_name()) == networkInputs.end()) {
         THROW_IE_EXCEPTION << "Can't find input " << op->get_friendly_name() << " in InputsDataMap";
     }
+
     auto inputInfo = networkInputs.at(op->get_friendly_name());
-     // first create and add the input layout
+    // first create and add the input layout
     const auto inputDesc = inputInfo->getTensorDesc();
     const auto inputDims = inputDesc.getDims();
     Layout l = inputDesc.getLayout();
     Precision ip = inputDesc.getPrecision();
 
     cldnn::format inputFormat = cldnn::format::bfyx;
-    if (InferenceEngine::Layout::BLOCKED == l && 6 == inputDims.size()) {
+    if (Layout::BLOCKED == l && 6 == inputDims.size()) {
         inputFormat = cldnn::format::bfwzyx;
     } else {
         inputFormat = FormatFromLayout(l);
@@ -40,8 +37,8 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
 
     cldnn::tensor dataTensor;
     cldnn::tensor::value_type batch = (p.m_max_batch <= 1)
-                                      ? (inputDims.size() > 3 ? TensorValue(inputDims[0]) : 1)
-                                      : TensorValue(p.m_curBatch);
+                                    ? (inputDims.size() > 3 ? TensorValue(inputDims[0]) : 1)
+                                    : TensorValue(p.m_curBatch);
     switch (inputDims.size()) {
     case 6:
         dataTensor = cldnn::tensor(cldnn::batch(batch),
@@ -49,7 +46,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
                                    cldnn::spatial(inputDims[5], inputDims[4], inputDims[3], inputDims[2]));
         break;
     case 5:
-        if (InferenceEngine::Layout::NCDHW == l) {
+        if (Layout::NCDHW == l) {
             dataTensor = cldnn::tensor(cldnn::batch(batch),
                                        cldnn::feature(inputDims[1]),
                                        cldnn::spatial(inputDims[4], inputDims[3], inputDims[2]));
@@ -58,10 +55,10 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
         }
         break;
     case 4:
-        if (InferenceEngine::Layout::NCHW == l || InferenceEngine::Layout::CHW == l) {
+        if (Layout::NCHW == l || Layout::CHW == l) {
             dataTensor = cldnn::tensor(batch,
                                        TensorValue(inputDims[1]), TensorValue(inputDims[3]), TensorValue(inputDims[2]));
-        } else if (InferenceEngine::Layout::NHWC == l) {
+        } else if (Layout::NHWC == l) {
             dataTensor = cldnn::tensor(batch,
                                        TensorValue(inputDims[1]), TensorValue(inputDims[3]), TensorValue(inputDims[2]));
         } else {
@@ -69,14 +66,14 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
         }
         break;
     case 3:
-        if (InferenceEngine::Layout::CHW == l) {
+        if (Layout::CHW == l) {
             dataTensor = cldnn::tensor(TensorValue(inputDims[0]), TensorValue(inputDims[1]), 1, TensorValue(inputDims[2]));
         } else {
             THROW_IE_EXCEPTION << "Unsupported layout (" << l << ") in 3D input " + inputInfo->name();
         }
         break;
     case 2:
-        if (InferenceEngine::Layout::NCHW == l || InferenceEngine::NC == l) {
+        if (Layout::NCHW == l || NC == l) {
             dataTensor = cldnn::tensor(TensorValue(inputDims[0]), TensorValue(inputDims[1]), 1, 1);
         } else {
             THROW_IE_EXCEPTION << "Unsupported layout (" << l << ") in 2D input " << inputInfo->name();
@@ -134,8 +131,8 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
         default:
             THROW_IE_EXCEPTION << "Missing batch dimensions in input image";
         }
-        const TensorDesc desc(Precision(Precision::FP32), meanDims, TensorDesc::getLayoutByDims(meanDims));
-        InferenceEngine::TBlob<float> meanBlob(desc);
+        const TensorDesc desc(Precision::FP32, meanDims, TensorDesc::getLayoutByDims(meanDims));
+        TBlob<float> meanBlob(desc);
         meanBlob.allocate();
         auto meanBlobData = meanBlob.data();
         for (size_t c = 0; c < meanChannels; c++) {
@@ -149,7 +146,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
             }
         }
         // then create a data primitive for the mean values
-        auto meanBlobPtr = std::make_shared<InferenceEngine::TBlob<float>>(meanBlob);
+        auto meanBlobPtr = std::make_shared<TBlob<float>>(meanBlob);
 
         // mean values will use external format (sub in the input format before convert to new format)
         cldnn::tensor meanBlobTensor(networkInputLayout.size);

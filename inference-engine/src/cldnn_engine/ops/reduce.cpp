@@ -97,75 +97,39 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
     }
 }
 
-void CreateReduceMaxOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ReduceMax>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceMaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMax>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::max, op->get_keep_dims());
 }
 
-void CreateReduceLogicalAndOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ReduceLogicalAnd>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceLogicalAndOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceLogicalAnd>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::logical_and, op->get_keep_dims());
 }
 
-void CreateReduceLogicalOrOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ReduceLogicalOr>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceLogicalOrOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceLogicalOr>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::logical_or, op->get_keep_dims());
 }
 
-void CreateReduceMeanOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ReduceMean>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceMeanOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMean>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::mean, op->get_keep_dims());
 }
 
-void CreateReduceMinOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ReduceMin>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceMinOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMin>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::min, op->get_keep_dims());
 }
 
-void CreateReduceProdOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ReduceProd>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceProdOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceProd>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::prod, op->get_keep_dims());
 }
 
-void CreateReduceSumOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::ReduceSum>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceSumOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceSum>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::sum, op->get_keep_dims());
 }
 
-void CreateReduceL1Op(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v4::ReduceL1>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceL1Op(Program& p, const std::shared_ptr<ngraph::op::v4::ReduceL1>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::l1, op->get_keep_dims());
 }
 
-void CreateReduceL2Op(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v4::ReduceL2>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReduceL2Op(Program& p, const std::shared_ptr<ngraph::op::v4::ReduceL2>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::l2, op->get_keep_dims());
 }
 

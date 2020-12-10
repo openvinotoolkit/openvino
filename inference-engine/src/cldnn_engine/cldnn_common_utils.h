@@ -11,9 +11,6 @@
 
 #include "ngraph/type/element_type.hpp"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
-
 namespace CLDNNPlugin {
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
@@ -33,27 +30,26 @@ const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, i
 
 inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     switch (p) {
-    case Precision::I16:
-    case Precision::U16:
-    case Precision::FP32:
+    case InferenceEngine::Precision::I16:
+    case InferenceEngine::Precision::U16:
+    case InferenceEngine::Precision::FP32:
         return cldnn::data_types::f32;
-    case Precision::FP16:
+    case InferenceEngine::Precision::FP16:
         return cldnn::data_types::f16;
-    case Precision::U8:
+    case InferenceEngine::Precision::U8:
         return cldnn::data_types::u8;
-    case Precision::I8:
+    case InferenceEngine::Precision::I8:
         return cldnn::data_types::i8;
-    case Precision::I32:
+    case InferenceEngine::Precision::I32:
         return cldnn::data_types::i32;
-    case Precision::I64:
+    case InferenceEngine::Precision::I64:
         return cldnn::data_types::i64;
-    case Precision::BIN:
+    case InferenceEngine::Precision::BIN:
         return cldnn::data_types::bin;
-    case Precision::BOOL:
+    case InferenceEngine::Precision::BOOL:
         return cldnn::data_types::i8;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << p.name() << " precision";
-        break;
     }
 }
 
@@ -79,7 +75,6 @@ inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
         return cldnn::data_types::bin;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << t.get_type_name()<< " precision";
-        break;
     }
 }
 
@@ -100,7 +95,6 @@ inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
         return cldnn::format::byxf;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << l << " layout";
-        break;
     }
 }
 
@@ -126,7 +120,6 @@ inline cldnn::format FormatFromTensorDesc(InferenceEngine::TensorDesc desc) {
         return cldnn::format::byxf;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << desc.getLayout() << " layout";
-        break;
     }
 }
 
@@ -143,7 +136,6 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
         return cldnn::format::nv12;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << l << " image layout";
-        break;
     }
 }
 

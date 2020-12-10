@@ -52,11 +52,7 @@ static std::pair<ngraph::Shape, ngraph::Shape> get_aligned_shapes(const ngraph::
     return {shape_a_aligned, shape_b_aligned};
 }
 
-void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::MatMul>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

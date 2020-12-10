@@ -32,8 +32,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
-                                  cldnn::eltwise_mode mode) {
+void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::eltwise_mode mode) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -78,143 +77,74 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                                       out_dt);
 
     p.AddPrimitive(eltwisePrim);
-
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateAddOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Add>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateAddOp(Program& p, const std::shared_ptr<ngraph::op::v1::Add>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::sum);
 }
 
-void CreateMultiplyOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Multiply>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateMultiplyOp(Program& p, const std::shared_ptr<ngraph::op::v1::Multiply>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::prod);
 }
 
-void CreateMaximumOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Maximum>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateMaximumOp(Program& p, const std::shared_ptr<ngraph::op::v1::Maximum>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::max);
 }
 
-void CreateMinimumOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Minimum>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateMinimumOp(Program& p, const std::shared_ptr<ngraph::op::v1::Minimum>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::min);
 }
 
-void CreateSubtractOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Subtract>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSubtractOp(Program& p, const std::shared_ptr<ngraph::op::v1::Subtract>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::sub);
 }
 
-void CreateDivideOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Divide>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateDivideOp(Program& p, const std::shared_ptr<ngraph::op::v1::Divide>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::div);
 }
 
-void CreateSquaredDifferenceOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::SquaredDifference>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSquaredDifferenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::SquaredDifference>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::squared_diff);
 }
 
-void CreateEqualOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Equal>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::Equal>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::eq);
 }
 
-void CreateNotEqualOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::NotEqual>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateNotEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::NotEqual>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::ne);
 }
 
-void CreateLessOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Less>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLessOp(Program& p, const std::shared_ptr<ngraph::op::v1::Less>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::lt);
 }
 
-void CreateLessEqualOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::LessEqual>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLessEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::LessEqual>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::le);
 }
 
-void CreateGreaterOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Greater>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateGreaterOp(Program& p, const std::shared_ptr<ngraph::op::v1::Greater>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::gt);
 }
 
-void CreateGreaterEqualOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::GreaterEqual>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateGreaterEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::GreaterEqual>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::ge);
 }
 
-void CreateLogicalAndOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::LogicalAnd>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLogicalAndOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalAnd>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::logic_and);
 }
 
-void CreateLogicalOrOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::LogicalOr>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLogicalOrOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalOr>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::logic_or);
 }
 
-void CreateLogicalXorOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::LogicalXor>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLogicalXorOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalXor>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::logic_xor);
 }
 
-void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Power>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op) {
     auto power_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (power_node) {
         if (ngraph::shape_size(power_node->get_output_shape(0)) == 1) {
@@ -229,11 +159,7 @@ void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
 }
 
 
-void CreateFloorModOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::FloorMod>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateFloorModOp(Program& p, const std::shared_ptr<ngraph::op::v1::FloorMod>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::floor_mod);
 }
 

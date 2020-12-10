@@ -46,7 +46,7 @@
 namespace CLDNNPlugin {
 
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
-                                 cldnn::activation_func func, cldnn::activation_additional_params params) {
+                          cldnn::activation_func func, cldnn::activation_additional_params params) {
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     auto activationPrimitive = cldnn::activation(layerName, inputs[0], func, params);
@@ -54,44 +54,24 @@ void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateTanhOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Tanh>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateTanhOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tanh>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::hyperbolic_tan, {});
 }
 
-void CreateEluOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Elu>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateEluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Elu>& op) {
     auto alpha = static_cast<float>(op->get_alpha());
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::elu, {alpha});
 }
 
-void CreateSigmoidOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Sigmoid>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSigmoidOp(Program& p, const std::shared_ptr<ngraph::op::v0::Sigmoid>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::logistic, {});
 }
 
-void CreateReluOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Relu>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Relu>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu, {});
 }
 
-void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::PRelu>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRelu>& op) {
     p.ValidateInputs(op, {2});
     auto slope_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (!slope_node) {
@@ -112,125 +92,65 @@ void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
     }
 }
 
-void CreateClampOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Clamp>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateClampOp(Program& p, const std::shared_ptr<ngraph::op::v0::Clamp>& op) {
     float min = static_cast<float>(op->get_min());
     float max = static_cast<float>(op->get_max());
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::clamp, {min, max});
 }
 
-void CreateExpOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Exp>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateExpOp(Program& p, const std::shared_ptr<ngraph::op::v0::Exp>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::exp, {});
 }
 
-void CreateLogicalNotOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::LogicalNot>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLogicalNotOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalNot>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::negation, {});
 }
 
-void CreateAsinOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Asin>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateAsinOp(Program& p, const std::shared_ptr<ngraph::op::v0::Asin>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::asin, {});
 }
 
-void CreateAsinhOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v3::Asinh>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateAsinhOp(Program& p, const std::shared_ptr<ngraph::op::v3::Asinh>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::asinh, {});
 }
 
-void CreateAcosOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Acos>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateAcosOp(Program& p, const std::shared_ptr<ngraph::op::v0::Acos>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::acos, {});
 }
 
-void CreateAcoshOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v3::Acosh>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateAcoshOp(Program& p, const std::shared_ptr<ngraph::op::v3::Acosh>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::acosh, {});
 }
 
-void CreateAtanOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Atan>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateAtanOp(Program& p, const std::shared_ptr<ngraph::op::v0::Atan>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::atan, {});
 }
 
-void CreateAtanhOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v3::Atanh>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateAtanhOp(Program& p, const std::shared_ptr<ngraph::op::v3::Atanh>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::atanh, {});
 }
 
-void CreateAbsOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Abs>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateAbsOp(Program& p, const std::shared_ptr<ngraph::op::v0::Abs>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::abs, {});
 }
 
-void CreateFloorOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Floor>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateFloorOp(Program& p, const std::shared_ptr<ngraph::op::v0::Floor>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::floor, {});
 }
 
-void CreateCeilingOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Ceiling>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateCeilingOp(Program& p, const std::shared_ptr<ngraph::op::v0::Ceiling>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::ceil, {});
 }
 
-void CreateSqrtOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Sqrt>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSqrtOp(Program& p, const std::shared_ptr<ngraph::op::v0::Sqrt>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::sqrt, {});
 }
 
-void CreateErfOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Erf>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateErfOp(Program& p, const std::shared_ptr<ngraph::op::v0::Erf>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::erf, {});
 }
 
-void CreateHardSigmoidOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::HardSigmoid>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateHardSigmoidOp(Program& p, const std::shared_ptr<ngraph::op::v0::HardSigmoid>& op) {
     p.ValidateInputs(op, {3});
     auto alpha_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto beta_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
@@ -248,27 +168,15 @@ void CreateHardSigmoidOp(Program& p, const std::shared_ptr<ngraph::Node>& node) 
     }
 }
 
-void CreateLogOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Log>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateLogOp(Program& p, const std::shared_ptr<ngraph::op::v0::Log>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::log, {});
 }
 
-void CreateNegativeOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Negative>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateNegativeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Negative>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::negative, {});
 }
 
-void CreateSeluOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Selu>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSeluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Selu>& op) {
     p.ValidateInputs(op, {3});
     auto alpha_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto lambda_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
@@ -286,107 +194,55 @@ void CreateSeluOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
     }
 }
 
-void CreateSoftPlusOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v4::SoftPlus>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSoftPlusOp(Program& p, const std::shared_ptr<ngraph::op::v4::SoftPlus>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::softplus, {});
 }
 
-void CreateTanOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Tan>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateTanOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tan>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::tan, {});
 }
 
-void CreateSinOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Sin>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSinOp(Program& p, const std::shared_ptr<ngraph::op::v0::Sin>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::sin, {});
 }
 
-void CreateSinhOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Sinh>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSinhOp(Program& p, const std::shared_ptr<ngraph::op::v0::Sinh>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::sinh, {});
 }
 
-void CreateCosOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Cos>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateCosOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cos>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::cos, {});
 }
 
-void CreateCoshOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Cosh>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateCoshOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cosh>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::cosh, {});
 }
 
-void CreateSwishOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v4::Swish>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSwishOp(Program& p, const std::shared_ptr<ngraph::op::v4::Swish>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {});
 }
 
-void CreateHSwishOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v4::HSwish>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateHSwishOp(Program& p, const std::shared_ptr<ngraph::op::v4::HSwish>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::hswish, {});
 }
 
-void CreateMishOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v4::Mish>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateMishOp(Program& p, const std::shared_ptr<ngraph::op::v4::Mish>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::mish, {});
 }
 
-void CreateGeluOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Gelu>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateGeluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Gelu>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::gelu, {});
 }
 
-void CreateSignOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::Sign>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateSignOp(Program& p, const std::shared_ptr<ngraph::op::v0::Sign>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::sign, {});
 }
 
-void CreateHSigmoidOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v5::HSigmoid>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateHSigmoidOp(Program& p, const std::shared_ptr<ngraph::op::v5::HSigmoid>& op) {
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::hsigmoid, {});
 }
 
-void CreateRoundOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v5::Round>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateRoundOp(Program& p, const std::shared_ptr<ngraph::op::v5::Round>& op) {
     auto func = cldnn::activation_func::none;
     switch (op->get_mode()) {
         case ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN : func = cldnn::activation_func::round_half_to_even; break;

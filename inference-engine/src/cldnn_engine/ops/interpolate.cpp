@@ -65,7 +65,7 @@ static cldnn::resample_type GetResampleType(ngraph::op::v4::Interpolate::Interpo
     THROW_IE_EXCEPTION << "Unknown interpolation mode: " << static_cast<int>(mode);
 }
 
-static cldnn::resample::resample_axis GetInterpolationAxis(int axis, unsigned sz) {
+static cldnn::resample::resample_axis GetInterpolationAxis(int32_t axis, uint32_t sz) {
     if (axis < 0)
         axis += sz;
     if (axis < 0 || axis >= sz)
@@ -73,7 +73,7 @@ static cldnn::resample::resample_axis GetInterpolationAxis(int axis, unsigned sz
 
     // Difference in dimension ordering between IE and clDNN,
     // reverse spatial dimensions after batch and feature.
-    unsigned cldnn_axis = axis;
+    uint32_t cldnn_axis = axis;
     if (axis >= 2) {
         auto spatial_axis = axis - 2;
         // Default and minimum number of dimensions is 4
@@ -100,11 +100,7 @@ static cldnn::resample::resample_axis GetInterpolationAxis(int axis, unsigned sz
     THROW_IE_EXCEPTION << "Unsupported Interpolate axis: " << axis;
 }
 
-void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v4::Interpolate>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
     p.ValidateInputs(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -170,14 +166,14 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::Node>& node) 
             THROW_IE_EXCEPTION << "mode 'linear_onnx' supports only axes with size 2 or equal to input rank";
         bool correctAxes =
             ((axes[0] == cldnn::resample::resample_axis::along_b) &&
-                (axes[1] == cldnn::resample::resample_axis::along_f)) ||
+             (axes[1] == cldnn::resample::resample_axis::along_f)) ||
             ((axes[0] == cldnn::resample::resample_axis::along_y) &&
-                (axes[1] == cldnn::resample::resample_axis::along_x));
+             (axes[1] == cldnn::resample::resample_axis::along_x));
         if (axes.size() == 4 && inputRank == 4) {
             correctAxes = axes[0] == cldnn::resample::resample_axis::along_b &&
-                            axes[1] == cldnn::resample::resample_axis::along_f &&
-                            axes[2] == cldnn::resample::resample_axis::along_y &&
-                            axes[3] == cldnn::resample::resample_axis::along_x;
+                          axes[1] == cldnn::resample::resample_axis::along_f &&
+                          axes[2] == cldnn::resample::resample_axis::along_y &&
+                          axes[3] == cldnn::resample::resample_axis::along_x;
         }
         if (!correctAxes)
             THROW_IE_EXCEPTION <<

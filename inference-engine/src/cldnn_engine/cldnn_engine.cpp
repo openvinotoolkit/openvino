@@ -346,6 +346,15 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     }
 };
 
+void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const {
+    auto device_info = GetDeviceInfo(params);
+    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
+    conf.UpdateFromMap(params);
+    if (conf.enableDynamicBatch) {
+        conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
+    }
+}
+
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                const std::map<std::string, std::string> &config) {
     // verification of supported input
@@ -353,13 +362,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     check_inputs(_networkInputs);
 
     CLDNNPlugin::Config conf = _impl->m_config;
-    auto device_info = GetDeviceInfo(config);
-    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
-    conf.UpdateFromMap(config);
-
-    if (conf.enableDynamicBatch) {
-        conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
-    }
+    UpdateConfig(conf, network, config);
 
     CLDNNRemoteCLContext::Ptr context;
 
@@ -408,13 +411,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
-    auto device_info = GetDeviceInfo(config);
-    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
-    conf.UpdateFromMap(config);
-
-    if (conf.enableDynamicBatch) {
-        conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
-    }
+    UpdateConfig(conf, network, config);
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
@@ -454,9 +451,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                                              const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
     CLDNNPlugin::Config conf = _impl->m_config;
-    auto device_info = GetDeviceInfo(config);
-    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
-    conf.UpdateFromMap(config);
+    UpdateConfig(conf, network, config);
 
     Program prog;
     auto function = network.getFunction();

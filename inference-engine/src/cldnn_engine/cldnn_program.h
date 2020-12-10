@@ -18,8 +18,6 @@
 #include <api/engine.hpp>
 #include <api/topology.hpp>
 
-#define INVALID_OP_MESSAGE std::string("Invalid ngraph Node type passed into ") + __PRETTY_FUNCTION__
-
 // Forward declarations for cldnn part
 namespace cldnn {
 enum class activation_func;
@@ -34,12 +32,15 @@ class Node;
 class DiscreteTypeInfo;
 }  // namespace ngraph
 
-#define REGISTER_FACTORY_IMPL(op_version, op_name)              \
-void __register ## _ ## op_name ## _ ## op_version() {          \
-    Program::RegisterFactory<ngraph::op::op_version::op_name>(  \
-    [](Program& p, const std::shared_ptr<ngraph::Node>& op) {   \
-        Create##op_name##Op(p, op);                             \
-       });                                                      \
+#define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
+void __register ## _ ## op_name ## _ ## op_version() {                                            \
+    Program::RegisterFactory<ngraph::op::op_version::op_name>(                                    \
+    [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                     \
+        auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name>(op);          \
+        if (!op_casted)                                                                           \
+            THROW_IE_EXCEPTION << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__; \
+        Create##op_name##Op(p, op_casted);                                                        \
+       });                                                                                        \
 }
 
 namespace CLDNNPlugin {

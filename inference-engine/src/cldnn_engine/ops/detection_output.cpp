@@ -26,11 +26,7 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
     return cldnn::prior_box_code_type::corner;
 }
 
-void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v0::DetectionOutput>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op) {
     p.ValidateInputs(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

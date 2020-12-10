@@ -32,7 +32,7 @@ class CLDNNGraph {
 public:
     typedef std::shared_ptr<CLDNNGraph> Ptr;
 
-    CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
+    CLDNNGraph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
     InferenceEngine::CNNNetwork GetExecGraphInfo();
 
@@ -42,7 +42,7 @@ public:
     void UpdatePerfStatistics();
 
     const Config& getConfig() const { return m_config; }
-    gpu::ClContext::Ptr GetContext() { return m_context; }
+    InferenceEngine::gpu::ClContext::Ptr GetContext() { return m_context; }
     std::shared_ptr<const cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
     int GetMaxDynamicBatchSize() const { return getConfig().max_dynamic_batch; }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
@@ -56,7 +56,7 @@ protected:
     std::string m_networkName;
     Config m_config;
 
-    gpu::ClContext::Ptr m_context;
+    InferenceEngine::gpu::ClContext::Ptr m_context;
     std::vector<std::shared_ptr<cldnn::network>> m_networks;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;

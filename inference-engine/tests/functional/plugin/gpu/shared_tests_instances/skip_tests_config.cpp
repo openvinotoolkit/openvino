@@ -42,7 +42,6 @@ std::vector<std::string> disabledTestPatterns() {
             // These test cases might fail due to FP16 overflow
             R"(.*(LSTM).*activations=\(relu.*netPRC=FP16.*)",
 
-
             // Unknown issues
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",

@@ -38,11 +38,7 @@ static std::vector<int32_t> GetPermuteOrder(const ngraph::CoordinateDiff& ie_ord
     return cldnn_order;
 }
 
-void CreatePadOp(Program& p, const std::shared_ptr<ngraph::Node>& node) {
-    auto op = std::dynamic_pointer_cast<ngraph::op::v1::Pad>(node);
-    if (!op)
-        THROW_IE_EXCEPTION << INVALID_OP_MESSAGE;
-
+void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
     p.ValidateInputs(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
