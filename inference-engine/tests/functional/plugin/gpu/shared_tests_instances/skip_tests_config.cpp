@@ -39,6 +39,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(GRUCellTest).*)",
             R"(.*(RNNSequenceTest).*)",
             R"(.*(GRUSequenceTest).*)",
+            // These test cases might fail due to FP16 overflow
+            R"(.*(LSTM).*activations=\(relu.*netPRC=FP16.*)",
+
 
             // Unknown issues
             R"(.*(smoke_DetectionOutput3In).*)",

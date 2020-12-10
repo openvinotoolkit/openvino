@@ -20,6 +20,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <generic_ie.hpp>
 #include <ie_ngraph_utils.hpp>
 
@@ -121,143 +122,147 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                                   const CLDNNPlugin::Config& config) const {
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+
     if (clonedNetwork.getFunction()) {
         auto nGraphFunc = clonedNetwork.getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-        // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
-        manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
-        manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
-        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        {
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::InitNodeInfo>();
+            manager.register_pass<ngraph::pass::CommonOptimizations>();
+            manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
+            manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+            manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
-        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-        manager.register_pass<ngraph::pass::GRUCellDecomposition>();
-        manager.register_pass<ngraph::pass::RNNCellDecomposition>();
-        manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-        manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-        manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
-        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+            manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+            manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+            manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+            manager.register_pass<ngraph::pass::RNNCellDecomposition>();
+            manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+            manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+            manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+            manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
+            manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
+            manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+            manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
 
-        std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
-                {ngraph::element::u64, ngraph::element::i32},
-                {ngraph::element::u16, ngraph::element::i32},
-                {ngraph::element::u32, ngraph::element::i32},
-                {ngraph::element::boolean, ngraph::element::u8},
-        };
+            std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
+                    {ngraph::element::i64, ngraph::element::i32},
+                    {ngraph::element::u64, ngraph::element::i32},
+                    {ngraph::element::u16, ngraph::element::i32},
+                    {ngraph::element::u32, ngraph::element::i32},
+                    {ngraph::element::boolean, ngraph::element::u8},
+            };
 
-        for (auto & precision : convert_precision_list) {
-            manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
-        }
-
-        auto pass_config = manager.get_pass_config();
-
-        using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
-
-        // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
-        pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
-                                  ngraph::pass::ConvertDepthToSpace>(
-                [](const_node_ptr &node) -> bool {
-                    return node->input_value(0).get_shape().size() <= 5lu &&
-                           node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
-                });
-
-        pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
-                                  ngraph::pass::ConvertSpaceToBatch>(
-                [](const_node_ptr &node) -> bool {
-                    const auto & rank = node->input(0).get_partial_shape().rank().get_length();
-                    return rank <= 5lu;
-                });
-
-        pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
-            [](const_node_ptr &node) -> bool {
-                return disableReduceDecomposition<ngraph::opset1::ReduceSum>(node);
-            });
-
-        pass_config->set_callback<ngraph::pass::ConvertReduceMeanToPooling>(
-            [](const_node_ptr &node) -> bool {
-                return disableReduceDecomposition<ngraph::opset1::ReduceMean>(node);
-            });
-
-        pass_config->set_callback<ngraph::pass::ConvertReduceMaxToPooling>(
-            [](const_node_ptr &node) -> bool {
-                return disableReduceDecomposition<ngraph::opset1::ReduceMax>(node);
-            });
-
-        auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
-            if (std::dynamic_pointer_cast<const ngraph::op::v0::RNNCell>(node) || std::dynamic_pointer_cast<const ngraph::op::v5::RNNSequence>(node)) {
-                return false;
-            } else if (std::dynamic_pointer_cast<const ngraph::op::v3::GRUCell>(node) || std::dynamic_pointer_cast<const ngraph::op::v5::GRUSequence>(node)) {
-                return false;
-            } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::op::v4::LSTMCell>(node)) {
-                return lstm_cell->get_clip() == 0.0f && lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-            } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::op::v0::LSTMCell>(node)) {
-                return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-            } else if (const auto &lstm_sequence = std::dynamic_pointer_cast<const ngraph::op::v5::LSTMSequence>(node)) {
-                return lstm_sequence->get_clip() == 0.0f && lstm_sequence->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+            for (auto & precision : convert_precision_list) {
+                manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
             }
-            return false;
-        };
 
-        pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
-                                  ngraph::pass::ConvertGRUSequenceToTensorIterator,
-                                  ngraph::pass::ConvertLSTMSequenceToTensorIterator,
-                                  ngraph::pass::RNNCellDecomposition,
-                                  ngraph::pass::GRUCellDecomposition,
-                                  ngraph::pass::LSTMCellDecomposition>(
-            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                return isCellPrimitiveSupported(node);
-            });
+            auto pass_config = manager.get_pass_config();
 
-        pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
-                                  ngraph::pass::ConvertTensorIteratorToLSTMSequence,
-                                  ngraph::pass::ConvertTensorIteratorToGRUSequence>(
-            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
-                    size_t count_rnn = 0;
-                    for (const auto &op : ti_op->get_body()->get_ops())
-                        count_rnn += isCellPrimitiveSupported(op);
-                    return count_rnn != 1;
-                }
-                return true;
-            });
+            using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
-        pass_config->set_callback<ngraph::pass::ConvertNMS1ToNMS5,
-                                  ngraph::pass::ConvertNMS3ToNMS5,
-                                  ngraph::pass::ConvertNMS4ToNMS5,
-                                  ngraph::pass::ConvertNMSToNMSIEInternal>(
+            // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+            pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
+                                      ngraph::pass::ConvertDepthToSpace>(
+                    [](const_node_ptr &node) -> bool {
+                        return node->input_value(0).get_shape().size() <= 5lu &&
+                            node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+                    });
+
+            pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
+                                      ngraph::pass::ConvertSpaceToBatch>(
+                    [](const_node_ptr &node) -> bool {
+                        const auto & rank = node->input(0).get_partial_shape().rank().get_length();
+                        return rank <= 5lu;
+                    });
+
+            pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
                 [](const_node_ptr &node) -> bool {
-                    return node->input_value(0).get_shape().back() == 4lu &&
-                           node->input_value(0).get_shape().front() == node->input_value(1).get_shape().front() &&
-                           node->input_value(0).get_shape()[1] == node->input_value(1).get_shape().back() &&
-                           node->input_value(0).get_shape().size() == 3lu &&
-                           node->input_value(1).get_shape().size() == 3lu;
+                    return disableReduceDecomposition<ngraph::opset1::ReduceSum>(node);
                 });
 
-        // List of enabled/disabled transformations
-        pass_config->disable<ngraph::pass::ConvertGELU>();
-        pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
-        pass_config->disable<ngraph::pass::HSwishDecomposition>();
-        pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
-        pass_config->disable<ngraph::pass::ReduceL1Decomposition>();
-        pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
-        pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
-        pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+            pass_config->set_callback<ngraph::pass::ConvertReduceMeanToPooling>(
+                [](const_node_ptr &node) -> bool {
+                    return disableReduceDecomposition<ngraph::opset1::ReduceMean>(node);
+                });
 
-        pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+            pass_config->set_callback<ngraph::pass::ConvertReduceMaxToPooling>(
+                [](const_node_ptr &node) -> bool {
+                    return disableReduceDecomposition<ngraph::opset1::ReduceMax>(node);
+                });
 
-        manager.run_passes(nGraphFunc);
+            auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+                if (std::dynamic_pointer_cast<const ngraph::op::v0::RNNCell>(node) || std::dynamic_pointer_cast<const ngraph::op::v5::RNNSequence>(node)) {
+                    return false;
+                } else if (std::dynamic_pointer_cast<const ngraph::op::v3::GRUCell>(node) ||
+                           std::dynamic_pointer_cast<const ngraph::op::v5::GRUSequence>(node)) {
+                    return false;
+                } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::op::v4::LSTMCell>(node)) {
+                    return lstm_cell->get_clip() == 0.0f && lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::op::v0::LSTMCell>(node)) {
+                    return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                } else if (const auto &lstm_sequence = std::dynamic_pointer_cast<const ngraph::op::v5::LSTMSequence>(node)) {
+                    return lstm_sequence->get_clip() == 0.0f && lstm_sequence->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                }
+                return false;
+            };
+
+            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
+                                      ngraph::pass::ConvertGRUSequenceToTensorIterator,
+                                      ngraph::pass::ConvertLSTMSequenceToTensorIterator,
+                                      ngraph::pass::RNNCellDecomposition,
+                                      ngraph::pass::GRUCellDecomposition,
+                                      ngraph::pass::LSTMCellDecomposition>(
+                [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                    return isCellPrimitiveSupported(node);
+                });
+
+            pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
+                                      ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                                      ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+                [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                    if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                        size_t count_rnn = 0;
+                        for (const auto &op : ti_op->get_body()->get_ops())
+                            count_rnn += isCellPrimitiveSupported(op);
+                        return count_rnn != 1;
+                    }
+                    return true;
+                });
+
+            pass_config->set_callback<ngraph::pass::ConvertNMS1ToNMS5,
+                                      ngraph::pass::ConvertNMS3ToNMS5,
+                                      ngraph::pass::ConvertNMS4ToNMS5,
+                                      ngraph::pass::ConvertNMSToNMSIEInternal>(
+                    [](const_node_ptr &node) -> bool {
+                        return node->input_value(0).get_shape().back() == 4lu &&
+                               node->input_value(0).get_shape().front() == node->input_value(1).get_shape().front() &&
+                               node->input_value(0).get_shape()[1] == node->input_value(1).get_shape().back() &&
+                               node->input_value(0).get_shape().size() == 3lu &&
+                               node->input_value(1).get_shape().size() == 3lu;
+                    });
+
+            // List of enabled/disabled transformations
+            pass_config->disable<ngraph::pass::ConvertGELU>();
+            pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
+            pass_config->disable<ngraph::pass::HSwishDecomposition>();
+            pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
+            pass_config->disable<ngraph::pass::ReduceL1Decomposition>();
+            pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
+            pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
+            pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+
+            pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+
+            manager.run_passes(nGraphFunc);
+        }
 
         bool enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
         if (enableInt8) {
@@ -276,12 +281,15 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             transformer.transform(nGraphFunc);
         }
 
-        ngraph::pass::Manager ti_manager;
-        // Unroll will be called after all conversions
-        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-        ti_manager.run_passes(nGraphFunc);
+        {
+            ngraph::pass::Manager manager;
+            // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
+            // TODO: check why we have these reshapes
+            manager.register_pass<ngraph::pass::ConstantFolding>();
+            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            manager.run_passes(nGraphFunc);
+        }
     }
-
     return clonedNetwork;
 }
 

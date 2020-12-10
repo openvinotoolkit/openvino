@@ -29,7 +29,7 @@ namespace {
     };
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-    INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonZeroClip, RNNSequenceTest,
+    INSTANTIATE_TEST_CASE_P(RNNSequenceCommonZeroClip, RNNSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -43,7 +43,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                             RNNSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
+    INSTANTIATE_TEST_CASE_P(RNNSequenceCommonClip, RNNSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
