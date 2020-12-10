@@ -45,6 +45,7 @@ namespace ngraph
                 size_t numImages;
                 size_t priorSize;
                 size_t numPriors;
+                size_t priorsBatchSize;
                 size_t numLocClasses;
                 size_t offset;
                 size_t numResults;
@@ -147,11 +148,11 @@ namespace ngraph
                                     std::vector<std::vector<NormalizedBBox>>& priorBboxes,
                                     std::vector<std::vector<std::vector<dataType>>>& priorVariances)
                 {
-                    priorBboxes.resize(numImages);
-                    priorVariances.resize(numImages);
+                    priorBboxes.resize(priorsBatchSize);
+                    priorVariances.resize(priorsBatchSize);
                     int off = attrs.variance_encoded_in_target ? (numPriors * priorSize)
                                                                : (2 * numPriors * priorSize);
-                    for (int n = 0; n < numImages; n++)
+                    for (int n = 0; n < priorsBatchSize; n++)
                     {
                         std::vector<NormalizedBBox>& currPrBbox = priorBboxes[n];
                         std::vector<std::vector<dataType>>& currPrVar = priorVariances[n];
@@ -316,7 +317,12 @@ namespace ngraph
                     for (int i = 0; i < numImages; ++i)
                     {
                         LabelBBox& decodeBboxesImage = decodeBboxes[i];
-                        const std::vector<NormalizedBBox>& currPrBbox = priorBboxes[i];
+                        int pboxIdx = i;
+                        if (priorBboxes.size() == 1)
+                        {
+                            pboxIdx = 0;
+                        }
+                        const std::vector<NormalizedBBox>& currPrBbox = priorBboxes[pboxIdx];
                         const std::vector<std::vector<dataType>>& currPrVar = priorVariances[i];
                         for (int c = 0; c < numLocClasses; ++c)
                         {
@@ -541,6 +547,7 @@ namespace ngraph
                     priorSize = _attrs.normalized ? 4 : 5;
                     offset = _attrs.normalized ? 0 : 1;
                     numPriors = priorsShape[2] / priorSize;
+                    priorsBatchSize = priorsShape[0];
                     numLocClasses =
                         _attrs.share_location ? 1 : static_cast<size_t>(_attrs.num_classes);
                     numResults = outShape[2];

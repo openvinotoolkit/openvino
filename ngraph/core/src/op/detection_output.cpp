@@ -143,15 +143,16 @@ void op::DetectionOutput::validate_and_infer_types()
                               proposals_pshape.rank().get_length() == 3,
                               "Proposals rank must be 3. Got " +
                                   std::to_string(proposals_pshape.rank().get_length()));
-        if (num_images.is_dynamic() && proposals_pshape[0].is_static())
+        if (num_images.is_static() && proposals_pshape[0].is_static())
         {
-            num_images = proposals_pshape[0];
-        }
-        else
-        {
-            NODE_VALIDATION_CHECK(this,
-                                  proposals_pshape[0].compatible(num_images),
-                                  "Proposals' first dimension is not compatible with batch size.");
+            int64_t proposals_1st_dim = proposals_pshape[0].get_length();
+            int64_t num_images_val = num_images.get_length();
+            NODE_VALIDATION_CHECK(
+                this,
+                proposals_1st_dim == 1 || proposals_1st_dim == num_images_val,
+                "Proposals' first dimension is must be equal to either batch size (" +
+                    std::to_string(num_images_val) + ") or 1. Got: " +
+                    std::to_string(proposals_1st_dim) + ".");
         }
         if (proposals_pshape[1].is_static())
         {

@@ -234,9 +234,9 @@ TEST(type_prop_layers, detection_output_mismatched_batch_size)
         }
         catch (const NodeValidationFailure& error)
         {
-            EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("Proposals' first dimension is not compatible with batch size."));
+            EXPECT_HAS_SUBSTRING(error.what(),
+                                 std::string("Proposals' first dimension is must be equal to "
+                                             "either batch size (4) or 1. Got: 5."));
         }
         catch (...)
         {
