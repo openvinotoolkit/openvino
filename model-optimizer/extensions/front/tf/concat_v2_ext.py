@@ -15,6 +15,7 @@
 """
 
 from mo.front.common.partial_infer.concat import concat_infer
+from mo.front.extractor import FrontExtractorOp
 from mo.ops.concat import Concat
 
 class ConcatV2FrontExtractor(FrontExtractorOp):
