@@ -377,8 +377,9 @@ TEST(type_prop_layers, detection_output_invalid_class_preds_shape)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("Class predictions' second dimension must be equal to "
-                                      "num_prior_boxes * num_classes (9). Current value is: 10."));
+            error.what(),
+            std::string("Class predictions' second dimension must be equal to "
+                        "num_prior_boxes * num_classes (9). Current value is: 10."));
     }
     catch (...)
     {
