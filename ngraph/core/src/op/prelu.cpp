@@ -75,14 +75,15 @@ OutputVector op::PRelu::decompose_op() const
     std::shared_ptr<ngraph::Node> zero_node = make_zero(data.get_element_type(), data.get_shape());
 
     std::shared_ptr<ngraph::Node> negative_map = std::make_shared<ngraph::op::Convert>(
-        std::make_shared<ngraph::op::Less>(data, zero_node), data.get_element_type());
+        std::make_shared<ngraph::op::v1::Less>(data, zero_node), data.get_element_type());
 
     std::shared_ptr<ngraph::Node> positive_map = std::make_shared<ngraph::op::Convert>(
-        std::make_shared<ngraph::op::Greater>(data, zero_node), data.get_element_type());
+        std::make_shared<ngraph::op::v1::Greater>(data, zero_node), data.get_element_type());
 
-    slope = negative_map * slope + positive_map;
+    slope = std::make_shared<op::v1::Multiply>(negative_map,
+                                               std::make_shared<op::v1::Add>(slope, positive_map));
 
-    return {data * slope};
+    return {std::make_shared<op::v1::Multiply>(data, slope)};
 }
 
 shared_ptr<Node> op::PRelu::clone_with_new_inputs(const OutputVector& new_args) const

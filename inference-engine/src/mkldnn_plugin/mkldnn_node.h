@@ -16,6 +16,7 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
 #include "mkldnn_descriptor.h"
+#include "mkldnn_selective_build.h"
 #include "mkldnn/iml_type_mapper.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_primitive.h"
@@ -257,10 +258,6 @@ private:
 
 class MKLDNNNode : public InferenceEngine::details::no_copy {
 public:
-    class Factory;
-    template<typename To>
-    class Registrar;
-
     template<typename T, int N>
     struct Tag {};
 
@@ -294,7 +291,8 @@ public:
         openvino::itt::handle_t initOptimalPrimitiveDescriptor;
     };
 
-    static Factory & factory();
+    class NodesFactory;
+    static NodesFactory & factory();
 
     ~MKLDNNNode() override = default;
 
@@ -628,40 +626,36 @@ private:
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 };
 
-class MKLDNNNode::Factory : InferenceEngine::details::no_copy {
+class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
+                                            MKLDNNNode*(const InferenceEngine::CNNLayerPtr&,
+                                                        const mkldnn::engine &,
+                                                        MKLDNNWeightsSharing::Ptr &)> {
 public:
-    using builder_t = std::function<MKLDNNNode *(const InferenceEngine::CNNLayerPtr& layer,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)>;
+    NodesFactory()
+        : Factory("NodesFactory") {}
 
     MKLDNNNode* create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
-
-    void registerNode(Type type, builder_t builder);
-
-private:
-    using map_t = std::unordered_map<Type, builder_t,
-        std::hash<std::underlying_type<MKLDNNPlugin::Type>::type>>;
-    map_t builders;
 };
 
-template<typename To>
-class MKLDNNNode::Registrar {
-public:
-    explicit Registrar(Type type) {
-        MKLDNNNode::factory().registerNode(type,
-                [type](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                    MKLDNNWeightsSharing::Ptr &w_cache) -> MKLDNNNode* {
-                    MKLDNNNode *node = new To(layer, eng, w_cache);
-                    node->perfCounters().buildClassCounters<To>(NameFromType(type));
-                    return node;
-                });
+template<typename MKLDNNNodeType>
+struct MKLDNNNodeImpl : public MKLDNNNodeType {
+    MKLDNNNodeImpl(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNodeType(layer, eng, cache) {
+        MKLDNNNodeType::perfCounters().template buildClassCounters<MKLDNNNodeType>(NameFromType(MKLDNNNodeType::getType()));
     }
 };
 
-#define REG_MKLDNN_CONCAT2(X, Y) X ## Y
-#define REG_MKLDNN_CONCAT(X, Y) REG_MKLDNN_CONCAT2(X, Y)
-#define REG_MKLDNN_PRIM_FOR(__prim, __type) \
-static MKLDNNNode::Registrar<__prim> REG_MKLDNN_CONCAT(_reg_, __LINE__)(__type)
+#define REG_MKLDNN_CONCAT3_(X, Y, Z) X ## Y ## Z
+#define REG_MKLDNN_CONCAT3(X, Y, Z) REG_MKLDNN_CONCAT3_(X, Y, Z)
+
+#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                                 \
+static struct REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__) {                            \
+    REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__)() {                                    \
+        MKLDNNNode::factory()                                                               \
+            .registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>);  \
+    }                                                                                       \
+} REG_MKLDNN_CONCAT3(_reg_, __prim, __LINE__);
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {

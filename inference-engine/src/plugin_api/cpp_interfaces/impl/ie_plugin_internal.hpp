@@ -21,10 +21,6 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
 
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
-
 namespace InferenceEngine {
 
 namespace {
@@ -212,6 +208,9 @@ protected:
     virtual ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
                                                 const RemoteContext::Ptr& context,
                                                 const std::map<std::string, std::string>& config) {
+        (void)networkModel;
+        (void)context;
+        (void)config;
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

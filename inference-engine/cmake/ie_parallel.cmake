@@ -7,6 +7,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         find_package(TBB COMPONENTS tbb tbbmalloc)
         set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
         set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+        set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
         if (TBB_FOUND)
             if (TBB_VERSION VERSION_LESS 2020)
                 ext_message(WARNING "TBB version is less than OpenVINO recommends to use.\

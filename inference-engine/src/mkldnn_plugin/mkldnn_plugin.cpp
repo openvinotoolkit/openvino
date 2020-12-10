@@ -263,7 +263,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
     for (auto & precision : convert_precision_list) {
-        NetPass::ConvertIOPrecision(*clonedNetwork, convertPrecision(precision.first), convertPrecision(precision.second));
+        NetPass::ConvertIOPrecision(*clonedNetwork,
+            InferenceEngine::details::convertPrecision(precision.first),
+            InferenceEngine::details::convertPrecision(precision.second));
     }
 }
 
@@ -300,7 +302,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    std::shared_ptr<ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(network);
 
     bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
@@ -439,7 +441,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
             conf.batchLimit = static_cast<int>(network.getBatchSize());
         }
 
-        auto clonedNetwork = cloneNetwork(network);
+        auto clonedNetwork = InferenceEngine::cloneNetwork(network);
         Transformation(clonedNetwork, conf);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
@@ -454,7 +456,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 return true;
             } ();
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector((*itLayer)->getNode())) {
-                if (contains(originalOps, fusedLayerName)) {
+                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (layerIsSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
@@ -465,7 +467,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         for (auto&& node : function->get_ops()) {
-            if (!contains(unsupported, node->get_friendly_name())) {
+            if (!InferenceEngine::details::contains(unsupported, node->get_friendly_name())) {
                 for (auto&& inputNodeOutput : node->input_values()) {
                     if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
@@ -482,7 +484,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         }
 
         for (auto&& layerName : supported) {
-            if (!contains(unsupported, layerName)) {
+            if (!InferenceEngine::details::contains(unsupported, layerName)) {
                 res.supportedLayersMap.emplace(layerName, GetName());
             }
         }
