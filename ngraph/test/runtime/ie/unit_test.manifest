@@ -205,6 +205,7 @@ onnx_dyn_shapes_flatten_neg_axis
 onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+onnx_model_max_pool_dyn_rank_without_default_attrs
 
 # LSTMSequence Layer is not instance of RNNLayer class
 # (Constant W, B, R inputs are required)
