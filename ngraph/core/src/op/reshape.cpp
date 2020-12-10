@@ -62,7 +62,7 @@ namespace
                                 vector<Dimension>& output_shape)
     {
         if (reshape_pattern == std::vector<Dimension>{0} && !reshape_node->get_special_zero())
-        {   // legacy check introduced by PR #1206
+        { // legacy check introduced by PR #1206
             reshape_pattern = std::vector<Dimension>{};
             output_shape = {};
             return;
