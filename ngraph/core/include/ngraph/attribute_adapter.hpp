@@ -94,6 +94,7 @@ namespace ngraph
     public:
         IndirectScalarValueAccessor(AT& ref)
             : m_ref(ref)
+            , m_buffer()
         {
         }
 
