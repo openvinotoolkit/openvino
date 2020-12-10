@@ -17,6 +17,8 @@
 #pragma once
 
 #include <cstddef>
+#include <ngraph/runtime/reference/add.hpp>
+#include <ngraph/runtime/reference/divide.hpp>
 #include <ngraph/runtime/reference/mean.hpp>
 #include <ngraph/runtime/reference/multiply.hpp>
 #include <ngraph/runtime/reference/sqrt.hpp>
