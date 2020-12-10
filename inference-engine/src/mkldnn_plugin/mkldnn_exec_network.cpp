@@ -63,7 +63,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             i++;
         }
 
-        if (with_cpu_x86_bfloat16() && isFloatModel) {
+        if (with_cpu_x86_avx512_core() && isFloatModel) {
             BF16Transformer bf16Transformer;
             CNNNetwork cnnetwork(_clonedNetwork);
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
