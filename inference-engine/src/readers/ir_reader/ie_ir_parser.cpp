@@ -22,6 +22,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/variant.hpp>
 
 #include <cpp/ie_cnn_network.h>
@@ -467,32 +468,34 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     // Try to create operation from loaded opsets
-    auto params_copy = params;
+    GenericLayerParams params_copy = params;
     const std::set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
                                                            "ExperimentalDetectronPriorGridGenerator"};
-    if (experimental_detectrons.count(params_copy.type) != 0) {
+    if (experimental_detectrons.count(params.type) != 0) {
         params_copy.version = "opset6";
     }
+
     if (!ngraphNode && opsets.count(params_copy.version)) {
         auto opset = opsets.at(params_copy.version);
-        std::string type = params_copy.type;
+        std::string type = params.type;
+
         if (type == "Const") {
             type = "Constant";
         }
 
-        if (params_copy.version == "opset1") {
+        if (params.version == "opset1") {
             // MVN and ROIPooling were missing in opset1
             if (type == "MVN" || type == "ROIPooling") {
                 opset = opsets.at("opset2");
             }
         }
 
-        if (!opset.contains_type(type)) {
-            THROW_IE_EXCEPTION << "Opset " << params_copy.version << " doesn't contain the operation with type: " << type;
+        if (!opset.contains_type_insensitive(type)) {
+            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
-        ngraphNode->set_friendly_name(params_copy.name);
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
+        ngraphNode->set_friendly_name(params.name);
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights);
         if (ngraphNode->visit_attributes(visitor))
