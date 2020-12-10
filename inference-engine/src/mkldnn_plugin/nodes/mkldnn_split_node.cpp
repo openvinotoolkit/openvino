@@ -31,7 +31,7 @@ static TensorDesc makePerChannelTensorDesc(const Precision& precision, const Siz
     if (srcDims.size() > 2) {
         auto moveElementBack = [](SizeVector& vector, size_t indx) {
             auto itr = vector.begin() + indx;
-            std::rotate(itr, itr + channelsPos, vector.end());
+            std::rotate(itr, itr + 1, vector.end());
         };
 
         moveElementBack(order, channelsPos);
@@ -84,6 +84,7 @@ void MKLDNNSplitNode::getSupportedDescriptors() {
 
 void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     using TensorDescFactory = std::function<TensorDesc(const Precision&, const SizeVector&)>;
+    constexpr size_t channelsPos = 1lu;
     // perform guard checks
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -159,15 +160,15 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
     //Support channel blocked format
     std::vector<size_t> blockedPdIndexes;
-    if (srcDims.ndims() > 1) {
+    if (srcDims.ndims() > channelsPos) {
         for (size_t sizeS : {8lu, 16lu}) {
             SizeVector blkDims = srcDims.ToSizeVector();
-            if (blkDims[1] % sizeS)
+            if (blkDims[channelsPos] % sizeS)
                 continue;
 
             bool blocked = true;
             for (size_t i = 0; i < outDims.size(); i++) {
-                if (blkDims[1] % sizeS) {
+                if (outDims[i].ToSizeVector()[channelsPos] % sizeS) {
                     blocked = false;
                     break;
                 }
