@@ -6,7 +6,7 @@ graph {
     output: "Y"
     op_type: "Size"
   }
-  name: "test-model-lstm"
+  name: "test-model-size-op"
   input {
     name: "X"
     type {
