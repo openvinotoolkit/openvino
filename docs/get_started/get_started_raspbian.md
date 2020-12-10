@@ -93,7 +93,7 @@ source <INSTALL_DIR>/bin/setupvars.sh
 2. Have the directory path for the following:
 - Code Sample binaries
 - Media: Video or image. Many sources are available from which you can download video media to use the code samples and demo applications, like https://videos.pexels.com and https://images.google.com.
-- Model: Neural Network topology converted with the Model Optimizer to the IR format (.bin and .xml files). See <a href="#download-models">Download Models</a> for more information.
+- Model in the IR format (.bin and .xml files).
 
 
 ## Additional Resources
