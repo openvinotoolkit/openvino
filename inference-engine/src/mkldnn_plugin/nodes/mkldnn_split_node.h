@@ -27,7 +27,6 @@ public:
     void setDynamicBatchLim(int lim) override;
 
 private:
-    inline uint8_t* getDataPtr(const MKLDNNMemory& memoryPtr);
     void prepareOptimizedParams();
 
     size_t axis = 1;
