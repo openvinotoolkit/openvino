@@ -72,6 +72,7 @@ void op::DetectionOutput::validate_and_infer_types()
     int prior_box_size = m_attrs.normalized ? 4 : 5;
 
     Dimension num_images = Dimension::dynamic();
+    Dimension num_prior_boxes = Dimension::dynamic();
     if (box_logits_pshape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
@@ -88,6 +89,7 @@ void op::DetectionOutput::validate_and_infer_types()
                     std::to_string(num_loc_classes * 4) + "). Current value is: ",
                 box_logits_pshape[1].get_length(),
                 ".");
+            num_prior_boxes = box_logits_pshape[1].get_length() / (num_loc_classes * 4);
         }
     }
     if (class_preds_pshape.rank().is_static())
@@ -109,13 +111,30 @@ void op::DetectionOutput::validate_and_infer_types()
         }
         if (class_preds_pshape[1].is_static())
         {
-            NODE_VALIDATION_CHECK(
-                this,
-                class_preds_pshape[1].get_length() % m_attrs.num_classes == 0,
-                "Class predictions' second dimension must be a multiply of num_classes (" +
-                    std::to_string(m_attrs.num_classes) + "). Current value is: ",
-                class_preds_pshape[1].get_length(),
-                ".");
+            if (num_prior_boxes.is_dynamic())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    class_preds_pshape[1].get_length() % m_attrs.num_classes == 0,
+                    "Class predictions' second dimension must be a multiply of num_classes (" +
+                        std::to_string(m_attrs.num_classes) + "). Current value is: ",
+                    class_preds_pshape[1].get_length(),
+                    ".");
+                num_prior_boxes = class_preds_pshape[1].get_length() / m_attrs.num_classes;
+            }
+            else
+            {
+                int num_prior_boxes_val = num_prior_boxes.get_length();
+                NODE_VALIDATION_CHECK(
+                    this,
+                    class_preds_pshape[1].get_length() == num_prior_boxes_val * m_attrs.num_classes,
+                    "Class predictions' second dimension must be equal to num_prior_boxes * "
+                    "num_classes (" +
+                        std::to_string(num_prior_boxes_val * m_attrs.num_classes) +
+                        "). Current value is: ",
+                    class_preds_pshape[1].get_length(),
+                    ".");
+            }
         }
     }
     if (proposals_pshape.rank().is_static())
@@ -147,13 +166,30 @@ void op::DetectionOutput::validate_and_infer_types()
         }
         if (proposals_pshape[2].is_static())
         {
-            NODE_VALIDATION_CHECK(
-                this,
-                proposals_pshape[2].get_length() % prior_box_size == 0,
-                "Proposals' third dimension must be a multiply of prior_box_size (" +
-                    std::to_string(prior_box_size) + "). Current value is: ",
-                proposals_pshape[2].get_length(),
-                ".");
+            if (num_prior_boxes.is_dynamic())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    proposals_pshape[2].get_length() % prior_box_size == 0,
+                    "Proposals' third dimension must be a multiply of prior_box_size (" +
+                        std::to_string(prior_box_size) + "). Current value is: ",
+                    proposals_pshape[2].get_length(),
+                    ".");
+                num_prior_boxes = proposals_pshape[2].get_length() / prior_box_size;
+            }
+            else
+            {
+                int num_prior_boxes_val = num_prior_boxes.get_length();
+                NODE_VALIDATION_CHECK(this,
+                                      proposals_pshape[2].get_length() ==
+                                          num_prior_boxes_val * prior_box_size,
+                                      "Proposals' third dimension must be equal to num_prior_boxes "
+                                      "* prior_box_size (" +
+                                          std::to_string(num_prior_boxes_val * prior_box_size) +
+                                          "). Current value is: ",
+                                      proposals_pshape[2].get_length(),
+                                      ".");
+            }
         }
     }
 
@@ -173,10 +209,24 @@ void op::DetectionOutput::validate_and_infer_types()
 
         const PartialShape& aux_class_preds_pshape = get_input_partial_shape(3);
         const PartialShape& aux_box_preds_pshape = get_input_partial_shape(4);
-        NODE_VALIDATION_CHECK(
-            this,
-            aux_class_preds_pshape.compatible(class_preds_pshape),
-            "Additional class predictions' shape must be compatible with class predictions shape.");
+        if (aux_class_preds_pshape.rank().is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  aux_class_preds_pshape[0].compatible(num_images),
+                                  "Additional class predictions' first dimension must be "
+                                  "compatible with batch size.");
+            if (num_prior_boxes.is_static())
+            {
+                int num_prior_boxes_val = num_prior_boxes.get_length();
+                NODE_VALIDATION_CHECK(
+                    this,
+                    aux_class_preds_pshape[1].get_length() == num_prior_boxes_val * 2,
+                    "Additional class predictions' second dimension must be equal to "
+                    "num_prior_boxes * 2 (" +
+                        std::to_string(num_prior_boxes_val * 2) + "). Got " +
+                        std::to_string(aux_class_preds_pshape[1].get_length()) + ".");
+            }
+        }
         NODE_VALIDATION_CHECK(
             this,
             aux_box_preds_pshape.compatible(box_logits_pshape),

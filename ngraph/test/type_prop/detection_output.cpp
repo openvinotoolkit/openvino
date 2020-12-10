@@ -85,7 +85,7 @@ TEST(type_prop_layers, detection_output_no_share_location)
     attrs.num_classes = 2;
     attrs.share_location = false;
     auto op = create_detection_output_with_shape(
-        Shape{4, 40}, Shape{4, 40}, Shape{4, 2, 20}, Shape{4, 40}, Shape{4, 40}, attrs);
+        Shape{4, 40}, Shape{4, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 40}, attrs);
     ASSERT_EQ(op->get_shape(), (Shape{1, 1, 40, 7}));
 }
 
@@ -97,7 +97,7 @@ TEST(type_prop_layers, detection_output_top_k)
     attrs.normalized = true;
     attrs.num_classes = 2;
     auto op = create_detection_output_with_shape(
-        Shape{4, 20}, Shape{4, 40}, Shape{4, 2, 20}, Shape{4, 40}, Shape{4, 20}, attrs);
+        Shape{4, 20}, Shape{4, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
     ASSERT_EQ(op->get_shape(), (Shape{1, 1, 56, 7}));
 }
 
@@ -118,9 +118,9 @@ TEST(type_prop_layers, detection_output_dynamic_batch)
     attrs.num_classes = 2;
     attrs.normalized = true;
     auto op = create_detection_output_with_shape(PartialShape{Dimension::dynamic(), 20},
-                                                 PartialShape{Dimension::dynamic(), 40},
+                                                 PartialShape{Dimension::dynamic(), 10},
                                                  PartialShape{Dimension::dynamic(), 2, 20},
-                                                 PartialShape{Dimension::dynamic(), 40},
+                                                 PartialShape{Dimension::dynamic(), 10},
                                                  PartialShape{Dimension::dynamic(), 20},
                                                  attrs);
     ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{{1, 1, Dimension::dynamic(), 7}}));
@@ -136,9 +136,9 @@ void detection_output_invalid_data_type_test(element::Type box_logits_et,
     try
     {
         auto box_logits = make_shared<op::Parameter>(box_logits_et, Shape{4, 20});
-        auto class_preds = make_shared<op::Parameter>(class_preds_et, Shape{4, 40});
+        auto class_preds = make_shared<op::Parameter>(class_preds_et, Shape{4, 10});
         auto proposals = make_shared<op::Parameter>(proposals_et, Shape{4, 2, 20});
-        auto aux_class_preds = make_shared<op::Parameter>(aux_class_preds_et, Shape{4, 40});
+        auto aux_class_preds = make_shared<op::Parameter>(aux_class_preds_et, Shape{4, 10});
         auto aux_box_preds = make_shared<op::Parameter>(aux_box_preds_et, Shape{4, 20});
         op::DetectionOutputAttrs attrs;
         attrs.keep_top_k = {200};
@@ -206,7 +206,7 @@ TEST(type_prop_layers, detection_output_mismatched_batch_size)
             attrs.num_classes = 2;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 20}, Shape{5, 20}, Shape{4, 2, 20}, Shape{4, 40}, Shape{4, 20}, attrs);
+                Shape{4, 20}, Shape{5, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -229,7 +229,7 @@ TEST(type_prop_layers, detection_output_mismatched_batch_size)
             attrs.num_classes = 2;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 20}, Shape{4, 20}, Shape{5, 2, 20}, Shape{4, 40}, Shape{4, 20}, attrs);
+                Shape{4, 20}, Shape{4, 10}, Shape{5, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -255,7 +255,7 @@ TEST(type_prop_layers, detection_output_invalid_ranks)
             attrs.num_classes = 2;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 20, 1}, Shape{4, 40}, Shape{4, 2, 20}, Shape{4, 40}, Shape{4, 20}, attrs);
+                Shape{4, 20, 1}, Shape{4, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -275,7 +275,7 @@ TEST(type_prop_layers, detection_output_invalid_ranks)
             attrs.num_classes = 2;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 20}, Shape{4, 40, 1}, Shape{4, 2, 20}, Shape{4, 40}, Shape{4, 20}, attrs);
+                Shape{4, 20}, Shape{4, 10, 1}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -296,7 +296,7 @@ TEST(type_prop_layers, detection_output_invalid_ranks)
             attrs.num_classes = 2;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 20}, Shape{4, 40}, Shape{4, 2}, Shape{4, 40}, Shape{4, 20}, attrs);
+                Shape{4, 20}, Shape{4, 10}, Shape{4, 2}, Shape{4, 10}, Shape{4, 20}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -322,7 +322,7 @@ TEST(type_prop_layers, detection_output_invalid_box_logits_shape)
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 13}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 9}, Shape{4, 12}, attrs);
+                Shape{4, 13}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -347,7 +347,7 @@ TEST(type_prop_layers, detection_output_invalid_box_logits_shape)
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 37}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 9}, Shape{4, 12}, attrs);
+                Shape{4, 37}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -371,15 +371,14 @@ TEST(type_prop_layers, detection_output_invalid_class_preds_shape)
         op::DetectionOutputAttrs attrs;
         attrs.num_classes = 3;
         auto op = create_detection_output_with_shape(
-            Shape{4, 12}, Shape{4, 10}, Shape{4, 2, 12}, Shape{4, 9}, Shape{4, 12}, attrs);
+            Shape{4, 12}, Shape{4, 10}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
         FAIL() << "Exception expected";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string(
-                "Class predictions' second dimension must be a multiply of num_classes (3)"));
+            error.what(), std::string("Class predictions' second dimension must be equal to "
+                                      "num_prior_boxes * num_classes (9). Current value is: 10."));
     }
     catch (...)
     {
@@ -399,7 +398,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 1, 12}, Shape{4, 9}, Shape{4, 12}, attrs);
+                Shape{4, 12}, Shape{4, 9}, Shape{4, 1, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -424,7 +423,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
             attrs.variance_encoded_in_target = true;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 9}, Shape{4, 12}, attrs);
+                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -449,14 +448,15 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
             attrs.variance_encoded_in_target = false;
             attrs.normalized = false;
             auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 16}, Shape{4, 9}, Shape{4, 12}, attrs);
+                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 16}, Shape{4, 6}, Shape{4, 12}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
         {
             EXPECT_HAS_SUBSTRING(
                 error.what(),
-                std::string("Proposals' third dimension must be a multiply of prior_box_size (5)"));
+                std::string("Proposals' third dimension must be equal to num_prior_boxes * "
+                            "prior_box_size (15). Current value is: 16."));
         }
         catch (...)
         {
@@ -473,14 +473,121 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
             auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 13}, Shape{4, 9}, Shape{4, 12}, attrs);
+                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 13}, Shape{4, 6}, Shape{4, 12}, attrs);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
         {
             EXPECT_HAS_SUBSTRING(
                 error.what(),
-                std::string("Proposals' third dimension must be a multiply of prior_box_size (4)"));
+                std::string("Proposals' third dimension must be equal to num_prior_boxes * "
+                            "prior_box_size (12). Current value is: 13."));
+        }
+        catch (...)
+        {
+            FAIL() << "Unknown exception was thrown";
+        }
+    }
+}
+
+TEST(type_prop_layers, detection_output_invalid_aux_class_preds)
+{
+    // invalid batch size
+    {
+        try
+        {
+            op::DetectionOutputAttrs attrs;
+            attrs.num_classes = 3;
+            attrs.share_location = true;
+            attrs.variance_encoded_in_target = false;
+            attrs.normalized = true;
+            auto op = create_detection_output_with_shape(
+                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{5, 6}, Shape{4, 12}, attrs);
+            FAIL() << "Exception expected";
+        }
+        catch (const NodeValidationFailure& error)
+        {
+            EXPECT_HAS_SUBSTRING(error.what(),
+                                 std::string("Additional class predictions' first dimension must "
+                                             "be compatible with batch size."));
+        }
+        catch (...)
+        {
+            FAIL() << "Unknown exception was thrown";
+        }
+    }
+    // invalid 2nd dimension
+    {
+        try
+        {
+            op::DetectionOutputAttrs attrs;
+            attrs.num_classes = 3;
+            attrs.share_location = true;
+            attrs.variance_encoded_in_target = false;
+            attrs.normalized = true;
+            auto op = create_detection_output_with_shape(
+                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 7}, Shape{4, 12}, attrs);
+            FAIL() << "Exception expected";
+        }
+        catch (const NodeValidationFailure& error)
+        {
+            EXPECT_HAS_SUBSTRING(error.what(),
+                                 std::string("Additional class predictions' second dimension must "
+                                             "be equal to num_prior_boxes * 2 (6). Got 7."));
+        }
+        catch (...)
+        {
+            FAIL() << "Unknown exception was thrown";
+        }
+    }
+}
+
+TEST(type_prop_layers, detection_output_invalid_aux_box_preds)
+{
+    // invalid batch size
+    {
+        try
+        {
+            op::DetectionOutputAttrs attrs;
+            attrs.num_classes = 3;
+            attrs.share_location = true;
+            attrs.variance_encoded_in_target = false;
+            attrs.normalized = true;
+            auto op = create_detection_output_with_shape(
+                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{5, 12}, attrs);
+            FAIL() << "Exception expected";
+        }
+        catch (const NodeValidationFailure& error)
+        {
+            EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string(
+                    "Additional box predictions' shape must be compatible with box logits shape."));
+        }
+        catch (...)
+        {
+            FAIL() << "Unknown exception was thrown";
+        }
+    }
+    // invalid 2nd dimension
+    {
+        try
+        {
+            op::DetectionOutputAttrs attrs;
+            attrs.num_classes = 3;
+            attrs.share_location = true;
+            attrs.variance_encoded_in_target = false;
+            attrs.normalized = true;
+            auto op = create_detection_output_with_shape(
+                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 22}, attrs);
+            FAIL() << "Exception expected";
+        }
+        catch (const NodeValidationFailure& error)
+        {
+            EXPECT_HAS_SUBSTRING(
+                error.what(),
+                std::string(
+                    "Additional box predictions' shape must be compatible with box logits shape."));
         }
         catch (...)
         {

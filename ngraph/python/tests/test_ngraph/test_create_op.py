@@ -935,7 +935,7 @@ def test_detection_output(int_dtype, fp_dtype):
     box_logits = ng.parameter([4, 8], fp_dtype, "box_logits")
     class_preds = ng.parameter([4, 170], fp_dtype, "class_preds")
     proposals = ng.parameter([4, 2, 10], fp_dtype, "proposals")
-    aux_class_preds = ng.parameter([4, 170], fp_dtype, "aux_class_preds")
+    aux_class_preds = ng.parameter([4, 4], fp_dtype, "aux_class_preds")
     aux_box_preds = ng.parameter([4, 8], fp_dtype, "aux_box_preds")
 
     node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)

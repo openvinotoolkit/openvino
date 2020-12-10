@@ -163,14 +163,6 @@ namespace ngraph
                             bbox.ymin = priorData[start_idx + 1 + offset];
                             bbox.xmax = priorData[start_idx + 2 + offset];
                             bbox.ymax = priorData[start_idx + 3 + offset];
-                            if (!attrs.normalized)
-                            {
-                                bbox.xmin /= attrs.input_width;
-                                bbox.ymin /= attrs.input_height;
-                                bbox.xmax /= attrs.input_width;
-                                bbox.ymax /= attrs.input_height;
-                            }
-
                             currPrBbox.push_back(bbox);
                         }
                         if (!attrs.variance_encoded_in_target)
@@ -200,6 +192,14 @@ namespace ngraph
                     dataType priorYmin = priorBboxes.ymin;
                     dataType priorXmax = priorBboxes.xmax;
                     dataType priorYmax = priorBboxes.ymax;
+
+                    if (!attrs.normalized)
+                    {
+                        priorXmin /= attrs.input_width;
+                        priorYmin /= attrs.input_height;
+                        priorXmax /= attrs.input_width;
+                        priorYmax /= attrs.input_height;
+                    }
 
                     if (attrs.code_type == "caffe.PriorBoxParameter.CORNER")
                     {
@@ -237,6 +237,14 @@ namespace ngraph
                     dataType priorYmin = priorBboxes.ymin;
                     dataType priorXmax = priorBboxes.xmax;
                     dataType priorYmax = priorBboxes.ymax;
+
+                    if (!attrs.normalized)
+                    {
+                        priorXmin /= attrs.input_width;
+                        priorYmin /= attrs.input_height;
+                        priorXmax /= attrs.input_width;
+                        priorYmax /= attrs.input_height;
+                    }
 
                     if (attrs.code_type == "caffe.PriorBoxParameter.CORNER")
                     {

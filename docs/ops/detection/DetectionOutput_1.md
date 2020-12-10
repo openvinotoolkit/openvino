@@ -140,7 +140,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 * **2**: 2D input tensor with class predictions with shape `[N, num_prior_boxes * num_classes]` and type *T*. Required.
 * **3**: 3D input tensor with proposals with shape `[N, 1, num_prior_boxes * prior_box_size]` or `[N, 2, num_prior_boxes * prior_box_size]`. Size of the second dimension depends on `variance_encoded_in_target`. If `variance_encoded_in_target` is equal to 0, the second dimension equals to 2 and variance values are provided for each boxes coordination. If `variance_encoded_in_target` is equal to 1, the second dimension equals to 1 and this tensor contains proposals boxes only. `prior_box_size` is equal to 4 when `normalized` is set to 1 or it's equal to 5 otherwise. Required.
  Required.
-* **4**: 2D input tensor with additional class predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to second input tensor's shape. Optional.
+* **4**: 2D input tensor with additional class predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to `[N, num_prior_boxes * 2]`. Optional.
 * **5**: 2D input tensor with additional box predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to first input tensor's shape. Optional.
 
 **Outputs**
