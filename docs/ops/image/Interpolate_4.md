@@ -15,6 +15,7 @@
   * **Type**: string
   * **Default value**: none
   * **Required**: *yes*
+  * **Note**: Only 2D and 4D tensors with `axes = {0, 1}` and `axes = {2, 3}` respectively are supported for `"mode" == "linear_onnx"`.
 
 * *shape_calculation_mode*
 
