@@ -37,28 +37,35 @@ void regclass_InferRequest(py::module m)
     cls.def("infer", &InferenceEngine::InferRequest::Infer);
     cls.def("get_blob", &InferenceEngine::InferRequest::GetBlob);
     cls.def("set_input", [](InferenceEngine::InferRequest& self, const py::dict& inputs) {
-        for (auto&& input : inputs)
-        {
+        for (auto&& input : inputs) {
             auto name = input.first.cast<std::string>().c_str();
             const std::shared_ptr<InferenceEngine::TBlob<float>>& blob = input.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
             self.SetBlob(name, blob);
         }
     });
     cls.def("set_output", [](InferenceEngine::InferRequest& self, const py::dict& results) {
-        for (auto&& result : results)
-        {
+        for (auto&& result : results) {
             auto name = result.first.cast<std::string>().c_str();
             const std::shared_ptr<InferenceEngine::TBlob<float>>& blob = result.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
             self.SetBlob(name, blob);
         }
     });
+//    cls.def_property_readonly("input_blobs", [](){
+//
+//    });
+//    cls.def_property_readonly("output_blobs", [](){
+//
+//    });
+//    cls.def("set_batch", );
+//    cls.def("get_perf_counts", );
 //    cls.def("wait");
 //    cls.def("set_completion_callback")
-//    async_infer()
+//    cls.def("async_infer",);
 //    latency
-//            input_blobs
-//    get_perf_counts()
-
+//    cls.def_property_readonly("preprocess_info", [](){
+//
+//    });
+//   set_blob
 
     //&InferenceEngine::InferRequest::SetOutput);
 }

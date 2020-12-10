@@ -59,7 +59,8 @@ void regclass_IENetwork(py::module m)
     /*    cls.def("add_outputs", [](InferenceEngine::CNNNetwork& self, py::list input) {
             self.addOutput(input_shapes);
         });*/
-
+    /*    cls.def("serialize", );*/
+    /*    cls.def("get_function", );*/
     cls.def_property("batch_size",
                      &InferenceEngine::CNNNetwork::getBatchSize,
                      &InferenceEngine::CNNNetwork::setBatchSize);
