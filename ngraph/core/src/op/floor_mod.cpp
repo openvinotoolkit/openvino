@@ -94,3 +94,8 @@ bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs,
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::FloorMod::evaluate");
     return floor_mod::evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
 }
+
+bool op::v1::FloorMod::visit_attributes(AttributeVisitor& visitor)
+{
+    return true;
+}
