@@ -27,19 +27,9 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
 {
     bool rewritten = false;
 
-    for (auto&& node : f->get_ordered_ops())
+    for (const auto& node : f->get_ordered_ops())
     {
         node->revalidate_and_infer_types();
-
-        // recursively constant fold operators containing subgraphs (ie: TensorIterator)
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
-        {
-            if (auto sub_graph = sub_graph_node->get_function())
-            {
-                rewritten |= run_on_function(sub_graph);
-                continue;
-            }
-        }
 
         OutputVector replacements(node->get_output_size());
         if (node->constant_fold(replacements, node->input_values()))
@@ -69,6 +59,17 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
                     copy_runtime_info_to_target_inputs(node, replacement);
 
                     rewritten = true;
+                }
+            }
+        }
+        else
+        {
+            // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
+            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
+            {
+                if (const auto& sub_graph = sub_graph_node->get_function())
+                {
+                    rewritten |= run_on_function(sub_graph);
                 }
             }
         }
