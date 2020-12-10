@@ -65,11 +65,19 @@
         <!-- DOCUMENTATION category -->
         <tab type="usergroup" title="DOCUMENTATION"><!--automatically generated-->
             <!-- DLDT Documentation-->
-            <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='converting_and_preparing_models'])"/>
-            <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='intermediate_representaton_and_operations_sets'])"/>
-            <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='deploying_inference'])"/>
+            <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='converting_and_preparing_models'])">
+                <xi:fallback/>
+            </xi:include>
+            <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='intermediate_representaton_and_operations_sets'])">
+                <xi:fallback/>
+            </xi:include>
+            <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='deploying_inference'])">
+                <xi:fallback/>
+            </xi:include>
             <!-- Workbench -->
-            <xi:include href="workbench_docs.xml" xpointer="xpointer(//tab[@id='deep_learning_workbench'])"/>
+            <xi:include href="workbench_docs.xml" xpointer="xpointer(//tab[@id='deep_learning_workbench'])">
+                <xi:fallback/>
+            </xi:include>
             <!-- Tuning for Performance -->
             <tab type="usergroup" title="Tuning for Performance">
                 <!-- Performance Benchmarks -->
@@ -80,10 +88,14 @@
                 </tab>
                 <tab type="user" title="Performance Optimization Guide" url="@ref openvino_docs_optimization_guide_dldt_optimization_guide"/>
                 <!-- POT DevGuide -->
-                <xi:include href="pot_docs.xml" xpointer="xpointer(//tab[@id='pot'])"/>
+                <xi:include href="pot_docs.xml" xpointer="xpointer(//tab[@id='pot'])">
+                    <xi:fallback/>
+                </xi:include>
                 <!-- Tuning Utilities -->
                 <tab type="usergroup" title="Tuning Utilities" url="">
-                    <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='accuracy_checker'])"/>
+                    <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='accuracy_checker'])">
+                        <xi:fallback/>
+                    </xi:include>
                     <tab type="user" title="Using Cross Check Tool for Per-Layer Comparison Between Plugins" url="@ref openvino_inference_engine_tools_cross_check_tool_README"/>
                 </tab>
                 <tab type="user" title="Case Studies" url="https://www.intel.com/openvino-success-stories"/>
@@ -108,8 +120,12 @@
         <!-- RESOURCES category -->
         <tab type="usergroup" title="RESOURCES">
             <!-- Models and Demos Documentation-->
-            <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='trained_models'])"/>
-            <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='application_demos'])"/>
+            <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='trained_models'])">
+                <xi:fallback/>
+            </xi:include>
+            <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='application_demos'])">
+                <xi:fallback/>
+            </xi:include>
             <!-- IE Code Samples -->
             <tab type="usergroup" title="Inference Engine Code Samples" url="@ref openvino_docs_IE_DG_Samples_Overview">
                 <tab type="user" title="Image Classification C++ Sample Async" url="@ref openvino_inference_engine_samples_classification_sample_async_README"/>
