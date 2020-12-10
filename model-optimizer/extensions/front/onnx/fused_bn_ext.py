@@ -15,19 +15,21 @@
 """
 import logging as log
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
+from extensions.ops.BatchNormInference import BatchNormInference
+from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
 
-def tf_fused_bn_extractor(node):
-    pb = node.pb
-    # This statement covers different opset versions
-    if onnx_attr(node, 'is_test', 'i', None) == 0:
-        log.error('FusedBatchNorm doesn\'t support is_test=False')
-        return None
 
-    return {
-        'data_format': 'NCHW',
-        'eps': onnx_attr(node, 'epsilon', 'f', 1e-5),
-        'infer': copy_shape_infer,
-    }
+class BatchNormalizationExtractor(FrontExtractorOp):
+    op = 'BatchNormalization'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        attr_dict = {
+           'data_format': 'NCHW',
+           'eps': onnx_attr(node, 'epsilon', 'f', 1e-5),
+        }
+        BatchNormInference.update_node_stat(node, attr_dict)
+        return cls.enabled

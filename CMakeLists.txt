@@ -120,7 +120,6 @@ function(build_ngraph)
 endfunction()
 
 file(REMOVE "${CMAKE_BINARY_DIR}/openvino_targets_developer.cmake")
-
 unset(OpenVINODeveloperPackageTargets CACHE)
 
 function(openvino_developer_export_targets)
@@ -145,11 +144,8 @@ function(openvino_developer_export_targets)
 endfunction()
 
 add_subdirectory(openvino)
-
 build_ngraph()
-
 add_subdirectory(inference-engine)
-
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 
