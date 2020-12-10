@@ -834,6 +834,13 @@ bool Node::is_dynamic() const
             return true;
         }
     }
+    for (size_t i = 0; i < get_output_size(); i++)
+    {
+        if (get_output_partial_shape(i).is_dynamic())
+        {
+            return true;
+        }
+    }
     return false;
 }
 
