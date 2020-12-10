@@ -191,7 +191,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     dispatchData.gemmStyle.subBlockDimK = 1;
     dispatchData.gemmStyle.subBlockDimM = 0;
     dispatchData.gemmStyle.subBlockDimN = 0;
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return dispatchData;
 }
 
@@ -271,7 +270,6 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

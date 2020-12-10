@@ -60,13 +60,32 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
 
     dispatchData.leftovers = item_class_count % workitems_per_classes;
 
-    if (item_class_count >= 32) {
-        dispatchData.efficiency = FORCE_PRIORITY_7;
-    } else {
-        dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    }
-
     return dispatchData;
+}
+
+KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params& params, const optional_params& options) const {
+    const auto& p = static_cast<const softmax_params&>(params);
+    auto& input = p.inputs[0];
+
+    size_t item_class_count = 0;
+
+    switch (p.dim) {
+        case SoftmaxDim::X:
+            item_class_count = input.X().v;
+            break;
+        case SoftmaxDim::Y:
+            item_class_count = input.Y().v;
+            break;
+        case SoftmaxDim::Z:
+            item_class_count = input.Z().v;
+            break;
+        case SoftmaxDim::FEATURE:
+            item_class_count = input.Feature().v;
+            break;
+        default:
+            break;
+    }
+    return item_class_count >= 32 ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {

@@ -79,6 +79,7 @@ public:
 
 protected:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     virtual JitConstants GetJitConstants(const deconvolution_params& params) const;
     virtual DispatchData SetDefault(const deconvolution_params& params) const;
     virtual WeightsLayout GetPreferredWeightsLayout(const deconvolution_params &params) const {

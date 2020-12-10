@@ -104,7 +104,7 @@ TuningCache::TuningCache()
     cache.AddMember(v2Name, v2Obj, cache.GetAllocator());
 }
 
-TuningCache::Entry TuningCache::LoadKernel(const Params& params, bool update) {
+TuningCache::Entry TuningCache:: LoadKernel(const Params& params, bool update) {
     return LoadKernel(params, params.engineInfo.computeUnitsCount, update);
 }
 
@@ -133,6 +133,7 @@ TuningCache::Entry TuningCache::LoadKernel_v1(const Params& params, uint32_t com
 
     auto hashStr = std::to_string(create_hash(params.to_string()));
     auto computeUnitsStr = std::to_string(computeUnitsCount);
+    printf("%s hash %s KSUnit %s\n", version1Marker, hashStr.c_str(), computeUnitsStr.c_str());
 
     auto v1It = cache.FindMember(version1Marker);
     if (v1It == cache.MemberEnd())
@@ -156,6 +157,7 @@ TuningCache::Entry TuningCache::LoadKernel_v2(const Params& params, uint32_t com
     auto kTypeStr = toString(params.GetType());
     auto paramStr = params.to_cache_string_v2();
     auto computeUnitsStr = std::to_string(computeUnitsCount);
+    printf("%s kType %s ParamSTR %s KSUnit %s\n", version2Marker, kTypeStr.c_str(), paramStr.c_str(), computeUnitsStr.c_str());
 
     auto v2It = cache.FindMember(version2Marker);
     if (v2It == cache.MemberEnd())

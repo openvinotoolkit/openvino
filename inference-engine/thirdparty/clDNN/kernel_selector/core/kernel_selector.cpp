@@ -101,10 +101,9 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
                     }
                 } else {
 #endif
-                    if (kernelsData.size() == 0 || kds[0].estimatedTime < kernelsData[0].estimatedTime) {
-                        kernelsData = kds;
-                        kernelName = implementation->GetName();
-                    }
+                    kernelsData = kds;
+                    kernelName = implementation->GetName();
+                    break;
 #ifdef ENABLE_ENV
                 }
 #endif
@@ -147,6 +146,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     bool hashFoundInCache = !std::get<0>(cachedKernelConfig).empty();
 
     if (hashFoundInCache) {
+        auto t1 = std::chrono::high_resolution_clock::now();
         std::string cachedkernelName = std::get<0>(cachedKernelConfig);
         int autoTuneIndex = std::get<1>(cachedKernelConfig);
 
@@ -162,6 +162,9 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 break;
             }
         }
+        auto t2 = std::chrono::high_resolution_clock::now();
+        auto res0 = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        printf("KernelData (But Cache): %lu\n", res0);
 
         if (!kernelsData.empty()) {
             return kernelsData;
@@ -244,25 +247,36 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 }
 
 KernelList kernel_selector_base::GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const {
+    using PriorityPair = std::pair<KernelsPriority, std::shared_ptr<KernelBase>>;
+    std::vector<PriorityPair> sortedImpls;
     KernelList result;
 
     if (params.GetType() == kType && options.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
         bool forceImplementation = !params.forceImplementation.empty();
-
-        std::copy_if(
-            implementations.begin(),
-            implementations.end(),
-            std::back_inserter(result),
-            [&](const std::shared_ptr<KernelBase>& implementation) {
-            const ParamsKey implKey = implementation->GetSupportedKey();
+        for (auto& impl : implementations) {
+            const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
-                return false;
-            if (forceImplementation && params.forceImplementation != implementation->GetName())
-                return false;
+                continue;
+            if (forceImplementation && params.forceImplementation != impl->GetName())
+                continue;
+            sortedImpls.emplace_back(impl->GetKernelsPriority(params, options), impl);
+        }
 
-            return true;
-        });
+        stable_sort(
+            sortedImpls.begin(),
+            sortedImpls.end(),
+            [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {
+                return firstImpl.first < secondImpl.first; 
+            });
+
+        std::transform(
+            sortedImpls.begin(),
+            sortedImpls.end(),
+            std::back_inserter(result),
+            [](const PriorityPair& impl) {
+                return std::move(impl.second);
+            });
     }
 
     return result;

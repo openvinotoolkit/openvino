@@ -59,8 +59,10 @@ public:
                                                    const optional_params &options,
                                                    DataLayout dl,
                                                    WeightsLayout wl,
-                                                   float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                    const int autoTuneIndex = -1) const;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const {
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    };
 
 protected:
     virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
@@ -69,7 +71,6 @@ protected:
                                      const optional_params &options,
                                      DataLayout dl,
                                      WeightsLayout wl,
-                                     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                      const std::string exeMode = DEFAULT,
                                      int autoTuneIndex = -1) const;
 
