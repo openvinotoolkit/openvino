@@ -669,7 +669,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_softmax_default_axis_expanded_cpu",
         "OnnxBackendNodeModelTest.test_softmax_large_number_expanded_cpu",
         "OnnxBackendNodeModelTest.test_softmax_negative_axis_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_convtranspose_3d_cpu",
         "OnnxBackendNodeModelTest.test_hardmax_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_hardmax_axis_1_cpu",
         "OnnxBackendNodeModelTest.test_hardmax_default_axis_cpu",),
