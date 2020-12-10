@@ -179,6 +179,10 @@ xfail_issue_44858 = xfail_test(reason="E   Unsupported dynamic op: Unsqueeze")
 xfail_issue_44956 = xfail_test(reason="E   Unsupported dynamic op: Loop")
 xfail_issue_44957 = xfail_test(reason="E   Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="E   Unsupported dynamic op: Interpolate")
+xfail_issue_44965 = xfail_test(reason="E   RuntimeError: value info has no element")
+xfail_issue_44967 = xfail_test(reason="E   RuntimeError: unsupported element type: BFLOAT16")
+xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
+xfail_issue_44970 = xfail_test(reason="Assertion error")
 
 
 # Model ONNX Zoo issues:

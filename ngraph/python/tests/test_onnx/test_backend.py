@@ -86,7 +86,10 @@ from tests import (BACKEND_NAME,
                    xfail_issue_44858,
                    xfail_issue_44956,
                    xfail_issue_44957,
-                   xfail_issue_44958)
+                   xfail_issue_44958,
+                   xfail_issue_44965,
+                   xfail_issue_44967,
+                   xfail_issue_44968)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -696,7 +699,17 @@ tests_expected_to_fail = [
     (xfail_issue_44957,
         "OnnxBackendNodeModelTest.test_nonzero_example_cpu"),
     (xfail_issue_44958,
-        "OnnxBackendNodeModelTest.test_upsample_nearest_cpu")
+        "OnnxBackendNodeModelTest.test_upsample_nearest_cpu"),
+    (xfail_issue_44965,
+        "OnnxBackendNodeModelTest.test_loop13_seq_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_insert_at_back_cpu",
+        "OnnxBackendNodeModelTest.test_sequence_insert_at_front_cpu",),
+    (xfail_issue_44967,
+        "OnnxBackendNodeModelTest.test_cast_BFLOAT16_to_FLOAT_cpu",
+        "OnnxBackendNodeModelTest.test_cast_FLOAT_to_BFLOAT16_cpu",),
+    (xfail_issue_44968,
+        "OnnxBackendNodeModelTest.test_squeeze_cpu",
+        "OnnxBackendNodeModelTest.test_squeeze_negative_axes_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:
