@@ -16,8 +16,11 @@
 
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
+from extensions.ops.BatchNormInference import BatchNormInference
+from extensions
+from extensions.ops.
 
-
+'''
 class FusedBatchNormBaseExtractor(FrontExtractorOp):
     enabled = True
 
@@ -33,8 +36,11 @@ class FusedBatchNormBaseExtractor(FrontExtractorOp):
         }
         
         
+        
+        
 class FusedBatchNormExtractor(FrontExtractorOp):
     op = "FusedBatchNorm"
     
     def __init__(self):
         super().__init__(self)
+'''

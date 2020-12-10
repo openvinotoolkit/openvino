@@ -23,8 +23,10 @@ class PackOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
+            'type': None,
+            'op': self.op,
             'out_ports_count': 1,
+            'infer': None,
         }
         super().__init__(graph, mandatory_props, attrs)
 

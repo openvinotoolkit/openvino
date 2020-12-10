@@ -427,6 +427,7 @@ extensions/front/tf/non_max_suppression_normalize.py
 extensions/front/tf/noop.py
 extensions/front/tf/ObjectDetectionAPI.py
 extensions/front/tf/one_hot_ext.py
+extensions/front/tf/pack_ext.py
 extensions/front/tf/pad_ext.py
 extensions/front/tf/pad_tf_to_pad.py
 extensions/front/tf/placeholder_ext.py
