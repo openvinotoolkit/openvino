@@ -1,4 +1,4 @@
-# nGraph Function Python* Sample {#openvino_inference_engine_samples_ngraph_function_creation_sample_README}
+# nGraph Function Python* Sample {#openvino_inference_engine_ie_bridges_python_samples_ngraph_function_creation_sample_README}
 
 This sample demonstrates how to execute an inference using ngraph::Function to create a network. The sample uses the LeNet classifications network as an example.
 

@@ -18,10 +18,11 @@ import logging as log
 import numpy as np
 
 from extensions.ops.elementwise import Add, Mul
+from mo.front.common.layout import get_features_dim
 from mo.front.extractor import split_node_in_port
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -42,42 +43,48 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         if 'scale' in node_mean_scale_values and node_mean_scale_values['scale'] is not None:
             if all([x == 1 for x in node_mean_scale_values['scale']]):
                 return
-            out_node = input_node.out_node()
-            if not input_node.has_valid('shape'):
-                raise Error("Node {} has not valid shape attribute".format(input_node.id))
-            input_shape = input_node.shape
-
-            # Create Mul node
             value = 1 / np.array(node_mean_scale_values['scale'])
-            graph.remove_edge(input_node.id, out_node.id)
 
-            mul_node = Mul(graph, dict(name="Mul_"))
-            mul_data = Op.create_input_data_node(graph, "data_mul_", np.array(value))
-            Op.expand_node_shape(mul_data, (len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 0))
-            mul_input = Op.create_data_node(graph, input_node, {'shape': out_node.shape})
+            assert input_node.has_valid('shape')
+            features_dim_idx = get_features_dim(graph.graph['layout'], len(input_node.shape))
+            assert value.size == input_node.shape[features_dim_idx] or value.size == 1
 
-            mul_node.create_node_with_data(inputs=[mul_input, mul_data], data_nodes=out_node)
+            shape = np.ones(len(input_node.shape), dtype=np.int64)
+            shape[features_dim_idx] = value.size
+            value = value.reshape(shape)
+
+            name = input_node.soft_get('name', input_node.id) + '/scale_value'
+            mul = create_op_with_const_inputs(graph, op=Mul, port_value_dict={1: value}, op_attrs={'name': name})
+
+            for dst in input_node.out_port(0).get_destinations():
+                if dst.node.soft_get('type') != 'ShapeOf':
+                    dst.get_connection().set_source(mul.out_port(0))
+
+            input_node.out_port(0).connect(mul.in_port(0))
 
     @staticmethod
     def apply_mean_value(graph: Graph, input_node: Node, node_mean_scale_values: dict):
         if 'mean' in node_mean_scale_values and node_mean_scale_values['mean'] is not None:
             if all([x == 0 for x in node_mean_scale_values['mean']]):
                 return
-            out_node = input_node.out_node()
-            if not input_node.has_valid('shape'):
-                raise Error("Node {} has not valid shape attribute".format(input_node.id))
-            input_shape = input_node.shape
-            # Create Add node
-            graph.remove_edge(input_node.id, out_node.id)
-
             value = np.array(node_mean_scale_values['mean']) * (-1)
 
-            add_node = Add(graph, dict(name="Add_"))
-            add_data = Op.create_input_data_node(graph, "data_add_", np.array(value))
-            Op.expand_node_shape(add_data, (len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 0))
-            add_input = Op.create_data_node(graph, input_node, {'shape': out_node.shape})
+            assert input_node.has_valid('shape')
+            features_dim_idx = get_features_dim(graph.graph['layout'], len(input_node.shape))
+            assert value.size == input_node.shape[features_dim_idx] or value.size == 1
 
-            add_node.create_node_with_data(inputs=[add_input, add_data], data_nodes=out_node)
+            shape = np.ones(len(input_node.shape), dtype=np.int64)
+            shape[features_dim_idx] = value.size
+            value = value.reshape(shape)
+
+            name = input_node.soft_get('name', input_node.id) + '/mean_value'
+            add = create_op_with_const_inputs(graph, op=Add, port_value_dict={1: value}, op_attrs={'name': name})
+
+            for dst in input_node.out_port(0).get_destinations():
+                if dst.node.soft_get('type') != 'ShapeOf':
+                    dst.get_connection().set_source(add.out_port(0))
+
+            input_node.out_port(0).connect(add.in_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
         input_nodes = {}

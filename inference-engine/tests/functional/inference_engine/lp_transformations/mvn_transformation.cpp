@@ -91,6 +91,7 @@ public:
 
         std::ostringstream result;
         result <<
+            toString(testValues.params) << "_" <<
             testValues.inputShape << "_" <<
             testValues.reductionAxes << "_" <<
             testValues.normalizeVariance << "_" <<
@@ -145,9 +146,9 @@ const std::vector<MVNTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {127.f}, {}},
+            {{ngraph::element::f32}, {127.f}, {0.45f}},
             ngraph::element::f32,
-            {{}, {}, {1.f}}
+            {{}, {}, {}}
         }
     },
     {
@@ -163,7 +164,7 @@ const std::vector<MVNTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{ngraph::element::f32}, {12.5f}, {0.45f}},
             ngraph::element::f32,
-            {}
+            {{}, {}, {}}
         }
     },
     {

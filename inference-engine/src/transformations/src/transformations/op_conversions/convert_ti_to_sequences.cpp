@@ -132,6 +132,8 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
 
         auto seq_lengths = ngraph::opset5::Constant::create(element::i32, Shape{batch_size}, {ti->get_num_iterations()});
         const auto& lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(found_cell);
+        if (lstm_cell == nullptr)
+            return false;
         auto in_0 = ti->input_values()[ordered_in_descs[0]->m_input_index];
         if (slice_axis == 0) {
             auto order = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 0, 2});
@@ -283,6 +285,8 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         }
 
         const auto& rnn_cell = std::dynamic_pointer_cast<ngraph::opset5::RNNCell>(pattern_map[cell]);
+        if (rnn_cell == nullptr)
+            return false;
 
         auto in_0 = ti->input_values()[ordered_in_descs[0]->m_input_index];
         if (slice_axis == 0) {
@@ -434,6 +438,8 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         }
 
         const auto& rnn_cell = std::dynamic_pointer_cast<ngraph::opset5::GRUCell>(pattern_map[cell]);
+        if (rnn_cell == nullptr)
+            return false;
 
         auto in_0 = ti->input_values()[ordered_in_descs[0]->m_input_index];
         if (slice_axis == 0) {

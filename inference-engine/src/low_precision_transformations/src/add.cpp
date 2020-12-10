@@ -199,6 +199,20 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
     return true;
 }
 
+bool AddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
+    if (dequantization1.multiplyHasZero()) {
+        return false;
+    }
+
+    const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
+    if (dequantization2.multiplyHasZero()) {
+        return false;
+    }
+
+    return EltwiseBaseTransformation::canBeTransformed(context, layer);
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph

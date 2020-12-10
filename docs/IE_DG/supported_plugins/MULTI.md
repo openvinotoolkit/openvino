@@ -32,11 +32,11 @@ You can use name of the configuration directly as a string, or use MultiDeviceCo
  
 Basically, there are three ways to specify the devices to be use by the "MULTI":
 
-@snippet openvino/docs/snippets/MULTI0.cpp part0
+@snippet snippets/MULTI0.cpp part0
 
 Notice that the priorities of the devices can be changed in real-time for the executable network:
 
-@snippet openvino/docs/snippets/MULTI1.cpp part1
+@snippet snippets/MULTI1.cpp part1
 
 Finally, there is a way to specify number of requests that the multi-device will internally keep for each device.
 Say if your original app was running 4 cameras with 4 inference requests now you would probably want to share these 4 requests between 2 devices used in the MULTI. The easiest way is to specify a number of requests for each device using parentheses: "MULTI:CPU(2),GPU(2)" and use the same 4 requests in your app. However, such an explicit configuration is not performance portable and hence not recommended. Instead, the better way is to configure the individual devices and query the resulting number of requests to be used in the application level (see [Configuring the Individual Devices and Creating the Multi-Device On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top)).
@@ -55,7 +55,7 @@ Available devices:
 ```
 Simple programmatic way to enumerate the devices and use with the multi-device is as follows:
 
-@snippet openvino/docs/snippets/MULTI2.cpp part2
+@snippet snippets/MULTI2.cpp part2
 
 Beyond trivial "CPU", "GPU", "HDDL" and so on, when multiple instances of a device are available the names are more qualified.
 For example this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
@@ -68,13 +68,13 @@ For example this is how two Intel® Movidius™ Myriad™ X sticks are listed wi
 So the explicit configuration to use both would be "MULTI:MYRIAD.1.2-ma2480,MYRIAD.1.4-ma2480".
 Accordingly, the code that loops over all available devices of "MYRIAD" type only is below:
 
-@snippet openvino/docs/snippets/MULTI3.cpp part3
+@snippet snippets/MULTI3.cpp part3
 
 
 ## Configuring the Individual Devices and Creating the Multi-Device On Top
 As discussed in the first section, you shall configure each individual device as usual and then just create the "MULTI" device on top:
 
-@snippet openvino/docs/snippets/MULTI4.cpp part4
+@snippet snippets/MULTI4.cpp part4
 
 Alternatively, you can combine all the individual device settings into single config and load that, allowing the multi-device plugin to parse and apply that to the right devices. See code example in the next section.
 
@@ -84,7 +84,7 @@ See section of the [Using the multi-device with OpenVINO samples and benchmarkin
 ## Querying the Optimal Number of Inference Requests
 Notice that until R2 you had to calculate number of requests in your application for any device, e.g. you had to know that Intel® Vision Accelerator Design with Intel® Movidius™ VPUs required at least 32 inference requests to perform well. Now you can use the new GetMetric API to query the optimal number of requests. Similarly, when using the multi-device you don't need to sum over included devices yourself, you can query metric directly:
 
-@snippet openvino/docs/snippets/MULTI5.cpp part5
+@snippet snippets/MULTI5.cpp part5
 
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
 Notice that every OpenVINO sample that supports "-d" (which stays for "device") command-line option transparently accepts the multi-device.

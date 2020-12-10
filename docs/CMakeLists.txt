@@ -132,14 +132,6 @@ function(build_docs)
                        COMMAND ${Python3_EXECUTABLE} ${PYX_FILTER} ${PYTHON_API_OUT}
                        COMMENT "Pre-process Python API")
 
-    # Plugin API
-
-    add_custom_target(plugin_api
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BINARY}
-                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
-                      COMMENT "Generating Plugin API Reference"
-                      VERBATIM)
-
     # Preprocess docs
 
     add_custom_target(preprocess_docs
@@ -163,6 +155,15 @@ function(build_docs)
                       DEPENDS preprocess_docs
                       COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BINARY}
                       WORKING_DIRECTORY ${DOCS_BINARY_DIR}
+                      VERBATIM)
+
+    # Plugin API
+
+    add_custom_target(plugin_api
+                      DEPENDS ie_docs
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BINARY}
+                      WORKING_DIRECTORY ${DOCS_BINARY_DIR}
+                      COMMENT "Generating Plugin API Reference"
                       VERBATIM)
 
     # Umbrella OpenVINO target

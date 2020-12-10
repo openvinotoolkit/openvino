@@ -36,6 +36,8 @@ Your installation is complete when these are all completed:
 
     - <a href="#Update-Path">Update Windows* environment variables</a>
 
+7. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit</a>
+
 ### About the Intel® Distribution of OpenVINO™ toolkit
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
@@ -62,6 +64,19 @@ The following components are installed by default:
 | [Demos](@ref omz_demos_README)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
 | Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
+
+**Could Be Optionally Installed**
+
+[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
+configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
+* [Model Downloader](@ref omz_tools_downloader_README)
+* [Intel® Open Model Zoo](@ref omz_models_intel_index)
+* [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Post-training Optimization Tool](@ref pot_README)
+* [Accuracy Checker](@ref omz_tools_accuracy_checker_README)
+* [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)
+
+Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
 
 ### System Requirements
 
@@ -444,6 +459,12 @@ For information on Sample Applications, see the [Inference Engine Samples Overvi
 
 Congratulations, you have finished the installation of the Intel® Distribution of OpenVINO™ toolkit for Windows*. To learn more about how the Intel® Distribution of OpenVINO™ toolkit works, the Hello World tutorial and other resources are provided below.
 
+## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
+1. Choose the **Apps & Features** option from the Windows* Settings app.
+2. From the list of installed applications, select the Intel® Distribution of OpenVINO™ Toolkit and click **Uninstall**.
+3. Follow the uninstallation wizard instructions.
+4. When uninstallation is complete, click **Finish**. 
 
 ## <a name="Summary"></a>Summary
 

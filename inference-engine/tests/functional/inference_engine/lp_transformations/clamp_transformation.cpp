@@ -331,9 +331,13 @@ const std::vector<ClampTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{}, {{ 128.f, 0.f, 128.f }, ngraph::element::f32}, {}},
+            {
+                {ngraph::element::f32},
+                {{ 128.f, 0.f, 128.f }},
+                {{ 3.f, 3.f, 3.f }}
+            },
             ngraph::element::f32,
-            {{}, {}, {{3.f, 3.f, 3.f}}}
+            {{}, {}, {}}
         }
     },
     // U8 without asymmetric quantization

@@ -71,6 +71,8 @@ In addition to common parameters, the MYRIAD plugin accepts the following option
 | `KEY_VPU_MYRIAD_FORCE_RESET` | `YES`/`NO`                             | `NO`        | Enables force reset of all booted devices when new ExecutableNetwork is created.<br />This is a plugin scope option and must be used with the plugin's SetConfig method only.<br />See <a href="#MYRIAD_DEVICE_ALLOC">Device allocation</a> section for details. |
 | `KEY_VPU_PLATFORM`           | empty string/`VPU_2450`/`VPU_2480`     | empty string | **Deprecated** Use `KEY_VPU_MYRIAD_PLATFORM` instead. <br />If set, the plugin will use a device with specific platform to allocate a network. |
 | `KEY_VPU_FORCE_RESET`        | `YES`/`NO`                             | `NO`         | **Deprecated** Use `KEY_VPU_MYRIAD_FORCE_RESET` instead. <br />Enables force reset of all booted devices when new ExecutableNetwork is created.<br />This is a plugin scope option and must be used with the plugin's SetConfig method only.<br />See <a href="#MYRIAD_DEVICE_ALLOC">Device allocation</a> section for details. |
+| `KEY_VPU_MYRIAD_MOVIDIUS_DDR_TYPE`        | `VPU_MYRIAD_DDR_AUTO`/   `VPU_MYRIAD_DDR_MICRON_2GB`/   `VPU_MYRIAD_DDR_SAMSUNG_2GB`/   `VPU_MYRIAD_DDR_HYNIX_2GB`/   `VPU_MYRIAD_DDR_MICRON_1GB`                             | `VPU_MYRIAD_DDR_AUTO`         | This option allows setting DDR type for the MyriadX board. |
+
 
 ## Device allocation <a name="MYRIAD_DEVICE_ALLOC">&nbsp;</a>
 

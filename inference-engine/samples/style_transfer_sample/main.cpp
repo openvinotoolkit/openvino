@@ -177,7 +177,8 @@ int main(int argc, char *argv[]) {
             size_t image_size = minput->getTensorDesc().getDims()[3] * minput->getTensorDesc().getDims()[2];
 
             auto data = ilmHolder.as<PrecisionTrait<Precision::FP32>::value_type *>();
-
+            if (data == nullptr)
+                throw std::runtime_error("Input blob has not allocated buffer");
             /** Iterate over all input images **/
             for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
                 /** Iterate over all pixel in image (b,g,r) **/

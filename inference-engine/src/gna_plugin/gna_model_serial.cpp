@@ -102,14 +102,18 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
 
     is.seekg(0, is.beg);
     Header2dot1::ModelHeader tempHeader2dot1;
+    Header2dot2::ModelHeader tempHeader2dot2;
     switch (header.version.major) {
         case 2:
             switch (header.version.minor) {
                 case 1:
                     readBits(tempHeader2dot1, is);
-                    header = Header2dot3::ModelHeader(tempHeader2dot1);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot1);
                     break;
                 case 2:
+                    readBits(tempHeader2dot2, is);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot2);
+                    break;
                 case 3:
                     readBits(header, is);
                     break;
@@ -172,7 +176,7 @@ void GNAModelSerial::Import(void *basePointer,
             for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string inName("", nameSize);
+                std::string inName(nameSize, '\0');
                 readNBytes(&inName[0], nameSize, is);
                 inputNames.push_back(inName.substr(0, nameSize - 1));
             }
@@ -185,7 +189,7 @@ void GNAModelSerial::Import(void *basePointer,
             for (auto inputIndex = 0; inputIndex < modelHeader.nOutputs; inputIndex++) {
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
-                std::string outName("", nameSize);
+                std::string outName(nameSize, '\0');
                 readNBytes(&outName[0], nameSize, is);
                 outputNames.push_back(outName.substr(0, nameSize - 1));
             }
@@ -755,7 +759,7 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
 
     for (auto outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
-                                  ? outputNames.at(outputIndex) : std::string("input" + std::to_string(outputIndex));
+                                  ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
         HeaderLatest::RuntimeEndPoint output;
         is.read(reinterpret_cast<char *>(&output), sizeof(output));
         OutputDesc description;

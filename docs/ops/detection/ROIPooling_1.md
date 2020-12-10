@@ -50,7 +50,7 @@
 
 **Outputs**:
 
-*   **1**: 4D output tensor of shape `[NUM_ROIS, C, pooled_h, pooled_w]` with feature maps. Required.
+*   **1**: 4D output tensor of shape `[NUM_ROIS, C, pooled_h, pooled_w]` with feature maps.
 
 **Example**
 

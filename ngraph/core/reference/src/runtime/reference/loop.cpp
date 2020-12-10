@@ -17,6 +17,7 @@
 #include "runtime/reference/loop.hpp"
 #include "runtime/reference/concat.hpp"
 #include "runtime/reference/function.hpp"
+#include "runtime/reference/split.hpp"
 
 namespace ngraph
 {
@@ -123,6 +124,47 @@ namespace ngraph
                             concat_outputs.push_back(concat_desc);
                         }
                     }
+
+                    // Slicing
+                    std::vector<std::shared_ptr<opset5::TensorIterator::SliceInputDescription>>
+                        slice_inputs;
+                    std::vector<HostTensorVector> sliced_values;
+                    int slice_in_idx = 0;
+                    for (const auto& desc : input_descs)
+                    {
+                        if (const auto& slice_desc = std::dynamic_pointer_cast<
+                                opset5::TensorIterator::SliceInputDescription>(desc))
+                        {
+                            const auto el_size =
+                                args[slice_desc->m_input_index]->get_element_type().size();
+                            slice_inputs.push_back(slice_desc);
+                            auto shape = args[slice_desc->m_input_index]->get_shape();
+                            uint64_t num_iterations = shape.at(slice_desc->m_axis);
+                            shape.at(slice_desc->m_axis) = 1;
+                            sliced_values.emplace_back(HostTensorVector());
+                            for (int i = 0; i < num_iterations; ++i)
+                            {
+                                sliced_values.back().emplace_back(std::make_shared<HostTensor>(
+                                    args[slice_desc->m_input_index]->get_element_type(), shape));
+                            }
+                            std::vector<char*> pointers_to_data(num_iterations);
+                            for (size_t j = 0; j < pointers_to_data.size(); ++j)
+                            {
+                                pointers_to_data[slice_desc->m_stride > 0
+                                                     ? j
+                                                     : (pointers_to_data.size() - j - 1)] =
+                                    sliced_values[slice_in_idx][j]->get_data_ptr<char>();
+                            }
+                            reference::split(args[slice_desc->m_input_index]->get_data_ptr<char>(),
+                                             args[slice_desc->m_input_index]->get_shape(),
+                                             el_size,
+                                             slice_desc->m_axis,
+                                             num_iterations,
+                                             pointers_to_data.data());
+                            slice_in_idx++;
+                        }
+                    }
+
                     // Allocate vectors for store output values
                     std::vector<HostTensorVector> values_to_concat(concat_outputs.size());
                     HostTensorVector body_outputs;
@@ -131,6 +173,13 @@ namespace ngraph
                     trip_count = trip_count >= 0 ? trip_count : std::numeric_limits<int64_t>::max();
                     for (int64_t cur_iter = 0; cur_iter < trip_count; ++cur_iter)
                     {
+                        // Copy new values for sliced inputs
+                        for (size_t i = 0; i < slice_inputs.size(); ++i)
+                        {
+                            inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
+                                sliced_values[i][cur_iter];
+                        }
+
                         // Evaluate body
                         body_outputs.clear();
                         reference::function(func, inputs_to_body, body_outputs);
