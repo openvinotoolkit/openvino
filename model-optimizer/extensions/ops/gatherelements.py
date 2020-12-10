@@ -14,8 +14,10 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
+from mo.ops.op import Op, PermuteAttrs
 
 
 class GatherElements(Op):
@@ -37,7 +39,33 @@ class GatherElements(Op):
 
     @staticmethod
     def infer(node: Node):
+        data_shape = node.in_port(0).data.get_shape()
         indices_shape = node.in_port(1).data.get_shape()
+        axis = node.axis
+        data_rank = len(data_shape)
+
+        assert data_rank == len(indices_shape), f'data and indices inputs for node {node.name} must be of the ' \
+                                                f'same rank. Got {data_rank} and {len(indices_shape)}'
+        assert -data_rank < axis < data_rank, f'axis for node {node.name} must be within interval ' \
+                                              f'[{-data_rank},  {data_rank - 1}]. Instead axis={axis}'
+        if data_rank < 0:
+            axis += data_rank
+
+        for idx, (data_sz, ind_sz) in enumerate(zip(data_shape, indices_shape)):
+            if idx != axis and data_sz != ind_sz:
+                raise ValueError(f'Sizes along axis {idx} for node {node.name} do not match. '
+                                 f'data and indices must have equal size along all axes except for axis {axis}')
+
         node.out_port(0).data.set_shape(indices_shape)
 
-        # todo: add value_inference
+        data = node.in_port(0).data.get_value()
+        indices = node.in_port(1).data.get_value()
+        if data is not None and indices is not None:
+            out_value = np.empty(indices_shape, dtype=data.dtype)
+            for idx in np.ndindex(*indices_shape):
+                data_idx = list(idx)
+                data_idx[node.axis] = indices[idx]
+                out_value[idx] = data[tuple(data_idx)]
+            node.out_port(0).data.set_value(out_value)
+
+        PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
