@@ -1,9 +1,35 @@
 [
     {
         "custom_attributes": {
+        },
+        "id": "ObjectDetectionAPIPreprocessorReplacement",
+        "inputs": [
+            [
+                {
+                    "node": "unstack$",
+                    "port": 0
+                }
+            ]
+        ],
+        "instances": [
+            ".*Preprocessor/"
+        ],
+        "match_kind": "scope",
+        "outputs": [
+            {
+                "node": "sub$",
+                "port": 0
+            },
+            {
+                "node": "stack_1$",
+                "port": 0
+            }
+        ]
+    },
+    {
+        "custom_attributes": {
             "clip_before_nms": false,
-            "clip_after_nms": true,
-            "do_not_swap_proposals": true
+            "clip_after_nms": true
         },
         "id": "ObjectDetectionAPIProposalReplacement",
         "include_inputs_to_sub_graph": true,
@@ -29,7 +55,7 @@
         "custom_attributes": {
             "clip_before_nms": false,
             "clip_after_nms": true,
-            "background_label_id": 1000,
+            "background_label_id": 0,
             "coordinates_swap_method": "swap_weights",
             "share_location": true
         },
