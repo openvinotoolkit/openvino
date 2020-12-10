@@ -26,19 +26,12 @@ set(BINDINGS_DIR ${CMAKE_INSTALL_PREFIX}/${PYTHON_BRIDGE_CPACK_PATH})
 # prepare setup.py
 configure_file(${SETUP_PY_IN} ${SETUP_PY})
 
-if(UNIX)
-    set(CMAKE_INSTALL_RPATH "../libs")
-elseif(APPLE)
-    set(CMAKE_INSTALL_RPATH "../libs")
-endif()
-
 #
 set(runtime_targets inference_engine
                     inference_engine_legacy
                     inference_engine_transformations
                     inference_engine_preproc
                     inference_engine_lp_transformations
-                    inference_engine_plugin_api
                     inference_engine_ir_reader
                     ${NGRAPH_LIBRARIES}
 )
@@ -65,6 +58,14 @@ endif()
 
 add_custom_target(ie_wheel ALL DEPENDS ${runtime_targets} ${plugin_targets})
 
+if(UNIX)
+    SET_TARGET_PROPERTIES(${runtime_targets} PROPERTIES INSTALL_RPATH "$ORIGIN")
+    SET_TARGET_PROPERTIES(ie_api PROPERTIES INSTALL_RPATH "$ORIGIN/../libs")
+elseif(APPLE)
+    SET_TARGET_PROPERTIES(${runtime_targets} PROPERTIES INSTALL_RPATH "$ORIGIN")
+    SET_TARGET_PROPERTIES(ie_api PROPERTIES INSTALL_RPATH "$ORIGIN/../libs")
+endif()
+
 # install wheel specific files
 install(FILES ${SETUP_PY} ${CMAKE_CURRENT_SOURCE_DIR}/pypi_overview.md
     DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}
@@ -74,7 +75,8 @@ install(FILES ${SETUP_PY} ${CMAKE_CURRENT_SOURCE_DIR}/pypi_overview.md
 # install runtime libs
 install(TARGETS ${runtime_targets}
                 ${plugin_targets}
-        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
+        #RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
         COMPONENT ${PYTHON_VERSION}
 )
 
@@ -87,7 +89,7 @@ install(FILES ${target_files}
 if(EXISTS "${TBB}/bin")
     file(GLOB tbb_libs
          LIST_DIRECTORIES false
-         "${TBB}/bin/*.so"
+         "${TBB}/lib/*.so"
          "${TBB}/bin/*.dll"
          "${TBB}/bin/*.dylib"
     )
