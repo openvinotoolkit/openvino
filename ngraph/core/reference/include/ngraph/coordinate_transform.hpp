@@ -31,11 +31,18 @@ namespace ngraph
     ///             {1,0}, {1,1}, {2,2}
     class CoordinateIterator
     {
-    public:
         /// \brief Coordinates iterator constructor
         /// \param target_shape The target shape for coordinates iteration
         /// \param is_end The flag indicates that the coordinate iterator is the last.
-        CoordinateIterator(const Shape& target_shape, bool is_end = false);
+        CoordinateIterator(const Shape& target_shape, bool is_end);
+
+    public:
+        /// \brief Coordinates iterator constructor
+        /// \param target_shape The target shape for coordinates iteration
+        CoordinateIterator(const Shape& target_shape)
+            : CoordinateIterator(target_shape, false)
+        {
+        }
 
         /// \brief The postfix operation increment the iterator by one.
         void operator++();
@@ -176,4 +183,4 @@ namespace ngraph
         Shape m_target_shape;
         size_t m_n_axes;
     };
-}
+} // namespace ngraph

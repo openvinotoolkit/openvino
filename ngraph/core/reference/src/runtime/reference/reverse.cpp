@@ -15,39 +15,62 @@
 //*****************************************************************************
 
 #include <cmath>
-#include <stdio.h>
+#include <cstring>
+#include <iterator>
 
 #include "ngraph/check.hpp"
+#include "ngraph/coordinate_range.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
 
 using namespace ngraph;
 
-void runtime::reference::reverse(const char* arg,
-                                 char* out,
-                                 const Shape& arg_shape,
-                                 const Shape& out_shape,
-                                 const AxisSet& reversed_axes,
-                                 size_t elem_size)
+namespace ngraph
 {
-    // In fact arg_shape == out_shape, but we'll use both for stylistic consistency with
-    // other kernels.
-    CoordinateTransform arg_transform(arg_shape);
-    CoordinateTransform output_transform(out_shape);
-
-    for (Coordinate out_coord : output_transform)
+    namespace runtime
     {
-        Coordinate arg_coord = out_coord;
-
-        for (size_t i = 0; i < arg_coord.size(); i++)
+        namespace reference
         {
-            if (reversed_axes.count(i) != 0)
+            void reverse(const char* arg,
+                         char* out,
+                         const Shape& arg_shape,
+                         const Shape& out_shape,
+                         const AxisSet& reversed_axes,
+                         size_t elem_size)
             {
-                arg_coord[i] = arg_shape[i] - arg_coord[i] - 1;
-            }
-        }
+                NGRAPH_CHECK(shape_size(arg_shape) == shape_size(out_shape));
 
-        memcpy(out + output_transform.index(out_coord) * elem_size,
-               arg + arg_transform.index(arg_coord) * elem_size,
-               elem_size);
-    }
-}
+                const bool nothing_to_revers = reversed_axes.empty();
+                if (nothing_to_revers)
+                {
+                    std::memcpy(out, arg, shape_size(arg_shape) * elem_size);
+                    return;
+                }
+
+                auto dst_mem = out;
+                for (auto range : coordinates::reverse(arg_shape, reversed_axes))
+                {
+                    auto src_index = range.begin_index;
+
+                    if (range.direction == coordinates::Direction::forward)
+                    {
+                        for (size_t i = 0; i < range.element_number; src_index += range.step, ++i)
+                        {
+                            const auto src_mem = arg + src_index * elem_size;
+                            std::memcpy(dst_mem, src_mem, elem_size);
+                            std::advance(dst_mem, elem_size);
+                        }
+                    }
+                    else
+                    {
+                        for (size_t i = 0; i < range.element_number; src_index -= range.step, ++i)
+                        {
+                            const auto src_mem = arg + src_index * elem_size;
+                            std::memcpy(dst_mem, src_mem, elem_size);
+                            std::advance(dst_mem, elem_size);
+                        }
+                    }
+                }
+            }
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

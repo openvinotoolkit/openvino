@@ -29,6 +29,30 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
+NGRAPH_TEST(${BACKEND_NAME}, nothing_to_reverse)
+{
+    Shape shape{8};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Reverse>(A,
+                                     op::Constant::create(element::i64, {0}, std::vector<int>{}),
+                                     op::v1::Reverse::Mode::INDEX),
+        ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, shape);
+    copy_data(a, vector<float>{0, 1, 2, 3, 4, 5, 6, 7});
+    auto result = backend->create_tensor(element::f32, shape);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f((vector<float>{0, 1, 2, 3, 4, 5, 6, 7}),
+                                  read_vector<float>(result),
+                                  MIN_FLOAT_TOLERANCE_BITS));
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, reverse_1d)
 {
     Shape shape{8};
