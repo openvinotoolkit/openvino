@@ -92,15 +92,15 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2021.2. 
 
-Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of December 9, 2020 and may not reflect all publicly available security updates. See configuration disclosure for details. No product can be absolutely secure. 
+Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of December 9, 2020 and may not reflect all publicly available updates. See configuration disclosure for details. No product can be absolutely secure. 
 
-Software and workloads used in performance tests may have been optimized for performance only on Intel microprocessors. Performance tests, such as SYSmark and MobileMark, are measured using specific computer systems, components, software, operations and functions. Any change to any of those factors may cause the results to vary. You should consult other information and performance tests to assist you in fully evaluating your contemplated purchases, including the performance of that product when combined with other products. For more complete information, see [Performance Benchmark Test Disclosure](https://www.intel.com/content/www/us/en/benchmarks/benchmark.html).
+Performance varies by use, configuration and other factors. Learn more at [www.intel.com/PerformanceIndex](www.intel.com/PerformanceIndex).
 
 Your costs and results may vary. 
 
 © Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others.
 
-Optimization Notice: Intel’s compilers may or may not optimize to the same degree for non-Intel microprocessors for optimizations that are not unique to Intel microprocessors. These optimizations include SSE2, SSE3, and SSSE3 instruction sets and other optimizations. Intel does not guarantee the availability, functionality, or effectiveness of any optimization on microprocessors not manufactured by Intel. Microprocessor-dependent optimizations in this product are intended for use with Intel microprocessors. Certain optimizations not specific to Intel microarchitecture are reserved for Intel microprocessors. Please refer to the applicable product User and Reference Guides for more information regarding the specific instruction sets covered by this notice. [Notice Revision #2010804](https://software.intel.com/articles/optimization-notice).
+Intel optimizations, for Intel compilers or other products, may not optimize to the same degree for non-Intel products.
 
 Testing by Intel done on: see test date for each HW platform below.
 
@@ -254,7 +254,7 @@ Please follow this link for more detailed configuration descriptions: [Configura
 <div class="opt-notice-wrapper">
 <p class="opt-notice">
 \endhtmlonly
-For more complete information about performance and benchmark results, visit: [www.intel.com/benchmarks](https://www.intel.com/benchmarks) and [Optimization Notice](https://software.intel.com/articles/optimization-notice). [Legal Information](../Legal_Information.md).
+Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).
 \htmlonly
 </p>
 </div>
