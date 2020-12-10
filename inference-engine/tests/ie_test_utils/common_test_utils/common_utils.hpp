@@ -120,4 +120,9 @@ inline auto tuple2Vector(Tuple&& tuple) -> decltype(tuple2Vector(std::declval<Tu
     return tuple2Vector(std::forward<Tuple>(tuple), makeIndices<Tuple>());
 }
 
+template<class T>
+inline T getTotal(const std::vector<T>& shape) {
+    return shape.empty() ? 0 : std::accumulate(shape.cbegin(), shape.cend(), static_cast<T>(1), std::multiplies<T>());
+}
+
 }  // namespace CommonTestUtils

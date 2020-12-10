@@ -152,6 +152,20 @@ static void fill_data_roi(float *data, size_t size, const uint32_t range, const 
     }
 }
 
+template<class T>
+void inline fill_data_random(T* pointer, std::size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1, const int seed = 1) {
+    testing::internal::Random random(seed);
+    random.Generate(range);
+
+    if (start_from < 0 && !std::is_signed<T>::value) {
+        start_from = 0;
+    }
+
+    for (std::size_t i = 0; i < size; i++) {
+        pointer[i] = static_cast<T>(start_from + static_cast<int64_t>(random.Generate(range)));
+    }
+}
+
 /** @brief Fill blob with random data.
  *
  * @param blob Target blob
@@ -165,15 +179,8 @@ static void fill_data_roi(float *data, size_t size, const uint32_t range, const 
 template<InferenceEngine::Precision::ePrecision PRC>
 void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1, const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
-    testing::internal::Random random(1);
-    random.Generate(range);
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
-    if (start_from < 0 && !std::is_signed<dataType>::value) {
-        start_from = 0;
-    }
-    for (size_t i = 0; i < blob->size(); i++) {
-        rawBlobDataPtr[i] = static_cast<dataType>(start_from + static_cast<int64_t>(random.Generate(range)));
-    }
+    fill_data_random(rawBlobDataPtr, blob->size(), range, start_from, k, seed);
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>

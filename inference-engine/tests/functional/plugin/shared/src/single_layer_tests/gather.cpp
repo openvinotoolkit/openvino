@@ -20,6 +20,24 @@
 
 namespace LayerTestsDefinitions {
 
+void GatherLayerTestBase::SetUp(const gatherParamsTuple& params) {
+    int axis;
+    std::vector<int> indices;
+    std::vector<size_t> indicesShape;
+    std::vector<size_t> inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::tie(indices, indicesShape, axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = params;
+    ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size()) << "Indices vector size and provided indices shape doesn't fit each other";
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto functionParams = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
+    auto indicesNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape(indicesShape), indices);
+    auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
+    auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
+    function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
+}
+
 std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj) {
     int axis;
     std::vector<int> indices;
@@ -44,27 +62,12 @@ std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gather
 }
 
 void GatherLayerTest::SetUp() {
-    int axis;
-    std::vector<int> indices;
-    std::vector<size_t> indicesShape;
-    std::vector<size_t> inputShape;
-    InferenceEngine::Precision netPrecision;
-    std::tie(indices, indicesShape, axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
-    ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
-    << "Indices vector size and provided indices shape doesn't fit each other";
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto indicesNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape(indicesShape), indices);
-    auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
-    auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
-    function = std::make_shared<ngraph::Function>(results, params, "gather");
+    GatherLayerTestBase::SetUp(GetParam());
 }
 
 
 TEST_P(GatherLayerTest, CompareWithRefs) {
     Run();
 };
+
 }  // namespace LayerTestsDefinitions

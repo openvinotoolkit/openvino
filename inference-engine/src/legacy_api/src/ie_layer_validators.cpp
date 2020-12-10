@@ -635,12 +635,11 @@ void PadValidator::parseParams(CNNLayer* layer) {
 GatherValidator::GatherValidator(const std::string& _type): LayerValidator(_type) {}
 
 void GatherValidator::parseParams(CNNLayer* layer) {
-    auto casted = dynamic_cast<GatherLayer*>(layer);
-    if (!casted) {
-        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of GatherLayer class";
+    if (auto casted = dynamic_cast<GatherLayer*>(layer)) {
+        casted->axis = casted->GetParamAsInt("axis", 0);
+    } else if (layer->insData.size() != 3) {
+        THROW_IE_EXCEPTION << layer->name << " Gather layer is expected to have 3 inputs";
     }
-
-    casted->axis = casted->GetParamAsInt("axis", 0);
 }
 
 //
