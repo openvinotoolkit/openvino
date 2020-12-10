@@ -100,7 +100,7 @@ protected:
         // performance counters
         expectedPrecisions["ADD_1"] = "FP32";
         expectedPrecisions["CONV_1"] = "BF16";
-        expectedPrecisions["CONV_2"] = "BF16";
+        expectedPrecisions["CONV_2"] = "FP32";
     }
 };
 

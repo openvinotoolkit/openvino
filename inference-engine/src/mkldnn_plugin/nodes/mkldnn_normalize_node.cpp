@@ -165,6 +165,9 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             }
         }
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
+
         this->preamble();
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -188,6 +191,8 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
 
@@ -229,6 +234,8 @@ private:
     Vmm vmm_d_weights = Vmm(5);
     Vmm vmm_d_bias = Vmm(6);
     Vmm vmm_zero = Vmm(7);
+
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -580,7 +587,10 @@ private:
         if (dst_dt == memory::f32) {
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::bf16) {
-            vcvtneps2bf16(ymm_dst, vmm_dst);
+            if (mayiuse(avx512_core_bf16))
+                vcvtneps2bf16(ymm_dst, vmm_dst);
+            else
+                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
@@ -752,7 +762,7 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
         weights_blob->allocate();
         float* src = layer->blobs.at("weights")->buffer();
         float* dst = weights_blob->wmap();
-        memcpy(dst, src, layer->blobs.at("weights")->byteSize());
+        cpu_memcpy(dst, src, layer->blobs.at("weights")->byteSize());
     } else if (weights_prec == Precision::BF16) {
         MKLDNNPlugin::BF16Transformer transformer;
         weights_blob = transformer.convertBF16ToFloat(tweights);
@@ -780,7 +790,7 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     }
 
     if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
-        if (!mayiuse(avx512_core_bf16))
+        if (!mayiuse(avx512_core))
             inputPrecision = outputPrecision = Precision::FP32;
         else
             inputPrecision = outputPrecision = Precision::BF16;

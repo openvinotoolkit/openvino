@@ -151,12 +151,9 @@ protected:
         // performance counters
         expectedPrecisions["ADD_1"] = "FP32";
         expectedPrecisions["CONV_1"] = "BF16";
-        expectedPrecisions["CONV_2"] = "BF16";
         expectedPrecisions["RELU_2"] = "ndef";
         expectedPrecisions["DW_CONV"] = "BF16";
         expectedPrecisions["RELU_DW"] = "ndef";
-        expectedPrecisions["NORM_1"] = "FP32";
-        expectedPrecisions["CONC_1"] = "BF16";
     }
 };
 

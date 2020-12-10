@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class jit_mkldnn_emitter : public jit_emitter {
 public:
-    jit_mkldnn_emitter(mkldnn::impl::cpu::jit_generator *host, mkldnn::impl::cpu::cpu_isa_t host_isa, const MKLDNNNode& node,
+    jit_mkldnn_emitter(mkldnn::impl::cpu::jit_generator *host, mkldnn::impl::cpu::cpu_isa_t host_isa, const MKLDNNNode* node,
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() override;

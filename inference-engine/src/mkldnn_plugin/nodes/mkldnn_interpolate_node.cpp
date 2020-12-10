@@ -21,7 +21,7 @@
 #include "jit_uni_depthwise.hpp"
 #include "jit_uni_quantization.hpp"
 #include "common/cpu_memcpy.h"
-#include "ngraph/type/bfloat16.hpp"
+#include "utils/bfloat16.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -58,6 +58,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                         this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
 
@@ -133,6 +136,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         }
 
         this->postamble();
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -223,6 +229,8 @@ private:
 
     Xbyak::Label l_table_constant;
     Opmask k_mask = Xbyak::Opmask(1);
+
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -1278,12 +1286,11 @@ private:
                     movd(op, xmm_dst);
             }
         } else if (dst_dt == memory::bf16) {
-            if (mayiuse(avx512_core_bf16)) {
+            if (mayiuse(avx512_core_bf16))
                 vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
-            } else {
-                assert(!"data type of bf16 is only supported for ISA:avx512_core_bf16");
-            }
+            else
+                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+            vmovdqu16(op, ymm_dst);
         }
     }
 
@@ -1584,7 +1591,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     if ((inputPrecision != Precision::I8) && (inputPrecision != Precision::U8) && (inputPrecision != Precision::BF16)) {
         inputPrecision = Precision::FP32;
     }
-    if ((inputPrecision == Precision::BF16) && !mayiuse(avx512_core_bf16)) {
+    if ((inputPrecision == Precision::BF16) && !mayiuse(avx512_core)) {
         inputPrecision = Precision::FP32;
     }
     Precision outputPrecision = inputPrecision;
@@ -2714,7 +2721,7 @@ float MKLDNNInterpolateNode::getValue(const uint8_t *base, size_t offset, Infere
         }
         case Precision::BF16: {
             const uint16_t *valuePtr = reinterpret_cast<const uint16_t *>(baseOffset);
-            return ngraph::bfloat16::from_bits(*valuePtr);
+            return bfloat16_t::from_bits(*valuePtr);
             break;
         }
         case Precision::FP32: {
@@ -2743,7 +2750,7 @@ void MKLDNNInterpolateNode::setValue(uint8_t *base, size_t offset, float value, 
             break;
         }
         case Precision::BF16: {
-            uint16_t data = ngraph::bfloat16(value).to_bits();
+            uint16_t data = bfloat16_t(value).to_bits();
             std::memcpy(baseOffset, &data, 2);
             break;
         }
