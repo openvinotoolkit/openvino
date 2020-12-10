@@ -220,12 +220,10 @@ if(UNIX)
                                                  PLUGIN_API)
     else()
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS "-Wpedantic"
-                                                 HEADERS_TO_SKIP "generic_ie.hpp"
                                                  PLUGIN_API)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
-                                             HEADERS_TO_SKIP "generic_ie.hpp"
                                              FLAGS  "/we4996 /W4 /WX"
                                              PLUGIN_API)
 endif()
