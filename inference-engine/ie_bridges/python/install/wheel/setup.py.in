@@ -67,19 +67,19 @@ binding_dir = os.path.join(python_version)
 
 if sys.platform == "linux":
     content_pattern = "**/*.so"
-    libs_subdir = f"lib/{python_version}/dist-packages/openvino/libs"
+    libs_subdir = f"lib/{python_version}/site-packages/openvino/libs"
 elif sys.platform == "win32":
     content_pattern = "**/*.pyd"
     libs_subdir = "Lib/site-packages/openvino/inference_engine"
 elif sys.platform == "darwin":
     content_pattern = "**/*.so"
-    libs_subdir = f"lib/{python_version}/dist-packages/openvino/libs"
+    libs_subdir = f"lib/{python_version}/site-packages/openvino/libs"
 else:
     print("Unsupported OS: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
     exit(2)
 
 
-setup(
+setup(  
     version='${WHEEL_VERSION}',
     author_email="${WHEEL_AUTOR_EMAIL}",
     name="${WHEEL_PACKAGE_NAME}",
