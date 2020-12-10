@@ -136,7 +136,7 @@ public:
      *
      * @return     Returns `true` if an operation has completed successfully
      */
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+    bool visit_attributes(ngraph::AttributeVisitor& /*visitor*/) override {
         return true;
     }
 };
