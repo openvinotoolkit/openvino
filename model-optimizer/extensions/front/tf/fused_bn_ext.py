@@ -15,15 +15,26 @@
 """
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.concat import Concat
+from mo.graph.graph import Node
 
 
-class ConcatV2FrontExtractor(FrontExtractorOp):
-    op = 'Concat'
+class FusedBatchNormBaseExtractor(FrontExtractorOp):
     enabled = True
 
     @classmethod
-    def extract(cls, node):
-        attrs = {'N': node.pb.attr["N"].i, 'simple_concat': True}
-        Concat.update_node_stat(node, attrs)
-        return cls.enabled
+    def extract(cls, node: Node):
+        pb = node.pb
+        is_training = pb.attr['is_training'].b
+        attrs = {
+            'data_format': pb.attr["data_format"].s,
+            'data_type': tf_dtype_extractor(pb.attr["T"].type),
+            'eps': pb.attr['epsilon'].f,
+            'is_training': is_training
+        }
+        
+        
+class FusedBatchNormExtractor(FrontExtractorOp):
+    op = "FusedBatchNorm"
+    
+    def __init__(self):
+        super().__init__(self)

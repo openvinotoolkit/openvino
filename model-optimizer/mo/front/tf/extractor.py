@@ -60,7 +60,6 @@ tf_op_extractors = {
     'FusedBatchNorm': node_pb_arg(tf_fused_bn_extractor),
     'FusedBatchNormV2': node_pb_arg(tf_fused_bn_extractor),
     'FusedBatchNormV3': node_pb_arg(tf_fused_bn_extractor),
-    'ConcatV2': node_pb_arg(tf_concat_ext),
     'Pack': node_pb_arg(tf_pack_ext),
     'RandomUniform': node_pb_arg(tf_random_uniform_ext),
 }

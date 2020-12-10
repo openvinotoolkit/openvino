@@ -60,7 +60,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
                 ('mul', dict(op='Mul')),
                 ('mul_data', dict(kind='data')),
                 ('after_mul_op_to_the_rest_of_model', dict(kind='op')),
-                ('concat_0', dict(op='ConcatV2')),
+                ('concat_0', dict(op='Concat')),
                 ('concat_0_data', dict(kind='data')),
                 ('reshape_0', dict(op='Reshape')),
                 ('reshape_0_data', dict(kind='data')),
@@ -70,7 +70,7 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
                 # 1 port: cell state before the tanh over the whole time sequence
                 ('concatenated_cell_states_data', (dict(kind='data'))),
 
-                ('concat_1', dict(op='ConcatV2')),
+                ('concat_1', dict(op='Concat')),
                 ('concat_1_data', dict(kind='data')),
                 ('reshape_1', dict(op='Reshape')),
                 ('reshape_1_data', dict(kind='data')),

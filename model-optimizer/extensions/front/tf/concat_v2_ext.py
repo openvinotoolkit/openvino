@@ -15,11 +15,14 @@
 """
 
 from mo.front.common.partial_infer.concat import concat_infer
+from mo.ops.concat import Concat
 
+class ConcatFrontExtractor(FrontExtractorOp):
+    op = 'ConcatV2'
+    enabled = True
 
-def tf_concat_ext(pb):
-    return {
-        'type': 'Concat',
-        'N': pb.attr["N"].i,
-        'infer': concat_infer
-    }
+    @classmethod
+    def extract(cls, node):
+        attrs = {'N': node.pb.attr["N"].i}
+        Concat.update_node_stat(node, attrs)
+        return cls.enabled

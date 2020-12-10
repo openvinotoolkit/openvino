@@ -51,7 +51,7 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         return dict(
             nodes=[
                 ('concat_axis', dict()),
-                ('concat', dict(op='ConcatV2')),
+                ('concat', dict(op='Concat')),
                 ('weights', dict()),
                 ('matmul', dict(op='MatMul')),
                 ('biases', dict()),

@@ -364,6 +364,7 @@ extensions/front/tf/bucketize_ext.py
 extensions/front/tf/Cast_ext.py
 extensions/front/tf/concat.py
 extensions/front/tf/concat_ext.py
+extensions/front/tf/concat_v2_ext.py
 extensions/front/tf/const_ext.py
 extensions/front/tf/conv_ext.py
 extensions/front/tf/crop_and_resize_ext.py
@@ -396,6 +397,7 @@ extensions/front/tf/fill_ext.py
 extensions/front/tf/FlattenToReshape.py
 extensions/front/tf/floor_div_decomposition.py
 extensions/front/tf/floor_ext.py
+extensions/front/tf/fused_bn_ext.py
 extensions/front/tf/gather_ext.py
 extensions/front/tf/gathernd_ext.py
 extensions/front/tf/GatherTree_ext.py
@@ -862,9 +864,7 @@ mo/front/tf/common.py
 mo/front/tf/custom_subgraph_call.py
 mo/front/tf/extractor.py
 mo/front/tf/extractors/__init__.py
-mo/front/tf/extractors/concat.py
 mo/front/tf/extractors/fused_bn.py
-mo/front/tf/extractors/identity.py
 mo/front/tf/extractors/native_tf.py
 mo/front/tf/extractors/pack.py
 mo/front/tf/extractors/random_uniform.py
