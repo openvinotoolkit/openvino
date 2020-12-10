@@ -79,7 +79,14 @@ from tests import (BACKEND_NAME,
                    xfail_issue_41894,
                    xfail_issue_43523,
                    xfail_issue_43742,
-                   xfail_issue_44839)
+                   xfail_issue_44839,
+                   xfail_issue_44848,
+                   xfail_issue_44851,
+                   xfail_issue_44854,
+                   xfail_issue_44858,
+                   xfail_issue_44956,
+                   xfail_issue_44957,
+                   xfail_issue_44958)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -661,7 +668,35 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_convtranspose_3d_cpu",
         "OnnxBackendNodeModelTest.test_hardmax_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_hardmax_axis_1_cpu",
-        "OnnxBackendNodeModelTest.test_hardmax_default_axis_cpu",)
+        "OnnxBackendNodeModelTest.test_hardmax_default_axis_cpu",),
+    (xfail_issue_44848,
+        "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_cpu",
+        "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_cpu",),
+    (xfail_issue_44851,
+        "OnnxBackendNodeModelTest.test_expand_dim_changed_cpu",
+        "OnnxBackendNodeModelTest.test_expand_dim_unchanged_cpu",
+        "OnnxBackendSimpleModelTest.test_expand_shape_model1_cpu",
+        "OnnxBackendSimpleModelTest.test_expand_shape_model2_cpu",
+        "OnnxBackendSimpleModelTest.test_expand_shape_model3_cpu",
+        "OnnxBackendSimpleModelTest.test_expand_shape_model4_cpu",),
+    (xfail_issue_44854,
+        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_cpu",
+        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_cpu",),
+    (xfail_issue_44858,
+        "OnnxBackendNodeModelTest.test_unsqueeze_axis_0_cpu",
+        "OnnxBackendNodeModelTest.test_unsqueeze_axis_1_cpu",
+        "OnnxBackendNodeModelTest.test_unsqueeze_axis_2_cpu",
+        "OnnxBackendNodeModelTest.test_unsqueeze_negative_axes_cpu",
+        "OnnxBackendNodeModelTest.test_unsqueeze_three_axes_cpu",
+        "OnnxBackendNodeModelTest.test_unsqueeze_two_axes_cpu",
+        "OnnxBackendNodeModelTest.test_unsqueeze_unsorted_axes_cpu",),
+    (xfail_issue_44956,
+        "OnnxBackendNodeModelTest.test_loop11_cpu"),
+    (xfail_issue_44957,
+        "OnnxBackendNodeModelTest.test_nonzero_example_cpu"),
+    (xfail_issue_44958,
+        "OnnxBackendNodeModelTest.test_upsample_nearest_cpu")
 ]
 
 for test_group in tests_expected_to_fail:

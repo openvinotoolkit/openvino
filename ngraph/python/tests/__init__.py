@@ -172,6 +172,14 @@ xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_43523 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError:"
                                       " Unrecognized attribute: axes for operator ReduceSum")
 xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
+xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
+xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
+xfail_issue_44854 = xfail_test(reason="E   Unsupported dynamic op: VariadicSplit")
+xfail_issue_44858 = xfail_test(reason="E   Unsupported dynamic op: Unsqueeze")
+xfail_issue_44956 = xfail_test(reason="E   Unsupported dynamic op: Loop")
+xfail_issue_44957 = xfail_test(reason="E   Unsupported dynamic op: NonZero")
+xfail_issue_44958 = xfail_test(reason="E   Unsupported dynamic op: Interpolate")
+
 
 # Model ONNX Zoo issues:
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"

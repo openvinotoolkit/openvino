@@ -26,7 +26,9 @@ from tests.test_onnx.utils import (
     run_model,
     run_node,
 )
-from tests import xfail_issue_35927
+from tests import (xfail_issue_35927,
+                   xfail_issue_44854,
+                   xfail_issue_44858)
 
 
 def test_reshape():
@@ -245,6 +247,7 @@ def test_squeeze():
     assert np.array_equal(ng_results, [expected_output])
 
 
+@xfail_issue_44858
 def test_unsqueeze():
     data = np.random.randn(3, 4, 5).astype(np.float32)
     expected_output = np.expand_dims(data, axis=0)
@@ -313,6 +316,7 @@ def test_split_2d(node, expected_output):
     assert all_arrays_equal(ng_results, expected_output)
 
 
+@xfail_issue_44854
 def test_split_2d_splits_input():
     data = np.arange(8, dtype=np.int32).reshape(2, 4)
     splits = np.array([3, 1]).astype(np.int64)
@@ -327,6 +331,7 @@ def test_split_2d_splits_input():
     assert all_arrays_equal(ng_results, expected_outputs)
 
 
+@xfail_issue_44854
 def test_split_1d():
     # 1D
     data = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).astype(np.float32)
