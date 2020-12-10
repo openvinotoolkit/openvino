@@ -40,7 +40,7 @@ def convert_batch_norm(graph: Graph):
     nodes = graph.get_op_nodes()
     for node in nodes:
         if node.has_valid('op') and (node.op in ['FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3',
-                                                 'BatchNorm', 'BatchNormalization']):
+                                                 'BatchNorm', 'BatchNormalization', 'batchNormInference']):
 
             if any([node.in_port(i).data.get_value() is None for i in range(1, len(node.in_ports()))]):
                 log.warning('Cannot translate FusedBatchNorm {} node with non-constant weights'.format(

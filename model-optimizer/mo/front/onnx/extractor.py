@@ -14,11 +14,6 @@
  limitations under the License.
 """
 
-
-from mo.front.onnx.extractors.concat import concat_ext
-from mo.front.onnx.extractors.eltwise import make_tf_eltwise
-from mo.front.onnx.extractors.fused_bn import tf_fused_bn_extractor
-from mo.front.onnx.extractors.reshape import onnx_reshape_ext
 from mo.graph.graph import Node
 
 
@@ -26,12 +21,7 @@ def node_pb_arg(pb_extractor: callable):
     return lambda node: pb_extractor(node.pb)
 
 
-onnx_op_extractors = {
-    'BatchNormalization': tf_fused_bn_extractor,
-    'Concat': concat_ext,
-    'Identity': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
-    'Reshape': onnx_reshape_ext,
-}
+onnx_op_extractors = {}
 
 
 def common_onnx_fields(node: Node):

@@ -14,13 +14,22 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.concat import concat_infer
+import numpy as np
+
+from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
+from mo.ops.reshape import Reshape
 
+class ReshapeFrontExtractor(FrontExtractorOp):
+    op = 'Reshape'
+    enabled = True
 
-def concat_ext(node):
-    return {
-        'type': "Concat",
-        'axis': onnx_attr(node, 'axis', 'i', default=0),
-        'infer': concat_infer
-    }
+    @classmethod
+    def extract(cls, node):
+        dim = onnx_attr(node, 'shape', 'ints', None)
+        if dim is not None:
+            dim = np.array(dim, dtype=np.int64)
+            Reshape.update_node_stat(node, {'dim': dim})
+        else:
+            Reshape.update_node_stat(node)
+        return cls.enabled
