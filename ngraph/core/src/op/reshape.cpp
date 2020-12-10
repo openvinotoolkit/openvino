@@ -56,11 +56,17 @@ namespace
     }
 
     void calculate_output_shape(const ngraph::op::v1::Reshape* reshape_node,
-                                const vector<Dimension>& reshape_pattern,
+                                vector<Dimension>& reshape_pattern,
                                 const int64_t& minus_one_idx,
                                 const PartialShape& input_pshape,
                                 vector<Dimension>& output_shape)
     {
+        if (reshape_pattern == std::vector<Dimension>{0} && !reshape_node->get_special_zero())
+        {   // legacy check introduced by PR #1206
+            reshape_pattern = std::vector<Dimension>{};
+            output_shape = {};
+            return;
+        }
         Dimension output_product(1);
         for (size_t i = 0; i < reshape_pattern.size(); ++i)
         {
