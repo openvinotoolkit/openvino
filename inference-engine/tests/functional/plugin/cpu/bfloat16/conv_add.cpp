@@ -111,9 +111,7 @@ protected:
         // STAGE3:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Convolution_0"] = "BF16";
-        expectedPrecisions["Convolution_1"] = "BF16";
-        expectedPrecisions["Elt_sum"] = "FP32";
+        expectedPrecisions["Elt_sum"] = "BF16";
     }
 };
 
