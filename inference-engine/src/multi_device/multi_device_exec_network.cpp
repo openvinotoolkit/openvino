@@ -69,7 +69,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         try {
             optimalNum = network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
         } catch (const InferenceEngine::details::InferenceEngineException &iie) {
-            THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
+            THROW_IE_EXCEPTION
                     << "Every device used with the Multi-Device should "
                     << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                     << "Failed to query the metric for the " << device << " with error:" << iie.what();

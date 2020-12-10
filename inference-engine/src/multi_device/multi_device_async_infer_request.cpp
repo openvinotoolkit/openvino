@@ -49,9 +49,8 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                                _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend(),
                                [&name](const MultiDevicePlugin::DeviceInformation& d){ return d.deviceName == name; });
                        if (_multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend() == res) {
-                           THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
-                                            << "None of the devices (for which current MULTI-device configuration was "
-                                             "initialized) supports a remote blob created on the device named " << name;
+                           THROW_IE_EXCEPTION << "None of the devices (for which current MULTI-device configuration was "
+                                                 "initialized) supports a remote blob created on the device named " << name;
 
                        } else {
                             // it is ok to take the c_str() here (as pointed in the multi_device_exec_network.hpp we need to use const char*)
