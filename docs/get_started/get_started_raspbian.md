@@ -32,10 +32,9 @@ The primary tools for deploying your models and applications are installed to th
 | `inference_engine/`                     | Inference Engine directory. Contains Inference Engine API binaries and source files, samples and extensions source files, and resources like hardware drivers.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`external/`     | Third-party dependencies and drivers.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`include/`      | Inference Engine header files. For API documentation, see the [Inference Engine API Reference](./annotated.html). |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`lib/`          | Inference Engine static libraries.|
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`lib/`          | Inference Engine libraries.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`samples/`      | Inference Engine samples. Contains source code for C++ and Python* samples and build scripts. See the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md). |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`share/`        | CMake configuration files for linking with Inference Engine.|
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`src/`          | Source files for CPU extensions.|
 
 </details>
 
@@ -89,10 +88,10 @@ Following are some basic guidelines for executing the OpenVINO™ workflow using
 
 1. Before using the OpenVINO™ samples, always set up the environment: 
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source <INSTALL_DIR>/bin/setupvars.sh
 ``` 
 2. Have the directory path for the following:
-- Code Sample binaries located in `~/inference_engine_cpp_samples_build/intel64/Release`
+- Code Sample binaries
 - Media: Video or image. Many sources are available from which you can download video media to use the code samples and demo applications, like https://videos.pexels.com and https://images.google.com.
 - Model: Neural Network topology converted with the Model Optimizer to the IR format (.bin and .xml files). See <a href="#download-models">Download Models</a> for more information.
 
