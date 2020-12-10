@@ -65,8 +65,8 @@ TEST(provenance, provenance)
     //     of the graph.
     //
     {
-        auto x = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
-        auto y = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+        auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
+        auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
         auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
@@ -110,8 +110,8 @@ TEST(provenance, provenance)
     //     of the graph.
     //
     {
-        auto x = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
-        auto y = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+        auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
+        auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
         auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
@@ -148,8 +148,8 @@ TEST(provenance, provenance)
     //   * D is the replacement root, and its insertion kills A, B, and C.
     //
     {
-        auto x = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
-        auto y = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+        auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
+        auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
         auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
@@ -160,7 +160,7 @@ TEST(provenance, provenance)
 
         auto f = make_shared<Function>(c, ParameterVector{x, y});
 
-        auto d = make_zero(element::Type_t::i32, Shape{2, 3, 4});
+        auto d = make_zero(element::i32, Shape{2, 3, 4});
         d->add_provenance_tag("tag_d");
         replace_node(c, d);
 
@@ -186,8 +186,8 @@ TEST(provenance, provenance)
     //   * D is the replacement root, and its insertion kills A, B, and C.
     //
     {
-        auto x = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
-        auto y = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+        auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
+        auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
         auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
@@ -198,7 +198,7 @@ TEST(provenance, provenance)
 
         auto f = make_shared<Function>(c, ParameterVector{x, y});
 
-        auto d = make_zero(element::Type_t::i32, Shape{2, 3, 4});
+        auto d = make_zero(element::i32, Shape{2, 3, 4});
         replace_node(c, d);
 
         EXPECT_EQ(d->get_provenance_tags(), (ProvSet{"tag_a", "tag_b", "tag_c"}));
@@ -233,8 +233,8 @@ TEST(provenance, provenance)
     //   * D is the replacement root replacing C and creating a new argument node E
     //
     {
-        auto x = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
-        auto y = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+        auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
+        auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
         auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
@@ -284,8 +284,8 @@ TEST(provenance, provenance)
     //   * D is the replacement root replacing C and creating a new argument node E
     //
     {
-        auto x = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
-        auto y = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+        auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
+        auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
         auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
@@ -310,9 +310,9 @@ TEST(provenance, provenance)
 
 TEST(provenance, add_group_above)
 {
-    auto p1 = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+    auto p1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
-    auto p2 = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+    auto p2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     p2->add_provenance_tag("P2");
     auto a1 = make_shared<op::v1::Add>(p1, p2);
     auto m1 = make_shared<op::v1::Multiply>(a1, a1)->add_provenance_group_members_above({p1, p2});
@@ -325,8 +325,8 @@ TEST(provenance, add_group_above)
 
 TEST(provenance, add_tags_above)
 {
-    auto x = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
-    auto y = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+    auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
+    auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
     auto a = make_shared<op::v1::Add>(x, y);
     auto b = make_shared<op::v1::Multiply>(x, y);
@@ -375,10 +375,9 @@ TEST(provenance, add_tags_above)
 
 TEST(provenance, builder)
 {
-    auto p1 = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+    auto p1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
-    auto norm =
-        builder::opset1::lp_norm(p1, op::Constant::create(element::Type_t::i64, {}, {0}), 1, 0);
+    auto norm = builder::opset1::lp_norm(p1, op::Constant::create(element::i64, {}, {0}), 1, 0);
     norm->add_provenance_tag("norm");
     for (auto node : topological_sort(NodeVector{norm}))
     {
@@ -397,7 +396,7 @@ TEST(provenance, fused_copy_origin_tags)
 {
     test::ProvenanceEnabler provenance_enabler;
 
-    auto p1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 3, 4});
+    auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
     auto g = make_shared<op::Gelu>(p1);
     g->add_provenance_tag("G");
@@ -430,7 +429,7 @@ TEST(provenance, fused_decomposition_tag)
 {
     test::ProvenanceEnabler provenance_enabler;
 
-    auto p1 = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{2, 3, 4});
+    auto p1 = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
     auto fused_op = make_shared<op::MVN>(p1);
     auto result = make_shared<op::Result>(fused_op);
     auto f = make_shared<Function>(ResultVector{result}, ParameterVector{p1});
@@ -450,7 +449,7 @@ TEST(provenance, fused_decomposition_tag)
 
 TEST(provenance, empty_group)
 {
-    auto p1 = make_shared<op::Parameter>(element::Type_t::i32, PartialShape{2, 3, 4});
+    auto p1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     p1->add_provenance_tag("P1");
     auto abs = make_shared<op::Abs>(p1);
     // Make sure group is empty

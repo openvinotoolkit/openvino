@@ -51,7 +51,7 @@ namespace ngraph
                             node.get_attribute_value<std::vector<int64_t>>("shape", {});
 
                         pattern = default_opset::Constant::create(
-                            element::Type_t::i64, Shape{output_shape.size()}, output_shape);
+                            element::i64, Shape{output_shape.size()}, output_shape);
                     }
 
                     return {std::make_shared<default_opset::Reshape>(data, pattern, true)};

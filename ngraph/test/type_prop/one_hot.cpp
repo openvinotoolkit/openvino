@@ -23,34 +23,34 @@ using namespace ngraph;
 
 TEST(type_prop, one_hot_v1_output_shape)
 {
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{3});
-    auto depth = op::Constant::create(element::Type_t::i64, Shape{}, {2});
-    auto on_value = op::Constant::create(element::Type_t::u32, Shape{}, {5});
-    auto off_value = op::Constant::create(element::Type_t::u32, Shape{}, {10});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto depth = op::Constant::create(element::i64, Shape{}, {2});
+    auto on_value = op::Constant::create(element::u32, Shape{}, {5});
+    auto off_value = op::Constant::create(element::u32, Shape{}, {10});
     int64_t axis = -1;
     auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
-    ASSERT_EQ(ont_hot->get_element_type(), element::Type_t::u32);
+    ASSERT_EQ(ont_hot->get_element_type(), element::u32);
     ASSERT_EQ(ont_hot->get_shape(), (Shape{3, 2}));
 }
 
 TEST(type_prop, one_hot_v1_output_shape_2)
 {
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 3, 2, 3});
-    auto depth = op::Constant::create(element::Type_t::i64, Shape{}, {4});
-    auto on_value = op::Constant::create(element::Type_t::f32, Shape{}, {1.0f});
-    auto off_value = op::Constant::create(element::Type_t::f32, Shape{}, {0.0f});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{1, 3, 2, 3});
+    auto depth = op::Constant::create(element::i64, Shape{}, {4});
+    auto on_value = op::Constant::create(element::f32, Shape{}, {1.0f});
+    auto off_value = op::Constant::create(element::f32, Shape{}, {0.0f});
     int64_t axis = 3;
     auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
-    ASSERT_EQ(ont_hot->get_element_type(), element::Type_t::f32);
+    ASSERT_EQ(ont_hot->get_element_type(), element::f32);
     ASSERT_EQ(ont_hot->get_shape(), (Shape{1, 3, 2, 4, 3}));
 }
 
 TEST(type_prop, one_hot_v1_indices_elem_not_integral)
 {
-    auto indices = make_shared<op::Parameter>(element::Type_t::f16, Shape{2, 2});
-    auto depth = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    auto on_value = make_shared<op::Parameter>(element::Type_t::u32, Shape{});
-    auto off_value = make_shared<op::Parameter>(element::Type_t::u32, Shape{});
+    auto indices = make_shared<op::Parameter>(element::f16, Shape{2, 2});
+    auto depth = make_shared<op::Parameter>(element::i64, Shape{});
+    auto on_value = make_shared<op::Parameter>(element::u32, Shape{});
+    auto off_value = make_shared<op::Parameter>(element::u32, Shape{});
     int64_t axis = -1;
     try
     {
@@ -70,10 +70,10 @@ TEST(type_prop, one_hot_v1_indices_elem_not_integral)
 
 TEST(type_prop, one_hot_v1_depth_elem_not_integral)
 {
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{2, 2});
-    auto depth = make_shared<op::Parameter>(element::Type_t::f16, Shape{});
-    auto on_value = make_shared<op::Parameter>(element::Type_t::u32, Shape{});
-    auto off_value = make_shared<op::Parameter>(element::Type_t::u32, Shape{});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{2, 2});
+    auto depth = make_shared<op::Parameter>(element::f16, Shape{});
+    auto on_value = make_shared<op::Parameter>(element::u32, Shape{});
+    auto off_value = make_shared<op::Parameter>(element::u32, Shape{});
     int64_t axis = -1;
     try
     {
@@ -93,10 +93,10 @@ TEST(type_prop, one_hot_v1_depth_elem_not_integral)
 
 TEST(type_prop, one_hot_v1_on_off_values_not_compatible)
 {
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{2, 2});
-    auto depth = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    auto on_value = make_shared<op::Parameter>(element::Type_t::bf16, Shape{});
-    auto off_value = make_shared<op::Parameter>(element::Type_t::f16, Shape{});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{2, 2});
+    auto depth = make_shared<op::Parameter>(element::i64, Shape{});
+    auto on_value = make_shared<op::Parameter>(element::bf16, Shape{});
+    auto off_value = make_shared<op::Parameter>(element::f16, Shape{});
     int64_t axis = -1;
     try
     {
@@ -118,10 +118,10 @@ TEST(type_prop, one_hot_v1_on_off_values_not_compatible)
 
 TEST(type_prop, one_hot_v1_depth_not_scalar)
 {
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{2, 2});
-    auto depth = make_shared<op::Parameter>(element::Type_t::i64, Shape{1});
-    auto on_value = make_shared<op::Parameter>(element::Type_t::bf16, Shape{});
-    auto off_value = make_shared<op::Parameter>(element::Type_t::bf16, Shape{});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{2, 2});
+    auto depth = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto on_value = make_shared<op::Parameter>(element::bf16, Shape{});
+    auto off_value = make_shared<op::Parameter>(element::bf16, Shape{});
     int64_t axis = -1;
     try
     {
@@ -141,10 +141,10 @@ TEST(type_prop, one_hot_v1_depth_not_scalar)
 
 TEST(type_prop, one_hot_v1_on_value_not_scalar)
 {
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{2, 2});
-    auto depth = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    auto on_value = make_shared<op::Parameter>(element::Type_t::bf16, Shape{2});
-    auto off_value = make_shared<op::Parameter>(element::Type_t::bf16, Shape{});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{2, 2});
+    auto depth = make_shared<op::Parameter>(element::i64, Shape{});
+    auto on_value = make_shared<op::Parameter>(element::bf16, Shape{2});
+    auto off_value = make_shared<op::Parameter>(element::bf16, Shape{});
     int64_t axis = -1;
     try
     {
@@ -164,10 +164,10 @@ TEST(type_prop, one_hot_v1_on_value_not_scalar)
 
 TEST(type_prop, one_hot_v1_off_value_not_scalar)
 {
-    auto indices = make_shared<op::Parameter>(element::Type_t::i64, Shape{2, 2});
-    auto depth = make_shared<op::Parameter>(element::Type_t::i64, Shape{});
-    auto on_value = make_shared<op::Parameter>(element::Type_t::bf16, Shape{});
-    auto off_value = make_shared<op::Parameter>(element::Type_t::bf16, Shape{3});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{2, 2});
+    auto depth = make_shared<op::Parameter>(element::i64, Shape{});
+    auto on_value = make_shared<op::Parameter>(element::bf16, Shape{});
+    auto off_value = make_shared<op::Parameter>(element::bf16, Shape{3});
     int64_t axis = -1;
     try
     {
