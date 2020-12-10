@@ -23,6 +23,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/op/maximum.hpp>
@@ -43,6 +44,28 @@ using namespace testing;
 using namespace InferenceEngine;
 
 IE_SUPPRESS_DEPRECATED_START
+
+TEST(CNNNGraphImplTests, TestNMS5OutputNames) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::OutputVector{nms->output(0), nms->output(1), nms->output(2)}, ngraph::ParameterVector{boxes, scores});
+    }
+
+    InferenceEngine::CNNNetwork cnnNet(f);
+    auto outputs_info = cnnNet.getOutputsInfo();
+    ASSERT_EQ(outputs_info.size(), 3);
+    ASSERT_EQ(outputs_info.count("nms.0"), 1);
+    ASSERT_EQ(outputs_info.count("nms.1"), 1);
+    ASSERT_EQ(outputs_info.count("nms.2"), 1);
+}
 
 TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     std::shared_ptr<ngraph::Function> ngraph;

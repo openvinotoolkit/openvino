@@ -17,10 +17,10 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
 
-ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
+ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_i32_output_type) {
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [force_i32_output_type](pattern::Matcher &m) {
         auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
         if (!nms_5) {
             return false;
@@ -72,6 +72,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
 
         std::shared_ptr<op::NonMaxSuppressionIE3> nms_legacy{nullptr};
 
+        auto output_type = force_i32_output_type ? element::i32 : nms_5->get_output_type();
         if (num_of_inputs > 5 && nms_5->soft_nms_sigma_from_input() != 0.0f) {
             new_soft_nms_sigma = std::make_shared<opset1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
             new_ops.emplace_back(new_soft_nms_sigma.get_node_shared_ptr());
@@ -84,7 +85,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                     new_soft_nms_sigma,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    element::i32);
+                    output_type);
             new_ops.push_back(nms_legacy);
         } else {
             nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
@@ -95,7 +96,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                     new_score_threshold,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    element::i32);
+                    output_type);
             new_ops.push_back(nms_legacy);
         }
 
