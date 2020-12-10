@@ -56,9 +56,6 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     MergeTwoEqualScaleShifts(graph);
     graph.RemoveDroppedNodes();
 
-    MergeConversions(graph);
-    graph.RemoveDroppedNodes();
-
     FuseBroadcastAndEltwise(graph);
     graph.RemoveDroppedNodes();
 
@@ -156,51 +153,6 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     graph.RemoveDroppedNodes();
 
     graph.RemoveDroppedEdges();
-}
-
-void MKLDNNGraphOptimizer::MergeConversions(MKLDNNGraph& graph) {
-    for (auto node : graph.GetNodes()) {
-        // Input with at least 2 Convertions
-        if (!IsOneOf(node->getType(), { Input }) || node->getChildEdges().size() < 2 ||
-            !IsOneOf(node->getChildEdgeAt(0)->getChild()->getType(), { Convert })) {
-            continue;
-        }
-        auto& input = node;
-
-        // Convertions of same the type with Concat as a child
-        for (size_t i = 0; i < input->getChildEdges().size(); i++) {
-            auto convInEdge = input->getChildEdgeAt(i);
-            auto conv = convInEdge->getChild();
-            auto convOutEdge = conv->getChildEdgeAt(i);
-            auto convInDims = convInEdge->getDims();
-            auto convOutDims = convOutEdge->getDims();
-            Precision convOutPrecision = conv->getCnnLayer()->precision;
-
-            for (size_t j = i + 1; j < input->getChildEdges().size();) {
-                auto childEdge = input->getChildEdgeAt(j);
-                auto child = childEdge->getChild();
-
-                if (child->getCnnLayer()->precision != convOutPrecision ||
-                    child->getChildEdgeAt(0)->getDims() != convOutDims ||
-                    childEdge->getDims() != convInDims ||
-                    child->getChildEdges().size() != 1) {
-                    j++;
-                    continue;
-                }
-
-                auto childChildEdge = child->getChildEdgeAt(0);
-                auto childChild = childChildEdge->getChild();
-                int idxChild = childChildEdge->getOutputNum();
-
-                child->remove();
-                graph.DropNode(child);
-
-                MKLDNNEdgePtr newEdge(new MKLDNNEdge(conv, childChild, 0, idxChild));
-                graph.GetEdges().push_back(newEdge);
-                conv->addEdge(newEdge);
-            }
-        }
-    }
 }
 
 void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {

@@ -19,7 +19,6 @@ public:
     void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
-    void MergeConversions(MKLDNNGraph& graph);
     void MergeGroupConvolution(MKLDNNGraph& graph);
     void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
