@@ -63,13 +63,16 @@ namespace ngraph
                     }
                     else
                     {
-                        const auto axis_node = default_opset::Constant::create(element::Type_t::i64, Shape{}, {axis});
-                        return {std::make_shared<default_opset::VariadicSplit>(inputs.at(0), axis_node, inputs.at(1))->outputs()};
+                        const auto axis_node =
+                            default_opset::Constant::create(element::Type_t::i64, Shape{}, {axis});
+                        return {std::make_shared<default_opset::VariadicSplit>(
+                                    inputs.at(0), axis_node, inputs.at(1))
+                                    ->outputs()};
                     }
                 }
 
             } // namespace set_13
-        } // namespace op
+        }     // namespace op
 
     } // namespace onnx_import
 

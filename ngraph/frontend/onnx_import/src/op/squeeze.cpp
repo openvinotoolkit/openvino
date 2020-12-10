@@ -45,13 +45,13 @@ namespace ngraph
                 }
 
             } // namespace set_1
-            
+
             namespace set_13
             {
                 OutputVector squeeze(const Node& node)
                 {
                     auto inputs = node.get_ng_inputs();
-                    if(inputs.size() < 2)
+                    if (inputs.size() < 2)
                     {
                         std::vector<int64_t> axes{};
                         auto axes_node = std::make_shared<default_opset::Constant>(
@@ -61,7 +61,8 @@ namespace ngraph
                     }
                     else
                     {
-                        return {std::make_shared<default_opset::Squeeze>(inputs.at(0), inputs.at(1))};
+                        return {
+                            std::make_shared<default_opset::Squeeze>(inputs.at(0), inputs.at(1))};
                     }
                 }
 

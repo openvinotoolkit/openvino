@@ -36,7 +36,7 @@ namespace ngraph
                 OutputVector unsqueeze(const Node& node);
 
             } // namespace set_13
-        } // namespace op
+        }     // namespace op
 
     } // namespace onnx_import
 
