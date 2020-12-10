@@ -61,7 +61,7 @@ class Fusing(MiddleReplacementPattern):
         for_graph_and_each_sub_graph_recursively(graph, lambda graph: mark_unfused_nodes(graph, argv.finegrain_fusing))
 
         # Converting FusedBatchNorm layer to Mul->Add->Mul->Add sequence
-        # IE doesn't support BN with 4 inputs, so we have to split it to two ScaleShift
+        # IE doesn't support batchNormInference with 4 inputs, so we have to split it to two ScaleShift
         for_graph_and_each_sub_graph_recursively(graph, convert_batch_norm)
 
         if fw == 'caffe':
