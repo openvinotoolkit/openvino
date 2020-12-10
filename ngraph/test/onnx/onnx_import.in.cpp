@@ -2973,6 +2973,54 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_image_scaler)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_single)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_single.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
+    test_case.add_expected_output<int>(Shape{}, {6});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_graph_end)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_graph_end.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_expected_output<int>(Shape{}, {4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_graph_middle)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_graph_middle.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_expected_output<float>(Shape{}, {4.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_on_input_graph_middle)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_on_input_graph_middle.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{1, 2, 4, 1, 3},
+                               {0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 1, 3}, {24., 24., 24., 24., 24., 24., 24., 24., 24., 24., 24., 24.,
+                               24., 24., 24., 24., 24., 24., 24., 24., 24., 24., 24., 24.});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_empty_initializers_handling)
 {
     // int this test the "scales" input of the Resize operator is set to an empty initializer
