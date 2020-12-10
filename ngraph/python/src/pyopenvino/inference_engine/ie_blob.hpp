@@ -50,8 +50,7 @@ void regclass_TBlob(py::module m, std::string typestring)
 
     cls.def(py::init(
         [](const InferenceEngine::TensorDesc& tensorDesc, py::array_t<T> arr, size_t size = 0) {
-            if (size == 0)
-            {
+            if (size == 0) {
                 size = arr.size(); // or copy from tensorDesc getDims product?
             }
             // py::print(arr.dtype()); // validate tensorDesc with this???
@@ -60,15 +59,16 @@ void regclass_TBlob(py::module m, std::string typestring)
             return std::make_shared<InferenceEngine::TBlob<T>>(tensorDesc, ptr, size);
         }));
 
-    cls.def("buffer", [](InferenceEngine::TBlob<T>& self) {
+    cls.def_property_readonly("buffer", [](InferenceEngine::TBlob<T>& self) {
         auto size = self.size();
         auto blob_ptr = self.buffer().template as<T*>();
         std::vector<T> blob_out;
-        for (size_t i = 0lu; i < size; i++)
-        {
+        for (size_t i = 0lu; i < size; i++) {
             blob_out.emplace_back(blob_ptr[i]);
         }
         auto shape = self.getTensorDesc().getDims(); // copy shape from TensorDesc
         return py::array_t<T>(shape, &blob_out[0]);
     });
+
+    // cls.def_property_readonly("tensor_desc", );
 }

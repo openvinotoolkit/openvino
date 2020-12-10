@@ -58,7 +58,7 @@ def run(args):
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
-                              args.number_iterations, args.time, args.api_type)
+                              args.number_iterations, args.time, args.api_type, args.mode)
 
         ## CPU (MKLDNN) extensions
         if CPU_DEVICE_NAME in device_name and args.path_to_extension:
@@ -149,7 +149,7 @@ def run(args):
                 set_throughput_streams()
 
                 if MULTI_DEVICE_NAME in device_name and CPU_DEVICE_NAME in device_name:
-                    logger.warn("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " +
+                    logger.warn("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " \
                                 "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
                     config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
             elif device == MYRIAD_DEVICE_NAME:
@@ -263,7 +263,12 @@ def run(args):
             device_number_streams[device] = benchmark.ie.get_config(device, key)
 
         # Number of requests
-        infer_requests = exe_network.requests
+        if args.mode == "poc":
+            infer_requests = []
+            for i in range(benchmark.nireq):
+                infer_requests.append(exe_network.create_infer_request())
+        else:
+            infer_requests = exe_network.requests
 
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, args.api_type)
@@ -275,7 +280,7 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, exe_network.input_info, infer_requests)
+        set_inputs(paths_to_input, batch_size, exe_network.input_info, infer_requests, args.mode)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -307,14 +312,24 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
+        if args.mode == "poc":
+            duration_ms =  "{:.2f}".format(benchmark.first_infer(infer_requests=infer_requests))
+        else:
+            duration_ms =  "{:.2f}".format(benchmark.first_infer(exe_network))
         logger.info("First inference took {} ms".format(duration_ms))
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
+        if args.mode == "poc":
+            fps, latency_ms, total_duration_sec, iteration = benchmark.infer(infer_requests=infer_requests,
+                                                                             batch_size=batch_size,
+                                                                             progress_bar=progress_bar)
+        else:
+            fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network=exe_network,
+                                                                             batch_size=batch_size,
+                                                                             progress_bar=progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
@@ -374,6 +389,3 @@ def run(args):
                                       ])
             statistics.dump()
         sys.exit(1)
-
-if __name__ == "__main__":
-   main()

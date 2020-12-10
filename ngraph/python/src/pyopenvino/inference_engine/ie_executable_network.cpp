@@ -41,6 +41,12 @@ void regclass_ExecutableNetwork(py::module m)
 
     cls.def("get_exec_graph_info", &InferenceEngine::ExecutableNetwork::GetExecGraphInfo);
 
+    // cls.def("export", );
+
+    // cls.def("get_config", );
+
+    // cls.def("get_metric", );
+
     //    cls.def("get_idle_request_id", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
     //
     //    cls.def("wait", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
