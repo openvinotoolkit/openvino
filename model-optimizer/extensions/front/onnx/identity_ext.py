@@ -13,22 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-from mo.front.common.partial_infer.eltwise import eltwise_infer
-
-
-def tf_eltwise_ext(pb, op=None, attrs=None):
-    """
-    Generic eltwise extractor that supports n-ary operations.
-    It supports reasonable broadcast semantics from TF/NumPy
-    """
-    res = {
-        'infer': lambda node: eltwise_infer(node, op)
-    }
-    if attrs is not None:
-        res.update(attrs)
-    return res
+from mo.front.extractor import FrontExtractorOp
+from extensions.ops.identity import Identity
 
 
-def make_tf_eltwise(op, attrs=None):
-    return lambda node: tf_eltwise_ext(node, op, attrs)
+class IdentityFrontExtractor(FrontExtractorOp):
+    op = 'Identity'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Identity.update_node_stat(node)
+        return cls.enabled

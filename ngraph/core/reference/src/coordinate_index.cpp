@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,27 +14,32 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/average_pool.hpp"
-#include "ngraph/node.hpp"
-#include "onnx_import/utils/pooling_factory.hpp"
+#include "ngraph/coordinate_index.hpp"
+
+#include "ngraph/coordinate.hpp"
+#include "ngraph/shape.hpp"
 
 namespace ngraph
 {
-    namespace onnx_import
+    std::size_t coordinate_index(const Coordinate& c, const Shape& s)
     {
-        namespace op
+        if (c.size() < s.size())
         {
-            namespace set_1
+            throw std::domain_error("Coordinate rank is less than shape rank.");
+        }
+        std::size_t index = 0;
+        std::size_t stride = 1;
+        std::size_t const padding = c.size() - s.size();
+
+        for (std::size_t axis = s.size(); axis-- > 0;)
+        {
+            if (s[axis] > 1)
             {
-                OutputVector average_pool(const Node& node)
-                {
-                    return pooling::PoolingFactory(node).make_avg_pool();
-                }
+                index += c[axis + padding] * stride;
+                stride *= s[axis];
+            }
+        }
 
-            } // namespace set_1
-
-        } // namespace op
-
-    } // namespace onnx_import
-
+        return index;
+    }
 } // namespace ngraph
