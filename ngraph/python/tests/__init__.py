@@ -183,6 +183,8 @@ xfail_issue_44965 = xfail_test(reason="E   RuntimeError: value info has no eleme
 xfail_issue_44967 = xfail_test(reason="E   RuntimeError: unsupported element type: BFLOAT16")
 xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
 xfail_issue_44970 = xfail_test(reason="Assertion error")
+xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
+                                      "FakeQuantize_xxx has non const input on 1 port")
 
 
 # Model ONNX Zoo issues:
