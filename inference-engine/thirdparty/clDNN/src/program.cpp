@@ -1140,6 +1140,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_1x1_fm_conv_layers = 0;
     size_t total_grouped_conv_layers = 0;
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
+    size_t total_crop_layers = 0;
 
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
@@ -1226,6 +1227,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
                 can_use_fsv16 = false;
             }
+            total_crop_layers++;
         }
 
         if (prim.is_in_data_flow() &&
@@ -1250,12 +1252,16 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
+    // Crop layers are poorly optimized in fsv16 layout so whole topology stays in bfyx
+    // if there are many crops (2x more then b_fs_yx_fsv16 convolutions)
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
+    size_t num_of_conv_b_fs_yx_fsv16 = lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false});
 
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
                                           total_conv_layers > 11 &&
-                                          lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}) * cond_denom > 0.5f);
+                                          num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f &&
+                                          num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&
