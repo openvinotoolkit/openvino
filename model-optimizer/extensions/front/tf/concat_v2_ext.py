@@ -17,7 +17,7 @@
 from mo.front.common.partial_infer.concat import concat_infer
 from mo.ops.concat import Concat
 
-class ConcatFrontExtractor(FrontExtractorOp):
+class ConcatV2FrontExtractor(FrontExtractorOp):
     op = 'ConcatV2'
     enabled = True
 

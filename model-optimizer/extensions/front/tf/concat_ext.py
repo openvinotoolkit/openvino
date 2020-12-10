@@ -18,7 +18,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.ops.concat import Concat
 
 
-class ConcatV2FrontExtractor(FrontExtractorOp):
+class ConcatFrontExtractor(FrontExtractorOp):
     op = 'Concat'
     enabled = True
 

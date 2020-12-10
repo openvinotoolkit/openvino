@@ -25,7 +25,7 @@ class PackFrontExtractor(FrontExtractorOp):
     enabled = True
 
     @classmethod
-    def extract(cls, node: Node):'
+    def extract(cls, node: Node):
     
         attrs= {
             'axis': pb.attr["axis"].i,

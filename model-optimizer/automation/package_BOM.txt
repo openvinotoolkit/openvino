@@ -867,7 +867,6 @@ mo/front/tf/extractor.py
 mo/front/tf/extractors/__init__.py
 mo/front/tf/extractors/fused_bn.py
 mo/front/tf/extractors/native_tf.py
-mo/front/tf/extractors/pack.py
 mo/front/tf/extractors/random_uniform.py
 mo/front/tf/extractors/strided_slice.py
 mo/front/tf/extractors/utils.py
