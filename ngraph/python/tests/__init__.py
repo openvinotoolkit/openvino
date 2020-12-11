@@ -110,7 +110,6 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
                                       "with index 0 contains dynamic shapes: {<value>}. Try to use "
                                       "CNNNetwork::reshape() method in order to specialize shapes "
                                       "before the conversion.")
-xfail_issue_38085 = xfail_test(reason="RuntimeError: Interpolate operation should be converted to Interp")
 xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
 xfail_issue_38087 = xfail_test(reason="RuntimeError: Cannot cast to tensor desc. Format is unsupported!")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
@@ -170,6 +169,23 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "NegativeLogLikelihoodLoss")
+xfail_issue_43523 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError:"
+                                      " Unrecognized attribute: axes for operator ReduceSum")
+xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
+xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
+xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
+xfail_issue_44854 = xfail_test(reason="E   Unsupported dynamic op: VariadicSplit")
+xfail_issue_44858 = xfail_test(reason="E   Unsupported dynamic op: Unsqueeze")
+xfail_issue_44956 = xfail_test(reason="E   Unsupported dynamic op: Loop")
+xfail_issue_44957 = xfail_test(reason="E   Unsupported dynamic op: NonZero")
+xfail_issue_44958 = xfail_test(reason="E   Unsupported dynamic op: Interpolate")
+xfail_issue_44965 = xfail_test(reason="E   RuntimeError: value info has no element")
+xfail_issue_44967 = xfail_test(reason="E   RuntimeError: unsupported element type: BFLOAT16")
+xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
+xfail_issue_44970 = xfail_test(reason="Assertion error")
+xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
+                                      "FakeQuantize_xxx has non const input on 1 port")
+
 
 # Model ONNX Zoo issues:
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
