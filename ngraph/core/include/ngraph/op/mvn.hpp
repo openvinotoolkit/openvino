@@ -138,9 +138,9 @@ namespace ngraph
                 bool get_normalize_variance() const { return m_normalize_variance; }
                 MVNEpsMode get_eps_mode() const { return m_eps_mode; }
             private:
-                bool m_normalize_variance;
-                float m_eps;
-                MVNEpsMode m_eps_mode;
+                bool m_normalize_variance = true;
+                float m_eps = 1e-6;
+                MVNEpsMode m_eps_mode = MVNEpsMode::INSIDE_SQRT;
             };
         } // namespace v6
     }     // namespace op
