@@ -169,6 +169,7 @@ def transpose(op_node: Node, port_info: str, input_port: int):
     transpose = create_op_with_const_inputs(
         graph, Transpose, {1: permutation.perm}, {'name': transpose_name, 'override_output_shape': True})
     op_node.in_port(input_port).get_connection().insert_node(transpose)
+    transpose.infer(transpose)
 
 
 def transpose_nchw_to_nhwc(op_node: Node, port_info: str, input_port: int):
@@ -186,6 +187,7 @@ def transpose_nchw_to_nhwc(op_node: Node, port_info: str, input_port: int):
     transpose = create_op_with_const_inputs(
         graph, Transpose, {1: perm}, {'name': transpose_name, 'override_output_shape': True})
     op_node.in_port(input_port).get_connection().insert_node(transpose)
+    transpose.infer(transpose)
 
 
 class PermuteInputs:

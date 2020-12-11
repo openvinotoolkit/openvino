@@ -205,6 +205,7 @@ onnx_dyn_shapes_flatten_neg_axis
 onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+onnx_model_max_pool_dyn_rank_without_default_attrs
 
 # LSTMSequence Layer is not instance of RNNLayer class
 # (Constant W, B, R inputs are required)
@@ -243,6 +244,9 @@ IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
 IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
 IE_GPU.onnx_model_gru_fwd_mixed_seq_len
 IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
+
+## Const layer has incorrect dimensions in the output data
+IE_CPU.nothing_to_reverse
 
 
 #-------------------------------------------------------------------------------
@@ -671,8 +675,13 @@ relu_2Dbackprop
 relu_4Dbackprop
 
 # data [<name>] doesn't exist
-range
 parameter_as_output
+
+# MKLDNNGraph::CreateGraph: No inputs for the topology
+range_v0_int32
+range_v0_float32
+range_v4_int32
+range_v4_float32
 
 # Cannot cast ngraph node QuantizedDot to CNNLayer!
 quantized_dot_u8u8
@@ -1121,12 +1130,12 @@ IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
 
-# Next nine tests fails in CPU for the following reason. The nGraph function
-# for NMS-5 are passed to the method compile() of the backend, but this
-# method doesn't apply any nGraph transformations to the passed function,
-# and the plugin backend gets CNNNetwork with NMS-5, NMS-5 has dynamic shapes
-# for two of three outputs, and results of these two outputs are interpreted
-# as scalars. If we apply all needed nGraph transformations to the nGraph
+# RNN/LSTM Cells should be converted to IE representation
+IE_CPU.lstm_cell__zero_bias_peepholes
+IE_CPU.rnn_cell__no_bias
+IE_CPU.rnn_cell__bias_clip
+IE_CPU.rnn_cell__activation_function
+
 # function with NMS-5 to get the nGraph function with NMSIE3 (internal
 # operation, similar with NMS-5, but with all static output shapes), before
 # the method compile() call, then tests for INTERPRETER backend for NMS-5 will
@@ -1140,6 +1149,15 @@ IE_CPU.nonmaxsuppression_suppress_by_IOU
 IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores
 IE_CPU.nonmaxsuppression_two_batches
 IE_CPU.nonmaxsuppression_two_classes
+
+# Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
+IE_CPU.roi_pooling_1x1_bilinear
+
+# Unsupported dynamic op
+IE_CPU.range_v4_trunc_inputs
+
+# output mismatch
+IE_CPU.gather_nd_batch_1d_from_3d_negative
 
 #-------------------------------------------------------------------------------
 #
@@ -1507,3 +1525,4 @@ onnx_controlflow_loop_infinite
 
 # unsupported dynamic ops
 onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
+IE_GPU.range_v4_trunc_inputs

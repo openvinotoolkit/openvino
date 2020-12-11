@@ -76,7 +76,8 @@ public:
         }
         if (!data) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
         const bool compoundBlobPassed = data->is<CompoundBlob>();
-        if (!compoundBlobPassed && data->buffer() == nullptr)
+        const bool remoteBlobPassed = data->is<RemoteBlob>();
+        if (!compoundBlobPassed && !remoteBlobPassed && data->buffer() == nullptr)
             THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
         if (data->size() == 0) {
             THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
@@ -348,7 +349,8 @@ protected:
         if (refSize != blob->size()) {
             THROW_IE_EXCEPTION << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
         }
-        if (blob->buffer() == nullptr) THROW_IE_EXCEPTION << strNotAllocated;
+        const bool remoteBlobPassed = blob->is<RemoteBlob>();
+        if (!remoteBlobPassed && blob->buffer() == nullptr) THROW_IE_EXCEPTION << strNotAllocated;
     }
 
     /**

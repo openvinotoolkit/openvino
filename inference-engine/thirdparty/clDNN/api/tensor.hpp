@@ -162,6 +162,8 @@ struct format {
                                                       ///< convolution, F(6,3) -- filter 3x3 with stride 1
         os_is_yx_isa8_osv8_isv4,                      ///< format for weights for MMAD convolution
         os_is_zyx_isa8_osv8_isv4,                     ///< format for weights for MMAD convolution
+        os_is_yx_isa8_osv16_isv4,                     ///< format for weights for fully connected MMAD
+        os_is_zyx_isa8_osv16_isv4,                    ///< format for weights for fully connected MMAD
         os_is_yx_isa8_osv8_isv4_swizzled_by_4,        ///< format for weights for MMAD convolution
         os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,   ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  ///< format for weights for MMAD fsv32 convolution
@@ -273,8 +275,10 @@ struct format {
                 { image_2d_weights_c1_b_fyx,                   { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
                 { lstm_weights_dio,                            { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {}}},
                 { os_is_yx_isa8_osv8_isv4,                     { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
+                { os_is_yx_isa8_osv16_isv4,                    { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
                 { os_is_yx_isa8_osv8_isv4_swizzled_by_4,       { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
                 { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 8}, {1, 4}}}},
+                { os_is_zyx_isa8_osv16_isv4,                   { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 4}}}},
                 { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}, {1, 32}}}},
                 { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
                 { is_o_yx_isv32,                               { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {{1, 32}}}},
@@ -994,6 +998,13 @@ public:
             my_sizes[0] = align_to(my_sizes[0], 8);
             my_sizes[1] = align_to(my_sizes[1], 32);
             adjusted_coords[0] = align_to(adjusted_coords[0], 8);
+            adjusted_coords[1] = align_to(adjusted_coords[1], 32);
+        } else if (fmt == cldnn::format::os_is_yx_isa8_osv16_isv4 &&
+                   !(is_aligned_to(my_sizes[0], 16)) &&
+                   !(is_aligned_to(my_sizes[1], 32))) {
+            my_sizes[0] = align_to(my_sizes[0], 16);
+            my_sizes[1] = align_to(my_sizes[1], 32);
+            adjusted_coords[0] = align_to(adjusted_coords[0], 16);
             adjusted_coords[1] = align_to(adjusted_coords[1], 32);
         } else if (fmt == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && !(is_aligned_to(my_sizes[0], 32)) && !(is_aligned_to(my_sizes[1], 32))) {
             my_sizes[0] = align_to(my_sizes[0], 32);

@@ -49,7 +49,8 @@ std::shared_ptr<op::Constant> make_range_replacement(const element::Type& et,
 
     NGRAPH_CHECK(start_vec.size() == 1 && step_vec.size() == 1);
 
-    runtime::reference::range<T>(start_vec.data(), step_vec.data(), shape, elements.data());
+    runtime::reference::range<T>(
+        start_vec.data(), step_vec.data(), shape_size(shape), elements.data());
 
     return make_shared<op::Constant>(et, shape, elements);
 }

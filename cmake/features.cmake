@@ -58,9 +58,13 @@ ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "
 
 ie_dependent_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
+ie_option(ENABLE_TEMPLATE_PLUGIN "Register template plugin into plugins.xml" OFF)
+
 ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
 
 ie_option_enum(SELECTIVE_BUILD "Enable OpenVINO conditional compilation or statistics collection. \
 In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics. \
 Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
                ALLOWED_VALUES ON OFF COLLECT)
+
+set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")
