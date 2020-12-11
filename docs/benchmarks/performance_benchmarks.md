@@ -94,7 +94,7 @@ Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are ba
 
 Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of December 9, 2020 and may not reflect all publicly available updates. See configuration disclosure for details. No product can be absolutely secure. 
 
-Performance varies by use, configuration and other factors. Learn more at [www.intel.com/PerformanceIndex](www.intel.com/PerformanceIndex).
+Performance varies by use, configuration and other factors. Learn more at [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex).
 
 Your costs and results may vary. 
 
@@ -254,7 +254,7 @@ Please follow this link for more detailed configuration descriptions: [Configura
 <div class="opt-notice-wrapper">
 <p class="opt-notice">
 \endhtmlonly
-Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).
+Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).
 \htmlonly
 </p>
 </div>
