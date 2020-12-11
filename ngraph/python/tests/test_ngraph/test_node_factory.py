@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
-from _pyngraph import NodeFactory as _NodeFactory
+from ngraph.pyngraph import NodeFactory as _NodeFactory
 
 import ngraph as ng
 
