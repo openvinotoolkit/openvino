@@ -2,14 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional>
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
-
-#include "single_layer_tests/mat_mul.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/single_layer/mat_mul.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -80,9 +74,5 @@ void MatMulTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "MatMul");
 }
-
-TEST_P(MatMulTest, CompareWithRefs) {
-    Run();
-};
 
 }  // namespace LayerTestsDefinitions

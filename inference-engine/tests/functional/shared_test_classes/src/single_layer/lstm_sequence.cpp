@@ -2,24 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-#include <functional>
-
-#include "ie_core.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
-#include "single_layer_tests/lstm_sequence.hpp"
-#include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
-#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
+#include "shared_test_classes/single_layer/lstm_sequence.hpp"
+#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "ngraph/pass/visualize_tree.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -128,8 +114,4 @@ namespace LayerTestsDefinitions {
         }
         inferRequest.Infer();
     }
-
-    TEST_P(LSTMSequenceTest, CompareWithRefs) {
-        Run();
-    };
 }  // namespace LayerTestsDefinitions

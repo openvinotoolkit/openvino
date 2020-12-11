@@ -3,12 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional>
-#include <string>
-#include <tuple>
-#include <vector>
-
-#include "single_layer_tests/lrn.hpp"
+#include "shared_test_classes/single_layer/lrn.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -55,9 +50,5 @@ void LrnLayerTest::SetUp() {
     auto lrn = std::make_shared<ngraph::opset3::LRN>(paramIn[0], axes_node, alpha, beta, bias, size);
     ngraph::ResultVector results {std::make_shared<ngraph::opset3::Result>(lrn)};
     function = std::make_shared<ngraph::Function>(results, params, "lrn");
-}
-
-TEST_P(LrnLayerTest, CompareWithRefs) {
-    Run();
 }
 }  // namespace LayerTestsDefinitions

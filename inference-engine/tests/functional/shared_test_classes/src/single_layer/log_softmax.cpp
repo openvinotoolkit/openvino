@@ -3,18 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/log_softmax.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-
-#include "ie_core.hpp"
-
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
+#include "shared_test_classes/single_layer/log_softmax.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -62,9 +51,4 @@ void LogSoftmaxLayerTest::SetUp() {
 
     function = std::make_shared<ngraph::Function>(results, params, "logSoftmax");
 }
-
-TEST_P(LogSoftmaxLayerTest, CompareWithRefs) {
-    Run();
-}
-
 }  // namespace LayerTestsDefinitions

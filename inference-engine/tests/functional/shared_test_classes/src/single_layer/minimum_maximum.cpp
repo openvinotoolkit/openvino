@@ -2,16 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-#include <debug.h>
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "single_layer_tests/minimum_maximum.hpp"
+#include "shared_test_classes/single_layer/minimum_maximum.hpp"
 
 namespace LayerTestsDefinitions {
     std::string MaxMinLayerTest::getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple> &obj) {
@@ -56,8 +47,4 @@ namespace LayerTestsDefinitions {
         auto op = ngraph::builder::makeMinMax(input[0], secondaryInput, opType);
         function = std::make_shared<ngraph::Function>(op, input, "MinMax");
     }
-
-    TEST_P(MaxMinLayerTest, CompareWithRefs){
-        Run();
-    };
 } // namespace LayerTestsDefinitions
