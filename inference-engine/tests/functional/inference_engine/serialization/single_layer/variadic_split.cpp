@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "functional_test_utils/single_layer_test_classes/variadic_split.hpp"
+#include "shared_test_classes/single_layer_test_classes/variadic_split.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;

@@ -5,7 +5,7 @@
 #include <tuple>
 #include <string>
 #include <vector>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {

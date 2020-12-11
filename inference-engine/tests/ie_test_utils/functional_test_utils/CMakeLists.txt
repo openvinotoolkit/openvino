@@ -26,9 +26,7 @@ addIeTarget(
         PUBLIC
             ${EXPORT_DEPENDENCIES}
             inference_engine_transformations
-        PRIVATE
-            ngraphFunctions
-        INCLUDES
+    INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     EXPORT_DEPENDENCIES

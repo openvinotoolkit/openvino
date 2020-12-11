@@ -3,7 +3,7 @@
 #pragma once
 
 #include "common_test_utils/test_common.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include <ie_core.hpp>
 
 namespace SubgraphTestsDefinitions {

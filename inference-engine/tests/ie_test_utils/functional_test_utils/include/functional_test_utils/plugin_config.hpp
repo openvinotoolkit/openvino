@@ -4,6 +4,6 @@
 
 #pragma once
 
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 void PreparePluginConfiguration(LayerTestsUtils::LayerTestsCommon* test);

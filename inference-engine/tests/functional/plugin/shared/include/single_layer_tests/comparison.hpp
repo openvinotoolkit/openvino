@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <functional_test_utils/single_layer_test_classes/comparison.hpp>
+#pragma once
+
+#include <shared_test_classes/single_layer_test_classes/comparison.hpp>
 
 namespace LayerTestsDefinitions {
 

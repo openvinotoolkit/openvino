@@ -9,7 +9,7 @@
 #include <tuple>
 #include <vector>
 
-#include "functional_test_utils/single_layer_test_classes/batch_to_space.hpp"
+#include "shared_test_classes/single_layer_test_classes/batch_to_space.hpp"
 
 namespace LayerTestsDefinitions {
 

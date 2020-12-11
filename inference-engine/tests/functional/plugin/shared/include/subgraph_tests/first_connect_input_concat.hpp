@@ -10,7 +10,7 @@
 #include <memory>
 
 #include <ngraph_functions/builders.hpp>
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 
 typedef std::tuple<
         std::vector<std::vector<size_t>>,   // Input shapes
