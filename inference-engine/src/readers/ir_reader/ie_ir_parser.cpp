@@ -48,7 +48,7 @@ IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtension
 }
 
 void V10Parser::XmlDeserializer::map_type_in_function(const pugi::xml_node& node,
-    const std::string map_type, std::map<uint64_t, uint64_t>& layer_idx_to_name) {
+    const std::string map_type, std::map<uint64_t, uint64_t>& type_id_in_function) {
     uint64_t map_type_number = 0;
     auto body_node = node.child("body");
 
@@ -56,13 +56,13 @@ void V10Parser::XmlDeserializer::map_type_in_function(const pugi::xml_node& node
         THROW_IE_EXCEPTION << "Missing body part.";
     }
 
-    // Fill map: parameter id to parameter number in Function
+    // Fill map: parameter/result id to parameter/result number in Function
     FOREACH_CHILD(_layer, body_node.child("layers"), "layer") {
         auto type = XMLParseUtils::GetStrAttr(_layer, "type");
 
         if (type == map_type) {
             auto id = XMLParseUtils::GetUIntAttr(_layer, "id");
-            layer_idx_to_name[id] = map_type_number;
+            type_id_in_function[id] = map_type_number;
             map_type_number++;
         }
     }
@@ -218,6 +218,11 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
         if (!getStrAttribute(node.child("data"), name, val)) return;
         static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::CoordinateDiff>>(&adapter)) {
+        std::vector<size_t> shape;
+        if (!getParameters<size_t>(node.child("data"), name, shape)) return;
+        std::vector<std::ptrdiff_t> coord_diff(shape.begin(), shape.end());
+        static_cast<ngraph::CoordinateDiff&>(*a) = ngraph::CoordinateDiff(coord_diff);
     } else {
         THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                             << " parameter";

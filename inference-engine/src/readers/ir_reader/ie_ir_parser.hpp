@@ -281,11 +281,21 @@ private:
     private:
         const pugi::xml_node node;
         const Blob::CPtr& weights;
-
+        /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
+        /// Shall be used only for ops which have port_map attribute.
+        /// \param node xml op representation
         std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> parseInputDescription(
             const pugi::xml_node& node);
+        /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
+        /// Shall be used only for ops which have port_map attribute.
+        /// \param node xml op representation
         std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
             const pugi::xml_node& node);
+        /// \brief Traverses nGraph body function for specified op type and creates a map of all
+        ///  op iterations. Map constains type id and assigned to it consecutive number starting from 0.
+        /// \param node xml op representation
+        /// \param type op type name to find
+        /// \param type_id_in_function map container
         void map_type_in_function(const pugi::xml_node& node, std::string type, std::map<uint64_t, uint64_t>& type_id_in_function);
 
         bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
