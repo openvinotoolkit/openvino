@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer_test_classes/convert.hpp"
+#include "shared_test_classes/single_layer/convert.hpp"
 
 namespace LayerTestsDefinitions {
 

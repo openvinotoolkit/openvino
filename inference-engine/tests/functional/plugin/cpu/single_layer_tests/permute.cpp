@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer_test_classes/transpose.hpp>
+#include <shared_test_classes/single_layer/transpose.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 

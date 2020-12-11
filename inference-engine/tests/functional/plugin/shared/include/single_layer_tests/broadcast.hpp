@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer_test_classes/broadcast.hpp"
+#include "shared_test_classes/single_layer/broadcast.hpp"
 
 namespace LayerTestsDefinitions {
 

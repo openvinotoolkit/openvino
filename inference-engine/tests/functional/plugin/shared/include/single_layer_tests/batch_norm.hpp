@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer_test_classes/batch_norm.hpp"
+#include "shared_test_classes/single_layer/batch_norm.hpp"
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {

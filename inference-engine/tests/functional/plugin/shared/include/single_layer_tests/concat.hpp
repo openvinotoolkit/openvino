@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer_test_classes/concat.hpp"
+#include "shared_test_classes/single_layer/concat.hpp"
 
 namespace LayerTestsDefinitions {
 

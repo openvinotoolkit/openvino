@@ -10,9 +10,9 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/single_layer/shape_of.hpp"
 
-#include "single_layer_tests/shape_of.hpp"
+#include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
 

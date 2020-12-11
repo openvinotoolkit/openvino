@@ -4,7 +4,7 @@
 //
 #pragma once
 
-#include <shared_test_classes/single_layer_test_classes/eltwise.hpp>
+#include <shared_test_classes/single_layer/eltwise.hpp>
 
 namespace LayerTestsDefinitions {
 TEST_P(EltwiseLayerTest, EltwiseTests) {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <shared_test_classes/single_layer_test_classes/logical.hpp>
+#include <shared_test_classes/single_layer/logical.hpp>
 
 namespace LayerTestsDefinitions {
 TEST_P(LogicalLayerTest, LogicalTests) {

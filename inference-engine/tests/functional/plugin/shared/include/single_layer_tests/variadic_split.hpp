@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer_test_classes/variadic_split.hpp"
+#include "shared_test_classes/single_layer/variadic_split.hpp"
 
 namespace LayerTestsDefinitions {
 
