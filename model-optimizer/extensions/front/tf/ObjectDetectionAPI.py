@@ -400,8 +400,8 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
     width = None
     user_shapes = graph.graph['user_shapes']
 
-    if 'preprocessed_image_height' in match.custom_replacement_desc.custom_attributes or 'preprocessed_image_width' in \
-            match.custom_replacement_desc.custom_attributes:
+    if match and ('preprocessed_image_height' in match.custom_replacement_desc.custom_attributes or
+                  'preprocessed_image_width' in match.custom_replacement_desc.custom_attributes):
         log.error('The "preprocessed_image_height" or "preprocessed_image_width" is specified in the sub-graph '
                   'replacement configuration file but they are ignored. Please, specify desired input shape using the '
                   '"--input_shape" command line parameter.', extra={'is_warning': True})
@@ -569,6 +569,69 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
         print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
               ' applicable) are kept.')
         return {}
+
+
+class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileGeneral):
+    """
+    The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
+    to applying mean/scaling values are kept. The transformation is used for TensorFlow 2.X models.
+    """
+    replacement_id = 'ObjectDetectionAPIPreprocessor2Replacement'
+
+    def run_before(self):
+        # PadTFToPad inserts Transpose ops for Pad ops inside the sub-graph corresponding to DetectionOutput.
+        # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
+        # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
+        # results in TransposeOrderNormalizer transformation failure.
+        return [Pack, TransposeOrderNormalizer, PadTFToPad]
+
+    def transform_graph(self, graph: Graph, replacement_descriptions: dict):
+        argv = graph.graph['cmd_params']
+        if argv.tensorflow_object_detection_api_pipeline_config is None:
+            raise Error(missing_param_error)
+        pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
+
+        start_nodes = replacement_descriptions['start_nodes']
+        end_nodes = replacement_descriptions['end_nodes']
+
+        argv = graph.graph['cmd_params']
+        layout = graph.graph['layout']
+
+        if argv.tensorflow_object_detection_api_pipeline_config is None:
+            raise Error(missing_param_error)
+        pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
+
+        initial_input_node_name = 'image_tensor' if 'image_tensor' in graph.nodes else 'input_tensor'
+        if initial_input_node_name not in graph.nodes():
+            raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
+                        '"--input" command line parameter.'.format(initial_input_node_name))
+        placeholder_node = Node(graph, initial_input_node_name)
+
+        # set default value of the batch size to 1 if user didn't specify batch size and input shape
+        batch_dim = get_batch_dim(layout, 4)
+        if argv.batch is None and placeholder_node.shape[batch_dim] == -1:
+            placeholder_node.shape[batch_dim] = 1
+        height, width = calculate_placeholder_spatial_shape(graph, None, pipeline_config)
+        placeholder_node.shape[get_height_dim(layout, 4)] = height
+        placeholder_node.shape[get_width_dim(layout, 4)] = width
+
+        # save the pre-processed image spatial sizes to be used in the other transformations
+        graph.graph['preprocessed_image_height'] = placeholder_node.shape[get_height_dim(layout, 4)]
+        graph.graph['preprocessed_image_width'] = placeholder_node.shape[get_width_dim(layout, 4)]
+
+        assert len(start_nodes) >= 1
+        assert start_nodes[0] in graph.nodes
+        input_node = Node(graph, start_nodes[0])
+
+        assert len(end_nodes) >= 1
+        assert end_nodes[0] in graph.nodes
+        output_node = Node(graph, end_nodes[0])
+
+        output_node.out_port(0).get_connection().set_source(input_node.in_port(0).get_source())
+        input_node.in_port(0).disconnect()
+
+        print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
+              ' applicable) are kept.')
 
 
 class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFileSubGraph):
@@ -868,7 +931,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
     replacement_id = 'ObjectDetectionAPIProposalReplacement'
 
     def run_after(self):
-        return [ObjectDetectionAPIPreprocessorReplacement]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
 
     def run_before(self):
         return [CropAndResizeReplacement, TransposeOrderNormalizer, Pack]
@@ -1021,7 +1084,8 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
     replacement_id = 'ObjectDetectionAPISSDPostprocessorReplacement'
 
     def run_after(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, FakeQuantWithMinMaxVarsToQuantize]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
+                FakeQuantWithMinMaxVarsToQuantize]
 
     def run_before(self):
         return [StandaloneConstEraser, TransposeOrderNormalizer, TFSliceToSliceReplacer]
@@ -1036,10 +1100,12 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         if argv.tensorflow_object_detection_api_pipeline_config is None:
             raise Error(missing_param_error)
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
-        num_classes = _value_or_raise(match, pipeline_config, 'num_classes')
+
+        has_background_class = _value_or_raise(match, pipeline_config, 'add_background_class')
+        num_classes = _value_or_raise(match, pipeline_config, 'num_classes') + has_background_class
 
         # reshapes confidences to 4D before applying activation function and do not convert from NHWC to NCHW this node
-        expand_dims_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, 1, -1, num_classes + 1]),
+        expand_dims_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, 1, -1, num_classes]),
                                                             {'name': 'do_ExpandDims_conf'})
         expand_dims_node.in_port(0).connect(match.input_nodes(1)[0][0].in_node(0).out_port(0))
 
@@ -1070,7 +1136,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
                 (pipeline_config.get_param('ssd_anchor_generator_num_layers') is not None or
                  pipeline_config.get_param('multiscale_anchor_generator_min_level') is not None):
             # change the Reshape operations with hardcoded number of output elements of the convolution nodes to be
-            # reshapable
+            # reshape-able
             _relax_reshape_nodes(graph, pipeline_config)
 
             # create PriorBoxClustered nodes instead of a constant value with prior boxes so the model could be reshaped
@@ -1150,7 +1216,8 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
     replacement_id = 'ObjectDetectionAPIOutputReplacement'
 
     def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, TransposeOrderNormalizer]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
+                TransposeOrderNormalizer]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         if graph.graph['cmd_params'].output is not None:
@@ -1245,7 +1312,8 @@ class ObjectDetectionAPIConstValueOverride(FrontReplacementFromConfigFileGeneral
     replacement_id = 'ObjectDetectionAPIConstValueOverride'
 
     def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement, TransposeOrderNormalizer]
+        return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement,
+                TransposeOrderNormalizer]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         argv = graph.graph['cmd_params']

@@ -65,6 +65,7 @@ mapping_rules = [
     ('crop_width', '.*/rfcn_box_predictor/crop_width'),
     'initial_crop_size',
     ('use_matmul_crop_and_resize', 'use_matmul_crop_and_resize', False),
+    ('add_background_class', 'add_background_class', True),
     # Detection Output layer attributes
     ('postprocessing_score_converter', '.*/score_converter'),
     ('postprocessing_score_threshold', '.*/batch_non_max_suppression/score_threshold'),
