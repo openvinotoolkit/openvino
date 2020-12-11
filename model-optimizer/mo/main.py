@@ -239,10 +239,8 @@ def prepare_ir(argv: argparse.Namespace):
     elif is_onnx:
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        segments = {'selected_targets': 'aaa', 'added_user_data': 'bbb',
-                 'openvino_package': 'ccc' }
-        record_event(event_name="generate_deploy_package", app_name="deployment_manager",
-                     app_version='0.6', event_segments={'openvino_package': segments})
+        record_event(event_name="ir_generation", app_name="model_optimizer",
+                     app_version='0.6', event_segments={'framework': 'onnx'})
     graph = unified_pipeline(argv)
     return graph
 
@@ -337,6 +335,6 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
-        #record_event(event_name="ir_generation", app_name="model_optimizer",
-        #             app_version='0.6', event_segments={'error_message': str(err)})
+        record_event(event_name="ir_generation", app_name="model_optimizer",
+                     app_version='0.6', event_segments={'error_message': str(err)})
     return 1
