@@ -4,26 +4,13 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/subgraph/constant_result.hpp"
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-            std::string                        // Device name
-> constResultParams;
+TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
+    Run();
+}
 
-class ConstantResultSubgraphTest : public testing::WithParamInterface<constResultParams>,
-                                   virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<constResultParams> obj);
-protected:
-    void SetUp() override;
-};
 }  // namespace LayerTestsDefinitions
 

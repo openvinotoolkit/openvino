@@ -25,7 +25,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "subgraph_tests/basic_lstm.hpp"
+#include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace BehaviorTestsDefinitions {
 using InferRequestTests = BehaviorTestsUtils::BehaviorTestsBasic;

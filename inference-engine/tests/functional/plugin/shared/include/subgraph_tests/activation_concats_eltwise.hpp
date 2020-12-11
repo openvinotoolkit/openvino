@@ -4,28 +4,12 @@
 
 #pragma once
 
-#include <string>
-
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
 
 namespace LayerTestsDefinitions {
 
-using ActivationConcatsEltwiseParamsTuple = typename std::tuple<
-    size_t,                             // input size
-    size_t,                             // concat const size
-    InferenceEngine::Precision,         // precision
-    std::string,                        // device name
-    std::map<std::string, std::string>  // configuration
->;
-
-
-class ActivationConcatsEltwise : public testing::WithParamInterface<ActivationConcatsEltwiseParamsTuple>,
-                          public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<ParamType> obj);
-
-protected:
-    void SetUp() override;
-};
+TEST_P(ActivationConcatsEltwise, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

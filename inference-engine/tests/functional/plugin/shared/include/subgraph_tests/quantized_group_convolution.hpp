@@ -4,41 +4,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
-
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-
-typedef std::tuple<
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        std::vector<ptrdiff_t>,
-        std::vector<ptrdiff_t>,
-        InferenceEngine::SizeVector,
-        size_t,
-        size_t,
-        size_t,
-        ngraph::helpers::QuantizationGranularity,
-        bool> quantGroupConvSpecificParams;
-typedef std::tuple<
-        quantGroupConvSpecificParams,
-        InferenceEngine::Precision,
-        InferenceEngine::SizeVector,
-        LayerTestsUtils::TargetDevice> quantGroupConvLayerTestParamsSet;
+#include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
-class QuantGroupConvLayerTest : public testing::WithParamInterface<quantGroupConvLayerTestParamsSet>,
-                                            virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<quantGroupConvLayerTestParamsSet> obj);
-
-protected:
-    void SetUp() override;
-};
+TEST_P(QuantGroupConvLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

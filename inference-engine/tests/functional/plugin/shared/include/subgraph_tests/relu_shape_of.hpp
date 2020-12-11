@@ -4,23 +4,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "shared_test_classes/single_layer/shape_of.hpp"
-
-#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/subgraph/relu_shape_of.hpp"
 
 namespace LayerTestsDefinitions {
 
-class ReluShapeOfSubgraphTest : public testing::WithParamInterface<shapeOfParams>,
-        virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<shapeOfParams> obj);
-protected:
-    void SetUp() override;
-};
+TEST_P(ReluShapeOfSubgraphTest, CompareWithRefs) {
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions

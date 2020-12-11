@@ -4,36 +4,16 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-
-#include "shared_test_classes/single_layer/range.hpp"
+#include "shared_test_classes/subgraph/range_add.hpp"
 
 namespace LayerTestsDefinitions {
 
-// ------------------------------ V0 ------------------------------
+TEST_P(RangeAddSubgraphTest, CompareWithRefs) {
+    Run();
+}
 
-class RangeAddSubgraphTest : public testing::WithParamInterface<RangeParams>,
-                             virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
-protected:
-    void SetUp() override;
-};
-
-// ------------------------------ V4 ------------------------------
-
-class RangeNumpyAddSubgraphTest : public testing::WithParamInterface<RangeParams>,
-                             virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
-protected:
-    void SetUp() override;
-};
+TEST_P(RangeNumpyAddSubgraphTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions
