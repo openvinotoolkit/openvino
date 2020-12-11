@@ -51,8 +51,11 @@ void op::DetectionOutput::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, m_attrs.keep_top_k.size() > 0, "keep_top_k attribute must be provided");
 
-    NODE_VALIDATION_CHECK(
-        this, m_attrs.code_type == "caffe.PriorBoxParameter.CORNER" || m_attrs.code_type == "caffe.PriorBoxParameter.CENTER_SIZE", "code_type must be either \"caffe.PriorBoxParameter.CORNER\" or \"caffe.PriorBoxParameter.CENTER_SIZE\"");
+    NODE_VALIDATION_CHECK(this,
+                          m_attrs.code_type == "caffe.PriorBoxParameter.CORNER" ||
+                              m_attrs.code_type == "caffe.PriorBoxParameter.CENTER_SIZE",
+                          "code_type must be either \"caffe.PriorBoxParameter.CORNER\" or "
+                          "\"caffe.PriorBoxParameter.CENTER_SIZE\"");
 
     auto box_logits_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
