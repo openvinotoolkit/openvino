@@ -173,8 +173,8 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
         supported.erase(unsupportedNode);
     }
 
-    // 5. If some housekeeping nodes were not added add them.
     for (auto&& node : function->get_ops()) {
+        // 5. If some housekeeping nodes were not added - add them.
         if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
             for (auto&& inputNodeOutput : node->input_values()) {
                 if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
@@ -189,10 +189,8 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
                 }
             }
         }
-    }
 
-    // 6. Eliminate subgraphs that consist of housekeeping nodes only
-    for (auto&& node : function->get_ops()) {
+        // 6. Eliminate subgraphs that consist of housekeeping nodes only
         if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
             if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
                 supported.erase(node->get_friendly_name());

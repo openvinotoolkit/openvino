@@ -483,8 +483,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                     }
                 }
             }
-        }
-        for (auto&& node : function->get_ops()) {
+
             if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
                 if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
                     supported.erase(node->get_friendly_name());
@@ -495,6 +494,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 }
             }
         }
+
         for (auto&& layerName : supported) {
             res.supportedLayersMap.emplace(layerName, GetName());
         }
