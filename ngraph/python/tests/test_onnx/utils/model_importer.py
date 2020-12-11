@@ -19,7 +19,7 @@ import onnx
 import onnx.backend.test
 import unittest
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
@@ -29,13 +29,8 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union, Callable, Sequence
 
 
-class ExtOnnxTestCase(OnnxTestCase):
-    def __new__(cls, name, model_name, url, model_dir, model, data_sets, kind, rtol, atol, post_processing):
-        self = super(ExtOnnxTestCase, cls).__new__(
-            cls, name, model_name, url, model_dir, model, data_sets, kind, rtol, atol
-        )
-        self.post_processing = post_processing
-        return self
+# add post-processing function as part of test data
+ExtOnnxTestCase = namedtuple("TestCaseExt", OnnxTestCase._fields + ("post_processing",))
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
