@@ -120,7 +120,7 @@ class Node:
         # no handling of control flow edges -- TODO
         control_flow = False
         if not skip_if_absent and idx not in self.out_ports(control_flow=control_flow):
-            raise Error("Input port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
+            raise Error("Output port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
         if not self.out_port(idx).disconnected():
             self.out_port(idx).disconnect()
         del self._out_ports[idx]

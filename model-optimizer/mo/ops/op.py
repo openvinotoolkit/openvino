@@ -445,7 +445,7 @@ class PermuteAttrs:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
-        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+        return PermuteAttrs.Permutation(perm=np.array(perm, dtype=np.int32), inv=np.array(inv, dtype=np.int32))
 
     @staticmethod
     def get_nchw_to_nhwc_permutation(dims_number: int):
@@ -456,4 +456,4 @@ class PermuteAttrs:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
-        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+        return PermuteAttrs.Permutation(perm=np.array(perm, dtype=np.int32), inv=np.array(inv, dtype=np.int32))

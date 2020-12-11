@@ -1,0 +1,169 @@
+"""
+ Copyright (C) 2018-2020 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+import copy
+
+from extensions.ops.loop import Loop
+from extensions.ops.parameter import Parameter
+from mo.front.extractor import FrontExtractorOp
+from mo.graph.graph import Graph, Node, add_opoutput
+from extensions.front.onnx.loop_ext import connect_body_input, connect_body_output
+from mo.front.extractor import extract_node_attrs
+from mo.front.common.register_custom_ops import check_for_duplicates
+from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors
+from mo.front.tf.extractors.utils import tf_dtype_extractor
+from mo.ops.op import PermuteAttrs
+
+
+def extend_body_graph(body_graph: Graph, body_graph_proto, body_parameter_names, body_results, prefix_name='body/'):
+    for pb_node in body_graph_proto['node_def']:
+        # create an NX node
+        id = prefix_name + body_graph.unique_id(pb_node.name)
+        body_graph.add_node(id, pb=pb_node, kind='op')
+
+        # add incoming edges based on data_nodes_map
+        for dst_port, inp in enumerate(pb_node.input):
+            src_id = inp.split(":")[0]
+            if src_id not in body_parameter_names:
+                src_id = prefix_name + src_id
+            src_port = 0 if len(inp.split(":")) == 1 else int(inp.split(":")[-1])
+            assert (body_graph.has_node(src_id))
+            edge_attrs = {
+                'out': src_port,
+                'in': dst_port,
+                'name': src_id,
+                'fw_tensor_debug_info': [(src_id, src_id)],
+                'in_attrs': ['in', 'name'],
+                'out_attrs': ['out', 'name'],
+                'data_attrs': ['fw_tensor_debug_info']
+            }
+            body_graph.add_edge(src_id, id, **edge_attrs)
+
+    # create Result nodes in the body graph
+    for output in body_graph_proto['output_arg']:
+        src_id = body_graph_proto['ret'][output.name].split(":")[0]
+        if src_id not in body_parameter_names:
+            src_id = prefix_name + src_id
+        src_port = 0 if len(body_graph_proto['ret'][output.name].split(":")) == 1\
+            else int(body_graph_proto['ret'][output.name].split(":")[-1])
+        assert body_graph.has_node(src_id), 'The body graph does not contain output with name "{}"'.format(
+            src_id)
+        body_results.append(Node(body_graph, add_opoutput(body_graph, src_id, src_port, False)))
+
+
+class WhileExtractor(FrontExtractorOp):
+    op = 'StatelessWhile'
+    enabled = True
+
+    @classmethod
+    def extract(cls, loop_node):
+        Loop.update_node_stat(loop_node, {})
+        loop_name = loop_node.soft_get('name', loop_node.id)
+
+        # check that required body and condition functions exist in the graph library
+        main_graph = loop_node.graph
+        body_graph_name = loop_node.pb.attr['body'].func.name
+        cond_graph_name = loop_node.pb.attr['cond'].func.name
+        assert 'library' in main_graph.graph, 'The graph does not contain a library that is required ' \
+                                                     'by node with name "{}".'.format(loop_name)
+        library_graph = main_graph.graph['library']
+
+        assert body_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
+                                                 'that is required by node ' \
+                                                 'with name "{}".'.format(body_graph_name, loop_name)
+        body_graph_proto = library_graph[body_graph_name]
+
+        assert cond_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
+                                                 'that is required by node ' \
+                                                 'with name "{}".'.format(cond_graph_name, loop_name)
+        cond_graph_proto = library_graph[cond_graph_name]
+
+        body_graph = Graph()
+        # fill the body graph except library since the library is enough to have in the main graph
+        for attr_key in main_graph.graph.keys():
+            if attr_key != 'library':
+                body_graph.graph[attr_key] = copy.deepcopy(main_graph.graph[attr_key])
+        loop_node['body'] = body_graph
+
+        # create Parameter nodes for the body graph
+        body_parameters = []
+        body_parameter_names = []
+        for idx, pb_node in enumerate(body_graph_proto['input_arg']):
+            body_graph.add_node(pb_node.name, name=pb_node.name, kind='op', op='Parameter', pb=None, shape=None)
+            parameter_node = Node(body_graph, pb_node.name)
+            Parameter.update_node_stat(parameter_node,
+                                       {'data_type': tf_dtype_extractor(pb_node.type),
+                                        'permute_attrs': PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])}
+                                       )
+            body_parameters.append(parameter_node)
+            body_parameter_names.append(pb_node.name)
+
+        # extend the body graph with nodes from the body function
+        body_results = []
+        extend_body_graph(body_graph, body_graph_proto, body_parameter_names, body_results, prefix_name='body/')
+
+        # extend the body graph with nodes from the condition function
+        extend_body_graph(body_graph, cond_graph_proto, body_parameter_names, body_results, prefix_name='cond/')
+
+        # add 'internal_layer_id' attribute which is a must have attribute for the loop body node
+        for idx, body_node in enumerate(body_graph.get_op_nodes()):
+            body_node['internal_layer_id'] = idx
+
+        body_graph.stage = 'front'
+
+        # Currently,
+        # Loop Inputs Order:
+        #   0    - current iteration
+        #   1    - trip count
+        #   2..  - "loop carried" dependencies variables
+        #
+        # Body Inputs Order:
+        #   0    - current iteration
+        #   1    - trip count
+        #   2..  - "loop carried" dependencies variables
+        #
+        # Body Outputs Order:
+        #   0      - current iteration
+        #   1      - trip count
+        #   2..    - "loop carried" dependencies variables
+        #
+        # Loop Outputs Order:
+        #   0    - current iteration
+        #   1    - trip count
+        #   2..  - "loop carried" dependencies variables
+        #
+        # so inputs must be reordered and execution condition must be created in the front transformation
+        # to be aligned with the specification
+
+        # connect external input ports with body parameter nodes except current iteration
+        # since it must be disconnected from external port
+        for idx in range(1, len(body_parameters)):
+            connect_body_input(loop_node, idx, body_parameters[idx])
+
+        # mark current iteration input Parameter node and execution condition Result node
+        Loop.mark_current_iteration_parameter_node(loop_node, body_parameters[0])
+        Loop.mark_execution_condition_result_node(loop_node, body_results[-1])
+
+        # connect back edges in the body except current iteration
+        for idx in range(1, len(body_parameters)):
+            Loop.add_back_edge(loop_node, body_parameters[idx], body_results[idx])
+
+        # connect body outputs with Loop operation output ports except the execution condition result
+        for idx in range(len(body_results)-1):
+            connect_body_output(loop_node, idx, body_results[idx])
+
+        # run function to parse body nodes attributes similar to the main graph
+        extract_node_attrs(body_graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+        return cls.enabled
