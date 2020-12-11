@@ -19,6 +19,7 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
+from tests import xfail_issue_44970
 
 
 @pytest.mark.parametrize(
@@ -110,7 +111,7 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip(reason="Wrong results are broadcasted along given axis")
+@xfail_issue_44970
 def test_softmax():
     axis = 0
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)

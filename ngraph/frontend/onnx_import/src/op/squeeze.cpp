@@ -45,6 +45,28 @@ namespace ngraph
                 }
 
             } // namespace set_1
+
+            namespace set_13
+            {
+                OutputVector squeeze(const Node& node)
+                {
+                    auto inputs = node.get_ng_inputs();
+                    if (inputs.size() < 2)
+                    {
+                        std::vector<int64_t> axes{};
+                        auto axes_node = std::make_shared<default_opset::Constant>(
+                            element::Type_t::u64, Shape{}, axes);
+
+                        return {std::make_shared<default_opset::Squeeze>(inputs.at(0), axes_node)};
+                    }
+                    else
+                    {
+                        return {
+                            std::make_shared<default_opset::Squeeze>(inputs.at(0), inputs.at(1))};
+                    }
+                }
+
+            } // namespace set_13
         }     // namespace op
     }         // namespace onnx_import
 } // namespace ngraph

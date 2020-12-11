@@ -18,7 +18,8 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_36478, skip_issue_38084
+from tests import (xfail_issue_36478,
+                   xfail_issue_44848)
 
 
 def test_onehot():
@@ -46,7 +47,7 @@ def test_one_hot():
     assert np.allclose(result, excepted)
 
 
-@skip_issue_38084
+@xfail_issue_44848
 def test_range():
     start = 5
     stop = 35

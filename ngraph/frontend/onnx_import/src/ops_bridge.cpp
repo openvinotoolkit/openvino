@@ -431,8 +431,10 @@ namespace ngraph
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
             REGISTER_OPERATOR("Split", 1, split);
+            REGISTER_OPERATOR("Split", 13, split);
             REGISTER_OPERATOR("Sqrt", 1, sqrt);
             REGISTER_OPERATOR("Squeeze", 1, squeeze);
+            REGISTER_OPERATOR("Squeeze", 13, squeeze);
             REGISTER_OPERATOR("Sub", 1, sub);
             REGISTER_OPERATOR("Sub", 7, sub);
             REGISTER_OPERATOR("Sum", 1, sum);
@@ -446,6 +448,7 @@ namespace ngraph
             REGISTER_OPERATOR("TopK", 11, topk);
             REGISTER_OPERATOR("Transpose", 1, transpose);
             REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
+            REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
             REGISTER_OPERATOR("Upsample", 1, upsample);
             REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);

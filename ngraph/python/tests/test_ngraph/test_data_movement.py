@@ -14,7 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
-import pytest
 
 import ngraph as ng
 from ngraph.impl import Type
@@ -167,7 +166,6 @@ def test_pad_edge():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="AssertionError")
 def test_pad_constant():
     input_data = np.arange(1, 13).reshape([3, 4])
     pads_begin = np.array([0, 1], dtype=np.int32)
