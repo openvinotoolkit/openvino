@@ -61,7 +61,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 #ifndef NDEBUG
     dumpDotFile  = true;
 #endif
-    dumpDotFile  = true;
     QueryNetworkResult queryNetworkResult;
     auto orderedOps = clonedFunction->get_ordered_ops();
     bool allEmpty = true;

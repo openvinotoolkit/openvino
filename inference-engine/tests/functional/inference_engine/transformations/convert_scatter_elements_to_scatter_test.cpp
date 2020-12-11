@@ -33,7 +33,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShap
     auto updates = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, updates_shape);
     auto axis_const = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {axis});
 
-    size_t broadcast_len = broadcast_shape.rank().get_length();
+    uint64_t broadcast_len = broadcast_shape.rank().get_length();
     auto broadcast_shape_param = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{broadcast_len});
     auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(indexes, broadcast_shape_param);
 
