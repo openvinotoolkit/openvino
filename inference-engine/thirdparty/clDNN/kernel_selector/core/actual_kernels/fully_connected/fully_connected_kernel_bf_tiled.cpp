@@ -354,7 +354,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
-    if (output_b && fc_params.inputs[0].GetDType() == Datatype::F16)
+    if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
         estimated_time = FORCE_PRIORITY_4;
 
     return GetCommonKernelsData(params,
