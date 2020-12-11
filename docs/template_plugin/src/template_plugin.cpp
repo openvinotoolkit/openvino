@@ -138,15 +138,17 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 
     // 1. First of all we should store initial input operation set
     std::unordered_set<std::string> originalOps;
+    std::map<std::string, std::string> friendlyNameToType;
     for (auto&& node : function->get_ops()) {
         originalOps.emplace(node->get_friendly_name());
+        friendlyNameToType[node->get_friendly_name()] = node->get_type_name();
     }
 
     // 2. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
     auto transformedFunction = TransformNetwork(function);
 
     // 3. The same input node can be transformed into supported and unsupported backend node
-    // So we need store as supported ether unsupported node sets
+    // So we need store as supported either unsupported node sets
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
     auto opset = ngraph::get_opset4();
@@ -156,7 +158,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (opset.contains_type_insensitive(fusedLayerName)) {
+                if (opset.contains_type_insensitive(friendlyNameToType[fusedLayerName])) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
@@ -165,7 +167,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
         }
     }
 
-    // 4. The result set should contains just nodes from supported set
+    // 4. The result set should contain just nodes from supported set
     for (auto&& layerName : supported) {
         if (!InferenceEngine::details::contains(unsupported, layerName)) {
             res.supportedLayersMap.emplace(layerName, GetName());
