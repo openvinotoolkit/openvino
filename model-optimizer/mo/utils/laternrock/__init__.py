@@ -806,6 +806,8 @@ class LanternRock(object):
         """
         length = c_uint32()
         self.lrdll.GetMetadata(self.sdk_handle, byref(c_void_p()), byref(length))
+        print('I am here__________________________________________________________')
+        print(length.value)
         if length.value > 0:
             outbuf = create_unicode_buffer(' '*length.value)        
             _hresult( self.lrdll.GetMetadata (self.sdk_handle, byref(outbuf), byref(length)) )

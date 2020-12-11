@@ -1,4 +1,4 @@
-from lanternrock import LanternRock
+from mo.utils.laternrock  import LanternRock
 
 def record_event(event_name: str, app_name: str, app_version: str, event_segments: dict):
     """Record & upload event for Intel analytics server
