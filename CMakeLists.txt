@@ -114,13 +114,12 @@ function(build_ngraph)
     ie_cpack_add_component(ngraph)
 
     set(SDL_cmake_included ON)
-    # set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
+    set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()
 
 file(REMOVE "${CMAKE_BINARY_DIR}/openvino_targets_developer.cmake")
-
 unset(OpenVINODeveloperPackageTargets CACHE)
 
 function(openvino_developer_export_targets)
@@ -145,11 +144,8 @@ function(openvino_developer_export_targets)
 endfunction()
 
 add_subdirectory(openvino)
-
 build_ngraph()
-
 add_subdirectory(inference-engine)
-
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 

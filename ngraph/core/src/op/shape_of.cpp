@@ -100,7 +100,6 @@ namespace shape_of
         auto output_type = shape_of_node->get_output_element_type(0);
         if (partial_shape.is_static())
         {
-            NGRAPH_CHECK(pass::revalidate_and_ensure_static(shape_of_node->shared_from_this()));
             auto arg_shape = shape_of_input.get_shape();
             auto result_tensor =
                 make_shared<HostTensor>(output_type, shape_of_node->get_output_shape(0));

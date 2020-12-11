@@ -36,7 +36,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tile_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_resample_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.cpp
@@ -93,7 +92,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/emitter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/interp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_eltwise_emitters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 
@@ -171,7 +169,7 @@ set_ie_threading_interface_for(${TARGET_NAME})
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
-                                             inference_engine_transformations inference_engine_lp_transformations)
+                                             inference_engine_transformations inference_engine_lp_transformations openvino::conditional_compilation)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -200,12 +198,15 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inferenc
                                                       $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
                                               PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 
 # LTO
 

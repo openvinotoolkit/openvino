@@ -61,6 +61,14 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
 
                 if (cmp(coordinateTransformation, "asymmetric")) {
                     coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
+                } else if (cmp(coordinateTransformation, "half_pixel")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+                } else if (cmp(coordinateTransformation, "pytorch_half_pixel")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::PytorchHalfPixel;
+                } else if (cmp(coordinateTransformation, "tf_half_pixel_for_nn")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::TfHalfPixelForNn;
+                } else if (cmp(coordinateTransformation, "align_corners")) {
+                    coordinateTransformationMode = InterpolateCoordTransMode::AlignCorners;
                 }
 
                 if (cmp(nearest, "round_prefer_floor")) {
@@ -69,7 +77,12 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                     nearestMode = InterpolateNearestMode::RoundPreferCeil;
                 } else if (cmp(nearest, "floor")) {
                     nearestMode = InterpolateNearestMode::Floor;
+                } else if (cmp(nearest, "ceil")) {
+                    nearestMode = InterpolateNearestMode::Ceil;
+                } else if (cmp(nearest, "simple")) {
+                    nearestMode = InterpolateNearestMode::Simple;
                 }
+
                 _stageBuilder->addResampleNearestStage(model,
                                                        _layer->name,
                                                        _layer,
@@ -79,7 +92,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                                                        -1.0f,
                                                        input,
                                                        output);
-            } else if (cmp(interpolateMode, "linear")) {
+            } else if (cmp(interpolateMode, "linear") || cmp(interpolateMode, "linear_onnx")) {
                 // current "Interp" supports modes "align_corners" and "asymmetric" only
                 // other "Interpolate" modes are translated to the default ones
                 const auto coordinateTransformationMode = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");

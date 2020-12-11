@@ -55,6 +55,7 @@ protected:
         std::vector<int64_t> axes;
         std::vector<float> scales;
         std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+        inPrc = outPrc = netPrecision;
 
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
@@ -78,21 +79,19 @@ protected:
                                                                          scalesInput,
                                                                          axesInput,
                                                                          interpolateAttributes);
-        interpolate->get_rt_info() = CPUTestsBase::setCPUInfo(inFmts, outFmts, priority);
+        interpolate->get_rt_info() = getCPUInfo();
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
         function = std::make_shared<ngraph::Function>(results, params, "interpolate");
-    }
 
-    std::vector<cpu_memory_format_t> inFmts, outFmts;
-    std::vector<std::string> priority;
-    std::string selectedType;
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
+    }
 };
 
 TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Interpolate", inFmts, outFmts, selectedType);
+    CheckCPUImpl(executableNetwork, "Interpolate");
 }
 
 namespace {
@@ -103,7 +102,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     if (with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512_FP32"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2_FP32"});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x}, {nChw8c}, {"jit_avx2"}, "jit_avx2_FP32"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2_FP32"});
@@ -119,7 +117,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
 /* ========== */
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::BF16
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {

@@ -24,7 +24,7 @@
 
 std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
 
-namespace LayerTestsDefinitions {
+namespace ExecutionGraphTests {
 
 std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
     InferenceEngine::Precision inputPrecision, netPrecision;
@@ -110,4 +110,4 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     fnPtr.reset();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace ExecutionGraphTests

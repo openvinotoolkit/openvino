@@ -226,7 +226,9 @@ std::string get_opset_name(
 // discrepancies discoverd, translations needs to be added here.
 std::string translate_type_name(std::string name) {
     const std::unordered_map<std::string, std::string> translator = {
-        {"Constant", "Const"}};
+        {"Constant", "Const"},
+        {"Relu", "ReLU"},
+        {"Softmax", "SoftMax"}};
     if (translator.count(name) > 0) {
         name = translator.at(name);
     }
@@ -244,6 +246,8 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
         return "FP32";
     case ::ngraph::element::Type_t::bf16:
         return "BF16";
+    case ::ngraph::element::Type_t::f64:
+        return "FP64";
     case ::ngraph::element::Type_t::i8:
         return "I8";
     case ::ngraph::element::Type_t::i16:
@@ -304,12 +308,16 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
-void resolve_dynamic_shapes(const ngraph::Function& f) {
-    auto f_clone = ngraph::clone_function(f);
-
+bool resolve_dynamic_shapes(const ngraph::Function& f) {
     const auto & f_ops = f.get_ordered_ops();
+    if (std::all_of(f_ops.begin(), f_ops.end(),
+            [](std::shared_ptr<Node> results) { return !results->is_dynamic(); })) {
+        return false;
+    }
+
+    auto f_clone = ngraph::clone_function(f);
     const auto & f_clone_ops = f_clone->get_ordered_ops();
-    assert(f_ops.size() == f_clone_ops.size());
+    NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
 
     for (size_t id = 0; id < f_ops.size(); ++id) {
         auto & op = f_ops[id];
@@ -322,6 +330,8 @@ void resolve_dynamic_shapes(const ngraph::Function& f) {
         op->validate_and_infer_types();
         clone_op->validate_and_infer_types();
 
+        // dynamic_to_static function converts dynamic dimensions to static using
+        // upperbound (get_max_length) dimension value.
         auto dynamic_to_static = [](const PartialShape & shape) -> PartialShape {
             if (shape.is_static() || shape.rank().is_dynamic()) {
                 return shape;
@@ -344,7 +354,8 @@ void resolve_dynamic_shapes(const ngraph::Function& f) {
             }
         } else {
             for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
-                op->set_output_type(output_id, replacements[output_id].get_element_type(), replacements[output_id].get_partial_shape());
+                op->set_output_type(output_id, replacements[output_id].get_element_type(),
+                        replacements[output_id].get_partial_shape());
             }
 
             for (size_t i = 0; i < replacements.size(); ++i) {
@@ -356,11 +367,12 @@ void resolve_dynamic_shapes(const ngraph::Function& f) {
             }
         }
     }
+    return true;
 }
 
 void ngfunction_2_irv10(
     pugi::xml_document& doc, std::vector<uint8_t>& bin,
-    const ngraph::Function& f,
+    ngraph::Function& f,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     const bool exec_graph = is_exec_graph(f);
 
@@ -373,8 +385,7 @@ void ngfunction_2_irv10(
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
-    // Dynamic to Static
-    resolve_dynamic_shapes(f);
+    bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
@@ -404,6 +415,12 @@ void ngfunction_2_irv10(
         }
         layer_type_attribute.set_value(
             translate_type_name(node_type_name).c_str());
+
+        const auto data_attr_size =
+            std::distance(data.attributes().begin(), data.attributes().end());
+        if (data_attr_size == 0) {
+            layer.remove_child(data);
+        }
 
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
@@ -451,6 +468,10 @@ void ngfunction_2_irv10(
         edge.append_attribute("from-port").set_value(e.from_port);
         edge.append_attribute("to-layer").set_value(e.to_layer);
         edge.append_attribute("to-port").set_value(e.to_port);
+    }
+    // move back dynamic shapes
+    if (has_dynamic_shapes) {
+        f.validate_nodes_and_infer_types();
     }
 }
 

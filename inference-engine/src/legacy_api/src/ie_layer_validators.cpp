@@ -12,7 +12,6 @@
 
 #include <ie_iextension.h>
 #include "debug.h"
-#include "xml_parse_utils.h"
 
 #include <legacy/ie_layers.h>
 #include "ie_layer_validators.hpp"
@@ -636,12 +635,11 @@ void PadValidator::parseParams(CNNLayer* layer) {
 GatherValidator::GatherValidator(const std::string& _type): LayerValidator(_type) {}
 
 void GatherValidator::parseParams(CNNLayer* layer) {
-    auto casted = dynamic_cast<GatherLayer*>(layer);
-    if (!casted) {
-        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of GatherLayer class";
+    if (auto casted = dynamic_cast<GatherLayer*>(layer)) {
+        casted->axis = casted->GetParamAsInt("axis", 0);
+    } else if (layer->insData.size() != 3) {
+        THROW_IE_EXCEPTION << layer->name << " Gather layer is expected to have 3 inputs";
     }
-
-    casted->axis = casted->GetParamAsInt("axis", 0);
 }
 
 //
@@ -1186,7 +1184,7 @@ void NMSValidator::parseParams(CNNLayer* layer) {
 
 #define REG_LAYER_VALIDATOR_FOR_TYPE(__validator, __type) _validators[#__type] = std::make_shared<__validator>(#__type)
 
-LayerValidators::LayerValidators() {
+LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(BatchNormalizationValidator, BatchNormalization);
     REG_LAYER_VALIDATOR_FOR_TYPE(ClampValidator, Clamp);
     REG_LAYER_VALIDATOR_FOR_TYPE(ConcatValidator, Concat);

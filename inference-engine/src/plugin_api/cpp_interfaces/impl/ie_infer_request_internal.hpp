@@ -26,7 +26,7 @@ class ExecutableNetworkInternal;
 
 /**
  * @brief An optimal implementation of IInferRequestInternal interface to avoid duplication in all plugins
- * This base class is recommended to be used as a base class for plugin synchronous inference request implementation. 
+ * This base class is recommended to be used as a base class for plugin synchronous inference request implementation.
  * @ingroup ie_dev_api_infer_request_api
  */
 class InferRequestInternal : virtual public IInferRequestInternal {
@@ -48,7 +48,7 @@ public:
 
     /**
      * @brief The minimal infer function to be implemented by plugins. It infers specified input(s) in synchronous mode
-     * @note 
+     * @note
      *  * This method is used in InferRequestInternal::Infer, which calls the common code first and after uses this
      * plugin dependent implementation.
      *  * Blocks all method of IInferRequest while request is ongoing (running or waiting in queue)
@@ -76,7 +76,8 @@ public:
         }
         if (!data) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
         const bool compoundBlobPassed = data->is<CompoundBlob>();
-        if (!compoundBlobPassed && data->buffer() == nullptr)
+        const bool remoteBlobPassed = data->is<RemoteBlob>();
+        if (!compoundBlobPassed && !remoteBlobPassed && data->buffer() == nullptr)
             THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
         if (data->size() == 0) {
             THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
@@ -273,8 +274,8 @@ protected:
     bool findInputAndOutputBlobByName(const char* name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const {
         foundInput = nullptr;
         foundOutput = nullptr;
-        if (_networkInputs.empty() || _networkOutputs.empty()) {
-            THROW_IE_EXCEPTION << "Internal error: network inputs and outputs is not set";
+        if (_networkOutputs.empty()) {
+            THROW_IE_EXCEPTION << "Internal error: network outputs is not set";
         }
         auto foundInputPair = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
                                            [&](const std::pair<std::string, InputInfo::Ptr>& pair) {
@@ -300,7 +301,7 @@ protected:
      * @brief      Check that @p blob is valid. Throws an exception if it's not.
      *
      * @param[in]  blob     The blob to check
-     * @param[in]  name     The name of input or output depending of if the @p blob is input or output 
+     * @param[in]  name     The name of input or output depending of if the @p blob is input or output
      * @param[in]  isInput  Indicates if @p is input
      * @param[in]  refDims  The reference dims, empty if not specified
      */
@@ -348,7 +349,8 @@ protected:
         if (refSize != blob->size()) {
             THROW_IE_EXCEPTION << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
         }
-        if (blob->buffer() == nullptr) THROW_IE_EXCEPTION << strNotAllocated;
+        const bool remoteBlobPassed = blob->is<RemoteBlob>();
+        if (!remoteBlobPassed && blob->buffer() == nullptr) THROW_IE_EXCEPTION << strNotAllocated;
     }
 
     /**

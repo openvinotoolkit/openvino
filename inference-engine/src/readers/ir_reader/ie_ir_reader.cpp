@@ -30,11 +30,10 @@ bool IRReader::supportModel(std::istream& model) const {
 }
 
 CNNNetwork IRReader::read(std::istream& model, const std::vector<IExtensionPtr>& exts) const {
-    std::istringstream emptyStream;
-    return read(model, emptyStream, exts);
+    return read(model, nullptr, exts);
 }
 
-CNNNetwork IRReader::read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const {
+CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const {
     OV_ITT_SCOPED_TASK(itt::domains::V10Reader, "IRReader::read");
 
     pugi::xml_document xmlDoc;

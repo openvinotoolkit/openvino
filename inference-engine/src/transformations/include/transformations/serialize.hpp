@@ -5,6 +5,7 @@
 
 #include <string>
 
+#include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 

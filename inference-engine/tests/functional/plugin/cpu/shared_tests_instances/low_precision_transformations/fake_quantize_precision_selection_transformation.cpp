@@ -6,7 +6,7 @@
 
 #include "low_precision_transformations/fake_quantize_precision_selection_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
+#include "lpt_ngraph_functions/fake_quantize_function.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph::pass::low_precision;
@@ -56,7 +56,7 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testVa
     },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizePrecisionSelectionTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),

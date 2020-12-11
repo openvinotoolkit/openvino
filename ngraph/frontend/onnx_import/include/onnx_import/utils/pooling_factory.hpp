@@ -41,13 +41,12 @@ namespace ngraph
             ///             - AveragePool
             ///             - MaxPool
             ///
-            ///             This base class holds all common attributes like srides, dilations,
+            ///             This class holds all common attributes like srides, dilations,
             ///             paddings, kernel shape and auto_pad type.
-            ///
-            /// \see        GlobalPoolingFactory
             class PoolingFactory
             {
             public:
+                explicit PoolingFactory(const Node& node);
                 virtual ~PoolingFactory() = default;
 
                 ///
@@ -63,8 +62,6 @@ namespace ngraph
                 OutputVector make_max_pool() const;
 
             protected:
-                explicit PoolingFactory(const Node& node);
-
                 Node m_onnx_node;
                 const OutputVector m_inputs;
                 Shape m_kernel_shape;
@@ -75,18 +72,6 @@ namespace ngraph
                 ngraph::op::PadType m_auto_pad;
                 ngraph::op::RoundingType m_rounding_type;
             };
-
-            ///
-            /// \brief      Factory class which generates sub-graphs for ONNX 'local' pooling
-            ///             operators.
-            /// \note       For a 'local' pooling operation, the kernel shape attribute is required
-            class LocalPoolingFactory : public PoolingFactory
-            {
-            public:
-                explicit LocalPoolingFactory(const Node& node);
-                virtual ~LocalPoolingFactory() = default;
-            };
-
         } // namespace pooling
     }     // namespace onnx_import
 } // namespace ngraph

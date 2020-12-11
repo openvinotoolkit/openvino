@@ -902,7 +902,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types()
 
     validate();
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static() && get_input_size() > 2)
     {
         const auto num_boxes_boxes = boxes_ps[1];
         const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();

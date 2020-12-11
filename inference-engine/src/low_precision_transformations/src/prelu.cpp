@@ -40,7 +40,7 @@ bool PReluTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const n
 
 bool PReluTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
-    if (dequantization.empty()) {
+    if (dequantization.empty() || (dequantization.subtract != nullptr)) {
         return false;
     }
 

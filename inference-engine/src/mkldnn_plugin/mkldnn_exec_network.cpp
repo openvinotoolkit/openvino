@@ -63,7 +63,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             i++;
         }
 
-        if (with_cpu_x86_bfloat16() && isFloatModel) {
+        if (with_cpu_x86_avx512_core() && isFloatModel) {
             BF16Transformer bf16Transformer;
             CNNNetwork cnnetwork(_clonedNetwork);
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
@@ -118,6 +118,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 createConstInputTo(layer, shiftBlob, "biases");
             } else if (scalesBlob != nullptr) {
                 Blob::Ptr biases = make_shared_blob<float>(scalesBlob->getTensorDesc());
+                if (biases == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot make 'biases' shared blob";
                 biases->allocate();
                 auto biasesPtr = biases->buffer().as<float*>();
                 for (size_t i = 0; i < biases->size(); i++)
@@ -143,14 +145,14 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
-        _taskExecutor = ExecutorManager::getInstance()->getExecutor("CPU");
+        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-        _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+        _callbackExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
     } else {
         _callbackExecutor = _taskExecutor;

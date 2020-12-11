@@ -15,7 +15,6 @@
 #include "nodes/mkldnn_quantize_node.h"
 #include "nodes/mkldnn_mvn_node.h"
 #include <nodes/mkldnn_permute_node.h>
-#include "nodes/mkldnn_resample_node.h"
 #include "nodes/mkldnn_interpolate_node.h"
 #include "nodes/mkldnn_input_node.h"
 
@@ -123,9 +122,6 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseMVNAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
-    FuseResampleAndSimpleOperation(graph);
-    graph.RemoveDroppedNodes();
-
     FuseInterpolateAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
 
@@ -145,6 +141,9 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     graph.RemoveDroppedNodes();
 
 #if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
+    ChangeConvertToReorder(graph);
+    graph.RemoveDroppedNodes();
+
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
 
@@ -254,7 +253,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                     return false;
 
                 auto zeroPointsBlob = dynamic_cast<TBlob<uint8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
+                if (zeroPointsBlob == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot cast to TBlob internal zero points blob";
+
                 auto zeroPointsData = zeroPointsBlob->buffer().as<uint8_t*>();
+                if (zeroPointsData == nullptr)
+                    THROW_IE_EXCEPTION << "zeroPointsBlob has not allocated buffer";
 
                 for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[1]; j++) {
                     convNode->inputZeroPoints.push_back(zeroPointsData[j]);
@@ -302,7 +306,12 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                     return false;
 
                 auto zeroPointsBlob = dynamic_cast<TBlob<int8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
+                if (zeroPointsBlob == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot cast to TBlob internal zero points blob";
+
                 auto zeroPointsData = zeroPointsBlob->buffer().as<int8_t*>();
+                if (zeroPointsData == nullptr)
+                    THROW_IE_EXCEPTION << "zeroPointsBlob has not allocated buffer";
 
                 for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[0]; j++) {
                     convNode->weightsZeroPoints.push_back(static_cast<float>(zeroPointsData[j]));
@@ -338,8 +347,14 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
             weightsLayer = getCreatorLayer(weightsLayer->insData[0].lock()).lock();
         }
 
+
         auto weightsBlob = dynamic_cast<TBlob<int8_t>*>(weightsLayer->blobs["custom"].get());
+        if (weightsBlob == nullptr)
+            THROW_IE_EXCEPTION << "Cannot cast to TBlob internal weights blob";
+
         auto weightsPtr = weightsBlob->buffer().as<int8_t*>();
+        if (weightsPtr == nullptr)
+            THROW_IE_EXCEPTION << "weightsBlob has not allocated buffer";
 
         ptrdiff_t G = convLayer->_group;
         ptrdiff_t OC = weightsLayer->outData[0]->getDims()[0] / G;
@@ -1472,74 +1487,6 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     }
 }
 
-void MKLDNNGraphOptimizer::FuseResampleAndSimpleOperation(MKLDNNGraph &graph) {
-    auto& graphNodes = graph.GetNodes();
-
-    auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableResample = (node->getType() == Resample) && (node->inDims[0].ndims() == 4 || node->inDims[0].ndims() == 5);
-
-        if (isSutableResample) {
-            auto *resampleLayer = node->getCnnLayer().get();
-            if (resampleLayer == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get Resample layer " << node->getName();
-
-            return node->getChildEdges().size() == 1 && resampleLayer->GetParamAsString("type") == "caffe.ResampleParameter.NEAREST";
-        } else {
-            return false;
-        }
-    };
-
-    auto isSutableChildNode = [](MKLDNNNodePtr node) {
-        if (!node->getCnnLayer())
-            return false;
-
-        if (node->getType() == Quantize) {
-            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
-            if (quantizeNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
-            return !quantizeNode->isBinarization();
-        } else if (node->getType() == Eltwise) {
-            auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-            if (eltwiseNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get Eltwise node " << node->getName();
-            return eltwiseNode->getOpType() == Relu ||
-                   eltwiseNode->getOpType() == MulAdd;
-        }
-
-        return false;
-    };
-
-    auto parent = graphNodes.begin();
-    while (parent != graphNodes.end()) {
-        auto parentNode = *parent;
-        if (!isSutableParentNode(parentNode)) {
-            parent++;
-            continue;
-        }
-
-        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        if (!isSutableChildNode(childNode)) {
-            parent++;
-            continue;
-        }
-
-        parentNode->fuseWith(childNode);
-
-        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
-            auto parentEdges = childNode->parentEdges;
-            for (auto &parentEdge : parentEdges) {
-                auto p_edge = parentEdge.lock();
-                if (p_edge->getParent()->getType() == Resample)
-                    continue;
-
-                removeEdge(graph, p_edge);
-            }
-        }
-
-        graph.DropNode(childNode);
-    }
-}
-
 void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
@@ -1900,6 +1847,55 @@ void MKLDNNGraphOptimizer::DropConvertReorder(MKLDNNGraph& graph) {
                 }
             }
         }
+    }
+}
+
+void MKLDNNGraphOptimizer::ChangeConvertToReorder(MKLDNNGraph& graph) {
+    std::vector<Precision> continuousPrecisions{
+            Precision::BF16,
+            Precision::FP32
+    };
+    for (int ind = 0; ind < graph.GetNodes().size(); ind++) {
+        auto convertCandidate = graph.GetNodes().at(ind);
+        std::string nodeType = convertCandidate->getTypeStr();
+        if (!InferenceEngine::details::CaselessEq<std::string>()(nodeType, "convert")) {
+            continue;
+        }
+        auto inputPrecision = convertCandidate->getCnnLayer()->insData[0].lock()->getPrecision();
+        auto outputPrecision = convertCandidate->getCnnLayer()->outData[0]->getPrecision();
+        if (std::find(continuousPrecisions.begin(), continuousPrecisions.end(), inputPrecision) == continuousPrecisions.end() ||
+            std::find(continuousPrecisions.begin(), continuousPrecisions.end(), outputPrecision) == continuousPrecisions.end()) {
+            continue;
+        }
+        std::unordered_set<std::string> uniqueLayerNames;
+        for (auto node : graph.GetNodes()) {
+            uniqueLayerNames.insert(node->getCnnLayer()->name);
+        }
+        auto parentEdge = convertCandidate->getParentEdges()[0].lock();
+        auto parentNode = parentEdge->getParent();
+        auto &childEdge = convertCandidate->getChildEdgeAt(0);
+        auto childNode = childEdge->getChild();
+        std::string basicLayerName = childEdge->getParent()->getName() + "_" +
+                                     MKLDNNExtensionUtils::getReorderArgs(convertCandidate->getCnnLayer()->insData[0].lock()->getTensorDesc(),
+                                                                          convertCandidate->getCnnLayer()->outData[0]->getTensorDesc()) +
+                                     "_" + childEdge->getChild()->getName();
+        std::string layerName = basicLayerName;
+        int idx = 0;
+        while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+            idx++;
+            layerName = basicLayerName + "_" + std::to_string(idx);
+        }
+        // create temporary edge
+        auto oldParentOutputPort = parentEdge->getInputNum();
+        auto oldChildInputPort = childEdge->getOutputNum();
+        MKLDNNEdgePtr tempEdge(new MKLDNNEdge(parentNode, childNode, oldParentOutputPort, oldChildInputPort));
+
+        graph.InsertReorder(tempEdge, layerName, convertCandidate->getCnnLayer()->insData[0].lock()->getTensorDesc(),
+                            convertCandidate->getCnnLayer()->outData[0]->getTensorDesc(), false);
+        parentNode->removeEdge(parentEdge);
+        parentEdge->drop();
+        childEdge->drop();
+        graph.DropNode(convertCandidate);
     }
 }
 #endif
@@ -2296,8 +2292,8 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
         graph.DropNode(parentNode);
         graph.DropNode(childNode);
 
-        auto inDesc = parentParentNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
-        auto outDesc = childChildNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+        auto inDesc = parentNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+        auto outDesc = childNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
 
         auto inPrec = inDesc.getPrecision();
         auto outPrec = outDesc.getPrecision();
@@ -2317,13 +2313,12 @@ void MKLDNNGraphOptimizer::MergePermuteAndReorder(MKLDNNGraph &graph) {
             }
         }
 
-        graph.InsertReorder(edge, reorderlayerName, reorderInDesc, reorderOutDesc, true);
+        auto reorderNode = graph.InsertReorder(edge, reorderlayerName, reorderInDesc, reorderOutDesc, true);
 
         // case 2
         if (inPrec != outPrec) {
-            auto reorderNode = parentParentNode->getChildEdgeAt(0)->getChild();
-            auto reorderInDesc2 = TensorDesc(reorderNode->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc);
-            auto reorderOutDesc2 = TensorDesc(childChildNode->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc);
+            auto reorderInDesc2 = TensorDesc(reorderOutDesc);
+            auto reorderOutDesc2 = TensorDesc(outDesc);
 
             std::string reorderLayerName2 = reorderNode->getName() + "_" +
                                     MKLDNNExtensionUtils::getReorderArgs(reorderInDesc2, reorderOutDesc2) + "_" + childChildNode->getName();

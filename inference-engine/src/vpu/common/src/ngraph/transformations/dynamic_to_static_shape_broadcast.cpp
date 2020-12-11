@@ -45,23 +45,19 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
     std::shared_ptr<ngraph::Node> dsr;
 
     if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::BIDIRECTIONAL) {
-        const auto inputShape = broadcast->get_input_shape(0);
+        const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(broadcast->input_value(0).get_node_shared_ptr());
+        const auto shapeElementType = dataDSR ? dataDSR->get_input_element_type(1) : broadcast->get_input_element_type(1);
+        const auto dataShape = dataDSR ? dataDSR->input_value(1) : shapeToConstant(shapeElementType, broadcast->get_input_shape(0));
 
         const auto targetShape = broadcast->input_value(1).get_node_shared_ptr();
-        const auto shapeType = targetShape->get_element_type();
 
-        const auto inputShapeDimsCount = inputShape.size();
+        const auto dataShapeDimsCount = ngraph::shape_size(dataShape.get_shape());
         const auto targetShapeDimsCount = ngraph::shape_size(broadcast->get_input_partial_shape(1).get_shape());
 
-        const auto inputShapeConst = std::make_shared<ngraph::opset5::Constant>(
-            shapeType,
-            ngraph::Shape{static_cast<size_t>(inputShapeDimsCount)},
-            inputShape);
-
-        const auto minRank = std::min(inputShapeDimsCount, targetShapeDimsCount);
-        const auto maxRank = std::max(inputShapeDimsCount, targetShapeDimsCount);
-        const auto minRankNode = minRank == inputShapeDimsCount ? inputShapeConst : targetShape;
-        const auto maxRankNode = minRank == inputShapeDimsCount ? targetShape : inputShapeConst;
+        const auto minRank = std::min(dataShapeDimsCount, targetShapeDimsCount);
+        const auto maxRank = std::max(dataShapeDimsCount, targetShapeDimsCount);
+        const auto minRankNode = minRank == dataShapeDimsCount ? dataShape : targetShape;
+        const auto maxRankNode = minRank == dataShapeDimsCount ? targetShape : dataShape;
 
         ngraph::NodeVector dims;
 
@@ -69,19 +65,19 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
             dims.push_back(
                 std::make_shared<ngraph::opset5::Gather>(
                     maxRankNode,
-                    ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {i}),
-                    ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {0})));
+                    ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {i}),
+                    ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0})));
         }
 
         for (int i = 0; i < minRank; i++) {
             const auto minRankDim = std::make_shared<ngraph::opset5::Gather>(
                 minRankNode,
-                ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {i}),
-                ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {0}));
+                ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {i}),
+                ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0}));
             const auto maxRankDim = std::make_shared<ngraph::opset5::Gather>(
                 maxRankNode,
-                ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {maxRank - minRank + i}),
-                ngraph::opset5::Constant::create(shapeType, ngraph::Shape{1}, {0}));
+                ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {maxRank - minRank + i}),
+                ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0}));
             dims.push_back(std::make_shared<ngraph::opset5::Maximum>(minRankDim, maxRankDim));
         }
 

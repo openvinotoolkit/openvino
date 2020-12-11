@@ -19,7 +19,7 @@
 
 std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
 
-namespace LayerTestsDefinitions {
+namespace ExecutionGraphTests {
 
 std::string ExecGraphInputsFusingBinConv::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::string targetDevice = obj.param;
@@ -119,4 +119,4 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
     fnPtr.reset();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace ExecutionGraphTests

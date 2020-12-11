@@ -98,7 +98,10 @@ namespace
         // TODO: add testing infrastructure for float16 and bfloat16 to avoid cast to double
         std::vector<double> expected_double(expected.size());
         std::vector<double> result_double(result.size());
-        assert(expected.size() == result.size() && "expected and result size must match");
+
+        NGRAPH_CHECK(expected.size() == result.size(),
+                     "Number of expected and computed results don't match");
+
         for (int i = 0; i < expected.size(); ++i)
         {
             expected_double[i] = static_cast<double>(expected[i]);
@@ -107,7 +110,7 @@ namespace
 
         return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
     }
-};
+}; // namespace
 
 test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> function)
     : m_function{function}

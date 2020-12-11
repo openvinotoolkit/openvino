@@ -26,8 +26,8 @@
 /**
  * redefine this seed to reproduce issue with given seed that can be read from gtest logs
  */
-#define BASE_SEED   USE_CLOCK_TIME
-#define NGRAPH_SEED USE_CLOCK_TIME
+#define BASE_SEED   123
+#define NGRAPH_SEED 123
 
 namespace LayerTestsDefinitions {
 
@@ -85,6 +85,9 @@ void FakeQuantizeLayerTest::SetUp() {
         inputDataMax = inputArg[1];
         inputDataResolution = inputArg[2];
     }
+    if (fqDirectArg.size() != 0) {
+        threshold = (fqDirectArg[3] - fqDirectArg[2]) / levels;
+    }
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
@@ -111,8 +114,6 @@ void FakeQuantizeLayerTest::SetUp() {
             {fqDirectArg[2]},
             {fqDirectArg[3]});
     }
-
-
     auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
@@ -147,7 +148,7 @@ TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
         return;
     }
 
-    size_t nIterations = (inputDataMax - inputDataMin) / inputDataResolution;
+    size_t nIterations = 1;
     for (; nIterations != 0; nIterations--) {
         UpdateSeed();
         Infer();
