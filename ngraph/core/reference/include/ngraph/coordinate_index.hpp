@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,26 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-
 #pragma once
 
-#include <cmath>
 #include <cstddef>
 
 namespace ngraph
 {
-    namespace runtime
-    {
-        namespace reference
-        {
-            template <typename T>
-            void elu(const T* arg, T* out, size_t count, double alpha)
-            {
-                for (size_t i = 0; i < count; i++)
-                {
-                    out[i] = arg[i] < T(0) ? T(alpha * (std::exp(arg[i]) - 1.0)) : arg[i];
-                }
-            }
-        }
-    }
+    class Coordinate;
+    class Shape;
+} // namespace ngraph
+
+namespace ngraph
+{
+    std::size_t coordinate_index(const Coordinate& c, const Shape& s);
 }
