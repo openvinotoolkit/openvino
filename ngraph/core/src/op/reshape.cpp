@@ -143,9 +143,32 @@ namespace
                 }
                 else
                 {
-                    output_shape[minus_one_idx] =
-                        Dimension(input_product.get_min_length() / output_product.get_max_length(),
-                                  input_product.get_max_length() / output_product.get_min_length());
+                    Dimension::value_type lower;
+                    if (input_product.get_min_length() == 0)
+                        lower = 0;
+                    else if (input_product.get_min_length() == -1 || output_product.get_max_length() == 0
+                                || output_product.get_max_length() == -1)
+                        lower = -1; // dynamic
+                    else
+                        lower = static_cast<Dimension::value_type>(ceil(static_cast<double>(input_product.get_min_length()) / output_product.get_max_length()));
+
+                    Dimension::value_type upper;
+                    if (input_product.get_max_length() == 0)
+                        upper = 0;
+                    else if (input_product.get_max_length() == -1 || output_product.get_min_length() == 0
+                             || output_product.get_min_length() == -1)
+                        upper = -1; // dynamic
+                    else
+                        upper = static_cast<Dimension::value_type>(floor(static_cast<double>(input_product.get_max_length()) / output_product.get_min_length()));
+
+                    if (lower == -1)
+                        output_shape[minus_one_idx] = Dimension::dynamic();
+                    else if (upper == -1)
+                        output_shape[minus_one_idx] = Dimension(lower, upper);
+                    else if (lower > upper) // empty intersection
+                        output_shape[minus_one_idx] = Dimension::dynamic();
+                    else
+                        output_shape[minus_one_idx] = Dimension(lower, upper);
                 }
             }
         }
