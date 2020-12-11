@@ -1,7 +1,7 @@
 from functools import partial
 from typing import Any, Dict, List, Optional
 
-from ngraph.pyngraph import NodeFactory as _NodeFactory
+from _pyngraph import NodeFactory as _NodeFactory
 
 from ngraph.impl import Node
 
