@@ -63,9 +63,9 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 * *share_location*
 
   * **Description**: *share_location* is a flag that denotes if bounding boxes are shared among different classes.
-  * **Range of values**: 0 or 1
-  * **Type**: int
-  * **Default value**: 1
+  * **Range of values**: False or True
+  * **Type**: boolean
+  * **Default value**: True
   * **Required**: *no*
 
 * *nms_threshold*
@@ -87,35 +87,35 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 * *clip_after_nms*
 
   * **Description**: *clip_after_nms* flag that denotes whether to perform clip bounding boxes after non-maximum suppression or not.
-  * **Range of values**: 0 or 1
-  * **Type**: int
-  * **Default value**: 0
+  * **Range of values**: False or True
+  * **Type**: boolean
+  * **Default value**: False
   * **Required**: *no*
 
 * *clip_before_nms*
 
   * **Description**: *clip_before_nms* flag that denotes whether to perform clip bounding boxes before non-maximum suppression or not.
-  * **Range of values**: 0 or 1
-  * **Type**: int
-  * **Default value**: 0
+  * **Range of values**: False or True
+  * **Type**: boolean
+  * **Default value**: False
   * **Required**: *no*
 
 * *decrease_label_id*
 
   * **Description**: *decrease_label_id* flag that denotes how to perform NMS.
   * **Range of values**:
-    * 0 - perform NMS like in Caffe\*.
-    * 1 - perform NMS like in MxNet\*.
-  * **Type**: int
-  * **Default value**: 0
+    * False - perform NMS like in Caffe\*.
+    * True - perform NMS like in MxNet\*.
+  * **Type**: boolean
+  * **Default value**: False
   * **Required**: *no*
 
 * *normalized*
 
   * **Description**: *normalized* flag that denotes whether input tensor with proposal boxes is normalized. If tensor is not normalized then *input_height* and *input_width* attributes are used to normalize box coordinates.
-  * **Range of values**: 0 or 1
-  * **Type**: int
-  * **Default value**: 0
+  * **Range of values**: False or True
+  * **Type**: boolean
+  * **Default value**: False
   * **Required**: *no*
 
 * *input_height (input_width)*

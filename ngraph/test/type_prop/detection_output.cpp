@@ -105,6 +105,7 @@ TEST(type_prop_layers, detection_output_all_dynamic_shapes)
 {
     PartialShape dyn_shape = PartialShape::dynamic();
     op::DetectionOutputAttrs attrs;
+    attrs.keep_top_k = {-1};
     attrs.num_classes = 1;
     auto op = create_detection_output_with_shape(
         dyn_shape, dyn_shape, dyn_shape, dyn_shape, dyn_shape, attrs);
@@ -317,6 +318,7 @@ TEST(type_prop_layers, detection_output_invalid_box_logits_shape)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
@@ -342,6 +344,7 @@ TEST(type_prop_layers, detection_output_invalid_box_logits_shape)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = false;
             attrs.variance_encoded_in_target = false;
@@ -369,6 +372,7 @@ TEST(type_prop_layers, detection_output_invalid_class_preds_shape)
     try
     {
         op::DetectionOutputAttrs attrs;
+        attrs.keep_top_k = {-1};
         attrs.num_classes = 3;
         auto op = create_detection_output_with_shape(
             Shape{4, 12}, Shape{4, 10}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
@@ -394,6 +398,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
@@ -419,6 +424,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = true;
@@ -444,6 +450,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
@@ -469,6 +476,7 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
@@ -498,6 +506,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_class_preds)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
@@ -522,6 +531,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_class_preds)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
@@ -550,6 +560,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_box_preds)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
@@ -575,6 +586,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_box_preds)
         try
         {
             op::DetectionOutputAttrs attrs;
+            attrs.keep_top_k = {-1};
             attrs.num_classes = 3;
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
