@@ -31,13 +31,14 @@ std::shared_ptr<op::DetectionOutput>
                                        const PartialShape& proposals_shape,
                                        const PartialShape& aux_class_preds_shape,
                                        const PartialShape& aux_box_preds_shape,
-                                       const op::DetectionOutputAttrs& attrs)
+                                       const op::DetectionOutputAttrs& attrs,
+                                       element::Type input_type)
 {
-    auto box_logits = make_shared<op::Parameter>(element::f32, box_logits_shape);
-    auto class_preds = make_shared<op::Parameter>(element::f32, class_preds_shape);
-    auto proposals = make_shared<op::Parameter>(element::f32, proposals_shape);
-    auto aux_class_preds = make_shared<op::Parameter>(element::f32, aux_class_preds_shape);
-    auto aux_box_preds = make_shared<op::Parameter>(element::f32, aux_box_preds_shape);
+    auto box_logits = make_shared<op::Parameter>(input_type, box_logits_shape);
+    auto class_preds = make_shared<op::Parameter>(input_type, class_preds_shape);
+    auto proposals = make_shared<op::Parameter>(input_type, proposals_shape);
+    auto aux_class_preds = make_shared<op::Parameter>(input_type, aux_class_preds_shape);
+    auto aux_box_preds = make_shared<op::Parameter>(input_type, aux_box_preds_shape);
     return make_shared<op::DetectionOutput>(
         box_logits, class_preds, proposals, aux_class_preds, aux_box_preds, attrs);
 }
@@ -48,9 +49,32 @@ TEST(type_prop_layers, detection_output)
     attrs.keep_top_k = {200};
     attrs.num_classes = 2;
     attrs.normalized = true;
-    auto op = create_detection_output_with_shape(
-        Shape{4, 20}, Shape{4, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
+    auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 2, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 20},
+                                                 attrs,
+                                                 element::f32);
     ASSERT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
+}
+
+TEST(type_prop_layers, detection_output_f16)
+{
+    op::DetectionOutputAttrs attrs;
+    attrs.keep_top_k = {200};
+    attrs.num_classes = 2;
+    attrs.normalized = true;
+    auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 2, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 20},
+                                                 attrs,
+                                                 element::f16);
+    ASSERT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f16);
 }
 
 TEST(type_prop_layers, detection_output_not_normalized)
@@ -59,9 +83,15 @@ TEST(type_prop_layers, detection_output_not_normalized)
     attrs.keep_top_k = {200};
     attrs.num_classes = 2;
     attrs.normalized = false;
-    auto op = create_detection_output_with_shape(
-        Shape{4, 20}, Shape{4, 10}, Shape{4, 2, 25}, Shape{4, 10}, Shape{4, 20}, attrs);
+    auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 2, 25},
+                                                 Shape{4, 10},
+                                                 Shape{4, 20},
+                                                 attrs,
+                                                 element::f32);
     ASSERT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
 TEST(type_prop_layers, detection_output_negative_keep_top_k)
@@ -71,9 +101,15 @@ TEST(type_prop_layers, detection_output_negative_keep_top_k)
     attrs.top_k = -1;
     attrs.normalized = true;
     attrs.num_classes = 2;
-    auto op = create_detection_output_with_shape(
-        Shape{4, 20}, Shape{4, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
+    auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 2, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 20},
+                                                 attrs,
+                                                 element::f32);
     ASSERT_EQ(op->get_shape(), (Shape{1, 1, 40, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
 TEST(type_prop_layers, detection_output_no_share_location)
@@ -84,9 +120,15 @@ TEST(type_prop_layers, detection_output_no_share_location)
     attrs.normalized = true;
     attrs.num_classes = 2;
     attrs.share_location = false;
-    auto op = create_detection_output_with_shape(
-        Shape{4, 40}, Shape{4, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 40}, attrs);
+    auto op = create_detection_output_with_shape(Shape{4, 40},
+                                                 Shape{4, 10},
+                                                 Shape{4, 2, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 40},
+                                                 attrs,
+                                                 element::f32);
     ASSERT_EQ(op->get_shape(), (Shape{1, 1, 40, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
 TEST(type_prop_layers, detection_output_top_k)
@@ -96,9 +138,15 @@ TEST(type_prop_layers, detection_output_top_k)
     attrs.top_k = 7;
     attrs.normalized = true;
     attrs.num_classes = 2;
-    auto op = create_detection_output_with_shape(
-        Shape{4, 20}, Shape{4, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
+    auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 2, 20},
+                                                 Shape{4, 10},
+                                                 Shape{4, 20},
+                                                 attrs,
+                                                 element::f32);
     ASSERT_EQ(op->get_shape(), (Shape{1, 1, 56, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
 TEST(type_prop_layers, detection_output_all_dynamic_shapes)
@@ -108,8 +156,9 @@ TEST(type_prop_layers, detection_output_all_dynamic_shapes)
     attrs.keep_top_k = {-1};
     attrs.num_classes = 1;
     auto op = create_detection_output_with_shape(
-        dyn_shape, dyn_shape, dyn_shape, dyn_shape, dyn_shape, attrs);
+        dyn_shape, dyn_shape, dyn_shape, dyn_shape, dyn_shape, attrs, element::f32);
     ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 1, Dimension::dynamic(), 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
 TEST(type_prop_layers, detection_output_dynamic_batch)
@@ -123,8 +172,10 @@ TEST(type_prop_layers, detection_output_dynamic_batch)
                                                  PartialShape{Dimension::dynamic(), 2, 20},
                                                  PartialShape{Dimension::dynamic(), 10},
                                                  PartialShape{Dimension::dynamic(), 20},
-                                                 attrs);
+                                                 attrs,
+                                                 element::f32);
     ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{{1, 1, Dimension::dynamic(), 7}}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
 }
 
 void detection_output_invalid_data_type_test(element::Type box_logits_et,
@@ -161,40 +212,42 @@ void detection_output_invalid_data_type_test(element::Type box_logits_et,
 
 TEST(type_prop_layers, detection_output_invalid_data_type)
 {
-    detection_output_invalid_data_type_test(
-        element::i32,
-        element::f32,
-        element::f32,
-        element::f32,
-        element::f32,
-        "Box logits' data type must be floating point. Got i32");
-    detection_output_invalid_data_type_test(
-        element::f32,
-        element::i32,
-        element::f32,
-        element::f32,
-        element::f32,
-        "Class predictions' data type must be floating point. Got i32");
+    detection_output_invalid_data_type_test(element::i32,
+                                            element::f32,
+                                            element::f32,
+                                            element::f32,
+                                            element::f32,
+                                            "Input data type must be floating point. Got i32");
+    detection_output_invalid_data_type_test(element::f32,
+                                            element::i32,
+                                            element::f32,
+                                            element::f32,
+                                            element::f32,
+                                            "All of input data type must be equal to f32");
     detection_output_invalid_data_type_test(element::f32,
                                             element::f32,
                                             element::i32,
                                             element::f32,
                                             element::f32,
-                                            "Proposals' data type must be floating point. Got i32");
-    detection_output_invalid_data_type_test(
-        element::f32,
-        element::f32,
-        element::f32,
-        element::i32,
-        element::f32,
-        "Additional class predictions' data type must be floating point. Got i32");
-    detection_output_invalid_data_type_test(
-        element::f32,
-        element::f32,
-        element::f32,
-        element::f32,
-        element::i32,
-        "Additional box predictions' data type must be floating point. Got i32");
+                                            "All of input data type must be equal to f32");
+    detection_output_invalid_data_type_test(element::f32,
+                                            element::f32,
+                                            element::f32,
+                                            element::i32,
+                                            element::f32,
+                                            "All of input data type must be equal to f32");
+    detection_output_invalid_data_type_test(element::f32,
+                                            element::f32,
+                                            element::f32,
+                                            element::f32,
+                                            element::i32,
+                                            "All of input data type must be equal to f32");
+    detection_output_invalid_data_type_test(element::f16,
+                                            element::f16,
+                                            element::f16,
+                                            element::f16,
+                                            element::i32,
+                                            "All of input data type must be equal to f16");
 }
 
 TEST(type_prop_layers, detection_output_mismatched_batch_size)
@@ -206,8 +259,13 @@ TEST(type_prop_layers, detection_output_mismatched_batch_size)
             attrs.keep_top_k = {200};
             attrs.num_classes = 2;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 20}, Shape{5, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                         Shape{5, 10},
+                                                         Shape{4, 2, 20},
+                                                         Shape{4, 10},
+                                                         Shape{4, 20},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -229,8 +287,13 @@ TEST(type_prop_layers, detection_output_mismatched_batch_size)
             attrs.keep_top_k = {200};
             attrs.num_classes = 2;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 20}, Shape{4, 10}, Shape{5, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                         Shape{4, 10},
+                                                         Shape{5, 2, 20},
+                                                         Shape{4, 10},
+                                                         Shape{4, 20},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -255,8 +318,13 @@ TEST(type_prop_layers, detection_output_invalid_ranks)
             attrs.keep_top_k = {200};
             attrs.num_classes = 2;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 20, 1}, Shape{4, 10}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 20, 1},
+                                                         Shape{4, 10},
+                                                         Shape{4, 2, 20},
+                                                         Shape{4, 10},
+                                                         Shape{4, 20},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -275,8 +343,13 @@ TEST(type_prop_layers, detection_output_invalid_ranks)
             attrs.keep_top_k = {200};
             attrs.num_classes = 2;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 20}, Shape{4, 10, 1}, Shape{4, 2, 20}, Shape{4, 10}, Shape{4, 20}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                         Shape{4, 10, 1},
+                                                         Shape{4, 2, 20},
+                                                         Shape{4, 10},
+                                                         Shape{4, 20},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -296,8 +369,13 @@ TEST(type_prop_layers, detection_output_invalid_ranks)
             attrs.keep_top_k = {200};
             attrs.num_classes = 2;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 20}, Shape{4, 10}, Shape{4, 2}, Shape{4, 10}, Shape{4, 20}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 20},
+                                                         Shape{4, 10},
+                                                         Shape{4, 2},
+                                                         Shape{4, 10},
+                                                         Shape{4, 20},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -323,8 +401,13 @@ TEST(type_prop_layers, detection_output_invalid_box_logits_shape)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 13}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 13},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 12},
+                                                         Shape{4, 6},
+                                                         Shape{4, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -349,8 +432,13 @@ TEST(type_prop_layers, detection_output_invalid_box_logits_shape)
             attrs.share_location = false;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 37}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 37},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 12},
+                                                         Shape{4, 6},
+                                                         Shape{4, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -374,8 +462,13 @@ TEST(type_prop_layers, detection_output_invalid_class_preds_shape)
         op::DetectionOutputAttrs attrs;
         attrs.keep_top_k = {-1};
         attrs.num_classes = 3;
-        auto op = create_detection_output_with_shape(
-            Shape{4, 12}, Shape{4, 10}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
+        auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                     Shape{4, 10},
+                                                     Shape{4, 2, 12},
+                                                     Shape{4, 6},
+                                                     Shape{4, 12},
+                                                     attrs,
+                                                     element::f32);
         FAIL() << "Exception expected";
     }
     catch (const NodeValidationFailure& error)
@@ -403,8 +496,13 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 1, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                         Shape{4, 9},
+                                                         Shape{4, 1, 12},
+                                                         Shape{4, 6},
+                                                         Shape{4, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -429,8 +527,13 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = true;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 12},
+                                                         Shape{4, 6},
+                                                         Shape{4, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -455,8 +558,13 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = false;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 16}, Shape{4, 6}, Shape{4, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 16},
+                                                         Shape{4, 6},
+                                                         Shape{4, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -481,8 +589,13 @@ TEST(type_prop_layers, detection_output_invalid_proposals_shape)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 13}, Shape{4, 6}, Shape{4, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 13},
+                                                         Shape{4, 6},
+                                                         Shape{4, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -511,8 +624,13 @@ TEST(type_prop_layers, detection_output_invalid_aux_class_preds)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{5, 6}, Shape{4, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 12},
+                                                         Shape{5, 6},
+                                                         Shape{4, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -536,8 +654,13 @@ TEST(type_prop_layers, detection_output_invalid_aux_class_preds)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 7}, Shape{4, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 12},
+                                                         Shape{4, 7},
+                                                         Shape{4, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -565,8 +688,13 @@ TEST(type_prop_layers, detection_output_invalid_aux_box_preds)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{5, 12}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 12},
+                                                         Shape{4, 6},
+                                                         Shape{5, 12},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
@@ -591,8 +719,13 @@ TEST(type_prop_layers, detection_output_invalid_aux_box_preds)
             attrs.share_location = true;
             attrs.variance_encoded_in_target = false;
             attrs.normalized = true;
-            auto op = create_detection_output_with_shape(
-                Shape{4, 12}, Shape{4, 9}, Shape{4, 2, 12}, Shape{4, 6}, Shape{4, 22}, attrs);
+            auto op = create_detection_output_with_shape(Shape{4, 12},
+                                                         Shape{4, 9},
+                                                         Shape{4, 2, 12},
+                                                         Shape{4, 6},
+                                                         Shape{4, 22},
+                                                         attrs,
+                                                         element::f32);
             FAIL() << "Exception expected";
         }
         catch (const NodeValidationFailure& error)
