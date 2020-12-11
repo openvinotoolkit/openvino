@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-set(CI_BUILD_NUMBER      "2021.3.0-1923-bbbeb29612c-mryzhov/samples_reqs")
-
 set(WHEEL_PACKAGE_NAME "openvino" CACHE STRING "Name of the package")
 set(WHEEL_LICENCE_TYPE "Proprietary - Intel" CACHE STRING "License for the package")
 set(WHEEL_AUTOR "Intel Corporation" CACHE STRING "Package author’s name")
