@@ -153,7 +153,7 @@ class InstallCMakeLibs(install_lib):
 
         root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("ngraph_DIR") is not None:
-            root_dir = pathlib.Path(os.environ["ngraph_DIR"])
+            root_dir = pathlib.Path(os.environ["ngraph_DIR"]) / ".."
 
         lib_ext = ""
         if "linux" in sys.platform:
