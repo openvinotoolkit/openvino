@@ -783,6 +783,7 @@ inline uchar FUNC(sub_group_block_read_uchar)(const __local uchar* ptr) __attrib
 }
 
 #define MMAD_8(A, B, C) FUNC_CALL(mmad8)(A, B, C)
+#define MMAD_16(A, B, C) FUNC_CALL(mmad16)(A, B, C)
 #define MMAD_4x8(A, B, C) FUNC_CALL(mmad4x8)(A, B, C)
 #define MMAD_8x8(A, B, C) FUNC_CALL(mmad8x8)(A, B, C)
 #define MMAD_16x16(A, B, C) FUNC_CALL(mmad16x16)(A, B, C)

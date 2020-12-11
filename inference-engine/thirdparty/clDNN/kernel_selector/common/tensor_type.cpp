@@ -86,8 +86,10 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb,      {  0,  1, -1,   2,   3, -1, -1, -1 } },
     { WeightsLayout::dlstm_dir_io,                                {  1,  0, -1,   2,   3, -1, -1, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv8_isv4,                     {  0,  1, -1,   2,   3, -1, -1, -1 } },
+    { WeightsLayout::os_is_yx_isa8_osv16_isv4,                    {  0,  1, -1,   2,   3, -1, -1, -1 } },
     { WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4,       {  0,  1, -1,   2,   3, -1, -1, -1 } },
     { WeightsLayout::os_is_zyx_isa8_osv8_isv4,                    {  0,  1,  2,   3,   4, -1, -1, -1 } },
+    { WeightsLayout::os_is_zyx_isa8_osv16_isv4,                   {  0,  1,  2,   3,   4, -1, -1, -1 } },
     { WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  {  0,  1, -1,   2,   3, -1, -1, -1 } },
     { WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, {  0,  1,  2,   3,   4, -1, -1, -1 } },
     { WeightsLayout::is_o_yx_isv32,                               {  1,  2, -1,   0,   3, -1, -1, -1 } },
@@ -457,6 +459,16 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             newDims[3] = RoundUp(newDims[3], 32);
             newDims[4] = RoundUp(newDims[4], 8);
             break;
+        case os_is_yx_isa8_osv16_isv4:
+            assert(newDims.size() == 4);
+            newDims[3] = RoundUp(newDims[3], 16);
+            newDims[2] = RoundUp(newDims[2], 32);
+            break;
+        case os_is_zyx_isa8_osv16_isv4:
+            assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 32);
+            newDims[4] = RoundUp(newDims[4], 16);
+            break;
         case os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             assert(newDims.size() == 4);
             newDims[3] = RoundUp(newDims[3], 32);
@@ -692,6 +704,9 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
         ret[2].pad.after = newDims[2] - ret[2].v;
     } else if (l == os_is_yx_isa8_osv8_isv4 || l == os_is_yx_isa8_osv8_isv4_swizzled_by_4) {
         ret[0].pitch = 256;
+        ret[1].pitch = ret[0].pitch * ret[0].v;
+    } else if (l == os_is_yx_isa8_osv16_isv4) {
+        ret[0].pitch = 512;
         ret[1].pitch = ret[0].pitch * ret[0].v;
     } else if (l == os_i_yxs_osv4_yxsv4) {
         ret[2].pitch = RoundUp(ret[0].v * ret[1].v, 4) * 4;

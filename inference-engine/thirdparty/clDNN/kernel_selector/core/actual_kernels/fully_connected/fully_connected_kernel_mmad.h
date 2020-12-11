@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,20 +30,25 @@ public:
     ParamsKey GetSupportedKey() const override;
 
     struct FullyConnectedTuningData {
-        const size_t sub_group_size = 8;
+        const size_t pack_size = 4;
+        size_t sub_group_size = 8;
         size_t slm_div_factor = 1;
         size_t work_group_size = 1;
+        size_t feature_blocks_count;
+        size_t unroll_factor;
+        size_t full_unroll_factor;
     };
 
 protected:
-    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::SCALE,
-                 FusedOpType::ACTIVATION };
+                 FusedOpType::ACTIVATION,
+                 FusedOpType::ELTWISE };
     }
     bool Validate(const Params& params, const optional_params& options) const override;
-    FullyConnectedTuningData SetTuningParams(const fully_connected_params& params) const;
+    FullyConnectedTuningData GetTuningParams(const fully_connected_params& params) const;
 };
 }  // namespace kernel_selector
