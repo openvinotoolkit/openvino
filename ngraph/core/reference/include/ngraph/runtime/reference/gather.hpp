@@ -238,8 +238,8 @@ namespace ngraph
                     {
                         out_outer_end_corner[i] = 1;
                     }
-                    auto out_outer_transform =
-                        coordinates::slice(out_shape, out_outer_start_corner, out_outer_end_corner);
+                    auto out_outer_transform = index_range(
+                        coordinates::slice(out_shape, out_outer_start_corner, out_outer_end_corner));
 
                     // Create a CoordinateTransform for "params" that visits the outer "axis"
                     // dimensions
@@ -251,8 +251,8 @@ namespace ngraph
                         params_outer_end_corner[i] = 1;
                     }
                     Strides params_outer_strides(params_ndim, 1);
-                    auto params_outer_transform = coordinates::slice(
-                        params_shape, params_outer_start_corner, params_outer_end_corner);
+                    auto params_outer_transform = index_range(coordinates::slice(
+                        params_shape, params_outer_start_corner, params_outer_end_corner));
 
                     // Create a CoordinateTransform for "indices" that visits only the first element
                     // along inner most axis
@@ -262,8 +262,8 @@ namespace ngraph
                     {
                         indices_outer_end_corner[indices_ndim - 1] = 1;
                     }
-                    auto indices_outer_transform = coordinates::slice(
-                        indices_shape, indices_outer_start_corner, indices_outer_end_corner);
+                    auto indices_outer_transform = index_range(coordinates::slice(
+                        indices_shape, indices_outer_start_corner, indices_outer_end_corner));
 
                     // Create an inner CoordinateTransfrom for "out"
                     const size_t out_inner_ndim = out_ndim - axis;
@@ -278,33 +278,33 @@ namespace ngraph
                     {
                         out_inner_end_corner[i] = 1;
                     }
-                    auto out_inner_transform = coordinates::slice(
-                        out_inner_shape, out_inner_start_corner, out_inner_end_corner);
+                    auto out_inner_transform = index_range(coordinates::slice(
+                        out_inner_shape, out_inner_start_corner, out_inner_end_corner));
 
-                    auto out_outer_coord_iter = out_outer_transform.begin();
-                    for (const auto& params_outer_coord : params_outer_transform)
+                    auto out_outer_index_iter = out_outer_transform.begin();
+                    for (const auto& params_outer_index : params_outer_transform)
                     {
-                        if (out_outer_coord_iter == out_outer_transform.end())
+                        if (out_outer_index_iter == out_outer_transform.end())
                             break;
-                        const T* params_prime = &params[params_outer_coord.index()];
-                        T* out_outer = &out[out_outer_coord_iter->index()];
+                        const T* params_prime = &params[params_outer_index];
+                        T* out_outer = &out[*out_outer_index_iter];
 
-                        auto out_inner_coord_iter = out_inner_transform.begin();
-                        for (const auto& indices_outer_coord : indices_outer_transform)
+                        auto out_inner_index_iter = out_inner_transform.begin();
+                        for (const auto& indices_outer_index : indices_outer_transform)
                         {
-                            if (out_inner_coord_iter == out_inner_transform.end())
+                            if (out_inner_index_iter == out_inner_transform.end())
                                 break;
-                            const U* indices_prime = &indices[indices_outer_coord.index()];
-                            T* out_prime = &out_outer[out_inner_coord_iter->index()];
+                            const U* indices_prime = &indices[indices_outer_index];
+                            T* out_prime = &out_outer[*out_inner_index_iter];
                             gather_nd<T, U>(params_prime,
                                             indices_prime,
                                             out_prime,
                                             params_prime_shape,
                                             indices_prime_shape,
                                             out_prime_shape);
-                            ++out_inner_coord_iter;
+                            ++out_inner_index_iter;
                         }
-                        ++out_outer_coord_iter;
+                        ++out_outer_index_iter;
                     }
                 }
             } // namespace new_impl
@@ -356,7 +356,7 @@ namespace ngraph
                 }
             } // namespace timing
 
-            using namespace timing;
+            using namespace new_impl;
 
         } // namespace reference
     }     // namespace runtime
