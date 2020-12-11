@@ -323,11 +323,10 @@ cd /opt/intel/openvino_2021/install_dependencies/
 ```sh
 sudo -E su
 ```
-3. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. Run the installation script:
+3. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package, to install it, make sure you have the internet connection and run the installation script:
 ```sh
 ./install_NEO_OCL_driver.sh
 ```
-   The drivers are not included in the package and the script downloads them. Make sure you have the internet connection for this step.<br>
    The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 
 not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower and installs the current version with your permission:
    ![](../img/NEO_check_agreement.png) 
@@ -335,7 +334,8 @@ not install a new driver. If the version of the driver is lower than the current
 ```sh
 Add OpenCL user to video group    
 ```
-   Ignore this suggestion and continue.    
+   Ignore this suggestion and continue.<br>You can also find the most recent version of the driver, installation procedure and other information in the [https://github.com/intel/compute-runtime/](https://github.com/intel/compute-runtime/) repository.
+
 4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 ## <a name="additional-NCS-steps"></a>Steps for Intel® Neural Compute Stick 2
