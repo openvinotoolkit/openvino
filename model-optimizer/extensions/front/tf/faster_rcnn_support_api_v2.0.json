@@ -90,5 +90,12 @@
                 "port": 0
             }
         ]
+    },
+    {
+        "custom_attributes": {
+            "outputs": "StatefulPartitionedCall/SecondStagePostprocessor/Cast_3"
+        },
+        "id": "ObjectDetectionAPIOutputReplacement",
+        "match_kind": "general"
     }
 ]
