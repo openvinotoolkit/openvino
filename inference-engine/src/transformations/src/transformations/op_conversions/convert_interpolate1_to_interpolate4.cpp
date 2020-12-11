@@ -22,14 +22,22 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
             return false;
         }
 
-        auto& inp_shape = interpolationV0->get_input_shape(0);
+        auto& inp_partial_shape = interpolationV0->get_input_partial_shape(0);
         auto& out_shape = interpolationV0->get_output_shape(0);
         auto attrsV0 = interpolationV0->get_attrs();
 
         std::vector<float> scales;
-        for (std::size_t axis : attrsV0.axes) {
-            scales.emplace_back(static_cast<float>(out_shape.at(axis))/inp_shape.at(axis));
+        if (inp_partial_shape.is_static()) {
+            auto inp_shape = inp_partial_shape.to_shape();
+            for (std::size_t axis : attrsV0.axes) {
+                scales.emplace_back(static_cast<float>(out_shape.at(axis))/inp_shape.at(axis));
+            }
+        } else {
+            for (std::size_t axis : attrsV0.axes) {
+                scales.emplace_back(1.0f);
+            }
         }
+
         auto scalesConstant = ngraph::op::Constant::create(ngraph::element::f32, {scales.size()}, scales);
         auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {attrsV0.axes.size()},
                                                          std::vector<std::size_t>{attrsV0.axes.begin(), attrsV0.axes.end()});
