@@ -112,7 +112,6 @@ public:
     static bool IsPlainFormat(mkldnn::memory::format format);
     static bool IsGroupedFormat(mkldnn::memory::format format);
     static mkldnn::memory::format GetPlainFormat(mkldnn::memory::dims dims);
-    static mkldnn::memory::format GetPerChannelFormat(mkldnn::memory::dims dims);
     static InferenceEngine::Layout GetPlainLayout(mkldnn::memory::dims dims);
     static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format format);
     static mkldnn::memory::format Convert(const InferenceEngine::Layout layout);

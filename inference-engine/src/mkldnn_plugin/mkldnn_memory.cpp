@@ -303,24 +303,6 @@ memory::format MKLDNNMemory::GetPlainFormat(memory::dims dims) {
     }
 }
 
-memory::format MKLDNNMemory::GetPerChannelFormat(memory::dims dims) {
-    switch (dims.size()) {
-        case 0:
-        case 1:
-            return memory::x;
-        case 2:
-            return memory::nc;
-        case 3:
-            return memory::nwc;
-        case 4:
-            return memory::nhwc;
-        case 5:
-            return memory::ndhwc;
-        default:
-            return memory::blocked;
-    }
-}
-
 InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(memory::dims dims) {
     switch (dims.size()) {
         case 0: return Layout::SCALAR;
