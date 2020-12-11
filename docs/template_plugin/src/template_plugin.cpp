@@ -51,14 +51,6 @@ Plugin::~Plugin() {
 
 std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
     // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
-    std::vector<::ngraph::element::Type> new_types;
-    std::vector<::ngraph::PartialShape> new_shapes;
-
-    for (const auto &parameter : function->get_parameters()) {
-        new_shapes.emplace_back(parameter->get_partial_shape());
-        new_types.emplace_back(parameter->get_element_type());
-    }
-
     auto transformedNetwork = ngraph::clone_function(*function);
 
     // 2. Perform common optimizations and device-specific transformations
@@ -93,7 +85,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
 
         if (output_precision != InferenceEngine::Precision::FP32 &&
             output_precision != InferenceEngine::Precision::FP16) {
-            THROW_IE_EXCEPTION << "Template device supports only FP16 and FP32 output precision.";
+            THROW_IE_EXCEPTION << "Template device supports only U8, FP16 and FP32 output precisions.";
         }
     }
 
