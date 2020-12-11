@@ -323,7 +323,7 @@ namespace ngraph
                             pboxIdx = 0;
                         }
                         const std::vector<NormalizedBBox>& currPrBbox = priorBboxes[pboxIdx];
-                        const std::vector<std::vector<dataType>>& currPrVar = priorVariances[i];
+                        const std::vector<std::vector<dataType>>& currPrVar = priorVariances[pboxIdx];
                         for (int c = 0; c < numLocClasses; ++c)
                         {
                             int label = attrs.share_location ? -1 : c;
