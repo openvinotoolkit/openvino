@@ -41,7 +41,7 @@ from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 from mo.utils.versions_checker import check_requirements
-from mo.utils.record_event import record_event
+from mo.utils.record_event import record_event, record_file
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -263,6 +263,9 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, argv.model_name)))
         print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, argv.model_name)))
+        record_file(event_name="ir_generation", app_name="model_optimizer",
+                    app_version='0.6', file_path=os.path.join(output_dir, argv.model_name) + ".xml")
+
 
     return 0
 
