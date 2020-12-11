@@ -58,12 +58,12 @@ endif()
 
 add_custom_target(ie_wheel ALL DEPENDS ${runtime_targets} ${plugin_targets})
 
-if(UNIX)
+if(LINUX)
     SET_TARGET_PROPERTIES(${runtime_targets} PROPERTIES INSTALL_RPATH "$ORIGIN")
     SET_TARGET_PROPERTIES(ie_api PROPERTIES INSTALL_RPATH "$ORIGIN/../libs")
 elseif(APPLE)
-    SET_TARGET_PROPERTIES(${runtime_targets} PROPERTIES INSTALL_RPATH "$ORIGIN")
-    SET_TARGET_PROPERTIES(ie_api PROPERTIES INSTALL_RPATH "$ORIGIN/../libs")
+    SET_TARGET_PROPERTIES(${runtime_targets} PROPERTIES INSTALL_RPATH "@loader_path")
+    SET_TARGET_PROPERTIES(ie_api PROPERTIES INSTALL_RPATH "@loader_path/../libs")
 endif()
 
 # install wheel specific files
@@ -75,7 +75,7 @@ install(FILES ${SETUP_PY} ${CMAKE_CURRENT_SOURCE_DIR}/pypi_overview.md
 # install runtime libs
 install(TARGETS ${runtime_targets}
                 ${plugin_targets}
-        #RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
         LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
         COMPONENT ${PYTHON_VERSION}
 )
@@ -86,12 +86,12 @@ install(FILES ${target_files}
         COMPONENT ${PYTHON_VERSION})
 
 # install tbb libs
-if(EXISTS "${TBB}/bin")
+if(EXISTS "${TBB}")
     file(GLOB tbb_libs
          LIST_DIRECTORIES false
          "${TBB}/lib/*.so"
+         "${TBB}/lib/*.dylib"
          "${TBB}/bin/*.dll"
-         "${TBB}/bin/*.dylib"
     )
     install(FILES ${tbb_libs}
             DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
