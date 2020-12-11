@@ -60,62 +60,8 @@ namespace ngraph
                     LSTM_INPUT_P
                 };
 
-                enum class LSTMInputDimension
-                {
-                    BATCH_SIZE,
-                    SEQ_LENGTH,
-                    NUM_DIRECTIONS,
-                    HIDDEN_SIZE,
-                };
-
                 struct LSTMNgInputMap
                 {
-                    // Check if input shape dimension at dimension_index is static
-                    bool check_static_input_dim(LSTMInput input, const size_t dimension_index)
-                    {
-                        return m_input_map[input].get_partial_shape().rank().is_static() &&
-                               m_input_map[input].get_partial_shape().rank().get_length() >
-                                   dimension_index &&
-                               m_input_map[input].get_partial_shape()[dimension_index].is_static();
-                    }
-
-                    // Validate and handle dimensions required to create default inputs
-                    void init_dim_map()
-                    {
-                        // batch_size
-                        if (check_static_input_dim(LSTMInput::LSTM_INPUT_X, 0))
-                        {
-                            m_dim_map[LSTMInputDimension::BATCH_SIZE] =
-                                m_input_map[LSTMInput::LSTM_INPUT_X]
-                                    .get_partial_shape()[0]
-                                    .get_length();
-                        }
-                        // seq_length
-                        if (check_static_input_dim(LSTMInput::LSTM_INPUT_X, 1))
-                        {
-                            m_dim_map[LSTMInputDimension::SEQ_LENGTH] =
-                                m_input_map[LSTMInput::LSTM_INPUT_X]
-                                    .get_partial_shape()[1]
-                                    .get_length();
-                        }
-                        // num_directions
-                        if (check_static_input_dim(LSTMInput::LSTM_INPUT_R, 0))
-                        {
-                            m_dim_map[LSTMInputDimension::NUM_DIRECTIONS] =
-                                m_input_map[LSTMInput::LSTM_INPUT_R]
-                                    .get_partial_shape()[0]
-                                    .get_length();
-                        }
-                        // hidden_size
-                        if (check_static_input_dim(LSTMInput::LSTM_INPUT_R, 2))
-                        {
-                            m_dim_map[LSTMInputDimension::HIDDEN_SIZE] =
-                                m_input_map[LSTMInput::LSTM_INPUT_R]
-                                    .get_partial_shape()[2]
-                                    .get_length();
-                        }
-                    }
-
                     explicit LSTMNgInputMap(const Node& node)
                     {
                         const auto& ng_inputs = node.get_ng_inputs();
@@ -150,7 +96,29 @@ namespace ngraph
                                 1);
 
                         // Get dimensions needed for default inputs creation
-                        init_dim_map();
+                        auto shape_of_x = std::make_shared<default_opset::ShapeOf>(
+                            m_input_map[LSTMInput::LSTM_INPUT_X]);
+                        auto axes =
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {0});
+                        auto batch_size_node = std::make_shared<default_opset::Gather>(
+                            shape_of_x,
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {0}),
+                            axes);
+                        auto seq_length_node = std::make_shared<default_opset::Gather>(
+                            shape_of_x,
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {1}),
+                            axes);
+
+                        auto shape_of_r = std::make_shared<default_opset::ShapeOf>(
+                            m_input_map[LSTMInput::LSTM_INPUT_R]);
+                        auto num_directions_node = std::make_shared<default_opset::Gather>(
+                            shape_of_r,
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {0}),
+                            axes);
+                        auto hidden_size_node = std::make_shared<default_opset::Gather>(
+                            shape_of_r,
+                            default_opset::Constant::create(element::Type_t::i32, Shape{1}, {2}),
+                            axes);
 
                         // ------ Optional inputs ------
                         // `B` - The bias tensor for input gate.
@@ -174,23 +142,20 @@ namespace ngraph
                         }
                         else
                         {
-                            NGRAPH_CHECK(m_dim_map.count(LSTMInputDimension::NUM_DIRECTIONS) &&
-                                             m_dim_map.count(LSTMInputDimension::HIDDEN_SIZE),
-                                         "ONNX LSTM: Can't create default `B` input, "
-                                         "because at least one of required dimensions "
-                                         "(num_directions, hidden_size) is dynamic. "
-                                         "\n`R` input onnx shape {num_directions, "
-                                         "gates_count*hidden_size, hidden_size}: ",
-                                         ng_inputs.at(2).get_partial_shape());
-
-                            m_input_map[LSTMInput::LSTM_INPUT_B] = default_opset::Constant::create(
-                                m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
-                                Shape{m_dim_map[LSTMInputDimension::NUM_DIRECTIONS],
-                                      gates_count * m_dim_map[LSTMInputDimension::HIDDEN_SIZE]},
-                                std::vector<float>(m_dim_map[LSTMInputDimension::NUM_DIRECTIONS] *
-                                                       gates_count *
-                                                       m_dim_map[LSTMInputDimension::HIDDEN_SIZE],
-                                                   0.f));
+                            auto b_shape = std::make_shared<default_opset::Concat>(
+                                OutputVector{num_directions_node,
+                                             std::make_shared<default_opset::Multiply>(
+                                                 default_opset::Constant::create(
+                                                     element::Type_t::i64, Shape{1}, {gates_count}),
+                                                 hidden_size_node)},
+                                0);
+                            m_input_map[LSTMInput::LSTM_INPUT_B] =
+                                std::make_shared<default_opset::Broadcast>(
+                                    default_opset::Constant::create(
+                                        m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
+                                        Shape{},
+                                        {0}),
+                                    b_shape);
                         }
                         // `sequence_lens`- The lengths of the sequences in a batch.
                         // Shape: [batch_size]
@@ -200,22 +165,9 @@ namespace ngraph
                         }
                         else
                         {
-                            NGRAPH_CHECK(
-                                m_dim_map.count(LSTMInputDimension::BATCH_SIZE) &&
-                                    m_dim_map.count(LSTMInputDimension::SEQ_LENGTH),
-                                "ONNX LSTM: Can't create default `sequence_lens` input, ",
-                                "because at least one of required dimensions "
-                                "(batch_size, seq_length) is dynamic. "
-                                "\n`X` input onnx shape {seq_length, batch_size, input_size} is ",
-                                ng_inputs.at(0).get_partial_shape());
-
                             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
-                                default_opset::Constant::create(
-                                    element::i32,
-                                    Shape{m_dim_map[LSTMInputDimension::BATCH_SIZE]},
-                                    std::vector<std::int32_t>(
-                                        m_dim_map[LSTMInputDimension::BATCH_SIZE],
-                                        m_dim_map[LSTMInputDimension::SEQ_LENGTH]));
+                                std::make_shared<default_opset::Broadcast>(seq_length_node,
+                                                                           batch_size_node);
                         }
                         // `initial_h` - The initial value of the hidden.
                         // ONNX Shape: [num_directions, batch_size, hidden_size]
@@ -227,30 +179,17 @@ namespace ngraph
                         }
                         else
                         {
-                            NGRAPH_CHECK(
-                                m_dim_map.count(LSTMInputDimension::BATCH_SIZE) &&
-                                    m_dim_map.count(LSTMInputDimension::NUM_DIRECTIONS) &&
-                                    m_dim_map.count(LSTMInputDimension::HIDDEN_SIZE),
-                                "ONNX LSTM: Can't create default `initial_h` input, "
-                                "because at least one of required dimensions "
-                                "(batch_size, num_directions, hidden_size) is dynamic. "
-                                "\n`X` input onnx shape {seq_length, batch_size, input_size} is ",
-                                ng_inputs.at(0).get_partial_shape(),
-                                "\n`R` input onnx shape {num_directions, 4*hidden_size, "
-                                "hidden_size} is ",
-                                ng_inputs.at(2).get_partial_shape());
-
+                            auto init_h_shape = std::make_shared<default_opset::Concat>(
+                                OutputVector{
+                                    batch_size_node, num_directions_node, hidden_size_node},
+                                0);
                             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
-                                default_opset::Constant::create(
-                                    m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
-                                    Shape{m_dim_map[LSTMInputDimension::BATCH_SIZE],
-                                          m_dim_map[LSTMInputDimension::NUM_DIRECTIONS],
-                                          m_dim_map[LSTMInputDimension::HIDDEN_SIZE]},
-                                    std::vector<float>(
-                                        m_dim_map[LSTMInputDimension::BATCH_SIZE] *
-                                            m_dim_map[LSTMInputDimension::NUM_DIRECTIONS] *
-                                            m_dim_map[LSTMInputDimension::HIDDEN_SIZE],
-                                        0.f));
+                                std::make_shared<default_opset::Broadcast>(
+                                    default_opset::Constant::create(
+                                        m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
+                                        Shape{},
+                                        {0}),
+                                    init_h_shape);
                         }
                         // `initial_c` - The initial value of the cell.
                         // ONNX Shape: [num_directions, batch_size, hidden_size]
@@ -262,30 +201,17 @@ namespace ngraph
                         }
                         else
                         {
-                            NGRAPH_CHECK(
-                                m_dim_map.count(LSTMInputDimension::BATCH_SIZE) &&
-                                    m_dim_map.count(LSTMInputDimension::NUM_DIRECTIONS) &&
-                                    m_dim_map.count(LSTMInputDimension::HIDDEN_SIZE),
-                                "ONNX LSTM: Can't create default `initial_c` input, "
-                                "because at least one of required dimensions "
-                                "(batch_size, num_directions, hidden_size) is dynamic. "
-                                "\n`X` input onnx shape {seq_length, batch_size, input_size} is ",
-                                ng_inputs.at(0).get_partial_shape(),
-                                "\n`R` input onnx shape {num_directions, 4*hidden_size, "
-                                "hidden_size} is ",
-                                ng_inputs.at(2).get_partial_shape());
-
+                            auto init_c_shape = std::make_shared<default_opset::Concat>(
+                                OutputVector{
+                                    batch_size_node, num_directions_node, hidden_size_node},
+                                0);
                             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
-                                default_opset::Constant::create(
-                                    m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
-                                    Shape{m_dim_map[LSTMInputDimension::BATCH_SIZE],
-                                          m_dim_map[LSTMInputDimension::NUM_DIRECTIONS],
-                                          m_dim_map[LSTMInputDimension::HIDDEN_SIZE]},
-                                    std::vector<float>(
-                                        m_dim_map[LSTMInputDimension::BATCH_SIZE] *
-                                            m_dim_map[LSTMInputDimension::NUM_DIRECTIONS] *
-                                            m_dim_map[LSTMInputDimension::HIDDEN_SIZE],
-                                        0.f));
+                                std::make_shared<default_opset::Broadcast>(
+                                    default_opset::Constant::create(
+                                        m_input_map[LSTMInput::LSTM_INPUT_X].get_element_type(),
+                                        Shape{},
+                                        {0}),
+                                    init_c_shape);
                         }
                         // `P` - The weight tensor for peepholes.
                         // Peepholes input is not supported by OpenVino
@@ -299,7 +225,6 @@ namespace ngraph
 
                     Output<ngraph::Node>& at(const LSTMInput& key) { return m_input_map.at(key); }
                     std::map<LSTMInput, Output<ngraph::Node>> m_input_map;
-                    std::map<LSTMInputDimension, size_t> m_dim_map;
                 };
 
                 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
