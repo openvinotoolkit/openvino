@@ -258,18 +258,20 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
 }
 
-TEST(SmartReshapeTests, LoopParametersUsedInBody) {
+TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         // That which we iterate over
         auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto add_Y = std::make_shared<opset5::Add>(Y,
+                std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
         auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         X->set_friendly_name("X");
         Y->set_friendly_name("Y");
         M->set_friendly_name("M");
 
-        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+        // Set up the cell body, a function from (Xi, add_Y) -> (Zo)
         // Body parameters
         auto current_iteration = std::make_shared<opset5::Parameter>(element::i64, Shape{});
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
@@ -294,8 +296,8 @@ TEST(SmartReshapeTests, LoopParametersUsedInBody) {
 
         loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 2);
         loop->set_merged_input(M_body, M, Zo);
-        // Set invariant input from parent graph scope
-        loop->set_invariant_input(Yi, Y);
+        // Set invariant input which uses parameter from parent graph
+        loop->set_invariant_input(Yi, add_Y);
 
         // Output 0 is last Zo
         auto out0 = loop->get_iter_value(body_condition, -1);
@@ -315,7 +317,7 @@ TEST(SmartReshapeTests, LoopParametersUsedInBody) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
-    ASSERT_NO_THROW(network.reshape({{"X", {4, 3, 2}}, {"Y", {4, 3, 2}}, {"M", {4, 3, 2}}}));
+    ASSERT_NO_THROW(network.reshape(network.getInputShapes()));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({4, 3, 2}));
@@ -324,18 +326,20 @@ TEST(SmartReshapeTests, LoopParametersUsedInBody) {
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({4, 3, 2}));
 }
 
-TEST(SmartReshapeTests, TensorIteratorParametersUsedInBody) {
+TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         // That which we iterate over
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
         auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
+        auto add_Y = std::make_shared<opset5::Add>(Y,
+                std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
         auto M = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
         X->set_friendly_name("X");
         Y->set_friendly_name("Y");
         M->set_friendly_name("M");
 
-        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+        // Set up the cell body, a function from (Xi, add_Y) -> (Zo)
         // Body parameters
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
@@ -354,8 +358,8 @@ TEST(SmartReshapeTests, TensorIteratorParametersUsedInBody) {
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 2);
         tensor_iterator->set_merged_input(M_body, M, Zo);
-        // Set invariant input from parent graph scope
-        tensor_iterator->set_invariant_input(Yi, Y);
+        // Set invariant input which uses parameter from parent graph
+        tensor_iterator->set_invariant_input(Yi, add_Y);
 
         // Output 0 is last Zo
         auto out0 = tensor_iterator->get_iter_value(body_condition, -1);

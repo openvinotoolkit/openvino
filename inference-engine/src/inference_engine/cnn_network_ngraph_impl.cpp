@@ -17,7 +17,6 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/op/util/sub_graph_base.hpp>
 #include <set>
 #include <string>
 
@@ -318,30 +317,11 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     return OK;
 }
 
-namespace {
-    std::vector<std::shared_ptr<ngraph::Function>> get_all_sub_functions(const std::shared_ptr<ngraph::Function>& func) {
-        std::vector<std::shared_ptr<ngraph::Function>> sub_functions;
-        auto ops = func->get_ops();
-        size_t ops_size = ops.size();
-        for (size_t i = 0; i < ops_size; ++i) {
-            if (dynamic_cast<ngraph::op::util::SubGraphOp*>(ops[i].get()) != nullptr) {
-                auto sub_func = dynamic_cast<ngraph::op::util::SubGraphOp*>(ops[i].get())->get_function();
-                const auto& inner_func_ops = sub_func->get_ops();
-                ops.insert(ops.end(), inner_func_ops.begin(), inner_func_ops.end());
-                ops_size += inner_func_ops.size();
-                sub_functions.push_back(sub_func);
-            }
-        }
-        return sub_functions;
-    }
-} // namespace
-
 void
 CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
-    auto sub_functions = get_all_sub_functions(_ngraph_function);
 
     for (size_t i = 0; i < params.size(); i++) {
         const auto& param = params[i];
@@ -351,18 +331,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
         newParam->set_friendly_name(param->get_friendly_name());
         _ngraph_function->replace_parameter(i, newParam);
-
-        // Update parameters in sub-functions
-        for (auto& sub_func : sub_functions) {
-            const auto sub_func_params = sub_func->get_parameters();
-            for (auto paramt_it = sub_func_params.begin(); paramt_it != sub_func_params.end(); ++paramt_it) {
-                if ((*paramt_it)->get_friendly_name() == newParam->get_friendly_name()) {
-                    sub_func->replace_parameter(std::distance(sub_func_params.begin(), paramt_it), newParam);
-                }
-            }
-        }
     }
-
     _ngraph_function->validate_nodes_and_infer_types();
 
     {

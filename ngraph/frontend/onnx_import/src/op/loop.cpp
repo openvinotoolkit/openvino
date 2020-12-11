@@ -193,11 +193,20 @@ namespace ngraph
                         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
                     }
 
-                    // Set-up parameters from parent graph not changed during Loop's iterations
-                    for (; body_inputs_it != body_inputs.end(); ++body_inputs_it)
+                    const auto& outputs_from_parent = body_graph.get_outputs_from_parent();
+                    CHECK_VALID_NODE(node,
+                                     std::distance(body_inputs_it, body_inputs.end()) ==
+                                         outputs_from_parent.size(),
+                                     "Expected number of invariant parameters is"
+                                     " not equal number of provided outputs from parent scope");
+
+                    // Set-up parameters from parent graph which are not changed during Loop's
+                    // iterations
+                    for (auto out_from_parent_it = outputs_from_parent.begin();
+                         body_inputs_it != body_inputs.end();
+                         ++body_inputs_it, ++out_from_parent_it)
                     {
-                        loop->set_invariant_input(
-                            *body_inputs_it, (*body_inputs_it)->output(0).get_node_shared_ptr());
+                        loop->set_invariant_input(*body_inputs_it, *out_from_parent_it);
                     }
 
                     // Set-up scan outputs
