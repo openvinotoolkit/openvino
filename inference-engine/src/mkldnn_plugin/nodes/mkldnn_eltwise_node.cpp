@@ -11,6 +11,7 @@
 #include <cmath>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "utils/bfloat16.hpp"
 #include "ie_parallel.hpp"
 #include "mkldnn_quantize_node.h"
 #include <map>
@@ -45,7 +46,7 @@ struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
     mkldnn::impl::cpu::jit_generator *host;
     mkldnn::impl::cpu::cpu_isa_t host_isa;
-    const MKLDNNNode & node;
+    const MKLDNNNode * node;
     InferenceEngine::Precision exec_prc;
 };
 
@@ -107,6 +108,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                         this, post_ops.get()->entry_[post_ops.get()->len_ - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
 
@@ -273,6 +277,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
+
         eltwise_emitter->emit_table();
         for (int i = 0; i < post_op_emitters.size(); i++) {
             post_op_emitters[i]->emit_table();
@@ -319,6 +326,8 @@ private:
     Vmm vmm_d_weights = Vmm(12);
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
+
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
@@ -392,12 +401,13 @@ private:
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(MKLDNNNode& node, Precision exec_prec) {
         auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
+        const MKLDNNNode * eltwiseNodePtr = dynamic_cast<const MKLDNNNode*>(&node);
 
         EltwiseEmitterContext ctx = {
             nullptr,
             this,
             isa,
-            eltwiseNode,
+            eltwiseNodePtr,
             exec_prec
         };
 
@@ -615,8 +625,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:
                 if (isa == avx512_common) {
@@ -1024,7 +1037,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (!mayiuse(avx512_core_bf16)) {
+    if (!mayiuse(avx512_core)) {
         bool hasBF16 = false;
         for (auto &inPrc : inputPrecisions)
             if (inPrc == Precision::BF16)
