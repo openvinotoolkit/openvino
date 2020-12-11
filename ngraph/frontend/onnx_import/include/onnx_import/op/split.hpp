@@ -31,6 +31,12 @@ namespace ngraph
 
             } // namespace set_1
 
+            namespace set_13
+            {
+                OutputVector split(const Node& node);
+
+            } // namespace set_13
+
         } // namespace op
 
     } // namespace onnx_import
