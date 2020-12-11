@@ -57,21 +57,22 @@ void op::DetectionOutput::validate_and_infer_types()
                           "code_type must be either \"caffe.PriorBoxParameter.CORNER\" or "
                           "\"caffe.PriorBoxParameter.CENTER_SIZE\"");
 
-    auto input_type = get_input_element_type(0);
-    auto node_inputs = inputs();
-
+    auto box_logits_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          input_type.is_real(),
-                          "Input data type must be floating point. Got " +
-                              input_type.get_type_name() + ".");
-    bool all_input_types_matches = std::all_of(
-        node_inputs.begin(), node_inputs.end(), [&input_type](const Input<Node>& input) -> bool {
-            return input.get_element_type() == input_type;
-        });
+                          box_logits_et.is_real(),
+                          "Box logits' data type must be floating point. Got " +
+                              box_logits_et.get_type_name());
+    auto class_preds_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          all_input_types_matches,
-                          "All of input data type must be equal to " + input_type.get_type_name() +
-                              ".");
+                          class_preds_et == box_logits_et,
+                          "Class predictions' data type must be the same as box logits type (" +
+                              box_logits_et.get_type_name() + "). Got " +
+                              class_preds_et.get_type_name());
+    auto proposals_et = get_input_element_type(2);
+    NODE_VALIDATION_CHECK(this,
+                          proposals_et.is_real(),
+                          "Proposals' data type must be floating point. Got " +
+                              proposals_et.get_type_name());
 
     const PartialShape& box_logits_pshape = get_input_partial_shape(0);
     const PartialShape& class_preds_pshape = get_input_partial_shape(1);
@@ -205,6 +206,20 @@ void op::DetectionOutput::validate_and_infer_types()
 
     if (get_input_size() > 3)
     {
+        auto aux_class_preds_et = get_input_element_type(3);
+        NODE_VALIDATION_CHECK(this,
+                              aux_class_preds_et == class_preds_et,
+                              "Additional class predictions' data type must be the same as class "
+                              "predictions data type (" +
+                                  class_preds_et.get_type_name() + "). Got " +
+                                  aux_class_preds_et.get_type_name());
+        auto aux_box_preds_et = get_input_element_type(4);
+        NODE_VALIDATION_CHECK(
+            this,
+            aux_box_preds_et == box_logits_et,
+            "Additional box predictions' data type must be the same as box logits data type (" +
+                box_logits_et.get_type_name() + "). Got " + aux_box_preds_et.get_type_name());
+
         const PartialShape& aux_class_preds_pshape = get_input_partial_shape(3);
         const PartialShape& aux_box_preds_pshape = get_input_partial_shape(4);
         if (aux_class_preds_pshape.rank().is_static())
@@ -265,7 +280,7 @@ void op::DetectionOutput::validate_and_infer_types()
     }
     output_shape.push_back(7);
 
-    set_output_type(0, input_type, output_shape);
+    set_output_type(0, box_logits_et, output_shape);
 }
 
 shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const
