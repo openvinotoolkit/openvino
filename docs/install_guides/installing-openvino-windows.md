@@ -329,7 +329,7 @@ Use the optional steps below if you want to:
 
 > **NOTE**: These steps are required only if you want to use a GPU.
 
-If your applications offload computation to Intel® Integrated Graphics, you must have the Intel Graphics Driver for Windows version 15.65 or higher. To see if you have this driver installed:
+If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows version 15.65 or higher. To see if you have this driver installed:
 
 1. Type **device manager** in your **Search Windows** box. The **Device Manager** opens.
 
@@ -344,6 +344,8 @@ If your applications offload computation to Intel® Integrated Graphics, you mus
    ![](../img/DeviceDriverVersion.PNG)
 
 5. If your device driver version is lower than 15.65, [download and install a higher version](http://downloadcenter.intel.com/product/80939/Graphics-Drivers).
+
+To use the **Intel® Iris® Xe MAX Graphics**, install the driver manually. See the [Drivers & Software](https://downloadcenter.intel.com/download/29993/Intel-Iris-Xe-MAX-Dedicated-Graphics-Drivers?product=80939) page for driver downloads and installation instructions.  
 
 You are done updating your device driver and are ready to use your GPU.
 
