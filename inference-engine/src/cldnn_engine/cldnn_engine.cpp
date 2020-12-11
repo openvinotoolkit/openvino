@@ -33,6 +33,7 @@
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
+#include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
@@ -251,6 +252,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
             // List of enabled/disabled transformations
             pass_config->disable<ngraph::pass::ConvertGELU>();
+            pass_config->disable<ngraph::pass::ConvertMod>();
             pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
             pass_config->disable<ngraph::pass::HSwishDecomposition>();
             pass_config->disable<ngraph::pass::HSigmoidDecomposition>();

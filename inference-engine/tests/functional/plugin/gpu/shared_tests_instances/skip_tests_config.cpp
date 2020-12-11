@@ -31,9 +31,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
             R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
             // TODO: Issue: 43511
-            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=(Prod|Sub).*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=(FP16|FP32).*)",
-            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=Sum.*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=(FP16|FP32).*)",
-            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=Sub.*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=I64.*)",
+            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
+            R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",
+            R"(.*EltwiseLayerTest.*OpType=FloorMod.*netPRC=I64.*)",
 
             // These tests might fail due to accuracy loss a bit bigger than threshold
             R"(.*(GRUCellTest).*)",
@@ -42,7 +42,10 @@ std::vector<std::string> disabledTestPatterns() {
             // These test cases might fail due to FP16 overflow
             R"(.*(LSTM).*activations=\(relu.*netPRC=FP16.*)",
 
+            // Need to update activation primitive to support any broadcastable constant to enable these cases.
+            R"(.*ActivationParamLayerTest.*)",
             // Unknown issues
+            R"(.*(LSTMSequence).*mode=CONVERT_TO_TI_RAND_SEQ_LEN.*)",
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
             R"(.*(ScatterUpdateLayerTest).*)",

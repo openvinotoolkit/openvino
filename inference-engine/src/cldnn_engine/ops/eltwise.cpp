@@ -145,6 +145,7 @@ void CreateLogicalXorOp(Program& p, const std::shared_ptr<ngraph::op::v1::Logica
 }
 
 void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op) {
+    p.ValidateInputs(op, {2});
     auto power_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (power_node) {
         if (ngraph::shape_size(power_node->get_output_shape(0)) == 1) {
@@ -158,9 +159,12 @@ void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op)
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::pow);
 }
 
-
 void CreateFloorModOp(Program& p, const std::shared_ptr<ngraph::op::v1::FloorMod>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::floor_mod);
+}
+
+void CreateModOp(Program& p, const std::shared_ptr<ngraph::op::v1::Mod>& op) {
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::mod);
 }
 
 REGISTER_FACTORY_IMPL(v1, Add);
@@ -181,5 +185,6 @@ REGISTER_FACTORY_IMPL(v1, LogicalOr);
 REGISTER_FACTORY_IMPL(v1, LogicalXor);
 REGISTER_FACTORY_IMPL(v1, Power);
 REGISTER_FACTORY_IMPL(v1, FloorMod);
+REGISTER_FACTORY_IMPL(v1, Mod);
 
 }  // namespace CLDNNPlugin

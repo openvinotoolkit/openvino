@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph_tests/parameter_result.hpp"
+#include "shared_test_classes/subgraph/parameter_result.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ParameterResultSubgraphTest::getTestCaseName(testing::TestParamInfo<parameterResultParams> obj) {
     std::string targetDevice;
@@ -25,8 +25,4 @@ void ParameterResultSubgraphTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "ParameterResult");
 }
 
-TEST_P(ParameterResultSubgraphTest, CompareWithRefs) {
-    Run();
-}
-
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

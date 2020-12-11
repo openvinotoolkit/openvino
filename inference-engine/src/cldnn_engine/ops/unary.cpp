@@ -73,17 +73,17 @@ void CreateReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Relu>& op) {
 
 void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRelu>& op) {
     p.ValidateInputs(op, {2});
-    auto slope_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    if (!slope_node) {
-        THROW_IE_EXCEPTION << "Unsupported slope node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-    }
 
-    if (ngraph::shape_size(slope_node->get_output_shape(0)) == 1) {
+    auto slope_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto slope_shape = op->get_input_shape(1);
+    auto out_shape = op->get_output_shape(0);
+
+    if (slope_node && ngraph::shape_size(slope_shape) == 1) {
         float slope;
         if (!ngraph::op::util::get_single_value(slope_node, slope))
             THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu_negative_slope, {slope});
-    } else {
+    } else if (out_shape.size() >= 2 && ngraph::shape_size(slope_shape) == out_shape[1]) {
         auto inputs = p.GetInputPrimitiveIDs(op);
         std::string layerName = layer_type_name_ID(op);
         auto activationPrimitive = cldnn::activation(layerName, inputs[0], inputs[1], cldnn::activation_func::relu_negative_slope);
@@ -191,6 +191,8 @@ void CreateSeluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Selu>& op) {
             THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::selu, {alpha, lambda});
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported shapes of parameter nodes in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
 }
 
@@ -219,7 +221,25 @@ void CreateCoshOp(Program& p, const std::shared_ptr<ngraph::op::v0::Cosh>& op) {
 }
 
 void CreateSwishOp(Program& p, const std::shared_ptr<ngraph::op::v4::Swish>& op) {
-    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {});
+    p.ValidateInputs(op, {1, 2});
+    if (op->get_input_size() == 2) {
+        auto beta_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        if (beta_node) {
+            if (ngraph::shape_size(beta_node->get_output_shape(0)) == 1) {
+                float beta;
+                if (!ngraph::op::util::get_single_value(beta_node, beta)) {
+                    THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+                }
+                CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {beta});
+            } else {
+                THROW_IE_EXCEPTION << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            }
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported parameter type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        }
+    } else {
+        CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {1.0f});
+    }
 }
 
 void CreateHSwishOp(Program& p, const std::shared_ptr<ngraph::op::v4::HSwish>& op) {

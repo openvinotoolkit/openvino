@@ -142,9 +142,9 @@ REGISTER_FACTORY(v1, Split);
 REGISTER_FACTORY(v1, Transpose);
 REGISTER_FACTORY(v1, TopK);
 REGISTER_FACTORY(v1, VariadicSplit);
+REGISTER_FACTORY(v1, Mod);
 
 // ----------------------------- Unsupported v1 ops ----------------------------- //
-// REGISTER_FACTORY(v1, Mod);
 // REGISTER_FACTORY(v1, Reverse);
 
 // ------------------------------ Supported v3 ops ------------------------------ //
