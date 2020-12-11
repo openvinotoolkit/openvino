@@ -18,7 +18,7 @@ import json
 import numpy as np
 import pytest
 
-from _pyngraph import VariantInt, VariantString
+from ngraph.pyngraph import VariantInt, VariantString
 
 import ngraph as ng
 from ngraph.exceptions import UserInputError

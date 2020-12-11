@@ -15,4 +15,4 @@
 # ******************************************************************************
 # flake8: noqa
 
-from _pyngraph.passes import Manager
+from ngraph.pyngraph.passes import Manager

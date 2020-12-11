@@ -19,10 +19,10 @@ Low level wrappers for the nGraph c++ api in ngraph::op::util.
 """
 # flake8: noqa
 
-from _pyngraph.op.util import UnaryElementwiseArithmetic
-from _pyngraph.op.util import BinaryElementwiseComparison
-from _pyngraph.op.util import BinaryElementwiseArithmetic
-from _pyngraph.op.util import BinaryElementwiseLogical
-from _pyngraph.op.util import OpAnnotations
-from _pyngraph.op.util import ArithmeticReduction
-from _pyngraph.op.util import IndexReduction
+from ngraph.pyngraph.op.util import UnaryElementwiseArithmetic
+from ngraph.pyngraph.op.util import BinaryElementwiseComparison
+from ngraph.pyngraph.op.util import BinaryElementwiseArithmetic
+from ngraph.pyngraph.op.util import BinaryElementwiseLogical
+from ngraph.pyngraph.op.util import OpAnnotations
+from ngraph.pyngraph.op.util import ArithmeticReduction
+from ngraph.pyngraph.op.util import IndexReduction
