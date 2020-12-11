@@ -206,6 +206,7 @@ onnx_dyn_shapes_flatten_neg_axis
 onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+onnx_model_max_pool_dyn_rank_without_default_attrs
 
 # LSTMSequence Layer is not instance of RNNLayer class
 # (Constant W, B, R inputs are required)
@@ -244,6 +245,9 @@ IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
 IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
 IE_GPU.onnx_model_gru_fwd_mixed_seq_len
 IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
+
+## Const layer has incorrect dimensions in the output data
+IE_CPU.nothing_to_reverse
 
 
 #-------------------------------------------------------------------------------
@@ -672,8 +676,13 @@ relu_2Dbackprop
 relu_4Dbackprop
 
 # data [<name>] doesn't exist
-range
 parameter_as_output
+
+# MKLDNNGraph::CreateGraph: No inputs for the topology
+range_v0_int32
+range_v0_float32
+range_v4_int32
+range_v4_float32
 
 # Cannot cast ngraph node QuantizedDot to CNNLayer!
 quantized_dot_u8u8
@@ -1145,6 +1154,9 @@ IE_CPU.nonmaxsuppression_two_classes
 # Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
 IE_CPU.roi_pooling_1x1_bilinear
 
+# Unsupported dynamic op
+IE_CPU.range_v4_trunc_inputs
+
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative
 
@@ -1514,3 +1526,4 @@ onnx_controlflow_loop_infinite
 
 # unsupported dynamic ops
 onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
+IE_GPU.range_v4_trunc_inputs

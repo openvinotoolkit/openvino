@@ -47,7 +47,7 @@ class TestBNReplacer(unittest.TestCase):
                                  FakeParam('data', shift)])
         nodes = [
             ('input', {'kind': 'op', 'type': 'Identity', 'op': 'Identity'}),
-            ('bn', {'type': 'BN', 'kind': 'op', 'op': 'BN', 'pb': bn_pb, 'model_pb': bn_bin}),
+            ('bn', {'type': None, 'kind': 'op', 'op': 'batchNormInference', 'pb': bn_pb, 'model_pb': bn_bin}),
             ('output', {'kind': 'op', 'type': 'Identity', 'op': 'Identity'}),
         ]
         edges = [

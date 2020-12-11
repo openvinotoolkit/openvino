@@ -19,10 +19,17 @@
 #include "include/fetch.cl"
 #include "include/mmad.cl"
 
-#define INPUT_PACKED_TYPE_8  CAT(INPUT_PACKED_TYPE, 8)
-#define FILTER_PACKED_TYPE_8 CAT(FILTER_PACKED_TYPE, 8)
+#define INPUT_PACKED_TYPE_8     CAT(INPUT_PACKED_TYPE, 8)
+#define FILTER_PACKED_TYPE_8    CAT(FILTER_PACKED_TYPE, 8)
+#define INPUT_PACKED_TYPE_VEC   CAT(INPUT_PACKED_TYPE, SUB_GROUP_SIZE)
+#define FILTER_PACKED_TYPE_VEC  CAT(FILTER_PACKED_TYPE, SUB_GROUP_SIZE)
 
-#define AS_TYPE(type, val) CAT(as_, type)(val)
+#define BLOCK_READ(ptr)         intel_sub_group_block_read((const __global uint*)(ptr))
+#define BLOCK_READ_8(ptr)       intel_sub_group_block_read8((const __global uint*)(ptr))
+
+#define MMAD                    CAT(MMAD_, SUB_GROUP_SIZE)
+
+#define AS_TYPE(type, val)      CAT(as_, type)(val)
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL(fully_connected_gpu_MMAD)(
@@ -64,25 +71,27 @@ KERNEL(fully_connected_gpu_MMAD)(
     uint k = feature_block * FULL_UNROLL_FACTOR;
 #else
     for (uint k = feature_block * FULL_UNROLL_FACTOR; k + UNROLL_FACTOR <= (feature_block + 1) * FULL_UNROLL_FACTOR; k += UNROLL_FACTOR)
-#endif
+#endif // FULL_UNROLL_FACTOR < 2
     {
-#   if !SPLIT_SPATIAL
+#if !SPLIT_SPATIAL
         for (uint spatial = 0; spatial < FILTER_SPATIAL_SIZE; ++spatial) {
-#   else
+#else
         for (uint zi = 0; zi < FILTER_SIZE_Z; ++zi)
         for (uint yi = 0; yi < FILTER_SIZE_Y; ++yi)
         for (uint xi = 0; xi < FILTER_SIZE_X; ++xi) {
             const uint spatial = xi + yi * FILTER_SIZE_X + zi * FILTER_SIZE_X * FILTER_SIZE_Y;
-#endif
+#endif // !SPLIT_SPATIAL
+
 #else  // SPATIAL_MAJOR
-#   if !SPLIT_SPATIAL
+
+#if !SPLIT_SPATIAL
     for (uint spatial = 0; spatial < FILTER_SPATIAL_SIZE; ++spatial) {
-#   else
+#else
     for (uint zi = 0; zi < FILTER_SIZE_Z; ++zi)
     for (uint yi = 0; yi < FILTER_SIZE_Y; ++yi)
     for (uint xi = 0; xi < FILTER_SIZE_X; ++xi) {
         const uint spatial = xi + yi * FILTER_SIZE_X + zi * FILTER_SIZE_X * FILTER_SIZE_Y;
-#   endif
+#endif // !SPLIT_SPATIAL
 
 #if FULL_UNROLL_FACTOR < 2
         for (uint k = feature_block * FULL_UNROLL_FACTOR; k < (feature_block + 1) * FULL_UNROLL_FACTOR; ++k)
@@ -90,21 +99,20 @@ KERNEL(fully_connected_gpu_MMAD)(
         uint k = feature_block * FULL_UNROLL_FACTOR;
 #else
         for (uint k = feature_block * FULL_UNROLL_FACTOR; k + UNROLL_FACTOR <= (feature_block + 1) * FULL_UNROLL_FACTOR; k += UNROLL_FACTOR)
-#endif
+#endif // FULL_UNROLL_FACTOR < 2
         {
-#endif
+#endif // SPATIAL_MAJOR
+
 #if !SPLIT_SPATIAL
             uint input_idx = input_offset + spatial * MMAD_INPUT_SPATIAL_PITCH + k * MMAD_INPUT_FBLOCK_PITCH;
 #else
             uint input_idx = input_offset + k * MMAD_INPUT_FBLOCK_PITCH + zi * MMAD_INPUT_Z_PITCH + yi * MMAD_INPUT_Y_PITCH + xi * MMAD_INPUT_X_PITCH;
-#endif
+#endif // !SPLIT_SPATIAL
             uint filter_idx = filter_offset + spatial * MMAD_FILTER_SPATIAL_PITCH + k * MMAD_FILTER_FBLOCK_PITCH;
 
 #if UNROLL_FACTOR < 2
-            uint input_data_u = intel_sub_group_block_read((const __global uint*)(input + input_idx));
-            INPUT_PACKED_TYPE input_data = AS_TYPE(INPUT_PACKED_TYPE, input_data_u);
-
-            INPUT_PACKED_TYPE_8 activations;
+            INPUT_PACKED_TYPE input_data = AS_TYPE(INPUT_PACKED_TYPE, BLOCK_READ(input + input_idx));
+            INPUT_PACKED_TYPE_VEC activations;
 
             activations.s0 = sub_group_broadcast(input_data, 0);
             activations.s1 = sub_group_broadcast(input_data, 1);
@@ -114,27 +122,44 @@ KERNEL(fully_connected_gpu_MMAD)(
             activations.s5 = sub_group_broadcast(input_data, 5);
             activations.s6 = sub_group_broadcast(input_data, 6);
             activations.s7 = sub_group_broadcast(input_data, 7);
+#if SUB_GROUP_SIZE == 16
+            activations.s8 = sub_group_broadcast(input_data, 8);
+            activations.s9 = sub_group_broadcast(input_data, 9);
+            activations.sa = sub_group_broadcast(input_data, 0xa);
+            activations.sb = sub_group_broadcast(input_data, 0xb);
+            activations.sc = sub_group_broadcast(input_data, 0xc);
+            activations.sd = sub_group_broadcast(input_data, 0xd);
+            activations.se = sub_group_broadcast(input_data, 0xe);
+            activations.sf = sub_group_broadcast(input_data, 0xf);
+#endif // SUB_GROUP_SIZE == 16
 
-            uint8 weights_data_u = intel_sub_group_block_read8((const __global uint*)(weights + filter_idx));
-            FILTER_PACKED_TYPE_8 weights_data = AS_TYPE(FILTER_PACKED_TYPE_8, weights_data_u);
-
-            dotProd = MMAD_8(activations, weights_data, dotProd);
+            FILTER_PACKED_TYPE_VEC weights_data;
+#if SUB_GROUP_SIZE == 8
+            weights_data = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx));
 #else
+            weights_data.lo = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx));
+            weights_data.hi = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx + SUB_GROUP_SIZE * 8 * 4));
+#endif // SUB_GROUP_SIZE == 8
+
+            dotProd = MMAD(activations, weights_data, dotProd);
+#else // UNROLL_FACTOR < 2
             INPUT_PACKED_TYPE input_data[UNROLL_FACTOR];
-            FILTER_PACKED_TYPE_8 weights_data[UNROLL_FACTOR];
+            FILTER_PACKED_TYPE_VEC weights_data[UNROLL_FACTOR];
 
             __attribute__((opencl_unroll_hint))
             for (uint kb = 0; kb < UNROLL_FACTOR; kb++) {
-                input_data[kb] = AS_TYPE(INPUT_PACKED_TYPE, intel_sub_group_block_read((const __global uint*)(input +
-                                         input_idx  + kb * MMAD_INPUT_FBLOCK_PITCH)));
-
-                uint8 weights_data_u0 = intel_sub_group_block_read8((const __global uint*)(weights + filter_idx + kb * MMAD_FILTER_FBLOCK_PITCH));
-                weights_data[kb] = AS_TYPE(FILTER_PACKED_TYPE_8, weights_data_u0);
+                input_data[kb] = AS_TYPE(INPUT_PACKED_TYPE, BLOCK_READ(input + input_idx + kb * MMAD_INPUT_FBLOCK_PITCH));
+#if SUB_GROUP_SIZE == 8
+                weights_data[kb] = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx + kb * MMAD_FILTER_FBLOCK_PITCH));
+#else
+                weights_data[kb].lo = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx + kb * MMAD_FILTER_FBLOCK_PITCH));
+                weights_data[kb].hi = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx + SUB_GROUP_SIZE * 32 + kb * MMAD_FILTER_FBLOCK_PITCH));
+#endif // SUB_GROUP_SIZE
             }
 
             __attribute__((opencl_unroll_hint))
             for (uint kb = 0; kb < UNROLL_FACTOR; kb++) {
-                INPUT_PACKED_TYPE_8 in;
+                INPUT_PACKED_TYPE_VEC in;
 
                 in.s0 = sub_group_broadcast(input_data[kb], 0);
                 in.s1 = sub_group_broadcast(input_data[kb], 1);
@@ -144,8 +169,17 @@ KERNEL(fully_connected_gpu_MMAD)(
                 in.s5 = sub_group_broadcast(input_data[kb], 5);
                 in.s6 = sub_group_broadcast(input_data[kb], 6);
                 in.s7 = sub_group_broadcast(input_data[kb], 7);
-
-                dotProd = MMAD_8(in, weights_data[kb], dotProd);
+#if SUB_GROUP_SIZE == 16
+                in.s8 = sub_group_broadcast(input_data[kb], 8);
+                in.s9 = sub_group_broadcast(input_data[kb], 9);
+                in.sa = sub_group_broadcast(input_data[kb], 0xa);
+                in.sb = sub_group_broadcast(input_data[kb], 0xb);
+                in.sc = sub_group_broadcast(input_data[kb], 0xc);
+                in.sd = sub_group_broadcast(input_data[kb], 0xd);
+                in.se = sub_group_broadcast(input_data[kb], 0xe);
+                in.sf = sub_group_broadcast(input_data[kb], 0xf);
+#endif // SUB_GROUP_SIZE == 16
+                dotProd = MMAD(in, weights_data[kb], dotProd);
             }
 #endif // UNROLL_FACTOR < 2
         }
@@ -174,6 +208,7 @@ KERNEL(fully_connected_gpu_MMAD)(
 #endif  // !SPLIT_SPATIAL
 
 #else  // SPATIAL_MAJOR
+
 #if !SPLIT_SPATIAL
     for (uint spatial = 0; spatial < FILTER_SPATIAL_SIZE; ++spatial) {
 #else  // !SPLIT_SPATIAL
@@ -182,24 +217,27 @@ KERNEL(fully_connected_gpu_MMAD)(
         for (uint xi = 0; xi < FILTER_SIZE_X; ++xi) {
             const uint spatial = xi + yi * FILTER_SIZE_X + zi * FILTER_SIZE_X * FILTER_SIZE_Y;
 #endif  // !SPLIT_SPATIAL
+
 #endif  // SPATIAL_MAJOR
 
 #if !SPLIT_SPATIAL
             uint input_idx = input_offset + spatial * MMAD_INPUT_SPATIAL_PITCH + FEATURE_BLOCKS_COUNT * INPUT0_FEATURE_PITCH;
-#else  // !SPLIT_SPATIAL
-            uint input_idx = input_offset + FEATURE_BLOCKS_COUNT * INPUT0_FEATURE_PITCH + zi * MMAD_INPUT_Z_PITCH + yi * MMAD_INPUT_Y_PITCH + xi * MMAD_INPUT_X_PITCH;
-#endif  // !SPLIT_SPATIAL
+#else
+            uint input_idx = input_offset + FEATURE_BLOCKS_COUNT * INPUT0_FEATURE_PITCH +
+                             zi * MMAD_INPUT_Z_PITCH + yi * MMAD_INPUT_Y_PITCH + xi * MMAD_INPUT_X_PITCH;
+#endif // !SPLIT_SPATIAL
             uint filter_idx = filter_offset + spatial * MMAD_FILTER_SPATIAL_PITCH + FEATURE_BLOCKS_COUNT * MMAD_FILTER_FBLOCK_PITCH;
 
             MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) input_data_u = (0, 0, 0, 0);
             for (uint i = 0; i < 4; i++) {
-                if (FEATURE_BLOCKS_COUNT * 32 + sglid * 4 + i < INPUT0_FEATURE_NUM) {
+                if (FEATURE_BLOCKS_COUNT * SUB_GROUP_SIZE * 4 + sglid * 4 + i < INPUT0_FEATURE_NUM) {
                     input_data_u[i] = input[input_idx + (sglid * 4 + i) * INPUT0_FEATURE_PITCH];
                 }
             }
             INPUT_PACKED_TYPE input_data = AS_TYPE(INPUT_PACKED_TYPE, input_data_u);
 
-            INPUT_PACKED_TYPE_8 activations;  //activations of all lanes
+            INPUT_PACKED_TYPE_VEC activations;
+
             activations.s0 = sub_group_broadcast(input_data, 0);
             activations.s1 = sub_group_broadcast(input_data, 1);
             activations.s2 = sub_group_broadcast(input_data, 2);
@@ -208,11 +246,26 @@ KERNEL(fully_connected_gpu_MMAD)(
             activations.s5 = sub_group_broadcast(input_data, 5);
             activations.s6 = sub_group_broadcast(input_data, 6);
             activations.s7 = sub_group_broadcast(input_data, 7);
+#if SUB_GROUP_SIZE == 16
+            activations.s8 = sub_group_broadcast(input_data, 8);
+            activations.s9 = sub_group_broadcast(input_data, 9);
+            activations.sa = sub_group_broadcast(input_data, 0xa);
+            activations.sb = sub_group_broadcast(input_data, 0xb);
+            activations.sc = sub_group_broadcast(input_data, 0xc);
+            activations.sd = sub_group_broadcast(input_data, 0xd);
+            activations.se = sub_group_broadcast(input_data, 0xe);
+            activations.sf = sub_group_broadcast(input_data, 0xf);
+#endif // SUB_GROUP_SIZE == 16
 
-            uint8 weights_data_u = intel_sub_group_block_read8((const __global uint*)(weights + filter_idx));
-            FILTER_PACKED_TYPE_8 weights_data = AS_TYPE(FILTER_PACKED_TYPE_8, weights_data_u);
+            FILTER_PACKED_TYPE_VEC weights_data;
+#if SUB_GROUP_SIZE == 8
+            weights_data = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx));
+#else
+            weights_data.lo = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx));
+            weights_data.hi = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx + SUB_GROUP_SIZE * 32));
+#endif // SUB_GROUP_SIZE == 8
 
-            dotProd = MMAD_8(activations, weights_data, dotProd);
+            dotProd = MMAD(activations, weights_data, dotProd);
         }
 #endif  // HAS_FEATURE_LEFTOVERS
 
@@ -220,16 +273,16 @@ KERNEL(fully_connected_gpu_MMAD)(
         return;
 
 #if BIAS_TERM
-#if   BIAS_PER_OUTPUT
+#if BIAS_PER_OUTPUT
     const uint bias_index = GET_DATA_INDEX(BIAS, batch, feature, 0, 0);
 #elif BIAS_PER_OFM
     const uint bias_index = feature;
-#endif
+#endif // BIAS_PER_OUTPUT
 
     float dequantized = (float)dotProd + biases[bias_index];
-#else  // BIAS_TERM
+#else
     float dequantized = (float)dotProd;
-#endif
+#endif // BIAS_TERM
 
     const uint out_idx = OUTPUT_GET_INDEX(batch, feature, 0, 0);
 
@@ -240,7 +293,7 @@ KERNEL(fully_connected_gpu_MMAD)(
     output[out_idx] = res;
 #else
     output[out_idx] = TO_OUTPUT_TYPE(dequantized);
-#endif
+#endif // HAS_FUSED_OPS
 
 #if SLM_DIV_FACTOR > 1
     }
@@ -249,4 +302,11 @@ KERNEL(fully_connected_gpu_MMAD)(
 
 #undef INPUT_PACKED_TYPE_8
 #undef FILTER_PACKED_TYPE_8
+#undef INPUT_PACKED_TYPE_VEC
+#undef FILTER_PACKED_TYPE_VEC
+
+#undef BLOCK_READ
+#undef BLOCK_READ_8
+
+#undef MMAD
 #undef AS_TYPE
