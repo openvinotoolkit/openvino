@@ -20,7 +20,9 @@ public:
     size_t get_inputs_num() override;
 
     void emit(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-              const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
+              const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {},
+              const emitter_in_out_map& in_out_type = emitter_in_out_map::vec_to_vec,
+              const emitter_context *emit_context = nullptr) override;
 
     void emit_table() override;
 
