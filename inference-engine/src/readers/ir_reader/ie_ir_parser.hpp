@@ -203,51 +203,7 @@ private:
             if (!is_true && !is_false) return;
             value.set(is_true);
         }
-        void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-            std::string val;
-            if (!getStrAttribute(node.child("data"), name, val)) return;
-            if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::Type>>(&adapter)) {
-                static_cast<ngraph::element::Type&>(*a) = details::convertPrecision(val);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::PartialShape>>(&adapter)) {
-                std::vector<int64_t> shape;
-                std::vector<ngraph::Dimension> dims;
-                if (!getParameters<int64_t>(node.child("data"), name, shape)) return;
-                for (const auto& dim : shape) dims.emplace_back(dim);
-                static_cast<ngraph::PartialShape&>(*a) = ngraph::PartialShape(dims);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Shape>>(&adapter)) {
-                std::vector<size_t> shape;
-                if (!getParameters<size_t>(node.child("data"), name, shape)) return;
-                static_cast<ngraph::Shape&>(*a) = ngraph::Shape(shape);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Strides>>(&adapter)) {
-                std::vector<size_t> shape;
-                if (!getParameters<size_t>(node.child("data"), name, shape)) return;
-                static_cast<ngraph::Strides&>(*a) = ngraph::Strides(shape);
-#ifdef __APPLE__
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
-                std::vector<size_t> result;
-                if (!getParameters<size_t>(node.child("data"), name, result)) return;
-                static_cast<std::vector<size_t>&>(*a) = result;
-#else
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
-                std::vector<size_t> result;
-                if (!getParameters<size_t>(node.child("data"), name, result)) return;
-                a->set(result);
-#endif
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::AxisSet>>(&adapter)) {
-                std::vector<size_t> axes;
-                if (!getParameters<size_t>(node.child("data"), name, axes)) return;
-                static_cast<ngraph::AxisSet&>(*a) = ngraph::AxisSet(axes);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKSortType>>(&adapter)) {
-                if (!getStrAttribute(node.child("data"), name, val)) return;
-                static_cast<ngraph::op::TopKSortType&>(*a) = ngraph::as_enum<ngraph::op::TopKSortType>(val);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
-                if (!getStrAttribute(node.child("data"), name, val)) return;
-                static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
-            } else {
-                THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
-                                   << " parameter";
-            }
-        }
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
         void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val))
@@ -302,6 +258,8 @@ private:
             adapter.set(value);
         }
 
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override;
+
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
             std::vector<int32_t> value;
             if (!getParameters<int32_t>(node.child("data"), name, value)) return;
@@ -323,6 +281,12 @@ private:
     private:
         const pugi::xml_node node;
         const Blob::CPtr& weights;
+
+        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> parseInputDescription(
+            const pugi::xml_node& node);
+        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
+            const pugi::xml_node& node);
+        void map_type_in_function(const pugi::xml_node& node, std::string type, std::map<uint64_t, uint64_t>& type_id_in_function);
 
         bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
             if (!node) return false;
