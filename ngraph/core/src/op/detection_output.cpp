@@ -247,36 +247,17 @@ void op::DetectionOutput::validate_and_infer_types()
     }
 
     std::vector<Dimension> output_shape{1, 1};
-    if (num_images.is_dynamic())
+    if (m_attrs.keep_top_k[0] > 0)
     {
-        output_shape.push_back(Dimension::dynamic());
+        output_shape.push_back(num_images * m_attrs.keep_top_k[0]);
+    }
+    else if (m_attrs.top_k > 0)
+    {
+        output_shape.push_back(num_images * m_attrs.top_k * m_attrs.num_classes);
     }
     else
     {
-        size_t num_images_val = num_images.get_interval().get_min_val();
-        if (m_attrs.keep_top_k[0] > 0)
-        {
-            output_shape.push_back(num_images_val * m_attrs.keep_top_k[0]);
-        }
-        else if (m_attrs.top_k > 0)
-        {
-            output_shape.push_back(num_images_val * m_attrs.top_k * m_attrs.num_classes);
-        }
-        else if (proposals_pshape.rank().is_static() && proposals_pshape[2].is_static())
-        {
-            size_t prior_box_size = m_attrs.normalized ? 4 : 5;
-            size_t proposals_dim2_val = proposals_pshape[2].get_interval().get_min_val();
-            NODE_VALIDATION_CHECK(this,
-                                  proposals_dim2_val % prior_box_size == 0,
-                                  "Proposals' second dimension must be divisible by " +
-                                      std::to_string(prior_box_size));
-            size_t num_proposals = proposals_dim2_val / prior_box_size;
-            output_shape.push_back(num_images_val * num_proposals * m_attrs.num_classes);
-        }
-        else
-        {
-            output_shape.push_back(Dimension::dynamic());
-        }
+        output_shape.push_back(num_images * num_prior_boxes * m_attrs.num_classes);
     }
     output_shape.push_back(7);
 
