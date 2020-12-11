@@ -74,12 +74,11 @@ def find_pybind_headers_dir():
         return pybind_headers_dir
 
 
-NGRAPH_CPP_DIST_DIR = find_ngraph_dist_dir()
-OPENVINO_CPP_INCLUDE_DIR = os.path.join(NGRAPH_CPP_DIST_DIR, "deployment_tools", "inference_engine", "include")
-#OPENVINO_CPP_INCLUDE_DIR = "/home/akuporos/openvino/inference-engine/include"
-# OPENVINO_CPP_INCLUDE_DIR = "/home/jiwaszki/openvino/inference-engine/include"
+OPENVINO_DIST_PATH = os.environ.get("OPENVINO_DIST_PATH")
+IE_CPP_INCLUDE_DIR = os.path.join(OPENVINO_DIST_PATH, "deployment_tools", "inference_engine", "include")
 PYBIND11_INCLUDE_DIR = find_pybind_headers_dir() + "/include"
-NGRAPH_CPP_INCLUDE_DIR = NGRAPH_CPP_DIST_DIR + "/include"
+NGRAPH_CPP_DIST_DIR = os.path.join(OPENVINO_DIST_PATH, "deployment_tools", "ngraph")
+NGRAPH_CPP_INCLUDE_DIR = os.path.join(NGRAPH_CPP_DIST_DIR, "include")
 if os.path.exists(os.path.join(NGRAPH_CPP_DIST_DIR, "lib")):
     NGRAPH_CPP_LIBRARY_DIR = os.path.join(NGRAPH_CPP_DIST_DIR, "lib")
 elif os.path.exists(os.path.join(NGRAPH_CPP_DIST_DIR, "lib64")):
@@ -257,13 +256,11 @@ packages = [
     "ngraph.impl.passes",
 ]
 
-include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, OPENVINO_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
+include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, IE_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
 
-OPENVINO_CPP_LIBRARY_DIR=os.path.join(NGRAPH_CPP_DIST_DIR,"deployment_tools", "inference_engine", "lib", "intel64")
+IE_CPP_LIBRARY_DIR = os.path.join(OPENVINO_DIST_PATH, "deployment_tools", "inference_engine", "lib", "intel64")
 
-library_dirs = [NGRAPH_CPP_LIBRARY_DIR, OPENVINO_CPP_LIBRARY_DIR]
-#library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/home/akuporos/openvino_dist/deployment_tools/inference_engine/lib/intel64/"]
-#library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/home/jiwaszki/dldt_dist/debug/deployment_tools/inference_engine/lib/intel64/"]
+library_dirs = [NGRAPH_CPP_LIBRARY_DIR, IE_CPP_LIBRARY_DIR]
 
 extra_compile_args = []
 extra_link_args = []
