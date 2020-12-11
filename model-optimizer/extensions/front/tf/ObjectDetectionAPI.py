@@ -408,7 +408,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
 
     user_defined_height = None
     user_defined_width = None
-    input_name = 'image_tensor' if 'image_tensor' in graph.nodes else 'input_tensor'
+    input_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
     if user_shapes and input_name in user_shapes and user_shapes[input_name]:
         user_defined_shape = user_shapes[input_name][0]['shape']
         if user_defined_shape is not None:
@@ -524,7 +524,7 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
             log.info('There is image scaling node in the Preprocessor block.')
             mul_node = sub_node.in_port(0).get_source().node
 
-        initial_input_node_name = 'image_tensor' if 'image_tensor' in graph.nodes else 'input_tensor'
+        initial_input_node_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
         if initial_input_node_name not in graph.nodes():
             raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
                         '"--input" command line parameter.'.format(initial_input_node_name))
@@ -601,7 +601,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
             raise Error(missing_param_error)
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
 
-        initial_input_node_name = 'image_tensor' if 'image_tensor' in graph.nodes else 'input_tensor'
+        initial_input_node_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
         if initial_input_node_name not in graph.nodes():
             raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
                         '"--input" command line parameter.'.format(initial_input_node_name))
