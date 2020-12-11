@@ -1583,8 +1583,8 @@ namespace
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v6::GatherElements>& op,
-                  const HostTensorVector& inputs,
-                  const HostTensorVector& outputs)
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
         Shape params_shape = inputs[0]->get_shape();
@@ -1605,7 +1605,7 @@ namespace
         else if (inputs[1]->get_element_type() == element::i32)
         {
             runtime::reference::gather_elements<T, int32_t>(inputs[0]->get_data_ptr<ET>(),
-                                                            inputs[1]->get_data_ptr<int64_t>(),
+                                                            inputs[1]->get_data_ptr<int32_t>(),
                                                             outputs[0]->get_data_ptr<ET>(),
                                                             inputs[0]->get_shape(),
                                                             inputs[1]->get_shape(),
