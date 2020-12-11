@@ -254,6 +254,8 @@ packages = [
     "ngraph.impl.op",
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
+    "openvino",
+    "openvino.inference_engine"
 ]
 
 include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, IE_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
