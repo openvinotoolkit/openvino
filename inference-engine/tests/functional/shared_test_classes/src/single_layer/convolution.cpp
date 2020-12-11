@@ -2,21 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
-#include <functional>
-#include <functional_test_utils/skip_tests_config.hpp>
-
-#include "ie_core.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-
-#include "single_layer_tests/convolution.hpp"
+#include "shared_test_classes/single_layer/convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -73,9 +59,5 @@ void ConvolutionLayerTest::SetUp() {
                                              padEnd, dilation, padType, convOutChannels));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution");
-}
-
-TEST_P(ConvolutionLayerTest, CompareWithRefs) {
-    Run();
 }
 }  // namespace LayerTestsDefinitions

@@ -2,22 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-#include <functional>
-
-#include "ie_core.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
-#include "single_layer_tests/gru_cell.hpp"
+#include "shared_test_classes/single_layer/gru_cell.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -87,9 +73,4 @@ void GRUCellTest::SetUp() {
         m.run_passes(function);
     }
 }
-
-
-TEST_P(GRUCellTest, CompareWithRefs) {
-    Run();
-};
 }  // namespace LayerTestsDefinitions

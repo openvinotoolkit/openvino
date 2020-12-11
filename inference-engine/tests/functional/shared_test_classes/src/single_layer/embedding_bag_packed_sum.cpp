@@ -1,17 +1,8 @@
 // Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
-
-#include "single_layer_tests/embedding_bag_packed_sum.hpp"
-
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/single_layer/embedding_bag_packed_sum.hpp"
 #include "ngraph_functions/builders.hpp"
-
 
 namespace LayerTestsDefinitions {
 
@@ -55,9 +46,5 @@ void EmbeddingBagPackedSumLayerTest::SetUp() {
                 ngPrc, ngIdxPrc, emb_table_node, indices, withWeights));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingBagPackedSum");
-}
-
-TEST_P(EmbeddingBagPackedSumLayerTest, CompareWithRefs) {
-    Run();
 }
 }  // namespace LayerTestsDefinitions

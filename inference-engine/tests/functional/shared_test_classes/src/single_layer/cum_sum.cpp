@@ -2,20 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <functional_test_utils/skip_tests_config.hpp>
-
-#include "ie_core.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-
-#include "single_layer_tests/cum_sum.hpp"
+#include "shared_test_classes/single_layer/cum_sum.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -56,9 +43,4 @@ void CumSumLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(cumSum)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "cumsum");
 }
-
-TEST_P(CumSumLayerTest, CompareWithRefs) {
-    Run();
-};
-
 }  // namespace LayerTestsDefinitions

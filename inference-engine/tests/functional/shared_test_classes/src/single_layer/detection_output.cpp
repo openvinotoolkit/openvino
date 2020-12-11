@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <vector>
-
 #include "ngraph_functions/builders.hpp"
-#include "common_test_utils/data_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "single_layer_tests/detection_output.hpp"
+#include "shared_test_classes/single_layer/detection_output.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -155,10 +150,5 @@ void DetectionOutputLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
-
-TEST_P(DetectionOutputLayerTest, CompareWithRefs) {
-    Run();
-};
-
 }  // namespace LayerTestsDefinitions
 

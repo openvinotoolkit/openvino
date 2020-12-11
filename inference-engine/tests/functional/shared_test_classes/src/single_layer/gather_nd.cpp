@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
-
 #include "ngraph_functions/builders.hpp"
-#include "single_layer_tests/gather_nd.hpp"
+#include "shared_test_classes/single_layer/gather_nd.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -58,9 +53,5 @@ void GatherNDLayerTest::SetUp() {
             ngraph::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
-}
-
-TEST_P(GatherNDLayerTest, CompareWithRefs) {
-    Run();
 }
 }  // namespace LayerTestsDefinitions

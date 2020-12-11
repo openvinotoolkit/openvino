@@ -2,32 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
-#include <functional>
-#include <functional_test_utils/skip_tests_config.hpp>
-
-#include "ie_core.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-
-#include "single_layer_tests/fake_quantize.hpp"
-
-// seed selected using current cloc time
-#define USE_CLOCK_TIME 1
-// seed started from default value, and incremented every time using big number like 9999
-#define USE_INCREMENTAL_SEED 2
-
-/**
- * redefine this seed to reproduce issue with given seed that can be read from gtest logs
- */
-#define BASE_SEED   123
-#define NGRAPH_SEED 123
+#include "shared_test_classes/single_layer/fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -137,22 +112,5 @@ void FakeQuantizeLayerTest::UpdateSeed() {
     }
     std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
               << "seed = " << seed << std::endl;
-}
-
-TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
-    Run();
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    if (BASE_SEED != USE_CLOCK_TIME &&
-        BASE_SEED != USE_INCREMENTAL_SEED) {
-        return;
-    }
-
-    size_t nIterations = 1;
-    for (; nIterations != 0; nIterations--) {
-        UpdateSeed();
-        Infer();
-        Validate();
-    }
 }
 }  // namespace LayerTestsDefinitions

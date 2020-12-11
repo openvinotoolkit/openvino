@@ -2,16 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <functional>
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
-
-#include "single_layer_tests/extract_image_patches.hpp"
-
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/single_layer/extract_image_patches.hpp"
 #include "ngraph_functions/builders.hpp"
 
 
@@ -54,9 +45,4 @@ void ExtractImagePatchesTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(extImgPatches)};
     function = std::make_shared<ngraph::Function>(results, params, "ExtractImagePatches");
 }
-
-TEST_P(ExtractImagePatchesTest, CompareWithRefs) {
-    Run();
-};
-
 }  // namespace LayerTestsDefinitions

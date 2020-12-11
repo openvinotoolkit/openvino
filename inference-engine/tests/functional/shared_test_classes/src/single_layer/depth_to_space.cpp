@@ -2,25 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <functional>
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
-
-#include <ie_core.hpp>
-#include <ngraph_functions/builders.hpp>
-
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "common_test_utils/common_utils.hpp"
-
-#include "single_layer_tests/depth_to_space.hpp"
-
-using namespace ngraph::opset3;
+#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/single_layer/depth_to_space.hpp"
 
 namespace LayerTestsDefinitions {
+
+using namespace ngraph::opset3;
 
 static inline std::string DepthToSpaceModeToString(const DepthToSpace::DepthToSpaceMode& mode) {
     static std::map<DepthToSpace::DepthToSpaceMode, std::string> names = {
@@ -64,9 +51,4 @@ void DepthToSpaceLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
     function = std::make_shared<ngraph::Function>(results, params, "DepthToSpace");
 }
-
-TEST_P(DepthToSpaceLayerTest, CompareWithRefs) {
-    Run();
-};
-
 }  // namespace LayerTestsDefinitions

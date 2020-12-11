@@ -2,21 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-#include <functional>
-
-#include "ie_core.hpp"
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
-#include "single_layer_tests/gather.hpp"
+#include "shared_test_classes/single_layer/gather.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -62,9 +48,4 @@ void GatherLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gather");
 }
-
-
-TEST_P(GatherLayerTest, CompareWithRefs) {
-    Run();
-};
 }  // namespace LayerTestsDefinitions

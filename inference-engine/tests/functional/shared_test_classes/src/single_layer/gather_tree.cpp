@@ -2,16 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
-#include "single_layer_tests/gather_tree.hpp"
+#include "shared_test_classes/single_layer/gather_tree.hpp"
 
 namespace LayerTestsDefinitions {
 std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj) {
@@ -85,9 +76,4 @@ InferenceEngine::Blob::Ptr GatherTreeLayerTest::GenerateInput(const InferenceEng
 
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx);
 }
-
-TEST_P(GatherTreeLayerTest, CompareWithRefs) {
-    Run();
-};
-
 } // namespace LayerTestsDefinitions

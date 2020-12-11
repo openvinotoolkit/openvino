@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
-
 #include "ngraph_functions/builders.hpp"
-#include "single_layer_tests/ctc_loss.hpp"
+#include "shared_test_classes/single_layer/ctc_loss.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -63,9 +58,5 @@ void CTCLossLayerTest::SetUp() {
                 ngFpPrc, ngIntPrc, preprocessCollapseRepeated, ctcMergeRepeated, unique));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
     function = std::make_shared<ngraph::Function>(results, params, "CTCLoss");
-}
-
-TEST_P(CTCLossLayerTest, CompareWithRefs) {
-    Run();
 }
 }  // namespace LayerTestsDefinitions

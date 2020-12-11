@@ -2,16 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
-#include "single_layer_tests/convert_like.hpp"
+#include "shared_test_classes/single_layer/convert_like.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -44,8 +35,4 @@ void ConvertLikeLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(convertLike)};
     function = std::make_shared<ngraph::Function>(results, params, "ConvertLike");
 }
-
-TEST_P(ConvertLikeLayerTest, CompareWithRefs) {
-    Run();
-};
 }  // namespace LayerTestsDefinitions
