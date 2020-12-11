@@ -14,7 +14,7 @@
 
 /**
  * @def THROW_IE_EXCEPTION_WITH_STATUS
- * @brief Throws an exception along with the status (which is converted to the typed exception)
+ * @brief Throws an exception along with the status (which is eventually converted to the typed exception)
  */
 #define THROW_IE_EXCEPTION_WITH_STATUS(__status) THROW_IE_EXCEPTION << \
                         InferenceEngine::details::as_status << InferenceEngine::StatusCode::__status << __status##_str
@@ -33,26 +33,6 @@ namespace InferenceEngine {
     } catch (const InferenceEngine::details::InferenceEngineException& iex) {                                \
         return InferenceEngine::DescriptionBuffer((iex.hasStatus() ? iex.getStatus() : GENERAL_ERROR), resp) \
                << iex.what();                                                                                \
-    } catch (const InferenceEngine::NotImplemented & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(NOT_IMPLEMENTED, resp) << ex.what();                       \
-    } catch (const InferenceEngine::NotFound & ex) {                                                         \
-        return InferenceEngine::DescriptionBuffer(NOT_FOUND, resp) << ex.what();                             \
-    } catch (const InferenceEngine::OutOfBounds & ex) {                                                      \
-        return InferenceEngine::DescriptionBuffer(OUT_OF_BOUNDS, resp) << ex.what();                         \
-    } catch (const InferenceEngine::NetworkNotLoaded & ex) {                                                 \
-        return InferenceEngine::DescriptionBuffer(NETWORK_NOT_LOADED, resp) << ex.what();                    \
-    } catch (const InferenceEngine::ParameterMismatch & ex) {                                                \
-        return InferenceEngine::DescriptionBuffer(PARAMETER_MISMATCH, resp) << ex.what();                    \
-    } catch (const InferenceEngine::RequestBusy & ex) {                                                      \
-        return InferenceEngine::DescriptionBuffer(REQUEST_BUSY, resp) << ex.what();                          \
-    } catch (const InferenceEngine::ResultNotReady & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(RESULT_NOT_READY, resp) << ex.what();                      \
-    } catch (const InferenceEngine::NotAllocated & ex) {                                                     \
-        return InferenceEngine::DescriptionBuffer(NOT_ALLOCATED, resp) << ex.what();                         \
-    } catch (const InferenceEngine::InferNotStarted & ex) {                                                  \
-        return InferenceEngine::DescriptionBuffer(INFER_NOT_STARTED, resp) << ex.what();                     \
-    } catch (const InferenceEngine::NetworkNotRead & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(NETWORK_NOT_READ, resp) << ex.what();                      \
     } catch (const std::exception& ex) {                                                                     \
         return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();                         \
     } catch (...) {                                                                                          \
@@ -68,26 +48,6 @@ namespace InferenceEngine {
     try {                                                                                                           \
         x;                                                                                                          \
         return OK;                                                                                                  \
-    } catch (const InferenceEngine::NotImplemented & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(NOT_IMPLEMENTED) << ex.what();                       \
-    } catch (const InferenceEngine::NotFound & ex) {                                                         \
-        return InferenceEngine::DescriptionBuffer(NOT_FOUND) << ex.what();                             \
-    } catch (const InferenceEngine::OutOfBounds & ex) {                                                      \
-        return InferenceEngine::DescriptionBuffer(OUT_OF_BOUNDS) << ex.what();                         \
-    } catch (const InferenceEngine::NetworkNotLoaded & ex) {                                                 \
-        return InferenceEngine::DescriptionBuffer(NETWORK_NOT_LOADED) << ex.what();                    \
-    } catch (const InferenceEngine::ParameterMismatch & ex) {                                                \
-        return InferenceEngine::DescriptionBuffer(PARAMETER_MISMATCH) << ex.what();                    \
-    } catch (const InferenceEngine::RequestBusy & ex) {                                                      \
-        return InferenceEngine::DescriptionBuffer(REQUEST_BUSY) << ex.what();                          \
-    } catch (const InferenceEngine::ResultNotReady & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(RESULT_NOT_READY) << ex.what();                      \
-    } catch (const InferenceEngine::NotAllocated & ex) {                                                     \
-        return InferenceEngine::DescriptionBuffer(NOT_ALLOCATED) << ex.what();                         \
-    } catch (const InferenceEngine::InferNotStarted & ex) {                                                  \
-        return InferenceEngine::DescriptionBuffer(INFER_NOT_STARTED) << ex.what();                     \
-    } catch (const InferenceEngine::NetworkNotRead & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(NETWORK_NOT_READ) << ex.what();                      \
     } catch (const InferenceEngine::details::InferenceEngineException& iex) {                                       \
         return InferenceEngine::DescriptionBuffer(iex.hasStatus() ? iex.getStatus() : GENERAL_ERROR) << iex.what(); \
     } catch (const std::exception& ex) {                                                                            \
@@ -104,26 +64,6 @@ namespace InferenceEngine {
 #define NO_EXCEPT_CALL_RETURN_STATUS(x)                                                                    \
     try {                                                                                                  \
         return x;                                                                                          \
-    } catch (const InferenceEngine::NotImplemented & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(NOT_IMPLEMENTED, resp) << ex.what();                       \
-    } catch (const InferenceEngine::NotFound & ex) {                                                         \
-        return InferenceEngine::DescriptionBuffer(NOT_FOUND, resp) << ex.what();                             \
-    } catch (const InferenceEngine::OutOfBounds & ex) {                                                      \
-        return InferenceEngine::DescriptionBuffer(OUT_OF_BOUNDS, resp) << ex.what();                         \
-    } catch (const InferenceEngine::NetworkNotLoaded & ex) {                                                 \
-        return InferenceEngine::DescriptionBuffer(NETWORK_NOT_LOADED, resp) << ex.what();                    \
-    } catch (const InferenceEngine::ParameterMismatch & ex) {                                                \
-        return InferenceEngine::DescriptionBuffer(PARAMETER_MISMATCH, resp) << ex.what();                    \
-    } catch (const InferenceEngine::RequestBusy & ex) {                                                      \
-        return InferenceEngine::DescriptionBuffer(REQUEST_BUSY, resp) << ex.what();                          \
-    } catch (const InferenceEngine::ResultNotReady & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(RESULT_NOT_READY, resp) << ex.what();                      \
-    } catch (const InferenceEngine::NotAllocated & ex) {                                                     \
-        return InferenceEngine::DescriptionBuffer(NOT_ALLOCATED, resp) << ex.what();                         \
-    } catch (const InferenceEngine::InferNotStarted & ex) {                                                  \
-        return InferenceEngine::DescriptionBuffer(INFER_NOT_STARTED, resp) << ex.what();                     \
-    } catch (const InferenceEngine::NetworkNotRead & ex) {                                                   \
-        return InferenceEngine::DescriptionBuffer(NETWORK_NOT_READ, resp) << ex.what();                      \
     } catch (const InferenceEngine::details::InferenceEngineException& iex) {                              \
         return InferenceEngine::DescriptionBuffer(iex.hasStatus() ? iex.getStatus() : GENERAL_ERROR, resp) \
                << iex.what();                                                                              \

@@ -20,7 +20,7 @@
 
 /**
  * @def THROW_IE_EXCEPTION
- * @brief A macro used to throw general exception with a description, for better type-zation ALWAYS prefer the next macro
+ * @brief A macro used to throw general exception with a description
  */
 #define THROW_IE_EXCEPTION throw InferenceEngine::details::InferenceEngineException(__FILE__, __LINE__)
 
