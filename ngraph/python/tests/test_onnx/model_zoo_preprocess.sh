@@ -1,21 +1,26 @@
 #!/bin/bash
 set -e
 
-MODELS_DIR=false
+# provide ONNX Model Zoo commit hash ID to update:
+ONNX_SHA=5c9f64f470c825ccbe1bbaa8d460c0463ff6efec
+
+MODELS_DIR="$HOME/.onnx/model_zoo"
 ENABLE_MSFT=false
 ENABLE_ONNX_MODELS_ZOO=false
 ENABLE_MSFT_MODELS=false
-ONNX_SHA=5c9f64f470c825ccbe1bbaa8d460c0463ff6efec
+FORCE_MODE=false
 
 function print_help {
     echo "Model preprocessing options:"
     echo "    -h display this help message"
     echo "    -d <DIR> set location of the models (for onnx model ZOO and MSFT models)"
+    printf "    By default the models location is: %s\n" "$HOME/.onnx/model_zoo"
     echo "    -o update Onnx Model Zoo models"
     echo "    -m update MSFT models"
+    echo "    -f force update of a chosen model"
 }
 
-while getopts ":homd:" opt; do
+while getopts ":homfd:" opt; do
     case ${opt} in
         h )
             print_help
@@ -34,6 +39,9 @@ while getopts ":homd:" opt; do
             ;;
         m )
             ENABLE_MSFT_MODELS=true
+            ;;
+        f )
+            FORCE_MODE=true
             ;;
     esac
 done
@@ -81,7 +89,15 @@ function update_onnx_models() {
         cd "$ONNX_MODELS_DIR"
         pull_and_postprocess_onnx_model_zoo
     else
-        echo "ONNX Model Zoo repository exists"
+        # Check if ONNX Model Zoo directory consists of proper git repo
+        git_remote_url=`git -C $ONNX_MODELS_DIR config --local remote.origin.url 2> /dev/null 2>&1`
+        printf "ONNX Model Zoo repository exists: %s\n" "$ONNX_MODELS_DIR"
+        if [[ $git_remote_url = "https://github.com/onnx/models.git" ]]; then
+            printf "The proper github repository detected: %s\n" "$git_remote_url"
+        else
+            echo "The ONNX Model Zoo repository doesn't exist then will be cloned"
+            git clone https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
+        fi
     fi
 
     cd "$ONNX_MODELS_DIR"
@@ -131,10 +147,16 @@ else
 fi
 
 if [[ $ENABLE_ONNX_MODELS_ZOO = true ]] ; then
+    if [[ $FORCE_MODE = true ]]; then
+        rm -rf $ONNX_MODELS_DIR
+    fi
     update_onnx_models
 fi
 
-if [[ "$ENABLE_MSFT_MODELS" = true ]] ; then
+if [[ $ENABLE_MSFT_MODELS = true ]] ; then
+    if [[ $FORCE_MODE = true ]]; then
+        rm -rf $MSFT_MODELS_DIR
+    fi
     update_msft_models
     postprocess_msft_models
 fi
