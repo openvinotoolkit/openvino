@@ -548,7 +548,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
 
     # freeze placeholder restructure
     # Replaces placeholder name with placeholder id. Raises if there is no placeholder with such ID
-    placeholders_ids = graph.get_nodes_with_attributes(op='Parameter')
+    placeholders_ids = graph.get_input_ids()
     if freeze_placeholder is None:
         _freeze_placeholder = None
     else:
@@ -923,6 +923,20 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
 
     For case with before_infer=False data nodes are added to this schemes.
     """
+
+    # Limited implementation for nGraph
+    # Support reshape only, no model cutting is available
+    #print('--- USER DEFINED INPUTS ---:' + str(user_defined_inputs))
+    if 'network' in graph.graph:
+        # warning connection through node name
+        #print(user_defined_inputs)
+        # temporary we handle only 0th index
+        if user_defined_inputs:
+            reshape_request = {k.get_friendly_name(): user_defined_inputs[k][0]['shape'] for k in user_defined_inputs}
+            #print('RESHAPE REQUEST: ' + str(reshape_request))
+            graph.graph['network'].reshape(reshape_request)
+        return
+
     inputs = []
     set_is_input(graph, graph.get_nodes_with_attributes(op='Parameter'), False)
     if user_defined_inputs is None:

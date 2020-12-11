@@ -746,7 +746,7 @@ class Graph(nx.MultiDiGraph):
         return prefix + str(self.unique_id_count)
 
     def check_empty_graph(self, description: str):
-        if len(self.nodes()) <= 1:
+        if len(self.nodes()) <= 1 and self.graph['network'] is None:
             raise Error(
                 "Graph contains {} node after executing {}. It considered as error because resulting IR will be "
                 "empty which is not usual".format(len(self.nodes()), description))
@@ -1007,6 +1007,14 @@ class Graph(nx.MultiDiGraph):
         eliminate_dead_nodes(self)
         # Add Const op for constant data nodes
         add_constant_operations(self)
+
+    def get_input_ids(self):
+        if 'network' in self.graph:
+            import ngraph as ng
+            func = ng.function_from_cnn(self.graph['network'])
+            return func.get_parameters()
+        else:
+            return self.get_nodes_with_attributes(op='Parameter')
 
 
 def fill_graph_with_nodes(graph, src_nodes, get_id: callable, get_attrs: callable):

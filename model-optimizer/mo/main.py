@@ -256,7 +256,7 @@ def emit_ir(graph, argv: argparse.Namespace):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         orig_model_name = os.path.join(output_dir, argv.model_name)
         if not argv.use_legacy_frontend:
-            graph.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
+            graph.graph['network'].serialize(orig_model_name + ".xml", orig_model_name + ".bin")
             print('[ SUCCESS ] Converted with ONNX Importer')
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
