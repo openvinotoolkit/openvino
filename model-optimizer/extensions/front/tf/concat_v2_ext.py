@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.concat import concat_infer
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.concat import Concat
 
@@ -24,6 +23,6 @@ class ConcatV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'N': node.pb.attr["N"].i}
+        attrs = {'N': node.pb.attr["N"].i,'axis':None};
         Concat.update_node_stat(node, attrs)
         return cls.enabled
