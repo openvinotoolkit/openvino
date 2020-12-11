@@ -129,12 +129,22 @@ namespace ngraph
             ///
             struct Range
             {
-                const size_t begin_index;
-                const size_t element_number;
-                const size_t step;
-                const Direction direction;
+                constexpr Range(size_t begin_index = 0,
+                                size_t element_number = 0,
+                                size_t step = 1,
+                                Direction direction = Direction::forward)
+                    : begin_index{begin_index}
+                    , element_number{element_number}
+                    , step{step}
+                    , direction{direction}
+                {
+                }
+                size_t begin_index;
+                size_t element_number;
+                size_t step;
+                Direction direction;
 
-                static constexpr Range make_empyt() { return Range{0, 0, 1, Direction::forward}; }
+                static constexpr Range make_empyt() { return Range{}; }
             };
 
             /// \brief Class allows to iterate over sliced Tensor part by part.
@@ -154,6 +164,7 @@ namespace ngraph
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
+
             private:
                 const Shape m_source_shape;
                 const CoordinateBounds m_bounds;
@@ -200,6 +211,7 @@ namespace ngraph
                 bool increment();
 
                 bool is_valid() const noexcept { return !has_zeros(m_source_shape); }
+
             private:
                 const Shape m_source_shape;
                 const std::vector<size_t> m_memory_strides;
@@ -213,8 +225,70 @@ namespace ngraph
                 return ReverseRange(source_shape, reversed_axis);
             }
 
+            template <typename TheRange>
+            class IndexRagne : public RangeBase<IndexRagne<TheRange>>
+            {
+            public:
+                IndexRagne(TheRange r)
+                    : m_r{std::move(r)}
+                    , m_current{m_r.get_value(), 0}
+                {
+                }
+                using value_type = size_t;
+
+                value_type get_value() const
+                {
+                    const auto offset_from_index = m_current.element * m_current.range.step;
+                    if (m_current.range.direction == Direction::forward)
+                    {
+                        return m_current.range.begin_index + offset_from_index;
+                    }
+                    return m_current.range.begin_index - offset_from_index;
+                }
+
+                bool increment()
+                {
+                    ++m_current.element;
+
+                    if (m_current.element >= m_current.range.element_number)
+                    {
+                        m_current.element = 0;
+                        const bool there_is_more_indices = m_r.increment();
+                        if (!there_is_more_indices)
+                        {
+                            return false;
+                        }
+                        m_current.range = m_r.get_value();
+                    }
+                    return true;
+                }
+
+                bool is_valid() const noexcept { return m_r.is_valid(); }
+
+            private:
+                TheRange m_r;
+                struct Current
+                {
+                    Current(Range r = Range::make_empyt(), size_t element = 0)
+                        : range{std::move(r)}
+                        , element{element}
+                    {
+                    }
+                    Range range{Range::make_empyt()};
+                    size_t element{0};
+                };
+                Current m_current;
+            };
+
+            template <typename TheRange>
+            IndexRagne<TheRange> index_range(TheRange r)
+            {
+                return IndexRagne<TheRange>(std::move(r));
+            }
         } // namespace impl
+
         using impl::Direction;
+        using impl::index_range;
         using impl::reverse;
         using impl::slice;
     } // namespace coordinates
