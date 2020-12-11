@@ -190,7 +190,8 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<Function>> : public DirectValueAccessor<std::shared_ptr<Function>>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<Function>>
+        : public DirectValueAccessor<std::shared_ptr<Function>>
     {
     public:
         AttributeAdapter(std::shared_ptr<Function>& value)
@@ -198,7 +199,8 @@ namespace ngraph
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Function>>", 0};
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Function>>",
+                                                    0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 }

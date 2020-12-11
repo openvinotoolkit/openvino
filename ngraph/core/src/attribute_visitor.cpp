@@ -170,7 +170,8 @@ void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vector<
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }
 
-void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter)
+void AttributeVisitor::on_adapter(const string& name,
+                                  ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter)
 {
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }

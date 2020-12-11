@@ -117,7 +117,8 @@ namespace ngraph
         /// \brief Hook for adapters that need visitor access
         virtual void on_adapter(const std::string& name, VisitorAdapter& adapter);
 
-        virtual void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<Function>>& adapter);
+        virtual void on_adapter(const std::string& name,
+                                ValueAccessor<std::shared_ptr<Function>>& adapter);
 
         /// The generic visitor. There must be a definition of AttributeAdapter<T> that can convert
         /// to a ValueAccessor<U> for one of the on_adpater methods.

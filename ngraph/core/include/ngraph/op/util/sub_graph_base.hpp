@@ -348,30 +348,46 @@ namespace ngraph
     }
 
     template <>
-    class NGRAPH_API AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>
-        : public DirectValueAccessor<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>
+    class NGRAPH_API AttributeAdapter<
+        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>
+        : public DirectValueAccessor<
+              std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>
     {
     public:
-        AttributeAdapter(std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>& value)
-            : DirectValueAccessor<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>(value)
+        AttributeAdapter(
+            std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>& value)
+            : DirectValueAccessor<
+                  std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>(
+                  value)
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>", 0};
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::"
+            "InputDescription>>>",
+            0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>
-        : public DirectValueAccessor<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>
+    class NGRAPH_API AttributeAdapter<
+        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>
+        : public DirectValueAccessor<
+              std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>
     {
     public:
-        AttributeAdapter(std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>& value)
-            : DirectValueAccessor<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>(value)
+        AttributeAdapter(
+            std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>& value)
+            : DirectValueAccessor<
+                  std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>(
+                  value)
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>", 0};
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::"
+            "OutputDescription>>>",
+            0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 }
