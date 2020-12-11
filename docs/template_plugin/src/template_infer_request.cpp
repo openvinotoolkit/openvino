@@ -112,7 +112,7 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
 
 void TemplateInferRequest::allocateBlobs() {
     auto&& parameters = _executableNetwork->_function->get_parameters();
-    AllocateImpl(_networkInputs, _inputs, _networkInputBlobs, [&] (const std::string& blobName) {
+    AllocateImpl(_networkInputs, _inputs, _deviceInputs, [&] (const std::string& blobName) {
         return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
     });
     auto&& results = _executableNetwork->_function->get_results();
@@ -176,21 +176,14 @@ void TemplateInferRequest::inferPreprocess() {
     auto start = Time::now();
     // NOTE: After InferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
-    InferRequestInternal::execDataPreprocessing(_inputs);
-    for (auto&& input : _inputs) {
-        auto inputBlob = input.second;
-        auto networkInput = _networkInputBlobs[input.first];
-        if (inputBlob->getTensorDesc().getPrecision() == networkInput->getTensorDesc().getPrecision()) {
-            networkInput = inputBlob;
-        } else {
-            blobCopy(inputBlob, networkInput);
-        }
-        auto index = _executableNetwork->_inputIndex[input.first];
+    InferRequestInternal::execDataPreprocessing(_deviceInputs);
+    for (auto&& networkInput : _deviceInputs) {
+        auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _parameters[index];
         const auto& parameterShape = parameter->get_shape();
         const auto& parameterType = parameter->get_element_type();
         _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType, parameterShape,
-            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput)->rmap().as<void*>());
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second)->rmap().as<void*>());
     }
     for (auto&& output : _outputs) {
         auto outputBlob = output.second;

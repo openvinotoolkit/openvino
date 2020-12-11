@@ -1177,7 +1177,7 @@ TEST_P(PreprocTest, Performance)
     {
     case Precision::U8:   Blob2Img<Precision::U8>  (out_blob, out_mat, out_layout); break;
     case Precision::FP32: Blob2Img<Precision::FP32>(out_blob, out_mat, out_layout); break;
-    case Precision::U16:  Blob2Img<Precision::FP32>(out_blob, out_mat, out_layout); break;
+    case Precision::U16:  Blob2Img<Precision::U16>(out_blob, out_mat, out_layout); break;
     default: FAIL() << "Unsupported configuration";
     }
 
