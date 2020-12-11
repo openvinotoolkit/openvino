@@ -14,26 +14,26 @@
 
 #include "shared_test_classes/single_layer/range.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 // ------------------------------ V0 ------------------------------
 
-class RangeAddSubgraphTest : public testing::WithParamInterface<RangeParams>,
+class RangeAddSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::RangeParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::RangeParams> obj);
 protected:
     void SetUp() override;
 };
 
 // ------------------------------ V4 ------------------------------
 
-class RangeNumpyAddSubgraphTest : public testing::WithParamInterface<RangeParams>,
+class RangeNumpyAddSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::RangeParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::RangeParams> obj);
 protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

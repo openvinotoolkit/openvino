@@ -14,13 +14,13 @@
 
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
-class ReluShapeOfSubgraphTest : public testing::WithParamInterface<shapeOfParams>,
+class ReluShapeOfSubgraphTest : public testing::WithParamInterface<LayerTestsDefinitions::shapeOfParams>,
         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<shapeOfParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::shapeOfParams> obj);
 protected:
     void SetUp() override;
 };
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

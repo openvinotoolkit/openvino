@@ -5,10 +5,10 @@
 
 #include "shared_test_classes/subgraph/split_relu.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(SplitRelu, CompareWithRefs){
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

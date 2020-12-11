@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(QuantMatMulTest, CompareWithRefs) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/split_trivial_permute_concat.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string SplitTrivialPermuteConcatTest::getTestCaseName(const testing::TestParamInfo<SplitTrivialPermuteConcatTuple>& obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetName;
@@ -46,4 +46,4 @@ namespace LayerTestsDefinitions {
         auto act = ngraph::builder::makeActivation(concat, ngPrc, ngraph::helpers::ActivationTypes::Relu);
         function = std::make_shared<ngraph::Function>(act, input, "split_trivial_permute_concat");
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -5,10 +5,10 @@
 
 #include "shared_test_classes/subgraph/reshape_permute_reshape.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ReshapePermuteReshape, CompareWithRefs) {
     Run();
 }
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

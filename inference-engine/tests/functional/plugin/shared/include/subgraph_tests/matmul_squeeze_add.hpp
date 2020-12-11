@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/matmul_squeeze_add.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(MatmulSqueezeAddTest, CompareWithRefImpl) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

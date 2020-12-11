@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/constant_result.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ConstantResultSubgraphTest::getTestCaseName(testing::TestParamInfo<constResultParams> obj) {
     std::string targetDevice;
@@ -28,5 +28,5 @@ void ConstantResultSubgraphTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "ConstResult");
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions
 

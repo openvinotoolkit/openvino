@@ -14,7 +14,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     typedef std::tuple<
         InferenceEngine::Precision,         // Network Precision
         std::string,                        // Target Device
@@ -34,4 +34,4 @@ protected:
     void Run() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

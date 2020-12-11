@@ -3,7 +3,7 @@
 //
 #include "shared_test_classes/subgraph/delayed_copy_layer.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string DelayedCopyTest::getTestCaseName(const testing::TestParamInfo<ConcatSplitReluTuple> &obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetName;
@@ -68,4 +68,4 @@ namespace LayerTestsDefinitions {
         Validate();
     }
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

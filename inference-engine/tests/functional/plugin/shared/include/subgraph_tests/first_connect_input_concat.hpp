@@ -6,10 +6,10 @@
 
 #include <shared_test_classes/subgraph/first_connect_input_concat.hpp>
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ConcatFirstInputTest, CompareWithRefImpl) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

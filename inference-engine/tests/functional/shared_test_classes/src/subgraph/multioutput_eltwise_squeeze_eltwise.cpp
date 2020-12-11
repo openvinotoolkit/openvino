@@ -3,7 +3,7 @@
 //
 #include "shared_test_classes/subgraph/multioutput_eltwise_squeeze_eltwise.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string MultioutputEltwiseReshapeEltwise::getTestCaseName(const testing::TestParamInfo<MultioutputEltwiseReshapeEltwiseTuple> &obj) {
         std::vector<std::vector<size_t>> input;
         InferenceEngine::Precision netPrecision;
@@ -41,4 +41,4 @@ namespace LayerTestsDefinitions {
                                      std::make_shared<ngraph::opset1::Result>(eltwise3)};
         function = std::make_shared<ngraph::Function>(results, input, "eltwise_reshape_eltwise_multioutput");
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

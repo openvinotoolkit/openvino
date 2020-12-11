@@ -4,11 +4,11 @@
 
 #include "shared_test_classes/subgraph/range_add.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 // ------------------------------ V0 ------------------------------
 
-std::string RangeAddSubgraphTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
+std::string RangeAddSubgraphTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::RangeParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -45,7 +45,7 @@ void RangeAddSubgraphTest::SetUp() {
 
 // ------------------------------ V4 ------------------------------
 
-std::string RangeNumpyAddSubgraphTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
+std::string RangeNumpyAddSubgraphTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::RangeParams> obj) {
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision constPrc;
     InferenceEngine::Precision outPrc;
@@ -83,4 +83,4 @@ void RangeNumpyAddSubgraphTest::SetUp() {
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

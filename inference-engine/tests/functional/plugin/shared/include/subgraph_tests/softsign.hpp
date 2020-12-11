@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/softsign.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(SoftsignTest, CompareWithRefImpl) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

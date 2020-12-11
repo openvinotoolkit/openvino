@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/matmul_squeeze_add.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string MatmulSqueezeAddTest::getTestCaseName(testing::TestParamInfo<matmulSqueezeAddParams> obj) {
     InferenceEngine::Precision netPrecision;
@@ -56,4 +56,4 @@ void MatmulSqueezeAddTest::SetUp() {
     ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(squeeze_0)};
     function = std::make_shared<ngraph::Function>(results, params, "MatmulSqueezeAddTest");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

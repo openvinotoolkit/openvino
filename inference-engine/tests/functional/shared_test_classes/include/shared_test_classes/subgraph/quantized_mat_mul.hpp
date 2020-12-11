@@ -11,6 +11,8 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
+namespace SubgraphTestsDefinitions {
+
 typedef std::tuple<
         size_t,
         ngraph::helpers::QuantizationGranularity,
@@ -23,8 +25,6 @@ typedef std::tuple<
         InferenceEngine::SizeVector,
         LayerTestsUtils::TargetDevice> QuantMatMulLayerTestParamsSet;
 
-namespace LayerTestsDefinitions {
-
 class QuantMatMulTest : public testing::WithParamInterface<QuantMatMulLayerTestParamsSet>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QuantMatMulLayerTestParamsSet> &obj);
@@ -33,4 +33,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

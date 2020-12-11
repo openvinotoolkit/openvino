@@ -13,15 +13,15 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-typedef std::tuple<
-    InferenceEngine::Precision,          // Network Precision
-    std::string,                         // Target Device
-    std::map<std::string, std::string>,  // Configuration
-    std::vector<size_t>,                 // Input Shapes
-    size_t                               // Output Size
-> matmulSqueezeAddParams;
+namespace SubgraphTestsDefinitions {
 
-namespace LayerTestsDefinitions {
+typedef std::tuple<
+        InferenceEngine::Precision,          // Network Precision
+        std::string,                         // Target Device
+        std::map<std::string, std::string>,  // Configuration
+        std::vector<size_t>,                 // Input Shapes
+        size_t                               // Output Size
+> matmulSqueezeAddParams;
 
 class MatmulSqueezeAddTest : public testing::WithParamInterface<matmulSqueezeAddParams>,
                      public LayerTestsUtils::LayerTestsCommon {
@@ -32,4 +32,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

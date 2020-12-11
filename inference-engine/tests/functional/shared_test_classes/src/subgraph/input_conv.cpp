@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/input_conv.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string InputConvTest::getTestCaseName(testing::TestParamInfo<inputConvParams> obj) {
     InferenceEngine::Precision netPrecision;
@@ -96,4 +96,4 @@ void InputConvTest::SetUp() {
         function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
     }
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

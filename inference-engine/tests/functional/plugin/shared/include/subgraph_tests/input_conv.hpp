@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/input_conv.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(InputConvTest, CompareWithRefImpl) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

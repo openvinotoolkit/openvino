@@ -5,7 +5,7 @@
 #include <debug.h>
 #include "shared_test_classes/subgraph/reshape_squeeze_reshape_relu.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string ReshapeSqueezeReshapeRelu::getTestCaseName(const testing::TestParamInfo<ReshapeSqueezeReshapeReluTuple> &obj) {
         ShapeAxesTuple squeezeShape;
         InferenceEngine::Precision netPrecision;
@@ -45,4 +45,4 @@ namespace LayerTestsDefinitions {
 
         function = std::make_shared<ngraph::Function>(func, input, "reshape_squeeze_reshape_relu");
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/negative_memory_layer_offset.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(NegativeMemoryOffsetTest, CompareWithRefs) {
     Run();
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

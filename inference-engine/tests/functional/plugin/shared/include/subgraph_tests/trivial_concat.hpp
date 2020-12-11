@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/trivial_concat.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(TrivialConcatLayerTest, CompareWithRefs) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

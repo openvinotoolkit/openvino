@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/relu_shape_of.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ReluShapeOfSubgraphTest, CompareWithRefs) {
     Run();
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

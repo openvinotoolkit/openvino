@@ -10,7 +10,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using ScaleShiftParamsTuple = typename std::tuple<
         std::vector<std::vector<size_t>>, //input shapes
@@ -27,4 +27,4 @@ public:
 protected:
     void SetUp() override;
 };
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

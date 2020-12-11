@@ -13,7 +13,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 using trivialConcatParamsTuple = typename std::tuple<
     std::vector<size_t>,               // Inputs shape
     InferenceEngine::Precision,        // Network precision
@@ -29,4 +29,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

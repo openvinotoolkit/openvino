@@ -4,9 +4,9 @@
 
 #include "shared_test_classes/subgraph/relu_shape_of.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
-    std::string ReluShapeOfSubgraphTest::getTestCaseName(testing::TestParamInfo<shapeOfParams> obj) {
+    std::string ReluShapeOfSubgraphTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::shapeOfParams> obj) {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
         std::string targetDevice;
@@ -29,4 +29,4 @@ namespace LayerTestsDefinitions {
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};
         function = std::make_shared<ngraph::Function>(results, param, "ReluShapeOf");
     }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -13,7 +13,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 class SplitConvConcat : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
                         virtual public LayerTestsUtils::LayerTestsCommon {
@@ -24,4 +24,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

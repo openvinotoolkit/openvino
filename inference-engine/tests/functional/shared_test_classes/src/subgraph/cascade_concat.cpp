@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/cascade_concat.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string CascadeConcat::getTestCaseName(const testing::TestParamInfo<CascadeConcatTuple> &obj) {
     std::vector<std::vector<size_t>> input1, input2, input3;
@@ -56,4 +56,4 @@ void CascadeConcat::SetUp() {
     }
     function = std::make_shared<ngraph::Function>(results, input, "concat_reshape_reshape_concat_mul");
 }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

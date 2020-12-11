@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/two_fake_quantize_to_fullyconnected.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string FakeQuantizeSubgraphTest::getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj) {
     fqSpecificParams fqParams;
@@ -146,4 +146,4 @@ InferenceEngine::Blob::Ptr FakeQuantizeSubgraphTest::GenerateInput(const Inferen
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
                                             seed);
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

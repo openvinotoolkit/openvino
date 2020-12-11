@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/two_fake_quantize_to_fullyconnected.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(FakeQuantizeSubgraphTest, CompareWithRefs) {
     Run();
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

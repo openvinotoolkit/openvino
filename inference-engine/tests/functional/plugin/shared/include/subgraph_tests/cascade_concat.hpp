@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/cascade_concat.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(CascadeConcat, CompareWithRefs) {
     Run();
 }
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -13,13 +13,13 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-typedef std::tuple<
-    InferenceEngine::Precision,          // Network Precision
-    std::string,                         // Target Device
-    std::map<std::string, std::string>   // Configuration
-> basicLstmParams;
+namespace SubgraphTestsDefinitions {
 
-namespace LayerTestsDefinitions {
+typedef std::tuple<
+        InferenceEngine::Precision,          // Network Precision
+        std::string,                         // Target Device
+        std::map<std::string, std::string>   // Configuration
+> basicLstmParams;
 
 class Basic_LSTM_S : public testing::WithParamInterface<basicLstmParams>,
                      public LayerTestsUtils::LayerTestsCommon {
@@ -40,4 +40,4 @@ protected:
     std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

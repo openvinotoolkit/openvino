@@ -13,14 +13,14 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
+namespace SubgraphTestsDefinitions {
+
 typedef std::tuple<
         std::vector<std::vector<size_t>>,   // Input shapes
         InferenceEngine::Precision,         // Network Precision
         std::string,                        // Target Device
         std::map<std::string, std::string>  //Configuration
 > BroadCastPowerTuple;
-
-namespace LayerTestsDefinitions {
 
 class BroadcastPowerTest : public testing::WithParamInterface<BroadCastPowerTuple>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
@@ -30,4 +30,4 @@ public:
 protected:
     void SetUp() override;
 };
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

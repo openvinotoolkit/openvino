@@ -4,7 +4,7 @@
 #include <debug.h>
 #include "shared_test_classes/subgraph/reshape_permute_reshape.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string ReshapePermuteReshape::getTestCaseName(const testing::TestParamInfo<ReshapePermuteReshapeTuple> &obj) {
         std::vector<std::vector<size_t >> input;
         InferenceEngine::Precision netPrecision;
@@ -40,4 +40,4 @@ namespace LayerTestsDefinitions {
         auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(permute, reshape2_pattern, false);
         function = std::make_shared<ngraph::Function>(reshape2, input, "reshape_permute_reshape");
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

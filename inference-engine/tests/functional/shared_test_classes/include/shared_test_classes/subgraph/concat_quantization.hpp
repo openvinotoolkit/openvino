@@ -13,13 +13,13 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-typedef std::tuple<
-    InferenceEngine::Precision,         // Network Precision
-    std::string,                        // Target Device
-    std::map<std::string, std::string>  //Configuration
-> concatQuantizationParams;
+namespace SubgraphTestsDefinitions {
 
-namespace LayerTestsDefinitions {
+typedef std::tuple<
+        InferenceEngine::Precision,         // Network Precision
+        std::string,                        // Target Device
+        std::map<std::string, std::string>  //Configuration
+> concatQuantizationParams;
 
 class ConcatQuantization : public testing::WithParamInterface<concatQuantizationParams>,
                         virtual public LayerTestsUtils::LayerTestsCommon {
@@ -30,4 +30,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

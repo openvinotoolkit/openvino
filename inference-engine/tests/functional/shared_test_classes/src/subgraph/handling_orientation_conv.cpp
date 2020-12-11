@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/handling_orientation_conv.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string HandlingOrientationClass::getTestCaseName(const testing::TestParamInfo<HandlingOrientationParams> &obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetName;
@@ -54,4 +54,4 @@ namespace LayerTestsDefinitions {
                                       std::make_shared<ngraph::opset1::Result>(reshape4)};
         function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPass");
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

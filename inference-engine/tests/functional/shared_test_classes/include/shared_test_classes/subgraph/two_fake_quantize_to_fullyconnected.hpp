@@ -13,6 +13,8 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
+namespace SubgraphTestsDefinitions {
+
 typedef std::tuple<
         std::vector<size_t>,              // levels
         std::vector<std::vector<size_t>>, // const inputs shape
@@ -31,7 +33,6 @@ typedef std::tuple<
         std::pair<std::string, std::map<std::string, std::string>>, // Additional backend configuration and alis name to it
         bool
 > fqSubgraphTestParamsSet;
-namespace LayerTestsDefinitions {
 
 class FakeQuantizeSubgraphTest : public testing::WithParamInterface<fqSubgraphTestParamsSet>,
                                  virtual public LayerTestsUtils::LayerTestsCommon {
@@ -49,4 +50,4 @@ protected:
     int32_t  seed = 1;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

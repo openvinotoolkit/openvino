@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ConvReshapeAct, CompareWithRefs) {
     Run();
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -6,7 +6,7 @@
 
 #include "shared_test_classes/subgraph/concat_multi_input.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ConcatMultiInput, CompareWithRefStridedSlice) {
     GenerateStridedSliceModel();
@@ -18,4 +18,4 @@ TEST_P(ConcatMultiInput, CompareWithRefConstOnly) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

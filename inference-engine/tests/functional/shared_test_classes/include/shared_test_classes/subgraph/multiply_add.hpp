@@ -12,7 +12,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using MultiplyAddParamsTuple = typename std::tuple<
         std::vector<size_t>,              //input shapes
@@ -29,4 +29,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

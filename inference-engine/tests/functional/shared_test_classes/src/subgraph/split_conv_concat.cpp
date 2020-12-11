@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/split_conv_concat.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string SplitConvConcat::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
     InferenceEngine::Precision netPrecision;
@@ -42,4 +42,4 @@ void SplitConvConcat::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

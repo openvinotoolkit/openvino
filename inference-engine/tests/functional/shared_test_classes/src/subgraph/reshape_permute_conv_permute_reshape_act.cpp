@@ -3,7 +3,7 @@
 
 #include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string ConvReshapeAct::getTestCaseName(testing::TestParamInfo<ConvReshapeActParams> obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetName;
@@ -103,4 +103,4 @@ namespace LayerTestsDefinitions {
         threshold = 0.1;
         Validate();
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

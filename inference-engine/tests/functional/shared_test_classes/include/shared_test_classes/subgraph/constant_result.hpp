@@ -12,7 +12,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
             std::string                        // Device name
@@ -25,5 +25,5 @@ public:
 protected:
     void SetUp() override;
 };
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions
 

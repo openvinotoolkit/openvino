@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/split_trivial_permute_concat.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(SplitTrivialPermuteConcatTest, CompareWithRefs) {
     Run();
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

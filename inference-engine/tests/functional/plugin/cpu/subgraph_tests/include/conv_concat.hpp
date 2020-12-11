@@ -15,7 +15,7 @@
 
 using namespace CPUTestUtils;
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 enum class nodeType {
     convolution,
@@ -70,4 +70,4 @@ protected:
     std::string pluginTypeNode;
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

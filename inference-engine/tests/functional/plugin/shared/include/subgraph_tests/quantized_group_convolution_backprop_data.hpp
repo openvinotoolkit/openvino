@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/quantized_group_convolution_backprop_data.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(QuantGroupConvBackpropDataLayerTest, CompareWithRefs) {
     Run();
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

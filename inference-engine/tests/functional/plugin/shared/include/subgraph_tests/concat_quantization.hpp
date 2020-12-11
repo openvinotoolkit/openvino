@@ -6,7 +6,7 @@
 
 #include "shared_test_classes/subgraph/concat_quantization.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ConcatQuantization, CompareWithRefImpl) {
     InferenceEngine::Core* core = PluginCache::get().ie(targetDevice).get();
@@ -24,4 +24,4 @@ TEST_P(ConcatQuantization, CompareWithRefImpl) {
 };
 
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

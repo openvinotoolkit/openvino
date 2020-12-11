@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/split_conv_concat.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(SplitConvConcat, CompareWithRefImpl) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

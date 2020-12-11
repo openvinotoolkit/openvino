@@ -11,7 +11,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
     InferenceEngine::Precision,        //Network precision
@@ -33,4 +33,4 @@ protected:
     void SetUp() override;
     void Run() override;
 };
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

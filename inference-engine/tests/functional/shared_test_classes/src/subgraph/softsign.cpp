@@ -6,7 +6,7 @@
 #include "shared_test_classes/subgraph/softsign.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string SoftsignTest::getTestCaseName(testing::TestParamInfo<softsignParams> obj) {
     InferenceEngine::Precision netPrecision;
@@ -70,4 +70,4 @@ std::shared_ptr<ngraph::Function> SoftsignTest::GenerateNgraphFriendlySoftSign()
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(mul) };
     return std::make_shared<ngraph::Function>(results, params, "SoftSignTest");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

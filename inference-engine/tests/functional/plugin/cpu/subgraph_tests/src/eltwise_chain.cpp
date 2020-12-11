@@ -20,7 +20,7 @@ using InferenceEngine::Precision;
 using ngraph::helpers::EltwiseTypes;
 using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
 
-namespace CPULayerTestsDefinitions {
+namespace CPUSubgraphTestsDefinitions {
 
 typedef std::tuple<
         std::vector<std::vector<size_t>>,        // Input shapes
@@ -181,4 +181,4 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
                         EltwiseChainTest::getTestCaseName);
 
 } // namespace
-} // namespace CPULayerTestsDefinitions
+} // namespace CPUSubgraphTestsDefinitions

@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using ngraph::helpers::QuantizationGranularity;
 
@@ -74,4 +74,4 @@ void QuantMatMulTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantMatMul");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -5,7 +5,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/subgraph/scaleshift.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string ScaleShiftLayerTest::getTestCaseName(const testing::TestParamInfo<ScaleShiftParamsTuple> &obj) {
         std::vector<std::vector<size_t>> inputShapes;
         InferenceEngine::Precision netPrecision;
@@ -38,4 +38,4 @@ namespace LayerTestsDefinitions {
         auto add = std::make_shared<ngraph::opset1::Add>(mul, add_const);
         function = std::make_shared<ngraph::Function>(add, paramsIn, "scale_shift");
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

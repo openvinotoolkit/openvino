@@ -7,7 +7,7 @@
 #include <ngraph/pass/low_latency.hpp>
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 TEST_P(Basic_LSTM_S, CompareWithRefImpl) {
     Run();
 };
@@ -61,4 +61,4 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
     const auto& actualOutputs = GetOutputs();
     Compare(referenceOutputs, actualOutputs);
 };
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

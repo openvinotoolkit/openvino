@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/multioutput_eltwise_squeeze_eltwise.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(MultioutputEltwiseReshapeEltwise, CompareWithRefs){
     Run();
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

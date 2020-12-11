@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/concat_quantization.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ConcatQuantization::getTestCaseName(testing::TestParamInfo<concatQuantizationParams> obj) {
     InferenceEngine::Precision netPrecision;
@@ -57,4 +57,4 @@ void ConcatQuantization::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "ConcatQuantization");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

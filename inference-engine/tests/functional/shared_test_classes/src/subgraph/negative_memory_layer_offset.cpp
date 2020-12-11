@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/negative_memory_layer_offset.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string NegativeMemoryOffsetTest::getTestCaseName(const testing::TestParamInfo<NegativeMemoryLayerOffsetTuple>& obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetName;
@@ -89,4 +89,4 @@ namespace LayerTestsDefinitions {
         switchToNgraphFriendlyModel();
         Validate();
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

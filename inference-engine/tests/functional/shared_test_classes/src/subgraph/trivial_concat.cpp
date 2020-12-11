@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/trivial_concat.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string TrivialConcatLayerTest::getTestCaseName(const testing::TestParamInfo<trivialConcatParamsTuple> &obj) {
     int axis;
@@ -55,4 +55,4 @@ void TrivialConcatLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(act)};
     function = std::make_shared<ngraph::Function>(results, params, "trivial_concat");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/split_relu.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     std::string SplitRelu::getTestCaseName(const testing::TestParamInfo<SplitReluTuple> &obj) {
         std::vector<std::vector<size_t>> input;
         std::vector<size_t > connect_input;
@@ -39,4 +39,4 @@ namespace LayerTestsDefinitions {
         }
         function = std::make_shared<ngraph::Function>(results, input, "split_relu");
     }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

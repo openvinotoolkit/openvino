@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/delayed_copy_layer.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(DelayedCopyTest, CompareWithRefs) {
     Run();
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

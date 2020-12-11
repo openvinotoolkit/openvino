@@ -10,7 +10,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 using ShapeAxesTuple = std::pair<std::vector<size_t>, std::vector<int>>;
 
 using ReshapeSqueezeReshapeReluTuple = typename std::tuple<
@@ -28,4 +28,4 @@ public:
 protected:
     void SetUp() override;
 };
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

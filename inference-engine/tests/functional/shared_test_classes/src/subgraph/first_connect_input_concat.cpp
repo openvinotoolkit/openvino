@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/first_connect_input_concat.hpp"
 
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ConcatFirstInputTest::getTestCaseName(testing::TestParamInfo<concatFirstInputParams> obj) {
     std::vector<std::vector<size_t>> inputShapes;
@@ -37,4 +37,4 @@ void ConcatFirstInputTest::SetUp() {
 
     function = std::make_shared<ngraph::Function>(results, params, "ConcatMultiInput");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

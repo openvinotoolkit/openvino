@@ -13,14 +13,14 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-typedef std::tuple<
-    std::vector<std::vector<size_t>>,   // Input shapes
-    InferenceEngine::Precision,         // Network Precision
-    std::string,                        // Target Device
-    std::map<std::string, std::string>  // Config
-> concatMultiParams;
+namespace SubgraphTestsDefinitions {
 
-namespace LayerTestsDefinitions {
+typedef std::tuple<
+        std::vector<std::vector<size_t>>,   // Input shapes
+        InferenceEngine::Precision,         // Network Precision
+        std::string,                        // Target Device
+        std::map<std::string, std::string>  // Config
+> concatMultiParams;
 
 class ConcatMultiInput : public testing::WithParamInterface<concatMultiParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
@@ -38,4 +38,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/broadcast_power.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(BroadcastPowerTest, CompareWithRefImpl) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

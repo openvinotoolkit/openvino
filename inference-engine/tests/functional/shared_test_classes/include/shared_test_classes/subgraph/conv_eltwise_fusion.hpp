@@ -10,7 +10,7 @@
 #include <ngraph/shape.hpp>
 #include <ngraph/node.hpp>
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
         ngraph::NodeTypeInfo,       // Convolution type
@@ -34,4 +34,4 @@ public:
 protected:
     void SetUp() override;
 };
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -8,7 +8,7 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using ActivationConcatsEltwiseParamsTuple = typename std::tuple<
     size_t,                             // input size
@@ -28,4 +28,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

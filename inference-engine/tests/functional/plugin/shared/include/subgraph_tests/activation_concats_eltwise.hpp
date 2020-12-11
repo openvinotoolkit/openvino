@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ActivationConcatsEltwise, CompareWithRefs) {
     Run();
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

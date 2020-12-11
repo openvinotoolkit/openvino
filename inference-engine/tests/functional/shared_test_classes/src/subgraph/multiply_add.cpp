@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/multiply_add.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 std::string MultiplyAddLayerTest::getTestCaseName(const testing::TestParamInfo<MultiplyAddParamsTuple> &obj) {
     std::vector<size_t> inputShapes;
     InferenceEngine::Precision netPrecision;
@@ -37,4 +37,4 @@ void MultiplyAddLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "multiplyAdd");
 }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -6,10 +6,10 @@
 
 #include "shared_test_classes/subgraph/handling_orientation_conv.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(HandlingOrientationClass, CompareWithRefs){
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

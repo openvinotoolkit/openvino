@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/convert_pad_to_group_conv.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ConvertPadToConvTests::getTestCaseName(const testing::TestParamInfo<PadParams> &obj) {
     ngraph::Shape input_shape;
@@ -41,4 +41,4 @@ void ConvertPadToConvTests::SetUp() {
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{relu}, ngraph::ParameterVector{param}, "pad");
     }
 }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -5,9 +5,9 @@
 
 #include "shared_test_classes/subgraph/scaleshift.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ScaleShiftLayerTest, CompareWithRefs){
     Run();
 };
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

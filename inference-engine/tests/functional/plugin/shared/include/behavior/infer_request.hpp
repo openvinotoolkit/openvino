@@ -637,7 +637,7 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     // return ngrpah::Function
     // GetNetwork(3000, 380) make inference around 20ms on GNA SW
     // so increases chances for getting RESULT_NOT_READY
-    function = LayerTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38);
+    function = SubgraphTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38);
     InferenceEngine::CNNNetwork cnnNet(function);
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);

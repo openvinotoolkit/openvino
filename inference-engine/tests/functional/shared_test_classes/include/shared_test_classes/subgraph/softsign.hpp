@@ -13,14 +13,14 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-typedef std::tuple<
-    InferenceEngine::Precision,          // Network Precision
-    std::string,                         // Target Device
-    std::map<std::string, std::string>,  // Configuration
-    std::vector<size_t>                  // Input Shapes
-> softsignParams;
+namespace SubgraphTestsDefinitions {
 
-namespace LayerTestsDefinitions {
+typedef std::tuple<
+        InferenceEngine::Precision,          // Network Precision
+        std::string,                         // Target Device
+        std::map<std::string, std::string>,  // Configuration
+        std::vector<size_t>                  // Input Shapes
+> softsignParams;
 
 class SoftsignTest : public testing::WithParamInterface<softsignParams>,
                      public LayerTestsUtils::LayerTestsCommon {
@@ -36,4 +36,4 @@ private:
     std::shared_ptr<ngraph::Function> GenerateNgraphFriendlySoftSign();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

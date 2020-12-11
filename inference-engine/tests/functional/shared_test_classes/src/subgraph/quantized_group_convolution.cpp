@@ -6,7 +6,7 @@
 
 using ngraph::helpers::QuantizationGranularity;
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string QuantGroupConvLayerTest::getTestCaseName(testing::TestParamInfo<quantGroupConvLayerTestParamsSet> obj) {
     quantGroupConvSpecificParams groupConvParams;
@@ -93,4 +93,4 @@ void QuantGroupConvLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolution");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

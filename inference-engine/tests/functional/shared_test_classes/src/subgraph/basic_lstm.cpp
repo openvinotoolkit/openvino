@@ -6,7 +6,7 @@
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string Basic_LSTM_S::getTestCaseName(testing::TestParamInfo<basicLstmParams> obj) {
     InferenceEngine::Precision netPrecision;
@@ -165,4 +165,4 @@ std::vector<std::vector<std::uint8_t>> Basic_LSTM_S::CalculateRefs() {
     return referenceOutputs;
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

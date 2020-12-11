@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
 #include "common_test_utils/xml_net_builder/ir_net.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using namespace CommonTestUtils;
 using namespace InferenceEngine;
@@ -79,4 +79,4 @@ void SplitConcatMemory::SetUp() {
             ngraph::ParameterVector {input},
             "CyclicBuffer4");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -4,7 +4,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/subgraph/activation_concats_eltwise.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using namespace CommonTestUtils;
 using namespace InferenceEngine;
@@ -52,4 +52,4 @@ void ActivationConcatsEltwise::SetUp() {
     auto final_reshape = std::make_shared<ngraph::op::v1::Reshape>(eltw, reshape_pattern, false);
     function = std::make_shared<ngraph::Function>(final_reshape, input, "ActivationConcatsEltwise");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

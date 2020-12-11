@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/reshape_squeeze_reshape_relu.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ReshapeSqueezeReshapeRelu, CompareWithRefs){
     Run();
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

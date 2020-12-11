@@ -4,9 +4,9 @@
 
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ConvEltwiseFusion, CompareWithRefs) {
     Run();
 }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -12,7 +12,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 typedef std::tuple<
         std::vector<std::vector<size_t>>, //input shapes and permute shapes
         InferenceEngine::Precision,       //Network precision
@@ -27,4 +27,4 @@ public:
 protected:
     void SetUp() override;
 };
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -8,7 +8,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
         std::vector<std::vector<size_t>>, //input shapes 1
@@ -28,4 +28,4 @@ public:
 protected:
     void SetUp() override;
 };
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

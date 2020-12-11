@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/quantized_convolution_backprop_data.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 using ngraph::helpers::QuantizationGranularity;
 
 std::string QuantConvBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet> obj) {
@@ -78,4 +78,4 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantConvolutionBackpropData");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/concat_multi_input.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ConcatMultiInput::getTestCaseName(testing::TestParamInfo<concatMultiParams> obj) {
     std::vector<std::vector<size_t>> inputShapes;
@@ -105,4 +105,4 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
     function = std::make_shared<ngraph::Function>(results, input_vector, "ConcatConstOnly");
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

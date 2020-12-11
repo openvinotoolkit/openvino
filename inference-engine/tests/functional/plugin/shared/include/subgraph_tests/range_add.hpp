@@ -6,7 +6,7 @@
 
 #include "shared_test_classes/subgraph/range_add.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(RangeAddSubgraphTest, CompareWithRefs) {
     Run();
@@ -16,4 +16,4 @@ TEST_P(RangeNumpyAddSubgraphTest, CompareWithRefs) {
     Run();
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

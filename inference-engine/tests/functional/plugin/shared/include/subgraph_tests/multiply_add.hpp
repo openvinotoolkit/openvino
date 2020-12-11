@@ -5,10 +5,10 @@
 
 #include "shared_test_classes/subgraph/multiply_add.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(MultiplyAddLayerTest, CompareWithRefs) {
     Run();
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

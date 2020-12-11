@@ -13,22 +13,22 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
+namespace SubgraphTestsDefinitions {
+
 typedef std::tuple<
-    std::vector<size_t>,                 // Input Shapes
-    std::vector<size_t>,                 // Kernel Shape
-    size_t                               // Stride
+        std::vector<size_t>,                 // Input Shapes
+        std::vector<size_t>,                 // Kernel Shape
+        size_t                               // Stride
 > convParams;
 
 typedef std::tuple<
-    InferenceEngine::Precision,          // Network Precision
-    std::string,                         // Target Device
-    std::map<std::string, std::string>,  // Configuration
-    convParams,                          // Convolution Params
-    size_t,                              // Output Channels
-    bool                                 // If Add Reshape at the end of the model to reshape to 2D
+        InferenceEngine::Precision,          // Network Precision
+        std::string,                         // Target Device
+        std::map<std::string, std::string>,  // Configuration
+        convParams,                          // Convolution Params
+        size_t,                              // Output Channels
+        bool                                 // If Add Reshape at the end of the model to reshape to 2D
 > inputConvParams;
-
-namespace LayerTestsDefinitions {
 
 class InputConvTest : public testing::WithParamInterface<inputConvParams>,
                      public LayerTestsUtils::LayerTestsCommon {
@@ -40,4 +40,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

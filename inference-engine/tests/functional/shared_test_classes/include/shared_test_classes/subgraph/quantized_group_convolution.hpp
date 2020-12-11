@@ -13,6 +13,8 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
+namespace SubgraphTestsDefinitions {
+
 typedef std::tuple<
         InferenceEngine::SizeVector,
         InferenceEngine::SizeVector,
@@ -30,8 +32,6 @@ typedef std::tuple<
         InferenceEngine::SizeVector,
         LayerTestsUtils::TargetDevice> quantGroupConvLayerTestParamsSet;
 
-namespace LayerTestsDefinitions {
-
 class QuantGroupConvLayerTest : public testing::WithParamInterface<quantGroupConvLayerTestParamsSet>,
                                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
@@ -41,4 +41,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

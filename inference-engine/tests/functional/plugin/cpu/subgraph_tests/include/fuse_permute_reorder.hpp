@@ -15,7 +15,7 @@
 
 using namespace CPUTestUtils;
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using FusePermuteAndReorderParams = std::tuple<
         InferenceEngine::SizeVector,    // Input shape
@@ -46,4 +46,4 @@ protected:
     void CreateGraph() override;
 };
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

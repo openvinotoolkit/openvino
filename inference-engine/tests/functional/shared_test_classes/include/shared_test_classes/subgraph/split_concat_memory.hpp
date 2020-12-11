@@ -8,7 +8,7 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 using SplitConcatMemoryParamsTuple = typename std::tuple<
     std::vector<size_t>,         // input shapes
@@ -29,4 +29,4 @@ protected:
     int axis;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -6,7 +6,7 @@
 
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     auto ie = PluginCache::get().ie();
@@ -61,4 +61,4 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     Compare(o_blob_ref, o_blob);
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

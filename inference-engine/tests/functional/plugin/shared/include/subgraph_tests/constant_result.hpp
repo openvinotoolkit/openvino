@@ -6,11 +6,11 @@
 
 #include "shared_test_classes/subgraph/constant_result.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
     Run();
 }
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions
 

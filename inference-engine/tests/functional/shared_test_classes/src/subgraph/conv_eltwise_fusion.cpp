@@ -8,7 +8,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ConvEltwiseFusion::getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams> &obj) {
     ngraph::NodeTypeInfo conv_type, eltwise_type;
@@ -86,4 +86,4 @@ void ConvEltwiseFusion::SetUp() {
 
     ASSERT_EQ(cloned_function->get_ops().size(), expected_number_of_ops);
 }
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions
