@@ -71,7 +71,7 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
         "top_k": int_dtype(16),
         "variance_encoded_in_target": True,
         "keep_top_k": np.array([64, 32, 16, 8], dtype=int_dtype),
-        "code_type": "pytorch.some_parameter_name",
+        "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
         "share_location": False,
         "nms_threshold": fp_dtype(0.645),
         "confidence_threshold": fp_dtype(0.111),
@@ -97,7 +97,7 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
     assert node.get_top_k() == int_dtype(16)
     assert node.get_variance_encoded_in_target()
     assert np.all(np.equal(node.get_keep_top_k(), np.array([64, 32, 16, 8], dtype=int_dtype)))
-    assert node.get_code_type() == "pytorch.some_parameter_name"
+    assert node.get_code_type() == "caffe.PriorBoxParameter.CENTER_SIZE"
     assert not node.get_share_location()
     assert np.isclose(node.get_nms_threshold(), fp_dtype(0.645))
     assert np.isclose(node.get_confidence_threshold(), fp_dtype(0.111))
