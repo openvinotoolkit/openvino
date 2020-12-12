@@ -89,8 +89,6 @@ const std::vector<ngraph::op::EpsMode> epsMode = {
         ngraph::op::EpsMode::MAX,
 };
 
-std::vector<Precision> inpOutPrc = {Precision::BF16};
-
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
