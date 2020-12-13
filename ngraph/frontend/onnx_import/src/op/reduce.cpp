@@ -6,7 +6,7 @@
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
-//
+//dfy6
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -54,7 +54,7 @@ namespace ngraph
                         const auto reduction_axes = node.get_ng_inputs().at(1);
                         const auto reduction_axes_rank = reduction_axes.get_partial_shape().rank();
                         NGRAPH_CHECK(reduction_axes_rank.is_static(),
-                            "The axes tensor's rank needs to be known(static). Node: ",
+                        "The axes tensor's rank needs to be known(static). Node: ",
                             node.get_description());
                         if(reduction_axes_rank.get_length() == 0)
                         {
@@ -64,7 +64,6 @@ namespace ngraph
                                     input_rank.get_length());
                                 return default_opset::Constant::create(
                                     element::i64, Shape{all_axes.size()}, all_axes);
-                                
                             }
                             else
                             {
@@ -143,8 +142,6 @@ namespace ngraph
                         return default_opset::Constant::create(
                             element::i64, Shape{reduction_axes.size()}, reduction_axes);
                     }
-                    
-                    
                 }
 
                 template <typename OpType>
@@ -153,11 +150,10 @@ namespace ngraph
                 {
                     const std::int64_t keepdims =
                         node.get_attribute_value<std::int64_t>("keepdims", 1);
-
+                    
                     if(axes_as_attr)
                     {
                         const auto reduction_axes = get_reduction_axes_from_attr(node);
-                        std::cout << "test3" << std::endl;
                         return std::make_shared<OpType>(ng_input, reduction_axes, static_cast<bool>(keepdims));
                     }
                     else
@@ -174,7 +170,7 @@ namespace ngraph
                 OutputVector reduce_sum(const Node& node)
                 {
                     return {make_ng_reduction_op<default_opset::ReduceSum>(
-                        node, node.get_ng_inputs().at(0), true)};
+                        node, node.get_ng_inputs().at(0), false)};
                 }
             } // namespace set_13
 
