@@ -49,6 +49,7 @@ namespace ngraph
                         node.get_attribute_value<std::int64_t>("noop_with_empty_axes", 0);
                     const auto input = node.get_ng_inputs().at(0);
                     const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+                    const std::int64_t reduction_axes_static_rank_length = 0;
                     if(node.get_ng_inputs().size() > 1)
                     {
                         const auto reduction_axes = node.get_ng_inputs().at(1);
@@ -56,46 +57,30 @@ namespace ngraph
                         NGRAPH_CHECK(reduction_axes_rank.is_static(),
                         "The axes tensor's rank needs to be known(static). Node: ",
                             node.get_description());
-                        if(reduction_axes_rank.get_length() == 0)
-                        {
-                            if (input_rank.is_static())
-                            {
-                                auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
-                                    input_rank.get_length());
-                                return default_opset::Constant::create(
-                                    element::i64, Shape{all_axes.size()}, all_axes);
-                            }
-                            else
-                            {
-                                return get_dynamic_all_axes_range(node);
-                            }
-                        }
-                        else
+
+                        if(reduction_axes_rank.get_length() != 0)
                         {
                             return reduction_axes.get_node_shared_ptr();
                         }
-                        
-                    }else
+                    }
+
+                    if(noop_with_empty_axes)
                     {
-                        if(noop_with_empty_axes)
+                        return default_opset::Constant::create(element::i64, Shape{}, {0});
+                    }
+                    else
+                    {
+                        if (input_rank.is_static())
                         {
-                            return default_opset::Constant::create(element::i64, Shape{}, {0});
+                            auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
+                                input_rank.get_length());
+                            return default_opset::Constant::create(
+                                element::i64, Shape{all_axes.size()}, all_axes);
                         }
                         else
                         {
-                            if (input_rank.is_static())
-                            {
-                                auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
-                                    input_rank.get_length());
-                                return default_opset::Constant::create(
-                                    element::i64, Shape{all_axes.size()}, all_axes);
-                            }
-                            else
-                            {
-                                return get_dynamic_all_axes_range(node);
-                            }
+                            return get_dynamic_all_axes_range(node);
                         }
-                        
                     }
                     
                 }
@@ -118,6 +103,7 @@ namespace ngraph
 
                             reduction_axes = onnx_import::common::get_monotonic_range<int64_t>(
                                 input_rank.get_length());
+
                             return default_opset::Constant::create(
                             element::i64, Shape{reduction_axes.size()}, reduction_axes);
                         }
@@ -151,17 +137,8 @@ namespace ngraph
                     const std::int64_t keepdims =
                         node.get_attribute_value<std::int64_t>("keepdims", 1);
                     
-                    if(axes_as_attr)
-                    {
-                        const auto reduction_axes = get_reduction_axes_from_attr(node);
-                        return std::make_shared<OpType>(ng_input, reduction_axes, static_cast<bool>(keepdims));
-                    }
-                    else
-                    {
-                        const auto reduction_axes = get_reduction_axes_from_input(node);
-                        return std::make_shared<OpType>(ng_input, reduction_axes, static_cast<bool>(keepdims));
-                    }
-                    
+                    const auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node) : get_reduction_axes_from_input(node);
+                    return std::make_shared<OpType>(ng_input, reduction_axes, static_cast<bool>(keepdims));                    
                 }
             } // namespace
 
