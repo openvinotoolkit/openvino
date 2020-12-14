@@ -20,9 +20,6 @@ from extensions.ops.BatchNormInference import BatchNormInference
 from extensions.ops.BatchNormTraining import BatchNormTraining
 from mo.front.tf.common import tf_data_type_decode
 
-def tf_dtype_extractor(pb_dtype, default=None):
-    return tf_data_type_decode[pb_dtype][0] if pb_dtype in tf_data_type_decode else default
-
 
 class FusedBatchNormBaseExtractor(FrontExtractorOp):
     enabled = True
@@ -34,8 +31,7 @@ class FusedBatchNormBaseExtractor(FrontExtractorOp):
         attrs = {
             'data_format': pb.attr["data_format"].s,
             'data_type': tf_dtype_extractor(pb.attr["T"].type),
-            'eps': pb.attr['epsilon'].f,
-            'is_training': is_training, #TODO Exclude from Fused batch norm operations
+            'eps': pb.attr['epsilon'].f
         }
         (BatchNormTraining if is_training else BatchNormInference)\
         .update_node_stat(node, attrs)
