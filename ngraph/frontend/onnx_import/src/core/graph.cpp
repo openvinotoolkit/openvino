@@ -334,9 +334,10 @@ namespace ngraph
                                 if (m_cache->node_scope(out_name) == NodeScope::SubGraph)
                                 {
                                     auto out_node_to_replace_input = m_cache->get_node(out_name);
-                                    const auto new_param = std::make_shared<ngraph::op::Parameter>(
+                                    auto new_param = std::make_shared<ngraph::op::Parameter>(
                                         from_parent_node.get_element_type(),
                                         from_parent_node.get_partial_shape());
+                                    new_param->set_friendly_name(in_name);
                                     // replace input from parent scope with parameter
                                     out_node_to_replace_input.get_node()
                                         ->input(input_index)
