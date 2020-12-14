@@ -27,8 +27,13 @@ typedef std::tuple<
         InferenceEngine::Layout,           // Output layout
         std::string                        // Device name
 > gatherParamsTuple;
-class GatherLayerTest : public testing::WithParamInterface<gatherParamsTuple>,
-                        virtual public LayerTestsUtils::LayerTestsCommon {
+
+class GatherLayerTestBase : virtual public LayerTestsUtils::LayerTestsCommon {
+protected:
+    void SetUp(const gatherParamsTuple& params);
+};
+
+class GatherLayerTest : public testing::WithParamInterface<gatherParamsTuple>, public GatherLayerTestBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj);
 

@@ -31,12 +31,13 @@ namespace ngraph
             PoolingFactory::PoolingFactory(const Node& node)
                 : m_onnx_node{node}
                 , m_inputs{node.get_ng_inputs()}
-                , m_strides{convpool::get_strides(node)}
-                , m_dilations{convpool::get_dilations(node)}
+                , m_kernel_shape(node.get_attribute_value<std::vector<std::size_t>>("kernel_shape"))
+                , m_strides{convpool::get_strides(node, m_kernel_shape.size())}
+                , m_dilations{convpool::get_dilations(node, m_kernel_shape.size())}
                 , m_auto_pad{convpool::get_auto_pad(node)}
                 , m_rounding_type{convpool::get_rounding_type(node)}
             {
-                const auto paddings = convpool::get_pads(node);
+                const auto paddings = convpool::get_pads(node, m_kernel_shape.size());
                 const CoordinateDiff& padding_above{paddings.second};
                 const CoordinateDiff& padding_below{paddings.first};
                 m_padding_below = Shape{std::begin(padding_below), std::end(padding_below)};
@@ -66,13 +67,6 @@ namespace ngraph
                                                                  m_kernel_shape,
                                                                  m_rounding_type,
                                                                  m_auto_pad)};
-            }
-
-            LocalPoolingFactory::LocalPoolingFactory(const Node& node)
-                : PoolingFactory(node)
-            {
-                // Kernel shape is required
-                m_kernel_shape = node.get_attribute_value<std::vector<std::size_t>>("kernel_shape");
             }
         } // namespace pooling
     }     // namespace onnx_import

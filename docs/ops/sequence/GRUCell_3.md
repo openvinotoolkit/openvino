@@ -43,9 +43,9 @@
 * *linear_before_reset*
 
   * **Description**: *linear_before_reset* flag denotes if the layer behaves according to the modification of *GRUCell* described in the formula in the [ONNX documentation](https://github.com/onnx/onnx/blob/master/docs/Operators.md#GRU).
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 **Inputs**

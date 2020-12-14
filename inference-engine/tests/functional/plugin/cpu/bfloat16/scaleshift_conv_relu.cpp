@@ -93,7 +93,7 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 7e-2;
+        threshold = 9e-2;
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
