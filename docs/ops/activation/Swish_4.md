@@ -9,9 +9,9 @@
 **Detailed description**: For each element from the input tensor calculates corresponding
 element in the output tensor with the following formula: 
 
-    \f[
-    Swish(x) = x / (1.0 + e^{-(beta * x)})
-    \f]
+\f[
+Swish(x) = x / (1.0 + e^{-(beta * x)})
+\f]
 
 The Swish operation is introduced in the [article](https://arxiv.org/pdf/1710.05941.pdf).
 
