@@ -44,13 +44,13 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('op', dict(kind='op', op=lambda op: op in ['batchNormInferenceTraining']))],
+                ('op', dict(kind='op', op=lambda op: op in ['batchNormTraining']))],
             edges=[]
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
         node = match['op']
-        node.is_training = False
+        #node.is_training = False
 
         shape = node.in_port(1).data.get_shape()
         assert shape is not None, 'The shape of scale input of the BatchNorm node {} is not defined'.format(node.name)

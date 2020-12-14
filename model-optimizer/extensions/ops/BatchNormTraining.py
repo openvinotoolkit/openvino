@@ -18,12 +18,12 @@ from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
-class BatchNormInferenceTraining(Op):
+class BatchNormTraining(Op):
     """
     BatchNormInference will be replaced by BNToScaleShift FrontReplacer for Caffe or convert_batch_norm 
     function for other frameworks
     """
-    op = 'batchNormInferenceTraining'
+    op = 'batchNormTraining'
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):

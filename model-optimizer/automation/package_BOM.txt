@@ -615,7 +615,7 @@ extensions/ops/assert_op.py
 extensions/ops/aten.py
 extensions/ops/axpy.py
 extensions/ops/BatchNormInference.py
-extensions/ops/BatchNormInferenceTraining.py
+extensions/ops/BatchNormTraining.py
 extensions/ops/binarization.py
 extensions/ops/BlockLSTM.py
 extensions/ops/box_nms.py

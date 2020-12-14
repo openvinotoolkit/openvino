@@ -17,12 +17,13 @@
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 from extensions.ops.BatchNormInference import BatchNormInference
-from extensions.ops.BatchNormInferenceTraining import BatchNormInferenceTraining
+from extensions.ops.BatchNormTraining import BatchNormTraining
 from mo.front.tf.common import tf_data_type_decode
 
 def tf_dtype_extractor(pb_dtype, default=None):
     return tf_data_type_decode[pb_dtype][0] if pb_dtype in tf_data_type_decode else default
-    
+
+
 class FusedBatchNormBaseExtractor(FrontExtractorOp):
     enabled = True
 
@@ -36,20 +37,23 @@ class FusedBatchNormBaseExtractor(FrontExtractorOp):
             'eps': pb.attr['epsilon'].f,
             'is_training': is_training, #TODO Exclude from Fused batch norm operations
         }
-        (BatchNormInferenceTraining if is_training else BatchNormInference)\
+        (BatchNormTraining if is_training else BatchNormInference)\
         .update_node_stat(node, attrs)
+
 
 class FusedBatchNormExtractor(FusedBatchNormBaseExtractor):
     op = "FusedBatchNorm"
     
     def __init__(self):
         super().__init__(self)
-        
+
+
 class FusedBatchNormV2Extractor(FusedBatchNormBaseExtractor):
     op = "FusedBatchNormV2"
     
     def __init__(self):
         super().__init__(self)
+
 
 class FusedBatchNormV3Extractor(FusedBatchNormBaseExtractor):
     op = "FusedBatchNormV3"

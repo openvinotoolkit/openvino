@@ -40,7 +40,7 @@ class FusedBatchNormNonConstant(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('op', dict(kind='op', op=lambda op: op in ['batchNormInference', 'batchNormInferenceTraining']))],
+                ('op', dict(kind='op', op=lambda op: op in ['batchNormInference', 'batchNormTraining']))],
             edges=[]
         )
 
