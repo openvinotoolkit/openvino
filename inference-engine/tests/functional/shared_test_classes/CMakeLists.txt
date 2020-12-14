@@ -28,6 +28,6 @@ addIeTarget(
 )
 
 ie_faster_build(${TARGET_NAME}
-        PCH PRIVATE "precomp.hpp"
+        PCH PRIVATE "src/precomp.hpp"
         )
 

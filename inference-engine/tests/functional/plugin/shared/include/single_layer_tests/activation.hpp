@@ -12,8 +12,8 @@ TEST_P(ActivationLayerTest, CompareWithRefs) {
     Run();
 }
 
-//TEST_P(ActivationParamLayerTest, CompareWithRefs) {
-//    Run();
-//}
+TEST_P(ActivationParamLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

@@ -6,4 +6,4 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
-void PreparePluginConfiguration(LayerTestsUtils::LayerTestsCommon* test);
+void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test);

@@ -3,6 +3,7 @@
 //
 #include <fstream>
 
+#include <transformations/serialize.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <ngraph/opsets/opset.hpp>
@@ -11,7 +12,7 @@
 
 #include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/plugin_config.hpp"
+#include "functional_test_utils/core_config.hpp"
 
 namespace LayerTestsUtils {
 
@@ -322,7 +323,7 @@ void LayerTestsCommon::ConfigureNetwork() {
 
 void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
-    PreparePluginConfiguration(this);
+    CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
@@ -479,7 +480,7 @@ std::string LayerTestsCommon::GetTimestamp() {
     return std::to_string(ns.count());
 }
 
-std::string LayerTestsCommon::GetTestName() {
+const std::string LayerTestsCommon::GetTestName() {
     std::string test_name =
             ::testing::UnitTest::GetInstance()->current_test_info()->name();
     std::replace_if(test_name.begin(), test_name.end(),

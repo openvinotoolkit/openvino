@@ -17,8 +17,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/bfloat16.hpp>
 
-#include "transformations/serialize.hpp"
-
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -215,8 +213,8 @@ protected:
 
 private:
     RefMode refMode = RefMode::INTERPRETER;
-    std::string GetTimestamp();
-    std::string GetTestName();
+    static std::string GetTimestamp();
+    const std::string GetTestName();
 };
 
 }  // namespace LayerTestsUtils
