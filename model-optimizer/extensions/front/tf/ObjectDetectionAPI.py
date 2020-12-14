@@ -483,9 +483,7 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_nodes_to_remove = match.matched_nodes_names()
         # do not remove nodes that perform input image scaling and mean value subtraction
-        for node_to_keep in ('Preprocessor/sub', 'Preprocessor/sub/y', 'Preprocessor/mul', 'Preprocessor/mul/x',
-                             'StatefulPartitionedCall/Preprocessor/sub', 'StatefulPartitionedCall/Preprocessor/sub/y',
-                             'StatefulPartitionedCall/Preprocessor/mul', 'StatefulPartitionedCall/Preprocessor/mul/x'):
+        for node_to_keep in ('Preprocessor/sub', 'Preprocessor/sub/y', 'Preprocessor/mul', 'Preprocessor/mul/x'):
             if node_to_keep in new_nodes_to_remove:
                 new_nodes_to_remove.remove(node_to_keep)
         return new_nodes_to_remove
@@ -543,17 +541,13 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
         graph.graph['preprocessed_image_width'] = placeholder_node.shape[get_width_dim(layout, 4)]
 
         to_float_node = placeholder_node.out_port(0).get_destination().node
-        if to_float_node.soft_get('op') == 'Identity':
-            to_float_node = to_float_node.out_port(0).get_destination().node
         if to_float_node.soft_get('op') != 'Cast':
             raise Error('The output of the node "{}" is not Cast operation. Cannot apply transformation.'.format(
                 initial_input_node_name))
 
         if self.is_preprocessing_applied_before_resize(to_float_node, mul_node, sub_node):
             # connect sub node directly to nodes which consume resized image
-            resize_output_node_id = 'Preprocessor/map/TensorArrayStack/TensorArrayGatherV3' if \
-                'Preprocessor/map/TensorArrayStack/TensorArrayGatherV3' in graph.nodes else \
-                'StatefulPartitionedCall/Preprocessor/stack'
+            resize_output_node_id = 'Preprocessor/map/TensorArrayStack/TensorArrayGatherV3'
             if resize_output_node_id not in graph.nodes:
                 raise Error('There is no expected node "{}" in the graph.'.format(resize_output_node_id))
             resize_output = Node(graph, resize_output_node_id)

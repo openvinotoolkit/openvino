@@ -1,30 +1,12 @@
 [
     {
         "custom_attributes": {
+            "start_nodes": ["StatefulPartitionedCall/Preprocessor/unstack"],
+            "end_nodes": ["StatefulPartitionedCall/Preprocessor/stack",
+                          "StatefulPartitionedCall/Preprocessor/stack_1"]
         },
-        "id": "ObjectDetectionAPIPreprocessorReplacement",
-        "inputs": [
-            [
-                {
-                    "node": "unstack$",
-                    "port": 0
-                }
-            ]
-        ],
-        "instances": [
-            ".*Preprocessor/"
-        ],
-        "match_kind": "scope",
-        "outputs": [
-            {
-                "node": "sub$",
-                "port": 0
-            },
-            {
-                "node": "stack_1$",
-                "port": 0
-            }
-        ]
+        "id": "ObjectDetectionAPIPreprocessor2Replacement",
+        "match_kind": "general"
     },
     {
         "custom_attributes": {
