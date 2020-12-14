@@ -1,45 +1,41 @@
-# Extending the MXNet Model Optimizer with New Primitives  {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives}
+# Extending Model Optimizer for Custom MXNet* Operations {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives}
 
-This section describes how you can create a Model Optimizer extension for a custom layer from your MXNet* model. It supplements the main document [Extending Model Optimizer with New Primitives](Extending_Model_Optimizer_with_New_Primitives.md) and provides a step-by-step procedure. To create an extension for a particular layer, perform the following steps:
+This section provides instruction on how to support a custom MXNet operation (or as it called in the MXNet documentation
+"operator" or "layer") which is not a part of the MXNet operation set. For example, if the operator is implemented using
+the following [guide](https://mxnet.apache.org/versions/1.7.0/api/faq/new_op.html).
 
-1.  Create the file `custom_proposal_ext.py` in the folder `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/mxnet`
-If your MXNet layer has op `Custom`, create the `CustomProposalFrontExtractor` class inherited from `MXNetCustomFrontExtractorOp`:
+This section describes a procedure on how to extract operator attributes in the Model Optimizer. The rest of the
+operation enabling pipeline and documentation on how to support MXNet operations from standard MXNet operation set is
+described in the main document [Customize_Model_Optimizer](Customize_Model_Optimizer.md).
+
+## Writing Extractor for Custom MXNet Operation
+Custom MXNet operations have an attribute `op` (defining the type of the operation) equal to `Custom` and attribute
+`op_type` which is an operation type defined by an user. Implement extractor class inherited from the
+`MXNetCustomFrontExtractorOp` class instead of `FrontExtractorOp` class used for standard framework operations in order
+to extract attributes for such kind of operations. The `op` class attribute value should be set to the `op_type` value
+so the extractor is triggered for this kind of operation.
+
+There is the example of the extractor for the custom operation registered with type (`op_type` value) equal to
+`MyCustomOp` having attribute `my_attribute` of the floating point type with default value `5.6`. In this sample we
+assume that we have already created the `CustomOp` class (inherited from `Op` class) for the Model Optimizer operation
+for this MXNet custom operation as described in the [Customize_Model_Optimizer](Customize_Model_Optimizer.md).
+
 ```py
-from mo.front.extractor import MXNetCustomFrontExtractorOp
-class CustomProposalFrontExtractor(MXNetCustomFrontExtractorOp):
-    pass
-```
-Otherwise, for layers that are not standard MXNet layers, create the `ProposalFrontExtractor` class inherited from `FrontExtractorOp`:
-```py
-    from mo.front.extractor import FrontExtractorOp
-    class ProposalFrontExtractor(FrontExtractorOp):
-        pass
-```
-2.  Specify the operation that the extractor refers to and a specific flag. The flag represents whether the operation should be used by the Model Optimizer or should be excluded from processing:
-```py
-from mo.front.extractor import MXNetCustomFrontExtractorOp
-class CustomProposalFrontExtractor(MXNetCustomFrontExtractorOp):
-    op = '_contrib_Proposal'
-    enabled = True
-```
-3.  Register a mapping rule between the original model and the `PythonProposalOp` attributes by overriding the following function:
-```py
+from extension.ops.custom_op import CustomOp  # implementation of the MO operation class
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.front.extractor import MXNetCustomFrontExtractorOp
-from mo.ops.op import Op
 
-class CustomProposalFrontExtractor(MXNetCustomFrontExtractorOp):
-    op = '_contrib_Proposal'
-    enabled = True
+class CustomProposalFrontExtractor(MXNetCustomFrontExtractorOp):  # inherit from specific base class
+    op = 'MyCustomOp'  # the value corresponding to the `op_type` value of the MXNet operation
+    enabled = True  # the extractor is enabled
+
     @staticmethod
     def extract(node):
-    attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        attrs = get_mxnet_layer_attrs(node.symbol_dict)  # parse the attributes to a dictionary with string values
         node_attrs = {
-            'feat_stride': attrs.float('feat_stride', 16)
+            'my_attribute': attrs.float('my_attribute', 5.6)
         }
-        
-        # update the attributes of the node
-        Op.get_op_class_by_name('Proposal').update_node_stat(node, node_attrs) # <------ here goes the name ('Proposal') of the Operation that was implemented before
-        return __class__.enabled
-```
 
+        CustomOp.update_node_stat(node, node_attrs)  # update the attributes of the node
+        return self.enabled
+```
