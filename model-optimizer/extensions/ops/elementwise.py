@@ -88,6 +88,13 @@ class Add(Elementwise):
     op_type = 'Add'
     operation = staticmethod(lambda a, b: a + b)
 
+    def __init__(self, graph: Graph, attrs: dict):
+        attrs.update({'auto_broadcast': 'numpy'})
+        super().__init__(graph, attrs)
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class BiasAdd(Add):
     op_type = 'BiasAdd'

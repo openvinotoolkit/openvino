@@ -48,7 +48,7 @@ class Pooling(Op):
             ('exclude-pad', 'exclude_pad'),
 
             'rounding_type',
-            'auto_pad',
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
         ]
 
     @staticmethod
