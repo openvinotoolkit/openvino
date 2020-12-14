@@ -69,7 +69,7 @@ bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
-    visitor.on_attribute("exclude_pad", m_exclude_pad);
+    visitor.on_attribute("exclude-pad", m_exclude_pad);
     visitor.on_attribute("auto_pad", m_auto_pad);
     visitor.on_attribute("rounding_type", m_rounding_type);
     return true;
