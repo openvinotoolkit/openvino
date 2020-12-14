@@ -18,7 +18,7 @@ from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 from extensions.ops.BatchNormInference import BatchNormInference
 from extensions.ops.BatchNormTraining import BatchNormTraining
-from mo.front.tf.common import tf_data_type_decode
+from mo.front.tf.common import tf_dtype_extractor
 
 
 class FusedBatchNormBaseExtractor(FrontExtractorOp):
