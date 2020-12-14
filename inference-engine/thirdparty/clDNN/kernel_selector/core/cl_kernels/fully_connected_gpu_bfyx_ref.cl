@@ -33,7 +33,7 @@ KERNEL(fc)(
     const uint oym = oxfm % OUTPUT_SIZE_Y;
     const uint ofm = oxfm / OUTPUT_SIZE_Y;
 
-    ACCUMULATOR_TYPE dotProd = (ACCUMULATOR_TYPE)0;
+    ACCUMULATOR_TYPE dotProd = ACCUMULATOR_VAL_ZERO;
 
     for (uint y = 0; y < INPUT0_SIZE_Y; ++y)
     {
@@ -51,7 +51,7 @@ KERNEL(fc)(
     const uint ofm = get_global_id(0);
     const uint b = get_global_id(1);
 
-    ACCUMULATOR_TYPE dotProd = (ACCUMULATOR_TYPE)0;
+    ACCUMULATOR_TYPE dotProd = ACCUMULATOR_VAL_ZERO;
 
     for (uint ifm = 0; ifm < INPUT0_FEATURE_NUM; ++ifm)
     {

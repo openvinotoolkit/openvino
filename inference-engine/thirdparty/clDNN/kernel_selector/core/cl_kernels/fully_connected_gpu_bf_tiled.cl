@@ -148,7 +148,7 @@ KERNEL(fc)(
         // Load input.
         #define LOAD_IN_0(bi) do {                                  \
                 in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                 \
+                input_offset += TILE_IN_B_PITCH;                    \
             } while (false)
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
@@ -258,7 +258,7 @@ KERNEL(fc)(
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
         #define WRITE_OUTPUT(bi) do {                                       \
                 OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
-                output_offset += TILE_OUT_B_PITCH;                        \
+                output_offset += TILE_OUT_B_PITCH;                          \
             } while (false)
 
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
@@ -269,8 +269,8 @@ KERNEL(fc)(
         // TODO: Investigate why below code doesn't compile and check how it affects performance.
         //#define WRITE_OUTPUT_FEATURE(fi) do {                                                   \
         //        const bool should_write =                                                       \
-        //            TILE_OUT_F_NUM %  (TILE_OFM * SIMD) == 0 ||                             \
-        //            out_f + (fi) * SIMD + get_sub_group_local_id() < TILE_OUT_F_NUM;        \
+        //            TILE_OUT_F_NUM %  (TILE_OFM * SIMD) == 0 ||                                 \
+        //            out_f + (fi) * SIMD + get_sub_group_local_id() < TILE_OUT_F_NUM;            \
         //        if (should_write) {                                                             \
         //            output[output_offset] = result[out_bi][fi];                                 \
         //        }                                                                               \
@@ -280,7 +280,7 @@ KERNEL(fc)(
         //#define WRITE_OUTPUT(bi) do {                                                           \
         //        const uint out_bi = bi;                                                         \
         //        CONST_LOOP(TILE_OFM, WRITE_OUTPUT_FEATURE);                                     \
-        //        output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;                          \
+        //        output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;                            \
         //    } while (false)
         //
         //CONST_LOOP(TILE_B, WRITE_OUTPUT);
@@ -290,7 +290,7 @@ KERNEL(fc)(
         for (uint bi = 0; bi < TILE_B; ++bi) {
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
-                    TILE_OUT_F_NUM %  (TILE_OFM * SIMD) == 0 ||
+                    TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
                     out_f + fi * SIMD + get_sub_group_local_id() < TILE_OUT_F_NUM;
                 if (should_write) {
                     output[output_offset] = ((OUTPUT_TYPE*)(&result[bi]))[fi];

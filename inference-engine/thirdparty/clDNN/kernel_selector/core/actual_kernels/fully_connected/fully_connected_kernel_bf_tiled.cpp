@@ -283,8 +283,6 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.Merge(MakeConstantLoopUnrollJitConstants(dispatchData.tile_m));
 
     bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.inputs[0].GetFirstElementOffset() % 2 != 0;
-    // bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.inputs[0].Y().v % 2 != 0;
-    // realign_fp16_offset = false;
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));
 
     auto activation_dt = GetActivationType(params);
