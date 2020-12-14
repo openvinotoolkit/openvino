@@ -91,8 +91,8 @@ const auto planar_5D_ref = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref"}, "ref"};
 const auto planar_4D = CPUSpecificParams{{nchw}, {nchw}, {}, "unknown"};
 const auto planar_5D = CPUSpecificParams{{ncdhw}, {ncdhw}, {}, "unknown"};
 
-const auto planarChannels_4D = CPUSpecificParams{{nhwc}, {nhwc}, {}, "ref"};
-const auto planarChannels_5D = CPUSpecificParams{{ndhwc}, {ndhwc}, {}, "ref"};
+const auto planarChannels_4D = CPUSpecificParams{{nhwc}, {nhwc}, {}, "unknown"};
+const auto planarChannels_5D = CPUSpecificParams{{ndhwc}, {ndhwc}, {}, "unknown"};
 
 const auto blocked8_4D = CPUSpecificParams{{nChw8c}, {nChw8c}, {}, "unknown"};
 const auto blocked8_5D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {}, "unknown"};

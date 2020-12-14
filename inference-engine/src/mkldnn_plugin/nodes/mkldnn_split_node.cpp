@@ -128,8 +128,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     if (axis < 1) {
         dynBatchSupport = false;
     }
-    auto makePdInfo = [dynBatchSupport](TensorDescFactory getTensorDesc, const Precision& precision,
-                                        const MKLDNNDims& srcDims, const std::vector<MKLDNNDims>& outDims) -> PrimitiveDescInfo {
+    auto makePdInfo = [dynBatchSupport](TensorDescFactory getTensorDesc, const Precision& precision,  const MKLDNNDims& srcDims,
+                                        const std::vector<MKLDNNDims>& outDims, impl_desc_type type) -> PrimitiveDescInfo {
         InferenceEngine::LayerConfig config;
 
         config.dynBatchSupport = dynBatchSupport;
@@ -149,14 +149,14 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             config.outConfs[i].desc = getTensorDesc(precision, o_Dims.ToSizeVector());
             outFormats.push_back(MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat());
         }
-        return {config, impl_desc_type::ref, outFormats};
+        return {config, type, outFormats};
     };
 
     //Set plain format
-    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims));
+    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref));
 
-    //Set per channel format
-    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims));
+    //Set per channel format. Since we don't have inPlace implementation for nhwc, we use unknown impl type to increase its priority
+    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::unknown));
 
     //Support channel blocked format
     std::vector<size_t> blockedPdIndexes;
@@ -176,7 +176,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             if (blocked) {
                 using std::placeholders::_1;
                 using std::placeholders::_2;
-                supportedPrimitiveDescriptors.push_back(makePdInfo(std::bind(&makeChannelBlockedTensorDesc, _1, _2, sizeS), inpPrecision, srcDims, outDims));
+                supportedPrimitiveDescriptors.push_back(makePdInfo(std::bind(&makeChannelBlockedTensorDesc, _1, _2, sizeS),
+                                                                   inpPrecision, srcDims, outDims, impl_desc_type::ref));
                 blockedPdIndexes.push_back(supportedPrimitiveDescriptors.size() - 1);
             }
         }
@@ -251,7 +252,7 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
         optimizedParams.countStrides = optimizedParams.countStrides / batch * MB;
 
     parallel_for2d(this->getChildEdges().size(), optimizedParams.countStrides, [&](size_t i, size_t j) {
-        uint8_t* dstData = getDataPtr(this->getChildEdgeAt(i)->getMemory());
+        uint8_t* dstData = optimizedParams.dstMemPtrs[i];
 
         cpu_memcpy(&dstData[j * optimizedParams.dataSize[i]],
                    &srcData[optimizedParams.srcDataOffsets[i] + j * optimizedParams.srcDataStride],
@@ -366,7 +367,14 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
 
     optimizedParams.srcDataStride = 0;
     optimizedParams.dataSize.resize(this->getChildEdges().size());
+    optimizedParams.dstMemPtrs.clear();
     for (int i = 0; i < this->getChildEdges().size(); i++) {
+        if (uint8_t* dstData = getDataPtr(this->getChildEdgeAt(i)->getMemory())) {
+            optimizedParams.dstMemPtrs.push_back(dstData);
+        } else {
+            THROW_ERROR << "can't get child edge indx " << i << "data.";
+        }
+
         optimizedParams.dataSize[i] = srcDataSize;
 
         for (int j = axisOrderPos; j < nDims; j++)

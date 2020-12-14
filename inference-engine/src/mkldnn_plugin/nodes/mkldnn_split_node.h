@@ -34,6 +34,7 @@ private:
     struct {
         std::vector<size_t> dataSize;
         std::vector<size_t> srcDataOffsets;
+        std::vector<uint8_t *> dstMemPtrs;
         size_t srcDataStride;
         size_t countStrides;
     } optimizedParams;
