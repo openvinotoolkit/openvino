@@ -75,17 +75,15 @@ namespace ngraph
                     }
                     else
                     {
-                        if (input_rank.is_static())
-                        {
-                            auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
-                                input_rank.get_length());
-                            return default_opset::Constant::create(
-                                element::i64, Shape{all_axes.size()}, all_axes);
-                        }
-                        else
-                        {
-                            return get_dynamic_all_axes_range(node);
-                        }
+                        NGRAPH_CHECK(
+                            input_rank.is_static(),
+                            "The input tensor's rank needs to be known(static) when the "
+                            "'axes' attribute is not specified. Node: ",
+                            node.get_description());
+                        auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
+                            input_rank.get_length());
+                        return default_opset::Constant::create(
+                            element::i64, Shape{all_axes.size()}, all_axes);
                     }
                 }
 
@@ -98,24 +96,14 @@ namespace ngraph
 
                     if (reduction_axes.empty())
                     {
-                        if (input_rank.is_static())
-                        {
-                            NGRAPH_CHECK(
-                                input_rank.is_static(),
-                                "The input tensor's rank needs to be known(static) when the "
-                                "'axes' attribute is not specified. Node: ",
-                                node.get_description());
+                        NGRAPH_CHECK(
+                            input_rank.is_static(),
+                            "The input tensor's rank needs to be known(static) when the "
+                            "'axes' attribute is not specified. Node: ",
+                            node.get_description());
 
-                            reduction_axes = onnx_import::common::get_monotonic_range<int64_t>(
-                                input_rank.get_length());
-
-                            return default_opset::Constant::create(
-                                element::i64, Shape{reduction_axes.size()}, reduction_axes);
-                        }
-                        else
-                        {
-                            return get_dynamic_all_axes_range(node);
-                        }
+                        reduction_axes = onnx_import::common::get_monotonic_range<int64_t>(
+                            input_rank.get_length());
                     }
                     else
                     {
@@ -129,10 +117,10 @@ namespace ngraph
                                              input_rank.get_length(),
                                              ")");
                         }
-
-                        return default_opset::Constant::create(
-                            element::i64, Shape{reduction_axes.size()}, reduction_axes);
                     }
+
+                    return default_opset::Constant::create(
+                            element::i64, Shape{reduction_axes.size()}, reduction_axes);
                 }
 
                 template <typename OpType>
