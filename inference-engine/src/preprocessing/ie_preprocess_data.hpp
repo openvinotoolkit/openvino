@@ -38,12 +38,14 @@ public:
      * @brief Sets ROI blob to be resized and placed to the default input blob during pre-processing.
      * @param blob ROI blob.
      */
+    //FIXME: rename to setUserBlob
     virtual void setRoiBlob(const Blob::Ptr &blob) = 0;
 
     /**
      * @brief Gets pointer to the ROI blob used for a given input.
      * @return Blob pointer.
      */
+    //FIXME: rename to getUserBlob
     virtual Blob::Ptr getRoiBlob() const = 0;
 
     /**
@@ -53,8 +55,9 @@ public:
      * @param serial disable OpenMP threading if the value set to true.
      * @param batchSize batch size for pre-processing.
      */
-    virtual void execute(Blob::Ptr &outBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) = 0;
+    virtual void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) = 0;
 
+    //FIXME: rename to verifyAplicable
     virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;
 };
 

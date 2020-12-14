@@ -758,7 +758,7 @@ class PreProcessData : public IPreProcessData {
     /**
      * @brief ROI blob.
      */
-    Blob::Ptr _roiBlob = nullptr;
+    Blob::Ptr _userBlob = nullptr;
     Blob::Ptr _tmp1 = nullptr;
     Blob::Ptr _tmp2 = nullptr;
 
@@ -773,7 +773,7 @@ public:
 
     Blob::Ptr getRoiBlob() const override;
 
-    void execute(Blob::Ptr &outBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) override;
+    void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial, int batchSize = -1) override;
 
     void Release() noexcept override;
 
@@ -790,36 +790,37 @@ void PreProcessData::Release() noexcept {
 }
 
 void PreProcessData::setRoiBlob(const Blob::Ptr &blob) {
-    _roiBlob = blob;
+    _userBlob = blob;
 }
 
 Blob::Ptr PreProcessData::getRoiBlob() const {
-    return _roiBlob;
+    return _userBlob;
 }
 
-void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, bool serial,
+void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial,
         int batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Preprocessing");
 
     auto algorithm = info.getResizeAlgorithm();
     auto fmt = info.getColorFormat();
 
-    if (algorithm == NO_RESIZE && fmt == ColorFormat::RAW) {
-       THROW_IE_EXCEPTION << "Input pre-processing is called without the pre-processing info set: "
-                             "there's nothing to be done";
+    if (_userBlob == nullptr || preprocessedBlob == nullptr) {
+        THROW_IE_EXCEPTION << "Input pre-processing is called with null " << (_userBlob == nullptr ? "_userBlob" : "preprocessedBlob");
     }
 
-    if (_roiBlob == nullptr) {
-        THROW_IE_EXCEPTION << "Input pre-processing is called without ROI blob set";
-    }
-
-    batchSize = PreprocEngine::getCorrectBatchSize(batchSize, _roiBlob);
+    batchSize = PreprocEngine::getCorrectBatchSize(batchSize, _userBlob);
 
     if (!_preproc) {
         _preproc.reset(new PreprocEngine);
     }
-    if (_preproc->preprocessWithGAPI(_roiBlob, outBlob, algorithm, fmt, serial, batchSize)) {
+
+    if (_preproc->preprocessWithGAPI(_userBlob, preprocessedBlob, algorithm, fmt, serial, batchSize)) {
         return;
+    }
+
+    if (algorithm == NO_RESIZE) {
+       THROW_IE_EXCEPTION << "Input pre-processing is called without the pre-processing info set: "
+                             "there's nothing to be done";
     }
 
     if (batchSize > 1) {
@@ -834,37 +835,37 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
     }
 
     Blob::Ptr res_in, res_out;
-    if (_roiBlob->getTensorDesc().getLayout() == NHWC) {
-        if (!_tmp1 || _tmp1->size() != _roiBlob->size()) {
-            if (_roiBlob->getTensorDesc().getPrecision() == Precision::FP32) {
-                _tmp1 = make_shared_blob<float>({Precision::FP32, _roiBlob->getTensorDesc().getDims(), Layout::NCHW});
+    if (_userBlob->getTensorDesc().getLayout() == NHWC) {
+        if (!_tmp1 || _tmp1->size() != _userBlob->size()) {
+            if (_userBlob->getTensorDesc().getPrecision() == Precision::FP32) {
+                _tmp1 = make_shared_blob<float>({Precision::FP32, _userBlob->getTensorDesc().getDims(), Layout::NCHW});
             } else {
-                _tmp1 = make_shared_blob<uint8_t>({Precision::U8, _roiBlob->getTensorDesc().getDims(), Layout::NCHW});
+                _tmp1 = make_shared_blob<uint8_t>({Precision::U8, _userBlob->getTensorDesc().getDims(), Layout::NCHW});
             }
             _tmp1->allocate();
         }
 
         {
             OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Reorder before");
-            blob_copy(_roiBlob, _tmp1);
+            blob_copy(_userBlob, _tmp1);
         }
         res_in = _tmp1;
     } else {
-        res_in = _roiBlob;
+        res_in = _userBlob;
     }
 
-    if (outBlob->getTensorDesc().getLayout() == NHWC) {
-        if (!_tmp2 || _tmp2->size() != outBlob->size()) {
-            if (outBlob->getTensorDesc().getPrecision() == Precision::FP32) {
-                _tmp2 = make_shared_blob<float>({Precision::FP32, outBlob->getTensorDesc().getDims(), Layout::NCHW});
+    if (preprocessedBlob->getTensorDesc().getLayout() == NHWC) {
+        if (!_tmp2 || _tmp2->size() != preprocessedBlob->size()) {
+            if (preprocessedBlob->getTensorDesc().getPrecision() == Precision::FP32) {
+                _tmp2 = make_shared_blob<float>({Precision::FP32, preprocessedBlob->getTensorDesc().getDims(), Layout::NCHW});
             } else {
-                _tmp2 = make_shared_blob<uint8_t>({Precision::U8, outBlob->getTensorDesc().getDims(), Layout::NCHW});
+                _tmp2 = make_shared_blob<uint8_t>({Precision::U8, preprocessedBlob->getTensorDesc().getDims(), Layout::NCHW});
             }
             _tmp2->allocate();
         }
         res_out = _tmp2;
     } else {
-        res_out = outBlob;
+        res_out = preprocessedBlob;
     }
 
     {
@@ -874,7 +875,7 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
 
     if (res_out == _tmp2) {
         OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Reorder after");
-        blob_copy(_tmp2, outBlob);
+        blob_copy(_tmp2, preprocessedBlob);
     }
 }
 
