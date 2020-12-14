@@ -40,6 +40,8 @@ public:
     void InferImpl() override;
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
+    InferenceEngine::StatusCode Cancel() override;
+
     // pipeline methods-stages which are used in async infer request implementation and assigned to particular executor
     void inferPreprocess();
     void startPipeline();

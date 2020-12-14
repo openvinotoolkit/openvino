@@ -235,7 +235,8 @@ enum StatusCode : int {
     RESULT_NOT_READY = -9,
     NOT_ALLOCATED = -10,
     INFER_NOT_STARTED = -11,
-    NETWORK_NOT_READ = -12
+    NETWORK_NOT_READ = -12,
+    INFER_CANCELLED = -13
 };
 
 /**

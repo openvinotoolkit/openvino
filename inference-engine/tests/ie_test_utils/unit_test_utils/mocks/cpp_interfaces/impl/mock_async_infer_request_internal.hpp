@@ -32,4 +32,6 @@ public:
     MOCK_METHOD1(setNetworkOutputs, void(OutputsDataMap));
     MOCK_METHOD2(GetBlob, void(const char *name, Blob::Ptr &));
     MOCK_METHOD1(SetCompletionCallback, void(IInferRequest::CompletionCallback));
+    MOCK_METHOD0(Cancel, InferenceEngine::StatusCode());
+    MOCK_METHOD0(Cancel_ThreadUnsafe, InferenceEngine::StatusCode());
 };
