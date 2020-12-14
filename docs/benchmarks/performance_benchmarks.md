@@ -221,7 +221,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **Accelerator Inference Engines**
 
-|                                         | Intel® Neural Compute Stick 2         | Intel® Vision Accelerator Design<br>with Intel® Movidius™ VPUs (Uzel* UI-AR8) | 
+|                                         | Intel® Neural Compute Stick 2         | Intel® Vision Accelerator Design<br>with Intel® Movidius™ VPUs (Mustang-V100-MX8) | 
 | --------------------------------------- | ------------------------------------- | ------------------------------------- |
 | VPU                                     | 1 X Intel® Movidius™ Myriad™ X MA2485 | 8 X Intel® Movidius™ Myriad™ X MA2485 |
 | Connection                              | USB 2.0/3.0                           | PCIe X4                               |
