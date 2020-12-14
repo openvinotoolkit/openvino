@@ -539,6 +539,7 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::aBdefc4b,
         mkldnn::memory::format_tag::aBdefc8b,
 
+        mkldnn::memory::format_tag::Abcdef8a,
         mkldnn::memory::format_tag::Abcdef16a,
         mkldnn::memory::format_tag::Abcdef32a,
         mkldnn::memory::format_tag::aBCdef2b4c2b,
