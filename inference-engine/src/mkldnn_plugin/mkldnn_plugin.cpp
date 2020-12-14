@@ -7,6 +7,7 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
+#include <ngraph/pass/visualize_tree.hpp>
 
 #include <legacy/net_pass.h>
 #include <threading/ie_executor_manager.hpp>
@@ -96,6 +97,10 @@ Engine::~Engine() {
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork->getFunction();
+
+    ngraph::pass::Manager manager0;
+    manager0.register_pass<ngraph::pass::VisualizeTree>("/home/user/openvino-opensource/new-openvino/openvino/mask_rcnn_ngraph_before_transforms.png");
+    manager0.run_passes(nGraphFunc);
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
