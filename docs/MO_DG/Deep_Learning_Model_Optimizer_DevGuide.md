@@ -22,48 +22,29 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
 ## What's New in the Model Optimizer in this Release?
 
 * Common changes:
-    * Implemented several optimization transformations to replace sub-graphs of operations with HSwish, Mish, Swish and SoftPlus operations.
-    * Model Optimizer generates IR keeping shape-calculating sub-graphs **by default**. Previously, this behavior was triggered if the "--keep_shape_ops" command line parameter was provided. The key is ignored in this release and will be deleted in the next release. To trigger the legacy behavior to generate an IR for a fixed input shape (folding ShapeOf operations and shape-calculating sub-graphs to Constant), use the "--static_shape" command line parameter. Changing model input shape using the Inference Engine API in runtime may fail for such an IR.
-    * Fixed Model Optimizer conversion issues resulted in non-reshapeable IR using the Inference Engine reshape API.
-    * Enabled transformations to fix non-reshapeable patterns in the original networks:
-        * Hardcoded Reshape
-            * In Reshape(2D)->MatMul pattern
-            * Reshape->Transpose->Reshape when the pattern can be fused to the ShuffleChannels or DepthToSpace operation
-        * Hardcoded Interpolate
-            * In Interpolate->Concat pattern
-        * Added a dedicated requirements file for TensorFlow 2.X as well as the dedicated install prerequisites scripts.
-        * Replaced the SparseToDense operation with ScatterNDUpdate-4.
+    * Updated requirements for the numpy component to avoid compatibility issues with TensorFlow 1.x.
+    * Improved reshape-ability of models with eltwise and CTCGreedyDecoder operations
 * ONNX*:
-    * Enabled an ability to specify the model output **tensor** name using the "--output" command line parameter.
     * Added support for the following operations:
-        * Acosh
-        * Asinh
-        * Atanh
-        * DepthToSpace-11, 13
-        * DequantizeLinear-10 (zero_point must be constant)
-        * HardSigmoid-1,6
-        * QuantizeLinear-10 (zero_point must be constant)
-        * ReduceL1-11, 13
-        * ReduceL2-11, 13
-        * Resize-11, 13 (except mode="nearest" with 5D+ input, mode="tf_crop_and_resize", and attributes exclude_outside and extrapolation_value with non-zero values)
-        * ScatterND-11, 13
-        * SpaceToDepth-11, 13
+        * Loop-11, 13
+        * Round-11
+        * GatherND-11, 12, 13
 * TensorFlow*:
+    * Added support for the TensorFlow Object Detection API models with pre-processing block when mean/scale values are applied prior to resizing of the image. Previously only the case when mean/scale values are applied after the resize was supported.
+    * Aligned FakeQuantized limits adjustment with TensorFlow approach
     * Added support for the following operations:
-        * Acosh
-        * Asinh
-        * Atanh
-        * CTCLoss
-        * EuclideanNorm
-        * ExtractImagePatches
-        * FloorDiv
+        * GatherND
+        * Round
+        * NonMaxSuppression
+        * LogSoftmax
+        * FakeQuantWithMinMaxVarsPerChannel
 * MXNet*:
     * Added support for the following operations:
-        * Acosh
-        * Asinh
-        * Atanh
+        * GatherND
+        * Round
 * Kaldi*:
-    * Fixed bug with ParallelComponent support. Now it is fully supported with no restrictions.
+    * Added support for the following operations:
+        * TdnnComponent
 
 > **NOTE:** 
 > [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
