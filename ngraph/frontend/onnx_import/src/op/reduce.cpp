@@ -75,11 +75,10 @@ namespace ngraph
                     }
                     else
                     {
-                        NGRAPH_CHECK(
-                            input_rank.is_static(),
-                            "The input tensor's rank needs to be known(static) when the "
-                            "'axes' attribute is not specified. Node: ",
-                            node.get_description());
+                        NGRAPH_CHECK(input_rank.is_static(),
+                                     "The input tensor's rank needs to be known(static) when the "
+                                     "'axes' attribute is not specified. Node: ",
+                                     node.get_description());
                         auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
                             input_rank.get_length());
                         return default_opset::Constant::create(
@@ -96,11 +95,10 @@ namespace ngraph
 
                     if (reduction_axes.empty())
                     {
-                        NGRAPH_CHECK(
-                            input_rank.is_static(),
-                            "The input tensor's rank needs to be known(static) when the "
-                            "'axes' attribute is not specified. Node: ",
-                            node.get_description());
+                        NGRAPH_CHECK(input_rank.is_static(),
+                                     "The input tensor's rank needs to be known(static) when the "
+                                     "'axes' attribute is not specified. Node: ",
+                                     node.get_description());
 
                         reduction_axes = onnx_import::common::get_monotonic_range<int64_t>(
                             input_rank.get_length());
@@ -120,7 +118,7 @@ namespace ngraph
                     }
 
                     return default_opset::Constant::create(
-                            element::i64, Shape{reduction_axes.size()}, reduction_axes);
+                        element::i64, Shape{reduction_axes.size()}, reduction_axes);
                 }
 
                 template <typename OpType>
