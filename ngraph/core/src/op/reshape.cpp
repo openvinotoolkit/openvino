@@ -97,7 +97,6 @@ namespace
             }
             else
             {
-                // Dimension(Interval) is a private ctor, so we use public one here
                 output_shape[i] = pattern_dim;
                 output_product *= pattern_dim;
             }
@@ -117,7 +116,7 @@ namespace
         {
             if (output_product.get_min_length() == 0 && output_product.get_max_length() == 0)
             {
-                // TODO(amprocte): Decide if this is desired behavior here. (NumPy seems
+                // TODO: Decide if this is desired behavior here. (NumPy seems
                 // to fail.)
                 NODE_VALIDATION_CHECK(reshape_node,
                                       input_product.get_min_length() == 0 &&
