@@ -50,3 +50,7 @@ class Conv_extender(Extender):
         op['pad'] = int64_array(pad)
 
         op['spatial_dims'] = [i + 2 for i in range(dim)]
+
+        # We need this workaround to not to break shape inference function
+        if op.has_valid('auto_pad') and op.auto_pad == 'explicit':
+            op['auto_pad'] = None
