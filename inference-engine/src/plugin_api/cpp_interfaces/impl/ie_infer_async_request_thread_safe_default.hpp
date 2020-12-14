@@ -163,6 +163,15 @@ public:
     virtual std::chrono::high_resolution_clock::time_point GetHardwareTimeStamp() {
         return _syncRequest->GetHardwareTimeStamp();
     }
+   
+   StatusCode Cancel() override { 
+        StatusCode status = Wait(IInferRequest::WaitMode::STATUS_ONLY);
+        if (status == INFER_NOT_STARTED) {
+            return status;
+        }
+        return _syncRequest->Cancel();
+   }
+
 protected:
     /**
      * @brief Each pipeline stage is a @ref Task that is executed by specified ITaskExecutor implementation
