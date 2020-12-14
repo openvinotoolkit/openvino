@@ -408,7 +408,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
         std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
-        std::make_shared<LayerCreator<ngraph::op::v1::MaxPool>>("MaxPool"),
         std::make_shared<LayerCreator<ngraph::op::v1::NonMaxSuppression>>("NonMaxSuppression"),
         std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
@@ -1111,46 +1110,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::AvgPool>::
 
     return std::make_shared<ngraph::op::v1::AvgPool>(inputs[0], strides, pads_begin, pads_end, kernel, exclude_pad,
                                                      rounding_type, pad_type);
-}
-
-// MaxPool layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::MaxPool>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto kernel = ngraph::Shape(getParameters<size_t>(dn, "kernel"));
-    auto pads_begin = ngraph::Shape(getParameters<std::size_t>(dn, "pads_begin"));
-    auto pads_end = ngraph::Shape(getParameters<std::size_t>(dn, "pads_end"));
-    auto pad_type = ngraph::op::PadType::EXPLICIT;
-
-    auto pad_type_str = GetStrAttr(dn, "auto_pad", "");
-    if (pad_type_str == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (pad_type_str == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (pad_type_str == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    ngraph::op::RoundingType rounding_type;
-    auto str_rounding_type = GetStrAttr(dn, "rounding_type", "floor");
-    if (str_rounding_type == "floor") {
-        rounding_type = ngraph::op::RoundingType::FLOOR;
-    } else if (str_rounding_type == "ceil") {
-        rounding_type = ngraph::op::RoundingType::CEIL;
-    } else {
-        THROW_IE_EXCEPTION << "Unsuppored rounding type: " << str_rounding_type;
-    }
-
-    return std::make_shared<ngraph::op::v1::MaxPool>(inputs[0], strides, pads_begin, pads_end, kernel, rounding_type,
-                                                     pad_type);
 }
 
 // PSROIPooling layer
