@@ -18,7 +18,11 @@ from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 from extensions.ops.BatchNormInference import BatchNormInference
 from extensions.ops.BatchNormInferenceTraining import BatchNormInferenceTraining
+from mo.front.tf.common import tf_data_type_decode
 
+def tf_dtype_extractor(pb_dtype, default=None):
+    return tf_data_type_decode[pb_dtype][0] if pb_dtype in tf_data_type_decode else default
+    
 class FusedBatchNormBaseExtractor(FrontExtractorOp):
     enabled = True
 
