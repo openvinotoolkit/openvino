@@ -589,10 +589,6 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         argv = graph.graph['cmd_params']
         if argv.tensorflow_object_detection_api_pipeline_config is None:
             raise Error(missing_param_error)
-        pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
-
-        start_nodes = replacement_descriptions['start_nodes']
-        end_nodes = replacement_descriptions['end_nodes']
 
         argv = graph.graph['cmd_params']
         layout = graph.graph['layout']
@@ -618,6 +614,9 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         # save the pre-processed image spatial sizes to be used in the other transformations
         graph.graph['preprocessed_image_height'] = placeholder_node.shape[get_height_dim(layout, 4)]
         graph.graph['preprocessed_image_width'] = placeholder_node.shape[get_width_dim(layout, 4)]
+
+        start_nodes = replacement_descriptions['start_nodes']
+        end_nodes = replacement_descriptions['end_nodes']
 
         assert len(start_nodes) >= 1
         assert start_nodes[0] in graph.nodes
