@@ -50,39 +50,21 @@ namespace ngraph
                 OutputVector clip(const Node& node)
                 {
                     const OutputVector inputs{node.get_ng_inputs()};
-                    const Output<ngraph::Node> data = inputs.at(0);
-                    const element::Type data_type = data.get_element_type();
-                    Output<ngraph::Node> min;
-                    Output<ngraph::Node> max;
+                    Output<ngraph::Node> result_node = inputs.at(0);
 
-                    // If second input is provided, assign to min input, otherwise set lowest
-                    // numeric limit of double as min input.
                     if (inputs.size() > 1 && !ngraph::op::is_null(inputs.at(1)))
                     {
-                        min = inputs.at(1);
-                    }
-                    else
-                    {
-                        min = builder::make_constant(
-                            data_type, Shape{}, std::numeric_limits<double>::lowest());
+                        result_node =
+                            std::make_shared<default_opset::Maximum>(result_node, inputs.at(1));
                     }
 
-                    // If third input is provided, assign to max input, otherwise set maximum
-                    // numeric limit of double as max input.
                     if (inputs.size() == 3 && !ngraph::op::is_null(inputs.at(2)))
                     {
-                        max = inputs.at(2);
-                    }
-                    else
-                    {
-                        max = builder::make_constant(
-                            data_type, Shape{}, std::numeric_limits<double>::max());
+                        result_node =
+                            std::make_shared<default_opset::Minimum>(result_node, inputs.at(2));
                     }
 
-                    const auto max_of_min_and_data =
-                        std::make_shared<default_opset::Maximum>(min, data);
-
-                    return {std::make_shared<default_opset::Minimum>(max, max_of_min_and_data)};
+                    return {result_node};
                 }
 
             } // namespace set_11
