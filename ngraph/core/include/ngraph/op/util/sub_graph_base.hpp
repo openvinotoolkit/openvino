@@ -49,7 +49,6 @@ namespace ngraph
                     virtual std::shared_ptr<InputDescription> copy() const = 0;
 
                     virtual const type_info_t& get_type_info() const = 0;
-                    virtual bool visit_attributes(AttributeVisitor& visitor);
 
                     uint64_t m_input_index{0};
                     uint64_t m_body_parameter_index{0};
@@ -84,7 +83,6 @@ namespace ngraph
                                           int64_t axis);
                     SliceInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                     int64_t m_start{0};
                     int64_t m_stride{0};
                     int64_t m_part_size{0};
@@ -117,7 +115,6 @@ namespace ngraph
                                            uint64_t body_value_index);
                     MergedInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                     uint64_t m_body_value_index{0};
                 };
 
@@ -139,7 +136,6 @@ namespace ngraph
                     InvariantInputDescription(uint64_t input_index, uint64_t body_parameter_index);
                     InvariantInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                 };
 
                 /// \brief Describes how a SubGraphOp output is produced from the body.
@@ -159,7 +155,6 @@ namespace ngraph
                     using type_info_t = DiscreteTypeInfo;
                     virtual ~OutputDescription() = default;
                     virtual std::shared_ptr<OutputDescription> copy() const = 0;
-                    virtual bool visit_attributes(AttributeVisitor& visitor);
                     virtual const type_info_t& get_type_info() const = 0;
 
                     uint64_t m_body_value_index{0};
@@ -193,7 +188,6 @@ namespace ngraph
                     ConcatOutputDescription() = default;
 
                     std::shared_ptr<OutputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                     int64_t m_start{0};
                     int64_t m_stride{0};
                     int64_t m_part_size{0};
@@ -220,7 +214,6 @@ namespace ngraph
                                           int64_t iteration);
                     BodyOutputDescription() = default;
                     std::shared_ptr<OutputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                     int64_t m_iteration{0};
                 };
 

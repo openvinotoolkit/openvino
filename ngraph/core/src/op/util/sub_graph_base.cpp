@@ -35,13 +35,6 @@ op::util::SubGraphOp::InputDescription::InputDescription(uint64_t input_index,
 {
 }
 
-bool op::util::SubGraphOp::InputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("input_index", m_input_index);
-    visitor.on_attribute("body_parameter_index", m_body_parameter_index);
-    return true;
-}
-
 op::util::SubGraphOp::SliceInputDescription::SliceInputDescription(uint64_t input_index,
                                                                    uint64_t body_parameter_index,
                                                                    int64_t start,
@@ -65,17 +58,6 @@ std::shared_ptr<op::util::SubGraphOp::InputDescription>
         m_input_index, m_body_parameter_index, m_start, m_stride, m_part_size, m_end, m_axis);
 }
 
-bool op::util::SubGraphOp::SliceInputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    InputDescription::visit_attributes(visitor);
-    visitor.on_attribute("start", m_start);
-    visitor.on_attribute("stride", m_stride);
-    visitor.on_attribute("part_size", m_part_size);
-    visitor.on_attribute("end", m_end);
-    visitor.on_attribute("axis", m_axis);
-    return true;
-}
-
 op::util::SubGraphOp::MergedInputDescription::MergedInputDescription(uint64_t input_index,
                                                                      uint64_t body_parameter_index,
                                                                      uint64_t body_value_index)
@@ -91,13 +73,6 @@ std::shared_ptr<op::util::SubGraphOp::InputDescription>
         m_input_index, m_body_parameter_index, m_body_value_index);
 }
 
-bool op::util::SubGraphOp::MergedInputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    InputDescription::visit_attributes(visitor);
-    visitor.on_attribute("body_value_index", m_body_value_index);
-    return true;
-}
-
 op::util::SubGraphOp::InvariantInputDescription::InvariantInputDescription(
     uint64_t input_index, uint64_t body_parameter_index)
     : InputDescription(input_index, body_parameter_index)
@@ -110,24 +85,11 @@ std::shared_ptr<op::util::SubGraphOp::InputDescription>
     return std::make_shared<InvariantInputDescription>(m_input_index, m_body_parameter_index);
 }
 
-bool op::util::SubGraphOp::InvariantInputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    InputDescription::visit_attributes(visitor);
-    return true;
-}
-
 op::util::SubGraphOp::OutputDescription::OutputDescription(uint64_t body_value_index,
                                                            uint64_t output_index)
     : m_body_value_index(body_value_index)
     , m_output_index(output_index)
 {
-}
-
-bool op::util::SubGraphOp::OutputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("body_value_index", m_body_value_index);
-    visitor.on_attribute("output_index", m_output_index);
-    return true;
 }
 
 op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
@@ -144,17 +106,6 @@ op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t 
     , m_end(end)
     , m_axis(axis)
 {
-}
-
-bool op::util::SubGraphOp::ConcatOutputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    OutputDescription::visit_attributes(visitor);
-    visitor.on_attribute("start", m_start);
-    visitor.on_attribute("stride", m_stride);
-    visitor.on_attribute("part_size", m_part_size);
-    visitor.on_attribute("end", m_end);
-    visitor.on_attribute("axis", m_axis);
-    return true;
 }
 
 std::shared_ptr<op::util::SubGraphOp::OutputDescription>
@@ -176,13 +127,6 @@ std::shared_ptr<op::util::SubGraphOp::OutputDescription>
     op::util::SubGraphOp::BodyOutputDescription::copy() const
 {
     return std::make_shared<BodyOutputDescription>(m_body_value_index, m_output_index, m_iteration);
-}
-
-bool op::util::SubGraphOp::BodyOutputDescription::visit_attributes(AttributeVisitor& visitor)
-{
-    OutputDescription::visit_attributes(visitor);
-    visitor.on_attribute("iteration", m_iteration);
-    return true;
 }
 
 op::util::SubGraphOp::SubGraphOp(const OutputVector& args)
