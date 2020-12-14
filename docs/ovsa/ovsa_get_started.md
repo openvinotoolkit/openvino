@@ -187,9 +187,9 @@ This example in this step uses the following names. Your configuration might use
 ```sh
 sudo netplan generate
 ```
-   ```sh
-   sudo netplan apply
-   ```	
+```sh
+sudo netplan apply
+```	
    A bridge is created and an IP address is assigned to the new bridge.
 6. Verify the new bridge:
    ```sh
@@ -296,11 +296,11 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    </details>
    <details><summary>Option 2: Manually install additional software</summary>
       <ol>   
-        <li>Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz)</li>
+        <li>Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz). 
       Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md</li>
-        <li>Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz)</li>
+        <li>Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz). 
       Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md</li>
-        <li>Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz)</li>
+        <li>Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz). 
       Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md</li>
         <li>Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)</li>
         <li>Shut down the Guest VM.</li>
@@ -349,7 +349,7 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
 ### Step 4: Set Up one Guest VM for the User role
 
 1. Choose ONE of these options to create a Guest VM for the User role:
-   <details><summary>Option 1: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image</summary>
+<details><summary>Option 1: Copy and Rename the <code>ovsa_isv_dev_vm_disk.qcow2</code> disk image</summary>
       1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#prerequisites">Step 3</a>.
       2. Boot the new image. 
       3. Change the hostname from `ovsa_isv_dev` to `ovsa_runtime`.  
@@ -367,8 +367,8 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    ```
       6. Shut down the Guest VM.<br><br>
       Click the triangled line above to close Option 1.
-   </details>
-   <details><summary>Option 2: Manually create the Guest VM</summary>
+</details>
+<details><summary>Option 2: Manually create the Guest VM</summary>
       1. Create an empty virtual disk image:
    ```sh
    sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
@@ -413,7 +413,7 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
             e. Shut down the Guest VM.<br><br>
             Click the triangled line to close Option 2.
          </details>
-    </details>
+</details>
 2. Create a directory to support the virtual TPM device. Only `root` should have read/write permission to this directory:
    ```sh
    sudo mkdir /var/OVSA/vtpm/vtpm_runtime
