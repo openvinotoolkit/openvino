@@ -133,9 +133,7 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
 10. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
 11. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/).	
-
-**NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
-
+   > **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
 12. If you are running behind a proxy, [set up a proxy for Docker](https://docs.docker.com/config/daemon/systemd/). 
 
 The following are installed and ready to use:
@@ -189,7 +187,6 @@ This example in this step uses the following names. Your configuration might use
    ```sh
    sudo netplan generate
    ```
-   
    ```sh
    sudo netplan apply
    ```	
@@ -289,24 +286,23 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    -vnc :1
    ```
 8. Choose ONE of these options to install additional required software:
-<details><summary>Option 1: Use a script to install additional software</summary>
-	a. Copy the script `install_guest_deps.sh` from the `Scripts/reference directory` of the OVSA repository to the Guest VM<br>
-	b. Run the script.<br>
-	c. Shut down the Guest VM.<br><br>
-	Click the triangled line to close Option 1
-</details>
-
-<details><summary>Option 2: Manually install additional software</summary>
-	a.  Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz)<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md<br>
-	b.  Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz)<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md<br>
-	c. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz)<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md<br>
-	d. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
-	e. Shut down the Guest VM.<br><br>
-	Click the triangled line to close Option 2
-</details>
+   <details><summary>Option 1: Use a script to install additional software</summary>
+      a. Copy the script `install_guest_deps.sh` from the `Scripts/reference directory` of the OVSA repository to the Guest VM<br>
+      b. Run the script.<br>
+      c. Shut down the Guest VM.<br><br>
+      Click the triangled line to close Option 1
+   </details>
+   <details><summary>Option 2: Manually install additional software</summary>
+      a. Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz)<br>
+      Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md<br>
+      b. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz)<br>
+      Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md<br>
+      c. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz)<br>
+      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md<br>
+      d. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
+      e. Shut down the Guest VM.<br><br>
+      Click the triangled line to close Option 2
+   </details>
 
 9. On the host, create a directory to support the virtual TPM device. Only `root` should have read/write permission to this directory:
    ```sh
@@ -314,36 +310,34 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    sudo mkdir /var/OVSA/vtpm
    sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
    ```
-
-**Note**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
+   > **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
  
 10. Start the vTPM on Host:
-	```sh
-	swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
-	 --tpm2 \
-     --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
-     --log level=20
-	```
+   ```sh
+   swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
+    --tpm2 \
+    --ctrl type=unixio,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
+    --log level=20
+   ```
 	
 11. Start the Guest VM:
-	```sh
-	sudo qemu-system-x86_64 \
-	 -cpu host \
-	 -enable-kvm \
-	 -m 8192 \
-	 -smp 8,sockets=1,cores=8,threads=1 \
-	 -device e1000,netdev=hostnet0,mac=52:54:00:d1:66:6f \
-	 -netdev tap,id=hostnet0,script=<path-to-scripts>/br0-qemu-ifup,downscript=<path-to-scripts>/br0-qemu-ifdown \
-	 -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
-	 -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
-	 -drive if=virtio,file=<path-to-disk-image>/ovsa_isv_dev_vm_disk.qcow2,cache=none \
-	 -chardev socket,id=chrtpm,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
-	 -tpmdev emulator,id=tpm0,chardev=chrtpm \
-	 -device tpm-tis,tpmdev=tpm0 \
-	 -vnc :1
-	```
-   
-	Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
+   ```sh
+   sudo qemu-system-x86_64 \
+    -cpu host \
+    -enable-kvm \
+    -m 8192 \
+    -smp 8,sockets=1,cores=8,threads=1 \
+    -device e1000,netdev=hostnet0,mac=52:54:00:d1:66:6f \
+    -netdev tap,id=hostnet0,script=<path-to-scripts>/br0-qemu-ifup,downscript=<path-to-scripts>/br0-qemu-ifdown \
+    -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+    -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+    -drive if=virtio,file=<path-to-disk-image>/ovsa_isv_dev_vm_disk.qcow2,cache=none \
+    -chardev socket,id=chrtpm,path=/var/OVSA/vtpm/vtpm_isv_dev/swtpm-sock \
+    -tpmdev emulator,id=tpm0,chardev=chrtpm \
+    -device tpm-tis,tpmdev=tpm0 \
+    -vnc :1
+   ```
+   Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
    
 12. Use a VNC client to log on to the Guest VM at `<host-ip-address>:1`
 
