@@ -26,7 +26,7 @@ from mo.ops.const import Const
 
 
 class ResizeToInterpolate2D(FrontReplacementSubgraph):
-    enabled = True
+    enabled = False
 
     def pattern(self):
         return dict(
@@ -107,7 +107,7 @@ class ResizeToInterpolate2D(FrontReplacementSubgraph):
 
 
 class ResizeToInterpolate3D(FrontReplacementSubgraph):
-    enabled = True
+    enabled = False
 
     def pattern(self):
         return dict(

@@ -28,7 +28,7 @@ from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.passes.convert_data_type import data_type_str_to_np
-from mo.middle.replacement import MiddleReplacementPattern
+from mo.front.common.replacement import FrontReplacementOp
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -45,25 +45,25 @@ def replace_resize(graph: Graph, resize: Node):
 
     sizes_ss = create_op_with_const_inputs(graph, StridedSlice,
                                            {1: int64_array([2]),
+                                            2: int64_array([0]),
                                             3: int64_array([1])},
                                            {'name': resize_name + '/sizes_ss_',
                                             'begin_mask': int64_array([1]),
-                                            'end_mask': int64_array([1]),
+                                            'end_mask': int64_array([0]),
                                             'new_axis_mask': int64_array([0]),
                                             'shrink_axis_mask': int64_array([0]),
                                             'ellipsis_mask': int64_array([0])})
     scales_ss = create_op_with_const_inputs(graph, StridedSlice,
                                             {1: int64_array([2]),
+                                             2: int64_array([0]),
                                              3: int64_array([1])},
                                             {'name': resize_name + '/scales_ss_',
                                              'begin_mask': int64_array([1]),
-                                             'end_mask': int64_array([1]),
+                                             'end_mask': int64_array([0]),
                                              'new_axis_mask': int64_array([0]),
                                              'shrink_axis_mask': int64_array([0]),
                                              'ellipsis_mask': int64_array([0])})
 
-    rank_node.out_port(0).connect(sizes_ss.in_port(2))
-    rank_node.out_port(0).connect(scales_ss.in_port(2))
     rank_node.out_port(0).connect(range_node.in_port(1))
 
     interpolate_node = Interpolate(graph, {'version': 'opset4',
@@ -115,16 +115,17 @@ def replace_resize(graph: Graph, resize: Node):
     resize.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
 
 
-class ONNXResize10ToInterpolate4(MiddleReplacementPattern):
+class ONNXResize10ToInterpolate4(FrontReplacementOp):
     """
     The transformation replaces ONNX Resize 10 with Interpolate-4.
     """
+    op = 'ONNXResize10'
     enabled = True
 
-    def run_before(self):
-        from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequenceToInterpolate
-        return [InterpolateSequenceToInterpolate]
+    def run_after(self):
+        from extensions.front.InterpolateNormalizer import InterpolateNormalizer
+        return [InterpolateNormalizer]
 
-    def find_and_replace_pattern(self, graph: Graph):
-        for resize in graph.get_op_nodes(op='ONNXResize10'):
-            replace_resize(graph, resize)
+    def replace_sub_graph(self, graph: Graph, match: dict):
+        resize = match['op']
+        replace_resize(graph, resize)
