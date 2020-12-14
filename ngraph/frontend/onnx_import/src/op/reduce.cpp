@@ -107,12 +107,12 @@ namespace ngraph
                     if (input_rank.is_static())
                     {
                         CHECK_VALID_NODE(node,
-                                            reduction_axes.size() <= input_rank.get_length(),
-                                            "Number of reduction axes (",
-                                            reduction_axes.size(),
-                                            ") is larger than the input tensor's rank (",
-                                            input_rank.get_length(),
-                                            ")");
+                                        reduction_axes.size() <= input_rank.get_length(),
+                                        "Number of reduction axes (",
+                                        reduction_axes.size(),
+                                        ") is larger than the input tensor's rank (",
+                                        input_rank.get_length(),
+                                        ")");
                     }
 
                     return default_opset::Constant::create(
