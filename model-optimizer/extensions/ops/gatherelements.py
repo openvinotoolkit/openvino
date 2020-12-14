@@ -44,22 +44,23 @@ class GatherElements(Op):
         axis = node.axis
         data_rank = len(data_shape)
 
-        assert data_rank == len(indices_shape), f'data and indices inputs for node {node.name} must be of the ' \
-                                                f'same rank. Got {data_rank} and {len(indices_shape)}'
-        assert -data_rank < axis < data_rank, f'axis for node {node.name} must be within interval ' \
-                                              f'[{-data_rank},  {data_rank - 1}]. Instead axis={axis}'
-        if data_rank < 0:
+        assert data_rank == len(indices_shape), 'data and indices inputs for node {} must be of the ' \
+                                                'same rank. Instead got {} and {}'.\
+                                                format(node.name, data_rank, len(indices_shape))
+        assert -data_rank <= axis < data_rank, 'axis for node {0} must be within interval ' \
+                                               '[-{1}},  {1} - 1]. Instead got: axis={2}'.\
+                                               format(node.name, data_rank, axis)
+        if axis < 0:
             axis += data_rank
 
         for idx, (data_sz, ind_sz) in enumerate(zip(data_shape, indices_shape)):
             if idx != axis and data_sz != ind_sz:
-                raise ValueError(f'Sizes along axis {idx} for node {node.name} do not match. '
-                                 f'data and indices must have equal size along all axes except for axis {axis}')
-
-        node.out_port(0).data.set_shape(indices_shape)
+                raise ValueError('Sizes along axis {} for node {} do not match. data and indices must have ' 
+                                 'equal size along all axes except for axis {}'.format(idx, node.name, axis))
 
         data = node.in_port(0).data.get_value()
         indices = node.in_port(1).data.get_value()
+
         if data is not None and indices is not None:
             out_value = np.empty(indices_shape, dtype=data.dtype)
             for idx in np.ndindex(*indices_shape):
@@ -67,5 +68,7 @@ class GatherElements(Op):
                 data_idx[node.axis] = indices[idx]
                 out_value[idx] = data[tuple(data_idx)]
             node.out_port(0).data.set_value(out_value)
+        else:
+            node.out_port(0).data.set_shape(indices_shape)
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])

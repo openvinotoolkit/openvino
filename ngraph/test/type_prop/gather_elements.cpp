@@ -151,7 +151,7 @@ TEST(type_prop, gather_elements_type_inconsistency)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("indices mush be of int32 or int64 type. But instead got"));
+            error.what(), std::string("indices must be of int32 or int64 type. But instead got"));
     }
     catch (...)
     {
@@ -226,7 +226,7 @@ TEST(type_prop, gather_elements_shapes_inconsistency)
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string(
-                "data and indices must have equal or intersecting shapes except for axis "));
+                "data and indices must have equal or intersecting sizes, except for axis"));
     }
     catch (...)
     {
@@ -253,7 +253,7 @@ TEST(type_prop, gather_elements_dynamic_inconsistent_shapes)
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string(
-                "data and indices must have equal or intersecting shapes except for axis "));
+                "data and indices must have equal or intersecting sizes, except for axis"));
     }
     catch (...)
     {
@@ -279,7 +279,7 @@ TEST(type_prop, gather_elements_incosistent_interval_shapes)
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string(
-                "data and indices must have equal or intersecting shapes except for axis "));
+                "data and indices must have equal or intersecting sizes, except for axis"));
     }
     catch (...)
     {

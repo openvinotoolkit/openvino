@@ -35,17 +35,15 @@ op::v6::GatherElements::GatherElements(const Output<Node>& data,
 
 void op::v6::GatherElements::validate_and_infer_types()
 {
-    // check types of input tensors
     const auto& data_type = get_input_element_type(0);
     const auto& indices_type = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
                           indices_type == element::Type_t::i32 ||
                               indices_type == element::Type_t::i64,
-                          "indices mush be of int32 or int64 type. But instead got: ",
+                          "indices must be of int32 or int64 type. But instead got: ",
                           indices_type);
 
-    // check ranks of input tensors
     const auto& data_pshape = get_input_partial_shape(0);
     const auto& indices_pshape = get_input_partial_shape(1);
     auto data_rank = data_pshape.rank();
@@ -88,33 +86,19 @@ void op::v6::GatherElements::validate_and_infer_types()
         {
             if (i != m_axis)
             {
-                // if size of the current indices dim is unknown it will retrieve it from data
-                // e.g., if data_shape = {4, 4, ?} indices_shape = {1, ?, 5} and axis = 0 (and if
-                // intervals intersect) then out size along dim 2 is also 5
+                // if size of the current axis of indices is unknown it will retrieve it from data
+                // e.g., if data_shape = {4, 4, ?} indices_shape = {1, ?, 5} and axis = 0
+                // (and if intervals intersect) then out size along dim 2 is also 5
                 Dimension curr_dim = data_pshape[i] & indices_pshape[i];
 
-                if (data_pshape.is_static())
-                    data_shape_val << data_pshape[i];
-                else
-                    data_shape_val << data_pshape[i].get_interval();
-
-                if (indices_pshape.is_static())
-                    indices_shape_val << indices_pshape[i];
-                else
-                    indices_shape_val << indices_pshape[i].get_interval();
-
-                // in the static case indices and data must have the same sizes along all dims
-                // except axis in the dynamic case intervals must intersect
                 NODE_VALIDATION_CHECK(this,
                                       !curr_dim.get_interval().empty(),
-                                      "Sizes ",
-                                      data_shape_val.str(),
+                                      "Shapes ",
+                                      data_pshape,
                                       " and ",
-                                      indices_shape_val.str(),
-                                      " on axis ",
-                                      i,
-                                      " do not match. data and indices must have equal or "
-                                      "intersecting shapes except for axis ",
+                                      indices_pshape,
+                                      " are not consistent. data and indices must have equal or "
+                                      "intersecting sizes, except for axis ",
                                       m_axis);
 
                 out_shape_info[i] = curr_dim;
