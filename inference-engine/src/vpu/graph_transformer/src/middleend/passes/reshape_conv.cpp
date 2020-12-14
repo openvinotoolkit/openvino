@@ -49,9 +49,6 @@ void PassImpl::run(const Model& model) {
             stage->attrs().get<int>("kernelSizeY") != 1)
             continue;
 
-        std::string name = stage->name();
-        int inputC = inputDesc.dim(Dim::C);
-        int outputC = outputDesc.dim(Dim::C);
         int dimH = inputDesc.dim(Dim::H);
         int dimW = inputDesc.dim(Dim::W);
         int resultH = 0;
