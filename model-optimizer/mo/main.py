@@ -239,7 +239,7 @@ def prepare_ir(argv: argparse.Namespace):
 
 
 def emit_ir(graph, argv: argparse.Namespace):
-    if argv.use_legacy_frontend:
+    if 'network' not in graph.graph:
         NormalizeTI().find_and_replace_pattern(graph)
         for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
         for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
@@ -255,7 +255,7 @@ def emit_ir(graph, argv: argparse.Namespace):
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         orig_model_name = os.path.join(output_dir, argv.model_name)
-        if not argv.use_legacy_frontend:
+        if 'network' in graph.graph:
             graph.graph['network'].serialize(orig_model_name + ".xml", orig_model_name + ".bin")
             print('[ SUCCESS ] Converted with ONNX Importer')
 
