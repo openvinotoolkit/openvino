@@ -64,6 +64,13 @@ public:
     }
 
     /**
+     * @brief Default common implementation for all plugins
+     */
+    StatusCode Cancel() override {
+        return InferenceEngine::NOT_IMPLEMENTED;
+    }
+
+    /**
      * @brief Given optional implementation of setting blob to avoid need for it to be implemented by plugin
      * @param name - a name of input or output blob.
      * @param data - a reference to input or output blob. The type of Blob must correspond to the network input
