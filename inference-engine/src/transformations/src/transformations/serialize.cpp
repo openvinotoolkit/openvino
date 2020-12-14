@@ -181,7 +181,7 @@ ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
                                      const ngraph::op::Constant& c) {
     ConstantAtributes attr;
     if (!c.get_output_partial_shape(0).is_static()) {
-        std::cerr << "[ WARNING ] Constant with dynamic shape (really???), name = "
+        std::cerr << "[ WARNING ] Constant with dynamic shape, name = "
                   << c.get_friendly_name() << ", shape = " << c.get_output_partial_shape(0) << "\n";
         attr.size = 0;
         attr.offset = bin.size();
