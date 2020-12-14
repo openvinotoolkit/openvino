@@ -65,6 +65,7 @@ TEST(coordinate_range, slice_range_shape1d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(slice(s, start_corner, s));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto slice_range : slice(s, start_corner, s))
     {
         auto index = slice_range.begin_index;
@@ -98,6 +99,7 @@ TEST(coordinate_range, slice_range_shape2d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(slice(s, start_corner, s));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto slice_range : slice(s, start_corner, s))
     {
         auto index = slice_range.begin_index;
@@ -135,6 +137,7 @@ TEST(coordinate_range, slice_range_shape3d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(slice(s, start_corner, s));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto slice_range : slice(s, start_corner, s))
     {
         auto index = slice_range.begin_index;
@@ -223,6 +226,7 @@ TEST(coordinate_range, slice_range_corner)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(slice(s, source_start_corner, source_end_corner));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto slice_range : slice(s, source_start_corner, source_end_corner))
     {
         auto index = slice_range.begin_index;
@@ -265,6 +269,7 @@ TEST(coordinate_range, slice_range_strides)
     auto index_wrapper =
         index_range(slice(s, source_start_corner, source_end_corner, source_strides));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto slice_range : slice(s, source_start_corner, source_end_corner, source_strides))
     {
         auto index = slice_range.begin_index;
@@ -320,6 +325,7 @@ TEST(coordinate_range, reverse_range_shape1d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(reverse(s, reverset_axis));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto reverse_range : reverse(s, reverset_axis))
     {
         auto index = reverse_range.begin_index;
@@ -355,6 +361,7 @@ TEST(coordinate_range, reverse_range_shape2d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(reverse(s, reverset_axis));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto reverse_range : reverse(s, reverset_axis))
     {
         auto index = reverse_range.begin_index;
@@ -394,6 +401,7 @@ TEST(coordinate_range, reverse_range_shape3d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(reverse(s, reverset_axis));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto reverse_range : reverse(s, reverset_axis))
     {
         auto index = reverse_range.begin_index;
@@ -451,6 +459,7 @@ TEST(coordinate_range, reverse_range_2d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(reverse(s, reverset_axis));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto reverse_range : reverse(s, reverset_axis))
     {
         auto index = reverse_range.begin_index;
@@ -494,6 +503,7 @@ TEST(coordinate_range, reverse_1_range_3d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(reverse(s, reverset_axis));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto reverse_range : reverse(s, reverset_axis))
     {
         auto index = reverse_range.begin_index;
@@ -537,6 +547,7 @@ TEST(coordinate_range, reverse_2_range_3d)
     auto expected_val = begin(expected);
     auto index_wrapper = index_range(reverse(s, reverset_axis));
     auto wrapper_val = begin(index_wrapper);
+    EXPECT_FALSE(wrapper_val == end(index_wrapper));
     for (auto reverse_range : reverse(s, reverset_axis))
     {
         auto index = reverse_range.begin_index;
