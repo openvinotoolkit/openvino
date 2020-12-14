@@ -131,6 +131,13 @@ void TemplateInferRequest::InferImpl() {
 }
 // ! [infer_request:infer_impl]
 
+// ! [infer_request:cancel]
+InferenceEngine::StatusCode TemplateInferRequest::Cancel() {
+    // TODO: add code to  handle cancellation request
+    return InferenceEngine::OK;
+}
+// ! [infer_request:cancel]
+
 template<typename SrcT, typename DstT>
 static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
     std::copy_n(InferenceEngine::as<InferenceEngine::MemoryBlob>(src)->rmap().as<const SrcT*>(),
