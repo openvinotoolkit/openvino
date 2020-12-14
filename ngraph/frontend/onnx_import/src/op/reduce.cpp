@@ -54,7 +54,6 @@ namespace ngraph
                         node.get_attribute_value<std::int64_t>("noop_with_empty_axes", 0);
                     const auto input = node.get_ng_inputs().at(0);
                     const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
-                    const std::int64_t reduction_axes_static_rank_length = 0;
                     if (node.get_ng_inputs().size() > 1)
                     {
                         const auto reduction_axes = node.get_ng_inputs().at(1);
@@ -63,7 +62,8 @@ namespace ngraph
                                      "The axes tensor's shape needs to be known(static). Node: ",
                                      node.get_description());
 
-                        if (reduction_axes_rank.get_length() != 0 && reduction_axes.get_shape() != Shape{0})
+                        if (reduction_axes_rank.get_length() != 0 &&
+                            reduction_axes.get_shape() != Shape{0})
                         {
                             return reduction_axes.get_node_shared_ptr();
                         }
@@ -71,7 +71,7 @@ namespace ngraph
 
                     if (noop_with_empty_axes)
                     {
-                        return nullptr;   
+                        return nullptr;
                     }
                     else
                     {
@@ -146,7 +146,7 @@ namespace ngraph
 
                     const auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node)
                                                              : get_reduction_axes_from_input(node);
-                    if(reduction_axes != nullptr)
+                    if (reduction_axes != nullptr)
                     {
                         return std::make_shared<OpType>(
                             ng_input, reduction_axes, static_cast<bool>(keepdims));
@@ -155,8 +155,6 @@ namespace ngraph
                     {
                         return op::set_1::identity(node).at(0).get_node_shared_ptr();
                     }
-                    
-                    
                 }
             } // namespace
 
