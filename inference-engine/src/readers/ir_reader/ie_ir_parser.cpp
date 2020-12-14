@@ -397,7 +397,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
         std::make_shared<LayerCreator<ngraph::op::CTCGreedyDecoder>>("CTCGreedyDecoder"),
-        std::make_shared<LayerCreator<ngraph::op::v1::DeformablePSROIPooling>>("DeformablePSROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
         std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
         std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
@@ -1175,42 +1174,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PSROIPooling>:
     return std::make_shared<ngraph::op::PSROIPooling>(inputs[0], inputs[1],
                                                       output_dim, group_size, spatial_scale, spatial_bins_x,
                                                       spatial_bins_y, mode);
-}
-
-// DeformablePSROIPooling layer
-
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::DeformablePSROIPooling>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto output_dim = GetIntAttr(dn, "output_dim");
-    auto group_size = GetIntAttr(dn, "group_size", 1);
-    auto spatial_bins_x = GetIntAttr(dn, "spatial_bins_x", 1);
-    auto spatial_bins_y = GetIntAttr(dn, "spatial_bins_y", 1);
-    auto spatial_scale = GetFloatAttr(dn, "spatial_scale");
-    auto mode = GetStrAttr(dn, "mode", "bilinear_deformable");
-    auto trans_std = GetFloatAttr(dn, "trans_std", 1.0);
-    auto part_size = GetIntAttr(dn, "part_size", 1);
-
-    if (inputs.size() == 3) {
-        return std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],
-                                                                        inputs[1],
-                                                                        inputs[2], output_dim,
-                                                                        spatial_scale, group_size, mode, spatial_bins_x,
-                                                                        spatial_bins_y, trans_std, part_size);
-    } else if (inputs.size() == 2) {
-        return std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],
-                                                                        inputs[1], output_dim,
-                                                                        spatial_scale, group_size, mode, spatial_bins_x,
-                                                                        spatial_bins_y, trans_std, part_size);
-    } else {
-        THROW_IE_EXCEPTION << "Wrong number of inputs for " << getType() << " layer with name: " << layerParsePrms.name;
-    }
 }
 
 // LogicalAnd layer

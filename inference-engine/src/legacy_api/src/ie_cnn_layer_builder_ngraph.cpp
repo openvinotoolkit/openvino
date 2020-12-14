@@ -629,31 +629,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PSROIPooling>::createLayer(const std::sh
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformablePSROIPooling>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "PSROIPooling",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::DeformablePSROIPooling>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["output_dim"] = asString(castedLayer->get_output_dim());
-    res->params["group_size"] = asString(castedLayer->get_group_size());
-    res->params["spatial_bins_x"] = asString(castedLayer->get_spatial_bins_x());
-    res->params["spatial_bins_y"] = asString(castedLayer->get_spatial_bins_y());
-    res->params["spatial_scale"] = asString(castedLayer->get_spatial_scale());
-    res->params["mode"] = castedLayer->get_mode();
-    res->params["trans_std"] = asString(castedLayer->get_trans_std());
-    res->params["part_size"] = asString(castedLayer->get_part_size());
-    res->params["no_trans"] = layer->get_input_size() == 2 ? "1" : "0";
-
-    // temporary workaround due to incorrect usage of group_size in the nGraph operation for the DeformablePSROIPooling
-    res->params["pooled_height"] = asString(castedLayer->get_group_size());
-    res->params["pooled_width"] = asString(castedLayer->get_group_size());
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::VariadicSplit>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Split",
                           details::convertPrecision(layer->get_output_element_type(0))};
