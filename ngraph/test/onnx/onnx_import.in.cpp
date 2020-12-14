@@ -1125,9 +1125,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant.prototxt"));
 
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}}}})
-            .get_vector()};
+    Inputs inputs{test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
+                                             {1.0f, 1.0f, 1.0f, 1.0f},
+                                             {1.0f, 1.0f, 1.0f, 1.0f},
+                                             {1.0f, 1.0f, 1.0f, 1.0f}}}})
+                      .get_vector()};
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -1139,12 +1141,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_single_axis)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant_single_axis.prototxt"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant_single_axis.prototxt"));
 
     Inputs inputs{
-        test::NDArray<float, 3>({{{1, 2, 3}, {4, 5, 6}}, {{7, 8, 9}, {10, 11, 12}}})
-            .get_vector()};
+        test::NDArray<float, 3>({{{1, 2, 3}, {4, 5, 6}}, {{7, 8, 9}, {10, 11, 12}}}).get_vector()};
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -1156,13 +1157,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_single_ax
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_constant_keepdims_off)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant_keepdims_off.prototxt"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_constant_keepdims_off.prototxt"));
 
     // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}}}})
-            .get_vector()};
+    Inputs inputs{test::NDArray<float, 4>({{{{1.0f, 1.0f, 1.0f, 1.0f},
+                                             {1.0f, 1.0f, 1.0f, 1.0f},
+                                             {1.0f, 1.0f, 1.0f, 1.0f},
+                                             {1.0f, 1.0f, 1.0f, 1.0f}}}})
+                      .get_vector()};
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -1178,7 +1181,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_input)
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_input.prototxt"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
-    test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>({1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f});
     test_case.add_input<int64_t>({0, 1, 2, 3});
 
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
@@ -1193,10 +1211,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_dynamic_input_empty_axes)
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input<int64_t>({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
 
-    test_case.add_expected_output<int64_t>(Shape{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, {5});
+    test_case.add_expected_output<int64_t>(Shape{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+                                           {5});
     test_case.run();
 }
-
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_empty_axes)
 {
@@ -1204,7 +1222,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_empty_axes)
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>({1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f});
 
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
     test_case.run();
@@ -1216,19 +1249,65 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_empty_axes_with_noop)
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_with_noop.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>({1.f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f});
 
-    test_case.add_expected_output<float>(Shape{1, 1, 4, 4}, {1.f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 4},
+                                         {1.f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f,
+                                          1.0f});
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_empty_axes_without_noop)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_without_noop.prototxt"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_without_noop.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>({1.f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f});
 
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
     test_case.run();

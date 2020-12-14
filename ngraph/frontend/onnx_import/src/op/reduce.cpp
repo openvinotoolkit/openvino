@@ -21,8 +21,8 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
 #include "onnx_import/op/identity.hpp"
+#include "onnx_import/utils/common.hpp"
 
 namespace ngraph
 {
@@ -32,15 +32,20 @@ namespace ngraph
         {
             namespace
             {
-                std::shared_ptr<ngraph::Node> get_dynamic_all_axes_range(const Node& node){
+                std::shared_ptr<ngraph::Node> get_dynamic_all_axes_range(const Node& node)
+                {
                     const auto input = node.get_ng_inputs().at(0);
                     const auto shape_of_input = std::make_shared<default_opset::ShapeOf>(input);
-                    const auto scalar = default_opset::Constant::create(element::i64, Shape{1}, {0});
-                    const auto rank_of_input = std::make_shared<default_opset::ShapeOf>(shape_of_input);
-                    const auto rank_of_input_scalar = std::make_shared<default_opset::Squeeze>(rank_of_input, scalar);
+                    const auto scalar =
+                        default_opset::Constant::create(element::i64, Shape{1}, {0});
+                    const auto rank_of_input =
+                        std::make_shared<default_opset::ShapeOf>(shape_of_input);
+                    const auto rank_of_input_scalar =
+                        std::make_shared<default_opset::Squeeze>(rank_of_input, scalar);
                     const auto start = default_opset::Constant::create(element::i64, Shape{}, {0});
                     const auto step = default_opset::Constant::create(element::i64, Shape{}, {1});
-                    return std::make_shared<default_opset::Range>(start, rank_of_input_scalar, step, element::i64);
+                    return std::make_shared<default_opset::Range>(
+                        start, rank_of_input_scalar, step, element::i64);
                 }
 
                 std::shared_ptr<ngraph::Node> get_reduction_axes_from_input(const Node& node)
@@ -50,21 +55,21 @@ namespace ngraph
                     const auto input = node.get_ng_inputs().at(0);
                     const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
                     const std::int64_t reduction_axes_static_rank_length = 0;
-                    if(node.get_ng_inputs().size() > 1)
+                    if (node.get_ng_inputs().size() > 1)
                     {
                         const auto reduction_axes = node.get_ng_inputs().at(1);
                         const auto reduction_axes_rank = reduction_axes.get_partial_shape().rank();
                         NGRAPH_CHECK(reduction_axes_rank.is_static(),
-                        "The axes tensor's rank needs to be known(static). Node: ",
-                            node.get_description());
+                                     "The axes tensor's rank needs to be known(static). Node: ",
+                                     node.get_description());
 
-                        if(reduction_axes_rank.get_length() != 0)
+                        if (reduction_axes_rank.get_length() != 0)
                         {
                             return reduction_axes.get_node_shared_ptr();
                         }
                     }
 
-                    if(noop_with_empty_axes)
+                    if (noop_with_empty_axes)
                     {
                         return default_opset::Constant::create(element::i64, Shape{}, {0});
                     }
@@ -82,7 +87,6 @@ namespace ngraph
                             return get_dynamic_all_axes_range(node);
                         }
                     }
-                    
                 }
 
                 std::shared_ptr<ngraph::Node> get_reduction_axes_from_attr(const Node& node)
@@ -96,16 +100,17 @@ namespace ngraph
                     {
                         if (input_rank.is_static())
                         {
-                            NGRAPH_CHECK(input_rank.is_static(),
-                                     "The input tensor's rank needs to be known(static) when the "
-                                     "'axes' attribute is not specified. Node: ",
-                                     node.get_description());
+                            NGRAPH_CHECK(
+                                input_rank.is_static(),
+                                "The input tensor's rank needs to be known(static) when the "
+                                "'axes' attribute is not specified. Node: ",
+                                node.get_description());
 
                             reduction_axes = onnx_import::common::get_monotonic_range<int64_t>(
                                 input_rank.get_length());
 
                             return default_opset::Constant::create(
-                            element::i64, Shape{reduction_axes.size()}, reduction_axes);
+                                element::i64, Shape{reduction_axes.size()}, reduction_axes);
                         }
                         else
                         {
@@ -117,12 +122,12 @@ namespace ngraph
                         if (input_rank.is_static())
                         {
                             CHECK_VALID_NODE(node,
-                                            reduction_axes.size() <= input_rank.get_length(),
-                                            "Number of reduction axes (",
-                                            reduction_axes.size(),
-                                            ") is larger than the input tensor's rank (",
-                                            input_rank.get_length(),
-                                            ")");
+                                             reduction_axes.size() <= input_rank.get_length(),
+                                             "Number of reduction axes (",
+                                             reduction_axes.size(),
+                                             ") is larger than the input tensor's rank (",
+                                             input_rank.get_length(),
+                                             ")");
                         }
 
                         return default_opset::Constant::create(
@@ -132,13 +137,17 @@ namespace ngraph
 
                 template <typename OpType>
                 std::shared_ptr<ngraph::Node>
-                    make_ng_reduction_op(const Node& node, const Output<ngraph::Node>& ng_input, bool axes_as_attr=true)
+                    make_ng_reduction_op(const Node& node,
+                                         const Output<ngraph::Node>& ng_input,
+                                         bool axes_as_attr = true)
                 {
                     const std::int64_t keepdims =
                         node.get_attribute_value<std::int64_t>("keepdims", 1);
-                    
-                    const auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node) : get_reduction_axes_from_input(node);
-                    return std::make_shared<OpType>(ng_input, reduction_axes, static_cast<bool>(keepdims));                    
+
+                    const auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node)
+                                                             : get_reduction_axes_from_input(node);
+                    return std::make_shared<OpType>(
+                        ng_input, reduction_axes, static_cast<bool>(keepdims));
                 }
             } // namespace
 
