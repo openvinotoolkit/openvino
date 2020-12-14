@@ -22,42 +22,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            /// \brief Elementwise subtraction operation.
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. "
-                "Use v1::Subtract instead of it.") NGRAPH_API Subtract
-                : public util::BinaryElementwiseArithmetic
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                static constexpr NodeTypeInfo type_info{"Subtract", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Subtract()
-                    : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NONE)
-                {
-                }
-
-                /// \brief Constructs a subtraction operation.
-                ///
-                /// \param arg0 Node that produces the first input tensor.
-                /// \param arg1 Node that produces the second input tensor.
-                /// \param auto_broadcast Auto broadcast specification
-                Subtract(const Output<Node>& arg0,
-                         const Output<Node>& arg1,
-                         const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec());
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-
-        } // namespace v0
-
         namespace v1
         {
             /// \brief Elementwise subtraction operation.
@@ -87,14 +51,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         } // namespace v1
-
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Subtract;
-        NGRAPH_SUPPRESS_DEPRECATED_END
-    } // namespace op
-
-    NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")
-    NGRAPH_API
-    std::shared_ptr<ngraph::Node> operator-(const Output<ngraph::Node> arg0,
-                                            const Output<ngraph::Node> arg1);
+    }     // namespace op
 } // namespace ngraph
