@@ -213,3 +213,19 @@ def test_gather_nd():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
     assert node.get_output_element_type(0) == Type.f32
+
+def test_gather_nd():
+    indices_type = np.int32
+    data_dtype = np.float32
+    data = ng.parameter([[9, 1, 8, 73, 33],
+                         [5, 9, 12, 6, 32]], dtype=data_dtype, name="data")
+    indices = ng.parameter([[2, 4, 0, 4, 1],
+                            [1, 2, 2, 4, 3]], dtype=indices_type, name="indices")
+    axis = 1
+    expected_shape = [2, 5]
+
+    node = ng.gather_nd(data, indices, axis)
+    assert node.get_type_name() == "GatherElements"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.f32
