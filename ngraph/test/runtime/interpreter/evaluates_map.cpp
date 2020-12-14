@@ -1592,7 +1592,7 @@ namespace
 
         outputs[0]->set_shape(indices_shape);
 
-        if (inputs[0]->get_element_type() == element::i64)
+        if (inputs[1]->get_element_type() == element::i64)
         {
             runtime::reference::gather_elements<T, int64_t>(inputs[0]->get_data_ptr<ET>(),
                                                             inputs[1]->get_data_ptr<int64_t>(),
@@ -1614,7 +1614,7 @@ namespace
         }
         else
         {
-            throw ngraph_error("Unexpected type");
+            throw ngraph_error("Unexpected indices type");
         }
 
         return true;

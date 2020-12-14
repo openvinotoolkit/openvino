@@ -36,29 +36,45 @@ namespace ngraph
                         const Shape& data_shape,
                         const Shape& indices_shape,
                         const Shape& out_shape,
-                        int64_t axis){
-               /*
-                K, N, M - depth row column
-                M*n + m
-                M*(N*k + n) + m
-                P K N M - p k n m
-                M*(N*(K*p + k) + n) + m
-                M*N*K*p + M*N*k + M*n + m
-               */
+                        int64_t axis)
+            {
+                 /*
+                  K, N, M - let it be depth, row and column sizes of a 3D tensor
+                  k, n, m - corresponding indices
+                  M*(N*k + n) + m
+                  M*N*k + M*n + m <-- index after flattening of a 3D array
 
-                size_t count = 1;
-                for (size_t i = 0; i < indices_shape.size(); i++){
+                  P, K, N, M - p, k, n, m
+                  M*(N*(K*p + k) + n) + m
+                  M*N*K*p + M*N*k + M*n + m <-- index after flattening of a 4D array
+                 */
+
+                 // in 1D case results can be achieved without additional calculations
+                if (data_shape.size() == 1)
+                {
+                    for (int64_t i = 0; i < indices_shape[0]; i++)
+                    {
+                        out[i] = data[indices[i]];
+                    }
+                    return;
+                }
+
+                int64_t count = 1;
+                for (int64_t i = 0; i < indices_shape.size(); i++)
+                {
                     count *= indices_shape[i];
                 }
 
-                size_t axis_size = 1;  // axis_size = M*N*K if axis = 0
-                for (size_t i = data_shape.size() - 1; i > axis; i--){
-                    axis_size *= data_shape[i];
+                int64_t axis_mul = 1;  // axis_mul = M*N*K in 3D case if axis = 0
+                for (int64_t i = axis + 1; i < data_shape.size(); i++)
+                {
+                    axis_mul *= data_shape[i];
                 }
 
-                size_t data_idx;
-                for (size_t i = 0; i < count; i++){
-                    data_idx = i - axis_size * ((i / data_shape[axis]) - indices[i]);
+                int64_t data_idx;
+                for (int64_t i = 0; i < count; i++)
+                {
+                    data_idx = i - axis_mul * (((i / axis_mul) % data_shape[axis])  - indices[i]);
                     out[i] = data[data_idx];
                 }
             }
