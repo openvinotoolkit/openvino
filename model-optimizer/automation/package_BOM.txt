@@ -288,6 +288,7 @@ extensions/front/onnx/normalize_ext.py
 extensions/front/onnx/normalize_l2_normalize.py
 extensions/front/onnx/one_hot_ext.py
 extensions/front/onnx/one_hot_normalize.py
+extensions/front/onnx/ONNXResize10ToInterpolateV4.py
 extensions/front/onnx/pad_converter.py
 extensions/front/onnx/pad_ext.py
 extensions/front/onnx/parameter_ext.py
@@ -554,7 +555,6 @@ extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
-extensions/middle/ONNXResize10ToInterpolateV4.py
 extensions/middle/ONNXResize11ToInterpolateV4.py
 extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py

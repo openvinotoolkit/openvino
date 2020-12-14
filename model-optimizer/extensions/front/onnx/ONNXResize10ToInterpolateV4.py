@@ -15,19 +15,20 @@
 """
 
 import logging as log
+
 import numpy as np
 
 from extensions.ops.Cast import Cast
 from extensions.ops.activation_ops import Floor
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.interpolate import Interpolate
-from mo.front.common.layout import get_depth_dim, get_height_dim, get_width_dim
+from extensions.ops.range import Range
+from extensions.ops.rank import Rank
 from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -36,25 +37,14 @@ def replace_resize(graph: Graph, resize: Node):
     log.debug("Converting of ONNX Resize-10 to Interpolate-4 "
               "is triggered for node {}.".format(resize.soft_get('name', resize.id)))
 
-    input_shape = resize.in_port(0).data.get_shape()
-    input_rank = len(input_shape)
     resize_name = resize.soft_get('name', resize.id)
-    if input_rank not in {4, 5}:
-        log.warning('The input shape is not 4D or 5D for op with name {}'.format(resize_name))
-        return
 
-    layout = graph.graph['layout']
-
-    if input_rank == 4:
-        begin_dim = get_height_dim(layout, input_rank)
-        end_dim = get_width_dim(layout, input_rank) + 1
-    else:
-        begin_dim = get_depth_dim(layout, input_rank)
-        end_dim = get_width_dim(layout, input_rank) + 1
+    rank_node = Rank(graph, {'name': resize_name + '/rank_'}).create_node()
+    range_node = create_op_with_const_inputs(graph, Range, {0: int64_array(2), 2: int64_array(1)},
+                                             {'name': resize_name + '/rank_'})
 
     sizes_ss = create_op_with_const_inputs(graph, StridedSlice,
-                                           {1: int64_array([begin_dim]),
-                                            2: int64_array([end_dim]),
+                                           {1: int64_array([2]),
                                             3: int64_array([1])},
                                            {'name': resize_name + '/sizes_ss_',
                                             'begin_mask': int64_array([1]),
@@ -63,8 +53,7 @@ def replace_resize(graph: Graph, resize: Node):
                                             'shrink_axis_mask': int64_array([0]),
                                             'ellipsis_mask': int64_array([0])})
     scales_ss = create_op_with_const_inputs(graph, StridedSlice,
-                                            {1: int64_array([begin_dim]),
-                                             2: int64_array([end_dim]),
+                                            {1: int64_array([2]),
                                              3: int64_array([1])},
                                             {'name': resize_name + '/scales_ss_',
                                              'begin_mask': int64_array([1]),
@@ -72,9 +61,10 @@ def replace_resize(graph: Graph, resize: Node):
                                              'new_axis_mask': int64_array([0]),
                                              'shrink_axis_mask': int64_array([0]),
                                              'ellipsis_mask': int64_array([0])})
-    axes_node = Const(graph,
-                      {'name': resize_name + '/axis_',
-                       'value': int64_array(np.arange(begin_dim, end_dim))}).create_node()
+
+    rank_node.out_port(0).connect(sizes_ss.in_port(2))
+    rank_node.out_port(0).connect(scales_ss.in_port(2))
+    rank_node.out_port(0).connect(range_node.in_port(1))
 
     interpolate_node = Interpolate(graph, {'version': 'opset4',
                                            'mode': 'linear_onnx' if resize.mode == 'linear' else 'nearest',
@@ -87,7 +77,7 @@ def replace_resize(graph: Graph, resize: Node):
                                            'shape_calculation_mode': 'scales',
                                            'in_ports_count': 4}).create_node()
 
-    axes_node.out_port(0).connect(interpolate_node.in_port(3))
+    range_node.out_port(0).connect(interpolate_node.in_port(3))
     shape_of = Shape(graph, {'name': resize_name + '/ShapeOf_'}).create_node()
 
     add_node = create_op_with_const_inputs(graph, Add,
@@ -118,6 +108,7 @@ def replace_resize(graph: Graph, resize: Node):
     connection_of_scales.set_destination(scales_ss.in_port(0))
 
     connection_of_resize_input.get_source().connect(shape_of.in_port(0))
+    connection_of_resize_input.get_source().connect(rank_node.in_port(0))
     connection_of_scales.get_source().connect(add_node.in_port(0))
 
     rename_nodes([(resize, resize_name + '/delete'), (interpolate_node, resize_name)])
