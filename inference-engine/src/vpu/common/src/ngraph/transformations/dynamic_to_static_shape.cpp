@@ -100,6 +100,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Maximum::type_info,               dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset3::Minimum::type_info,               dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset3::Less::type_info,                  dynamicToStaticShapeBinaryEltwise},
+        {ngraph::opset5::Select::type_info,                dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset5::NonMaxSuppression::type_info,     dynamicToStaticNonMaxSuppression},
         {ngraph::opset3::NonZero::type_info,               dynamicToStaticShapeNonZero},
         {ngraph::opset3::TopK::type_info,                  dynamicToStaticShapeTopK},
