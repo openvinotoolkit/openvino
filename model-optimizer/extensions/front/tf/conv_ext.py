@@ -31,7 +31,8 @@ class Conv2DFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = tf_create_attrs(node, 2, 3)
         attrs.update({'op': __class__.op,
-                      'get_group': lambda node: 1,
+                      'get_group': lambda node: node.group if 'group' in node and node.group is not None else
+                      node.in_node(0).shape[node.channel_dims] // node.kernel_shape[node.input_feature_channel],
                       'get_output_feature_dim': lambda node: node.kernel_shape[node.output_feature_channel],
                       'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([3, 2, 0, 1]),
                                                                       inv=int64_array([2, 3, 1, 0]))
