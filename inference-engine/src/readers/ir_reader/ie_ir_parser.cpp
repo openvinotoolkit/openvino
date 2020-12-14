@@ -397,7 +397,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
         std::make_shared<LayerCreator<ngraph::op::CTCGreedyDecoder>>("CTCGreedyDecoder"),
-        std::make_shared<LayerCreator<ngraph::op::v1::DeformableConvolution>>("DeformableConvolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::DeformablePSROIPooling>>("DeformablePSROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
         std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
@@ -995,39 +994,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GroupConvo
 
     return std::make_shared<ngraph::op::v1::GroupConvolution>(inputs[0], inputs[1], strides, pads_begin, pads_end,
                                                               dilations, pad_type);
-}
-
-// DeformableConvolution layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::DeformableConvolution>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    size_t group = GetUIntAttr(dn, "group");
-    size_t deformable_group = GetUIntAttr(dn, "deformable_group");
-
-    ngraph::op::PadType pad_type = ngraph::op::PadType::EXPLICIT;
-    std::string auto_pad = GetStrAttr(dn, "auto_pad", "");
-    if (auto_pad == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (auto_pad == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (auto_pad == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto dilations = ngraph::Strides(getParameters<size_t>(dn, "dilations"));
-    auto pads_begin = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_begin"));
-    auto pads_end = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_end"));
-
-    return std::make_shared<ngraph::op::v1::DeformableConvolution>(inputs[0], inputs[1], inputs[2], strides, pads_begin,
-                pads_end, dilations, pad_type, group, deformable_group);
 }
 
 // ConvolutionBackpropData layer

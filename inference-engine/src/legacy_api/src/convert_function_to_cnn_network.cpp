@@ -1291,6 +1291,34 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
         return res;
     });
+
+    addSpecificCreator({"DeformableConvolution"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "DeformableConvolution", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::DeformableConvolutionLayer>(attrs);
+
+        res->params = params;
+
+        auto shape = node->get_input_shape(2);
+        std::string value;
+
+        res->params["output"] = Builder::asString(shape[0]);
+
+        for (size_t i = 2; i < shape.size(); i++) {
+            if (!value.empty()) value += ",";
+            value += Builder::asString(shape[i]);
+        }
+        res->params["kernel"] = value;
+
+        if (res->params["auto_pad"] == "explicit") {
+            res->params.erase("auto_pad");
+        }
+
+        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -1321,7 +1349,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CTCGreedyDecoder>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformableConvolution>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformablePSROIPooling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Ceiling>>(),
