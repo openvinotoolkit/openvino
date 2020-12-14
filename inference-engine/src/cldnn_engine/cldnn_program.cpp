@@ -1563,14 +1563,17 @@ void Program::CreateScaleShiftPrimitive(cldnn::topology& topology, InferenceEngi
     default: weightTensor = CldnnTensorFromIEDims(wDims);
         break;
     }
-    cldnn::layout blobLayout(DataTypeFromPrecision(layer->precision), m_defaultFormat, weightTensor);
-    scalePrimID = CreatePrimitiveFromBlob(topology, scalePrimID, scaleShiftLayer->_weights, blobLayout);
+    auto scales_dt = DataTypeFromPrecision(scaleShiftLayer->_weights->getTensorDesc().getPrecision());
+    cldnn::layout scalesLayout(scales_dt, m_defaultFormat, weightTensor);
+    scalePrimID = CreatePrimitiveFromBlob(topology, scalePrimID, scaleShiftLayer->_weights, scalesLayout);
     if (scaleShiftLayer->_biases != nullptr) {
+        auto shifts_dt = DataTypeFromPrecision(scaleShiftLayer->_biases->getTensorDesc().getPrecision());
+        cldnn::layout shiftsLayout(shifts_dt, m_defaultFormat, weightTensor);
         const auto& bDims = scaleShiftLayer->_biases->getTensorDesc().getDims();
         if (bDims != wDims) {
             THROW_CLDNN_EXCEPTION("Invalid bias blob dimensions in layer " << layer->name);
         }
-        biasPrimID = CreatePrimitiveFromBlob(topology, biasPrimID, scaleShiftLayer->_biases, blobLayout);
+        biasPrimID = CreatePrimitiveFromBlob(topology, biasPrimID, scaleShiftLayer->_biases, shiftsLayout);
     } else {
         biasPrimID = "";  // 0-bias
     }

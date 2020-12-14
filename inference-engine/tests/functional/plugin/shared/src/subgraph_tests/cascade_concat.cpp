@@ -51,7 +51,7 @@ void CascadeConcat::SetUp() {
     if (multioutput) {
         auto const_mult = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1, input1[0][1]+input2[0][1]},
                                                   std::vector<float>{1.01f});
-        auto mult = std::make_shared<ngraph::op::v0::Multiply>(concat, const_mult);
+        auto mult = std::make_shared<ngraph::op::v1::Multiply>(concat, const_mult);
         results = ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(concat2),
                                        std::make_shared<ngraph::opset1::Result>(mult)};
     } else {

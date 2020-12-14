@@ -22,7 +22,7 @@ const std::vector<std::vector<int >> orders = {
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTest,
         ::testing::Combine(
-        ::testing::Values("TEMPLATE"),
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::ValuesIn(orders)),
         HoldersTest::getTestCaseName);
 

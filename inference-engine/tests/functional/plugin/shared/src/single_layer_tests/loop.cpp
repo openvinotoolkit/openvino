@@ -120,7 +120,7 @@ namespace LayerTestsDefinitions {
         // Body
         std::shared_ptr<ngraph::Node> Zo = body_params[0];
         for (int i = 1; i < body_params.size(); ++i) {
-            Zo = body_params[i] + Zo;
+            Zo = std::make_shared<ngraph::op::v1::Add>(body_params[i], Zo);
         }
 
         // body_params.insert(body_params.begin(), current_iteration);
