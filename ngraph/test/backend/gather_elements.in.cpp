@@ -71,7 +71,6 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32)
     test_case2.add_expected_output<int32_t>(vector<int32_t>{1, 2, 3, 3});
     test_case2.run();
 
-
     axis = -1;
     gather_el = make_shared<op::v6::GatherElements>(arg1, arg2, axis);
     fun = make_shared<Function>(OutputVector{gather_el}, ParameterVector{arg1, arg2});
@@ -98,7 +97,6 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x3_indices_int32)
     test_case1.add_expected_output<int32_t>(vector<int32_t>{4, 8, 3, 7, 2, 3});
     test_case1.run();
 }
-
 
 NGRAPH_TEST(${BACKEND_NAME}, evaluate_3D_gather_elements_3x2x2_indices_int32)
 {
@@ -146,17 +144,13 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_3x2_data_bool)
     auto gather_el = make_shared<op::v6::GatherElements>(arg1, arg2, axis);
     auto fun = make_shared<Function>(OutputVector{gather_el}, ParameterVector{arg1, arg2});
 
-    std::vector<bool> data{true, false,
-                              true, true,
-                              false, false};
-    std::vector<int32_t> indices{0, 1,
-                                 0, 2};
+    std::vector<bool> data{true, false, true, true, false, false};
+    std::vector<int32_t> indices{0, 1, 0, 2};
 
     auto test_case1 = test::TestCase<TestEngine>(fun);
     test_case1.add_input<bool>(data);
     test_case1.add_input<int32_t>(indices);
-    test_case1.add_expected_output<bool>(vector<bool>{true, true,
-                                                      true, false});
+    test_case1.add_expected_output<bool>(vector<bool>{true, true, true, false});
     test_case1.run();
 }
 

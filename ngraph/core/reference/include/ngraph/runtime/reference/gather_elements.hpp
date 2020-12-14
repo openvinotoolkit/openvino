@@ -28,28 +28,27 @@ namespace ngraph
     {
         namespace reference
         {
-
             template <typename T, typename U>
             void gather_elements(const T* data,
-                        const U* indices,
-                        T* out,
-                        const Shape& data_shape,
-                        const Shape& indices_shape,
-                        const Shape& out_shape,
-                        int64_t axis)
+                                 const U* indices,
+                                 T* out,
+                                 const Shape& data_shape,
+                                 const Shape& indices_shape,
+                                 const Shape& out_shape,
+                                 int64_t axis)
             {
-                 /*
-                  K, N, M - let it be depth, row and column sizes of a 3D tensor
-                  k, n, m - corresponding indices
-                  M*(N*k + n) + m
-                  M*N*k + M*n + m <-- index after flattening of a 3D array
+                /*
+                 K, N, M - let it be depth, row and column sizes of a 3D tensor
+                 k, n, m - corresponding indices
+                 M*(N*k + n) + m
+                 M*N*k + M*n + m <-- index after flattening of a 3D array
 
-                  P, K, N, M - p, k, n, m
-                  M*(N*(K*p + k) + n) + m
-                  M*N*K*p + M*N*k + M*n + m <-- index after flattening of a 4D array
-                 */
+                 P, K, N, M - p, k, n, m
+                 M*(N*(K*p + k) + n) + m
+                 M*N*K*p + M*N*k + M*n + m <-- index after flattening of a 4D array
+                */
 
-                 // in 1D case results can be achieved without additional calculations
+                // in 1D case results can be achieved without additional calculations
                 if (data_shape.size() == 1)
                 {
                     for (int64_t i = 0; i < indices_shape[0]; i++)
@@ -65,7 +64,7 @@ namespace ngraph
                     count *= indices_shape[i];
                 }
 
-                int64_t axis_mul = 1;  // axis_mul = M*N*K in 3D case if axis = 0
+                int64_t axis_mul = 1; // axis_mul = M*N*K in 3D case if axis = 0
                 for (int64_t i = axis + 1; i < data_shape.size(); i++)
                 {
                     axis_mul *= data_shape[i];
@@ -74,7 +73,7 @@ namespace ngraph
                 int64_t data_idx;
                 for (int64_t i = 0; i < count; i++)
                 {
-                    data_idx = i - axis_mul * (((i / axis_mul) % data_shape[axis])  - indices[i]);
+                    data_idx = i - axis_mul * (((i / axis_mul) % data_shape[axis]) - indices[i]);
                     out[i] = data[data_idx];
                 }
             }
