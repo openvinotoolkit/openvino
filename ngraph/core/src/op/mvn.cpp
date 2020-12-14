@@ -49,6 +49,8 @@ op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_va
     , m_reduction_axes{reduction_axes}
 {
     constructor_validate_and_infer_types();
+    const size_t chanelAxis = 1;
+    m_across_channels = (m_reduction_axes.count(chanelAxis) > 0);
 }
 
 // decompose_op() relies on knowing the data type of input data which might
@@ -79,8 +81,8 @@ OutputVector op::MVN::decompose_op() const
 
     // calculate mean normalization
     auto mean = builder::opset1::mean(data, m_reduction_axes);
-    auto mean_normalization =
-        data - builder::opset1::make_broadcast(mean, data_shape, m_reduction_axes);
+    auto mean_normalization = std::make_shared<op::v1::Subtract>(
+        data, builder::opset1::make_broadcast(mean, data_shape, m_reduction_axes));
 
     if (!m_normalize_variance)
     {
@@ -93,10 +95,10 @@ OutputVector op::MVN::decompose_op() const
         // add epsilon
         auto eps_node = op::Constant::create(
             data.get_element_type(), Output<Node>(variance).get_shape(), vector<double>{m_eps});
-        variance = std::make_shared<op::Sqrt>(variance + eps_node);
-
-        return OutputVector{mean_normalization / builder::opset1::make_broadcast(
-                                                     variance, data_shape, m_reduction_axes)};
+        variance = std::make_shared<op::Sqrt>(std::make_shared<op::v1::Add>(variance, eps_node));
+        return OutputVector{std::make_shared<op::v1::Divide>(
+            mean_normalization,
+            builder::opset1::make_broadcast(variance, data_shape, m_reduction_axes))};
     }
 }
 

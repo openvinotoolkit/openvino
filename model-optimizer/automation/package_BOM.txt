@@ -241,6 +241,7 @@ extensions/front/onnx/aten_ext.py
 extensions/front/onnx/AttributedSliceToSlice.py
 extensions/front/onnx/cast_ext.py
 extensions/front/onnx/clip_ext.py
+extensions/front/onnx/concat_ext.py
 extensions/front/onnx/const_ext.py
 extensions/front/onnx/constant_fill_ext.py
 extensions/front/onnx/constant_of_shape_ext.py
@@ -260,12 +261,14 @@ extensions/front/onnx/expand_ext.py
 extensions/front/onnx/faster_rcnn.json
 extensions/front/onnx/flatten_ext.py
 extensions/front/onnx/flattenONNX_to_reshape.py
+extensions/front/onnx/fused_bn_ext.py
 extensions/front/onnx/gather_ext.py
 extensions/front/onnx/gathernd_ext.py
 extensions/front/onnx/gemm_ext.py
 extensions/front/onnx/group_norm_ext.py
 extensions/front/onnx/gru_ext.py
 extensions/front/onnx/hard_sigmoid_ext.py
+extensions/front/onnx/identity_ext.py
 extensions/front/onnx/image_scaler_ext.py
 extensions/front/onnx/instance_normalization_ext.py
 extensions/front/onnx/logsoftmaxONNX_to_logsoftmax.py
@@ -301,6 +304,7 @@ extensions/front/onnx/quantize_linear_resolver.py
 extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/remove_filtering_boxes_by_size.py
+extensions/front/onnx/reshape_ext.py
 extensions/front/onnx/resize_ext.py
 extensions/front/onnx/resize_to_interpolate.py
 extensions/front/onnx/reverse_sequence_ext.py
@@ -602,9 +606,9 @@ extensions/ops/argmax.py
 extensions/ops/assert_op.py
 extensions/ops/aten.py
 extensions/ops/axpy.py
+extensions/ops/BatchNormInference.py
 extensions/ops/binarization.py
 extensions/ops/BlockLSTM.py
-extensions/ops/bn.py
 extensions/ops/box_nms.py
 extensions/ops/bucketize.py
 extensions/ops/Cast.py
@@ -843,10 +847,6 @@ mo/front/mxnet/register_custom_ops.py
 mo/front/onnx/__init__.py
 mo/front/onnx/extractor.py
 mo/front/onnx/extractors/__init__.py
-mo/front/onnx/extractors/concat.py
-mo/front/onnx/extractors/eltwise.py
-mo/front/onnx/extractors/fused_bn.py
-mo/front/onnx/extractors/reshape.py
 mo/front/onnx/extractors/utils.py
 mo/front/onnx/loader.py
 mo/front/onnx/register_custom_ops.py
