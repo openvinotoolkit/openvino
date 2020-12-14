@@ -466,6 +466,43 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
     return height, width
 
 
+def update_parameter_shape(graph: Graph, match: [SubgraphMatch, None]):
+    """
+    Updates the shape of the model Parameter node based on the user provided input shape or values provided in the
+    pipeline.config configuration file used for model training.
+    :param graph: model graph
+    :param match: Match object with information abouot matched sub-graph
+    :return: tupe with input node names and Parameter Node
+    """
+    argv = graph.graph['cmd_params']
+    if argv.tensorflow_object_detection_api_pipeline_config is None:
+        raise Error(missing_param_error)
+
+    pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
+    if argv.tensorflow_object_detection_api_pipeline_config is None:
+        raise Error(missing_param_error)
+
+    initial_input_node_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
+    if initial_input_node_name not in graph.nodes():
+        raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
+                    '"--input" command line parameter.'.format(initial_input_node_name))
+    parameter_node = Node(graph, initial_input_node_name)
+
+    # set default value of the batch size to 1 if user didn't specify batch size and input shape
+    layout = graph.graph['layout']
+    batch_dim = get_batch_dim(layout, 4)
+    if argv.batch is None and parameter_node.shape[batch_dim] == -1:
+        parameter_node.shape[batch_dim] = 1
+    height, width = calculate_placeholder_spatial_shape(graph, match, pipeline_config)
+    parameter_node.shape[get_height_dim(layout, 4)] = height
+    parameter_node.shape[get_width_dim(layout, 4)] = width
+
+    # save the pre-processed image spatial sizes to be used in the other replacers
+    graph.graph['preprocessed_image_height'] = parameter_node.shape[get_height_dim(layout, 4)]
+    graph.graph['preprocessed_image_width'] = parameter_node.shape[get_width_dim(layout, 4)]
+    return initial_input_node_name, parameter_node
+
+
 class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
     """
     The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
@@ -506,12 +543,6 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
             return any([port.node.id == sub.id for port in to_float.out_port(0).get_destinations()])
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
-        argv = graph.graph['cmd_params']
-        layout = graph.graph['layout']
-        if argv.tensorflow_object_detection_api_pipeline_config is None:
-            raise Error(missing_param_error)
-        pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
-
         sub_node = match.output_node(0)[0]
         if sub_node.soft_get('op') != 'Sub':
             raise Error('The output op of the Preprocessor sub-graph is not of type "Sub". Looks like the topology is '
@@ -522,23 +553,7 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
             log.info('There is image scaling node in the Preprocessor block.')
             mul_node = sub_node.in_port(0).get_source().node
 
-        initial_input_node_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
-        if initial_input_node_name not in graph.nodes():
-            raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
-                        '"--input" command line parameter.'.format(initial_input_node_name))
-        placeholder_node = Node(graph, initial_input_node_name)
-
-        # set default value of the batch size to 1 if user didn't specify batch size and input shape
-        batch_dim = get_batch_dim(layout, 4)
-        if argv.batch is None and placeholder_node.shape[batch_dim] == -1:
-            placeholder_node.shape[batch_dim] = 1
-        height, width = calculate_placeholder_spatial_shape(graph, match, pipeline_config)
-        placeholder_node.shape[get_height_dim(layout, 4)] = height
-        placeholder_node.shape[get_width_dim(layout, 4)] = width
-
-        # save the pre-processed image spatial sizes to be used in the other replacers
-        graph.graph['preprocessed_image_height'] = placeholder_node.shape[get_height_dim(layout, 4)]
-        graph.graph['preprocessed_image_width'] = placeholder_node.shape[get_width_dim(layout, 4)]
+        initial_input_node_name, placeholder_node = update_parameter_shape(graph, match)
 
         to_float_node = placeholder_node.out_port(0).get_destination().node
         if to_float_node.soft_get('op') != 'Cast':
@@ -580,34 +595,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         return [Pack, TransposeOrderNormalizer, PadTFToPad]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
-        argv = graph.graph['cmd_params']
-        if argv.tensorflow_object_detection_api_pipeline_config is None:
-            raise Error(missing_param_error)
-
-        argv = graph.graph['cmd_params']
-        layout = graph.graph['layout']
-
-        if argv.tensorflow_object_detection_api_pipeline_config is None:
-            raise Error(missing_param_error)
-        pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
-
-        initial_input_node_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
-        if initial_input_node_name not in graph.nodes():
-            raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
-                        '"--input" command line parameter.'.format(initial_input_node_name))
-        placeholder_node = Node(graph, initial_input_node_name)
-
-        # set default value of the batch size to 1 if user didn't specify batch size and input shape
-        batch_dim = get_batch_dim(layout, 4)
-        if argv.batch is None and placeholder_node.shape[batch_dim] == -1:
-            placeholder_node.shape[batch_dim] = 1
-        height, width = calculate_placeholder_spatial_shape(graph, None, pipeline_config)
-        placeholder_node.shape[get_height_dim(layout, 4)] = height
-        placeholder_node.shape[get_width_dim(layout, 4)] = width
-
-        # save the pre-processed image spatial sizes to be used in the other transformations
-        graph.graph['preprocessed_image_height'] = placeholder_node.shape[get_height_dim(layout, 4)]
-        graph.graph['preprocessed_image_width'] = placeholder_node.shape[get_width_dim(layout, 4)]
+        _, __ = update_parameter_shape(graph, None)
 
         start_nodes = replacement_descriptions['start_nodes']
         end_nodes = replacement_descriptions['end_nodes']
