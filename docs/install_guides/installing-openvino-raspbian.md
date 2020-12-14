@@ -60,7 +60,7 @@ This guide provides step-by-step instructions on how to install the OpenVINO™ 
 
 ## <a name="install-package"></a>Install the OpenVINO™ Toolkit for Raspbian* OS Package
 
-The guide assumes you downloaded the OpenVINO toolkit for Raspbian* OS. If you do not have a copy of the toolkit package file `l_openvino_toolkit_runtime_raspbian_p_<version>.tgz`, download the latest version from the [Intel® Open Source Technology Center](https://download.01.org/opencv/2020/openvinotoolkit/) and then return to this guide to proceed with the installation.
+The guide assumes you downloaded the OpenVINO toolkit for Raspbian* OS. If you do not have a copy of the toolkit package file `l_openvino_toolkit_runtime_raspbian_p_<version>.tgz`, download the latest version from the [OpenVINO™ Toolkit packages storage](https://storage.openvinotoolkit.org/repositories/openvino/packages/) and then return to this guide to proceed with the installation.
 
 > **NOTE**: The OpenVINO toolkit for Raspbian OS is distributed without installer, so you need to perform extra steps comparing to the [Intel® Distribution of OpenVINO™ toolkit for Linux* OS](installing-openvino-linux.md).
 
@@ -150,16 +150,13 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/o
 make -j2 object_detection_sample_ssd
 ```
 
-3. Download the pre-trained Face Detection model or copy it from the host machine:
+3. Download the pre-trained Face Detection model with the Model Downloader or copy it from the host machine:
 
-   - To download the `.bin` file with weights:
-   ```sh
-   wget --no-check-certificate https://download.01.org/opencv/2020/openvinotoolkit/2020.1/open_model_zoo/models_bin/1/face-detection-adas-0001/FP16/face-detection-adas-0001.bin
-   ```
-
-   - To download the `.xml` file with the network topology:
-   ```sh
-   wget --no-check-certificate https://download.01.org/opencv/2020/openvinotoolkit/2020.1/open_model_zoo/models_bin/1/face-detection-adas-0001/FP16/face-detection-adas-0001.xml
+    ```sh
+   git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
+   cd open_model_zoo/tools/downloader
+   python3 -m pip install -r requirements.in
+   python3 downloader.py --name face-detection-adas-0001 
    ```
 
 4. Run the sample with specifying the model and a path to the input image:
@@ -176,11 +173,7 @@ Read the next topic if you want to learn more about OpenVINO workflow for Raspbe
 
 If you want to use your model for inference, the model must be converted to the .bin and .xml Intermediate Representation (IR) files that are used as input by Inference Engine. OpenVINO™ toolkit support on Raspberry Pi only includes the Inference Engine module of the Intel® Distribution of OpenVINO™ toolkit. The Model Optimizer is not supported on this platform. To get the optimized models you can use one of the following options:
 
-* Download a set of ready-to-use pre-trained models for the appropriate version of OpenVINO from the Intel® Open Source Technology Center:
-
-   * Models for the 2020.1 release of OpenVINO are available at [https://download.01.org/opencv/2020/openvinotoolkit/2020.1/open_model_zoo/](https://download.01.org/opencv/2020/openvinotoolkit/2020.1/open_model_zoo/).
-   * Models for the 2019 R1 release of OpenVINO are available at [https://download.01.org/opencv/2019/open_model_zoo/R1/](https://download.01.org/opencv/2019/open_model_zoo/R1/).
-   * Models for the 2018 R5 release of OpenVINO are available at [https://download.01.org/openvinotoolkit/2018_R5/open_model_zoo/](https://download.01.org/openvinotoolkit/2018_R5/open_model_zoo/).
+* Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README).
 
    For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_intel_index)
 

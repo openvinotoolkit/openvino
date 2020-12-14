@@ -36,6 +36,8 @@ Your installation is complete when these are all completed:
 
     - <a href="#Update-Path">Update Windows* environment variables</a>
 
+7. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit</a>
+
 ### About the Intel® Distribution of OpenVINO™ toolkit
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
@@ -327,7 +329,7 @@ Use the optional steps below if you want to:
 
 > **NOTE**: These steps are required only if you want to use a GPU.
 
-If your applications offload computation to Intel® Integrated Graphics, you must have the Intel Graphics Driver for Windows version 15.65 or higher. To see if you have this driver installed:
+If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows version 15.65 or higher. To see if you have this driver installed:
 
 1. Type **device manager** in your **Search Windows** box. The **Device Manager** opens.
 
@@ -342,6 +344,8 @@ If your applications offload computation to Intel® Integrated Graphics, you mus
    ![](../img/DeviceDriverVersion.PNG)
 
 5. If your device driver version is lower than 15.65, [download and install a higher version](http://downloadcenter.intel.com/product/80939/Graphics-Drivers).
+
+To use the **Intel® Iris® Xe MAX Graphics**, install the driver manually. See the [Drivers & Software](https://downloadcenter.intel.com/download/29993/Intel-Iris-Xe-MAX-Dedicated-Graphics-Drivers?product=80939) page for driver downloads and installation instructions.  
 
 You are done updating your device driver and are ready to use your GPU.
 
@@ -457,6 +461,12 @@ For information on Sample Applications, see the [Inference Engine Samples Overvi
 
 Congratulations, you have finished the installation of the Intel® Distribution of OpenVINO™ toolkit for Windows*. To learn more about how the Intel® Distribution of OpenVINO™ toolkit works, the Hello World tutorial and other resources are provided below.
 
+## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
+1. Choose the **Apps & Features** option from the Windows* Settings app.
+2. From the list of installed applications, select the Intel® Distribution of OpenVINO™ Toolkit and click **Uninstall**.
+3. Follow the uninstallation wizard instructions.
+4. When uninstallation is complete, click **Finish**. 
 
 ## <a name="Summary"></a>Summary
 

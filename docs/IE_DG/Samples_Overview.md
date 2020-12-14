@@ -35,13 +35,15 @@ Inference Engine sample applications include the following:
    - [Object Detection for SSD C Sample](../../inference-engine/ie_bridges/c/samples/object_detection_sample_ssd/README.md)
    - [Object Detection for SSD Python* Sample](../../inference-engine/ie_bridges/python/sample/object_detection_sample_ssd/README.md)
  
+> **NOTE**: All samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
+
 ## Media Files Available for Samples
 
 To run the sample applications, you can use images and videos from the media files collection available at https://github.com/intel-iot-devkit/sample-videos.
 
 ## Samples that Support Pre-Trained Models
 
-You can download the [pre-trained models](@ref omz_models_intel_index) using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the sample, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 
 ## Build the Sample Applications
 

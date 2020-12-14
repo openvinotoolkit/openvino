@@ -1,9 +1,30 @@
 GPU Plugin {#openvino_docs_IE_DG_supported_plugins_CL_DNN}
 =======
 
-The GPU plugin uses the Intel&reg; Compute Library for Deep Neural Networks ([clDNN](https://01.org/cldnn)) to infer deep neural networks.
-clDNN is an open source performance library for Deep Learning (DL) applications intended for acceleration of Deep Learning Inference on Intel&reg; Processor Graphics including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics.
-For an in-depth description of clDNN, see: [clDNN sources](https://github.com/intel/clDNN) and [Accelerate Deep Learning Inference with Intel&reg; Processor Graphics](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
+The GPU plugin uses the Intel® Compute Library for Deep Neural Networks (clDNN) to infer deep neural networks.
+clDNN is an open source performance library for Deep Learning (DL) applications intended for acceleration of Deep Learning Inference on Intel® Processor Graphics including Intel® HD Graphics, Intel® Iris® Graphics, Intel® Iris® Xe Graphics, and Intel® Iris® Xe MAX graphics.
+For an in-depth description of clDNN, see [Inference Engine source files](https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/src/cldnn_engine) and [Accelerate Deep Learning Inference with Intel® Processor Graphics](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
+
+## Device Naming Convention
+* Devices are enumerated as "GPU.X" where `X={0, 1, 2,...}`. Only Intel® GPU devices are considered.
+* If the system has an integrated GPU, it always has id=0 ("GPU.0").
+* Other GPUs have undefined order that depends on the GPU driver.
+* "GPU" is an alias for "GPU.0"
+* If the system doesn't have an integrated GPU, then devices are enumerated starting from 0.
+
+For demonstration purposes, see the [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md) that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
+
+```sh
+./hello_query_device
+Available devices: 
+    Device: CPU
+...
+    Device: GPU.0
+...
+    Device: GPU.1
+...
+    Device: HDDL
+```    
 
 ## Optimizations
 
@@ -92,7 +113,7 @@ When specifying key values as raw strings (that is, when using Python API), omit
 | `KEY_CLDNN_PLUGIN_THROTTLE` | `<0-3>`                       | `0`               | OpenCL queue throttling (before usage, make sure your OpenCL driver supports appropriate extension)<br> Lower value means lower driver thread priority and longer sleep time for it. 0 disables the setting. |
 | `KEY_CLDNN_GRAPH_DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | clDNN graph optimizer stages dump output directory (in GraphViz format)                                     |
 | `KEY_CLDNN_SOURCES_DUMPS_DIR` | `"<dump_dir>"`                       | `""`               | Final optimized clDNN OpenCL sources dump output directory                                   |
-| `KEY_GPU_THROUGHPUT_STREAMS`  | `KEY_GPU_THROUGHPUT_AUTO`, or positive integer| 1 | Specifies a number of GPU "execution" streams for the throughput mode (upper bound for a number of inference requests that can be executed simultaneously).<br>This option is can be used to decrease GPU stall time by providing more effective load from several streams. Increasing the number of streams usually is more effective for smaller topologies or smaller input sizes. Note that your application should provide enough parallel slack (e.g. running many inference requests) to leverage full GPU bandwidth. Additional streams consume several times more GPU memory, so make sure the system has enough memory available to suit parallel stream execution. Multiple streams might also put additional load on CPU. If CPU load increases, it can be regulated by setting an appropriate `KEY_CLDNN_PLUGIN_THROTTLE` option value (see above). If your target system has relatively weak CPU, keep throttling low. <br>The default value is 1, which implies latency-oriented behaviour.<br>`KEY_GPU_THROUGHPUT_AUTO` creates bare minimum of streams to improve the performance; this is the most portable option if you are not sure how many resources your target machine has (and what would be the optimal number of streams). <br> A positive integer value creates the requested number of streams. |
+| `KEY_GPU_THROUGHPUT_STREAMS`  | `KEY_GPU_THROUGHPUT_AUTO`, or positive integer| 1 | Specifies a number of GPU "execution" streams for the throughput mode (upper bound for a number of inference requests that can be executed simultaneously).<br>This option is can be used to decrease GPU stall time by providing more effective load from several streams. Increasing the number of streams usually is more effective for smaller topologies or smaller input sizes. Note that your application should provide enough parallel slack (e.g. running many inference requests) to leverage full GPU bandwidth. Additional streams consume several times more GPU memory, so make sure the system has enough memory available to suit parallel stream execution. Multiple streams might also put additional load on CPU. If CPU load increases, it can be regulated by setting an appropriate `KEY_CLDNN_PLUGIN_THROTTLE` option value (see above). If your target system has relatively weak CPU, keep throttling low. <br>The default value is 1, which implies latency-oriented behavior.<br>`KEY_GPU_THROUGHPUT_AUTO` creates bare minimum of streams to improve the performance; this is the most portable option if you are not sure how many resources your target machine has (and what would be the optimal number of streams). <br> A positive integer value creates the requested number of streams. |
 | `KEY_EXCLUSIVE_ASYNC_REQUESTS` | `YES` / `NO`                | `NO`              | Forces async requests (also from different executable networks) to execute serially.|
 
 ## Note on Debug Capabilities of the GPU Plugin
