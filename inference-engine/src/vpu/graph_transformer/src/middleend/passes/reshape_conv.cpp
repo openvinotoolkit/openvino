@@ -6,7 +6,6 @@
 // to get more efficient HW tiling (pass "hwConvTiling") using reshape stages.
 
 #include <vpu/middleend/pass_manager.hpp>
-#include <vpu/middleend/hw/conv_tiling/reshape_conv_func.hpp>
 
 namespace vpu {
 
