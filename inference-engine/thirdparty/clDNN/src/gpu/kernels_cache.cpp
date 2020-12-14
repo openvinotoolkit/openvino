@@ -25,6 +25,8 @@
 #include <string>
 #include <memory>
 #include <utility>
+#include <future>
+
 
 #include "kernel_selector_helper.h"
 #include "cldnn_itt.h"
@@ -437,25 +439,33 @@ void kernels_cache::build_all() {
     if (!_pending_compilation)
         return;
 
-    std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
-
-    auto sorted_program_code = get_program_source(_kernels_code);
-
-    _one_time_kernels.clear();
-    for (auto& program : sorted_program_code) {
-        auto kernels = build_program(program.second);
-
-        for (auto& k : kernels) {
-            const auto& entry_point = k.first;
-            const auto& k_id = program.second.entry_point_to_id[entry_point];
-            if (program.second.one_time) {
-                _one_time_kernels[k_id] = k.second;
-            } else {
-                _kernels[k_id] = k.second;
-            }
-        }
+    kernels_cache::sorted_code sorted_program_code;
+    {
+        std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
+        sorted_program_code = get_program_source(_kernels_code);
+        _one_time_kernels.clear();
     }
 
+    std::vector<std::future<void>> builds;
+    for (auto& program : sorted_program_code) {
+        builds.push_back(std::async(std::launch::async,[&]() {
+            auto kernels = build_program(program.second);
+
+            for (auto &k : kernels) {
+                const auto &entry_point = k.first;
+                const auto &k_id = program.second.entry_point_to_id[entry_point];
+                std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
+                if (program.second.one_time) {
+                    _one_time_kernels[k_id] = k.second;
+                } else {
+                    _kernels[k_id] = k.second;
+                }
+            }
+        }));
+    }
+    std::for_each(builds.begin(), builds.end(), [&] (std::future<void>& f){ f.wait();});
+
+    std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
     _kernels_code.clear();
     _pending_compilation = false;
 }
