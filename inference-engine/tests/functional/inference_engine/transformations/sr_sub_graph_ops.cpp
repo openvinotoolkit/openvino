@@ -317,7 +317,7 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
-    ASSERT_NO_THROW(network.reshape(network.getInputShapes()));
+    ASSERT_NO_THROW(network.reshape({{"X", {4, 3, 2}}, {"Y", {4, 3, 2}}, {"M", {4, 3, 2}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({4, 3, 2}));
