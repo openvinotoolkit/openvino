@@ -32,12 +32,6 @@ class TFResizeBilinear(Op):
         }
         super().__init__(graph, mandatory_props, attrs)
 
-    def supported_attrs(self):
-        return [
-            'align_corners',
-            'half_pixel_centers'
-        ]
-
     @staticmethod
     def tf_resize_bilinear_infer(node: Node):
         input_shape = node.in_port(0).data.get_shape()
