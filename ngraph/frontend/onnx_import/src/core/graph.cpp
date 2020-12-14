@@ -347,8 +347,8 @@ namespace ngraph
                             }
                         }
                     }
+                    ++input_index;
                 }
-                ++input_index;
             }
         }
 
