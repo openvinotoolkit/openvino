@@ -155,8 +155,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     //Set plain format
     supportedPrimitiveDescriptors.push_back(makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref));
 
-    //Set per channel format. Since we don't have inPlace implementation for nhwc, we use unknown impl type to increase its priority
-    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::unknown));
+    //Set per channel format.
+    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref));
 
     //Support channel blocked format
     std::vector<size_t> blockedPdIndexes;
@@ -329,6 +329,55 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         offset += axisSize;
     }
     initDescriptor(config);
+}
+
+void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
+    if (implPriorities.size() > 0 && implPriorities[0] == impl_desc_type::ref) {
+        selectPrimitiveDescriptorByIndex(0);
+        return;
+    }
+
+    //check the descriptors and select the ones that have the same data format as the input
+
+    std::vector<size_t> canSelectPrimitive;
+    for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
+        auto parentEdge = getParentEdgeAt(0);
+        auto parentPtr = parentEdge->getParent();
+        auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+
+        if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
+            int inNum = parentEdge->getInputNum();
+            if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
+                inNum = 0;
+            }
+            if (MKLDNNExtensionUtils::initTensorsAreEqual(
+                    getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[0].desc,
+                    parent_spd->getConfig().outConfs[inNum].desc)) {
+                canSelectPrimitive.push_back(i);
+            }
+        }
+    }
+    if (canSelectPrimitive.size() == 1) {
+        selectPrimitiveDescriptorByIndex(static_cast<int>(canSelectPrimitive[0]));
+        return;
+    }
+    // if there are more then one PD with similar data layouts - select the optimized one
+    for (auto indx : canSelectPrimitive) {
+        if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::unknown) {
+            selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
+            return;
+        }
+    }
+
+    // if there are no matching data layouts, select first optimized implementation
+    for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
+        if (supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown) {
+            selectPrimitiveDescriptorByIndex(static_cast<int>(i));
+            return;
+        }
+    }
+
+    selectPrimitiveDescriptorByIndex(0);
 }
 
 void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
