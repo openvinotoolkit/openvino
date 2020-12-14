@@ -47,7 +47,7 @@ nodes_attributes = {
     'variance_data': {'value': None, 'shape': int64_array([]), 'kind': 'data'},
 
     'batchnorm': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'type': None, 'kind': 'op',
-                  'op': 'FusedBatchNorm', 'is_training': True, 'eps': 1e-3},
+                  'op': 'batchNormInferenceTraining', 'eps': 1e-3},
     'batchnorm_data': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'kind': 'data'},
 
     'result': {'kind': 'op', 'op': 'Result'},
@@ -78,7 +78,7 @@ nodes_attributes = {
 @generator
 class FusedBatchNormTrainingTest(unittest.TestCase):
     @generate(*[
-        'FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3',
+        'batchNormInferenceTraining',
     ])
     def test_transformation(self, op: str):
         graph = build_graph(nodes_attributes,

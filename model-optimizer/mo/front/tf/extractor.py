@@ -55,9 +55,6 @@ def node_pb_arg(pb_extractor: callable):
 
 tf_op_extractors = {
     'TFCustomSubgraphCall': node_pb_arg(lambda pb: None),
-    'FusedBatchNorm': node_pb_arg(tf_fused_bn_extractor),
-    'FusedBatchNormV2': node_pb_arg(tf_fused_bn_extractor),
-    'FusedBatchNormV3': node_pb_arg(tf_fused_bn_extractor),
     'RandomUniform': node_pb_arg(tf_random_uniform_ext),
 }
 

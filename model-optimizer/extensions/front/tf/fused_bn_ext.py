@@ -17,8 +17,8 @@
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 from extensions.ops.BatchNormInference import BatchNormInference
+from extensions.ops.BatchNormInferenceTraining import BatchNormInferenceTraining
 
-'''
 class FusedBatchNormBaseExtractor(FrontExtractorOp):
     enabled = True
 
@@ -30,15 +30,25 @@ class FusedBatchNormBaseExtractor(FrontExtractorOp):
             'data_format': pb.attr["data_format"].s,
             'data_type': tf_dtype_extractor(pb.attr["T"].type),
             'eps': pb.attr['epsilon'].f,
-            'is_training': is_training
+            'is_training': is_training, #TODO Exclude from Fused batch norm operations
         }
-        
-        
-        
-        
-class FusedBatchNormExtractor(FrontExtractorOp):
+        (BatchNormInferenceTraining if is_training else BatchNormInference)\
+        .update_node_stat(node, attrs)
+
+class FusedBatchNormExtractor(FusedBatchNormBaseExtractor):
     op = "FusedBatchNorm"
     
     def __init__(self):
         super().__init__(self)
-'''
+        
+class FusedBatchNormV2Extractor(FusedBatchNormBaseExtractor):
+    op = "FusedBatchNormV2"
+    
+    def __init__(self):
+        super().__init__(self)
+
+class FusedBatchNormV3Extractor(FusedBatchNormBaseExtractor):
+    op = "FusedBatchNormV3"
+    
+    def __init__(self):
+        super().__init__(self)

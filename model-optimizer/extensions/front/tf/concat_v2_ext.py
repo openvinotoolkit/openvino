@@ -23,6 +23,6 @@ class ConcatV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'N': node.pb.attr["N"].i,'axis':None};
+        attrs = {'N': node.pb.attr["N"].i, 'axis': None};
         Concat.update_node_stat(node, attrs)
         return cls.enabled

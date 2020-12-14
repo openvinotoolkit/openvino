@@ -44,8 +44,7 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('op', dict(kind='op', op=lambda op: op in ['FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3'],
-                 is_training=True))],
+                ('op', dict(kind='op', op=lambda op: op in ['batchNormInferenceTraining']))],
             edges=[]
         )
 
