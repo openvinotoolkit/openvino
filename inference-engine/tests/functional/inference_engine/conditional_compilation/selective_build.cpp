@@ -43,6 +43,13 @@ struct TestTemplateClass<float> {
     }
 };
 
+template<>
+struct TestTemplateClass<void> {
+    void operator()(int &v) {
+        v = 100;
+    }
+};
+
 struct TestNodeBase {
     TestNodeBase(int k, int v)
         : key(k)
@@ -100,6 +107,51 @@ TEST(ConditionalCompilationTests, SwitchCase) {
     OV_CASE(1, bool),
     OV_CASE(2, float));
     EXPECT_EQ(n, 44);
+
+#undef CCTests_TestTemplateClass
+#undef CCTests_TestTemplateClass_cases
+}
+
+TEST(ConditionalCompilationTests, SwitchCaseWithDefault) {
+    // Default case is enabled
+#define CCTests_TestTemplateClass 1
+#define CCTests_TestTemplateClass_cases OV_DEFAULT()
+
+    int n = 0;
+
+    OV_SWITCH(CCTests, TestTemplateClass, n, 0,
+    OV_CASE(0, int),
+    OV_CASE(1, bool),
+    OV_CASE(2, float),
+    OV_DEFAULT());
+    EXPECT_EQ(n, 100);
+
+    n = 0;
+    EXPECT_EQ(n, 0);
+    OV_SWITCH(CCTests, TestTemplateClass, n, 1,
+    OV_CASE(0, int),
+    OV_CASE(1, bool),
+    OV_CASE(2, float),
+    OV_DEFAULT());
+    EXPECT_EQ(n, 100);
+
+    n = 0;
+    EXPECT_EQ(n, 0);
+    OV_SWITCH(CCTests, TestTemplateClass, n, 2,
+    OV_CASE(0, int),
+    OV_CASE(1, bool),
+    OV_CASE(2, float),
+    OV_DEFAULT());
+    EXPECT_EQ(n, 100);
+
+    n = 0;
+    EXPECT_EQ(n, 0);
+    OV_SWITCH(CCTests, TestTemplateClass, n, 3,
+    OV_CASE(0, int),
+    OV_CASE(1, bool),
+    OV_CASE(2, float),
+    OV_DEFAULT());
+    EXPECT_EQ(n, 100);
 
 #undef CCTests_TestTemplateClass
 #undef CCTests_TestTemplateClass_cases

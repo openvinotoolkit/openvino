@@ -88,9 +88,16 @@ struct case_wrapper {
     using type = T;
     const C value {};
 
-    case_wrapper(C && val)
-        : value(std::forward<C>(val))
+    const bool def_case = false;
+
+    case_wrapper(C && val, bool def_case = false)
+        : value(std::forward<C>(val)),
+        def_case(def_case)
     {}
+};
+
+struct default_wrapper : public case_wrapper<uint8_t, void> {
+    default_wrapper() : case_wrapper(0, true) {}
 };
 
 template<typename T, typename C>
@@ -100,7 +107,7 @@ case_wrapper<C, T> make_case_wrapper(C && val) {
 
 template<template<typename...> class Fn, typename Ctx, typename T, typename Case>
 bool match(Ctx && ctx, T && val, Case && cs) {
-    const bool is_matched = val == cs.value;
+    const bool is_matched = cs.def_case || (!cs.def_case && val == cs.value);
     if (is_matched)
         Fn<typename Case::type>()(std::forward<Ctx>(ctx));
     return is_matched;
@@ -146,11 +153,17 @@ struct case_wrapper {
     using type = T;
     const C value {};
     const char *name = nullptr;
+    const bool def_case = false;
 
-    case_wrapper(C && val, const char *name)
+    case_wrapper(C && val, const char *name, bool def_case = false)
         : value(std::forward<C>(val))
         , name(name)
+        , def_case(def_case)
     {}
+};
+
+struct default_wrapper : public case_wrapper<uint8_t, void> {
+    default_wrapper(const char *name) : case_wrapper(0, name, true) {}
 };
 
 template<typename T, typename C>
@@ -164,7 +177,7 @@ template<openvino::itt::domain_t(*domain)(),
         typename T,
         typename Case>
 bool match(char const *region, Ctx && ctx, T && val, Case && cs) {
-    const bool is_matched = val == cs.value;
+    const bool is_matched = cs.def_case || (!cs.def_case && val == cs.value);
     if (is_matched) {
         openvino::itt::ScopedTask<domain> task(
             openvino::itt::handle<struct OV_CC_CAT(Task_, __LINE__)>(
@@ -197,6 +210,9 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 
 #define OV_CC_LBR (
 #define OV_CC_RBR )
+
+#define OV_DEFAULT()                                                                 \
+    openvino::cc::internal::default_wrapper(OV_CC_TOSTRING(OV_CASE OV_CC_LBR void, void OV_CC_RBR))
 
 #define OV_CASE(Case, Type)                                                                 \
     openvino::cc::internal::make_case_wrapper<Type>(Case, OV_CC_TOSTRING(OV_CASE OV_CC_LBR Case, Type OV_CC_RBR))
@@ -245,6 +261,8 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 #define OV_SWITCH(Module, fn, ctx, val, ...)    \
     OV_CC_EXPAND(OV_CC_CAT(OV_CC_SWITCH_, OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, fn)))(Module, fn, ctx, val))
 
+#define OV_DEFAULT() openvino::cc::internal::default_wrapper()
+
 #define OV_CASE(Case, Type) openvino::cc::internal::make_case_wrapper<Type>(Case)
 
 #define OV_CASE2(Case1, Case2, Type1, Type2) openvino::cc::internal::make_case_wrapper<std::tuple<Type1, Type2>>(std::make_tuple(Case1, Case2))
@@ -257,6 +275,8 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 
 #define OV_SWITCH(Module, fn, ctx, val, ...)    \
     openvino::cc::internal::match<fn>(ctx, val, __VA_ARGS__);
+
+#define OV_DEFAULT() openvino::cc::internal::default_wrapper()
 
 #define OV_CASE(Case, Type) openvino::cc::internal::make_case_wrapper<Type>(Case)
 

@@ -43,6 +43,13 @@ struct TestTemplateClass<float> {
     }
 };
 
+template<>
+struct TestTemplateClass<void> {
+    void operator()(int &v) {
+        v = 100;
+    }
+};
+
 struct TestNodeBase {
     TestNodeBase(int k, int v)
         : key(k)
@@ -78,6 +85,27 @@ TEST(ConditionalCompilationTests, SwitchCaseAnalysys) {
     OV_CASE(1, bool),
     OV_CASE(2, float));
     EXPECT_EQ(n, 42);
+}
+
+TEST(ConditionalCompilationTests, SwitchCaseWithoutDefaultAnalysys) {
+    int n = 0;
+
+    OV_SWITCH(CCTests, TestTemplateClass, n, 3,
+    OV_CASE(0, int),
+    OV_CASE(1, bool),
+    OV_CASE(2, float));
+    EXPECT_EQ(n, 0);
+}
+
+TEST(ConditionalCompilationTests, SwitchCaseWithDefaultAnalysys) {
+    int n = 0;
+
+    OV_SWITCH(CCTests, TestTemplateClass, n, 3,
+    OV_CASE(0, int),
+    OV_CASE(1, bool),
+    OV_CASE(2, float),
+    OV_DEFAULT());
+    EXPECT_EQ(n, 100);
 }
 
 TEST(ConditionalCompilationTests, FactoryAnalysys) {
