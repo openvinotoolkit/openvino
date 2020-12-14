@@ -21,8 +21,8 @@
 
 #include <cfenv>
 #include <functional>
-#include "convolution.hpp"
 #include "ngraph/coordinate_transform.hpp"
+#include "ngraph/runtime/reference/helpers.hpp"
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph

@@ -42,23 +42,23 @@ namespace ngraph
                       typename FILTER,
                       typename OUTPUT,
                       typename ACCUMULATION = typename widen<OUTPUT>::type>
-            void convolution_impl(const INPUT* in,
-                                  const FILTER* filter,
-                                  OUTPUT* out,
-                                  const Shape& in_shape,
-                                  const Shape& filter_shape,
-                                  const Shape& out_shape,
-                                  const Strides& stride,
-                                  const Strides& filter_dilation,
-                                  const CoordinateDiff& in_pad_below,
-                                  const CoordinateDiff& in_pad_above,
-                                  const Strides& in_dilation,
-                                  size_t in_batch_axis,
-                                  size_t in_channel_axis,
-                                  size_t filter_out_channel_axis,
-                                  size_t filter_in_channel_axis,
-                                  size_t out_batch_axis,
-                                  size_t out_channel_axis)
+            void convolution_backprop_impl(const INPUT* in,
+                                           const FILTER* filter,
+                                           OUTPUT* out,
+                                           const Shape& in_shape,
+                                           const Shape& filter_shape,
+                                           const Shape& out_shape,
+                                           const Strides& stride,
+                                           const Strides& filter_dilation,
+                                           const CoordinateDiff& in_pad_below,
+                                           const CoordinateDiff& in_pad_above,
+                                           const Strides& in_dilation,
+                                           size_t in_batch_axis,
+                                           size_t in_channel_axis,
+                                           size_t filter_out_channel_axis,
+                                           size_t filter_in_channel_axis,
+                                           size_t out_batch_axis,
+                                           size_t out_channel_axis)
             {
                 auto old_mode = std::fegetround();
                 std::fesetround(FE_TONEAREST);
@@ -224,40 +224,85 @@ namespace ngraph
                 std::fesetround(old_mode);
             }
 
-            template <typename INPUT,
+            template <typename OUTPUT,
                       typename FILTER,
-                      typename OUTPUT,
-                      typename ACCUMULATION = typename widen<OUTPUT>::type>
-            void convolution(const INPUT* in,
-                             const FILTER* filter,
-                             OUTPUT* out,
-                             const Shape& in_shape,
-                             const Shape& filter_shape,
-                             const Shape& out_shape,
-                             const Strides& stride,
-                             const Strides& filter_dilation,
-                             const CoordinateDiff& in_pad_below,
-                             const CoordinateDiff& in_pad_above,
-                             const Strides& in_dilation)
-
+                      typename INPUT,
+                      typename ACCUMULATION = typename widen<INPUT>::type>
+            void convolution_backprop_in(const OUTPUT* delta_out,
+                                         const FILTER* filter,
+                                         INPUT* delta_in,
+                                         const Shape& out_shape,
+                                         const Shape& filter_shape,
+                                         const Shape& in_shape,
+                                         const Strides& in_dilation,
+                                         const Strides& filter_dilation,
+                                         const CoordinateDiff& forward_in_pad_bellow,
+                                         const CoordinateDiff& forward_in_pad_above,
+                                         const Strides& stride)
             {
-                convolution_impl<INPUT, FILTER, OUTPUT, ACCUMULATION>(in,
-                                                                      filter,
-                                                                      out,
-                                                                      in_shape,
-                                                                      filter_shape,
-                                                                      out_shape,
-                                                                      stride,
-                                                                      filter_dilation,
-                                                                      in_pad_below,
-                                                                      in_pad_above,
-                                                                      in_dilation,
-                                                                      0,
-                                                                      1,
-                                                                      0,
-                                                                      1,
-                                                                      0,
-                                                                      1);
+                // Note that we only reverse the spatial dimensions here (loop
+                // starts at 2)
+                std::vector<INPUT> reversed(shape_size(filter_shape));
+                AxisSet reverse_axes;
+                size_t reverse_axes_start = 2;
+                for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i)
+                {
+                    reverse_axes.insert(i);
+                }
+                reverse(reinterpret_cast<const char*>(filter),
+                        reinterpret_cast<char*>(&reversed[0]),
+                        filter_shape,
+                        filter_shape,
+                        reverse_axes,
+                        sizeof(FILTER));
+                size_t filter_out_channel_axis = 1;
+                size_t filter_in_channel_axis = 0;
+
+                // Compute backward pad out pad bellow
+                size_t spatial_dim_count = in_shape.size() - 2;
+
+                CoordinateDiff backward_delta_out_pad_below;
+                backward_delta_out_pad_below.resize(spatial_dim_count);
+
+                for (size_t i = 0; i < spatial_dim_count; i++)
+                {
+                    backward_delta_out_pad_below[i] =
+                        (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] -
+                        forward_in_pad_bellow[i];
+                }
+                // Compute backward pad out pad above
+                CoordinateDiff backward_delta_out_pad_above;
+                backward_delta_out_pad_above.resize(spatial_dim_count);
+
+                for (size_t i = 0; i < spatial_dim_count; i++)
+                {
+                    backward_delta_out_pad_above[i] =
+                        (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] +
+                        ((forward_in_pad_bellow[i] + ((in_shape[i + 2]) - 1) * in_dilation[i] +
+                          forward_in_pad_above[i] -
+                          (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i]) %
+                         stride[i]) -
+                        forward_in_pad_above[i];
+                }
+
+                convolution_backprop_impl<OUTPUT, FILTER, INPUT, ACCUMULATION>(
+                    delta_out,
+                    &reversed[0],
+                    delta_in,
+                    out_shape,
+                    filter_shape,
+                    in_shape,
+                    in_dilation,
+                    filter_dilation,
+                    backward_delta_out_pad_below,
+                    backward_delta_out_pad_above,
+                    stride,
+                    0,
+                    1,
+                    filter_out_channel_axis,
+                    filter_in_channel_axis,
+                    0,
+                    1);
             }
         } // namespace reference
     }     // namespace runtime

@@ -25,6 +25,7 @@
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
 #include <ngraph/runtime/reference/convolution.hpp>
+#include <ngraph/runtime/reference/convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
 #include <ngraph/runtime/reference/cum_sum.hpp>
