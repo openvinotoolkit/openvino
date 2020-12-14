@@ -20,7 +20,7 @@ from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
-class TFResizeNearestNeighborOp(Op):
+class TFResizeNearestNeighbor(Op):
     op = 'TFResizeNearestNeighbor'
 
     def __init__(self, graph: Graph, attrs: dict):
@@ -28,7 +28,7 @@ class TFResizeNearestNeighborOp(Op):
             'op': self.op,
             'out_ports_count': 1,
             'in_ports_count': 2,
-            'infer': TFResizeNearestNeighborOp.tf_resize_nearest_neighbor_infer
+            'infer': TFResizeNearestNeighbor.tf_resize_nearest_neighbor_infer
         }
         super().__init__(graph, mandatory_props, attrs)
 

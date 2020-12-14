@@ -100,8 +100,7 @@ def replace_resize_bilinear(graph: Graph, resize: Node):
                                                    'in_ports_count': 4,
                                                })
 
-    input_connection = resize.in_port(0).get_connection()
-    input_connection.set_destination(interpolate4.in_port(0))
+    resize.in_port(0).get_connection().set_destination(interpolate4.in_port(0))
 
     resize.out_port(0).get_connection().set_source(interpolate4.out_port(0))
     rename_nodes([(resize, resize_name + '/delete_'), (interpolate4, resize_name)])

@@ -28,6 +28,7 @@ from mo.ops.shape import Shape
 class InterpolateWithConcat(FrontReplacementPattern):
     """
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph using the following Concat inputs
+
     BEFORE:
             input                   Const
     shape=[1, 3, 30, 40]      value=[60, 160]

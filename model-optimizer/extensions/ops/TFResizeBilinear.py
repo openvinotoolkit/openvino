@@ -20,7 +20,7 @@ from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
-class TFResizeBilinearOp(Op):
+class TFResizeBilinear(Op):
     op = 'TFResizeBilinear'
 
     def __init__(self, graph: Graph, attrs: dict):
@@ -28,7 +28,7 @@ class TFResizeBilinearOp(Op):
             'op': self.op,
             'out_ports_count': 1,
             'in_ports_count': 2,
-            'infer': TFResizeBilinearOp.tf_resize_bilinear_infer
+            'infer': TFResizeBilinear.tf_resize_bilinear_infer
         }
         super().__init__(graph, mandatory_props, attrs)
 
