@@ -64,7 +64,7 @@ public:
 
     void Export(const std::string& modelFileName) override {
         (void)modelFileName;
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     void Export(std::ostream& networkModel) override {
@@ -76,7 +76,7 @@ public:
     }
 
     CNNNetwork GetExecGraphInfo() override {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     /**
@@ -89,7 +89,7 @@ public:
     }
 
     std::vector<IVariableStateInternal::Ptr> QueryState() override {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     void SetConfig(const std::map<std::string, Parameter>& config) override {
@@ -107,11 +107,11 @@ public:
 
     Parameter GetMetric(const std::string& name) const override {
         (void)name;
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     RemoteContext::Ptr GetContext() const override {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
 protected:
@@ -123,7 +123,7 @@ protected:
      */
     virtual void ExportImpl(std::ostream& networkModel) {
         (void)networkModel;
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds infromation about network inputs info

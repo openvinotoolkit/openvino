@@ -480,46 +480,42 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         bool loaded = false;
         try {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch(InferenceEngine::details::InferenceEngineException& ie_ex) {
-            if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
-                // read XML content
-                std::string xmlString;
-                std::getline(heteroModel, xmlString);
-                std::uint64_t dataSize = 0;
-                heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        } catch(const InferenceEngine::NotImplemented&) {
+            // read XML content
+            std::string xmlString;
+            std::getline(heteroModel, xmlString);
+            std::uint64_t dataSize = 0;
+            heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
 
-                // read blob content
-                InferenceEngine::Blob::Ptr dataBlob;
-                if (0 != dataSize) {
-                    dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
-                        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
-                                                    {static_cast<std::size_t>(dataSize)},
-                                                    InferenceEngine::Layout::C));
-                    dataBlob->allocate();
-                    heteroModel.read(dataBlob->buffer(), dataSize);
-                }
-
-                cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
-                auto inputs = cnnnetwork.getInputsInfo();
-                auto inputsNode = subnetworkNode.child("inputs");
-                for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
-                    auto inputName = GetStrAttr(inputNode, "name");
-                    inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
-                }
-
-                auto outputsNode = subnetworkNode.child("outputs");
-                for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                    cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
-                }
-                auto outputs = cnnnetwork.getOutputsInfo();
-                for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                    outputs[GetStrAttr(outputNode, "name")]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
-                }
-                executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
-                loaded = true;
-            } else {
-                throw;
+            // read blob content
+            InferenceEngine::Blob::Ptr dataBlob;
+            if (0 != dataSize) {
+                dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+                    InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                {static_cast<std::size_t>(dataSize)},
+                                                InferenceEngine::Layout::C));
+                dataBlob->allocate();
+                heteroModel.read(dataBlob->buffer(), dataSize);
             }
+
+            cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+            auto inputs = cnnnetwork.getInputsInfo();
+            auto inputsNode = subnetworkNode.child("inputs");
+            for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
+                auto inputName = GetStrAttr(inputNode, "name");
+                inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
+            }
+
+            auto outputsNode = subnetworkNode.child("outputs");
+            for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+                cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
+            }
+            auto outputs = cnnnetwork.getOutputsInfo();
+            for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+                outputs[GetStrAttr(outputNode, "name")]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
+            }
+            executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
+            loaded = true;
         }
 
         for (auto&& input : executableNetwork.GetInputsInfo()) {
@@ -597,24 +593,20 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     for (auto&& subnetwork : networks) {
         try {
             subnetwork._network.Export(heteroModel);
-        } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
-            if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
-                // TODO: enable once serialization to IR v10 is implemented
+        } catch (const InferenceEngine::NotImplemented&) {
+            // TODO: enable once serialization to IR v10 is implemented
 #if 1
-                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                    << "Device " << subnetwork._device << " does not implement Export method";
+            THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
+                << "Device " << subnetwork._device << " does not implement Export method";
 #else
-                pugi::xml_document doc;
-                auto subnet = subnetwork._clonedNetwork;
-                auto dataSize = static_cast<std::uint64_t>(InferenceEngine::Serialization::FillXmlDoc(subnet, doc));
-                doc.save(heteroModel, nullptr, pugi::format_raw);
-                heteroModel << std::endl;
-                heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-                InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnet);
+            pugi::xml_document doc;
+            auto subnet = subnetwork._clonedNetwork;
+            auto dataSize = static_cast<std::uint64_t>(InferenceEngine::Serialization::FillXmlDoc(subnet, doc));
+            doc.save(heteroModel, nullptr, pugi::format_raw);
+            heteroModel << std::endl;
+            heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnet);
 #endif
-            } else {
-                throw;
-            }
         }
     }
 }

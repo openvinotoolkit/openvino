@@ -171,9 +171,8 @@ RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
         } catch (const NotImplemented& ex) {
         }
     }
-    THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::NOT_IMPLEMENTED
-                       << NOT_IMPLEMENTED_str << "None of the devices in the MULTI has an associated remote context."
-                       << "Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
+    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED) << "None of the devices in the MULTI has an associated remote context."
+                       << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
 InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
@@ -210,8 +209,7 @@ IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
     auto priorities = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == config.end() || config.size() > 1) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str <<
-            "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
+        THROW_IE_EXCEPTION << "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
     } else {
         auto multiPlugin = std::dynamic_pointer_cast<MultiDeviceInferencePlugin>(this->_plugin);
         assert(multiPlugin != nullptr);
@@ -220,7 +218,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         if (std::any_of(metaDevices.begin(), metaDevices.end(), [](const DeviceInformation& kvp) {
                 return kvp.numRequestsPerDevices != -1;
             })) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << "You can only change device priorities but not number of requests"
+            THROW_IE_EXCEPTION << "You can only change device priorities but not number of requests"
                      <<" with the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES!";
         }
 
