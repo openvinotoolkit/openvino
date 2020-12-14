@@ -174,6 +174,7 @@ VPU_DECLARE_ENUM(StageType,
     GatherND = 136,
     HSwish = 137,
     Ceiling = 138,
+    GatherElements = 139,
 )
 
 //
