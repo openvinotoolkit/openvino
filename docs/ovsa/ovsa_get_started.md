@@ -307,7 +307,7 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    sudo mkdir /var/OVSA/vtpm
    sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
    ```
-      > **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
+   **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
 10. Start the vTPM on Host:
    ```sh
    swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
@@ -405,7 +405,7 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    ```sh
    sudo mkdir /var/OVSA/vtpm/vtpm_runtime
    ```
-      > **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the scripts directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
+   **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the scripts directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
 3. Start the vTPM:
    ```sh
    swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime \
