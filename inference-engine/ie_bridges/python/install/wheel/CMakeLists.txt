@@ -54,6 +54,12 @@ if(ENABLE_CLDNN)
     list(APPEND target_files $<TARGET_FILE_DIR:clDNNPlugin>/cache.json)
 endif()
 
+if(ENABLE_MYRIAD)
+    list(APPEND plugin_targets myriadPlugin)
+    list(APPEND target_files $<TARGET_FILE_DIR:myriadPlugin>/pcie-ma2x8x.elf)
+    list(APPEND target_files $<TARGET_FILE_DIR:myriadPlugin>/usb-ma2x8x.mvcmd)
+endif()
+
 add_custom_target(ie_wheel ALL DEPENDS ${runtime_targets} ${plugin_targets})
 
 if(LINUX)
