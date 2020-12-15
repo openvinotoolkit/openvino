@@ -17,6 +17,7 @@
 #include "kernel_base.h"
 #include "kernel_selector_common.h"
 #include "kernel_selector.h"
+#include "kernel_selector_params.h"
 #include <type_traits>
 #include <sstream>
 #include <fstream>
@@ -129,9 +130,10 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     std::string kernelName;
 
     auto allImplementations = GetAllImplementations(params, options, kType);
-
+    auto kernel_params = static_cast<const base_params&>(params);
+    bool int8_kernel = kernel_params.inputs[0].GetDType() == Datatype::INT8 || kernel_params.inputs[0].GetDType() == Datatype::UINT8;
     std::tuple<std::string, int> cachedKernelConfig;
-    if (options.tuningParams.mode == TuningMode::TUNING_DISABLED) {  // Try to load kernel/config from offline cache
+    if (options.tuningParams.mode == TuningMode::TUNING_DISABLED && !int8_kernel) {  // Try to load kernel/config from offline cache
 #if ENABLE_OFFLINE_TUNING_CACHE
         cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, params);
 #else

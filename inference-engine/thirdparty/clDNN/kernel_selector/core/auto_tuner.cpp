@@ -34,8 +34,9 @@ TuningCache::TuningCache(const std::string& cacheFilePath, bool createMode)
     std::ifstream tuningFile(cacheFilePath);
 
     if (tuningFile && tuningFile.good()) {
-        rapidjson::IStreamWrapper isw{ tuningFile };
-        cache.ParseStream(isw);
+        std::stringstream buffer;
+        buffer << tuningFile.rdbuf();
+        cache.Parse(buffer.str().c_str());
     } else {
         if (!createMode) {
             throw std::runtime_error("Tuning file: " + cacheFilePath +
@@ -329,7 +330,7 @@ std::tuple<std::string, int> AutoTuner::LoadKernelOffline(std::shared_ptr<Tuning
                                                           const Params& params) {
     static const uint32_t defaultComputeUnits = 24;
     auto result = deviceCache->LoadKernel(params, false);
-    if (std::get<0>(result).empty()) {
+    if (std::get<0>(result).empty() && params.engineInfo.computeUnitsCount != defaultComputeUnits) {
         result = deviceCache->LoadKernel(params, defaultComputeUnits);
     }
     return result;

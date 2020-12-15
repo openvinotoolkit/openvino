@@ -202,6 +202,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
                                        GetPreferredWeightsLayout(newParams),
@@ -210,11 +214,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                        newParams.groups,
                                        newParams.transposed);
 
-    if (!succeed) {
-        return {};
-    }
+    bool bSupportedWeightsLayout = newParams.weights.GetLayout() == GetPreferredWeightsLayout(newParams);
+    const bool bWeightsOK = bSupportedWeightsLayout || options.allowStaticInputReordering;
 
-    if (!Validate(params, options)) {
+    if (!succeed || !bWeightsOK) {
         return {};
     }
 
