@@ -377,6 +377,29 @@ public:
         }
         return size;
     }
+
+    layout get_fc_weights_layout(T& p) {
+        cldnn::tensor weights_tensor;
+        if (p.out_shape.spatial[1] > 1) {
+            // 3d case
+            weights_tensor = cldnn::tensor(p.kernel.batch[0], p.kernel.feature[0], 1, 1);
+        }
+        else {
+            weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]),
+                   spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
+        }
+        return layout{p.weights_type, p.weights_format, weights_tensor};
+    }
+
+    layout get_fc_bias_layout(T& p) {
+        if (p.out_shape.spatial[1] > 1) {
+            // 3d case
+            return layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.spatial[1], 1, 1} };
+        }
+        else {
+            return layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
+        }
+    }
 };
 
 class ResamplePrimitiveFusingTest : public ::BaseFusingTest<resample_test_params> {
@@ -566,7 +589,7 @@ public:
 #define CASE_FC_FP32_1 {1, 1, 3, 1}, {1, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP32_2 {2, 1, 3, 1}, {2, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::yxfb, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP32_3 {2, 32, 1, 1}, {2, 16, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_1 {5, 3, 1, 3}, {2, 3, 1, 5}, {5, 3, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define CASE_FC_FP32_3D_1 {5, 3, 1, 3}, {5, 3, 1, 5}, {5, 3, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
 #define CASE_FC_FP32_3D_2 {2, 1, 1, 1}, {2, 1, 1, 32}, {32, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
 #define CASE_FC_FP32_3D_3 {2, 32, 1, 32}, {2, 32, 1, 16}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
 
@@ -2490,8 +2513,8 @@ class fc_fp32_activation : public FCFusingTest {};
 TEST_P(fc_fp32_activation, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-                data("weights", get_mem(get_weights_layout(p))),
-                data("bias", get_mem(get_bias_layout(p))),
+                data("weights", get_mem(get_fc_weights_layout(p))),
+                data("bias", get_mem(get_fc_bias_layout(p))),
                 fully_connected("fc_prim", "input", "weights", "bias", padding(), get_fc_output_dim_size(p)),
                 activation("activation", "fc_prim", activation_func::abs),
                 reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
@@ -2514,8 +2537,8 @@ class fc_fp32_bias : public FCFusingTest {};
 TEST_P(fc_fp32_bias, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-                data("weights", get_mem(get_weights_layout(p))),
-                data("bias", get_mem(get_bias_layout(p))),
+                data("weights", get_mem(get_fc_weights_layout(p))),
+                data("bias", get_mem(get_fc_bias_layout(p))),
                 fully_connected("fc_prim", "input", "weights", ""),
                 eltwise("bias_add", {"fc_prim", "bias"}, eltwise_mode::sum),
                 reorder("reorder_bfyx", "bias_add", p.default_format, data_types::f32)
@@ -2535,8 +2558,8 @@ class fc_int8_scale : public FCFusingTest {};
 TEST_P(fc_int8_scale, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_fc_weights_layout(p))),
+        data("bias", get_mem(get_fc_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
         fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_fc_output_dim_size(p)),
         scale("scale", "fc_prim", "scale_data"),
@@ -2550,8 +2573,8 @@ TEST_P(fc_int8_scale, basic) {
 TEST_P(fc_int8_scale, fp16_scale_out) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_fc_weights_layout(p))),
+        data("bias", get_mem(get_fc_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
         fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, padding(), get_fc_output_dim_size(p)),
         scale("scale", "fc_prim", "scale_data", optional_data_type{data_types::f16}),
@@ -2576,8 +2599,8 @@ class fc_int8_quantize_u8 : public FCFusingTest {};
 TEST_P(fc_int8_quantize_u8, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_fc_weights_layout(p))),
+        data("bias", get_mem(get_fc_bias_layout(p))),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
@@ -2605,8 +2628,8 @@ class fc_int8_scale_quantize_i8 : public FCFusingTest {};
 TEST_P(fc_int8_scale_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_fc_weights_layout(p))),
+        data("bias", get_mem(get_fc_bias_layout(p))),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
@@ -2637,8 +2660,8 @@ class fc_int8_scale_activation_quantize_i8 : public FCFusingTest {};
 TEST_P(fc_int8_scale_activation_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
+        data("weights", get_mem(get_fc_weights_layout(p))),
+        data("bias", get_mem(get_fc_bias_layout(p))),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
