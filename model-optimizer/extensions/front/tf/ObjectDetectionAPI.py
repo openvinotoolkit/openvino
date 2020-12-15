@@ -928,7 +928,6 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         return new_list
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
-        log.debug('Matched sub-graph {}'.format(match.matched_nodes_names()))
         argv = graph.graph['cmd_params']
         if argv.tensorflow_object_detection_api_pipeline_config is None:
             raise Error(missing_param_error)
