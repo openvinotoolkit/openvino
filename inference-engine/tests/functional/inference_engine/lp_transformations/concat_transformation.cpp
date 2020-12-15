@@ -124,7 +124,7 @@ TEST_P(ConcatTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {

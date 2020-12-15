@@ -100,7 +100,8 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             dataPrecision.min,
             dataPrecision.max,
             dataPrecision.precision == currentDataPrecision.precision ? currentDataPrecision.hasZeroPoint : true,
-            updatePrecisions);
+            updatePrecisions,
+            deqPrecision);
         dequantizations[fakeQuantizeLayer->get_friendly_name()] = fakeQuantizeDequantization;
 
         // 2. update FakeQuantize - one time action
@@ -207,7 +208,7 @@ void ConcatMultiChannelsTransformation::updateDequantizationShapesIfNecessary(
             const auto precisionAfter = replacedDequantization.multiply->get_element_type();
 
             auto newDequantization = ngraph::pass::low_precision::NetworkHelper::makeDequantization(
-                scale, shift, precisionBefore, inputShape, precisionAfter, 0.f, 5.f);
+                scale, shift, precisionBefore, inputShape, precisionAfter, replacedDequantization.multiply->input(0).get_element_type());
             dequantizationByFakeQuantize[fakeQuantizes[i]->get_friendly_name()] = newDequantization;
         }
     }

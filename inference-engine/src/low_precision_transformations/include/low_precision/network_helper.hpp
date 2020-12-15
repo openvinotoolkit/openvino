@@ -103,8 +103,7 @@ public:
         const ngraph::element::Type originalPrecision,
         const ngraph::Shape dataNodeOutputShape,
         element::Type precision,
-        float min,
-        float max);
+        const element::Type deqPrecision = element::f32);
 
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -112,7 +111,8 @@ public:
         float min,
         float max,
         const bool hasZeroPoint,
-        const bool updatePrecision);
+        const bool updatePrecision,
+        const element::Type deqPrecision = element::f32);
 
     static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul, const bool inPlace = false);
 

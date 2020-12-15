@@ -570,14 +570,22 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     input1->set_friendly_name("input1");
 
     const auto fakeQuantize1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input1, inputPrecision, fqOnData1);
-    low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, precisionBeforeOp);
+    if (precisionBeforeOp.is_real()) {
+        low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, inputPrecision);
+    } else {
+        low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, precisionBeforeOp);
+    }
     const auto deqBefore1 = makeDequantization(fakeQuantize1, dequantizationBefore);
 
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     input2->set_friendly_name("input2");
 
     const auto fakeQuantize2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, inputPrecision, fqOnData2);
-    low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionBeforeOp);
+    if (precisionBeforeOp.is_real()) {
+        low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, inputPrecision);
+    } else {
+        low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionBeforeOp);
+    }
     const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore);
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Concat>>(
@@ -585,9 +593,19 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
 
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, precisionAfterOperation);
+    if (precisionAfterOperation.is_real()) {
+        low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, inputPrecision);
+    } else {
+        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, precisionAfterOperation);
+    }
 
-    const auto lastDequantization = makeDequantization(concat, dequantizationAfter);
+    auto deqStructure = dequantizationAfter;
+    deqStructure.multiply.outPrecision = inputPrecision;
+    if (inputPrecision != element::f32) {
+        deqStructure.convert = DequantizationOperations::Convert(element::f32);
+    }
+
+    const auto lastDequantization = makeDequantization(concat, deqStructure);
     lastDequantization->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastDequantization) };

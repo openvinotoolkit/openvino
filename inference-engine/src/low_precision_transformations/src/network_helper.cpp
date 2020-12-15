@@ -681,19 +681,18 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     const ngraph::element::Type originalPrecision,
     const ngraph::Shape dataNodeOutputShape,
     element::Type precision,
-    float min,
-    float max) {
+    const ngraph::element::Type deqPrecision) {
     // TODO: we create input here! we really need it here?
     const std::shared_ptr<opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
     std::shared_ptr<ngraph::Node> parent = input;
 
     std::shared_ptr<DequantizationConvert> convert;
-    if (precision == originalPrecision) {
+    if (precision == deqPrecision) {
         convert = nullptr;
     } else {
         convert = std::make_shared<DequantizationConvert>(
             input,
-            originalPrecision);
+            deqPrecision);
         parent = convert;
     }
 
@@ -701,15 +700,17 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     if (std::abs(dequantizationSub) > 1e-6) {
         subtract = std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
             parent,
-            std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationSub })));
-        subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
+            std::make_shared<ngraph::opset1::Constant>(deqPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationSub })));
+        subtract->set_output_type(0, deqPrecision, subtract->get_output_partial_shape(0));
         parent = subtract;
     }
 
     // mandatory
-    std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(
-        parent,
-        std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationMul })));
+    auto multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+            DequantizationMultiply(
+            parent,
+            std::make_shared<ngraph::opset1::Constant>(deqPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationMul }))),
+        originalPrecision);
 
     return FakeQuantizeDequantization(input, convert, subtract, multiply);
 }
@@ -720,7 +721,8 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     float min,
     float max,
     const bool hasZeroPoint,
-    const bool updatePrecision) {
+    const bool updatePrecision,
+    const element::Type deqPrecision) {
     using std::make_shared;
 
     const ngraph::element::Type_t fqPrecision = fq->get_output_element_type(0);
@@ -732,14 +734,14 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
 
     // TODO: threshold values have to used here to avoid shifts
 
-    const std::shared_ptr<Node> scale = fold<opset1::Divide>(
+    const std::shared_ptr<Node> scale = fold<opset1::Convert>(fold<opset1::Divide>(
         fold<opset1::Subtract>(outputHigh, outputLow),
-        fold<opset1::Subtract>(newMax, newMin));
+        fold<opset1::Subtract>(newMax, newMin)), deqPrecision);
 
     std::shared_ptr<Node> shift = hasZeroPoint ?
-        fold<opset1::Divide>(
+        fold<opset1::Convert>(fold<opset1::Divide>(
             fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-            fold<opset1::Subtract>(outputHigh, outputLow)) :
+            fold<opset1::Subtract>(outputHigh, outputLow)), deqPrecision) :
         nullptr;
 
     if (shift != nullptr) {
@@ -759,7 +761,7 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
 
     std::shared_ptr<ngraph::opset1::Convert> convert;
     if (updatePrecision) {
-        convert = std::make_shared<DequantizationConvert>(parent, fq->get_output_element_type(0));
+        convert = std::make_shared<DequantizationConvert>(parent, deqPrecision);
         parent = convert;
     } else {
         convert = nullptr;
@@ -768,12 +770,13 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     std::shared_ptr<ngraph::opset1::Subtract> subtract;
     if (shift != nullptr) {
         subtract = make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(parent, shift);
-        subtract->set_output_type(0, fq->get_output_element_type(0), subtract->get_output_partial_shape(0));
+        subtract->set_output_type(0, deqPrecision, subtract->get_output_partial_shape(0));
         parent = subtract;
     } else {
         subtract = nullptr;
     }
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(parent, scale);
+    multiply->set_output_type(0, fq->get_output_element_type(0), multiply->get_output_partial_shape(0));
 
     return FakeQuantizeDequantization(fq, convert, subtract, multiply);
 }
