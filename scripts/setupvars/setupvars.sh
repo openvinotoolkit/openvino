@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Copyright (c) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]:-$0}" )" >/dev/null 2>&1 && pwd )"
 BASE_DIR="$( dirname "$SCRIPT_DIR" )"
 
 INSTALLDIR="${BASE_DIR}"
@@ -113,13 +111,13 @@ if command -v lsb_release >/dev/null 2>&1; then
     OS_NAME=$(lsb_release -i -s)
 fi
 
-python_bitness=$(python3 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')   
+python_bitness=$(python3 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
 if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
     echo "[setupvars.sh] 64 bitness for Python $python_version is required"
 fi
 
 MINIMUM_REQUIRED_PYTHON_VERSION="3.6"
-MAX_SUPPORTED_PYTHON_VERSION=$([[ "$OSTYPE" == "darwin"* ]] && echo '3.7' || echo '3.8') 
+MAX_SUPPORTED_PYTHON_VERSION=$([[ "$OSTYPE" == "darwin"* ]] && echo '3.7' || echo '3.8')
 if [[ -n "$python_version" && "$(printf '%s\n' "$python_version" "$MINIMUM_REQUIRED_PYTHON_VERSION" | sort -V | head -n 1)" != "$MINIMUM_REQUIRED_PYTHON_VERSION" ]]; then
     echo "[setupvars.sh] ERROR: Unsupported Python version. Please install one of Python 3.6-${MAX_SUPPORTED_PYTHON_VERSION} (64-bit) from https://www.python.org/downloads/"
     return 1
