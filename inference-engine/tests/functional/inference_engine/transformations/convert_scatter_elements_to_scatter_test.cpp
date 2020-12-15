@@ -33,8 +33,13 @@ std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShap
     auto updates = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, updates_shape);
     auto axis_const = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {axis});
 
-    uint64_t broadcast_len = broadcast_shape.rank().get_length();
-    auto broadcast_shape_param = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{broadcast_len});
+    auto broadcast_len = broadcast_shape.rank().get_length();
+    if (std::numeric_limits<size_t>::max() < broadcast_len) {
+        throw ngraph::ngraph_error("broadcast_len cannot be represented in size_t");
+    }
+
+    auto broadcast_shape_param = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64,
+        ngraph::Shape{static_cast<size_t>(broadcast_len)});
     auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(indexes, broadcast_shape_param);
 
     auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, broadcast, updates, axis_const);

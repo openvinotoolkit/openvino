@@ -27,8 +27,8 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<basicLstmParams> obj);
 
     void Run() override;
-    static std::shared_ptr<ngraph::Function> GetNetwork(uint64_t thirdDimOut,
-        uint64_t hiddenSize,
+    static std::shared_ptr<ngraph::Function> GetNetwork(size_t thirdDimOut,
+        size_t hiddenSize,
         const InferenceEngine::Precision& netPrecission = InferenceEngine::Precision::FP32,
         std::vector<float>* hidden_memory_init_out = nullptr,
         std::vector<float>* cell_memory_init_out = nullptr);
