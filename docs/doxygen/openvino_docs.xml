@@ -60,6 +60,7 @@
                 <tab type="user" title="Introduction" url="@ref openvino_docs_security_guide_introduction"/>
                 <tab type="user" title="Using DL Workbench Securely" url="@ref openvino_docs_security_guide_workbench"/>
                 <tab type="user" title="Using Encrypted Models" url="@ref openvino_docs_IE_DG_protecting_model_guide"/>
+                <tab type="user" title="Security Add-on" url="@ref ovsa_get_started"/>
             </tab>
         </tab>
 
@@ -152,7 +153,7 @@
             </tab>
             <tab type="usergroup" title="Add-Ons" url="">
               <tab type="user" title="Model Server" url="@ref openvino_docs_ovms"/>
-              <tab type="user" title="Security Add-on" url="@ref ovsa_get_started"/>  
+              <tab type="user" title="Security Add-on" url="./ovsa_get_started.html"/>  
             </tab>
         </tab>
 
