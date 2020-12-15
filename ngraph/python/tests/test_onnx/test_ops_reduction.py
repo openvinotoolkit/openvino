@@ -18,8 +18,7 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import (xfail_issue_35925,
-                   xfail_issue_43523)
+from tests import xfail_issue_35925
 
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
@@ -36,7 +35,7 @@ reduce_operation_parameters = [
     ("ReduceMax", np.max),
     ("ReduceMin", np.min),
     ("ReduceMean", np.mean),
-    pytest.param("ReduceSum", np.sum, marks=xfail_issue_43523),
+    ("ReduceSum", np.sum),
     ("ReduceProd", np.prod)
 ]
 
