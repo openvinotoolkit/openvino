@@ -22,14 +22,11 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen, "CTCGreedyDecoderSeqLen", 6);
 
 op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
-                                                       const Output<Node>& seq_len,
-                                                       const bool merge_repeated,
-                                                       const element::Type& classes_index_type,
-                                                       const element::Type& sequence_length_type)
+                                                       const Output<Node>& seq_len)
     : Op({input, seq_len})
-    , m_merge_repeated(merge_repeated)
-    , m_classes_index_type(classes_index_type)
-    , m_sequence_length_type(sequence_length_type)
+    , m_merge_repeated(true)
+    , m_classes_index_type(element::i32)
+    , m_sequence_length_type(element::i32)
 {
     constructor_validate_and_infer_types();
 }
@@ -55,7 +52,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     auto input_et = get_input_element_type(0);
 
     // output dynamic rank tensor if all inputs are of dynamic rank
-    if (logits_pshape.rank().is_dynamic() || seq_len_pshape.rank().is_dynamic())
+    if (logits_pshape.rank().is_dynamic() && seq_len_pshape.rank().is_dynamic())
     {
         set_output_type(
             0, input_et, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1});
@@ -106,10 +103,10 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
             if (batch_size != Dimension::dynamic())
             {
                 NODE_VALIDATION_CHECK(this,
-                                      seq_len_pshape[1] == batch_size,
+                                      seq_len_pshape[0] == batch_size,
                                       "The first dimensions of input tensors must match.");
             }
-            batch_size = seq_len_pshape[1];
+            batch_size = seq_len_pshape[0];
         }
     }
     set_output_type(0, input_et, PartialShape{batch_size, time_size});

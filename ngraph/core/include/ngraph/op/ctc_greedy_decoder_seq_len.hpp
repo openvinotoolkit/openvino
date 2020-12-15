@@ -38,32 +38,29 @@ namespace ngraph
                 /// \param classes_index_type   Specifies the output classes_index tensor type
                 /// \param sequence_length_type Specifies the output sequence_length tensor type
                 CTCGreedyDecoderSeqLen(const Output<Node>& input,
-                                       const Output<Node>& seq_len,
-                                       const bool merge_repeated,
-                                       const element::Type& classes_index_type = element::i32,
-                                       const element::Type& sequence_length_type = element::i32);
+                                       const Output<Node>& seq_len);
 
                 CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                        const Output<Node>& seq_len,
                                        const Output<Node>& blank_index,
-                                       const bool merge_repeated,
+                                       const bool merge_repeated = true,
                                        const element::Type& classes_index_type = element::i32,
                                        const element::Type& sequence_length_type = element::i32);
 
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                virtual std::shared_ptr<Node>
+                std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool get_merge_repeated() const { return m_merge_repeated; }
-                element::Type get_classes_index_type() const { return m_classes_index_type; }
+                const element::Type& get_classes_index_type() const { return m_classes_index_type; }
                 void set_classes_index_type(const element::Type& classes_index_type)
                 {
                     m_classes_index_type = classes_index_type;
                 }
 
-                element::Type get_sequence_length_type() const { return m_sequence_length_type; }
+                const element::Type& get_sequence_length_type() const { return m_sequence_length_type; }
                 void set_sequence_length_type(const element::Type& sequence_length_type)
                 {
                     m_sequence_length_type = sequence_length_type;
