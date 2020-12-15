@@ -216,35 +216,32 @@ LowLatency transformation changes the structure of the network containing [Tenso
 	* [from nGraph Function](../nGraph_DG/build_function.md)
 
 2. [Reshape](ShapeInference) CNNNetwork network if necessary 
+**Necessary case:** the sequence_lengths dimention of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension exactly to 1.
+```cpp
 
-	**Necessary case:** the sequence_lengths dimention of input > 1, it means TensorIterator layer will have number_iterations > 1. We should reshape the inputs of the network to set sequence_dimension exactly to 1.
- 
-	```cpp
+// Network before reshape: Parameter (name: X, shape: [2 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 2, axis = 0) -> ...
 
-	// Network before reshape: Parameter (name: X, shape: [2 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 2, axis = 0) -> ...
+cnnNetwork.reshape({"X" : {1, 1, 16});
 
-	cnnNetwork.reshape({"X" : {1, 1, 16});
-
-	// Network after reshape: Parameter (name: X, shape: [1 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 1, axis = 0) -> ...
-		
-	```
-3. Apply LowLatency transformation
-
-	```cpp
-	#include "ie_transformations.hpp"
+// Network after reshape: Parameter (name: X, shape: [1 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 1, axis = 0) -> ...
 	
-	...
+```
 
-	InferenceEngine::LowLatency(cnnNetwork);
-	```
+3. Apply LowLatency transformation
+```cpp
+#include "ie_transformations.hpp"
 
-	**State naming rule:**  a name of state is a concatenation of names: original TensorIterator operation, Parameter of the body, and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator), for example:
+...
 
-		tensor_iterator_name = "TI_name"
-		body_parameter_name = "param_name"
+InferenceEngine::LowLatency(cnnNetwork);
+```
+**State naming rule:**  a name of state is a concatenation of names: original TensorIterator operation, Parameter of the body, and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator), for example:
+```
+tensor_iterator_name = "TI_name"
+body_parameter_name = "param_name"
 
-		state_name = "TI_name/param_name/variable_0"
-
+state_name = "TI_name/param_name/variable_0"
+```
 4. [Use state API](#openvino-state-api)
 
  
@@ -265,14 +262,14 @@ LowLatency transformation changes the structure of the network containing [Tenso
 
 	**Current solution:** trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output` or via nGraph.
 
-	```cpp
-		// nGraph example:
-		auto func = cnnNetwork.getFunction();
-		auto new_const = std::make_shared<ngraph::opset5::Constant>(); // type, shape, value
-		for (const auto& node : func->get_ops()) {
-			if (node->get_friendly_name() == "name_of_non_reshapable_const") {
-				auto bad_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(node);
-				ngraph::replace_node(bad_const, new_const); // replace constant
-			}
+```cpp
+	// nGraph example:
+	auto func = cnnNetwork.getFunction();
+	auto new_const = std::make_shared<ngraph::opset5::Constant>(); // type, shape, value
+	for (const auto& node : func->get_ops()) {
+		if (node->get_friendly_name() == "name_of_non_reshapable_const") {
+			auto bad_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(node);
+			ngraph::replace_node(bad_const, new_const); // replace constant
 		}
-	```
+	}
+```
