@@ -4,42 +4,15 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "shared_test_classes/single_layer/reduce_ops.hpp"
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-        std::vector<int>,               // Axis to reduce order
-        CommonTestUtils::OpType,        // Scalar or vector type axis
-        bool,                           // Keep dims
-        ngraph::helpers::ReductionType, // Reduce operation type
-        InferenceEngine::Precision,     // Net precision
-        InferenceEngine::Precision,     // Input precision
-        InferenceEngine::Precision,     // Output precision
-        InferenceEngine::Layout,        // Input layout
-        std::vector<size_t>,            // Input shapes
-        std::string                     // Target device name
-> reduceMeanParams;
+TEST_P(ReduceOpsLayerTest, CompareWithRefs) {
+    Run();
+}
 
-class ReduceOpsLayerTest : public testing::WithParamInterface<reduceMeanParams>,
-                           virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj);
-
-protected:
-    void SetUp() override;
-};
-
-class ReduceOpsLayerWithSpecificInputTest : public ReduceOpsLayerTest {
-protected:
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-};
-
+TEST_P(ReduceOpsLayerWithSpecificInputTest, CompareWithRefs) {
+    Run();
+}
 }  // namespace LayerTestsDefinitions

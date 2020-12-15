@@ -8,7 +8,7 @@
 #include "subgraph_tests/two_fake_quantize_to_fullyconnected.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 

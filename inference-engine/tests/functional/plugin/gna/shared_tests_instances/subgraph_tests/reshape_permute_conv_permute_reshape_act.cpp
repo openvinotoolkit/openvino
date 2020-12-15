@@ -32,7 +32,7 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_SCALE_FACTOR_0", "2340"}
 };
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
     INSTANTIATE_TEST_CASE_P(smoke_basic, ConvReshapeAct,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
@@ -42,6 +42,6 @@ namespace LayerTestsDefinitions {
             ::testing::ValuesIn(output_channels),
             ::testing::Values(additional_config)),
         ConvReshapeAct::getTestCaseName);
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions
 
 

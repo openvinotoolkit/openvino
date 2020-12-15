@@ -4,36 +4,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
-
-#include "functional_test_utils/layer_test_utils.hpp"
-
-typedef std::tuple<
-        std::vector<size_t>, // emb_table_shape
-        std::vector<size_t>, // indices
-        std::vector<size_t>, // offsets
-        size_t,              // default_index
-        bool,                // with_weights
-        bool                 // with_def_index
-    > embeddingBagOffsetsSumParams;
-
-typedef std::tuple<
-        embeddingBagOffsetsSumParams,
-        InferenceEngine::Precision, // embedding table
-        InferenceEngine::Precision, // indices
-        LayerTestsUtils::TargetDevice> embeddingBagOffsetsSumLayerTestParamsSet;
+#include "shared_test_classes/single_layer/embedding_bag_offsets_sum.hpp"
 
 namespace LayerTestsDefinitions {
 
-class EmbeddingBagOffsetsSumLayerTest : public testing::WithParamInterface<embeddingBagOffsetsSumLayerTestParamsSet>,
-            virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<embeddingBagOffsetsSumLayerTestParamsSet> obj);
-
-protected:
-    void SetUp() override;
-};
+TEST_P(EmbeddingBagOffsetsSumLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

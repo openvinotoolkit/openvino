@@ -14,13 +14,17 @@ list(APPEND EXPORT_DEPENDENCIES
 addIeTarget(
     NAME ${TARGET_NAME}
     TYPE STATIC
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
     ADD_CPPLINT
     DEVELOPER_PACKAGE
+    INCLUDES
+        PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    ADDITIONAL_SOURCE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
     LINK_LIBRARIES
         PUBLIC
             ${EXPORT_DEPENDENCIES}
-            ngraphFunctions
             inference_engine_transformations
     INCLUDES
         PUBLIC
@@ -30,6 +34,6 @@ addIeTarget(
 )
 
 ie_faster_build(${TARGET_NAME}
-    PCH PRIVATE "precomp.hpp"
+    PCH PRIVATE "src/precomp.hpp"
 )
 

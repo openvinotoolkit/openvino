@@ -15,9 +15,9 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>
 #include <fstream>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 

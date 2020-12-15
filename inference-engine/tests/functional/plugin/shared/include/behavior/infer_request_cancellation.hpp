@@ -8,19 +8,24 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include <future>
-#include "ie_extension.h"
 #include <condition_variable>
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include <future>
+
 #include <ie_core.hpp>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <ie_extension.h>
+
+#include "shared_test_classes/base/layer_test_utils.hpp"
+
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "ngraph_functions/builders.hpp"
+
+#include "base/behavior_test_utils.hpp"
 #include "behavior/infer_request_cancellation.hpp"
 
 namespace BehaviorTestsDefinitions {

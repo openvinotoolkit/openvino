@@ -7,7 +7,7 @@
 #include <string>
 #include <ngraph/variant.hpp>
 #include "ie_system_conf.h"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_layer_tests/proposal.hpp"
+#include "shared_test_classes/single_layer/proposal.hpp"
 
 namespace BehaviorTestsDefinitions {
 
