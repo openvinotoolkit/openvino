@@ -290,7 +290,6 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       1. Copy the script `install_guest_deps.sh` from the `Scripts/reference directory` of the OVSA repository to the Guest VM
       2. Run the script.
       3. Shut down the Guest VM.<br>
-      Click the triangled line to close **Option 1**
    * **Option 2** : Manually install additional software
       1. Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz). 
       Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md
@@ -300,7 +299,6 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
       4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
       5. Shut down the Guest VM.<br>
-      Click the triangled line to close **Option 2**
 9. On the host, create a directory to support the virtual TPM device. Only `root` should have read/write permission to this directory:
    ```sh
    sudo mkdir -p /var/OVSA/
@@ -339,53 +337,52 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
 
 ### Step 4: Set Up one Guest VM for the User role
 
-1. Choose ONE of these options to create a Guest VM for the User role:
-    
-   **Option 1**: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image:
+1. Choose ONE of these options to create a Guest VM for the User role:<br>
+   **Option 1: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image**
    1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#prerequisites">Step 3</a>.
    2. Boot the new image. 
    3. Change the hostname from `ovsa_isv_dev` to `ovsa_runtime`.  
-```sh 
-sudo hostnamectl set-hostname ovsa_runtime
-```
+   ```sh 
+   sudo hostnamectl set-hostname ovsa_runtime
+   ```
    4. Replace all instances of `ovsa_isv_dev` to `ovsa_runtime` in the new image.
-```sh 	
-sudo nano /etc/hosts
-```
+   ```sh 	
+   sudo nano /etc/hosts
+   ```
    5. Change the `/etc/machine-id`:
-```sh
-sudo rm /etc/machine-id
-systemd-machine-id-setup
-```
+   ```sh
+   sudo rm /etc/machine-id
+   systemd-machine-id-setup
+   ```
    6. Shut down the Guest VM.<br><br>
        
-   * **Option 2**: Manually create the Guest VM
+   **Option 2: Manually create the Guest VM**
    1. Create an empty virtual disk image:
-```sh
-sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
-```
+   ```sh
+   sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
+   ```
    2. Install Ubuntu 18.04 on the Guest VM. Name the Guest VM `ovsa_runtime`:
-```sh
-sudo qemu-system-x86_64 -m 8192 -enable-kvm \
--cpu host \
--drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
--cdrom <path-to-iso-image>/ubuntu-18.04.5-live-server-amd64.iso \
--device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
--netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
--vnc :2
-```
+   ```sh
+   sudo qemu-system-x86_64 -m 8192 -enable-kvm \
+   -cpu host \
+   -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
+   -cdrom <path-to-iso-image>/ubuntu-18.04.5-live-server-amd64.iso \
+   -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+   -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,   downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+   -vnc :2
+   ```
    3. Connect a VNC client with `<host-ip-address>:2`.
    4. Follow the prompts on the screen to finish installing the Guest VM. Name the Guest VM `ovsa_runtime`.
    5. Shut down the Guest VM. 
    6. Restart the Guest VM:
-```sh
-sudo qemu-system-x86_64 -m 8192 -enable-kvm \
--cpu host \
--drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
--device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
--netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
--vnc :2
-```
+   ```sh
+   sudo qemu-system-x86_64 -m 8192 -enable-kvm \
+   -cpu host \
+   -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
+   -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+   -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,   downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+   -vnc :2
+   ```
    7. Choose ONE of these options to install additional required software:
       
       **Option 1: Use a script to install additional software**
