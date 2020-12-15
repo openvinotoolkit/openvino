@@ -9,36 +9,31 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastElementwiseFusion, "BroadcastElementwiseFusion", 0);
 
-bool is_broadcastable_shapes(const ngraph::PartialShape & input_shape1, const ngraph::PartialShape & input_shape2) {
-    if (input_shape1.rank().is_dynamic() || input_shape2.rank().is_dynamic()) {
+bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngraph::PartialShape & broadcast_shape) {
+    if (input_shape.rank().is_dynamic() || broadcast_shape.rank().is_dynamic()) {
         return false;
     }
 
-    const int64_t & input1_shape_rank = input_shape1.rank().get_length();
-    const int64_t & input2_shape_rank = input_shape2.rank().get_length();
-    int64_t count_shape_rank = input1_shape_rank;
-    if(input1_shape_rank < input2_shape_rank) {
-        count_shape_rank = input2_shape_rank;
+    const int64_t & input_shape_rank = input_shape.rank().get_length();
+    const int64_t & broadcast_shape_rank = broadcast_shape.rank().get_length();
+    if(broadcast_shape_rank > input_shape_rank) {
+        //We can not eliminate broadcast op because
+        //in the case input_shape will be broadcast
+        return false;
     }
-
-    for (int64_t i_dim = 1; i_dim <= count_shape_rank; i_dim++) {
-        if (input_shape1[input1_shape_rank - i_dim].is_static() && input_shape2[input2_shape_rank - i_dim].is_static()) {
-            if (i_dim > input1_shape_rank || i_dim > input2_shape_rank) {
-                break;
-            }
-
-            if (input_shape1[input1_shape_rank - i_dim].is_static() &&
-                input_shape2[input2_shape_rank - i_dim].is_static()) {
-                const auto & input1_dim = input_shape1[input1_shape_rank - i_dim].get_length();
-                const auto & input2_dim = input_shape2[input2_shape_rank - i_dim].get_length();
-                if (input1_dim != input2_dim && input1_dim != 1 && input2_dim != 1) {
-                    // this dimensions are not broadcastable
-                    return false;
-                }
+    for (int64_t i_dim = 0; i_dim < input_shape_rank; i_dim++) {
+        if(input_shape[i_dim].is_static() && broadcast_shape[i_dim].is_static()) {
+            const auto & input_shape_dim = input_shape[i_dim].get_length();
+            const auto & broadcast_shape_dim = broadcast_shape[i_dim].get_length();
+            if (input_shape_dim != broadcast_shape_dim && broadcast_shape_dim != 1) {
+                //We can not eliminate broadcast op because
+                //input_shape will be broadcast
+                return false;
             }
         }
-        else if(input_shape1[i_dim].is_dynamic() && input_shape2[i_dim] == 1 ||
-                input_shape2[i_dim].is_dynamic() && input_shape1[i_dim] == 1) {
+        else if(input_shape[i_dim].is_dynamic() &&
+                broadcast_shape[i_dim].is_static() &&
+                broadcast_shape[i_dim].get_length() != 1) {
             return false;
         }
     }
@@ -61,7 +56,7 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
 
         auto elementwise_input_shape = elementwise_input_node->get_output_partial_shape(0);
         auto broadcast_output_shape = broadcast_node->get_output_partial_shape(0);
-        if (!is_broadcastable_shapes(elementwise_input_shape, broadcast_output_shape)) {
+        if (!is_eliminate_broadcast(elementwise_input_shape, broadcast_output_shape)) {
             return false;
         }
 
