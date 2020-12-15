@@ -233,3 +233,13 @@ Otherwise, it will be casted to data type passed to `--data_type` parameter (by 
 ```sh
 python3 mo.py --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2 2.3]"
 ```
+
+---
+## See Also
+
+* [Converting a Cafee* Model](Convert_Model_From_Caffe.md)
+* [Converting a TensorFlow* Model](Convert_Model_From_TensorFlow.md)
+* [Converting an MXNet* Model](Convert_Model_From_MxNet.md)
+* [Converting an ONNX* Model](Convert_Model_From_ONNX.md)
+* [Converting a Kaldi* Model](Convert_Model_From_Kaldi.md)
+* [Using Shape Inference](../../../IE_DG/ShapeInference.md)

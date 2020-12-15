@@ -195,7 +195,7 @@ You will perform the following steps:
 
 Each demo and code sample is a separate application, but they use the same behavior and components. The code samples and demo applications are:
 
-* [Code Samples](../IE_DG/Samples_Overview.html) - Small console applications that show how to utilize specific OpenVINO capabilities within an application and execute specific tasks such as loading a model, running inference, querying specific device capabilities, and more.
+* [Code Samples](../IE_DG/Samples_Overview.md) - Small console applications that show how to utilize specific OpenVINO capabilities within an application and execute specific tasks such as loading a model, running inference, querying specific device capabilities, and more.
 
 * [Demo Applications](@ref omz_demos_README) - Console applications that provide robust application templates to support developers in implementing specific deep learning scenarios. They may also involve more complex processing pipelines that gather analysis from several models that run inference simultaneously. For example concurrently detecting a person in a video stream and detecting attributes such as age, gender and/or emotions.
  
@@ -370,7 +370,7 @@ As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes two 
 
 ### <a name="run-image-classification"></a>Step 4: Run the Image Classification Code Sample
 
-> **NOTE**: The Image Classification code sample is automatically compiled when you ran the Image Classification demo script. If you want to compile it manually, see the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.html#build_samples_linux) section. 
+> **NOTE**: The Image Classification code sample is automatically compiled when you ran the Image Classification demo script. If you want to compile it manually, see the *Build the Sample Applications on Linux* section in the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md). 
 
 To run the **Image Classification** code sample with an input image on the IR: 
 
