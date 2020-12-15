@@ -35,6 +35,7 @@ namespace CPUTestUtils {
         nCdhw8c = aBcde8b,
         nCdhw16c = aBcde16b,
         ndhwc = acdeb,
+        blocked
     } cpu_memory_format_t;
 
     using CPUSpecificParams =  std::tuple<
