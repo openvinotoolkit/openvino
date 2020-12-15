@@ -38,10 +38,10 @@ void Basic_LSTM_S::SetUp() {
 }
 
 std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
-    size_t hiddenSize,
-    const InferenceEngine::Precision& netPrecission,
-    std::vector<float>* hidden_memory_init_out,
-    std::vector<float>* cell_memory_init_out) {
+                                                           size_t hiddenSize,
+                                                           const InferenceEngine::Precision& netPrecission,
+                                                           std::vector<float>* hidden_memory_init_out,
+                                                           std::vector<float>* cell_memory_init_out) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecission);
 
     auto params = ngraph::builder::makeParams(ngPrc, { {1, 10 * thirdDimOut} });
