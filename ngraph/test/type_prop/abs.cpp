@@ -55,3 +55,11 @@ TEST(type_prop, abs_dynamic_shape_3D)
         {Dimension::dynamic(), Dimension::dynamic(), 3}));
     ASSERT_EQ(op->get_element_type(), element::f32);
 }
+
+TEST(type_prop, abs_dynamic_ok)
+{
+    const auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto ap = make_shared<op::Abs>(param);
+    ASSERT_EQ(ap->get_output_element_type(0), element::f32);
+    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+}
