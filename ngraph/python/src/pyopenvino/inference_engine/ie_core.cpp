@@ -150,7 +150,7 @@ void regclass_IECore(py::module m)
     cls.def("load_network", [](InferenceEngine::Core& self,
             InferenceEngine::CNNNetwork network, std::string device_name, std::map<std::string, std::string> config) {
         return self.LoadNetwork(network, device_name, config);
-    }, py::arg("network"), py::arg("device_name"), py::arg("config")=py::none());
+    }, py::arg("network"), py::arg("device_name"), py::arg("config")=py::dict());
 
     cls.def("add_extension", [](InferenceEngine::Core& self, std::string extension_path, std::string device_name) {
         auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(extension_path);
