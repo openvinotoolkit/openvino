@@ -170,7 +170,6 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     multiNetworkConfig.insert(*priorities);
 
-    bool enablePerfCounters = false;
     DeviceMap<ExecutableNetwork> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
@@ -179,21 +178,33 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
             const auto &deviceName = p.deviceName;
             const auto &deviceConfig = p.config;
             auto exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            // getting the config from the loaded network to respect both device's plugin and load-specific setting
-            enablePerfCounters |= exec_net.GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() == PluginConfigParams::YES;
             std::unique_lock<std::mutex> lock{load_mutex};
             executableNetworkPerDevice.insert({deviceName, exec_net});
             multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
         });
     }
     auto executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
-            IStreamsExecutor::Config{"MultiDeviceAsyncLoad", static_cast<int>(metaDevices.size()),
-                                     1, IStreamsExecutor::ThreadBindingType::NONE});
+            IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
+                                     static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                                     1 /*single thread per stream*/,
+                                     IStreamsExecutor::ThreadBindingType::NONE});
     executor->runAndWait(loads);
     if (executableNetworkPerDevice.empty())
         THROW_IE_EXCEPTION << NOT_FOUND_str << "Failed to load network to any device "
                                             <<  "that the MULTI device is initialized to work with";
 
+    // checking the perf counters config from the loaded network to respect both device's plugin and load-specific setting
+    int num_plugins_supporting_perf_counters = 0;
+    for (auto n : executableNetworkPerDevice) {
+            try {
+                num_plugins_supporting_perf_counters +=
+                        n.second.GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
+                        PluginConfigParams::YES;
+            } catch (...) {
+            }
+    }
+    // MULTI can enable the perf counters only if all  devices support/enable that
+    bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
     return std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
                                                           metaDevices,
                                                           multiNetworkConfig,
