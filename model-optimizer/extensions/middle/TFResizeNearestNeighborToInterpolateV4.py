@@ -73,15 +73,6 @@ def replace_resize_nearest_neighbor(graph: Graph, resize: Node):
     shape_calculation_mode = 'sizes'
     scales_data = np.array([out_height / input_height, out_width / input_width], dtype=np.float32)
 
-    if out_height > 1 and out_width <= 1 and align_corners:
-        shape_calculation_mode = 'scales'
-        coordinate_transformation_mode = 'asymmetric'
-        scales_data = np.array([(out_height - 1) / (input_height - 1), out_width / input_width], dtype=np.float32)
-    elif out_height <= 1 and out_width > 1 and align_corners:
-        shape_calculation_mode = 'scales'
-        coordinate_transformation_mode = 'asymmetric'
-        scales_data = np.array([out_height / input_height, (out_width - 1) / (input_width - 1)], dtype=np.float32)
-
     interpolate4 = create_op_with_const_inputs(graph, Interpolate,
                                                {
                                                    1: int64_array(new_sizes_value),
