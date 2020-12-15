@@ -233,13 +233,27 @@ void op::v4::Interpolate::validate_and_infer_types()
         return;
     }
 
-    auto axes = get_axes();
-    correct_pads();
-
     const auto input_rank = input_shape.rank().get_length();
 
     PartialShape padded_input_shape = get_padded_input_shape(input_shape);
     PartialShape output_shape = padded_input_shape;
+
+    std::vector<int64_t> axes;
+    if (input_values().size() <= 3 ||
+        as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr()))
+    {
+        axes = get_axes();
+    }
+    else
+    {
+        for (size_t i = 0; i < input_rank; ++i)
+        {
+            output_shape[i] = Dimension::dynamic();
+        }
+        set_output_type(0, get_input_element_type(0), output_shape);
+        return;
+    }
+    correct_pads();
 
     if (output_shape.rank().is_static())
     {
