@@ -133,7 +133,7 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
 10. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz).<br>
     Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
 11. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/).	
-   > **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
+    > **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
 12. If you are running behind a proxy, [set up a proxy for Docker](https://docs.docker.com/config/daemon/systemd/). 
 
 The following are installed and ready to use:
@@ -302,12 +302,12 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       5. Shut down the Guest VM.<br>
       Click the triangled line to close **Option 2**
 9. On the host, create a directory to support the virtual TPM device. Only `root` should have read/write permission to this directory:
-```sh
-sudo mkdir -p /var/OVSA/
-sudo mkdir /var/OVSA/vtpm
-sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
-```
-   > **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
+   ```sh
+   sudo mkdir -p /var/OVSA/
+   sudo mkdir /var/OVSA/vtpm
+   sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
+   ```
+      > **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
 10. Start the vTPM on Host:
    ```sh
    swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev \
@@ -360,31 +360,31 @@ sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
       Click the triangled line above to close **Option 1**.
    * **Option 2**: Manually create the Guest VM
       1. Create an empty virtual disk image:
-   ```sh
-   sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
-   ```
+      ```sh
+      sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
+      ```
       2. Install Ubuntu 18.04 on the Guest VM. Name the Guest VM `ovsa_runtime`:
-   ```sh
-   sudo qemu-system-x86_64 -m 8192 -enable-kvm \
-   -cpu host \
-   -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
-   -cdrom <path-to-iso-image>/ubuntu-18.04.5-live-server-amd64.iso \
-   -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
-   -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
-   -vnc :2
-   ```
+      ```sh
+      sudo qemu-system-x86_64 -m 8192 -enable-kvm \
+      -cpu host \
+      -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
+      -cdrom <path-to-iso-image>/ubuntu-18.04.5-live-server-amd64.iso \
+      -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+      -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+      -vnc :2
+      ```
       3. Connect a VNC client with `<host-ip-address>:2`.
       4. Follow the prompts on the screen to finish installing the Guest VM. Name the Guest VM `ovsa_runtime`.
       5. Shut down the Guest VM. 
       6. Restart the Guest VM:
-   ```sh
-   sudo qemu-system-x86_64 -m 8192 -enable-kvm \
-   -cpu host \
-   -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
-   -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
-   -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
-   -vnc :2
-   ```
+      ```sh
+      sudo qemu-system-x86_64 -m 8192 -enable-kvm \
+      -cpu host \
+      -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
+      -device e1000,netdev=hostnet1,mac=52:54:00:d1:66:5f \
+      -netdev tap,id=hostnet1,script=<path-to-scripts>/virbr0-qemu-ifup,downscript=<path-to-scripts>/virbr0-qemu-ifdown \
+      -vnc :2
+      ```
       7. Choose ONE of these options to install additional required software:
          * **Option 1**: Use a script to install additional software
             1. Copy the script `install_guest_deps.sh` from the `Scripts/reference` directory of the OVSA repository to the Guest VM
@@ -405,7 +405,7 @@ sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
    ```sh
    sudo mkdir /var/OVSA/vtpm/vtpm_runtime
    ```
-   > **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the scripts directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
+      > **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the scripts directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
 3. Start the vTPM:
    ```sh
    swtpm socket --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime \
@@ -432,7 +432,6 @@ sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
    ```
    Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
 5. Use a VNC client to log on to the Guest VM at `<host-ip-address>:<x>` where `<x>` corresponds to the vnc number in the `start_ovsa_isv_vm.sh` or in step 8.
-</details>  
 
 ## How to Build and Install the OpenVINO™ Security Add-on Software <a name="install-ovsa"></a>
 
