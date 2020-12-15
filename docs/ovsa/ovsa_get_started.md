@@ -340,23 +340,23 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
 ### Step 4: Set Up one Guest VM for the User role
 
 1. Choose ONE of these options to create a Guest VM for the User role:
-   * **Option 1**: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image
-      1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#prerequisites">Step 3</a>.
-      2. Boot the new image. 
-      3. Change the hostname from `ovsa_isv_dev` to `ovsa_runtime`.  
-```sh 
-sudo hostnamectl set-hostname ovsa_runtime
-```
-      4. Replace all instances of `ovsa_isv_dev` to `ovsa_runtime` in the new image.
-```sh 	
-sudo nano /etc/hosts
-```
-      5. Change the `/etc/machine-id`:
+  * **Option 1**: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image
+    1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#prerequisites">Step 3</a>.
+    2. Boot the new image. 
+    3. Change the hostname from `ovsa_isv_dev` to `ovsa_runtime`.  
+  ```sh 
+  sudo hostnamectl set-hostname ovsa_runtime
+  ```
+  4. Replace all instances of `ovsa_isv_dev` to `ovsa_runtime` in the new image.
+  ```sh 	
+  sudo nano /etc/hosts
+  ```
+    5. Change the `/etc/machine-id`:
 ```sh
 sudo rm /etc/machine-id
 systemd-machine-id-setup
 ```
-      6. Shut down the Guest VM.<br><br>
+    6. Shut down the Guest VM.<br><br>
        Click the triangled line above to close **Option 1**.
    * **Option 2**: Manually create the Guest VM
       1. Create an empty virtual disk image:
