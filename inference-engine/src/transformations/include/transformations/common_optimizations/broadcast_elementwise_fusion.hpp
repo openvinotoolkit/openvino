@@ -23,7 +23,8 @@ class TRANSFORMATIONS_API BroadcastElementwiseFusion;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief remove Broadcast op before Elementwise
+ * @brief Removing Broadcast OP before ElementWise if output shape of Broadcast
+ * are equal neighboring input shape of ElementWise.
  */
 
 class ngraph::pass::BroadcastElementwiseFusion: public ngraph::pass::MatcherPass {

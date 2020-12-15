@@ -17,17 +17,10 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
 
     ngraph::graph_rewrite_callback matcher_pass_callback = [](ngraph::pattern::Matcher& m) {
         auto elem = std::dynamic_pointer_cast<ngraph::op::util::BinaryElementwiseArithmetic>(m.get_match_root());
-        int index_input1 = 0;
-        int index_input_broadcust = 1;
-        auto input_name = elem->input_value(index_input_broadcust).get_node_shared_ptr()->get_type_name();
-        if(input_name != "Broadcast") {
-            index_input1 = !index_input1;
-            index_input_broadcust = !index_input_broadcust;
+        auto broadcast = std::dynamic_pointer_cast<opset5::Broadcast>(elem->input_value(0).get_node_shared_ptr());
+        if (!broadcast) {
+            broadcast = std::dynamic_pointer_cast<opset5::Broadcast>(elem->input_value(1).get_node_shared_ptr());
         }
-
-        auto elem_input2 = elem->input_value(index_input_broadcust);
-
-        auto broadcast = elem_input2.get_node_shared_ptr();
         if (!broadcast) {
             return false;
         }
@@ -40,7 +33,7 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
 
         auto input = broadcast->input_value(0);
         copy_runtime_info(broadcast, input.get_node_shared_ptr());
-        broadcast->output(0).replace(broadcast->input_value(0));
+        broadcast->output(0).replace(input);
 
         return true;
     };
