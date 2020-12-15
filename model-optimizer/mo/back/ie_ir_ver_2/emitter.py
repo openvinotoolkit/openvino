@@ -161,7 +161,9 @@ def xml_ports(node: Node, element: Element, edges: Element):
                 outputs = SubElement(element, 'output')
             port = SubElement(outputs, 'port')
             port.set('id', str(d['out']))
-            port_id = d['out'] - len(node.in_nodes())
+            # we need to check operation type, if it is const op, we don't renumber out ports
+            # because they are already counted from zero
+            port_id = d['out'] - len(node.in_nodes()) if node.type != 'Const' else d['out']
             data_type = node.out_port(port_id).get_data_type()
             assert data_type is not None, 'The precision is not defined for the output port {} of node {}' \
                                           ''.format(port_id, node.soft_get('name'))
@@ -436,13 +438,13 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
 
 
 def port_renumber(graph: Graph):
-    for node in list(graph.nodes()):
-        node = Node(graph, node)
-        if node.kind == 'op':
-            base = 0
+    for node in graph.get_op_nodes():
+        base = 0
+        # we need to check operation type, if it is const op, we don't renumber out ports to count them from zero
+        if node.type != 'Const':
             for u, d in node.get_sorted_inputs():
                 d['in'] = base
                 base += 1
-            for v, d in node.get_sorted_outputs():
-                d['out'] = base
-                base += 1
+        for v, d in node.get_sorted_outputs():
+            d['out'] = base
+            base += 1
