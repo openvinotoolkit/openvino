@@ -225,8 +225,7 @@ TEST(type_prop, gather_elements_shapes_inconsistency)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
-            std::string(
-                "data and indices must have equal or intersecting sizes, except for axis"));
+            std::string("data and indices must have equal or intersecting sizes, except for axis"));
     }
     catch (...)
     {
@@ -252,8 +251,7 @@ TEST(type_prop, gather_elements_dynamic_inconsistent_shapes)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
-            std::string(
-                "data and indices must have equal or intersecting sizes, except for axis"));
+            std::string("data and indices must have equal or intersecting sizes, except for axis"));
     }
     catch (...)
     {
@@ -278,8 +276,7 @@ TEST(type_prop, gather_elements_incosistent_interval_shapes)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
-            std::string(
-                "data and indices must have equal or intersecting sizes, except for axis"));
+            std::string("data and indices must have equal or intersecting sizes, except for axis"));
     }
     catch (...)
     {
