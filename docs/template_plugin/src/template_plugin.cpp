@@ -139,10 +139,10 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 
     // 1. First of all we should store initial input operation set
     std::unordered_set<std::string> originalOps;
-    std::map<std::string, std::string> friendlyNameToType;
+    std::map<std::string, ngraph::NodeTypeInfo> friendlyNameToType;
     for (auto&& node : function->get_ops()) {
         originalOps.emplace(node->get_friendly_name());
-        friendlyNameToType[node->get_friendly_name()] = node->get_type_name();
+        friendlyNameToType[node->get_friendly_name()] = node->get_type_info();
     }
 
     // 2. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
@@ -159,7 +159,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (opset.contains_type_insensitive(friendlyNameToType[fusedLayerName])) {
+                if (opset.contains_type(friendlyNameToType[fusedLayerName])) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
