@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/strided_slice.hpp>
+#include <shared_test_classes/single_layer/strided_slice.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 

@@ -7,7 +7,7 @@
 #include "subgraph_tests/activation_concats_eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 namespace {
 std::vector<size_t> input_sizes = {
     7,
