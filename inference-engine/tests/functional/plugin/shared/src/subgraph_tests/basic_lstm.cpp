@@ -53,8 +53,8 @@ void Basic_LSTM_S::SetUp() {
     function = GetNetwork(49, hidden_size, netPrecision, &hidden_memory_init, &cell_memory_init);
 }
 
-std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(uint64_t thirdDimOut,
-    uint64_t hiddenSize,
+std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
+    size_t hiddenSize,
     const InferenceEngine::Precision& netPrecission,
     std::vector<float>* hidden_memory_init_out,
     std::vector<float>* cell_memory_init_out) {
