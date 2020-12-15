@@ -75,7 +75,16 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
     map_type_in_function(node, "Parameter", param_id_in_function);
     map_type_in_function(node, "Result", result_id_in_function);
 
+    // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
+    std::map<uint64_t, pugi::xml_node> input_map;
     FOREACH_CHILD(_input, node.child("port_map"), "input") {
+        int64_t ext_port_id = GetInt64Attr(_input, "external_port_id");
+        input_map[ext_port_id] = _input;
+    }
+
+    //FOREACH_CHILD(_input, node.child("port_map"), "input") {
+    for (const auto& input : input_map) {
+        auto &_input = input.second;
         auto axis_attr = _input.attribute("axis");
         auto purpose = XMLParseUtils::GetStrAttr(_input, "purpose", "");
         int64_t ti_input_index = XMLParseUtils::GetInt64Attr(_input, "external_port_id");
@@ -132,8 +141,16 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> V1
     std::map<uint64_t, uint64_t> result_id_in_function;
     map_type_in_function(node, "Result", result_id_in_function);
 
-    uint64_t output_number = 0;
+    // Parse PortMap: outputs
+    std::map<int64_t, pugi::xml_node> output_map;
     FOREACH_CHILD(_output, node.child("port_map"), "output") {
+        int64_t ext_port_id = GetInt64Attr(_output, "external_port_id");
+        output_map[ext_port_id] = _output;
+    }
+
+    uint64_t output_number = 0;
+    for (const auto& output : output_map) {
+        auto& _output = output.second;
         auto axis_attr = _output.attribute("axis");
         auto purpose = XMLParseUtils::GetStrAttr(_output, "purpose", "");
         size_t body_result_index = XMLParseUtils::GetUIntAttr(_output, "internal_layer_id");
