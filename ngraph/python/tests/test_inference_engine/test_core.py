@@ -42,7 +42,7 @@ def test_blobs():
 
     input_blob_float32 = Blob(td, input_data_float32)
 
-    assert np.all(np.equal(input_blob_float32.buffer(), input_data_float32))
+    assert np.all(np.equal(input_blob_float32.buffer, input_data_float32))
 
     input_data_int16 = (np.random.rand(*input_shape) + 0.5).astype(np.int16)
 
@@ -50,7 +50,7 @@ def test_blobs():
 
     input_blob_i16 = Blob(td, input_data_int16)
 
-    assert np.all(np.equal(input_blob_i16.buffer(), input_data_int16))
+    assert np.all(np.equal(input_blob_i16.buffer, input_data_int16))
 
 
 def test_ie_core_class():
