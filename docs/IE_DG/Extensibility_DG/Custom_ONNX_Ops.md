@@ -28,7 +28,7 @@ The example below demonstrates an exemplary model that requires previously creat
 @snippet onnx_custom_op/onnx_custom_op.cpp onnx_custom_op:model
 
 
-For a reference on how to create a graph with nGraph operations, visit [nGraph tutorial](../nGraphTutorial.md).
+For a reference on how to create a graph with nGraph operations, visit [Custom nGraph Operations](AddingNGraphOps.md).
 For a complete list of predefined nGraph operators, visit [available operations sets](../../ops/opset.md).
 
 If operator is no longer needed, it can be unregistered by calling `unregister_operator`. The function takes three arguments `op_type`, `version`, and `domain`.
