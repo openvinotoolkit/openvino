@@ -92,7 +92,8 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         auto output_precision = networkOutput.second->getPrecision();
 
         if (output_precision != InferenceEngine::Precision::FP32 &&
-            output_precision != InferenceEngine::Precision::FP16) {
+            output_precision != InferenceEngine::Precision::FP16 &&
+            output_precision != InferenceEngine::Precision::U8) {
             THROW_IE_EXCEPTION << "Template device supports only FP16 and FP32 output precision.";
         }
     }

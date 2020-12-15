@@ -58,6 +58,8 @@ ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "
 
 ie_dependent_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
+ie_option(ENABLE_TEMPLATE_PLUGIN "Register template plugin into plugins.xml" OFF)
+
 ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
 
 ie_option_enum(SELECTIVE_BUILD "Enable OpenVINO conditional compilation or statistics collection. \

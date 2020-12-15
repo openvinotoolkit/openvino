@@ -10,7 +10,14 @@ def parse_arguments():
                         help='Path to doxygen ignore list')
     parser.add_argument('--strip', type=str, required=False, default=os.path.abspath('../../'),
                         help='Strip from warning paths')
-    parser.add_argument('--exclude-links', nargs='+', type=str, required=False, default=[], help='Markdown links to be excluded')
+    parser.add_argument('--include_omz', type=bool, required=False, default=False,
+                        help='Include link check for omz docs')
+    parser.add_argument('--include_wb', type=bool, required=False, default=False,
+                        help='Include link check for workbench docs')
+    parser.add_argument('--include_pot', type=bool, required=False, default=False,
+                        help='Include link check for pot docs')
+    parser.add_argument('--include_gst', type=bool, required=False, default=False,
+                        help='Include link check for gst docs')
     return parser.parse_args()
 
 
@@ -37,8 +44,21 @@ def is_excluded_link(warning, exclude_links):
     return False
 
 
-def parse(log, ignore_list, strip, exclude_links):
+def parse(log, ignore_list, strip, include_omz=False, include_wb=False, include_pot=False, include_gst=False):
     found_errors = []
+    exclude_links = {'omz': r'.*?omz_.*?', 'wb': r'.*?workbench_.*?',
+                     'pot': r'.*?pot_.*?', 'gst': r'.*?gst_.*?'}
+    if include_omz:
+        del exclude_links['omz']
+    if include_wb:
+        del exclude_links['wb']
+    if include_pot:
+        del exclude_links['pot']
+    if include_gst:
+        del exclude_links['gst']
+
+    exclude_links = exclude_links.values()
+
     with open(ignore_list, 'r') as f:
         ignore_list = f.read().splitlines()
     with open(log, 'r') as f:
@@ -61,7 +81,13 @@ def parse(log, ignore_list, strip, exclude_links):
 
 def main():
     args = parse_arguments()
-    parse(args.log,  args.ignore_list, args.strip, args.exclude_links)
+    parse(args.log,
+          args.ignore_list,
+          args.strip,
+          include_omz=args.include_omz,
+          include_wb=args.include_wb,
+          include_pot=args.include_pot,
+          include_gst=args.include_gst)
 
 
 if __name__ == '__main__':

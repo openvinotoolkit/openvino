@@ -22,7 +22,7 @@ INSTANTIATE_TEST_CASE_P(NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
                                 ::testing::Values(std::vector<size_t>({})),
-                                ::testing::Values("TEMPLATE")),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
                         SplitLayerTest::getTestCaseName);
 
 }  // namespace

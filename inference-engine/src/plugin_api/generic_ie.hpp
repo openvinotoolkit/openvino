@@ -68,11 +68,11 @@ public:
             }
             if (auto ti_node = std::dynamic_pointer_cast<ngraph::op::TensorIterator>(op)) {
                 auto results = ti_node->get_body()->get_results();
-                auto params = ti_node->get_body()->get_parameters();
+                auto ti_params = ti_node->get_body()->get_parameters();
                 ngraph::NodeVector nResults, nParams;
                 for (const auto& res : results)
                     nResults.emplace_back(res);
-                for (const auto& param : params)
+                for (const auto& param : ti_params)
                     nParams.emplace_back(param);
                 ngraph::traverse_nodes(nResults, [&](std::shared_ptr<ngraph::Node> node) {
                     if (auto genNode = std::dynamic_pointer_cast<ngraph::op::GenericIE>(node)) {

@@ -23,6 +23,8 @@ std::string QueryNetworkTest::getTestCaseName(const ::testing::TestParamInfo<Que
 }
 
 TEST_P(QueryNetworkTest, queryNetworkResultContainAllAndOnlyInputLayers) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto& param = GetParam();
     auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, std::get<Plugin>(param));
     ASSERT_NE(nullptr, cnnNetwork.getFunction());

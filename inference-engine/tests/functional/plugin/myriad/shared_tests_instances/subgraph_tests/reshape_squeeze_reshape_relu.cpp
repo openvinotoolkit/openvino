@@ -4,7 +4,7 @@
 #include "subgraph_tests/reshape_squeeze_reshape_relu.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     std::vector<ShapeAxesTuple> inputs = {

@@ -767,6 +767,11 @@ void MKLDNNGraph::Infer(int batch) {
 
     mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
     for (int i = 0; i < graphNodes.size(); i++) {
+        if (IsCancellationRequested()) {
+            ResetCancellationRequest();
+            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::INFER_CANCELLED;
+        }
+
         PERF(graphNodes[i]);
 
         if (batch > 0)
