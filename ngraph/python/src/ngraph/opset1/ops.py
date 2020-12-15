@@ -962,6 +962,7 @@ def gather_tree(
     name: Optional[str] = None,
 ) -> Node:
     """Perform GatherTree operation.
+
     @param step_ids: The tensor with indices from per each step.
     @param parent_idx: The tensor with with parent beam indices.
     @param max_seq_len: The tensor with maximum lengths for each sequence in the batch.
