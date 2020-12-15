@@ -131,7 +131,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
 
-                virtual std::shared_ptr<Node>
+                std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 float get_eps() const { return m_eps; }
@@ -139,7 +139,7 @@ namespace ngraph
                 MVNEpsMode get_eps_mode() const { return m_eps_mode; }
             private:
                 bool m_normalize_variance = true;
-                float m_eps = 1e-6;
+                float m_eps = (float)1e-6;
                 MVNEpsMode m_eps_mode = MVNEpsMode::INSIDE_SQRT;
             };
         } // namespace v6
