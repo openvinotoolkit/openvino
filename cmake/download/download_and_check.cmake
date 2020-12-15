@@ -22,7 +22,7 @@ function (DownloadAndCheck from to fatal result sha256)
           Download(${from} ${to} ${fatal} ${result} output ${sha256})
           list(GET output 0 status_code)
         else()
-          foreach(index RANGE 15)
+          foreach(index RANGE 5)
             message(STATUS "${WGET_EXECUTABLE} --no-cache --no-check-certificate 
               --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${from}")
             execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache" "--no-check-certificate" 
