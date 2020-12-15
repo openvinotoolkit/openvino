@@ -27,4 +27,3 @@ namespace ngraph
 #undef NGRAPH_OP
     } // namespace opset6
 } // namespace ngraph
-
