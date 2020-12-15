@@ -640,16 +640,13 @@ tests_expected_to_fail = [
     (xfail_issue_43523,
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_random_cpu",
-
         "OnnxBackendNodeModelTest.test_reduce_sum_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_empty_axes_input_noop_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_empty_axes_input_noop_random_cpu",
-
         "OnnxBackendNodeModelTest.test_reduce_sum_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_default_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_default_axes_keepdims_random_cpu",
-
+        "OnnxBackendNodeModelTest.test_reduce_sum_empty_axes_input_noop_example_cpu",
+        "OnnxBackendNodeModelTest.test_reduce_sum_empty_axes_input_noop_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_negative_axes_keepdims_random_cpu"),
     (xfail_issue_43742,
         "OnnxBackendNodeModelTest.test_if_cpu",
