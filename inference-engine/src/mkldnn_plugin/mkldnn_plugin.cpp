@@ -210,7 +210,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     manager.run_passes(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;
-    if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
+    if (false && (conf.lpTransformsMode == Config::LPTransformsMode::On)) {
         auto params = LayerTransformation::Params(
             true,  // updatePrecisions
             LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
