@@ -5,6 +5,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
@@ -90,6 +91,7 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeUnaryElementwise, test
     testing::Values(
         ngraph::opset3::Exp::type_info,
         ngraph::opset3::Floor::type_info,
+        ngraph::opset5::Ceiling::type_info,
         ngraph::opset3::Log::type_info,
         ngraph::opset3::Relu::type_info,
         ngraph::opset3::Sigmoid::type_info,
