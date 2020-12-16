@@ -52,15 +52,34 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     assert not resize.half_pixel_centers or (resize.half_pixel_centers and not resize.align_corners), \
         attrs_msg.format(resize_name, resize.op)
 
-    out_height = new_sizes_value[0]
-    out_width = new_sizes_value[1]
+    shape = Shape(graph, {'name': resize_name + '/shapeof_'}).create_node()
 
     layout = graph.graph['layout']
     height_dim = get_height_dim(layout, input_rank)
     width_dim = get_width_dim(layout, input_rank)
 
-    input_height = input_shape[height_dim]
-    input_width = input_shape[width_dim]
+    ss = create_op_with_const_inputs(graph, StridedSlice,
+                                     {1: int64_array([height_dim]),
+                                      2: int64_array([width_dim + 1]),
+                                      3: int64_array([1])
+                                      },
+                                     {'name': resize_name + '/StridedSlice_',
+                                      'begin_mask': int64_array([1]),
+                                      'end_mask': int64_array([1]),
+                                      'new_axis_mask': int64_array([0]),
+                                      'shrink_axis_mask': int64_array([0]),
+                                      'ellipsis_mask': int64_array([0])
+                                      })
+
+    div_node = Div(graph, {'name': resize_name + '/Div_'}).create_node()
+
+    shape_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
+    size_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
+
+    size_to_float.out_port(0).connect(div_node.in_port(0))
+    shape_to_float.out_port(0).connect(div_node.in_port(1))
+    ss.out_port(0).connect(shape_to_float.in_port(0))
+    shape.out_port(0).connect(ss.in_port(0))
 
     align_corners = resize.align_corners
     half_pixel_centers = resize.half_pixel_centers
@@ -74,13 +93,8 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     else:
         coordinate_transformation_mode = 'asymmetric'
 
-    shape_calculation_mode = 'sizes'
-    scales_data = np.array([out_height / input_height, out_width / input_width], dtype=np.float32)
-
     interpolate4 = create_op_with_const_inputs(graph, Interpolate,
                                                {
-                                                   1: int64_array(new_sizes_value),
-                                                   2: scales_data,
                                                    3: int64_array([height_dim, width_dim])
                                                },
                                                {
@@ -92,12 +106,20 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
                                                    'pads_end': int64_array([0]),
                                                    'nearest_mode': nearest_mode,
                                                    'cube_coeff': -0.75,
-                                                   'shape_calculation_mode': shape_calculation_mode,
+                                                   'shape_calculation_mode': 'sizes',
                                                    'version': 'opset4',
                                                    'in_ports_count': 4,
                                                })
 
-    resize.in_port(0).get_connection().set_destination(interpolate4.in_port(0))
+    resize_input_connection = resize.in_port(0).get_connection()
+    resize_input_connection.set_destination(interpolate4.in_port(0))
+    resize_input_connection.get_source().connect(shape.in_port(0))
+
+    div_node.out_port(0).connect(interpolate4.in_port(2))
+
+    sizes_connection = resize.in_port(1).get_connection()
+    sizes_connection.set_destination(interpolate4.in_port(1))
+    sizes_connection.get_source().connect(size_to_float.in_port(0))
 
     resize.out_port(0).get_connection().set_source(interpolate4.out_port(0))
     rename_nodes([(resize, resize_name + '/delete_'), (interpolate4, resize_name)])
@@ -105,7 +127,7 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
 
 class TFResizeToInterpolateV4(MiddleReplacementPattern):
     """
-    The transformation replaces TF ResizeBilinear with Interpolate-4.
+    The transformation replaces TFResize with Interpolate-4.
     """
     enabled = True
 
