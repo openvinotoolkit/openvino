@@ -121,8 +121,6 @@ TEST(type_prop, gather_elements_dynamic_out_shape)
 
 TEST(type_prop, gather_elements_interval_shapes)
 {
-    //    PartialShape data_shape{4, 4, Dimension(0, 100)};
-    //    PartialShape indices_shape{1, Dimension(0, 5), Dimension(0, 100)};
     PartialShape data_shape{4, Dimension(1, 7), 5};
     PartialShape indices_shape{1, Dimension(5, 10), 5};
     int64_t axis = 0;
