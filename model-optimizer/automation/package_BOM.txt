@@ -718,6 +718,7 @@ extensions/ops/TensorArrayScatter.py
 extensions/ops/TensorArraySize.py
 extensions/ops/TensorArrayWrite.py
 extensions/ops/TensorIterator_ops.py
+extensions/ops/TFResize.py
 extensions/ops/TFResizeBilinear.py
 extensions/ops/TFResizeNearestNeighbor.py
 extensions/ops/topk.py
