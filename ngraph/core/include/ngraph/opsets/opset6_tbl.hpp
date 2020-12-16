@@ -77,7 +77,6 @@ NGRAPH_OP(Maximum, ngraph::op::v1)
 NGRAPH_OP(Minimum, ngraph::op::v1)
 NGRAPH_OP(Mod, ngraph::op::v1)
 NGRAPH_OP(Multiply, ngraph::op::v1)
-NGRAPH_OP(MVN, ngraph::op::v0)
 NGRAPH_OP(Negative, ngraph::op::v0)
 NGRAPH_OP(NormalizeL2, ngraph::op::v0)
 NGRAPH_OP(NotEqual, ngraph::op::v1)
@@ -175,3 +174,4 @@ NGRAPH_OP(Round, ngraph::op::v5)
 
 // New operations added in opset6
 NGRAPH_OP(CTCGreedyDecoderSeqLen, ngraph::op::v6)
+NGRAPH_OP(MVN, ngraph::op::v6)
