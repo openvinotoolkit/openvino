@@ -41,40 +41,49 @@
             "coordinates_swap_method": "swap_weights"
         },
         "id": "ObjectDetectionAPIDetectionOutputReplacement",
-        "inputs": [
-            [
-                {
-                    "node": "Reshape$",
-                    "port": 0
-                }
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "StatefulPartitionedCall/BatchMultiClassNonMaxSuppression_1/stack_8",
+                "StatefulPartitionedCall/BatchMultiClassNonMaxSuppression_1/stack_6"
             ],
-            [
-                {
-                    "node": "Reshape_1$",
-                    "port": 0
-                }
-            ],
-            [
-                {
-                    "node": "ExpandDims$",
-                    "port": 0
-                }
+            "start_points": [
+                "StatefulPartitionedCall/Reshape_4",
+                "StatefulPartitionedCall/Reshape_5",
+                "StatefulPartitionedCall/ExpandDims_6",
+                "StatefulPartitionedCall/Cast_5"
             ]
-        ],
-        "instances": [
-            ".*SecondStagePostprocessor/"
-        ],
-        "match_kind": "scope",
-        "outputs": [
-            {
-                "node": "Cast_3$",
-                "port": 0
-            }
-        ]
+        },
+        "match_kind": "points"
     },
     {
         "custom_attributes": {
-            "outputs": "StatefulPartitionedCall/SecondStagePostprocessor/Cast_3"
+        },
+        "id": "ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement",
+        "include_inputs_to_sub_graph": true,
+        "include_outputs_to_sub_graph": true,
+        "instances": {
+            "end_points": [
+                "StatefulPartitionedCall/Reshape_10"
+            ],
+            "start_points": [
+                "StatefulPartitionedCall/CropAndResize_1/CropAndResize",
+                "StatefulPartitionedCall/CropAndResize_1/Reshape"
+            ]
+        },
+        "match_kind": "points"
+    },
+    {
+       "custom_attributes": {
+            "masks_node_prefix_name": "StatefulPartitionedCall/mask_rcnn_keras_box_predictor/mask_rcnn_mask_head/"
+        },
+        "id": "ObjectDetectionAPIMaskRCNNSigmoidReplacement",
+        "match_kind": "general"
+    },
+    {
+       "custom_attributes": {
+            "outputs": "StatefulPartitionedCall/mask_rcnn_keras_box_predictor/mask_rcnn_mask_head/MaskPredictor_last_conv2d/BiasAdd,StatefulPartitionedCall/Reshape_13"
         },
         "id": "ObjectDetectionAPIOutputReplacement",
         "match_kind": "general"

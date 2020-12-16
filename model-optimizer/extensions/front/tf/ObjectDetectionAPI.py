@@ -805,9 +805,8 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         output_op = Result(graph, dict(name='do_OutputOp'))
         output_op.create_node([detection_output_node])
 
-        print('The graph output nodes "num_detections", "detection_boxes", "detection_classes", "detection_scores" '
-              'have been replaced with a single layer of type "Detection Output". Refer to IR catalogue in the '
-              'documentation for information about this layer.')
+        print('The graph output nodes have been replaced with a single layer of type "DetectionOutput". Refer to the '
+              'operation set specification documentation for more information about the operation.')
 
         return {'detection_output_node': detection_output_node}
 
@@ -890,10 +889,11 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
         return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
+        output_name = replacement_descriptions.get('masks_node_prefix_name', 'SecondStageBoxPredictor')
         op_outputs = graph.get_op_nodes(op='Result')
         for op_output in op_outputs:
             last_node = op_output.in_port(0).get_source().node
-            if last_node.name.startswith('SecondStageBoxPredictor'):
+            if last_node.name.startswith(output_name):
                 sigmoid_node = Sigmoid(graph, dict(name='masks')).create_node()
                 op_output.in_port(0).get_connection().insert_node(sigmoid_node)
 

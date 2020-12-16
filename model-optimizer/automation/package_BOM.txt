@@ -412,6 +412,7 @@ extensions/front/tf/mask_rcnn_support_api_v1.13.json
 extensions/front/tf/mask_rcnn_support_api_v1.14.json
 extensions/front/tf/mask_rcnn_support_api_v1.15.json
 extensions/front/tf/mask_rcnn_support_api_v1.7.json
+extensions/front/tf/mask_rcnn_support_api_v2.0.json
 extensions/front/tf/matmul_ext.py
 extensions/front/tf/mvn.py
 extensions/front/tf/mvn_unrolled.py
