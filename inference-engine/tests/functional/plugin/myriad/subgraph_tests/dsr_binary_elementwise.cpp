@@ -60,8 +60,8 @@ protected:
         const auto input1 = createParameter(inDataType, inDataShapes.rhs.shape);
 
         const auto eltwise = eltwiseType == ngraph::opset5::Select::type_info ?
-            ngraph::helpers::getNodeSharedPtr(eltwiseType, {createInputSubgraphWithDSR(
-                ngraph::element::boolean, inDataShapes.lhs), inputSubgraph0, input1}) :
+            ngraph::helpers::getNodeSharedPtr(eltwiseType, {createParameter(
+                ngraph::element::boolean, inDataShapes.rhs.shape), inputSubgraph0, input1}) :
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, input1});
 
         return eltwise;
