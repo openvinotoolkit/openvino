@@ -22,6 +22,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/variant.hpp>
 
 #include <cpp/ie_cnn_network.h>
@@ -70,6 +71,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     opsets["opset3"] = ngraph::get_opset3();
     opsets["opset4"] = ngraph::get_opset4();
     opsets["opset5"] = ngraph::get_opset5();
+    opsets["opset6"] = ngraph::get_opset6();
 
     // Load custom opsets
     for (const auto& ext : exts) {
@@ -427,7 +429,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
 
     // Check that operation in default opsets
     auto isDefaultOpSet = [](const std::string& version) -> bool {
-        for (size_t i = 1; i <= 5; i++) {
+        for (size_t i = 1; i <= 6; i++) {
             std::string opset_name = "opset" + std::to_string(i);
             if (version == opset_name)
                 return true;
