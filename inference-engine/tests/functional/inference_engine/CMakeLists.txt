@@ -14,6 +14,7 @@ set(LINK_LIBRARIES
     inference_engine_transformations
     openvino::itt
     openvino::conditional_compilation
+    sharedTestClasses
 )
 set(DEPENDENCIES
     mock_engine
@@ -21,6 +22,7 @@ set(DEPENDENCIES
     inference_engine_ir_v7_reader
     template_extension
     lptNgraphFunctions
+    sharedTestClasses
 )
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
