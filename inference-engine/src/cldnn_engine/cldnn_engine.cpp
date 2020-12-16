@@ -581,6 +581,16 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                     }
                 }
             }
+
+            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            } else if (ngraph::op::is_output(node)) {
+                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            }
         }
 
         for (auto&& layerName : supported) {

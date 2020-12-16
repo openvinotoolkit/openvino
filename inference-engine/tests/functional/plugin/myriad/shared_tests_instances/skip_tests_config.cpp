@@ -19,8 +19,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
         R"(.*(IEClassBasicTestP).*smoke_registerPluginsXMLUnicodePath.*)",
-        // TODO: Issue: 34206
-        R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 40473

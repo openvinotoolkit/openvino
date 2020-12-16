@@ -51,14 +51,6 @@ Plugin::~Plugin() {
 
 std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
     // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
-    std::vector<::ngraph::element::Type> new_types;
-    std::vector<::ngraph::PartialShape> new_shapes;
-
-    for (const auto &parameter : function->get_parameters()) {
-        new_shapes.emplace_back(parameter->get_partial_shape());
-        new_types.emplace_back(parameter->get_element_type());
-    }
-
     auto transformedNetwork = ngraph::clone_function(*function);
 
     // 2. Perform common optimizations and device-specific transformations
@@ -94,7 +86,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         if (output_precision != InferenceEngine::Precision::FP32 &&
             output_precision != InferenceEngine::Precision::FP16 &&
             output_precision != InferenceEngine::Precision::U8) {
-            THROW_IE_EXCEPTION << "Template device supports only FP16 and FP32 output precision.";
+            THROW_IE_EXCEPTION << "Template device supports only U8, FP16 and FP32 output precision.";
         }
     }
 
@@ -147,15 +139,17 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 
     // 1. First of all we should store initial input operation set
     std::unordered_set<std::string> originalOps;
+    std::map<std::string, ngraph::NodeTypeInfo> friendlyNameToType;
     for (auto&& node : function->get_ops()) {
         originalOps.emplace(node->get_friendly_name());
+        friendlyNameToType[node->get_friendly_name()] = node->get_type_info();
     }
 
     // 2. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
     auto transformedFunction = TransformNetwork(function);
 
     // 3. The same input node can be transformed into supported and unsupported backend node
-    // So we need store as supported ether unsupported node sets
+    // So we need store as supported either unsupported node sets
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
     auto opset = ngraph::get_opset4();
@@ -165,7 +159,7 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (opset.contains_type_insensitive(fusedLayerName)) {
+                if (opset.contains_type(friendlyNameToType[fusedLayerName])) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
@@ -174,11 +168,43 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
         }
     }
 
-    // 4. The result set should contains just nodes from supported set
-    for (auto&& layerName : supported) {
-        if (!InferenceEngine::details::contains(unsupported, layerName)) {
-            res.supportedLayersMap.emplace(layerName, GetName());
+    // 4. The result set should contain just nodes from supported set
+    for (auto&& unsupportedNode : unsupported) {
+        supported.erase(unsupportedNode);
+    }
+
+    for (auto&& node : function->get_ops()) {
+        // 5. If some housekeeping nodes were not added - add them.
+        if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
+            for (auto&& inputNodeOutput : node->input_values()) {
+                if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                    supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                }
+            }
+            for (auto&& outputs : node->outputs()) {
+                for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                    if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                        supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                    }
+                }
+            }
         }
+
+        // 6. Eliminate subgraphs that consist of housekeeping nodes only
+        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+            if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                supported.erase(node->get_friendly_name());
+            }
+        } else if (ngraph::op::is_output(node)) {
+            if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
+                supported.erase(node->get_friendly_name());
+            }
+        }
+    }
+
+    // 7. Produce the result
+    for (auto&& layerName : supported) {
+        res.supportedLayersMap.emplace(layerName, GetName());
     }
 
     return res;
