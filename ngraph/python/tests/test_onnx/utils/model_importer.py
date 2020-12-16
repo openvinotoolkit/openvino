@@ -92,7 +92,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     @classmethod
     def _execute_npz_data(
         cls, model_dir: str, prepared_model: BackendRep, result_rtol: float, result_atol: float,
-        post_processing: Callable[[Sequence[Any]], Sequence[Any]]
+        post_processing: Callable[[Sequence[Any]], Sequence[Any]] = None
     ) -> int:
         executed_tests = 0
         for test_data_npz in model_dir.glob("test_data_*.npz"):
