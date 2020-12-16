@@ -85,7 +85,6 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 After installing your Intel® Movidius™ VPU, you will return to this guide to complete OpenVINO™ installation.
 9. <a href="#run-a-sample">Run a Sample Application</a>
 10. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit.</a>
-11. <a href="#Hello-World-Face-Detection-Tutorial">Use the Face Detection Tutorial</a>
 
 ## <a name="install-openvino"></a>Install the Intel® Distribution of OpenVINO™ Toolkit Core Components
 
@@ -448,12 +447,6 @@ cd ~/inference_engine_samples_build/intel64/Release
 
 For information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 
-Congratulations, you have finished the installation of the Intel® Distribution of OpenVINO™ toolkit for Linux*. To learn more about how the Intel® Distribution of OpenVINO™ toolkit works, the Hello World tutorial and other resources are provided below.
-
-## <a name="Hello-World-Face-Detection-Tutorial"></a>Hello World Face Detection Tutorial
-
-See the [OpenVINO™ Hello World Face Detection Exercise](https://github.com/intel-iot-devkit/inference-tutorials-generic).
-
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 Choose one of the options provided below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system.
 
@@ -505,7 +498,6 @@ trusted-host = mirrors.aliyun.com
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 - For information on a set of pre-trained models, see the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
-- For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
 To learn more about converting models, go to:

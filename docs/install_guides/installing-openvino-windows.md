@@ -459,7 +459,7 @@ cd C:\Users\<username>\Documents\Intel\OpenVINO\inference_engine_samples_build\i
 
 For information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 
-Congratulations, you have finished the installation of the Intel® Distribution of OpenVINO™ toolkit for Windows*. To learn more about how the Intel® Distribution of OpenVINO™ toolkit works, the Hello World tutorial and other resources are provided below.
+Congratulations, you have finished the installation of the Intel® Distribution of OpenVINO™ toolkit for Windows*.
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
@@ -491,7 +491,6 @@ To learn more about converting deep learning models, go to:
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 - [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
-- Intel Distribution of OpenVINO Toolkit Hello World Activities, see the [Inference Tutorials for Face Detection and Car Detection Exercises](https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r3_0)
 - [Intel® Neural Compute Stick 2 Get Started](https://software.intel.com/en-us/neural-compute-stick/get-started)
 
 
