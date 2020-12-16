@@ -245,6 +245,9 @@ IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
 IE_GPU.onnx_model_gru_fwd_mixed_seq_len
 IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
 
+## Const layer has incorrect dimensions in the output data
+IE_CPU.nothing_to_reverse
+
 
 #-------------------------------------------------------------------------------
 #
