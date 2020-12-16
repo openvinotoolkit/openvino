@@ -369,6 +369,7 @@ namespace
                     result[i] = int64_t(p[i]);
                 }
             }
+            break;
             case element::Type_t::i16:
             {
                 auto p = input->get_data_ptr<int16_t>();
