@@ -68,7 +68,7 @@ protected:
             params.push_back(input1Dims);
         }
 
-        const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params);
+        const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params, testShapeTypes);
 
         const auto function = std::make_shared<ngraph::Function>(
             ngraph::NodeVector{eltwise},
@@ -113,7 +113,7 @@ public:
             eltwiseInput1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input1, dims);
         }
 
-        const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params);
+        const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params, testShapeTypes);
 
         // Shape infer subgraph
         const auto maximum = std::make_shared<ngraph::opset3::Maximum>(input0Dims, dims);
@@ -156,7 +156,7 @@ public:
             eltwiseInput1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input1, dims);
         }
 
-        const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params);
+        const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params, testShapeTypes);
 
         // Shape infer subgraph
         const auto broadcastConst = ngraph::opset3::Constant::create(ngraph::element::i64, {dataDims1.size() - dataDims0.size()}, {1});
@@ -201,7 +201,7 @@ public:
             eltwiseInput1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input1, dims);
         }
 
-        const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params);
+        const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params, testShapeTypes);
 
         // Shape infer subgraph
         const auto broadcastConst = ngraph::opset3::Constant::create(ngraph::element::i64, {dataDims0.size() - dataDims1.size()}, {1});
@@ -222,10 +222,20 @@ private:
     std::shared_ptr<ngraph::Node> buildEltwise(
         const ngraph::NodeTypeInfo& eltwiseType,
         const ngraph::OutputVector& inputs,
-        ngraph::ParameterVector& params) {
+        ngraph::ParameterVector& params,
+        TestShapeTypes testShapeTypes) {
         if (eltwiseType == ngraph::opset5::Select::type_info) {
-            params.push_back(std::make_shared<ngraph::opset3::Parameter>(ngraph::element::boolean, ngraph::Shape{inputs.front().get_shape()}));
-            return ngraph::helpers::getNodeSharedPtr(eltwiseType, {params.back(), inputs[0], inputs[1]});
+            params.push_back(std::make_shared<ngraph::opset3::Parameter>(
+                    ngraph::element::boolean,
+                    ngraph::Shape{inputs.front().get_shape()}));
+            std::shared_ptr<ngraph::Node> condInput = params.back();
+            if (testShapeTypes == TestShapeTypes::ALL_DYNAMIC) {
+                params.push_back(std::make_shared<ngraph::opset3::Parameter>(
+                    ngraph::element::i64,
+                    ngraph::Shape{static_cast<size_t>(inputs.front().get_partial_shape().rank().get_length())}));
+                condInput = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(condInput, params.back());
+            }
+            return ngraph::helpers::getNodeSharedPtr(eltwiseType, {condInput, inputs[0], inputs[1]});
         } else {
             return ngraph::helpers::getNodeSharedPtr(eltwiseType, inputs);
         }

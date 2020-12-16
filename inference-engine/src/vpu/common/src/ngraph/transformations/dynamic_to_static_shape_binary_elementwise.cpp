@@ -61,6 +61,9 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
     if (eltwise->get_type_info() == ngraph::opset5::Select::type_info) {
         processBinaryEltwise(eltwise, 1, 2);
     } else {
+        VPU_THROW_UNLESS(eltwise->get_input_size() == 2,
+                         "DynamicToStaticShape transformation for {} of type {} expects two inputs while {} were provided",
+                         eltwise->get_friendly_name(), eltwise->get_type_info(), eltwise->get_input_size());
         processBinaryEltwise(eltwise, 0, 1);
     }
 }
