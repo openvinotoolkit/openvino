@@ -7,7 +7,7 @@
 #include "subgraph_tests/quantized_convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 using namespace ngraph::helpers;
 
 namespace {

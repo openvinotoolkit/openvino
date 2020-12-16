@@ -2973,6 +2973,54 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_image_scaler)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_single)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_single.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
+    test_case.add_expected_output<int>(Shape{}, {6});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_graph_end)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_graph_end.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_expected_output<int>(Shape{}, {4});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_graph_middle)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_graph_middle.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_expected_output<float>(Shape{}, {4.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_op_on_input_graph_middle)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/size_op_on_input_graph_middle.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{1, 2, 4, 1, 3},
+                               {0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                                0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 1, 3}, {24., 24., 24., 24., 24., 24., 24., 24., 24., 24., 24., 24.,
+                               24., 24., 24., 24., 24., 24., 24., 24., 24., 24., 24., 24.});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_empty_initializers_handling)
 {
     // int this test the "scales" input of the Resize operator is set to an empty initializer
@@ -3082,12 +3130,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
 
     std::vector<float> logits = gen_vector(12, -2, 2);
     std::vector<float> class_preds = gen_vector(9, 0, 1);
-    std::vector<float> proposals = gen_vector(15 * 2, 0, 1);
-    std::vector<float> output = {0, 1, 0.777778, 0.241012,   0.260378,    0.418248,    0.499622,
-                                 0, 1, 0.444444, 0.10963,    0.146239,    0.176296,    0.228576,
-                                 0, 2, 0.888889, 0.241012,   0.260378,    0.418248,    0.499622,
-                                 0, 2, 0.555556, 0.10963,    0.146239,    0.176296,    0.228576,
-                                 0, 2, 0.222222, -0.0378917, -0.00169918, -0.00210832, 0.0387362};
+    std::vector<float> proposals = gen_vector(12 * 2, 0, 1);
+    std::vector<float> output = {0, 1, 0.777778, 0.279849,   0.283779,   0.562743,   0.695387,
+                                 0, 1, 0.444444, 0.12963,    0.176075,   0.212963,   0.284573,
+                                 0, 2, 0.888889, 0.279849,   0.283779,   0.562743,   0.695387,
+                                 0, 2, 0.555556, 0.12963,    0.176075,   0.212963,   0.284573,
+                                 0, 2, 0.222222, -0.0608094, -0.0142007, -0.0225239, 0.0304044};
     test_case.add_input<float>(logits);
     test_case.add_input<float>(class_preds);
     test_case.add_input<float>(proposals);
