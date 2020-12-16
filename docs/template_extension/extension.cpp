@@ -33,7 +33,7 @@ Extension::Extension() {
     ngraph::onnx_import::register_operator(
         Operation::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
             ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
-            bool inverse = node.get_attribute_value<bool>("inverse");
+            bool inverse = node.get_attribute_value<int64_t>("inverse");
             return {std::make_shared<FFTOp>(ng_inputs.at(0), inverse)};
     });
     #endif
