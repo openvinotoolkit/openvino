@@ -1101,6 +1101,32 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_dynamic_rank_input)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_dynamic_rank_input.prototxt"));
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f});
+
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square)
 {
     auto function = onnx_import::import_onnx_model(
@@ -1239,6 +1265,33 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_empty_axes)
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f});
+
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_empty_axes_dynamic_rank_input)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_dynamic_rank_input.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1.0f,
                                 1.0f,
                                 1.0f,
                                 1.0f,
