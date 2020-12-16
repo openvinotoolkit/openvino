@@ -19,7 +19,6 @@
 #include <memory>
 
 #include "itt.hpp"
-//#include "ngraph/factory_adapter.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
