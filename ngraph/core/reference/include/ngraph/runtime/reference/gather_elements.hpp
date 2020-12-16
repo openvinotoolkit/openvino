@@ -20,7 +20,6 @@
 #include <cassert>
 #include <numeric>
 
-//#include "ngraph/coordinate_transform.hpp"
 
 namespace ngraph
 {
@@ -58,12 +57,6 @@ namespace ngraph
                     return;
                 }
 
-                int64_t count = 1;
-                for (int64_t i = 0; i < indices_shape.size(); i++)
-                {
-                    count *= indices_shape[i];
-                }
-
                 int64_t axis_mul = 1; // axis_mul = M*N*K in 3D case if axis = 0
                 for (int64_t i = axis + 1; i < data_shape.size(); i++)
                 {
@@ -71,7 +64,7 @@ namespace ngraph
                 }
 
                 int64_t data_idx;
-                for (int64_t i = 0; i < count; i++)
+                for (int64_t i = 0; i < ngraph::shape_size(indices_shape); i++)
                 {
                     data_idx = i - axis_mul * (((i / axis_mul) % data_shape[axis]) - indices[i]);
                     out[i] = data[data_idx];
