@@ -269,8 +269,28 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
 
 void op::v1::Broadcast::validate_and_infer_types()
 {
-    util::BroadcastBase::validate_and_infer_types();
+    // m_type is deduced and not always explicitly stated, for cases where broadcast
+    // has 2 inputs its always NUMPY mode
+    if (m_broadcast_spec.m_type == AutoBroadcastType::NONE && get_input_size() < 3)
+    {
+        m_broadcast_spec.m_type = AutoBroadcastType::NUMPY;
+    }
 
+    // Mocking axes_mapping input for cases that don't require it
+    if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && get_input_size() < 3)
+    {
+        auto output = op::v0::Constant::create(element::u8, Shape{}, {0})->output(0);
+        set_argument(2, output);
+    }
+
+    // update the base class' mode spec
+    auto base_spec = to_broadcast_mode(m_broadcast_spec);
+    if (util::BroadcastBase::m_mode.m_type != base_spec.m_type)
+    {
+        util::BroadcastBase::m_mode = base_spec;
+    }
+
+    util::BroadcastBase::validate_and_infer_types();
     set_input_is_relevant_to_shape(0); // arg - Result element type
     set_input_is_relevant_to_shape(1); // target_shape - Result shape
     set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
