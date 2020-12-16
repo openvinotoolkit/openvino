@@ -77,8 +77,8 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 <layer type="CTCGreedyDecoderSeqLen" merge_repeated="true" classes_index_type="i64" sequence_length_type="i64">
     <input>
         <port id="0">
-            <dim>20</dim>
             <dim>8</dim>
+            <dim>20</dim>
             <dim>128</dim>
         </port>
         <port id="1">
