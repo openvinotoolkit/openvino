@@ -5,6 +5,7 @@
 #include "mkldnn_rnn.h"
 #include "mkldnn_extension_utils.h"
 #include "desc_iterator.hpp"
+#include "nodes/common/cpu_memcpy.h"
 
 #include <string>
 #include <utility>
@@ -443,7 +444,7 @@ void MKLDNNRNN::createPrimitive() {
             for (int g = 0; g < Gb; g++) {
                 float *l_b_ptr = b_ptr + gate_map[g]*SC;
                 const float *l_ie_b_ptr = ie_b_ptr + g * SC;
-                memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(float));
+                cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(float));
             }
         }
     }

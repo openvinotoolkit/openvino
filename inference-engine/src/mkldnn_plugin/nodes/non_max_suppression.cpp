@@ -12,7 +12,6 @@
 #include <utility>
 #include <queue>
 #include "ie_parallel.hpp"
-#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {

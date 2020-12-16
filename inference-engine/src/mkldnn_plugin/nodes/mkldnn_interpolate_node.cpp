@@ -2741,21 +2741,21 @@ void MKLDNNInterpolateNode::setValue(uint8_t *base, size_t offset, float value, 
     switch (prec) {
         case Precision::U8: {
             uint8_t data = static_cast<uint8_t>(value < 0 ? 0 : value);
-            std::memcpy(baseOffset, &data, 1);
+            cpu_memcpy(baseOffset, &data, 1);
             break;
         }
         case Precision::I8: {
             int8_t data = static_cast<int8_t>(value);
-            std::memcpy(baseOffset, &data, 1);
+            cpu_memcpy(baseOffset, &data, 1);
             break;
         }
         case Precision::BF16: {
             uint16_t data = bfloat16_t(value).to_bits();
-            std::memcpy(baseOffset, &data, 2);
+            cpu_memcpy(baseOffset, &data, 2);
             break;
         }
         case Precision::FP32: {
-            std::memcpy(baseOffset, &value, sizeof(float));
+            cpu_memcpy(baseOffset, &value, sizeof(float));
             break;
         }
         default: {

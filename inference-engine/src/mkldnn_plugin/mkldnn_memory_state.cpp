@@ -5,6 +5,7 @@
 #include "mkldnn_memory_state.h"
 #include "mkldnn_extension_utils.h"
 #include "blob_factory.hpp"
+#include "nodes/common/cpu_memcpy.h"
 
 using namespace InferenceEngine;
 
@@ -31,7 +32,7 @@ void  MKLDNNVariableState::SetState(Blob::Ptr newState) {
 InferenceEngine::Blob::CPtr MKLDNNVariableState::GetState() const {
     auto result_blob = make_blob_with_precision(MKLDNNMemoryDesc(storage->GetDescriptor()));
     result_blob->allocate();
-    std::memcpy(result_blob->buffer(), storage->GetData(), storage->GetSize());
+    cpu_memcpy(result_blob->buffer(), storage->GetData(), storage->GetSize());
     return result_blob;
 }
 

@@ -26,16 +26,7 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
-    // Current reshape implementation is simple memory reinterpret,
-    // same precision on input and output is required
-    if (inputDataType != outputDataType)
-        inputDataType = outputDataType;
-
+    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->outData[0]->getPrecision());
     auto& outDims = getChildEdgeAt(0)->getDims();
     memory::format outFormat = MKLDNNMemory::GetPlainFormat(outDims);
     InferenceEngine::LayerConfig config;
@@ -44,14 +35,30 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i <getParentEdges().size(); i++) {
         config.inConfs[i].inPlace = -1;
         config.inConfs[i].constant = false;
-        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType,
+        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), dataType,
                                                   MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
     }
     config.outConfs.resize(1);
     config.outConfs[0].inPlace = 0;
     config.outConfs[0].constant = false;
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, outFormat);
+    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, outFormat);
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
+
+    if (dataType == Precision::BF16) {
+        // Let's add FP32 configuration in BF16 case for be compliment with FP32 neighbours
+        dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::FP32);
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            config.inConfs[i].inPlace = -1;
+            config.inConfs[i].constant = false;
+            config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), dataType,
+                MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+        }
+        config.outConfs.resize(1);
+        config.outConfs[0].inPlace = 0;
+        config.outConfs[0].constant = false;
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, outFormat);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
+    }
 }
 
 void MKLDNNReshapeNode::createPrimitive() {

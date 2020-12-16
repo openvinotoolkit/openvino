@@ -12,7 +12,6 @@
 #include <ie_parallel.hpp>
 #include <mkldnn_extension_utils.h>
 #include "utils/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise.hpp"
 
