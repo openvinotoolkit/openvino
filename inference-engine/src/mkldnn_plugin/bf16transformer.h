@@ -28,7 +28,7 @@ class BF16Transformer {
         { "concat", "eltwise" };
     //  prevent fallback to fp32 without considering both input and output nodes
     const InferenceEngine::details::caseless_set<std::string> _skipmarking =
-        { "memory" };
+        { "memory", "Split" };
 
     /**
     * Tries to mark tensor as FP32 by analyzing of local consumers of the tensor. Do not mark if
