@@ -889,18 +889,18 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
         return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
-        output_name = replacement_descriptions.get('masks_node_prefix_name', 'SecondStageBoxPredictor')
+        masks_node_prefix_name = replacement_descriptions.get('masks_node_prefix_name', 'SecondStageBoxPredictor')
         op_outputs = graph.get_op_nodes(op='Result')
         for op_output in op_outputs:
             last_node = op_output.in_port(0).get_source().node
-            if last_node.name.startswith(output_name):
+            if last_node.name.startswith(masks_node_prefix_name):
                 sigmoid_node = Sigmoid(graph, dict(name='masks')).create_node()
                 op_output.in_port(0).get_connection().insert_node(sigmoid_node)
 
         print('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
-              '"detection_output" layer.\n Refer to IR catalogue in the documentation for information '
-              'about the DetectionOutput layer and Inference Engine documentation about output data interpretation.\n'
-              'The topology can be inferred using dedicated demo "mask_rcnn_demo".')
+              '"detection_output" operation.\n Refer to operation specification in the documentation for information '
+              'about the DetectionOutput operation output data interpretation.\n'
+              'The model can be inferred using the dedicated demo "mask_rcnn_demo" from the OpenVINO Open Model Zoo.')
 
 
 class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGraph):

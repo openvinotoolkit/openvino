@@ -106,9 +106,17 @@
     },
     {
        "custom_attributes": {
-            "outputs": "StatefulPartitionedCall/mask_rcnn_keras_box_predictor/mask_rcnn_mask_head/MaskPredictor_last_conv2d/BiasAdd/Add"
+            "outputs": "SecondStageBoxPredictor_1/Conv_3/BiasAdd|SecondStageBoxPredictor_1/Conv_1/BiasAdd"
         },
         "id": "ObjectDetectionAPIOutputReplacement",
+        "match_kind": "general"
+    },
+    {
+        "custom_attributes":
+        {
+            "replacements": [["mul/y", "first_stage_max_proposals"]]
+        },
+        "id": "ObjectDetectionAPIConstValueOverride",
         "match_kind": "general"
     }
 ]
