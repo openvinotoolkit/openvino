@@ -27,7 +27,7 @@ from ngraph.utils.types import (
 
 
 def _get_node_factory(opset_version: Optional[str] = None) -> NodeFactory:
-    """! Return NodeFactory configured to create operators from specified opset version."""
+    """Return NodeFactory configured to create operators from specified opset version."""
     if opset_version:
         return NodeFactory(opset_version)
     else:

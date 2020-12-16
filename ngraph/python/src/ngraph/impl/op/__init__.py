@@ -24,7 +24,7 @@ import numpy as np
 
 from _pyngraph.op import Constant
 
-""" Retrieve Constant inner data.
+"""Retrieve Constant inner data.
 
     Internally uses PyBind11 Numpy's buffer protocol.
 

@@ -13,4 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-"""! Generic utilities. Factor related functions out to separate files."""
+"""Generic utilities. Factor related functions out to separate files."""
