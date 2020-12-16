@@ -67,7 +67,7 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_6;
 }
 

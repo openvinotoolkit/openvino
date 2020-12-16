@@ -50,7 +50,7 @@ KernelsData OneHotKernelRef::GetKernelsData(const Params& params, const optional
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority OneHotKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority OneHotKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

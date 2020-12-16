@@ -48,7 +48,7 @@ FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spat
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bf_io_input_spatial::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_bf_io_input_spatial::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const fully_connected_params&>(params);
     const auto& input = p.inputs[0];
     const auto& output = p.output;

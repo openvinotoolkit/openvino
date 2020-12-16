@@ -39,7 +39,7 @@ ParamsKey GatherTreeKernelRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsPriority GatherTreeKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority GatherTreeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

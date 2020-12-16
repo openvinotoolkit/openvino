@@ -236,7 +236,7 @@ EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv16::SetDefault(const el
     return dispatchData;
 }
 
-KernelsPriority EltwiseKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority EltwiseKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 

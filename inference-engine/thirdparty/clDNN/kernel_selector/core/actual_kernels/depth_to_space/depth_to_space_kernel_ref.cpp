@@ -44,7 +44,7 @@ KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params, const op
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority DepthToSpaceKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority DepthToSpaceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 

@@ -117,7 +117,7 @@ KernelsData ReorderKernelFastBatch1::GetKernelsData(const Params& params, const 
     return GetCommonKernelsData(orgParams, options);
 }
 
-KernelsPriority ReorderKernelFastBatch1::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorderKernelFastBatch1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
     const auto& input = orgParams.inputs[0];
     const auto& output = orgParams.output;

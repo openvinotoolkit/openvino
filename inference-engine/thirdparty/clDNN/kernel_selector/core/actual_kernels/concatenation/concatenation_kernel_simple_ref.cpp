@@ -104,7 +104,7 @@ KernelsData ConcatenationKernel_simple_Ref::GetKernelsData(const Params& params,
     return kd;
 }
 
-KernelsPriority ConcatenationKernel_simple_Ref::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConcatenationKernel_simple_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

@@ -92,7 +92,7 @@ KernelsData PoolingKernelGPUBfyxBlockOpt::GetKernelsData(const Params& params, c
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority PoolingKernelGPUBfyxBlockOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PoolingKernelGPUBfyxBlockOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

@@ -73,7 +73,7 @@ KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params, const optio
     return {kd};
 }
 
-KernelsPriority ReorgYoloKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorgYoloKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

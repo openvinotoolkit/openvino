@@ -107,7 +107,7 @@ KernelsData PoolingKerneGPU_fs_b_yx_fsv32::GetKernelsData(const Params& params, 
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority PoolingKerneGPU_fs_b_yx_fsv32::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PoolingKerneGPU_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

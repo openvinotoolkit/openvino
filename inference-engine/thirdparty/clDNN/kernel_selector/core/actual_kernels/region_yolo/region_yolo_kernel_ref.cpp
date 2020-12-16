@@ -76,7 +76,7 @@ KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params, const opti
     return {kd};
 }
 
-KernelsPriority RegionYoloKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority RegionYoloKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

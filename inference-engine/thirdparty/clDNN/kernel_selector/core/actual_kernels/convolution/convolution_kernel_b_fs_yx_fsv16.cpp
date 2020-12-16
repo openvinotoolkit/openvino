@@ -113,10 +113,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16::SetDefault(
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    return (p.output.Batch().v == 1) ? FORCE_PRIORITY_2 :  FORCE_PRIORITY_7;
+    return p.output.Batch().v == 1 ? FORCE_PRIORITY_2 :  FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {

@@ -41,7 +41,7 @@ KernelsData AverageUnpoolingKernelGPURef::GetKernelsData(const Params& params, c
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority AverageUnpoolingKernelGPURef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority AverageUnpoolingKernelGPURef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 

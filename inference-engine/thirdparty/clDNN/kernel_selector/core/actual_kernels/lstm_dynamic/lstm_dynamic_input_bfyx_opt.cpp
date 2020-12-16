@@ -109,7 +109,7 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     return { kd };
 }
 
-KernelsPriority LSTM_DynamicInputKernelBfyxOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority LSTM_DynamicInputKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

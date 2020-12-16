@@ -65,7 +65,7 @@ KernelsData PoolingKernelGPURef::GetKernelsData(const Params& params, const opti
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority PoolingKernelGPURef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PoolingKernelGPURef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

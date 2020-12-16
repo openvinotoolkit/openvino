@@ -40,7 +40,7 @@ KernelsData ReorderWeightsKernel::GetKernelsData(const Params& params, const opt
     return GetCommonKernelsData(orgParams, options);
 }
 
-KernelsPriority ReorderWeightsKernel::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorderWeightsKernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

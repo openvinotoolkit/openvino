@@ -77,7 +77,7 @@ KernelsData PoolingKernelGPUByxfPaddingOpt::GetKernelsData(const Params& params,
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority PoolingKernelGPUByxfPaddingOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PoolingKernelGPUByxfPaddingOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

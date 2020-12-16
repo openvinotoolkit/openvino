@@ -144,7 +144,7 @@ KernelsData PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& p
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 

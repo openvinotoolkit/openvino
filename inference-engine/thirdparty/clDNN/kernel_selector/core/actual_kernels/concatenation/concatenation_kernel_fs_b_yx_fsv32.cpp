@@ -76,7 +76,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_fs_b_yx_fsv32::SetDefa
     return dispatchData;
 }
 
-KernelsPriority ConcatenationKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConcatenationKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 

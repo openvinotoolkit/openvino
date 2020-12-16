@@ -48,7 +48,7 @@ ActivationKernelOpt::Parent::DispatchData ActivationKernelOpt::SetDefault(const 
     return dispatchData;
 }
 
-KernelsPriority ActivationKernelOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ActivationKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_6;
 }
 

@@ -73,7 +73,7 @@ KernelsData MVNKernelRef::GetKernelsData(const Params& params, const optional_pa
     return GetCommonKernelsData(params, optParams);
 }
 
-KernelsPriority MVNKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority MVNKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

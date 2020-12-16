@@ -106,7 +106,7 @@ KernelsData PermuteKernelRef::GetKernelsData(const Params& params, const optiona
     return {kd};
 }
 
-KernelsPriority PermuteKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PermuteKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

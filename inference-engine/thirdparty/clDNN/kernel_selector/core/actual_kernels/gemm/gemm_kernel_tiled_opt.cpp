@@ -178,7 +178,7 @@ KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params, const optio
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& gmm_params = static_cast<const gemm_params&>(params);
 
     return gmm_params.transpose_input0 || gmm_params.transpose_input1 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_3;

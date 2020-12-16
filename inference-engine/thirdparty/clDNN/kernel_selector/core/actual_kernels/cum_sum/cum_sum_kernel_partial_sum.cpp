@@ -125,7 +125,7 @@ KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params, const o
     return GetMultiStageKernelsData(params, options);
 }
 
-KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

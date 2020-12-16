@@ -269,7 +269,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
     return p.stride.x == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_2;

@@ -118,7 +118,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_vload8::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority EltwiseKernel_vload8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

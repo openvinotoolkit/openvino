@@ -73,7 +73,7 @@ KernelsData LRNKernelAcrossChannelRef::GetKernelsData(const Params& params, cons
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority LRNKernelAcrossChannelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority LRNKernelAcrossChannelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

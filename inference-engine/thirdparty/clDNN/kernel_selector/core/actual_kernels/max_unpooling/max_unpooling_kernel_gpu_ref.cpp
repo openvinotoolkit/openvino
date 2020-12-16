@@ -41,7 +41,7 @@ KernelsData MaxUnpoolingKernelGPURef::GetKernelsData(const Params& params, const
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority MaxUnpoolingKernelGPURef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority MaxUnpoolingKernelGPURef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

@@ -55,7 +55,7 @@ KernelsData EltwiseKernelRef::GetKernelsData(const Params& params, const optiona
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

@@ -67,7 +67,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_depthwise_weights_lwg::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_bfyx_depthwise_weights_lwg::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_2;
 }
 

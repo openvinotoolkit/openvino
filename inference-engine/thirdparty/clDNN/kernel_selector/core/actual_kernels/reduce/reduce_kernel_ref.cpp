@@ -90,7 +90,7 @@ KernelsData ReduceKernelRef::GetKernelsData(const Params& params, const optional
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority ReduceKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReduceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

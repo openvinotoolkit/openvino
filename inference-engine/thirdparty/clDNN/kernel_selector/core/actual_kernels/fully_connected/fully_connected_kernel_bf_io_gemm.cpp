@@ -50,7 +50,7 @@ FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(co
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bf_io_GEMM::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_bf_io_GEMM::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_6;
 }
 

@@ -109,7 +109,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     return {kd};
 }
 
-KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_3;
 }
 

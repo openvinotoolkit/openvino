@@ -51,7 +51,7 @@ KernelsData BorderKernelRef::GetKernelsData(const Params& params, const optional
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority BorderKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority BorderKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

@@ -84,7 +84,7 @@ PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const po
     return dispatchData;
 }
 
-KernelsPriority PoolingKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PoolingKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& pooling_p = static_cast<const pooling_params&>(params);
 
     return pooling_p.output.Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;

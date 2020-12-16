@@ -96,7 +96,7 @@ ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winogr
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_Winograd_2x3_s1::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_Winograd_2x3_s1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_4;
 }
 

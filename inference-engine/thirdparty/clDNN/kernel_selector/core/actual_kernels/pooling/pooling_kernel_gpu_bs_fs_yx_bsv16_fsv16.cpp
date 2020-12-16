@@ -63,7 +63,7 @@ PoolingKernelBase::DispatchData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::SetDef
     return dispatchData;
 }
 
-KernelsPriority Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 

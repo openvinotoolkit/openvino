@@ -73,7 +73,7 @@ KernelsData FullyConnected_fb_oi_b8_ref::GetKernelsData(const Params& params, co
     return res;
 }
 
-KernelsPriority FullyConnected_fb_oi_b8_ref::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_fb_oi_b8_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

@@ -159,7 +159,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16_dw::Set
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_2;
 }
 

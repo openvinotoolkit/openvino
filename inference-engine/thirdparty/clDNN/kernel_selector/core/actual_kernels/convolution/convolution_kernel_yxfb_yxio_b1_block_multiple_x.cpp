@@ -84,7 +84,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_mulitpl
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

@@ -334,7 +334,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params, c
         return GetCommonKernelsData(params, optParams);
 }
 
-KernelsPriority MVNKernel_b_fs_yx_fsv16_imad::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority MVNKernel_b_fs_yx_fsv16_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

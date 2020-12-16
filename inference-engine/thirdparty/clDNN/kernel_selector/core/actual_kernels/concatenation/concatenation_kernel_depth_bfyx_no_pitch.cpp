@@ -82,7 +82,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_depth_bfyx_no_pitch::S
     return dispatchData;
 }
 
-KernelsPriority ConcatenationKernel_depth_bfyx_no_pitch::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConcatenationKernel_depth_bfyx_no_pitch::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 

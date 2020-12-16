@@ -74,7 +74,7 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
     return {kd};
 }
 
-KernelsPriority ReshapeKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReshapeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

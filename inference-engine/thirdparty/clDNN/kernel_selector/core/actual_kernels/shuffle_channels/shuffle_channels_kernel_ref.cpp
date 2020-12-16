@@ -112,7 +112,7 @@ KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params, const
     return {kd};
 }
 
-KernelsPriority ShuffleChannelsKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ShuffleChannelsKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

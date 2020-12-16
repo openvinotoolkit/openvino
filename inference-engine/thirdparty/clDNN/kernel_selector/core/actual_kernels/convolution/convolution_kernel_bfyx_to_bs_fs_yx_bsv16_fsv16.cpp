@@ -57,7 +57,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_2;
 }
 

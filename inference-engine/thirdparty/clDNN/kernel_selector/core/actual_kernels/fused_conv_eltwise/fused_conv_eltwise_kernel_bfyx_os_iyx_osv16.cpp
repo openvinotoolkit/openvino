@@ -193,7 +193,7 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_os_i
     return dispatchData;
 }
 
-KernelsPriority fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_3;
 }
 

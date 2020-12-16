@@ -85,7 +85,7 @@ KernelsData LRNKernelRef::GetKernelsData(const Params& params, const optional_pa
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority LRNKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority LRNKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

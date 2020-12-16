@@ -88,7 +88,7 @@ KernelsData ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsData(const Params& pa
     return GetCommonKernelsData(orgParams, options);
 }
 
-KernelsPriority ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_2;
 }
 }  // namespace kernel_selector

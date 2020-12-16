@@ -92,7 +92,7 @@ KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,
     return res;
 }
 
-KernelsPriority FullyConnected_bs_f_bsv16_af8::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_bs_f_bsv16_af8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_2;
 }
 }  // namespace kernel_selector

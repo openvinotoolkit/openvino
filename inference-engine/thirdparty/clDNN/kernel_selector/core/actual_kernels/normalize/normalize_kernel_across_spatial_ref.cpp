@@ -45,7 +45,7 @@ KernelsData NormalizeKernelAcrossSpatialRef::GetKernelsData(const Params& params
     return GetCommonKernelsData(params, optParams);
 }
 
-KernelsPriority NormalizeKernelAcrossSpatialRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority NormalizeKernelAcrossSpatialRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

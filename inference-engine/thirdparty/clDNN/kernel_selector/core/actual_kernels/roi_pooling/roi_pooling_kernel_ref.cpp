@@ -38,7 +38,7 @@ KernelsData ROIPoolingKernelRef::GetKernelsData(const Params& params, const opti
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority ROIPoolingKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ROIPoolingKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

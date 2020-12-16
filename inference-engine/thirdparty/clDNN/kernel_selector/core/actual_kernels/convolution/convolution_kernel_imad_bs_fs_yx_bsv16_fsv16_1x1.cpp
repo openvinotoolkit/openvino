@@ -89,7 +89,7 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16
     return dispatchData;
 }  // SetDefault
 
-KernelsPriority Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_2;
 }
 

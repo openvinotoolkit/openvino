@@ -62,7 +62,7 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

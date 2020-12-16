@@ -377,7 +377,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetD
     return dispatchData;
 }  // SetDefault
 
-KernelsPriority ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 

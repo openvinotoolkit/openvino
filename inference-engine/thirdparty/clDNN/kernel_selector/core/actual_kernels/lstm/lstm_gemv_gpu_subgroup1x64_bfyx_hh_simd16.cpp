@@ -53,7 +53,7 @@ KernelsData LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetKernelsData(const Par
     return kernelsData;
 }
 
-KernelsPriority LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority LSTMGemvKernel_subgroup1x64_bfyx_hh_SIMD16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const lstm_gemm_params& orgParams = static_cast<const lstm_gemm_params&>(params);
     const auto& input = orgParams.inputs[0];
 

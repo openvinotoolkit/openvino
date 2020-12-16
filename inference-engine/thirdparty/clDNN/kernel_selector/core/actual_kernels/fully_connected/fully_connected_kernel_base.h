@@ -60,7 +60,7 @@ public:
                                                    DataLayout dl,
                                                    WeightsLayout wl,
                                                    const int autoTuneIndex = -1) const;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const {
+    KernelsPriority GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
     };
 

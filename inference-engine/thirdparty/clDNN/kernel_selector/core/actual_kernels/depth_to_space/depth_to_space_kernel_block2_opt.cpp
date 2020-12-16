@@ -67,7 +67,7 @@ KernelsData DepthToSpaceKernelBlock2Opt::GetKernelsData(const Params& params, co
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority DepthToSpaceKernelBlock2Opt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority DepthToSpaceKernelBlock2Opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

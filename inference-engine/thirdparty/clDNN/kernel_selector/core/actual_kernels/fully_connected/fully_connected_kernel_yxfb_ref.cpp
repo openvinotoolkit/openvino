@@ -59,7 +59,7 @@ KernelsData FullyConnected_yxfb_ref::GetKernelsData(const Params& params, const 
     return res;
 }
 
-KernelsPriority FullyConnected_yxfb_ref::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_yxfb_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

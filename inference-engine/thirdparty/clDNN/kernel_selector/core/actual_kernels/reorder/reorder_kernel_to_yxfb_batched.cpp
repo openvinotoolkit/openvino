@@ -92,7 +92,7 @@ KernelsData ReorderKernel_to_yxfb_batched::GetKernelsData(const Params& params, 
     return GetCommonKernelsData(orgParams, options);
 }
 
-KernelsPriority ReorderKernel_to_yxfb_batched::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorderKernel_to_yxfb_batched::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const reorder_params&>(params);
 
     return p.inputs[0].Batch().v == 1 ? DONT_USE_IF_HAVE_SOMETHING_ELSE : FORCE_PRIORITY_1;

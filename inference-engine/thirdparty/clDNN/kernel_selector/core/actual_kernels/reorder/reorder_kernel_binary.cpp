@@ -90,7 +90,7 @@ KernelsData ReorderKernelBinary::GetKernelsData(const Params& params, const opti
     return GetCommonKernelsData(orgParams, options);
 }
 
-KernelsPriority ReorderKernelBinary::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorderKernelBinary::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

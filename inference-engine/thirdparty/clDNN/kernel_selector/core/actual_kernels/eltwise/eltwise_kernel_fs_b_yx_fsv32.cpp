@@ -114,7 +114,7 @@ KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, co
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority EltwiseKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

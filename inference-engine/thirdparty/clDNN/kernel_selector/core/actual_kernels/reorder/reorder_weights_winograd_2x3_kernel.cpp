@@ -56,7 +56,7 @@ KernelsData ReorderWeightsWinograd2x3Kernel::GetKernelsData(const Params& params
     return GetCommonKernelsData(orgParams, options);
 }
 
-KernelsPriority ReorderWeightsWinograd2x3Kernel::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorderWeightsWinograd2x3Kernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

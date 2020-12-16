@@ -45,7 +45,7 @@ KernelsData ConvolutionKernel_yxfb_Ref::GetKernelsData(const Params& params, con
     return GetTunedKernelsDataByIndex(params, options);
 }
 
-KernelsPriority ConvolutionKernel_yxfb_Ref::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_yxfb_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

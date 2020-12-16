@@ -146,7 +146,6 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     bool hashFoundInCache = !std::get<0>(cachedKernelConfig).empty();
 
     if (hashFoundInCache) {
-        auto t1 = std::chrono::high_resolution_clock::now();
         std::string cachedkernelName = std::get<0>(cachedKernelConfig);
         int autoTuneIndex = std::get<1>(cachedKernelConfig);
 
@@ -162,9 +161,6 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 break;
             }
         }
-        auto t2 = std::chrono::high_resolution_clock::now();
-        auto res0 = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-        printf("KernelData (But Cache): %lu\n", res0);
 
         if (!kernelsData.empty()) {
             return kernelsData;
@@ -267,7 +263,7 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
             sortedImpls.begin(),
             sortedImpls.end(),
             [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {
-                return firstImpl.first < secondImpl.first; 
+                return firstImpl.first < secondImpl.first;
             });
 
         std::transform(

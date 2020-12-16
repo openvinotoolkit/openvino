@@ -92,7 +92,7 @@ KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, co
     return res;
 }
 
-KernelsPriority FullyConnected_fs_byx_fsv32::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_fs_byx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

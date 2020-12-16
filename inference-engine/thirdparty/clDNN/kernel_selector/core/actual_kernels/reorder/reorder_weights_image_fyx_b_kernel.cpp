@@ -50,7 +50,7 @@ KernelsData ReorderWeightsImage_fyx_b_Kernel::GetKernelsData(const Params& param
     return GetCommonKernelsData(orgParams, options);
 }
 
-KernelsPriority ReorderWeightsImage_fyx_b_Kernel::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorderWeightsImage_fyx_b_Kernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

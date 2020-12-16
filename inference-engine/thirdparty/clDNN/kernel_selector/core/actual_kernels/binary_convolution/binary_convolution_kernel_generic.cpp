@@ -65,7 +65,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelGeneric::SetDef
     return dispatchData;
 }
 
-KernelsPriority BinaryConvolutionKernelGeneric::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority BinaryConvolutionKernelGeneric::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_2;
 }
 

@@ -39,7 +39,7 @@ KernelsData GRNKernelRef::GetKernelsData(const Params& params, const optional_pa
     return GetCommonKernelsData(params, optParams);
 }
 
-KernelsPriority GRNKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority GRNKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 

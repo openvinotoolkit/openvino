@@ -85,10 +85,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::S
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    return (p.output.Batch().v == 1) ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
+    return p.output.Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const convolution_params& params,

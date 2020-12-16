@@ -47,7 +47,7 @@ KernelsData ReorderWeightsBinaryKernel::GetKernelsData(const Params& params, con
     return GetCommonKernelsData(orgParams, options);
 }
 
-KernelsPriority ReorderWeightsBinaryKernel::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReorderWeightsBinaryKernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

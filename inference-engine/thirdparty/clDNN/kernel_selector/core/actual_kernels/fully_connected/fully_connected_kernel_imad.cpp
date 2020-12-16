@@ -125,7 +125,7 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
     return res;
 }
 
-KernelsPriority FullyConnectedKernelIMAD::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnectedKernelIMAD::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

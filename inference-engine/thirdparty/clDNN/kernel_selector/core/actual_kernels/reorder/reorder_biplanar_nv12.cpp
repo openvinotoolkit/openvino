@@ -48,7 +48,7 @@ KernelsData reorder_biplanar_nv12::GetKernelsData(const Params& params, const op
     return kd;
 }
 
-KernelsPriority reorder_biplanar_nv12::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority reorder_biplanar_nv12::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

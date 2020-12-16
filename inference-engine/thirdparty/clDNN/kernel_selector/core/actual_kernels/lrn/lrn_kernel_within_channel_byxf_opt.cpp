@@ -94,7 +94,7 @@ KernelsData LRNKernelWithinChannelByxfOpt::GetKernelsData(const Params& params, 
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority LRNKernelWithinChannelByxfOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority LRNKernelWithinChannelByxfOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

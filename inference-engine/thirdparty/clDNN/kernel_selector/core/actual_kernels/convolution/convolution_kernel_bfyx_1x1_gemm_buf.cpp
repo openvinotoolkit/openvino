@@ -52,7 +52,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefa
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_1x1_gemm_buf::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_bfyx_1x1_gemm_buf::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 

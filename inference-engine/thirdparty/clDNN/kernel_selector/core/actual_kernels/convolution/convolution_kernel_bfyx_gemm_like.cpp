@@ -96,10 +96,10 @@ ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEM
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    return (p.output.GetDType() == Datatype::F16) ? FORCE_PRIORITY_6 : FORCE_PRIORITY_8;
+    return p.output.GetDType() == Datatype::F16 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_8;
 }
 
 bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_params& o) const {

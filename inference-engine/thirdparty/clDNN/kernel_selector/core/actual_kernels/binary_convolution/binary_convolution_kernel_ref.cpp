@@ -60,7 +60,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault
     return dispatchData;
 }
 
-KernelsPriority BinaryConvolutionKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority BinaryConvolutionKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

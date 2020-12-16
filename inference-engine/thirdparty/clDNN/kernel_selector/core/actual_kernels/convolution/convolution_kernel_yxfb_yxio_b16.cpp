@@ -92,7 +92,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_yxfb_yxio_b16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_yxfb_yxio_b16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
     return p.inputs[0].GetDType() == Datatype::F16 ? FORCE_PRIORITY_7 : FORCE_PRIORITY_9;

@@ -178,7 +178,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const con
     return dispatchData;
 }  // SetDefault
 
-KernelsPriority ConvolutionKernel_imad::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     // This kernel is quite slow for 1x1 and KHx1 kernels
     // TODO: check if we need any optimized kernels in this layout
     // If yes, we need to implement some customization for these cases.

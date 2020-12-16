@@ -71,7 +71,7 @@ PoolingKernelBase::DispatchData PoolingKernel_bsv16_fsv16::SetDefault(const pool
     return dispatchData;
 }
 
-KernelsPriority PoolingKernel_bsv16_fsv16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PoolingKernel_bsv16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_1;
 }
 

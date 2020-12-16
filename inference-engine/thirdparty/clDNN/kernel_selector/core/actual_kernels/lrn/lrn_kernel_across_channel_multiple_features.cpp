@@ -123,7 +123,7 @@ KernelsData LRNKernelAcrossChannelMultipleFeatures::GetKernelsData(const Params&
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority LRNKernelAcrossChannelMultipleFeatures::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority LRNKernelAcrossChannelMultipleFeatures::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

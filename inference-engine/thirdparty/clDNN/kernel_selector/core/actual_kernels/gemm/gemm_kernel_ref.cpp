@@ -67,7 +67,7 @@ KernelsData GemmKernelRef::GetKernelsData(const Params& params, const optional_p
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 

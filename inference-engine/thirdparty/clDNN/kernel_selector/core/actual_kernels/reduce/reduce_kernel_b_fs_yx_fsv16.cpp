@@ -164,7 +164,7 @@ KernelsData ReduceKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, con
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority ReduceKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ReduceKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

@@ -80,7 +80,7 @@ KernelsData SpaceToBatchKernelRef::GetKernelsData(const Params& params, const op
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority SpaceToBatchKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority SpaceToBatchKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

@@ -104,7 +104,7 @@ KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, con
     return res;
 }
 
-KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const fully_connected_params&>(params);
 
     return p.inputs[0].GetDType() == Datatype::F16 && p.output.Batch().v >= 16 ? FORCE_PRIORITY_3

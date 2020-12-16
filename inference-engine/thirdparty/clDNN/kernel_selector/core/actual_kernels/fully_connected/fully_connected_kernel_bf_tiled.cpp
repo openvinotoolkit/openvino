@@ -268,7 +268,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
     
     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;

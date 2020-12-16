@@ -68,7 +68,7 @@ DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_
     return dispatchData;
 }
 
-KernelsPriority DeformableConvolutionKernel_bfyx_conv::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority DeformableConvolutionKernel_bfyx_conv::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_2;
 }
 

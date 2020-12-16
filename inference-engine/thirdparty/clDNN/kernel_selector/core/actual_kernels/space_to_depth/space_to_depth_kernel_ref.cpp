@@ -115,7 +115,7 @@ KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params, const op
     return {kd};
 }
 
-KernelsPriority SpaceToDepthKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority SpaceToDepthKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

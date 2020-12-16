@@ -168,7 +168,7 @@ KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params, const optio
     return {k_data};
 }
 
-KernelsPriority GemmKernelMMADint8::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority GemmKernelMMADint8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& prim_params = static_cast<const gemm_params&>(params);
     GemmTuningData tuning_data = InitGemmTuningData(prim_params);
     auto mmad_operations_number = GetMmadOperationsNumber(tuning_data);

@@ -64,7 +64,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b8::SetDefault(c
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_yxfb_yxio_b8::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_yxfb_yxio_b8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 

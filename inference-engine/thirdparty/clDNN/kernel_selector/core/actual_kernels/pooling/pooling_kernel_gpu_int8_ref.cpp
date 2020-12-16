@@ -59,7 +59,7 @@ KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params, const 
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 

@@ -39,7 +39,7 @@ KernelsData CTCGreedyDecoderKernelRef::GetKernelsData(const Params& params, cons
     return GetCommonKernelsData(params, optParams);
 }
 
-KernelsPriority CTCGreedyDecoderKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority CTCGreedyDecoderKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

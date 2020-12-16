@@ -67,7 +67,7 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
     return dispatchData;
 }
 
-KernelsPriority ResampleKernelOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ResampleKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_3;
 }
 

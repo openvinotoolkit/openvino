@@ -78,7 +78,7 @@ ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Dire
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_4;
 }
 

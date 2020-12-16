@@ -125,7 +125,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx:
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const deconvolution_params&>(params);
     
     // Currently most optimized for fsv16 formats

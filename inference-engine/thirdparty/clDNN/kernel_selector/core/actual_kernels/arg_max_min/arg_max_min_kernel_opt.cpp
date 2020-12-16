@@ -72,7 +72,7 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
     return {kd};
 }
 
-KernelsPriority ArgMaxMinKernelOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ArgMaxMinKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

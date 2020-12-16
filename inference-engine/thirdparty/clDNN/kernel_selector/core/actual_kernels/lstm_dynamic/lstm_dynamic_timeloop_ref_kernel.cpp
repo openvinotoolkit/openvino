@@ -42,7 +42,7 @@ KernelsData LSTM_DynamicTimeloopKernelRef::GetKernelsData(const Params& params, 
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority LSTM_DynamicTimeloopKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority LSTM_DynamicTimeloopKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

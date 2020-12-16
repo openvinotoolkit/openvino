@@ -51,7 +51,7 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const
     return dispatchData;
 }
 
-KernelsPriority LRNKernelAcrossChannelMultipleFeaturesFSV16::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority LRNKernelAcrossChannelMultipleFeaturesFSV16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_6;
 }
 

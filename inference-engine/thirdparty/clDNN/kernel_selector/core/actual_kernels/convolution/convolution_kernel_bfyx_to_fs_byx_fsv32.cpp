@@ -91,7 +91,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_fs_byx_fsv32::SetD
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_3;
 }
 

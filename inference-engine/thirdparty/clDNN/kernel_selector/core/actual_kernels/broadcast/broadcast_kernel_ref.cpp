@@ -49,7 +49,7 @@ KernelsData BroadcastKernelRef::GetKernelsData(const Params& params, const optio
     return GetCommonKernelsData(params, options);
 }
 
-KernelsPriority BroadcastKernelRef::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority BroadcastKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

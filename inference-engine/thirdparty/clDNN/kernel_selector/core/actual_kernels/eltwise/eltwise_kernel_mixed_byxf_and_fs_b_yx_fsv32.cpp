@@ -152,7 +152,7 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
     return {kd};
 }
 
-KernelsPriority EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& p = static_cast<const eltwise_params&>(params);
 
     if ((p.output.GetLayout() == p.inputs[0].GetLayout()) &&

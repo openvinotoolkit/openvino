@@ -137,7 +137,7 @@ KernelsData MVNKernelBfyxOpt::GetKernelsData(const Params& params, const optiona
     return GetCommonKernelsData(params, optParams);
 }
 
-KernelsPriority MVNKernelBfyxOpt::GetKernelsPriority(const Params& params, const optional_params& options) const {
+KernelsPriority MVNKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector
