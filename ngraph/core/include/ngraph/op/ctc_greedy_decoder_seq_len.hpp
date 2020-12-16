@@ -24,6 +24,8 @@ namespace ngraph
     {
         namespace v6
         {
+            /// \brief Operator performing CTCGreedyDecoder
+            ///
             class NGRAPH_API CTCGreedyDecoderSeqLen : public Op
             {
             public:
