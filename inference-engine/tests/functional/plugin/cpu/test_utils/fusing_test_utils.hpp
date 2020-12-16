@@ -5,7 +5,7 @@
 #pragma once
 
 #include "cpu_test_utils.hpp"
-#include "single_layer_tests/activation.hpp"
+#include <shared_test_classes/single_layer/activation.hpp>
 
 namespace CPUTestUtils {
 
