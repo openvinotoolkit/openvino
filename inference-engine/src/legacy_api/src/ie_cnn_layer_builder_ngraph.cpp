@@ -551,72 +551,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformableConvolution>::createLayer(
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::AvgPool>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Pooling",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::PoolingLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::AvgPool>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_pads_begin()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_begin"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_pads_end()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_end"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["strides"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_kernel()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["kernel"] = value;
-
-    switch (castedLayer->get_auto_pad()) {
-    case ngraph::op::PadType::VALID:
-        res->params["auto_pad"] = "valid";
-        break;
-    case ngraph::op::PadType::SAME_UPPER:
-        res->params["auto_pad"] = "same_upper";
-        break;
-    case ngraph::op::PadType::SAME_LOWER:
-        res->params["auto_pad"] = "same_lower";
-        break;
-    default:
-        break;
-    }
-
-    auto exclude_pad = castedLayer->get_exclude_pad();
-    res->params["exclude-pad"] = exclude_pad ? "true" : "false";
-    res->params["pool-method"] = "avg";
-    switch (castedLayer->get_rounding_type()) {
-    case ngraph::op::RoundingType::CEIL:
-        res->params["rounding_type"] = "ceil";
-        break;
-    case ngraph::op::RoundingType::FLOOR:
-        res->params["rounding_type"] = "floor";
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported ngraph rounding type.";
-    }
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::MaxPool>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Pooling",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1159,19 +1093,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NormalizeIE>::createLayer(const std::sha
         res->blobs["weights"] = dataBlob;
     }
 
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::CTCGreedyDecoder>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "CTCGreedyDecoder",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::CTCGreedyDecoder>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["ctc_merge_repeated"] = castedLayer->get_ctc_merge_repeated() ? "1" : "0";
     return res;
 }
 
