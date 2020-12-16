@@ -13,9 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.interpolate import Interpolate
-from extensions.ops.TFResizeNearestNeighbor import TFResizeNearestNeighbor
-from mo.front.common.partial_infer.utils import int64_array
+
+from extensions.ops.TFResize import TFResize
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -35,7 +34,8 @@ class ResizeNearestNeighborFrontExtractor(FrontExtractorOp):
 
         attrs = {
             'align_corners': align_corners,
-            'half_pixel_centers': half_pixel_centers
+            'half_pixel_centers': half_pixel_centers,
+            'mode': 'nearest'
         }
-        TFResizeNearestNeighbor.update_node_stat(node, attrs)
+        TFResize.update_node_stat(node, attrs)
         return cls.enabled

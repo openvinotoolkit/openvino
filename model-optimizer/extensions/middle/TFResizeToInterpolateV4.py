@@ -99,7 +99,7 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     rename_nodes([(resize, resize_name + '/delete_'), (interpolate4, resize_name)])
 
 
-class TFResizeBilinearToInterpolateV4(MiddleReplacementPattern):
+class TFResizeToInterpolateV4(MiddleReplacementPattern):
     """
     The transformation replaces TF ResizeBilinear with Interpolate-4.
     """
@@ -110,7 +110,6 @@ class TFResizeBilinearToInterpolateV4(MiddleReplacementPattern):
         return [InterpolateSequenceToInterpolate]
 
     def find_and_replace_pattern(self, graph: Graph):
-        resize_bilinear_ops = graph.get_op_nodes(op='TFResizeBilinear')
+        resize_bilinear_ops = graph.get_op_nodes(op='TFResize')
         for resize in resize_bilinear_ops:
-            # replace_resize_bilinear(graph, resize)
-            replace_tf_resize(graph, resize, 'linear')
+            replace_tf_resize(graph, resize, resize.mode)

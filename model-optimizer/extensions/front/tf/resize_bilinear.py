@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.TFResizeBilinear import TFResizeBilinear
+from extensions.ops.TFResize import TFResize
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -34,7 +34,8 @@ class ResizeBilinearFrontExtractor(FrontExtractorOp):
 
         attrs = {
             'align_corners': align_corners,
-            'half_pixel_centers': half_pixel_centers
+            'half_pixel_centers': half_pixel_centers,
+            'mode': 'linear'
         }
-        TFResizeBilinear.update_node_stat(node, attrs)
+        TFResize.update_node_stat(node, attrs)
         return cls.enabled
