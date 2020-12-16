@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+// ------------------------------ V0 ------------------------------
+
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
@@ -117,5 +119,82 @@ bool op::MVN::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("across_channels", m_across_channels);
     visitor.on_attribute("normalize_variance", m_normalize_variance);
     visitor.on_attribute("reduction_axes", m_reduction_axes);
+    return true;
+}
+
+// ------------------------------ V6 ------------------------------
+
+namespace ngraph
+{
+    template <>
+    NGRAPH_API EnumNames<op::MVNEpsMode>& EnumNames<op::MVNEpsMode>::get()
+    {
+        static auto enum_names =
+            EnumNames<op::MVNEpsMode>("op::MVNEpsMode",
+                                      {{"OUTSIDE_SQRT", op::MVNEpsMode::OUTSIDE_SQRT},
+                                       {"INSIDE_SQRT", op::MVNEpsMode::INSIDE_SQRT}});
+        return enum_names;
+    }
+
+    constexpr DiscreteTypeInfo AttributeAdapter<op::MVNEpsMode>::type_info;
+
+    std::ostream& op::operator<<(std::ostream& s, const op::MVNEpsMode& type)
+    {
+        return s << as_string(type);
+    }
+} // namespace ngraph
+
+NGRAPH_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
+
+op::v6::MVN::MVN(const Output<Node>& data,
+                 const Output<Node>& reduction_axes,
+                 bool normalize_variance,
+                 float eps,
+                 MVNEpsMode eps_mode)
+    : Op({data, reduction_axes})
+    , m_eps{eps}
+    , m_normalize_variance{normalize_variance}
+    , m_eps_mode{eps_mode}
+{
+    constructor_validate_and_infer_types();
+}
+
+void op::v6::MVN::validate_and_infer_types()
+{
+    const auto data = get_input_partial_shape(0);
+    const auto axes = get_input_partial_shape(1);
+
+    if (axes.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              is_vector(axes.to_shape()),
+                              "Expected 1D tensor for the 'axes' input. Got: ",
+                              axes);
+
+        NODE_VALIDATION_CHECK(
+            this,
+            data.rank().is_dynamic() || data.rank().get_length() >= axes.get_shape()[0],
+            "Expected rank for the 'data' input to be higher than axes shape. Got: ",
+            data);
+    }
+
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+}
+
+shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() == 2,
+                          "Expected 2 element in new_args for the MVN op but got ",
+                          new_args.size());
+    return make_shared<op::v6::MVN>(
+        new_args.at(0), new_args.at(1), m_normalize_variance, m_eps, m_eps_mode);
+}
+
+bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("eps", m_eps);
+    visitor.on_attribute("normalize_variance", m_normalize_variance);
+    visitor.on_attribute("eps_mode", m_eps_mode);
     return true;
 }

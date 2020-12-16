@@ -4,33 +4,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <array>
-#include <string>
-#include <memory>
-
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/subgraph/perm_conv_perm_concat.hpp"
 
 namespace SubgraphTestsDefinitions {
-typedef std::tuple<
-    InferenceEngine::Precision,         // Network Precision
-    std::string,                        // Target Device
-    std::array<size_t, 4>,              // Input shape
-    std::array<size_t, 2>,              // Kernel shape
-    size_t,                             // Output channels
-    std::map<std::string, std::string>  // Configuration
-> PermConvPermConcatParams;
 
-class PermConvPermConcat : public testing::WithParamInterface<PermConvPermConcatParams>,
-    virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<PermConvPermConcatParams> obj);
+TEST_P(PermConvPermConcat, CompareWithRefs) {
+    Run();
+}
 
-protected:
-    void SetUp() override;
-    void Run() override;
-};
 }  // namespace SubgraphTestsDefinitions

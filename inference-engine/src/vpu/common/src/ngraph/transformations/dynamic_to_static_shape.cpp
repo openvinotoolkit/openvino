@@ -72,7 +72,7 @@ bool propagateUpperBoundFromExistingDSR(std::shared_ptr<ngraph::Function>& funct
 
 void validateDynamicFunction(const ngraph::Function& function) {
     for (auto const& split : function.get_ordered_ops()) {
-        if (split->get_type_info() != ngraph::opset5::Split::type_info) {
+        if (split->get_type_info() != ngraph::opset5::Split::type_info && split->get_type_info() != ngraph::opset5::VariadicSplit::type_info) {
             continue;
         }
 
@@ -108,6 +108,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Convert::type_info,               dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Clamp::type_info,                 dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Floor::type_info,                 dynamicToStaticUnaryElementwise},
+        {ngraph::opset5::Ceiling::type_info,               dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Log::type_info,                   dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Relu::type_info,                  dynamicToStaticUnaryElementwise},
         {ngraph::opset3::ScatterUpdate::type_info,         dynamicToStaticUnaryElementwise},
