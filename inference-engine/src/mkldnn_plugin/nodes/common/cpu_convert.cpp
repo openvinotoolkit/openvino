@@ -28,16 +28,6 @@ void convert(const void *srcPtr, void *dstPtr, const size_t size) {
     }
 }
 
-template <Precision::ePrecision p>
-struct PrecisionInfo {
-    using value_type = typename PrecisionTrait<p>::value_type;
-};
-
-template <>
-struct PrecisionInfo<Precision::BF16> {
-    using value_type = MKLDNNPlugin::bfloat16_t;
-};
-
 struct ConvertContext {
     const void *srcPtr;
     void *dstPtr;

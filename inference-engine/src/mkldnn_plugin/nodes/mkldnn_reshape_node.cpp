@@ -44,7 +44,7 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, outFormat);
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
 
-    if (dataType == Precision::BF16) {
+    if (dataType == memory::bf16) {
         // Let's add FP32 configuration in BF16 case for be compliment with FP32 neighbours
         dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::FP32);
         for (size_t i = 0; i < getParentEdges().size(); i++) {

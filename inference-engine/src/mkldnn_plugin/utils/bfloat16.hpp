@@ -138,6 +138,18 @@ private:
 };
 } // namespace MKLDNNPlugin
 
+namespace {
+template <InferenceEngine::Precision::ePrecision p>
+struct PrecisionInfo {
+    using value_type = typename InferenceEngine::PrecisionTrait<p>::value_type;
+};
+
+template <>
+struct PrecisionInfo<InferenceEngine::Precision::BF16> {
+    using value_type = MKLDNNPlugin::bfloat16_t;
+};
+}
+
 /**
  * std::numeric_limits overloaded for better compatibility with template metaprogramming.
  * For example, to make the following template work:
