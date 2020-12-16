@@ -138,6 +138,41 @@ public:
     }
 };
 
+class EliminateDynamicBroadcastTest: public CommonTestUtils::TestsCommon,
+                              public testing::WithParamInterface<std::tuple<InputShape, InputShape, InputShape>> {
+public:
+    std::shared_ptr<Function> f, f_ref;
+
+    void SetUp() override {
+        const auto& input_shape = std::get<0>(GetParam());
+        const auto& broadcast_input_shape = std::get<1>(GetParam());
+        const auto& broadcast_shape = std::get<2>(GetParam());
+
+        f = get_initial_function(input_shape, broadcast_input_shape, broadcast_shape);
+        f_ref = get_reference(input_shape, broadcast_shape);
+    }
+
+    std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
+                                                   const InputShape & broadcast_input_shape,
+                                                   const InputShape & broadcast_shape) {
+        auto input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
+        auto input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
+        auto input_shape_node =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{(size_t)(broadcast_shape.rank().get_length())});
+        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input2, input_shape_node);
+        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input1, broadcast);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2, input_shape_node});
+    }
+
+    std::shared_ptr<Function> get_reference(const InputShape & input_shape,
+                                            const InputShape & broadcast_output_shape) {
+        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
+        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_output_shape);
+        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_input2);
+
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
+    }
+};
+
 TEST_P(EliminateBroadcastTest, CompareFunctions) {
     eliminate_broadcast_test(f, f_ref);
 }
@@ -147,6 +182,10 @@ TEST_P(EliminateBroadcastSwapInputsTest, CompareFunctions) {
 }
 
 TEST_P(NoEliminateBroadcastTest, CompareFunctions) {
+    eliminate_broadcast_test(f, f_ref);
+}
+
+TEST_P(EliminateDynamicBroadcastTest, CompareFunctions) {
     eliminate_broadcast_test(f, f_ref);
 }
 
@@ -172,4 +211,9 @@ INSTANTIATE_TEST_CASE_P(NoEliminateBroadcast, NoEliminateBroadcastTest,
                                         std::make_tuple(InputShape{DYN,DYN,DYN}, InputShape{3,2,1}, TargetShape{3,2,1}),
                                         std::make_tuple(ngraph::PartialShape::dynamic(), InputShape{1,2,3}, TargetShape{1,2,3}),
                                         std::make_tuple(ngraph::PartialShape::dynamic(), ngraph::PartialShape::dynamic(), TargetShape{1,2,3})
+                        ));
+
+INSTANTIATE_TEST_CASE_P(EliminateDynamicBroadcast, EliminateDynamicBroadcastTest,
+                        testing::Values(std::make_tuple(InputShape{2,2,4}, InputShape{2,DYN,4}, InputShape{2,DYN,4}),
+                                        std::make_tuple(InputShape{2,2,4}, InputShape{DYN,DYN,DYN}, InputShape{DYN,DYN,DYN})
                         ));
