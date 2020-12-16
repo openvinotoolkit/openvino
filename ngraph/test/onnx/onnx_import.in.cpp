@@ -3082,12 +3082,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
 
     std::vector<float> logits = gen_vector(12, -2, 2);
     std::vector<float> class_preds = gen_vector(9, 0, 1);
-    std::vector<float> proposals = gen_vector(15 * 2, 0, 1);
-    std::vector<float> output = {0, 1, 0.777778, 0.241012,   0.260378,    0.418248,    0.499622,
-                                 0, 1, 0.444444, 0.10963,    0.146239,    0.176296,    0.228576,
-                                 0, 2, 0.888889, 0.241012,   0.260378,    0.418248,    0.499622,
-                                 0, 2, 0.555556, 0.10963,    0.146239,    0.176296,    0.228576,
-                                 0, 2, 0.222222, -0.0378917, -0.00169918, -0.00210832, 0.0387362};
+    std::vector<float> proposals = gen_vector(12 * 2, 0, 1);
+    std::vector<float> output = {0, 1, 0.777778, 0.279849,   0.283779,   0.562743,   0.695387,
+                                 0, 1, 0.444444, 0.12963,    0.176075,   0.212963,   0.284573,
+                                 0, 2, 0.888889, 0.279849,   0.283779,   0.562743,   0.695387,
+                                 0, 2, 0.555556, 0.12963,    0.176075,   0.212963,   0.284573,
+                                 0, 2, 0.222222, -0.0608094, -0.0142007, -0.0225239, 0.0304044};
     test_case.add_input<float>(logits);
     test_case.add_input<float>(class_preds);
     test_case.add_input<float>(proposals);

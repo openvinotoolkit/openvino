@@ -1473,11 +1473,11 @@ TEST(attributes, interpolate_op)
 TEST(attributes, detection_output_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset1::DetectionOutput>();
-    const auto box_logits = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
-    const auto class_preds = make_shared<op::Parameter>(element::f32, Shape{32});
-    const auto proposals = make_shared<op::Parameter>(element::f32, Shape{128, 2});
-    const auto aux_class_preds = make_shared<op::Parameter>(element::f32, Shape{16});
-    const auto aux_box_pred = make_shared<op::Parameter>(element::f32, Shape{32, 2});
+    const auto box_logits = make_shared<op::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
+    const auto class_preds = make_shared<op::Parameter>(element::f32, Shape{1, 2 * 32});
+    const auto proposals = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2 * 4});
+    const auto aux_class_preds = make_shared<op::Parameter>(element::f32, Shape{1, 2 * 2});
+    const auto aux_box_pred = make_shared<op::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
 
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 32;

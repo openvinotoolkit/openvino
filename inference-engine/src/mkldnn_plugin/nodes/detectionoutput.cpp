@@ -278,17 +278,23 @@ public:
             }
         }
 
+        const int num_results = outputs[0]->getTensorDesc().getDims()[2];
         const int DETECTION_SIZE = outputs[0]->getTensorDesc().getDims()[3];
         if (DETECTION_SIZE != 7) {
             return NOT_IMPLEMENTED;
         }
 
-        auto dst_data_size = N * _keep_top_k * DETECTION_SIZE * sizeof(float);
+        int dst_data_size = 0;
+        if (_keep_top_k > 0)
+            dst_data_size = N * _keep_top_k * DETECTION_SIZE * sizeof(float);
+        else if (_top_k > 0)
+            dst_data_size = N * _top_k * _num_classes * DETECTION_SIZE * sizeof(float);
+        else
+            dst_data_size = N * _num_classes * _num_priors * DETECTION_SIZE * sizeof(float);
 
         if (dst_data_size > outputs[0]->byteSize()) {
             return OUT_OF_BOUNDS;
         }
-
         memset(dst_data, 0, dst_data_size);
 
         int count = 0;
@@ -331,7 +337,7 @@ public:
             }
         }
 
-        if (count < N*_keep_top_k) {
+        if (count < num_results) {
             // marker at end of boxes list
             dst_data[count * DETECTION_SIZE + 0] = -1;
         }

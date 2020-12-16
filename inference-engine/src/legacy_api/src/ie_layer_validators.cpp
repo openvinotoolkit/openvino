@@ -931,11 +931,12 @@ void DetectionOutputValidator::parseParams(CNNLayer* layer) {
     if (_nms_threshold < 0) {
         THROW_IE_EXCEPTION << "nms_threshold parameter of DetectionOutput layer can't be less then zero";
     }
-    int _keep_top_k = layer->GetParamAsUInt("keep_top_k", -1);
+    int _keep_top_k = layer->GetParamAsInt("keep_top_k", -1);
 
     if (layer->CheckParamPresence("background_label_id"))
-        int _background_label_id = layer->GetParamAsUInt("background_label_id", -1);
-    if (layer->CheckParamPresence("top_k")) int _top_k = layer->GetParamAsUInt("top_k", -1);
+        int _background_label_id = layer->GetParamAsInt("background_label_id", -1);
+    if (layer->CheckParamPresence("top_k"))
+        int _top_k = layer->GetParamAsInt("top_k", -1);
     if (layer->CheckParamPresence("variance_encoded_in_target"))
         bool _variance_encoded_in_target = static_cast<bool>(layer->GetParamAsUInt("variance_encoded_in_target", 0));
     if (layer->CheckParamPresence("num_orient_classes"))
@@ -947,7 +948,7 @@ void DetectionOutputValidator::parseParams(CNNLayer* layer) {
     if (layer->CheckParamPresence("confidence_threshold")) {
         float _confidence_threshold = layer->GetParamAsFloat("confidence_threshold");
         if (_confidence_threshold < 0) {
-            THROW_IE_EXCEPTION << "_nms_threshold parameter of DetectionOutput layer can't be less then zero";
+            THROW_IE_EXCEPTION << "_confidence_threshold parameter of DetectionOutput layer can't be less then zero";
         }
     }
 
