@@ -4,40 +4,12 @@
 
 #pragma once
 
-#include <string>
-#include <tuple>
-#include <vector>
-
-#include "functional_test_utils/layer_test_utils.hpp"
-
-
-typedef std::tuple<
-        std::vector<size_t>,               // Logits shapes
-        std::vector<int>,                  // logits lenght
-        std::vector<std::vector<int>>,     // labels
-        std::vector<int>,                  // labels length
-        int,                               // blank index
-        bool,                              // preprocessCollapseRepeated
-        bool,                              // ctcMergeRepeated
-        bool                               // Unique
-> CTCLossParamsSubset;
-
-typedef std::tuple<
-        CTCLossParamsSubset,
-        InferenceEngine::Precision,        // Float point precision
-        InferenceEngine::Precision,        // Integer precision
-        LayerTestsUtils::TargetDevice      // Device name
-> CTCLossParams;
+#include "shared_test_classes/single_layer/ctc_loss.hpp"
 
 namespace LayerTestsDefinitions {
 
-class CTCLossLayerTest : public testing::WithParamInterface<CTCLossParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<CTCLossParams> &obj);
-
-protected:
-    void SetUp() override;
-};
+TEST_P(CTCLossLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

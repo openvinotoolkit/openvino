@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/normalize_l2.hpp>
+#include <shared_test_classes/single_layer/normalize_l2.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -88,8 +88,6 @@ const std::vector<ngraph::op::EpsMode> epsMode = {
         ngraph::op::EpsMode::ADD,
         ngraph::op::EpsMode::MAX,
 };
-
-std::vector<Precision> inpOutPrc = {Precision::BF16};
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),

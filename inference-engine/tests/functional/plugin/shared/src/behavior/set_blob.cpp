@@ -3,7 +3,7 @@
 //
 
 #include "behavior/set_blob.hpp"
-#include <single_layer_tests/cum_sum.hpp>
+#include <shared_test_classes/single_layer/cum_sum.hpp>
 
 using namespace InferenceEngine;
 

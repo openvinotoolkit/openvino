@@ -17,12 +17,12 @@
 #include <string>
 #include <vector>
 #include <ngraph/op/strided_slice.hpp>
-#include <ngraph/op/not_equal.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/variant.hpp>
 
 #include <cpp/ie_cnn_network.h>
@@ -71,6 +71,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     opsets["opset3"] = ngraph::get_opset3();
     opsets["opset4"] = ngraph::get_opset4();
     opsets["opset5"] = ngraph::get_opset5();
+    opsets["opset6"] = ngraph::get_opset6();
 
     // Load custom opsets
     for (const auto& ext : exts) {
@@ -397,16 +398,11 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
                                                     const GenericLayerParams& params) {
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
-        std::make_shared<LayerCreator<ngraph::op::Convert>>("Convert"),
         std::make_shared<LayerCreator<ngraph::op::CTCGreedyDecoder>>("CTCGreedyDecoder"),
         std::make_shared<LayerCreator<ngraph::op::v1::DeformableConvolution>>("DeformableConvolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::DeformablePSROIPooling>>("DeformablePSROIPooling"),
-        std::make_shared<LayerCreator<ngraph::op::SpaceToDepth>>("SpaceToDepth"),
-        std::make_shared<LayerCreator<ngraph::op::DepthToSpace>>("DepthToSpace"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Subtract>>("Subtract"),
         std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
         std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Gather>>("Gather"),
         std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolution>>("GroupConvolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::ConvolutionBackpropData>>("ConvolutionBackpropData"),
@@ -415,14 +411,9 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
-        std::make_shared<LayerCreator<ngraph::op::v1::NotEqual>>("NotEqual"),
-        std::make_shared<LayerCreator<ngraph::op::v1::FloorMod>>("FloorMod"),
-        std::make_shared<LayerCreator<ngraph::op::MVN>>("MVN"),
         std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
         std::make_shared<LayerCreator<ngraph::op::v1::MaxPool>>("MaxPool"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Minimum>>("Minimum"),
         std::make_shared<LayerCreator<ngraph::op::v1::NonMaxSuppression>>("NonMaxSuppression"),
-        std::make_shared<LayerCreator<ngraph::op::NormalizeL2>>("NormalizeL2"),
         std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
@@ -438,7 +429,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
 
     // Check that operation in default opsets
     auto isDefaultOpSet = [](const std::string& version) -> bool {
-        for (size_t i = 1; i <= 5; i++) {
+        for (size_t i = 1; i <= 6; i++) {
             std::string opset_name = "opset" + std::to_string(i);
             if (version == opset_name)
                 return true;
@@ -480,12 +471,16 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
         std::string type = params.type;
+
         if (type == "Const") {
             type = "Constant";
         }
-        // ROIPooling was missing in opset1 and was added in opset2
-        if (type == "ROIPooling" && params.version == "opset1") {
-            opset = opsets.at("opset2");
+
+        if (params.version == "opset1") {
+            // MVN and ROIPooling were missing in opset1
+            if (type == "MVN" || type == "ROIPooling") {
+                opset = opsets.at("opset2");
+            }
         }
 
         if (!opset.contains_type_insensitive(type)) {
@@ -761,20 +756,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::opset5::Loop>::cre
     return fillSubGraphLayer(inputs, node, weights, layerParsePrms, loop);
 }
 
-// Covnert layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Convert>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::Convert>(inputs[0],
-                                                 details::convertPrecision(GetStrAttr(dn, "destination_type")));
-}
-
 // LSTMCell layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>::createLayer(
@@ -844,41 +825,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Equal>::cr
     return std::make_shared<ngraph::op::v1::Equal>(inputs[0], inputs[1]);
 }
 
-// NotEqual layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::NotEqual>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::NotEqual>(inputs[0], inputs[1]);
-}
-
-// FloorMod layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::FloorMod>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::FloorMod>(inputs[0], inputs[1]);
-}
-
-// MVN layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::MVN>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    double eps = GetFloatAttr(dn, "eps");
-    bool across = GetUIntAttr(dn, "across_channels", 0) == 1;
-    bool normalize_variance = GetUIntAttr(dn, "normalize_variance", 0) == 1;
-    return std::make_shared<ngraph::op::MVN>(inputs[0], across, normalize_variance, eps);
-}
-
 // VariadicSplit layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>::createLayer(
@@ -886,20 +832,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 3);
     return std::make_shared<ngraph::op::VariadicSplit>(inputs[0], inputs[1], inputs[2]);
-}
-
-// SpaceToDepth layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::SpaceToDepth>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::SpaceToDepth>(inputs[0], GetStrAttr(dn, "mode"), GetIntAttr(dn, "block_size", 1));
 }
 
 // DepthToSpace layer
@@ -948,24 +880,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::StridedSli
     } else {
         THROW_IE_EXCEPTION << "Incorrect number of inputs " << inputs.size() << " for " << getType() << " layer with name: " << layerParsePrms.name;
     }
-}
-
-// Minimum layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Minimum>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::Minimum>(inputs[0], inputs[1]);
-}
-
-// Subtract layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Subtract>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::Subtract>(inputs[0], inputs[1]);
 }
 
 // Broadcast layer
@@ -1333,40 +1247,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Deformable
     } else {
         THROW_IE_EXCEPTION << "Wrong number of inputs for " << getType() << " layer with name: " << layerParsePrms.name;
     }
-}
-
-// Gather layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Gather>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    return std::make_shared<ngraph::op::v1::Gather>(inputs[0], inputs[1], inputs[2]);
-}
-
-// NormalizeL2 layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::NormalizeL2>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    float eps = GetFloatAttr(dn, "eps");
-    std::string eps_mode = GetStrAttr(dn, "eps_mode");
-    ngraph::op::EpsMode em;
-    if (eps_mode == "add") {
-        em = ngraph::op::EpsMode::ADD;
-    } else if (eps_mode == "max") {
-        em = ngraph::op::EpsMode::MAX;
-    } else {
-        THROW_IE_EXCEPTION << "NormalizeL2 unsupported eps_mode: " << eps_mode;
-    }
-
-    return std::make_shared<ngraph::op::NormalizeL2>(inputs[0], inputs[1], eps, em);
 }
 
 // LogicalAnd layer
