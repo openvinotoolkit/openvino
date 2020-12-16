@@ -61,7 +61,3 @@ def common_pool_extender(op: Node):
 
     if op.has_valid('rounding_type') and op.rounding_type == 'ceil':
         op['pooling_convention'] = 'full'
-
-    # We need this workaround to not to break shape inference function
-    if op.has_valid('auto_pad') and op.auto_pad == 'explicit':
-        op['auto_pad'] = None
