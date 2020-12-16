@@ -169,5 +169,7 @@ INSTANTIATE_TEST_CASE_P(EliminateBroadcastSwapInputs, EliminateBroadcastSwapInpu
 INSTANTIATE_TEST_CASE_P(NoEliminateBroadcast, NoEliminateBroadcastTest,
                         testing::Values(std::make_tuple(InputShape{1,2,1}, InputShape{3}, TargetShape{3}),
                                         std::make_tuple(InputShape{DYN,2,3}, InputShape{3,2,3}, TargetShape{3,2,3}),
-                                        std::make_tuple(InputShape{DYN,DYN,DYN}, InputShape{3,2,1}, TargetShape{3,2,1})
+                                        std::make_tuple(InputShape{DYN,DYN,DYN}, InputShape{3,2,1}, TargetShape{3,2,1}),
+                                        std::make_tuple(ngraph::PartialShape::dynamic(), InputShape{1,2,3}, TargetShape{1,2,3}),
+                                        std::make_tuple(ngraph::PartialShape::dynamic(), ngraph::PartialShape::dynamic(), TargetShape{1,2,3})
                         ));
