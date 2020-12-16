@@ -22,14 +22,19 @@ function (DownloadAndCheck from to fatal result sha256)
           Download(${from} ${to} ${fatal} ${result} output ${sha256})
           list(GET output 0 status_code)
         else()
-          message(STATUS "${WGET_EXECUTABLE} --no-cache --no-check-certificate 
-            --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${from}")
-          execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache" "--no-check-certificate" 
-            "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5" 
-            "${from}" "-O" "${to}"
-            TIMEOUT 2000
-            RESULT_VARIABLE status_code)
-          file(SHA256 ${to} CHECKSUM)
+          foreach(index RANGE 5)
+            message(STATUS "${WGET_EXECUTABLE} --no-cache --no-check-certificate 
+              --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${from}")
+            execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache" "--no-check-certificate" 
+              "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5" 
+              "${from}" "-O" "${to}"
+              TIMEOUT 2000
+              RESULT_VARIABLE status_code)
+            file(SHA256 ${to} CHECKSUM)
+            if (${CHECKSUM} STREQUAL ${sha256})
+              break()
+            endif()
+          endforeach()
           if (NOT ${CHECKSUM} STREQUAL ${sha256})
             message(FATAL_ERROR "Hash mismatch:\n"
               "expected: ${sha256}\n"

@@ -128,6 +128,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
+
     template <>
     NGRAPH_API EnumNames<op::TopKSortType>& EnumNames<op::TopKSortType>::get()
     {
