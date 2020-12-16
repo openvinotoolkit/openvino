@@ -19,6 +19,8 @@ import tests
 from operator import itemgetter
 from pathlib import Path
 import os
+from typing import Sequence, Any
+import numpy as np
 
 from tests.test_onnx.utils import OpenVinoOnnxBackend
 from tests.test_onnx.utils.model_importer import ModelImportRunner
@@ -27,7 +29,6 @@ from tests import (
     xfail_issue_38701,
     xfail_issue_43742,
     xfail_issue_43380,
-    xfail_issue_43382,
     xfail_issue_43439,
     xfail_issue_39684,
     xfail_issue_40957,
@@ -45,6 +46,18 @@ from tests import (
     xfail_issue_37973)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
+
+def yolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
+    concat_out_index = 2
+    # remove all elements with value -1 from yolonms_layer_1/concat_2:0 output
+    concat_out = outputs[concat_out_index][outputs[concat_out_index] != -1]
+    concat_out = np.expand_dims(concat_out, axis=0)
+    outputs[concat_out_index] = concat_out
+    return outputs
+
+post_processing = {
+    "yolov3" : {"post_processing" : yolov3_post_processing}
+}
 
 tolerance_map = {
     "arcface_lresnet100e_opset8": {"atol": 0.001, "rtol": 0.001},
@@ -117,6 +130,8 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
             # updated model looks now:
             # {"model_name": path, "model_file": file, "dir": mdir, "atol": ..., "rtol": ...}
             model.update(tolerance_map[basedir])
+        if basedir in post_processing:
+            model.update(post_processing[basedir])
         zoo_models.append(model)
 
 if len(zoo_models) > 0:
@@ -163,7 +178,6 @@ if len(zoo_models) > 0:
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
-            (xfail_issue_43382, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov3_model_yolov3_10_yolov3_yolov3_cpu"),
             (xfail_issue_43380, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu"),
 
             # Model MSFT
@@ -182,8 +196,7 @@ if len(zoo_models) > 0:
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
             (xfail_issue_40957, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
 
-            (xfail_issue_43380, "test_MSFT_opset11_tinyyolov3_yolov3_tiny_cpu"),
-            (xfail_issue_43382, "test_MSFT_opset10_yolov3_yolov3_cpu"),
+            (xfail_issue_43380, "test_MSFT_opset11_tinyyolov3_yolov3_tiny_cpu")
 
         ]
         for test_case in import_xfail_list + execution_xfail_list:
