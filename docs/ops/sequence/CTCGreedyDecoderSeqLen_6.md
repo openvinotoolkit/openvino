@@ -67,9 +67,9 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * *T_I*: `int32` or `int64`.
 
-* *T_IND1*: `int32` or `int64` and depend `classes_index_type` attribute.
+* *T_IND1*: `int32` or `int64` and depends on `classes_index_type` attribute.
 
-* *T_IND2*: `int32` or `int64` and depend `sequence_length_type` attribute.
+* *T_IND2*: `int32` or `int64` and depends on `sequence_length_type` attribute.
 
 **Example**
 
