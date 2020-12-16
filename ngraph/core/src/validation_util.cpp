@@ -126,7 +126,6 @@ PartialShape ngraph::infer_windowed_reduction_output_shape(const Node* node,
                           ") do not match.");
 
     PartialShape output_shape = PartialShape::dynamic(data_shape_merged.rank());
-
     if (output_shape.rank().is_static())
     {
         for (size_t i = 0; i < output_shape.rank().get_length(); i++)
@@ -389,9 +388,9 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
 {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
-                              data_batch_shape.rank().get_length() >= 3,
-                          "Data batch must have rank of at least 3 (one batch axis, ",
-                          "one input-channel axis, and at least one spatial dimension) ",
+                              data_batch_shape.rank().get_length() >= 4 && data_batch_shape.rank().get_length() <= 5,
+                          "Data batch must have rank of at least 4 or 5 (one batch axis, ",
+                          "one input-channel axis, and two or three spatial dimension) ",
                           "(data batch shape: ",
                           data_batch_shape,
                           ").");
@@ -442,7 +441,6 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
         // For pooling ops we don't need dilation, so we fill in the identity value (all 1).
         Strides data_dilation(data_spatial_shape.rank().get_length(), 1);
         Strides window_dilation(data_spatial_shape.rank().get_length(), 1);
-
         data_output_spatial_shape =
             infer_windowed_reduction_output_shape(node,
                                                   data_spatial_shape,
