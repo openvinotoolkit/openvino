@@ -117,6 +117,7 @@ set(SRC
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
+    type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
@@ -280,6 +281,7 @@ set(MULTI_TEST_SRC
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/cum_sum.in.cpp
+    backend/detection_output.in.cpp
     backend/divide.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
