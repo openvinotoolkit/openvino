@@ -3,136 +3,206 @@
 //
 
 #include "mkldnn_split_node.h"
+#include "common/cpu_memcpy.h"
 #include <legacy/ie_layers.h>
-#include <string>
 #include <vector>
-#include <map>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <limits>
 #include <ie_parallel.hpp>
 
+#define THROW_ERROR THROW_IE_EXCEPTION << "Split layer with name '" << getName() <<"' "
+
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+static TensorDesc makePlainTensorDesc(const Precision& precision, const SizeVector& srcDims) {
+    SizeVector order(srcDims.size());
+    std::iota(order.begin(), order.end(), 0);
+    return TensorDesc(precision, srcDims, {srcDims, order});
+}
+
+static TensorDesc makePerChannelTensorDesc(const Precision& precision, const SizeVector& srcDims) {
+    constexpr size_t channelsPos = 1lu;
+    SizeVector order(srcDims.size());
+    std::iota(order.begin(), order.end(), 0);
+    SizeVector blkDims = srcDims;
+    if (srcDims.size() > 2) {
+        auto moveElementBack = [](SizeVector& vector, size_t indx) {
+            auto itr = vector.begin() + indx;
+            std::rotate(itr, itr + 1, vector.end());
+        };
+
+        moveElementBack(order, channelsPos);
+        moveElementBack(blkDims, channelsPos);
+    }
+
+    return TensorDesc(precision, srcDims, {blkDims, order});
+}
+
+static TensorDesc makeChannelBlockedTensorDesc(const Precision& precision, const SizeVector& srcDims, size_t blockSize) {
+    if (srcDims.size() < 2) {
+        THROW_IE_EXCEPTION << "Can't create blocked tensor descriptor!";
+    }
+
+    constexpr size_t channelsPos = 1lu;
+    SizeVector order(srcDims.size());
+    std::iota(order.begin(), order.end(), 0);
+    order.push_back(channelsPos);
+
+    SizeVector blkDims = srcDims;
+    blkDims[1] = blkDims[1] / blockSize + (blkDims[1] % blockSize ? 1 : 0);
+    blkDims.push_back(blockSize);
+
+    return TensorDesc(precision, srcDims, {blkDims, order});
+}
+
+static inline uint8_t* getDataPtr(const MKLDNNMemory& memoryPtr) {
+    return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.layout_desc.blocking.offset_padding *
+        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(memoryPtr.GetDescriptor().data.data_type));
+}
 
 MKLDNNSplitNode::MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNSplitNode::getSupportedDescriptors() {
-    auto * splitLayer = dynamic_cast<SplitLayer*>(getCnnLayer().get());
+    auto splitLayer = dynamic_cast<SplitLayer*>(getCnnLayer().get());
 
     if (splitLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert split layer.";
+        THROW_ERROR << "can not convert from CNN layer.";
 
     if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input nodes.";
+        THROW_ERROR << "has incorrect number of input nodes.";
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output nodes.";
+        THROW_ERROR << "has incorrect number of output nodes.";
 
     axis = splitLayer->_axis;
     if (axis >= getParentEdgeAt(0)->getDims().ndims())
-        THROW_IE_EXCEPTION << "Invalid value of axis parameter in split layer";
+        THROW_ERROR << "has invalid value of axis parameter.";
 }
 
 void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
+    using TensorDescFactory = std::function<TensorDesc(const Precision&, const SizeVector&)>;
+    constexpr size_t channelsPos = 1lu;
+    // perform guard checks
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+    if (getCnnLayer()->insData.empty()) {
+        THROW_ERROR << "has an empty input in the CNN layer";
+    }
+
+    auto inpData = getCnnLayer()->insData[0].lock();
+    if (!inpData) {
+        THROW_ERROR << "input data is empty";
+    }
 
     auto srcDims = getParentEdgeAt(0)->getDims();
-
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = true;
-    config.inConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.inConfs[0].desc = MKLDNNMemoryDesc(srcDims, inputDataType, memory::format::any);
-    config.outConfs.resize(outDims.size());
-
-    std::vector<memory::format> outFormats;
-
     auto axis_size = 0;
     auto dstFirstDims = getChildEdgeAt(0)->getDims();
     for (size_t i = 0; i < outDims.size(); i++) {
         auto o_Dims = outDims[i];
         if (dstFirstDims.ndims() != o_Dims.ndims()) {
-            THROW_IE_EXCEPTION << "Split " << getName() << " supports only output blob with equal number of dimensions";
+            THROW_ERROR << "only supports output blobs with equal number of dimensions";
         }
-
-        config.outConfs[i].inPlace = -1;
-        config.outConfs[i].constant = false;
-        config.outConfs[i].desc = MKLDNNMemoryDesc(o_Dims, outputDataType, memory::format::any);
-        outFormats.push_back(memory::format::any);
 
         axis_size += o_Dims[axis];
         for (size_t j = 0; j < dstFirstDims.ndims(); j++) {
             if (j == axis)
                 continue;
             if (o_Dims[j] != dstFirstDims[j])
-                THROW_IE_EXCEPTION << "Split " << getName() << " has incorrect output dimensions";
+                THROW_ERROR << "has incorrect output dimensions";
         }
     }
     dstFirstDims[axis] = axis_size;
     if (dstFirstDims.size() != srcDims.size())
-        THROW_IE_EXCEPTION << "The sizes of input blob and sum of output blobs are not equal.";
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, outFormats);
+        THROW_ERROR << "sizes of input blob and sum of output blobs are not equal.";
 
-    auto numOfDim = static_cast<size_t>(srcDims.ndims());
 
-    SizeVector order;
-    SizeVector offsets(numOfDim, 0lu);
-    size_t offset = (std::numeric_limits<size_t>::max)();
-    for (size_t i = 0; i < numOfDim; i++) {
-        order.push_back(i);
+    InferenceEngine::Precision inpPrecision = inpData->getPrecision();
+    auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
+
+    // make primitive descriptor factory function for different configurations
+    bool dynBatchSupport = true;
+    if (axis < 1) {
+        dynBatchSupport = false;
     }
+    auto makePdInfo = [dynBatchSupport](TensorDescFactory getTensorDesc, const Precision& precision,  const MKLDNNDims& srcDims,
+                                        const std::vector<MKLDNNDims>& outDims, impl_desc_type type) -> PrimitiveDescInfo {
+        InferenceEngine::LayerConfig config;
 
-    SizeVector strides(numOfDim);
-    strides[numOfDim - 1] = 1;
-    for (size_t i = 2; i <= numOfDim; i++) {
-        if (numOfDim - i < axis) {
-            strides[numOfDim - i] = (std::numeric_limits<size_t>::max)();
-        } else {
-            strides[numOfDim - i] = strides[numOfDim - i + 1] * srcDims[numOfDim - i + 1];
+        config.dynBatchSupport = dynBatchSupport;
+        config.inConfs.resize(1);
+        config.inConfs[0].inPlace = -1;
+        config.inConfs[0].constant = false;
+        config.inConfs[0].desc = getTensorDesc(precision, srcDims.ToSizeVector());
+        config.outConfs.resize(outDims.size());
+
+        std::vector<memory::format> outFormats;
+
+        for (size_t i = 0; i < outDims.size(); i++) {
+            auto o_Dims = outDims[i];
+
+            config.outConfs[i].inPlace = -1;
+            config.outConfs[i].constant = false;
+            config.outConfs[i].desc = getTensorDesc(precision, o_Dims.ToSizeVector());
+            outFormats.push_back(MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat());
+        }
+        return {config, type, outFormats};
+    };
+
+    //Set plain format
+    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref));
+
+    //Set per channel format.
+    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref));
+
+    //Support channel blocked format
+    std::vector<size_t> blockedPdIndexes;
+    if (srcDims.ndims() > channelsPos) {
+        for (size_t sizeS : {8lu, 16lu}) {
+            SizeVector blkDims = srcDims.ToSizeVector();
+            if (blkDims[channelsPos] % sizeS)
+                continue;
+
+            bool blocked = true;
+            for (size_t i = 0; i < outDims.size(); i++) {
+                if (outDims[i].ToSizeVector()[channelsPos] % sizeS) {
+                    blocked = false;
+                    break;
+                }
+            }
+            if (blocked) {
+                using std::placeholders::_1;
+                using std::placeholders::_2;
+                supportedPrimitiveDescriptors.push_back(makePdInfo(std::bind(&makeChannelBlockedTensorDesc, _1, _2, sizeS),
+                                                                   inpPrecision, srcDims, outDims, impl_desc_type::ref));
+                blockedPdIndexes.push_back(supportedPrimitiveDescriptors.size() - 1);
+            }
         }
     }
 
-    config.inConfs[0].desc = TensorDesc(Precision::FP32, srcDims.ToSizeVector(), {srcDims.ToSizeVector(), order, offset, offsets, strides});
-    outFormats.clear();
-    for (size_t i = 0; i < outDims.size(); i++) {
-        auto dims = outDims[i].ToSizeVector();
-        config.outConfs[i].inPlace = 0;
-        config.outConfs[i].desc = TensorDesc(Precision::FP32, dims,
-                                            {dims, order, offset, offsets, strides});
-        outFormats.push_back(MKLDNNMemory::Convert(config.outConfs[i].desc.getLayout()));
+    // Optimized inplace case
+    std::vector<size_t> pdIndexesToReuse(1, 0); // at least the first plain layout can be optimized inplace.
+    if (axis < 2) {
+        pdIndexesToReuse.insert(pdIndexesToReuse.end(), blockedPdIndexes.begin(), blockedPdIndexes.end());
     }
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
 
-    if ((numOfDim != 4 && numOfDim != 5) || axis != 1)
-        return;
+    for (auto refPdIndex : pdIndexesToReuse) {
+        const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
+        auto config = refConfig;
 
-    order.push_back(1);
-    numOfDim = order.size();
-    offsets = SizeVector(numOfDim, 0lu);
+        const auto& order = refConfig.inConfs[0].desc.getBlockingDesc().getOrder();
+        const auto& blkDims = refConfig.inConfs[0].desc.getBlockingDesc().getBlockDims();
+        auto numOfDim = blkDims.size();
 
-    // nChw8c and nChw16c
-    for (size_t sizeS : {8lu, 16lu}) {
-        SizeVector blkDims = srcDims.ToSizeVector();
-        if (blkDims[1] % sizeS)
-            continue;
-        blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1lu : 0lu);
-        blkDims.push_back(sizeS);
+        std::vector<memory::format> outFormats;
+        SizeVector offsets(numOfDim, 0lu);
+        SizeVector strides(numOfDim);
+        strides.back() = 1lu;
+        size_t offset = (std::numeric_limits<size_t>::max)();
 
-        strides.resize(numOfDim);
-        strides[numOfDim - 1] = 1lu;
         for (size_t i = 2; i <= numOfDim; i++) {
             if (numOfDim - i < axis) {
                 strides[numOfDim - i] = (std::numeric_limits<size_t>::max)();
@@ -140,316 +210,58 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
                 strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
             }
         }
-        config.inConfs[0].desc = TensorDesc(Precision::FP32, srcDims.ToSizeVector(), {blkDims, order, offset, offsets, strides});
 
-        outFormats.clear();
-        bool canInplace = true;
+        config.inConfs[0].desc = TensorDesc(inpPrecision, srcDims.ToSizeVector(), {blkDims, order, offset, offsets, strides});
+
         for (size_t i = 0; i < outDims.size(); i++) {
-            auto dims = outDims[i].ToSizeVector();
-            blkDims = dims;
+            const auto& outBlkDims = refConfig.outConfs[i].desc.getBlockingDesc().getBlockDims();
+            const auto& dims = refConfig.outConfs[i].desc.getDims();
 
-            if (blkDims[1] % sizeS) {
-                canInplace = false;
-                break;
-            }
-            blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1lu : 0lu);
-            blkDims.push_back(sizeS);
-            config.outConfs[i].desc = TensorDesc(Precision::FP32, dims, {blkDims, order, offset, offsets, strides});
-
-            outFormats.emplace_back(MKLDNNMemory::Convert(config.outConfs[i].desc.getLayout()));
+            config.outConfs[i].inPlace = 0;
+            config.outConfs[i].desc = TensorDesc(outPrecision, dims, {outBlkDims, order, offset, offsets, strides});
+            outFormats.emplace_back(MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat());
         }
-        if (canInplace)
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
     }
 }
 
 void MKLDNNSplitNode::createPrimitive() {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        THROW_ERROR << "Input memory has not been allocated.";
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         if (!getChildEdgeAt(i)->getMemoryPtr() || !getChildEdgeAt(i)->getMemory().GetPrimitivePtr())
-            THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+            THROW_ERROR << "Destination memory has not been allocated.";
     }
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        THROW_ERROR << "Preferable primitive descriptor is not set.";
 
-    canUseOptimizedImpl = true;
-    if (axis != 1)
-        canUseOptimizedImpl = false;
-
-    if (getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NHWC &&
-        getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NDHWC)
-        canUseOptimizedImpl = false;
-
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        if (getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCHW &&
-            getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCDHW)
-            canUseOptimizedImpl = false;
-    }
-}
-
-void MKLDNNSplitNode::optimizedImpl(size_t MB) {
-    const int ndims = getParentEdgeAt(0)->getDims().ndims();
-    const size_t IC = getParentEdgeAt(0)->getDims()[1];
-    const size_t D = ndims == 5 ? getParentEdgeAt(0)->getDims()[ndims - 3] : 1;
-    const size_t H = getParentEdgeAt(0)->getDims()[ndims - 2];
-    const size_t W = getParentEdgeAt(0)->getDims()[ndims - 1];
-
-    auto srcBlob = getParentEdgeAt(0)->getBlob();
-    const auto *srcData = srcBlob->cbuffer().as<const float *>();
-    for (size_t i = 0, sIdx = 0; i < getChildEdges().size(); i++) {
-        auto dstBlob = getChildEdgeAt(i)->getBlob();
-        auto *dstData = dstBlob->buffer().as<float *>();
-
-        const size_t OC = getChildEdgeAt(i)->getDims()[1];
-
-        size_t innerSize = 1;
-        for (size_t j = axis; j < dstBlob->getTensorDesc().getDims().size(); j++) {
-            innerSize *= dstBlob->getTensorDesc().getDims()[j];
-        }
-
-        auto srcPtr = srcData + srcBlob->getTensorDesc().offset(sIdx);
-
-        parallel_for4d(MB, D, H, W, [&](size_t b, size_t d, size_t h, size_t w) {
-            for (size_t c = 0; c < OC; c++) {
-                size_t srcOff = b*D*H*W*IC + d*H*W*IC + h*W*IC + w*IC + c;
-                size_t dstOff = b*OC*D*H*W + c*D*H*W + d*H*W + h*W + w;
-
-                dstData[dstOff] = srcPtr[srcOff];
-            }
-        });
-
-        sIdx += innerSize;
-    }
+    if (!isOptimized())
+        prepareOptimizedParams();
 }
 
 void MKLDNNSplitNode::execute(mkldnn::stream strm) {
     if (isOptimized())
         return;
 
-    // FIXME: add more optimal implementation
-    MKLDNNDims par_dims = getParentEdgeAt(0)->getDims();
     int MB = batchToProcess();
-    auto srcBlob = getParentEdgeAt(0)->getBlob();
-    const auto *srcData = srcBlob->cbuffer().as<const float *>();
+    uint8_t* srcData = getDataPtr(this->getParentEdgeAt(0)->getMemory());
+    size_t batch = this->getParentEdgeAt(0)->getDims()[0];
 
-    size_t outerSize = 1;
-    for (int i = 0; i < axis; i++) {
-        if (i == 0)
-            outerSize *= MB;
-        else
-            outerSize *= srcBlob->getTensorDesc().getDims()[i];
-    }
+    if (batch != MB)
+        optimizedParams.countStrides = optimizedParams.countStrides / batch * MB;
 
-    if (canUseOptimizedImpl) {
-        optimizedImpl(MB);
-        return;
-    }
+    parallel_for2d(this->getChildEdges().size(), optimizedParams.countStrides, [&](size_t i, size_t j) {
+        uint8_t* dstData = optimizedParams.dstMemPtrs[i];
 
-    size_t srcSize = getParentEdgeAt(0)->getMemory().GetSize();
-    size_t src_batch_off = srcBlob->getTensorDesc().offset(srcBlob->size() / outerSize)
-                           - srcBlob->getTensorDesc().offset(0);
-
-    for (size_t i = 0, sIdx = 0; i < getChildEdges().size(); i++) {
-        auto dstBlob = getChildEdgeAt(i)->getBlob();
-        auto *dstData = dstBlob->buffer().as<float *>();
-
-        size_t innerSize = 1;
-        for (size_t j = axis; j < dstBlob->getTensorDesc().getDims().size(); j++) {
-            innerSize *= dstBlob->getTensorDesc().getDims()[j];
-        }
-
-        size_t dst_batch_off = dstBlob->getTensorDesc().offset(innerSize) - dstBlob->getTensorDesc().offset(0);
-
-        for (size_t dIdx = 0; dIdx < innerSize; dIdx++, sIdx++) {
-            for (unsigned b = 0; b < outerSize; b++) {
-                if (sIdx + b*src_batch_off >= srcSize)
-                    THROW_IE_EXCEPTION << "Incorrect configuration of split layer " << getName() << "!";
-                dstData[b * dst_batch_off + dstBlob->getTensorDesc().offset(dIdx)] =
-                        srcData[b * src_batch_off + srcBlob->getTensorDesc().offset(sIdx)];
-            }
-        }
-    }
+        cpu_memcpy(&dstData[j * optimizedParams.dataSize[i]],
+                   &srcData[optimizedParams.srcDataOffsets[i] + j * optimizedParams.srcDataStride],
+                   optimizedParams.dataSize[i]);
+    });
 }
 
 bool MKLDNNSplitNode::created() const {
     return getType() == Split;
-}
-
-void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
-    if (implPriorities.size() > 0 && implPriorities[0] == impl_desc_type::ref) {
-        selectPrimitiveDescriptorByIndex(0);
-        return;
-    }
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
-    bool hasUnknown = false;
-    std::vector<size_t> canSelectPrimitive;
-    for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
-        bool hasAny = true;
-        auto &primDescInfo = supportedPrimitiveDescriptors[i];
-        if (primDescInfo.getImplementationType() != impl_desc_type::unknown ||
-            primDescInfo.getConfig().outConfs[0].inPlace < 0)
-            continue;
-        hasUnknown = true;
-        for (auto iInfo : primDescInfo.getConfig().inConfs) {
-            if (iInfo.desc.getLayout() != InferenceEngine::Layout::ANY) {
-                hasAny = false;
-                break;
-            }
-        }
-
-        if (hasAny) {
-            for (auto oInfo : primDescInfo.getConfig().outConfs) {
-                if (oInfo.desc.getLayout() != InferenceEngine::Layout::ANY) {
-                    hasAny = false;
-                    break;
-                }
-            }
-        }
-
-        if (!hasAny) {
-            canSelectPrimitive.push_back(i);
-        }
-    }
-
-    bool canOptimize = false;
-    if (hasUnknown) {
-        canOptimize = true;
-
-        if (canSelectPrimitive.size() == 1) {
-            selectPrimitiveDescriptorByIndex(static_cast<int>(canSelectPrimitive[0]));
-            return;
-        }
-    }
-
-    std::map<mkldnn::memory::format, size_t> formatFrequency;
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto parentEdge = getParentEdgeAt(i);
-        auto parent = parentEdge->getParent();
-
-        if (parent->getSelectedPrimitiveDescriptor() == nullptr)
-            continue;
-
-        int outputIndex = parentEdge->getOutputNum();
-        if (outputIndex < 0)
-            THROW_IE_EXCEPTION << "Cannot find index of output node";
-        if (outputIndex >= parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size())
-            outputIndex = 0;
-        auto outDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIndex].desc);
-        if (!outDesc)
-            continue;
-        if (formatFrequency.find(outDesc.getFormat()) != formatFrequency.end())
-            formatFrequency[outDesc.getFormat()] += 1;
-        else
-            formatFrequency[outDesc.getFormat()] = 1;
-    }
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto childEdge = getChildEdgeAt(i);
-        auto child = childEdge->getChild();
-        if (child->getSelectedPrimitiveDescriptor() == nullptr)
-            continue;
-        int inputIndex = childEdge->getOutputNum();
-        if (inputIndex < 0)
-            THROW_IE_EXCEPTION << "Cannot find index of output node";
-        if (inputIndex >= child->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size())
-            inputIndex = 0;
-        auto outDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[inputIndex].desc);
-        if (!outDesc)
-            continue;
-        if (formatFrequency.find(outDesc.getFormat()) != formatFrequency.end())
-            formatFrequency[outDesc.getFormat()] += 1;
-        else
-            formatFrequency[outDesc.getFormat()] = 1;
-    }
-
-    size_t maxCount = 0;
-    mkldnn::memory::format convertTo = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
-    for (auto &it : formatFrequency) {
-        if (it.second > maxCount && !MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, it.first).blocksExtended()) {
-            maxCount = it.second;
-            convertTo = it.first;
-        }
-    }
-
-    // This logic is needed to cover cases when Split node cannot be optimized out for particular block size
-    // In general it is significantly better to have additional reorders in graph than to use reference Split implementation
-    if (convertTo == memory::nChw16c || convertTo == memory::nCdhw16c ||
-        convertTo == memory::nChw8c || convertTo == memory::nCdhw8c) {
-        int blockSize = convertTo == memory::nChw16c || convertTo == memory::nCdhw16c ? 16 : 8;
-        bool shouldDecreaseBlockSize = false;
-        for (auto& parentEdge : getParentEdges()) {
-            if (parentEdge.lock()->getDims()[1] % blockSize != 0)
-                shouldDecreaseBlockSize = true;
-        }
-
-        for (auto& childEdge : getChildEdges()) {
-            if (childEdge.lock()->getDims()[1] % blockSize != 0)
-                shouldDecreaseBlockSize = true;
-        }
-
-        if (shouldDecreaseBlockSize) {
-            int decreasedBlockSize = 8;
-            bool canDecreaseBlockSize = true;
-            for (auto &parentEdge : getParentEdges()) {
-                if (parentEdge.lock()->getDims()[1] % decreasedBlockSize != 0)
-                    canDecreaseBlockSize = false;
-            }
-
-            for (auto &childEdge : getChildEdges()) {
-                if (childEdge.lock()->getDims()[1] % decreasedBlockSize != 0)
-                    canDecreaseBlockSize = false;
-            }
-
-            if (canDecreaseBlockSize)
-                convertTo = getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::nCdhw8c : memory::nChw8c;
-            else
-                convertTo = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
-        }
-    }
-
-    if (canOptimize && MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, convertTo).blocksExtended())
-        canOptimize = false;
-    for (size_t i = 0; canOptimize && i < getChildEdges().size(); i++) {
-        if (MKLDNNMemoryDesc(getChildEdgeAt(i)->getDims(), outputDataType, convertTo).blocksExtended())
-            canOptimize = false;
-    }
-
-    if (canOptimize) {
-        for (auto supportedPdIndex : canSelectPrimitive) {
-            if (MKLDNNMemoryDesc(supportedPrimitiveDescriptors[supportedPdIndex].getConfig().inConfs[0].desc).getFormat() == convertTo) {
-                selectPrimitiveDescriptorByIndex(static_cast<int>(supportedPdIndex));
-                return;
-            }
-        }
-    }
-
-    for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
-        auto &primDescInfo = supportedPrimitiveDescriptors[i];
-        if (primDescInfo.getImplementationType() == impl_desc_type::unknown)
-            continue;
-        if (convertTo == MKLDNNMemoryDesc(supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc).getFormat()) {
-            size_t num = 0;
-            for (num = 0; num < getParentEdges().size(); num++) {
-                if (MKLDNNMemoryDesc(getParentEdgeAt(num)->getDims(), inputDataType, convertTo).blocksExtended())
-                    break;
-            }
-            if (num == getParentEdges().size()) {
-                selectPrimitiveDescriptorByIndex(i);
-                return;
-            }
-        }
-    }
-
-    selectPrimitiveDescriptorByIndex(0);
 }
 
 bool MKLDNNSplitNode::isOptimized() {
@@ -464,7 +276,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        THROW_ERROR << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
     if (isInitConfig(config))
         return;
@@ -497,12 +309,11 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     }
     const auto& cnnLayer = getCnnLayer();
     if (!cnnLayer)
-        THROW_IE_EXCEPTION << "Cannot create Split layer " << getName() << " without CNNLayer!";
+        THROW_ERROR << "cannot be created without CNNLayer!";
     if (config.outConfs.size() != outDims.size())
-        THROW_IE_EXCEPTION << "Invalid config for Split layer " << getName();
+        THROW_ERROR << "has invalid config";
     size_t offset = 0;
     for (size_t i = 0; i < cnnLayer->outData.size(); i++) {
-        size_t confNum = i;
         config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
                                                               config.outConfs[i].desc.getDims(), {
                                                                       config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
@@ -512,21 +323,119 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
                                                                       config.inConfs[0].desc.getBlockingDesc().getStrides()
                                                               });
         size_t axisSize = 1;
-        for (size_t j = axis; j < config.outConfs[confNum].desc.getBlockingDesc().getBlockDims().size(); j++) {
-            axisSize *= config.outConfs[confNum].desc.getBlockingDesc().getBlockDims()[j];
+        for (size_t j = axis; j < config.outConfs[i].desc.getBlockingDesc().getBlockDims().size(); j++) {
+            axisSize *= config.outConfs[i].desc.getBlockingDesc().getBlockDims()[j];
         }
         offset += axisSize;
     }
     initDescriptor(config);
 }
 
+void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
+    if (implPriorities.size() > 0 && implPriorities[0] == impl_desc_type::ref) {
+        selectPrimitiveDescriptorByIndex(0);
+        return;
+    }
+
+    //check the descriptors and select the ones that have the same data format as the input
+
+    std::vector<size_t> canSelectPrimitive;
+    for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
+        auto parentEdge = getParentEdgeAt(0);
+        auto parentPtr = parentEdge->getParent();
+        auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+
+        if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
+            int inNum = parentEdge->getInputNum();
+            if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
+                inNum = 0;
+            }
+            if (MKLDNNExtensionUtils::initTensorsAreEqual(
+                    getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[0].desc,
+                    parent_spd->getConfig().outConfs[inNum].desc)) {
+                canSelectPrimitive.push_back(i);
+            }
+        }
+    }
+    if (canSelectPrimitive.size() == 1) {
+        selectPrimitiveDescriptorByIndex(static_cast<int>(canSelectPrimitive[0]));
+        return;
+    }
+    // if there are more then one PD with similar data layouts - select the optimized one
+    for (auto indx : canSelectPrimitive) {
+        if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::unknown) {
+            selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
+            return;
+        }
+    }
+
+    // if there are no matching data layouts, select first optimized implementation
+    for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
+        if (supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown) {
+            selectPrimitiveDescriptorByIndex(static_cast<int>(i));
+            return;
+        }
+    }
+
+    selectPrimitiveDescriptorByIndex(0);
+}
+
 void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
     if (axis == 0)
-        THROW_IE_EXCEPTION << "Dynamic batch is not supported by split layer with axis == 0 parameter";
+        THROW_ERROR << "Dynamic batch is not supported by split layer with axis == 0 parameter";
 
     dynBatchLim = lim;
     if (prim) {
         prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
+    }
+}
+
+void MKLDNNSplitNode::prepareOptimizedParams() {
+    const auto& inpTensorDesc = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+
+    //find axis order position
+    const auto& order = inpTensorDesc.getBlockingDesc().getOrder();
+    unsigned axisOrderPos = UINT_MAX;
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (order[i] == axis) {
+            axisOrderPos = i;
+            break;
+        }
+    }
+    if (UINT_MAX == axisOrderPos) {
+        THROW_ERROR << "Can't find the axis in the input tensor order list";
+    }
+
+    uint8_t srcDataSize = inpTensorDesc.getPrecision().size();
+    const auto& srcDims = inpTensorDesc.getBlockingDesc().getBlockDims();
+    int nDims = srcDims.size();
+
+    optimizedParams.countStrides = 1;
+    for (int i = 0; i < axisOrderPos; i++)
+        optimizedParams.countStrides *= srcDims[i];
+
+    optimizedParams.srcDataStride = 0;
+    optimizedParams.dataSize.resize(this->getChildEdges().size());
+    optimizedParams.dstMemPtrs.clear();
+    for (int i = 0; i < this->getChildEdges().size(); i++) {
+        if (uint8_t* dstData = getDataPtr(this->getChildEdgeAt(i)->getMemory())) {
+            optimizedParams.dstMemPtrs.push_back(dstData);
+        } else {
+            THROW_ERROR << "can't get child edge indx " << i << "data.";
+        }
+
+        optimizedParams.dataSize[i] = srcDataSize;
+
+        for (int j = axisOrderPos; j < nDims; j++)
+            optimizedParams.dataSize[i] *= this->getChildEdgeAt(i)->getDesc().getBlockingDesc().getBlockDims()[j];
+
+        optimizedParams.srcDataStride += optimizedParams.dataSize[i];
+    }
+
+    optimizedParams.srcDataOffsets.resize(this->getChildEdges().size());
+    optimizedParams.srcDataOffsets[0] = 0;
+    for (int i = 1; i < this->getChildEdges().size(); i++) {
+        optimizedParams.srcDataOffsets[i] = optimizedParams.srcDataOffsets[i - 1] + optimizedParams.dataSize[i - 1];
     }
 }
 REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);
