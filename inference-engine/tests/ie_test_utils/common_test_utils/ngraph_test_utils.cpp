@@ -13,22 +13,6 @@
 #include <ngraph/pass/visualize_tree.hpp>
 #include "ngraph_test_utils.hpp"
 
-
-template<typename T>
-bool compareVec(const std::vector<T>& c1values, const std::vector<T>& c2values) {
-    if (c1values.size() != c2values.size()) {
-        return false;
-    }
-
-    const auto float_equal = [&](float v1, float v2) {
-        static const float threshold = 1e-4f;
-        return abs(v1-v2) <= threshold;
-    };
-
-
-    return std::equal(begin(c1values), end(c1values), begin(c2values), float_equal);
-}
-
 bool isTypeRelaxed(const std::string& type) {
     return type.find_first_of("TypeRelaxed") == 0;
 }

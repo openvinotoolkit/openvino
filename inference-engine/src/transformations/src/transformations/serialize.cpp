@@ -3,6 +3,7 @@
 //
 
 #include <array>
+#include <cstdint>
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -81,7 +82,6 @@ public:
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void*>& adapter) override {
-        //TODO Shame on me - apologies for this hidden dynamic_cast
         if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
             using AlignedBufferAdapter =
                 ngraph::AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>;
@@ -486,9 +486,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // prepare data
     pugi::xml_document xml_doc;
     std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    if (!bin_file) {
-        throw std::runtime_error{"Can't open bin file"};
-    }
+    NGRAPH_CHECK(bin_file, "Can't open bin file");
     switch (m_version) {
     case Version::IR_V10:
         ngfunction_2_irv10(xml_doc, bin_file, *f, m_custom_opsets);
@@ -500,9 +498,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
     // create xml file
     std::ofstream xml_file(m_xmlPath, std::ios::out);
-    if (!xml_file) {
-        throw std::runtime_error{"Can't open xml file"};
-    }
+    NGRAPH_CHECK(xml_file, "Can't open xml file");
     xml_doc.save(xml_file);
     xml_file.flush();
     bin_file.flush();

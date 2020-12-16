@@ -12,23 +12,14 @@
 #define IR_SERIALIZATION_MODELS_PATH ""
 #endif
 
-bool binary_equal(const std::string& f1, const std::string& f2) {
-    std::ifstream if1{f1, std::ios::binary | std::ios::ate};
-    std::ifstream if2{f2, std::ios::binary | std::ios::ate};
-
-    const size_t f1size = if1.tellg();
-    const size_t f2size = if2.tellg();
-    if (f1size != f2size) {
-        return false;
-    }
-
-    if1.seekg(0);
-    if2.seekg(0);
-
-    return std::equal(std::istream_iterator<char>(if1),
-                      std::istream_iterator<char>(),
-                      std::istream_iterator<char>(if2));
+namespace  {
+std::string to_valid_os_path(std::string name) {
+    const auto invalid_charecter = [](std::string::value_type c) { return !std::isalnum(c); };
+    std::replace_if(begin(name), end(name), invalid_charecter, '_');
+    return name;
 }
+} // namespace
+
 typedef std::tuple<std::string> SerializationParams;
 
 class SerializationTest: public CommonTestUtils::TestsCommon,
@@ -38,12 +29,14 @@ public:
     std::string m_out_xml_path;
     std::string m_out_bin_path;
 
+
+
     void SetUp() override {
         m_model_path = IR_SERIALIZATION_MODELS_PATH + std::get<0>(GetParam());
         // TODO consider std::tmpnam
         std::cout << "TEST START: " << m_model_path << std::endl;
-        const std::string test_name =
-            "test"; //  ::testing::UnitTest::GetInstance()->current_test_info()->name();
+        const std::string test_name = to_valid_os_path(
+            ::testing::UnitTest::GetInstance()->current_test_info()->name());
         m_out_xml_path = test_name + ".xml";
         m_out_bin_path = test_name + ".bin";
     }
@@ -64,9 +57,6 @@ TEST_P(SerializationTest, CompareFunctions) {
     std::string message;
     std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction(), true);
     ASSERT_TRUE(success) << message;
-
-//    const auto& model_bin_path = m_model_path.substr(0, m_model_path.length() - 3).append("bin");
-//    EXPECT_TRUE(binary_equal(m_out_bin_path, model_bin_path));
 }
 
 INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
