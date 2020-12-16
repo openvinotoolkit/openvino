@@ -24,38 +24,41 @@ def tf_dtype_extractor(pb_dtype, default=None):
     return tf_data_type_decode[pb_dtype][0] if pb_dtype in tf_data_type_decode else default
 
 
-class FusedBatchNormBaseExtractor(FrontExtractorOp):
-    enabled = True
 
+def tf_fused_batch_norm_extract(cls, node: Node):
+    pb = node.pb
+    is_training = pb.attr['is_training'].b
+    attrs = {
+        'data_format': pb.attr["data_format"].s,
+        'data_type': tf_dtype_extractor(pb.attr["T"].type),
+        'eps': pb.attr['epsilon'].f
+    }
+    (BatchNormTraining if is_training else BatchNormInference)\
+    .update_node_stat(node, attrs)
+
+
+class FusedBatchNormExtractor(FrontExtractorOp):
+    op = "FusedBatchNorm"
+    enabled = True
     @classmethod
     def extract(cls, node: Node):
-        pb = node.pb
-        is_training = pb.attr['is_training'].b
-        attrs = {
-            'data_format': pb.attr["data_format"].s,
-            'data_type': tf_dtype_extractor(pb.attr["T"].type),
-            'eps': pb.attr['epsilon'].f
-        }
-        (BatchNormTraining if is_training else BatchNormInference)\
-        .update_node_stat(node, attrs)
+        tf_fused_batch_norm_extract(cls, node)
+        return cls.enabled
 
 
-class FusedBatchNormExtractor(FusedBatchNormBaseExtractor):
-    op = "FusedBatchNorm"
-    
-    def __init__(self):
-        super().__init__(self)
-
-
-class FusedBatchNormV2Extractor(FusedBatchNormBaseExtractor):
+class FusedBatchNormV2Extractor(FrontExtractorOp):
     op = "FusedBatchNormV2"
-    
-    def __init__(self):
-        super().__init__(self)
+    enabled = True
+    @classmethod
+    def extract(cls, node: Node):
+        tf_fused_batch_norm_extract(cls, node)
+        return cls.enabled
 
 
-class FusedBatchNormV3Extractor(FusedBatchNormBaseExtractor):
+class FusedBatchNormV3Extractor(FrontExtractorOp):
     op = "FusedBatchNormV3"
-    
-    def __init__(self):
-        super().__init__(self)
+    enabled = True
+    @classmethod
+    def extract(cls, node: Node):
+        tf_fused_batch_norm_extract(cls, node)
+        return cls.enabled
