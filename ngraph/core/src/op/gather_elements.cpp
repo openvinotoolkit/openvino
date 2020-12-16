@@ -111,7 +111,7 @@ void op::v6::GatherElements::validate_and_infer_types()
         // if at least one input has static rank propagate PartialShape of that input
         // in the optimistic scenario at least we will have static rank
         // in the worse scenario propagating any of PartialShapes is equivalent
-        set_output_type(0, data_type, indices_pshape.is_static() ? indices_pshape : data_pshape);
+        set_output_type(0, data_type, indices_rank.is_static() ? indices_pshape : data_pshape);
     }
 }
 

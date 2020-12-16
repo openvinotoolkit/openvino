@@ -44,6 +44,7 @@ class GatherElements(Op):
         axis = node.axis
         data_rank = len(data_shape)
 
+        assert data_rank >= 1, 'data_rank must be >= 1'
         assert data_rank == len(indices_shape), 'data and indices inputs for node {} must be of the ' \
                                                 'same rank. Instead got {} and {}'.\
                                                 format(node.name, data_rank, len(indices_shape))
