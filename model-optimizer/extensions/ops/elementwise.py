@@ -63,7 +63,8 @@ class Elementwise(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'is_eltwise': True,
-            'stop_value_propagation': False
+            'stop_value_propagation': False,
+            'auto_broadcast': 'numpy'
         }, attrs)
 
     @staticmethod
@@ -88,10 +89,6 @@ class Add(Elementwise):
     op_type = 'Add'
     operation = staticmethod(lambda a, b: a + b)
 
-    def __init__(self, graph: Graph, attrs: dict):
-        attrs.update({'auto_broadcast': 'numpy'})
-        super().__init__(graph, attrs)
-
     def backend_attrs(self):
         return ['auto_broadcast']
 
@@ -109,11 +106,17 @@ class Sub(Elementwise):
     op_type = 'Subtract'
     operation = staticmethod(lambda a, b: a - b)
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class Mul(Elementwise):
     op = 'Mul'
     op_type = 'Multiply'
     operation = staticmethod(lambda a, b: a * b)
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 def both_types_are_integer(a, b):
@@ -125,11 +128,17 @@ class Div(Elementwise):
     op_type = 'Divide'
     operation = staticmethod(lambda a, b: a // b if both_types_are_integer(a, b) else a / b)
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class SquaredDifference(Elementwise):
     op = 'SquaredDifference'
     op_type = 'SquaredDifference'
     operation = staticmethod(lambda a, b: (a - b) * (a - b))
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class Pow(Elementwise):
@@ -151,6 +160,9 @@ class Pow(Elementwise):
                 node.soft_get('name'), in_type_0, in_type_1)
         node.out_port(0).set_data_type(in_type_0)
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class LogicalElementwise(Elementwise):
     @staticmethod
@@ -164,11 +176,17 @@ class Greater(LogicalElementwise):
     op_type = 'Greater'
     operation = staticmethod(lambda a, b: a > b)
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class GreaterEqual(LogicalElementwise):
     op = 'GreaterEqual'
     op_type = 'GreaterEqual'
     operation = staticmethod(lambda a, b: a >= b)
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class Less(LogicalElementwise):
@@ -176,11 +194,17 @@ class Less(LogicalElementwise):
     op_type = 'Less'
     operation = staticmethod(lambda a, b: a < b)
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class LessEqual(LogicalElementwise):
     op = 'LessEqual'
     op_type = 'LessEqual'
     operation = staticmethod(lambda a, b: a <= b)
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class Equal(LogicalElementwise):
@@ -188,11 +212,17 @@ class Equal(LogicalElementwise):
     op_type = 'Equal'
     operation = staticmethod(lambda a, b: a == b)
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class NotEqual(LogicalElementwise):
     op = 'NotEqual'
     op_type = 'NotEqual'
     operation = staticmethod(lambda a, b: a != b)
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class Maximum(Elementwise):
@@ -200,11 +230,17 @@ class Maximum(Elementwise):
     op_type = 'Maximum'
     operation = staticmethod(lambda a, b: np.maximum(a, b))
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class Minimum(Elementwise):
     op = 'Minimum'
     op_type = 'Minimum'
     operation = staticmethod(lambda a, b: np.minimum(a, b))
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class Round(UnaryElementwise):
@@ -246,11 +282,17 @@ class LogicalOr(LogicalElementwise):
     op_type = 'LogicalOr'
     operation = staticmethod(lambda a, b: np.logical_or(a, b))
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class LogicalXor(Elementwise):
     op = 'LogicalXor'
     op_type = 'LogicalXor'
     operation = staticmethod(lambda a, b: np.logical_xor(a, b))
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class LogicalAnd(LogicalElementwise):
@@ -258,11 +300,17 @@ class LogicalAnd(LogicalElementwise):
     op_type = 'LogicalAnd'
     operation = staticmethod(lambda a, b: np.logical_and(a, b))
 
+    def backend_attrs(self):
+        return ['auto_broadcast']
+
 
 class FloorMod(Elementwise):
     op = 'FloorMod'
     op_type = 'FloorMod'
     operation = staticmethod(lambda a, b: a % b)
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
 
 class Negative(UnaryElementwise):
