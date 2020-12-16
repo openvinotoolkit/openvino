@@ -277,13 +277,10 @@ void op::v1::Broadcast::validate_and_infer_types()
     }
 
     // Mocking axes_mapping input for cases that don't require it
-    if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY)
+    if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && get_input_size() < 3)
     {
-        if (get_input_size() < 3)
-        {
-            auto output = op::v0::Constant::create(element::u8, Shape{}, {0})->output(0);
-            set_argument(2, output);
-        }
+        auto output = op::v0::Constant::create(element::u8, Shape{}, {0})->output(0);
+        set_argument(2, output);
     }
 
     // update the base class' mode spec
