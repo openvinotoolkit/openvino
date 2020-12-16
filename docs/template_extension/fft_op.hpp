@@ -7,7 +7,7 @@
 
 #include <ngraph/ngraph.hpp>
 
-namespace FFTExtension {
+namespace TemplateExtension {
 
 class FFTOp : public ngraph::op::Op {
 public:

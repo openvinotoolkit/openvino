@@ -9,7 +9,7 @@
 #include <ie_iextension.h>
 #include <ngraph/ngraph.hpp>
 
-namespace FFTExtension {
+namespace TemplateExtension {
 
 class FFTImpl : public InferenceEngine::ILayerExecImpl {
 public:

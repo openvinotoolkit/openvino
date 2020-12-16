@@ -10,7 +10,7 @@
 
 #include <opencv2/opencv.hpp>
 
-using namespace FFTExtension;
+using namespace TemplateExtension;
 
 FFTImpl::FFTImpl(const std::shared_ptr<ngraph::Node> &node) {
     auto castedNode = std::dynamic_pointer_cast<FFTOp>(node);

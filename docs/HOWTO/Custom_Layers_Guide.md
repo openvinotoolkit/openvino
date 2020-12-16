@@ -300,7 +300,7 @@ below is based on the template extension described on the
 The first step is to create a CMake configuration file which builds the extension. The content of the "CMakeLists.txt"
 file is the following:
 
-@snippet ie_cpu_extension/CMakeLists.txt fft_cmake_list:cmake
+@snippet ../template_extension/CMakeLists.txt fft_cmake_list:cmake
 
 The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the extension library is linked with
 "opencv_core" which comes with the OpenVINO.
@@ -308,12 +308,12 @@ The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the
 #### Custom nGraph Operation "FFT" Implementation
 The next step is to create the nGraph operation FFT. The header file "fft_op.hpp" has the following content:
 
-@snippet fft_op.hpp fft_op:header
+@snippet ../template_extension/fft_op.hpp fft_op:header
 
 The operation has just one boolean attribute `inverse`. Implementation of the necessary nGraph operation functions are
 in the "fft_op.cpp" file with the following content:
 
-@snippet fft_op.cpp fft_op:implementation
+@snippet ../template_extension/fft_op.cpp fft_op:implementation
 
 Refer to the [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps.md) for more details.
 
@@ -321,13 +321,17 @@ Refer to the [Custom nGraph Operation](../IE_DG/Extensibility_DG/AddingNGraphOps
 The operation implementation for CPU plugin uses OpenCV to perform the FFT. The header file "fft_kernel.hpp" has the
 following content:
 
-@snippet fft_kernel.hpp fft_kernel:header
+@snippet ../template_extension/fft_kernel.hpp fft_kernel:header
 
 The "fft_kernel.cpp" with the implementation of the CPU has the following content:
 
-@snippet fft_kernel.cpp fft_kernel:implementation
+@snippet ../template_extension/fft_kernel.cpp fft_kernel:implementation
 
 Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more details.
+
+#### Extension Library Implementation
+The last step is to create an extension library "extension.cpp" and "extension.hpp" which will include the FFT
+operation for the CPU plugin. The code of  the library is described in the [Extension Library](../IE_DG/Extensibility_DG/Extension.md).
 
 ### Building and Running the Custom Extension
 In order to build the extension run the following:<br>
@@ -347,7 +351,7 @@ the following way:
 ```bash
 python3 $INTEL_OPENVINO_DIR/deployment_tools/tools/benchmark_tool/benchmark_app.py \
         -m <PATH_TO_IR>/wnet_20.xml \
-        -l <PATH_TO_BUILD_DIR>/libfft_cpu_extension.so \
+        -l <PATH_TO_BUILD_DIR>/libtemplate_extension.so \
         -d CPU
 ```
 

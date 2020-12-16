@@ -5,7 +5,7 @@
 //! [fft_op:implementation]
 #include "fft_op.hpp"
 
-using namespace FFTExtension;
+using namespace TemplateExtension;
 
 constexpr ngraph::NodeTypeInfo FFTOp::type_info;
 

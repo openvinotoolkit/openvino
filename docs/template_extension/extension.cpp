@@ -4,6 +4,7 @@
 #include "extension.hpp"
 #include "cpu_kernel.hpp"
 #include "op.hpp"
+#include "fft_op.hpp"
 #include <ngraph/ngraph.hpp>
 #ifdef NGRAPH_ONNX_IMPORT_ENABLED
 #include <onnx_import/onnx_utils.hpp>
@@ -56,6 +57,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     std::map<std::string, ngraph::OpSet> opsets;
     ngraph::OpSet opset;
     opset.insert<Operation>();
+    opset.insert<FFTOp>();
     opsets["custom_opset"] = opset;
     return opsets;
 }

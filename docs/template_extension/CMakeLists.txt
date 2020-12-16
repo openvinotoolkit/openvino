@@ -9,13 +9,16 @@ set(TARGET_NAME "template_extension")
 
 find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_importer)
 find_package(InferenceEngine REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core)
 
 file(GLOB_RECURSE SRC *.cpp)
 
 add_library(${TARGET_NAME} SHARED ${SRC})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
-target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine ${NGRAPH_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine
+                                             ${NGRAPH_LIBRARIES}
+                                             opencv_core)
 
 if (ngraph_onnx_importer_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${ONNX_IMPORTER_LIBRARIES})

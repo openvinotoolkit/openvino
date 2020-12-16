@@ -28,7 +28,7 @@ class FFT(Op):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
-            'version': 'fft_extension',
+            'version': 'custom_opset',
             'inverse': None,
             'in_ports_count': 1,
             'out_ports_count': 1,
