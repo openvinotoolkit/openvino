@@ -20,12 +20,12 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
     {
+        NGRAPH_SUPPRESS_DEPRECATED_START
+
         namespace v0
         {
             /// \brief Operator performing Mean Variance Normalization
@@ -87,7 +87,75 @@ namespace ngraph
             };
         }
         using v0::MVN;
-    } // namespace op
-} // namespace ngraph
 
-NGRAPH_SUPPRESS_DEPRECATED_END
+        NGRAPH_SUPPRESS_DEPRECATED_END
+
+        /// \brief Specifies how eps is applied in MVN
+        enum class MVNEpsMode
+        {
+            // Apply eps inside sqrt
+            INSIDE_SQRT,
+            // Apply eps outside sqrt
+            OUTSIDE_SQRT
+        };
+
+        NGRAPH_API
+        std::ostream& operator<<(std::ostream& s, const MVNEpsMode& type);
+
+        namespace v6
+        {
+            /// \brief Operator performing Mean Variance Normalization
+            ///
+            class NGRAPH_API MVN : public ngraph::op::Op
+            {
+            public:
+                NGRAPH_RTTI_DECLARATION;
+
+                MVN() = default;
+                /// \brief Constructs an MVN operation.
+                ///
+                /// \param data Input tensor with data
+                /// \param reduction_axes A list of axes, along which to reduce.
+                /// \param normalize_variance flag that denotes whether to perform variance
+                ///                           normalization.
+                /// \param eps the number to be added to the variance to avoid division by zero when
+                ///            normalizing the value
+                /// \param eps_mode the mode of applying epsilon
+                ///
+                MVN(const Output<Node>& data,
+                    const Output<Node>& reduction_axes,
+                    bool normalize_variance,
+                    float eps,
+                    MVNEpsMode eps_mode);
+
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                void validate_and_infer_types() override;
+
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                float get_eps() const { return m_eps; }
+                bool get_normalize_variance() const { return m_normalize_variance; }
+                MVNEpsMode get_eps_mode() const { return m_eps_mode; }
+            private:
+                bool m_normalize_variance = true;
+                float m_eps = (float)1e-6;
+                MVNEpsMode m_eps_mode = MVNEpsMode::INSIDE_SQRT;
+            };
+        } // namespace v6
+    }     // namespace op
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::MVNEpsMode>
+        : public EnumAttributeAdapterBase<op::MVNEpsMode>
+    {
+    public:
+        AttributeAdapter(op::MVNEpsMode& value)
+            : EnumAttributeAdapterBase<op::MVNEpsMode>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MVNEpsMode>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
+} // namespace ngraph
