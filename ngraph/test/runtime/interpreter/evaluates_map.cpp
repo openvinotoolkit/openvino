@@ -399,7 +399,7 @@ namespace
             break;
             case element::Type_t::u8:
             {
-                auto p = input->get_data_ptr<u_int8_t>();
+                auto p = input->get_data_ptr<uint8_t>();
                 for (size_t i = 0; i < input_size; ++i)
                 {
                     result[i] = int64_t(p[i]);
@@ -408,7 +408,7 @@ namespace
             break;
             case element::Type_t::u16:
             {
-                auto p = input->get_data_ptr<u_int16_t>();
+                auto p = input->get_data_ptr<uint16_t>();
                 for (size_t i = 0; i < input_size; ++i)
                 {
                     result[i] = int64_t(p[i]);
@@ -417,7 +417,7 @@ namespace
             break;
             case element::Type_t::u32:
             {
-                auto p = input->get_data_ptr<u_int32_t>();
+                auto p = input->get_data_ptr<uint32_t>();
                 for (size_t i = 0; i < input_size; ++i)
                 {
                     result[i] = int64_t(p[i]);
@@ -426,7 +426,7 @@ namespace
             break;
             case element::Type_t::u64:
             {
-                auto p = input->get_data_ptr<u_int64_t>();
+                auto p = input->get_data_ptr<uint64_t>();
                 for (size_t i = 0; i < input_size; ++i)
                 {
                     result[i] = int64_t(p[i]);
