@@ -2,7 +2,8 @@
 
 ## Disclaimer
 
-Inference Engine with the bfloat16 inference implemented on CPU must support the `avx512_bf16` instruction and therefore the bfloat16 data format.
+Inference Engine with the bfloat16 inference implemented on CPU must support the native `avx512_bf16` instruction and therefore the bfloat16 data format.
+Possible to use bfloat16 inference in simulation mode on AVX512 platforms, but it follows up to significant performance degradation in compare with FP32 or native `avx512_bf16` instruction usage.
 
 ## Introduction
 
@@ -22,14 +23,7 @@ There are two ways to check if CPU device can support bfloat16 computations for 
 
 @snippet snippets/Bfloat16Inference0.cpp part0
 
-Current Inference Engine solution for bfloat16 inference uses Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN) and supports inference of the following layers in BF16 computation mode:
-* Convolution
-* FullyConnected
-* InnerProduct
-* LRN
-* Pooling
-
-This means that BF16 inference can only be performed with the CPU plugin on the layers listed above. All other layers are executed in FP32.
+Current Inference Engine solution for bfloat16 inference uses Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN) and supports inference of the significant number of layers in BF16 computation mode.
 
 ## Lowering Inference Precision
 
@@ -51,10 +45,28 @@ The code below demonstrates how to check if the key is set:
 To disable BF16 internal transformations, set the `KEY_ENFORCE_BF16` to `NO`. In this case, the model infers AS IS without modifications with precisions that were set on each layer edge.
 
 @snippet snippets/Bfloat16Inference2.cpp part2
+To disable BF16 in C API:
 
-An exception with message `Platform doesn't support BF16 format` is formed in case of setting `KEY_ENFORCE_BF16` to `YES` on CPU without native BF16 support.
+```
+ie_config_t config = { "ENFORCE_BF16", "NO", NULL};
+ie_core_load_network(core, network, device_name, &config, &exe_network);
+```
+
+An exception with message `Platform doesn't support BF16 format` is formed in case of setting `KEY_ENFORCE_BF16` to `YES` on CPU without native BF16 support or BF16 simulation mode.
 
 Low-Precision 8-bit integer models do not convert to BF16, even if bfloat16 optimization is set by default.         
+
+## Bfloat16 Simulation Mode
+
+Bfloat16 simulation mode is available on CPU and AVX512 platforms which does not support the native `avx512_bf16` instruction. The simulator does not guarantee an adequate performance!
+To enable Bfloat16 simulator:
+* In [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) is need to add an option `-enforcebf16=true`
+* In C++ API is necessary to set `KEY_ENFORCE_BF16` to `YES`
+* In C API
+```
+ie_config_t config = { "ENFORCE_BF16", "YES", NULL};
+ie_core_load_network(core, network, device_name, &config, &exe_network);
+```
 
 ## Performance Counters
 
