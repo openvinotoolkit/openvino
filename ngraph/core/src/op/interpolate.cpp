@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 #include <numeric>
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
@@ -235,17 +236,9 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     const auto input_rank = input_shape.rank().get_length();
 
-    PartialShape padded_input_shape = get_padded_input_shape(input_shape);
-    PartialShape output_shape = padded_input_shape;
-
-    std::vector<int64_t> axes;
-    if (input_values().size() <= 3 ||
-        as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr()))
+    if (input_values().size() == 4 && !is_type<op::Constant>(input_value(3).get_node()))
     {
-        axes = get_axes();
-    }
-    else
-    {
+        PartialShape output_shape = input_shape;
         for (size_t i = 0; i < input_rank; ++i)
         {
             output_shape[i] = Dimension::dynamic();
@@ -253,7 +246,12 @@ void op::v4::Interpolate::validate_and_infer_types()
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
     }
+
+    auto axes = get_axes();
     correct_pads();
+
+    PartialShape padded_input_shape = get_padded_input_shape(input_shape);
+    PartialShape output_shape = padded_input_shape;
 
     if (output_shape.rank().is_static())
     {

@@ -18,12 +18,16 @@ import logging as log
 
 import numpy as np
 
+from extensions.ops.Cast import Cast
+from extensions.ops.elementwise import Div
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.shape import Shape
+from mo.ops.strided_slice import StridedSlice
 
 
 def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
