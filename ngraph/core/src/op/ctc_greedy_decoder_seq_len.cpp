@@ -22,11 +22,14 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen, "CTCGreedyDecoderSeqLen", 6);
 
 op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
-                                                       const Output<Node>& seq_len)
+                                                       const Output<Node>& seq_len,
+                                                       const bool merge_repeated,
+                                                       const element::Type& classes_index_type,
+                                                       const element::Type& sequence_length_type)
     : Op({input, seq_len})
-    , m_merge_repeated(true)
-    , m_classes_index_type(element::i32)
-    , m_sequence_length_type(element::i32)
+    , m_merge_repeated(merge_repeated)
+    , m_classes_index_type(classes_index_type)
+    , m_sequence_length_type(sequence_length_type)
 {
     constructor_validate_and_infer_types();
 }
@@ -89,11 +92,11 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     {
         if (logits_pshape[0].is_static())
         {
-            time_size = logits_pshape[0];
+            batch_size = logits_pshape[0];
         }
         if (logits_pshape[1].is_static())
         {
-            batch_size = logits_pshape[1];
+            time_size = logits_pshape[1];
         }
     }
     if (seq_len_pshape.rank().is_static())

@@ -39,7 +39,11 @@ namespace ngraph
                 /// \param merge_repeated       Whether to merge repeated labels
                 /// \param classes_index_type   Specifies the output classes_index tensor type
                 /// \param sequence_length_type Specifies the output sequence_length tensor type
-                CTCGreedyDecoderSeqLen(const Output<Node>& input, const Output<Node>& seq_len);
+                CTCGreedyDecoderSeqLen(const Output<Node>& input,
+                                       const Output<Node>& seq_len,
+                                       const bool merge_repeated = true,
+                                       const element::Type& classes_index_type = element::i32,
+                                       const element::Type& sequence_length_type = element::i32);
 
                 CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                        const Output<Node>& seq_len,
