@@ -21,10 +21,10 @@ bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngra
         //in the case input_shape will be broadcast
         return false;
     }
-    for (int64_t i_dim = 0; i_dim < input_shape_rank; i_dim++) {
-        if(input_shape[i_dim].is_static() && broadcast_shape[i_dim].is_static()) {
+    for (int64_t i_dim = input_shape_rank - 1, b_dim = broadcast_shape_rank - 1; i_dim >= 0 && b_dim >=0; --i_dim, --b_dim) {
+        if(input_shape[i_dim].is_static() && broadcast_shape[b_dim].is_static()) {
             const auto & input_shape_dim = input_shape[i_dim].get_length();
-            const auto & broadcast_shape_dim = broadcast_shape[i_dim].get_length();
+            const auto & broadcast_shape_dim = broadcast_shape[b_dim].get_length();
             if (input_shape_dim != broadcast_shape_dim && broadcast_shape_dim != 1) {
                 //We can not eliminate broadcast op because
                 //input_shape will be broadcast
