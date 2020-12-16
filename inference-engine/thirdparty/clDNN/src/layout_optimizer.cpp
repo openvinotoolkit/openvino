@@ -375,7 +375,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         // Check for non-grouped or depthwise convolution
         if (input_layout.format.dimension() == 4 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
-            weights_layout.size.batch[0] >= 16 &&
+            weights_layout.size.batch[0] * weights_layout.size.group[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
              conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
              conv->split() == static_cast<int32_t>(input_layout.size.feature[0])))
