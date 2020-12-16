@@ -39,11 +39,11 @@ namespace ngraph
                  K, N, M - let it be depth, row and column sizes of a 3D tensor
                  k, n, m - corresponding indices
                  M*(N*k + n) + m
-                 M*N*k + M*n + m <-- index after flattening of a 3D array
+                 M*N*k + M*n + m   <-- index after flattening of a 3D array
 
                  P, K, N, M - p, k, n, m
                  M*(N*(K*p + k) + n) + m
-                 M*N*K*p + M*N*k + M*n + m <-- index after flattening of a 4D array
+                 M*N*K*p + M*N*k + M*n + m   <-- index after flattening of a 4D array
                 */
 
                 // in 1D case results can be achieved without additional calculations
@@ -56,7 +56,7 @@ namespace ngraph
                     return;
                 }
 
-                int64_t axis_mul = 1; // axis_mul = M*N*K in 3D case if axis = 0
+                int64_t axis_mul = 1;  // axis_mul = M*N*K in 3D case if axis = 0
                 for (int64_t i = axis + 1; i < data_shape.size(); i++)
                 {
                     axis_mul *= data_shape[i];
