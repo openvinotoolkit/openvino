@@ -56,4 +56,3 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks1)
     ASSERT_EQ(G->get_element_type(), element::f32);
     ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape));
 }
-
