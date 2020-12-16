@@ -12,14 +12,6 @@
 #define IR_SERIALIZATION_MODELS_PATH ""
 #endif
 
-namespace  {
-std::string to_valid_os_path(std::string name) {
-    const auto invalid_charecter = [](std::string::value_type c) { return !std::isalnum(c); };
-    std::replace_if(begin(name), end(name), invalid_charecter, '_');
-    return name;
-}
-} // namespace
-
 typedef std::tuple<std::string> SerializationParams;
 
 class SerializationTest: public CommonTestUtils::TestsCommon,
@@ -29,14 +21,10 @@ public:
     std::string m_out_xml_path;
     std::string m_out_bin_path;
 
-
-
     void SetUp() override {
         m_model_path = IR_SERIALIZATION_MODELS_PATH + std::get<0>(GetParam());
-        // TODO consider std::tmpnam
-        std::cout << "TEST START: " << m_model_path << std::endl;
-        const std::string test_name = to_valid_os_path(
-            ::testing::UnitTest::GetInstance()->current_test_info()->name());
+
+        const std::string test_name =  GetTestName() + "_" + GetTimestamp();
         m_out_xml_path = test_name + ".xml";
         m_out_bin_path = test_name + ".bin";
     }
