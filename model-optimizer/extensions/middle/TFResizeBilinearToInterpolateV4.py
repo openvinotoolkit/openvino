@@ -26,9 +26,9 @@ from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 
 
-def replace_resize_bilinear(graph: Graph, resize: Node):
+def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     resize_name = resize.soft_get('name', resize.id)
-    log.debug("Converting of TF ResizeBilinear to Interpolate-4 is triggered for node {}.".format(resize_name))
+    log.debug("Converting of {} to Interpolate-4 is triggered for node {}.".format(resize.op, resize_name))
 
     input_shape = resize.in_port(0).data.get_shape()
     input_rank = len(input_shape)
@@ -38,7 +38,7 @@ def replace_resize_bilinear(graph: Graph, resize: Node):
 
     num_of_inputs = len([port for port in resize.in_ports().values() if not port.disconnected()])
     assert num_of_inputs == 2, \
-        "Number of inputs of TFResizeBilinear (with name {}) should be equal to 2".format(resize_name)
+        "Number of inputs of {} (with name {}) should be equal to 2".format(resize.op, resize_name)
 
     new_sizes_value = resize.in_port(1).data.get_value()
     assert new_sizes_value is not None, "Node {} with op {} has no value in input port 1".format(resize_name, resize.op)
@@ -61,10 +61,12 @@ def replace_resize_bilinear(graph: Graph, resize: Node):
     align_corners = resize.align_corners
     half_pixel_centers = resize.half_pixel_centers
 
+    nearest_mode = 'floor'
     if align_corners:
         coordinate_transformation_mode = 'align_corners'
+        nearest_mode = 'round_prefer_ceil'
     elif half_pixel_centers:
-        coordinate_transformation_mode = 'half_pixel'
+        coordinate_transformation_mode = 'tf_half_pixel_for_nn' if interpolation_mode == 'nearest' else 'half_pixel'
     else:
         coordinate_transformation_mode = 'asymmetric'
 
@@ -79,12 +81,12 @@ def replace_resize_bilinear(graph: Graph, resize: Node):
                                                },
                                                {
                                                    'name': resize_name + '/interpolate_4',
-                                                   'mode': 'linear',
+                                                   'mode': interpolation_mode,
                                                    'antialias': False,
                                                    'coordinate_transformation_mode': coordinate_transformation_mode,
                                                    'pads_begin': int64_array([0]),
                                                    'pads_end': int64_array([0]),
-                                                   'nearest_mode': 'round_prefer_floor',
+                                                   'nearest_mode': nearest_mode,
                                                    'cube_coeff': -0.75,
                                                    'shape_calculation_mode': shape_calculation_mode,
                                                    'version': 'opset4',
@@ -110,4 +112,5 @@ class TFResizeBilinearToInterpolateV4(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         resize_bilinear_ops = graph.get_op_nodes(op='TFResizeBilinear')
         for resize in resize_bilinear_ops:
-            replace_resize_bilinear(graph, resize)
+            # replace_resize_bilinear(graph, resize)
+            replace_tf_resize(graph, resize, 'linear')
