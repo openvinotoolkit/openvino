@@ -248,6 +248,15 @@ IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
 ## Const layer has incorrect dimensions in the output data
 IE_CPU.nothing_to_reverse
 
+# Unsupported dynamic ops
+onnx_size_dyn_op
+
+# Constant network
+# MKLDNNGraph::CreateGraph: No inputs for the topology
+onnx_size_op_single
+onnx_size_op_graph_end
+onnx_size_op_graph_middle
+
 
 #-------------------------------------------------------------------------------
 #
