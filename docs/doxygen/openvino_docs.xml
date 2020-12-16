@@ -60,6 +60,7 @@
                 <tab type="user" title="Introduction" url="@ref openvino_docs_security_guide_introduction"/>
                 <tab type="user" title="Using DL Workbench Securely" url="@ref openvino_docs_security_guide_workbench"/>
                 <tab type="user" title="Using Encrypted Models" url="@ref openvino_docs_IE_DG_protecting_model_guide"/>
+                <tab type="user" title="Security Add-on" url="@ref ovsa_get_started"/>
             </tab>
         </tab>
 
@@ -76,7 +77,7 @@
                 <!-- Performance Benchmarks -->
                 <tab type="usergroup" title="Performance Measures" url="@ref openvino_docs_performance_benchmarks">
                     <tab type="user" title="Performance Information Frequently Asked Questions" url="@ref openvino_docs_performance_benchmarks_faq"/>
-                    <tab type="user" title="Download Performance Data Spreadsheet in MS Excel* Format" url="https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.1-Download-Excel.xlsx"/>
+                    <tab type="user" title="Download Performance Data Spreadsheet in MS Excel* Format" url="https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.2-Download-Excel.xlsx"/>
                     <tab type="user" title="INT8 vs. FP32 Comparison on Select Networks and Platforms" url="@ref openvino_docs_performance_int8_vs_fp32"/>
                 </tab>
                 <tab type="user" title="Performance Optimization Guide" url="@ref openvino_docs_optimization_guide_dldt_optimization_guide"/>
@@ -161,7 +162,8 @@
                 <tab type="user" title="Benchmark Sample" url="@ref gst_samples_benchmark_README"/>
             </tab>
             <tab type="usergroup" title="Add-Ons" url="">
-              <tab type="user" title="Model Server" url="@ref openvino_docs_ovms"/>  
+              <tab type="user" title="Model Server" url="@ref openvino_docs_ovms"/>
+              <tab type="user" title="Security Add-on" url="./ovsa_get_started.html"/>  
             </tab>
         </tab>
 

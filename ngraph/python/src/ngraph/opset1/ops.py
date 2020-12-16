@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-"""! Factory functions for all ngraph ops."""
+"""Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
@@ -60,7 +60,7 @@ _get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 
 @unary_op
 def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies f(x) = abs(x) to the input node element-wise.
+    """Return node which applies f(x) = abs(x) to the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -71,7 +71,7 @@ def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def acos(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply inverse cosine function on the input node element-wise.
+    """Apply inverse cosine function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -87,7 +87,7 @@ def add(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which applies f(x) = A+B to the input nodes element-wise."""
+    """Return node which applies f(x) = A+B to the input nodes element-wise."""
     return _get_node_factory_opset1().create(
         "Add", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
@@ -95,7 +95,7 @@ def add(
 
 @unary_op
 def asin(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply inverse sine function on the input node element-wise.
+    """Apply inverse sine function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -106,7 +106,7 @@ def asin(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def atan(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply inverse tangent function on the input node element-wise.
+    """Apply inverse tangent function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -127,7 +127,7 @@ def avg_pool(
     auto_pad: Optional[str] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return average pooling node.
+    """Return average pooling node.
 
     @param data_batch:      The input node providing data.
     @param strides:         The window movement strides.
@@ -170,7 +170,7 @@ def batch_norm_inference(
     epsilon: float,
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
+    """Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
 
     @param data: The input tensor with data for normalization.
     @param gamma: The scalar scaling for normalized value.
@@ -199,7 +199,7 @@ def binary_convolution(
     auto_pad: str = "EXPLICIT",
     name: Optional[str] = None,
 ) -> Node:
-    """! Create node performing convolution with binary weights, binary input and integer output.
+    """Create node performing convolution with binary weights, binary input and integer output.
 
     @param data: The node providing data batch tensor.
     @param filter: The node providing filters tensor.
@@ -236,7 +236,7 @@ def broadcast(
     mode: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Create a node which broadcasts the input node's values along specified axes to a desired shape.
+    """Create a node which broadcasts the input node's values along specified axes to a desired shape.
 
     @param data: The node with input tensor data.
     @param target_shape: The node with a new shape we want to broadcast tensor to.
@@ -262,7 +262,7 @@ def ctc_greedy_decoder(
     merge_repeated: bool = True,
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform greedy decoding on the logits given in input (best path).
+    """Perform greedy decoding on the logits given in input (best path).
 
     @param data: Logits on which greedy decoding is performed.
     @param sequence_mask: The tensor with sequence masks for each sequence in the batch.
@@ -278,7 +278,7 @@ def ctc_greedy_decoder(
 
 @unary_op
 def ceiling(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies ceiling to the input node element-wise.
+    """Return node which applies ceiling to the input node element-wise.
 
     @param node: The node providing data to ceiling operation.
     @param name: Optional name for output node.
@@ -291,7 +291,13 @@ def ceiling(node: NodeInput, name: Optional[str] = None) -> Node:
 def clamp(
     data: NodeInput, min_value: ScalarData, max_value: ScalarData, name: Optional[str] = None
 ) -> Node:
-    """! Perform clamp element-wise on data from input node.
+    """Perform clamp element-wise on data from input node.
+
+    @param data: Input tensor. One of: input node, array or scalar.
+    @param min_value: The lower bound of the <min_value;max_value> range. Scalar value.
+    @param max_value: The upper bound of the <min_value;max_value> range. Scalar value.
+    @param name: Optional output node name.
+    @return The new node performing a clamp operation on its input data element-wise.
 
     Performs a clipping operation on an input value between a pair of boundary values.
 
@@ -302,18 +308,12 @@ def clamp(
 
     Clamp uses the following logic:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~{.py}
+    @code{.py}
         if data < min_value:
             data=min_value
         elif data > max_value:
             data=max_value
-    ~~~~~~~~~~~~~~~~~~~~~~~~
-
-    @param data: Input tensor. One of: input node, array or scalar.
-    @param min_value: The lower bound of the <min_value;max_value> range. Scalar value.
-    @param max_value: The upper bound of the <min_value;max_value> range. Scalar value.
-    @param name: Optional output node name.
-    @return The new node performing a clamp operation on its input data element-wise.
+    @endcode
     """
     return _get_node_factory_opset1().create(
         "Clamp", [as_node(data)], {"min": min_value, "max": max_value}
@@ -322,7 +322,7 @@ def clamp(
 
 @nameable_op
 def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Node:
-    """! Concatenate input nodes into single new node along specified axis.
+    """Concatenate input nodes into single new node along specified axis.
 
     @param nodes: The nodes we want concatenate into single new node.
     @param axis: The axis along which we want to concatenate input nodes.
@@ -334,7 +334,7 @@ def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Nod
 
 @nameable_op
 def constant(value: NumericData, dtype: NumericType = None, name: Optional[str] = None) -> Constant:
-    """! Create a Constant node from provided value.
+    """Create a Constant node from provided value.
 
     @param value: One of: array of values or scalar to initialize node with.
     @param dtype: The data type of provided data.
@@ -348,7 +348,7 @@ def constant(value: NumericData, dtype: NumericType = None, name: Optional[str] 
 def convert(
     data: NodeInput, destination_type: Union[str, NumericType], name: Optional[str] = None
 ) -> Node:
-    """! Return node which casts input node values to specified type.
+    """Return node which casts input node values to specified type.
 
     @param data: Node which produces the input tensor.
     @param destination_type: Provides the target type for the conversion.
@@ -364,7 +364,7 @@ def convert(
 
 @binary_op
 def convert_like(data: NodeInput, like: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which casts data node values to the type of another node.
+    """Return node which casts data node values to the type of another node.
 
     @param data: Node which produces the input tensor
     @param like: Node which provides the target type information for the conversion
@@ -385,7 +385,7 @@ def convolution(
     auto_pad: str = "EXPLICIT",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node performing batched convolution operation.
+    """Return node performing batched convolution operation.
 
     @param data: The node providing data batch tensor.
     @param filter: The node providing filters tensor.
@@ -423,7 +423,7 @@ def convolution_backprop_data(
     output_padding: Optional[List[int]] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Create node performing a batched-convolution backprop data operation.
+    """Create node performing a batched-convolution backprop data operation.
 
     @param      data:         The node producing data from forward-prop
     @param      filters:      The node producing the filters from forward-prop.
@@ -469,7 +469,7 @@ def convolution_backprop_data(
 
 @unary_op
 def cos(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply cosine function on the input node element-wise.
+    """Apply cosine function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -480,7 +480,7 @@ def cos(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def cosh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply hyperbolic cosine function on the input node element-wise.
+    """Apply hyperbolic cosine function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -503,7 +503,7 @@ def deformable_convolution(
     deformable_group: int = 1,
     name: Optional[str] = None,
 ) -> Node:
-    """! Create node performing deformable convolution.
+    """Create node performing deformable convolution.
 
     @param data: The node providing data batch tensor.
     @param filter: The node providing filters tensor.
@@ -548,7 +548,7 @@ def deformable_psroi_pooling(
     offsets: Optional[NodeInput] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node performing DeformablePSROIPooling operation.
+    """Return node performing DeformablePSROIPooling operation.
 
     DeformablePSROIPooling computes position-sensitive pooling
     on regions of interest specified by input.
@@ -589,7 +589,7 @@ def deformable_psroi_pooling(
 
 @nameable_op
 def depth_to_space(node: Node, mode: str, block_size: int = 1, name: str = None) -> Node:
-    """! Rearranges input tensor from depth into blocks of spatial data.
+    """Rearranges input tensor from depth into blocks of spatial data.
 
     Values from the height and width dimensions are moved to the depth dimension.
 
@@ -626,7 +626,7 @@ def detection_output(
     aux_box_preds: NodeInput = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Generate the detection output using information on location and confidence predictions.
+    """Generate the detection output using information on location and confidence predictions.
 
     @param  box_logits:         The 2D input tensor with box logits.
     @param  class_preds:        The 2D input tensor with class predictions.
@@ -635,6 +635,7 @@ def detection_output(
     @param  aux_class_preds:    The 2D input tensor with additional class predictions information.
     @param  aux_box_preds:      The 2D input tensor with additional box predictions information.
     @param  name:               Optional name for the output node.
+    @return Node representing DetectionOutput operation.
 
      Available attributes are:
 
@@ -726,7 +727,7 @@ def detection_output(
                             Required: no
 
     Example of attribute dictionary:
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.py}
+    @code{.py}
         # just required ones
         attrs = {
             'num_classes': 85,
@@ -743,11 +744,9 @@ def detection_output(
             'input_height': [32],
             'input_width': [32],
         }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    @endcode
 
     Optional attributes which are absent from dictionary will be set with corresponding default.
-
-    @return Node representing DetectionOutput operation.
     """
     requirements = [
         ("num_classes", True, np.integer, is_positive_value),
@@ -786,7 +785,7 @@ def divide(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which applies f(x) = A/B to the input nodes element-wise.
+    """Return node which applies f(x) = A/B to the input nodes element-wise.
 
     @param left_node: The node providing dividend data.
     @param right_node: The node providing divisor data.
@@ -801,7 +800,7 @@ def divide(
 
 @nameable_op
 def elu(data: NodeInput, alpha: NumericType, name: Optional[str] = None) -> Node:
-    """! Perform Exponential Linear Unit operation element-wise on data from input node.
+    """Perform Exponential Linear Unit operation element-wise on data from input node.
 
     Computes exponential linear: alpha * (exp(data) - 1) if < 0, data otherwise.
 
@@ -823,7 +822,7 @@ def equal(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which checks if input nodes are equal element-wise.
+    """Return node which checks if input nodes are equal element-wise.
 
     @param left_node: The first input node for equal operation.
     @param right_node: The second input node for equal operation.
@@ -839,7 +838,7 @@ def equal(
 
 @unary_op
 def erf(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which calculates Gauss error function element-wise with given tensor.
+    """Return node which calculates Gauss error function element-wise with given tensor.
 
     @param node: The node providing data for operation.
     @param name: The optional name for new output node.
@@ -850,7 +849,7 @@ def erf(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def exp(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies exponential function to the input node element-wise.
+    """Return node which applies exponential function to the input node element-wise.
 
     @param node: The node providing data for operation.
     @param name: The optional name for new output node.
@@ -870,25 +869,7 @@ def fake_quantize(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    r"""! Perform an element-wise linear quantization on input data.
-
-    Input floating point values are quantized into a discrete set of floating point values.
-
-    ~~~~~~~~~~~~~{.py}
-        if x <= input_low:
-            output = output_low
-        if x > input_high:
-            output = output_high
-        else:
-            output = fake_quantize(output)
-    ~~~~~~~~~~~~~
-
-    Fake quantize uses the following logic:
-
-    \f[ output =
-            \dfrac{round( \dfrac{data - input\_low}{(input\_high - input\_low)\cdot (levels-1)})}
-            {(levels-1)\cdot (output\_high - output\_low)} + output\_low
-    \f]
+    r"""Perform an element-wise linear quantization on input data.
 
     @param data:           The node with data tensor.
     @param input_low:      The node with the minimum for input values.
@@ -899,6 +880,24 @@ def fake_quantize(
     @param auto_broadcast: The type of broadcasting specifies rules used for
                            auto-broadcasting of input tensors.
     @return New node with quantized value.
+
+    Input floating point values are quantized into a discrete set of floating point values.
+
+    @code{.py}
+        if x <= input_low:
+            output = output_low
+        if x > input_high:
+            output = output_high
+        else:
+            output = fake_quantize(output)
+    @endcode
+
+    Fake quantize uses the following logic:
+
+    \f[ output =
+            \dfrac{round( \dfrac{data - input\_low}{(input\_high - input\_low)\cdot (levels-1)})}
+            {(levels-1)\cdot (output\_high - output\_low)} + output\_low
+    \f]
     """
     return _get_node_factory_opset1().create(
         "FakeQuantize",
@@ -909,7 +908,7 @@ def fake_quantize(
 
 @unary_op
 def floor(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies floor to the input node element-wise.
+    """Return node which applies floor to the input node element-wise.
 
     @param node: The input node providing data.
     @param name: The optional name for new output node.
@@ -925,7 +924,7 @@ def floor_mod(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node performing element-wise FloorMod (division reminder) with two given tensors.
+    """Return node performing element-wise FloorMod (division reminder) with two given tensors.
 
     @param left_node: The first input node for FloorMod operation.
     @param right_node: The second input node for FloorMod operation.
@@ -942,7 +941,7 @@ def floor_mod(
 def gather(
     data: NodeInput, indices: NodeInput, axis: NodeInput, name: Optional[str] = None
 ) -> Node:
-    """! Return Gather node which takes slices from axis of data according to indices.
+    """Return Gather node which takes slices from axis of data according to indices.
 
     @param data: The tensor from which slices are gathered.
     @param indices: Tensor with indexes to gather.
@@ -962,13 +961,20 @@ def gather_tree(
     end_token: NodeInput,
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform GatherTree operation.
+    """Perform GatherTree operation.
+
+    @param step_ids: The tensor with indices from per each step.
+    @param parent_idx: The tensor with with parent beam indices.
+    @param max_seq_len: The tensor with maximum lengths for each sequence in the batch.
+    @param end_token: The scalar tensor with value of the end marker in a sequence.
+    @param name: Optional name for output node.
+    @return The new node performing a GatherTree operation.
 
     The GatherTree node generates the complete beams from the indices per each step
     and the parent beam indices.
     GatherTree uses the following logic:
 
-    ~~~~~~~~~~~~~{.py}
+    @code{.py}
         for batch in range(BATCH_SIZE):
             for beam in range(BEAM_WIDTH):
                 max_sequence_in_beam = min(MAX_TIME, max_seq_len[batch])
@@ -979,15 +985,7 @@ def gather_tree(
                     final_idx[level, batch, beam] = step_idx[level, batch, parent]
 
                     parent = parent_idx[level, batch, parent]
-    ~~~~~~~~~~~~~
-
-
-    @param step_ids: The tensor with indices from per each step.
-    @param parent_idx: The tensor with with parent beam indices.
-    @param max_seq_len: The tensor with maximum lengths for each sequence in the batch.
-    @param end_token: The scalar tensor with value of the end marker in a sequence.
-    @param name: Optional name for output node.
-    @return The new node performing a GatherTree operation.
+    @endcode
     """
     node_inputs = as_nodes(step_ids, parent_idx, max_seq_len, end_token)
     return _get_node_factory_opset1().create("GatherTree", node_inputs)
@@ -1000,7 +998,7 @@ def greater(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which checks if left input node is greater than the right node element-wise.
+    """Return node which checks if left input node is greater than the right node element-wise.
 
     @param left_node: The first input node providing data.
     @param right_node: The second input node providing data.
@@ -1021,7 +1019,7 @@ def greater_equal(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which checks if left node is greater or equal to the right node element-wise.
+    """Return node which checks if left node is greater or equal to the right node element-wise.
 
     @param left_node: The first input node providing data.
     @param right_node: The second input node providing data.
@@ -1037,7 +1035,7 @@ def greater_equal(
 
 
 def grn(data: Node, bias: float, name: Optional[str] = None) -> Node:
-    r"""! Perform Global Response Normalization with L2 norm (across channels only).
+    r"""Perform Global Response Normalization with L2 norm (across channels only).
 
     Computes GRN operation on channels for input tensor:
 
@@ -1062,7 +1060,7 @@ def group_convolution(
     auto_pad: str = "EXPLICIT",
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform Group Convolution operation on data from input node.
+    """Perform Group Convolution operation on data from input node.
 
     @param data:        The node producing input data.
     @param filters:     The node producing filters data.
@@ -1109,7 +1107,7 @@ def group_convolution_backprop_data(
     output_padding: Optional[List[int]] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform Group Convolution operation on data from input node.
+    """Perform Group Convolution operation on data from input node.
 
     @param data:            The node producing input data.
     @param filters:         The node producing filter data.
@@ -1163,19 +1161,19 @@ def group_convolution_backprop_data(
 
 @nameable_op
 def hard_sigmoid(data: Node, alpha: NodeInput, beta: NodeInput, name: Optional[str] = None) -> Node:
-    """! Perform Hard Sigmoid operation element-wise on data from input node.
-
-    Hard Sigmoid uses the following logic:
-
-    ~~~~~~~~~~~~~{.py}
-        y = max(0, min(1, alpha * data + beta))
-    ~~~~~~~~~~~~~
+    """Perform Hard Sigmoid operation element-wise on data from input node.
 
     @param data: The node with data tensor.
     @param alpha: A node producing the alpha parameter.
     @param beta: A node producing the beta parameter
     @param name: Optional output node name.
     @return The new node performing a Hard Sigmoid element-wise on input tensor.
+
+    Hard Sigmoid uses the following logic:
+
+    @code{.py}
+        y = max(0, min(1, alpha * data + beta))
+    @endcode
     """
     return _get_node_factory_opset1().create("HardSigmoid", [data, as_node(alpha), as_node(beta)])
 
@@ -1184,12 +1182,13 @@ def hard_sigmoid(data: Node, alpha: NodeInput, beta: NodeInput, name: Optional[s
 def interpolate(
     image: Node, output_shape: NodeInput, attrs: dict, name: Optional[str] = None
 ) -> Node:
-    """! Perform interpolation of independent slices in input tensor.
+    """Perform interpolation of independent slices in input tensor.
 
     @param  image:         The node providing input tensor with data for interpolation.
     @param  output_shape:  1D tensor describing output shape for spatial axes.
     @param  attrs:         The dictionary containing key, value pairs for attributes.
     @param  name:          Optional name for the output node.
+    @return Node representing interpolation operation.
 
     Available attributes are:
 
@@ -1224,7 +1223,7 @@ def interpolate(
                         Required: no
 
     Example of attribute dictionary:
-    ~~~~~~~~~~~~~
+    @code{.py}
         # just required ones
         attrs = {
             'axes': [2, 3],
@@ -1237,10 +1236,8 @@ def interpolate(
             'antialias': True,
             'pads_begin': [2, 2, 2],
         }
-    ~~~~~~~~~~~~~
+    @endcode
     Optional attributes which are absent from dictionary will be set with corresponding default.
-
-    @return Node representing interpolation operation.
     """
     requirements = [
         ("axes", True, np.integer, is_non_negative_value),
@@ -1263,7 +1260,7 @@ def less(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which checks if left input node is less than the right node element-wise.
+    """Return node which checks if left input node is less than the right node element-wise.
 
     @param left_node: The first input node providing data.
     @param right_node: The second input node providing data.
@@ -1284,7 +1281,7 @@ def less_equal(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which checks if left input node is less or equal the right node element-wise.
+    """Return node which checks if left input node is less or equal the right node element-wise.
 
     @param left_node: The first input node providing data.
     @param right_node: The second input node providing data.
@@ -1301,7 +1298,7 @@ def less_equal(
 
 @unary_op
 def log(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies natural logarithm to the input node element-wise.
+    """Return node which applies natural logarithm to the input node element-wise.
 
     @param node: The input node providing data for operation.
     @param name: The optional new name for output node.
@@ -1317,7 +1314,7 @@ def logical_and(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which perform logical and operation on input nodes element-wise.
+    """Return node which perform logical and operation on input nodes element-wise.
 
     @param left_node: The first input node providing data.
     @param right_node: The second input node providing data.
@@ -1333,7 +1330,7 @@ def logical_and(
 
 @unary_op
 def logical_not(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies element-wise logical negation to the input node.
+    """Return node which applies element-wise logical negation to the input node.
 
     @param node: The input node providing data.
     @param name: The optional new name for output node.
@@ -1349,7 +1346,7 @@ def logical_or(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which performs logical OR operation on input nodes element-wise.
+    """Return node which performs logical OR operation on input nodes element-wise.
 
     @param left_node: The first input node providing data.
     @param right_node: The second input node providing data.
@@ -1370,7 +1367,7 @@ def logical_xor(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which performs logical XOR operation on input nodes element-wise.
+    """Return node which performs logical XOR operation on input nodes element-wise.
 
     @param left_node: The first input node providing data.
     @param right_node: The second input node providing data.
@@ -1394,7 +1391,7 @@ def lrn(
     size: int = 5,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performs element-wise Local Response Normalization (LRN) operation.
+    """Return a node which performs element-wise Local Response Normalization (LRN) operation.
 
     @param data: Input data.
     @param alpha: A scale factor (usually positive).
@@ -1423,7 +1420,7 @@ def lstm_cell(
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performs LSTMCell operation.
+    """Return a node which performs LSTMCell operation.
 
     @param X: The input tensor with shape: [batch_size, input_size].
     @param initial_hidden_state: The hidden state tensor with shape: [batch_size, hidden_size].
@@ -1489,7 +1486,7 @@ def lstm_sequence(
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performs LSTMSequence operation.
+    """Return a node which performs LSTMSequence operation.
 
     @param X: The input tensor. Shape: [batch_size, seq_length, input_size].
     @param initial_hidden_state:    The hidden state tensor.
@@ -1559,7 +1556,7 @@ def matmul(
     transpose_b: bool,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return the Matrix Multiplication operation.
+    """Return the Matrix Multiplication operation.
 
     @param data_a: left-hand side matrix
     @param data_b: right-hand side matrix
@@ -1584,7 +1581,7 @@ def max_pool(
     auto_pad: Optional[str] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform max pooling operation with given parameters on provided data.
+    """Perform max pooling operation with given parameters on provided data.
 
     @param  data:           The node providing input data.
     @param  strides:        The distance (in pixels) to slide the filter on the feature map
@@ -1623,7 +1620,7 @@ def maximum(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which applies the maximum operation to input nodes elementwise."""
+    """Return node which applies the maximum operation to input nodes elementwise."""
     return _get_node_factory_opset1().create(
         "Maximum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
@@ -1636,7 +1633,7 @@ def minimum(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which applies the minimum operation to input nodes elementwise."""
+    """Return node which applies the minimum operation to input nodes elementwise."""
     return _get_node_factory_opset1().create(
         "Minimum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
@@ -1649,7 +1646,7 @@ def mod(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node performing element-wise division reminder with two given tensors.
+    """Return node performing element-wise division reminder with two given tensors.
 
     @param left_node: The first input node for mod operation.
     @param right_node: The second input node for mod operation.
@@ -1669,7 +1666,7 @@ def multiply(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which applies f(x) = A*B to the input nodes elementwise."""
+    """Return node which applies f(x) = A*B to the input nodes elementwise."""
     return _get_node_factory_opset1().create(
         "Multiply", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
@@ -1677,7 +1674,7 @@ def multiply(
 
 @unary_op
 def negative(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies f(x) = -x to the input node elementwise."""
+    """Return node which applies f(x) = -x to the input node elementwise."""
     return _get_node_factory_opset1().create("Negative", [node])
 
 
@@ -1692,7 +1689,7 @@ def non_max_suppression(
     sort_result_descending: bool = True,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performs NonMaxSuppression.
+    """Return a node which performs NonMaxSuppression.
 
     @param boxes: Tensor with box coordinates.
     @param scores: Tensor with box scores.
@@ -1725,7 +1722,7 @@ def non_max_suppression(
 def normalize_l2(
     data: NodeInput, axes: NodeInput, eps: float, eps_mode: str, name: Optional[str] = None
 ) -> Node:
-    """! Construct an NormalizeL2 operation.
+    """Construct an NormalizeL2 operation.
 
     @param data: Node producing the input tensor
     @param axes: Node indicating axes along which L2 reduction is calculated
@@ -1745,7 +1742,7 @@ def not_equal(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which checks if input nodes are unequal element-wise.
+    """Return node which checks if input nodes are unequal element-wise.
 
     @param left_node: The first input node for not-equal operation.
     @param right_node: The second input node for not-equal operation.
@@ -1768,7 +1765,7 @@ def one_hot(
     axis: int,
     name: Optional[str] = None,
 ) -> Node:
-    """! Create node performing one-hot encoding on input data.
+    """Create node performing one-hot encoding on input data.
 
     @param indices: Input tensor of rank N with indices of any supported integer data type.
     @param depth: Scalar of any supported integer type that specifies number of classes and
@@ -1795,7 +1792,7 @@ def pad(
     arg_pad_value: Optional[NodeInput] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a generic padding operation.
+    """Return a generic padding operation.
 
     @param arg: The node producing input tensor to be padded.
     @param pads_begin: number of padding elements to be added before position 0
@@ -1817,7 +1814,7 @@ def pad(
 def parameter(
     shape: TensorShape, dtype: NumericType = np.float32, name: Optional[str] = None
 ) -> Parameter:
-    """! Return an ngraph Parameter object."""
+    """Return an ngraph Parameter object."""
     element_type = get_element_type(dtype)
     return Parameter(element_type, PartialShape(shape))
 
@@ -1829,7 +1826,7 @@ def power(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which perform element-wise exponentiation operation.
+    """Return node which perform element-wise exponentiation operation.
 
     @param left_node: The node providing the base of operation.
     @param right_node: The node providing the exponent of operation.
@@ -1845,21 +1842,21 @@ def power(
 
 @nameable_op
 def prelu(data: NodeInput, slope: NodeInput, name: Optional[str] = None) -> Node:
-    """! Perform Parametrized Relu operation element-wise on data from input node.
-
-    PRelu uses the following logic:
-
-    ~~~~~~~~~~~~~{.py}
-        if data < 0:
-            data = data * slope
-        elif data >= 0:
-            data = data
-    ~~~~~~~~~~~~~
+    """Perform Parametrized Relu operation element-wise on data from input node.
 
     @param data: The node with data tensor.
     @param slope: The node with the multipliers for negative values.
     @param name: Optional output node name.
     @return The new node performing a PRelu operation on tensor's channels.
+
+    PRelu uses the following logic:
+
+    @code{.py}
+        if data < 0:
+            data = data * slope
+        elif data >= 0:
+            data = data
+    @endcode
     """
     return _get_node_factory_opset1().create("PRelu", as_nodes(data, slope))
 
@@ -1868,7 +1865,7 @@ def prelu(data: NodeInput, slope: NodeInput, name: Optional[str] = None) -> Node
 def prior_box_clustered(
     output_size: Node, image_size: NodeInput, attrs: dict, name: Optional[str] = None
 ) -> Node:
-    """! Generate prior boxes of specified sizes normalized to the input image size.
+    """Generate prior boxes of specified sizes normalized to the input image size.
 
     @param  output_size:    1D tensor with two integer elements [height, width]. Specifies the
                             spatial size of generated grid with boxes.
@@ -1876,6 +1873,7 @@ def prior_box_clustered(
                             specifies shape of the image for which boxes are generated.
     @param  attrs:          The dictionary containing key, value pairs for attributes.
     @param  name:           Optional name for the output node.
+    @return Node representing PriorBoxClustered operation.
 
      Available attributes are:
 
@@ -1916,7 +1914,7 @@ def prior_box_clustered(
                     Required: no
 
     Example of attribute dictionary:
-    ~~~~~~~~~~~~~{.py}
+    @code{.py}
         # just required ones
         attrs = {
             'offset': 85,
@@ -1927,11 +1925,9 @@ def prior_box_clustered(
             'clip': False,
             'step_widths': [1.5, 2.0, 2.5]
         }
-    ~~~~~~~~~~~~~
+    @endcode
 
     Optional attributes which are absent from dictionary will be set with corresponding default.
-
-    @return Node representing PriorBoxClustered operation.
     """
     requirements = [
         ("widths", False, np.floating, is_positive_value),
@@ -1954,12 +1950,13 @@ def prior_box_clustered(
 def prior_box(
     layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None
 ) -> Node:
-    """! Generate prior boxes of specified sizes and aspect ratios across all dimensions.
+    """Generate prior boxes of specified sizes and aspect ratios across all dimensions.
 
     @param  layer_shape:  Shape of layer for which prior boxes are computed.
     @param  image_shape:  Shape of image to which prior boxes are scaled.
     @param  attrs:        The dictionary containing key, value pairs for attributes.
     @param  name:         Optional name for the output node.
+    @return Node representing prior box operation.
 
     Available attributes are:
 
@@ -2027,7 +2024,7 @@ def prior_box(
                         Required: no
 
     Example of attribute dictionary:
-    ~~~~~~~~~~~~~{.py}
+    @code{.py}
         # just required ones
         attrs = {
             'offset': 85,
@@ -2039,11 +2036,9 @@ def prior_box(
             'clip': True,
             'fixed_size': [32, 64, 128]
         }
-    ~~~~~~~~~~~~~
+    @endcode
 
     Optional attributes which are absent from dictionary will be set with corresponding default.
-
-    @return Node representing prior box operation.
     """
     requirements = [
         ("offset", True, np.floating, is_non_negative_value),
@@ -2073,13 +2068,14 @@ def proposal(
     attrs: dict,
     name: Optional[str] = None,
 ) -> Node:
-    """! Filter bounding boxes and outputs only those with the highest prediction confidence.
+    """Filter bounding boxes and outputs only those with the highest prediction confidence.
 
     @param  class_probs:        4D input floating point tensor with class prediction scores.
     @param  bbox_deltas:         4D input floating point tensor with box logits.
     @param  image_shape:        The 1D input tensor with 3 or 4 elements describing image shape.
     @param  attrs:              The dictionary containing key, value pairs for attributes.
     @param  name:               Optional name for the output node.
+    @return Node representing Proposal operation.
 
     * base_size     The size of the anchor to which scale and ratio attributes are applied.
                     Range of values: a positive unsigned integer number
@@ -2159,23 +2155,21 @@ def proposal(
 
     Example of attribute dictionary:
 
-    ~~~~~~~~~~~~~{.py}
-        # just required ones
-        attrs = {
-            'base_size': 85,
-            'pre_nms_topn': 10,
-            'post_nms_topn': 20,
-            'nms_thresh': 0.34,
-            'feat_stride': 16,
-            'min_size': 32,
-            'ratio': [0.1, 1.5, 2.0, 2.5],
-            'scale': [2, 3, 3, 4],
-        }
-    ~~~~~~~~~~~~~
+    @code{.py}
+    # just required ones
+    attrs = {
+        'base_size': 85,
+        'pre_nms_topn': 10,
+        'post_nms_topn': 20,
+        'nms_thresh': 0.34,
+        'feat_stride': 16,
+        'min_size': 32,
+        'ratio': [0.1, 1.5, 2.0, 2.5],
+        'scale': [2, 3, 3, 4],
+    }
+    @endcode
 
     Optional attributes which are absent from dictionary will be set with corresponding default.
-
-    @return Node representing Proposal operation.
     """
     requirements = [
         ("base_size", True, np.unsignedinteger, is_positive_value),
@@ -2213,7 +2207,7 @@ def psroi_pooling(
     mode: str,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which produces a PSROIPooling operation.
+    """Return a node which produces a PSROIPooling operation.
 
     @param input: Input feature map {N, C, ...}
     @param coords: Coordinates of bounding boxes
@@ -2242,7 +2236,7 @@ def psroi_pooling(
 
 @nameable_op
 def range(start: Node, stop: NodeInput, step: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return a node which produces the Range operation.
+    """Return a node which produces the Range operation.
 
     @param start:  The start value of the generated range
     @param stop:   The stop value of the generated range
@@ -2255,7 +2249,7 @@ def range(start: Node, stop: NodeInput, step: NodeInput, name: Optional[str] = N
 
 @unary_op
 def relu(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Perform rectified linear unit operation on input node element-wise.
+    """Perform rectified linear unit operation on input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: The optional output node name.
@@ -2268,7 +2262,7 @@ def relu(node: NodeInput, name: Optional[str] = None) -> Node:
 def reduce_logical_and(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! Logical AND reduction operation on input tensor, eliminating the specified reduction axes.
+    """Logical AND reduction operation on input tensor, eliminating the specified reduction axes.
 
     @param node:           The tensor we want to reduce.
     @param reduction_axes: The axes to eliminate through AND operation.
@@ -2285,7 +2279,7 @@ def reduce_logical_and(
 def reduce_logical_or(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! Logical OR reduction operation on input tensor, eliminating the specified reduction axes.
+    """Logical OR reduction operation on input tensor, eliminating the specified reduction axes.
 
     @param node:           The tensor we want to reduce.
     @param reduction_axes: The axes to eliminate through OR operation.
@@ -2302,7 +2296,7 @@ def reduce_logical_or(
 def reduce_max(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! Max-reduction operation on input tensor, eliminating the specified reduction axes.
+    """Max-reduction operation on input tensor, eliminating the specified reduction axes.
 
     @param node:           The tensor we want to max-reduce.
     @param reduction_axes: The axes to eliminate through max operation.
@@ -2318,7 +2312,7 @@ def reduce_max(
 def reduce_mean(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! Mean-reduction operation on input tensor, eliminating the specified reduction axes.
+    """Mean-reduction operation on input tensor, eliminating the specified reduction axes.
 
     @param node:           The tensor we want to mean-reduce.
     @param reduction_axes: The axes to eliminate through mean operation.
@@ -2335,7 +2329,7 @@ def reduce_mean(
 def reduce_min(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! Min-reduction operation on input tensor, eliminating the specified reduction axes.
+    """Min-reduction operation on input tensor, eliminating the specified reduction axes.
 
     @param node:           The tensor we want to min-reduce.
     @param reduction_axes: The axes to eliminate through min operation.
@@ -2351,7 +2345,7 @@ def reduce_min(
 def reduce_prod(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! Product-reduction operation on input tensor, eliminating the specified reduction axes.
+    """Product-reduction operation on input tensor, eliminating the specified reduction axes.
 
     @param node:           The tensor we want to product-reduce.
     @param reduction_axes: The axes to eliminate through product operation.
@@ -2368,7 +2362,7 @@ def reduce_prod(
 def reduce_sum(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! Perform element-wise sums of the input tensor, eliminating the specified reduction axes.
+    """Perform element-wise sums of the input tensor, eliminating the specified reduction axes.
 
     @param node:           The node providing data for operation.
     @param reduction_axes: The axes to eliminate through summation.
@@ -2394,7 +2388,7 @@ def region_yolo(
     anchors: List[float] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which produces the RegionYolo operation.
+    """Return a node which produces the RegionYolo operation.
 
     @param input:       Input data
     @param coords:      Number of coordinates for each region
@@ -2431,7 +2425,7 @@ def region_yolo(
 def reshape(
     node: NodeInput, output_shape: NodeInput, special_zero: bool, name: Optional[str] = None
 ) -> Node:
-    """! Return reshaped node according to provided parameters.
+    """Return reshaped node according to provided parameters.
 
     @param node: The tensor we want to reshape.
     @param output_shape: The node with a new shape for input tensor.
@@ -2450,7 +2444,7 @@ def reshape(
 
 @unary_op
 def result(data: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return a node which represents an output of a graph (Function).
+    """Return a node which represents an output of a graph (Function).
 
     @param data: The tensor containing the input data
     @return Result node
@@ -2466,7 +2460,7 @@ def reverse_sequence(
     seq_axis: NumericData,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which produces a ReverseSequence operation.
+    """Return a node which produces a ReverseSequence operation.
 
     @param input: tensor with input data to reverse
     @param seq_lengths: 1D tensor of integers with sequence lengths in the input tensor.
@@ -2489,7 +2483,7 @@ def select(
     auto_broadcast: str = "numpy",
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform an element-wise selection operation on input tensors.
+    """Perform an element-wise selection operation on input tensors.
 
     @param cond: Tensor with selection mask of type `boolean`.
     @param then_node: Tensor providing data to be selected if respective `cond`
@@ -2512,7 +2506,7 @@ def select(
 def selu(
     data: NodeInput, alpha: NodeInput, lambda_value: NodeInput, name: Optional[str] = None
 ) -> Node:
-    """! Perform a Scaled Exponential Linear Unit (SELU) operation on input node element-wise.
+    """Perform a Scaled Exponential Linear Unit (SELU) operation on input node element-wise.
 
     @param data: input node, array or scalar.
     @param alpha: Alpha coefficient of SELU operation
@@ -2525,7 +2519,7 @@ def selu(
 
 @nameable_op
 def shape_of(data: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return a node which produces a tensor containing the shape of its input data.
+    """Return a node which produces a tensor containing the shape of its input data.
 
     @param data: The tensor containing the input data.
     @return ShapeOf node
@@ -2535,7 +2529,7 @@ def shape_of(data: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def sigmoid(data: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return a node which applies the sigmoid function element-wise.
+    """Return a node which applies the sigmoid function element-wise.
 
     @param data: The tensor containing the input data
     @return Sigmoid node
@@ -2545,7 +2539,7 @@ def sigmoid(data: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def sign(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Perform element-wise sign operation.
+    """Perform element-wise sign operation.
 
     @param node: One of: input node, array or scalar.
     @param name: The optional new name for output node.
@@ -2557,7 +2551,7 @@ def sign(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def sin(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply sine function on the input node element-wise.
+    """Apply sine function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -2568,7 +2562,7 @@ def sin(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def sinh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply hyperbolic sine function on the input node element-wise.
+    """Apply hyperbolic sine function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -2579,7 +2573,7 @@ def sinh(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @nameable_op
 def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
-    """! Apply softmax operation on each element of input tensor.
+    """Apply softmax operation on each element of input tensor.
 
     @param data: The tensor providing input data.
     @param axis: An axis along which Softmax should be calculated
@@ -2590,7 +2584,7 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
 
 @nameable_op
 def space_to_depth(data: Node, mode: str, block_size: int = 1, name: str = None) -> Node:
-    """! Perform SpaceToDepth operation on the input tensor.
+    """Perform SpaceToDepth operation on the input tensor.
 
     SpaceToDepth rearranges blocks of spatial data into depth.
     The operator returns a copy of the input tensor where values from the height
@@ -2613,7 +2607,7 @@ def space_to_depth(data: Node, mode: str, block_size: int = 1, name: str = None)
 
 @nameable_op
 def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str] = None) -> Node:
-    """! Return a node which splits the input tensor into same-length slices.
+    """Return a node which splits the input tensor into same-length slices.
 
     @param data: The input tensor to be split
     @param axis: Axis along which the input data will be split
@@ -2629,7 +2623,7 @@ def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str]
 
 @unary_op
 def sqrt(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies square root to the input node element-wise.
+    """Return node which applies square root to the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -2642,7 +2636,7 @@ def sqrt(node: NodeInput, name: Optional[str] = None) -> Node:
 def squared_difference(
     x1: NodeInput, x2: NodeInput, auto_broadcast: str = "NUMPY", name: Optional[str] = None
 ) -> Node:
-    r"""! Perform an element-wise squared difference between two tensors.
+    r"""Perform an element-wise squared difference between two tensors.
 
     \f[ y[i] = (x_1[i] - x_2[i])^2 \f]
 
@@ -2660,7 +2654,13 @@ def squared_difference(
 
 @nameable_op
 def squeeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Node:
-    """! Perform squeeze operation on input tensor.
+    """Perform squeeze operation on input tensor.
+
+    @param data: The node with data tensor.
+    @param axes: List of non-negative integers, indicate the dimensions to squeeze.
+                  One of: input node or array.
+    @param name: Optional new name for output node.
+    @return The new node performing a squeeze operation on input tensor.
 
     Remove single-dimensional entries from the shape of a tensor.
     Takes a parameter `axes` with a list of axes to squeeze.
@@ -2673,12 +2673,6 @@ def squeeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Nod
        Inputs: tensor with shape [1, 2, 1, 3, 1, 1], axes=[2, 4]
 
        Result: tensor with shape [1, 2, 3, 1]
-
-    @param data: The node with data tensor.
-    @param axes: List of non-negative integers, indicate the dimensions to squeeze.
-                  One of: input node or array.
-    @param name: Optional new name for output node.
-    @return The new node performing a squeeze operation on input tensor.
     """
     return _get_node_factory_opset1().create("Squeeze", as_nodes(data, axes))
 
@@ -2696,7 +2690,7 @@ def strided_slice(
     ellipsis_mask: Optional[List[int]] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which dynamically repeats(replicates) the input data tensor.
+    """Return a node which dynamically repeats(replicates) the input data tensor.
 
     @param      data:              The tensor to be sliced
     @param      begin:             1D tensor with begin indexes for input blob slicing
@@ -2737,7 +2731,7 @@ def subtract(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return node which applies f(x) = A-B to the input nodes element-wise.
+    """Return node which applies f(x) = A-B to the input nodes element-wise.
 
     @param left_node: The node providing data for left hand side of operator.
     @param right_node: The node providing data for right hand side of operator.
@@ -2753,7 +2747,7 @@ def subtract(
 
 @unary_op
 def tan(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply tangent function on the input node element-wise.
+    """Apply tangent function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -2764,7 +2758,7 @@ def tan(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @unary_op
 def tanh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return node which applies hyperbolic tangent to the input node element-wise.
+    """Return node which applies hyperbolic tangent to the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -2784,7 +2778,7 @@ def tensor_iterator(
     concat_output_desc: List[TensorIteratorConcatOutputDesc],
     name: Optional[str] = None,
 ) -> Node:
-    """! Perform recurrent execution of the network described in the body, iterating through the data.
+    """Perform recurrent execution of the network described in the body, iterating through the data.
 
     @param      inputs:                The provided to TensorIterator operator.
     @param      graph_body:            The graph representing the body we execute.
@@ -2818,7 +2812,7 @@ def tensor_iterator(
 
 @nameable_op
 def tile(data: NodeInput, repeats: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return a node which dynamically repeats(replicates) the input data tensor.
+    """Return a node which dynamically repeats(replicates) the input data tensor.
 
     @param data: The input tensor to be tiled
     @param repeats: Per-dimension replication factors
@@ -2836,7 +2830,7 @@ def topk(
     sort: str,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performs TopK.
+    """Return a node which performs TopK.
 
     @param data: Input data.
     @param k: K.
@@ -2854,7 +2848,7 @@ def topk(
 
 @nameable_op
 def transpose(data: NodeInput, input_order: NodeInput, name: Optional[str] = None) -> Node:
-    """! Return a node which transposes the data in the input tensor.
+    """Return a node which transposes the data in the input tensor.
 
     @param data: The input tensor to be transposed
     @param input_order: Permutation of axes to be applied to the input tensor
@@ -2864,7 +2858,7 @@ def transpose(data: NodeInput, input_order: NodeInput, name: Optional[str] = Non
 
 
 def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Node:
-    """! Perform unsqueeze operation on input tensor.
+    """Perform unsqueeze operation on input tensor.
 
     Insert single-dimensional entries to the shape of a tensor. Takes one required argument axes,
     a list of dimensions that will be inserted.
@@ -2885,7 +2879,7 @@ def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> N
 def variadic_split(
     data: NodeInput, axis: NodeInput, split_lengths: NodeInput, name: Optional[str] = None
 ) -> Node:
-    """! Return a node which splits the input tensor into variadic length slices.
+    """Return a node which splits the input tensor into variadic length slices.
 
     @param data: The input tensor to be split
     @param axis: Axis along which the input data will be split
