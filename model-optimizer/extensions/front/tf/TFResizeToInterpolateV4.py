@@ -23,6 +23,7 @@ from extensions.ops.elementwise import Div
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
@@ -33,12 +34,6 @@ from mo.ops.strided_slice import StridedSlice
 def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     resize_name = resize.soft_get('name', resize.id)
     log.debug("Converting of {} to Interpolate-4 is triggered for node {}.".format(resize.op, resize_name))
-
-    input_shape = resize.in_port(0).data.get_shape()
-    input_rank = len(input_shape)
-    if input_rank != 4:
-        log.warning('The input shape is not 4D for op with name {}'.format(resize_name))
-        return
 
     num_of_inputs = len([port for port in resize.in_ports().values() if not port.disconnected()])
     assert num_of_inputs == 2, \
@@ -55,8 +50,8 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     shape = Shape(graph, {'name': resize_name + '/shapeof_'}).create_node()
 
     layout = graph.graph['layout']
-    height_dim = get_height_dim(layout, input_rank)
-    width_dim = get_width_dim(layout, input_rank)
+    height_dim = get_height_dim(layout, 4)
+    width_dim = get_width_dim(layout, 4)
 
     ss = create_op_with_const_inputs(graph, StridedSlice,
                                      {1: int64_array([height_dim]),
@@ -125,17 +120,17 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     rename_nodes([(resize, resize_name + '/delete_'), (interpolate4, resize_name)])
 
 
-class TFResizeToInterpolateV4(MiddleReplacementPattern):
+class TFResizeToInterpolateV4(FrontReplacementOp):
     """
     The transformation replaces TFResize with Interpolate-4.
     """
+    op = 'TFResize'
     enabled = True
 
-    def run_before(self):
-        from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequenceToInterpolate
-        return [InterpolateSequenceToInterpolate]
+    def run_after(self):
+        from extensions.front.InterpolateNormalizer import InterpolateNormalizer
+        return [InterpolateNormalizer]
 
-    def find_and_replace_pattern(self, graph: Graph):
-        resize_bilinear_ops = graph.get_op_nodes(op='TFResize')
-        for resize in resize_bilinear_ops:
-            replace_tf_resize(graph, resize, resize.mode)
+    def replace_sub_graph(self, graph: Graph, match: dict):
+        resize = match['op']
+        replace_tf_resize(graph, resize, resize.mode)

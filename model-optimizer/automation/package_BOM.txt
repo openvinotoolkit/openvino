@@ -469,6 +469,7 @@ extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
 extensions/front/tf/tensorflow_custom_operations_config_update.py
+extensions/front/tf/TFResizeToInterpolateV4.py
 extensions/front/tf/TFSliceToSlice.py
 extensions/front/tf/tile_ext.py
 extensions/front/tf/topk_ext.py
@@ -596,7 +597,6 @@ extensions/middle/TensorIteratorLSTMToLSTMSequence.py
 extensions/middle/TensorIteratorMerge.py
 extensions/middle/TensorIteratorOutput.py
 extensions/middle/TF_lstm_cell_to_generic.py
-extensions/middle/TFResizeToInterpolateV4.py
 extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
