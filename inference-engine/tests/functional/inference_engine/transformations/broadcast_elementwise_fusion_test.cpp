@@ -1,23 +1,121 @@
 // Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+//
+//#include <gtest/gtest.h>
+//
+//#include <string>
+//#include <memory>
+//
+//#include <ngraph/function.hpp>
+//#include <ngraph/opsets/opset5.hpp>
+//#include <ngraph/pattern/op/wrap_type.hpp>
+//#include <ngraph/pass/manager.hpp>
+//#include <transformations/common_optimizations/broadcast_elementwise_fusion.hpp>
+//#include <transformations/init_node_info.hpp>
+//#include <transformations/utils/utils.hpp>
+//
+//#include "common_test_utils/ngraph_test_utils.hpp"
+//
+//#define DYN ngraph::Dimension::dynamic()
+//
+//using namespace testing;
+//using namespace ngraph;
+//
+//using InputShape = PartialShape;
+//using TargetShape = Shape;
+//
+//TEST(TransformationTests, BroadcastElementwiseFusion) {
+//    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+//    {
+//        auto input_shape = InputShape{DYN, 3, 64, 64, 64};
+//        auto target_shape = TargetShape{8, 3, 64, 64, 64};
+//        auto input1 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+//        auto input2 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, target_shape);
+//        auto target_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
+//        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input1, target_shape_node);
+//        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input2, broadcast);
+//
+//        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2});
+//
+//        ngraph::pass::Manager manager;
+//        manager.register_pass<ngraph::pass::InitNodeInfo>();
+//        manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+//        manager.run_passes(f);
+//        ASSERT_NO_THROW(check_rt_info(f));
+//    }
+//
+//    {
+//        auto ref_target_shape1 = InputShape{8, 3, 64, 64, 64};
+//        auto ref_target_shape2 = InputShape{DYN, 3, 64, 64, 64};
+//        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ref_target_shape1);
+//        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ref_target_shape2);
+//        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_input2);
+//
+//        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
+//    }
+//
+//    auto res = compare_functions(f, f_ref);
+//    ASSERT_TRUE(res.first) << res.second;
+//}
+//
+//TEST(TransformationTests, BroadcastElementwiseFusionSwitchInput) {
+//    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+//    {
+//        auto input_shape = InputShape{DYN, 3, 64, 64, 64};
+//        auto target_shape = TargetShape{8, 3, 64, 64, 64};
+//        auto input1 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+//        auto input2 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, target_shape);
+//        auto target_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
+//        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input1, target_shape_node);
+//        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(broadcast, input2);
+//
+//        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2});
+//
+//        ngraph::pass::Manager manager;
+//        manager.register_pass<ngraph::pass::InitNodeInfo>();
+//        manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+//        manager.run_passes(f);
+//        ASSERT_NO_THROW(check_rt_info(f));
+//    }
+//
+//    {
+//        auto ref_target_shape1 = InputShape{DYN, 3, 64, 64, 64};
+//        auto ref_target_shape2 = InputShape{8, 3, 64, 64, 64};
+//        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ref_target_shape1);
+//        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ref_target_shape2);
+//        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_input2);
+//
+//        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
+//    }
+//
+//    auto res = compare_functions(f, f_ref);
+//    ASSERT_TRUE(res.first) << res.second;
+//}
+
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_common.hpp"
 #include <string>
+#include <sstream>
+#include <fstream>
 #include <memory>
+#include <queue>
+#include <map>
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/broadcast_elementwise_fusion.hpp>
-#include <transformations/init_node_info.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
+#include <transformations/init_node_info.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
+#include <transformations/op_conversions/convert_broadcast3.hpp>
+#include <transformations/common_optimizations/broadcast_elementwise_fusion.hpp>
+#include <ngraph_ops/convolution_ie.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
-#define DYN ngraph::Dimension::dynamic()
 
 using namespace testing;
 using namespace ngraph;
@@ -25,70 +123,76 @@ using namespace ngraph;
 using InputShape = PartialShape;
 using TargetShape = Shape;
 
-TEST(TransformationTests, BroadcastElementwiseFusion) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    {
-        auto input_shape = InputShape{DYN, 3, 64, 64, 64};
-        auto target_shape = TargetShape{8, 3, 64, 64, 64};
-        auto input1 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto input2 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, target_shape);
-        auto target_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
-        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input1, target_shape_node);
-        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input2, broadcast);
-
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    {
-        auto ref_target_shape1 = InputShape{8, 3, 64, 64, 64};
-        auto ref_target_shape2 = InputShape{DYN, 3, 64, 64, 64};
-        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ref_target_shape1);
-        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ref_target_shape2);
-        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_input2);
-
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
-    }
-
+void eliminate_broadcast_test(std::shared_ptr<Function> f, std::shared_ptr<Function> f_ref) {
+    pass::Manager manager;
+    //manager.register_pass<pass::InitNodeInfo>();
+    //manager.register_pass<pass::ConvertBroadcast3>();
+    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+    manager.run_passes(f);
+    //ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, BroadcastElementwiseFusionSwitchInput) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    {
-        auto input_shape = InputShape{DYN, 3, 64, 64, 64};
-        auto target_shape = TargetShape{8, 3, 64, 64, 64};
-        auto input1 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto input2 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, target_shape);
-        auto target_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
-        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input1, target_shape_node);
-        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(broadcast, input2);
+class EliminateBroadcastTest: public CommonTestUtils::TestsCommon,
+                                  public testing::WithParamInterface<std::tuple<InputShape, TargetShape>> {
+public:
+    std::shared_ptr<Function> f, f_ref;
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2});
+    void SetUp() override {
+        const auto& input_shape = std::get<0>(GetParam());
+        const auto& broadcast_shape = std::get<1>(GetParam());
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        f = get_initial_function(input_shape, broadcast_shape);
+        f_ref = get_reference(input_shape, broadcast_shape);
     }
 
-    {
-        auto ref_target_shape1 = InputShape{DYN, 3, 64, 64, 64};
-        auto ref_target_shape2 = InputShape{8, 3, 64, 64, 64};
-        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ref_target_shape1);
-        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ref_target_shape2);
+    std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
+                                                   const TargetShape & broadcast_shape) {
+        auto input1 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto input2 =  std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, broadcast_shape);
+        auto target_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
+        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input2, target_shape_node);
+        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input1, broadcast);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2});
+    }
+
+    std::shared_ptr<Function> get_reference(const InputShape & input_shape,
+                                            const TargetShape & broadcast_shape) {
+//        auto ref_target_shape1 = InputShape{DYN, 3, 64, 64, 64};
+//        auto ref_target_shape2 = InputShape{8, 3, 64, 64, 64};
+        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
+        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_shape);
         auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_input2);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
     }
+};
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+TEST_P(EliminateBroadcastTest, CompareFunctions) {
+    eliminate_broadcast_test(f, f_ref);
 }
+
+INSTANTIATE_TEST_CASE_P(EliminateBroadcast, EliminateBroadcastTest,
+                        testing::Values(std::make_tuple(InputShape{1,2,3}, TargetShape{1,2,3}),
+                                        std::make_tuple(InputShape{DYN,2,3}, TargetShape{1,2,3}),
+                                        std::make_tuple(InputShape{DYN,DYN,DYN}, TargetShape{1,1,1})
+                                        //std::make_tuple(InputShape{2,2,4}, TargetShape{2,DYN,4})
+                                        ));
+
+//                        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{1, 2, 3, 4, 5}),
+//                                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{8, 3, 64, 64, 64}),
+//                                        std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{2, 3, 64, 64, 64}),
+//                                        std::make_tuple(InputShape{3, 1, DYN, 64, 64},       TargetShape{3, 3, 3, 64, 64}),
+//                                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},       TargetShape{3, 3, 64, 64, 64}),
+//                                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},       TargetShape{3, 3, 64, 64, 3}),
+//                                        std::make_tuple(InputShape{1, 3, 64, 64},       TargetShape{6, 3, 64, 64}),
+//                                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, TargetShape{7, 3, 1, 1}),
+//                                        std::make_tuple(InputShape{DYN, 3, 64, 64},     TargetShape{8, 3, 64, 64}),
+//                                        std::make_tuple(InputShape{2, DYN, 64, 64},     TargetShape{2, 3, 64, 64}),
+//                                        std::make_tuple(InputShape{3, 3, DYN, 64},      TargetShape{3, 3, 3, 64}),
+//                                        std::make_tuple(InputShape{3, 3, 64, DYN},      TargetShape{3, 3, 64, 4}),
+//                                        std::make_tuple(InputShape{DYN, DYN, DYN},      TargetShape{5, 3, 1}),
+//                                        std::make_tuple(InputShape{DYN, 3, 10},         TargetShape{3, 3, 10}),
+//                                        std::make_tuple(InputShape{2, DYN, 9},          TargetShape{2, 3, 9}),
+//                                        std::make_tuple(InputShape{3, 3, DYN},          TargetShape{3, 3, 3})));
