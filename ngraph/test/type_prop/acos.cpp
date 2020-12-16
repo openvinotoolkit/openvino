@@ -52,3 +52,10 @@ TEST(type_prop, acos_dynamic_rank_input_3D)
     ASSERT_TRUE(
         op->get_output_partial_shape(0).same_scheme(PartialShape{2, Dimension(), Dimension()}));
 }
+
+TEST(type_prop, acos_dynamic_rank_input_shape)
+{
+        const auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+            const auto op = make_shared<op::Acos>(param);
+                ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+}
