@@ -210,7 +210,7 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
                     }
                     bool marked = tryToMarkFP32(inputTo.second->outData[o], immutable);
                     if (marked) {
-                        toAnalyzeTensors.insert(layer->outData[o]);
+                        toAnalyzeTensors.insert(inputTo.second->outData[o]);
                     }
                 }
             }
