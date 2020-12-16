@@ -16,7 +16,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ngraph/op/strided_slice.hpp>
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -397,17 +396,11 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
                                                     const pugi::xml_node& node, const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
-        std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
-        std::make_shared<LayerCreator<ngraph::op::CTCGreedyDecoder>>("CTCGreedyDecoder"),
         std::make_shared<LayerCreator<ngraph::op::v1::DeformableConvolution>>("DeformableConvolution"),
         std::make_shared<LayerCreator<ngraph::op::v1::DeformablePSROIPooling>>("DeformablePSROIPooling"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
-        std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
         std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolution>>("GroupConvolution"),
-        std::make_shared<LayerCreator<ngraph::op::v1::ConvolutionBackpropData>>("ConvolutionBackpropData"),
         std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolutionBackpropData>>("GroupConvolutionBackpropData"),
-        std::make_shared<LayerCreator<ngraph::op::v1::BinaryConvolution>>("BinaryConvolution"),
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
@@ -775,20 +768,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>:
                                                   activations, activations_alpha, activations_beta, clip);
 }
 
-// CTCGreedyDecoder layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::CTCGreedyDecoder>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::CTCGreedyDecoder>(inputs[0], inputs[1],
-                                                          GetBoolAttr(dn, "ctc_merge_repeated", true));
-}
-
 // SquaredDifference layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::SquaredDifference>::createLayer(
@@ -857,44 +836,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Result>::creat
     return std::make_shared<ngraph::op::Result>(inputs[0]);
 }
 
-// StridedSlice layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::StridedSlice>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-
-    pugi::xml_node dn = node.child("data");
-
-    std::vector<int64_t> begin_mask = getParameters<int64_t>(dn, "begin_mask");
-    std::vector<int64_t> end_mask = getParameters<int64_t>(dn, "end_mask");
-    std::vector<int64_t> new_axis = getParameters<int64_t>(dn, "new_axis_mask");
-    std::vector<int64_t> shrink_axis = getParameters<int64_t>(dn, "shrink_axis_mask");
-    std::vector<int64_t> ellipsis_mask = getParameters<int64_t>(dn, "ellipsis_mask");
-
-    if (inputs.size() == 3) {
-        return std::make_shared<ngraph::op::v1::StridedSlice>(inputs[0], inputs[1], inputs[2], begin_mask,
-                                                              end_mask, new_axis, shrink_axis, ellipsis_mask);
-    } else if (inputs.size() == 4) {
-        return std::make_shared<ngraph::op::v1::StridedSlice>(inputs[0], inputs[1], inputs[2], inputs[3], begin_mask,
-                                                              end_mask, new_axis, shrink_axis, ellipsis_mask);
-    } else {
-        THROW_IE_EXCEPTION << "Incorrect number of inputs " << inputs.size() << " for " << getType() << " layer with name: " << layerParsePrms.name;
-    }
-}
-
-// Broadcast layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Broadcast>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    if (inputs.size() == 2) {
-        return std::make_shared<ngraph::op::v1::Broadcast>(inputs[0], inputs[1]);
-    } else if (layerParsePrms.inputPorts.size() == 3) {
-        return std::make_shared<ngraph::op::v1::Broadcast>(inputs[0], inputs[1], inputs[2]);
-    }
-    THROW_IE_EXCEPTION << "Invalid number of inputs: " << layerParsePrms.inputPorts.size();
-}
-
 // RegionYolo layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::RegionYolo>::createLayer(
@@ -932,41 +873,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ReorgYolo>::cr
 
     auto stride = GetUIntAttr(dn, "stride");
     return std::make_shared<ngraph::op::ReorgYolo>(inputs[0], ngraph::Strides {stride});
-}
-
-// BinaryConvolution layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::BinaryConvolution>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    size_t group = GetUIntAttr(dn, "group", 1);
-    if (group != 1) THROW_IE_EXCEPTION << "Cannot create grouped BinaryConvolution layer " << layerParsePrms.name;
-
-    ngraph::op::PadType pad_type = ngraph::op::PadType::EXPLICIT;
-    std::string auto_pad = GetStrAttr(dn, "auto_pad", "");
-    if (auto_pad == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (auto_pad == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (auto_pad == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto dilations = ngraph::Strides(getParameters<size_t>(dn, "dilations"));
-    auto pads_begin = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_begin"));
-    auto pads_end = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_end"));
-    auto mode = GetStrAttr(dn, "mode");
-    auto pad_value = GetFloatAttr(dn, "pad_value");
-
-    return std::make_shared<ngraph::op::v1::BinaryConvolution>(inputs[0], inputs[1], strides, pads_begin, pads_end,
-                                                               dilations, mode, pad_value, pad_type);
 }
 
 // GroupConvolution layer
@@ -1032,44 +938,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Deformable
                 pads_end, dilations, pad_type, group, deformable_group);
 }
 
-// ConvolutionBackpropData layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::ConvolutionBackpropData>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::PadType pad_type = ngraph::op::PadType::EXPLICIT;
-    std::string auto_pad = GetStrAttr(dn, "auto_pad", "");
-    if (auto_pad == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (auto_pad == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (auto_pad == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto dilations = ngraph::Strides(getParameters<size_t>(dn, "dilations"));
-    auto pads_begin = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_begin", {}));
-    auto pads_end = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_end", {}));
-    auto output_padding = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "output_padding", {}));
-    if (inputs.size() != 3 && inputs.size() != 2) {
-        THROW_IE_EXCEPTION << layerParsePrms.type << " layer " << layerParsePrms.name << " has incorrect number of input ports!";
-    }
-
-    if (inputs.size() == 3) {
-        return std::make_shared<ngraph::op::v1::ConvolutionBackpropData>(inputs[0], inputs[1], inputs[2], strides, pads_begin, pads_end,
-                                                                         dilations, pad_type, output_padding);
-    } else {
-        return std::make_shared<ngraph::op::v1::ConvolutionBackpropData>(inputs[0], inputs[1], strides, pads_begin, pads_end,
-                                                                         dilations, pad_type, output_padding);
-    }
-}
-
 // GroupConvolutionBackpropData layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GroupConvolutionBackpropData>::createLayer(
@@ -1107,47 +975,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GroupConvo
         return std::make_shared<ngraph::op::v1::GroupConvolutionBackpropData>(inputs[0], inputs[1], strides, pads_begin, pads_end,
                                                                               dilations, pad_type, output_padding);
     }
-}
-
-// AvgPool layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::AvgPool>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto exclude_pad = GetStrAttr(dn, "exclude-pad") == "true";
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto kernel = ngraph::Shape(getParameters<size_t>(dn, "kernel"));
-    auto pads_begin = ngraph::Shape(getParameters<std::size_t>(dn, "pads_begin"));
-    auto pads_end = ngraph::Shape(getParameters<std::size_t>(dn, "pads_end"));
-    auto pad_type = ngraph::op::PadType::EXPLICIT;
-
-    auto pad_type_str = GetStrAttr(dn, "auto_pad", "");
-    if (pad_type_str == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (pad_type_str == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (pad_type_str == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    ngraph::op::RoundingType rounding_type;
-    auto str_rounding_type = GetStrAttr(dn, "rounding_type", "floor");
-    if (str_rounding_type == "floor") {
-        rounding_type = ngraph::op::RoundingType::FLOOR;
-    } else if (str_rounding_type == "ceil") {
-        rounding_type = ngraph::op::RoundingType::CEIL;
-    } else {
-        THROW_IE_EXCEPTION << "Unsuppored rounding type: " << str_rounding_type;
-    }
-
-    return std::make_shared<ngraph::op::v1::AvgPool>(inputs[0], strides, pads_begin, pads_end, kernel, exclude_pad,
-                                                     rounding_type, pad_type);
 }
 
 // MaxPool layer
