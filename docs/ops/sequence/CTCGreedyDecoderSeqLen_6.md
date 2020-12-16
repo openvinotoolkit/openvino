@@ -29,7 +29,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
   * **Range of values**: true or false
   * **Type**: `boolean`
   * **Default value**: true
-  * **Required**: *no*
+  * **Required**: *No*
     
 * *classes_index_type*
 
@@ -49,7 +49,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 **Inputs**
 
-* **1**: `data` - input tensor of type *T_F* of shape `[T, N, C]` with a batch of sequences. Where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
+* **1**: `data` - input tensor of type *T_F* of shape `[N, T, C]` with a batch of sequences. Where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes. **Required.**
 
 * **2**: `sequence_length` - input tensor of type *T_I* of shape `[N]` with sequence lengths. The values of sequence length must be less or equal to `T`. **Required.**
 
@@ -67,9 +67,9 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * *T_I*: `int32` or `int64`.
 
-* *T_IND1*: `int32` or `int64` and depend from `classes_index_type` attribute.
+* *T_IND1*: `int32` or `int64` and depend `classes_index_type` attribute.
 
-* *T_IND2*: `int32` or `int64` and depend from `sequence_length_type` attribute.
+* *T_IND2*: `int32` or `int64` and depend `sequence_length_type` attribute.
 
 **Example**
 
