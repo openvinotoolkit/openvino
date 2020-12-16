@@ -925,21 +925,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_bcast)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_center_point_box_format)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/nonmaxsuppression_center_point_box_format.prototxt"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/nonmaxsuppression_center_point_box_format.prototxt"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    test_case.add_input(std::vector<float>({
-        0.5f, 0.5f, 1.0f, 1.0f,
-        0.5f, 0.6f, 1.0f, 1.0f,
-        0.5f, 0.4f, 1.0f, 1.0f,
-        0.5f, 10.5f, 1.0f, 1.0f,
-        0.5f, 10.6f, 1.0f, 1.0f,
-        0.5f, 100.5f, 1.0f, 1.0f} 
-    )); // boxes
-    test_case.add_input(std::vector<float>({0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f})); // scores
-    test_case.add_input(std::vector<int64_t>({3})); // max_output_boxes_per_class
+    test_case.add_input(std::vector<float>(
+        {0.5f, 0.5f,  1.0f, 1.0f, 0.5f, 0.6f,  1.0f, 1.0f, 0.5f, 0.4f,   1.0f, 1.0f,
+         0.5f, 10.5f, 1.0f, 1.0f, 0.5f, 10.6f, 1.0f, 1.0f, 0.5f, 100.5f, 1.0f, 1.0f})); // boxes
+    test_case.add_input(std::vector<float>({0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f}));    // scores
+    test_case.add_input(std::vector<int64_t>({3}));  // max_output_boxes_per_class
     test_case.add_input(std::vector<float>({0.5f})); // iou_threshold
     test_case.add_input(std::vector<float>({0.0f})); // score_threshold
 
@@ -954,13 +949,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_nonmaxsuppression_single_box)
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    test_case.add_input(std::vector<float>({
-        0.0f, 0.0f, 1.0f, 1.0f} 
-    )); // boxes
-    test_case.add_input(std::vector<float>({0.9f})); // scores
-    test_case.add_input(std::vector<int64_t>({3})); // max_output_boxes_per_class
-    test_case.add_input(std::vector<float>({0.5f})); // iou_threshold
-    test_case.add_input(std::vector<float>({0.0f})); // score_threshold
+    test_case.add_input(std::vector<float>({0.0f, 0.0f, 1.0f, 1.0f})); // boxes
+    test_case.add_input(std::vector<float>({0.9f}));                   // scores
+    test_case.add_input(std::vector<int64_t>({3}));                    // max_output_boxes_per_class
+    test_case.add_input(std::vector<float>({0.5f}));                   // iou_threshold
+    test_case.add_input(std::vector<float>({0.0f}));                   // score_threshold
 
     test_case.add_expected_output<int64_t>(Shape{1, 3}, {0, 0, 0});
     test_case.run();

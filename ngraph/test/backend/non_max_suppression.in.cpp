@@ -631,10 +631,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
     const auto max_output_boxes_per_class = make_shared<op::Parameter>(element::i64, Shape{1});
-    const auto score_treshold= make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto score_treshold = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto iou_threshold = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto soft_nms_sigma = make_shared<op::Parameter>(element::f32, Shape{1});
-    
 
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -645,7 +644,13 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
                                                       box_encoding,
                                                       false);
 
-    auto f = make_shared<Function>(nms, ParameterVector{boxes, scores, max_output_boxes_per_class, iou_threshold, score_treshold, soft_nms_sigma});
+    auto f = make_shared<Function>(nms,
+                                   ParameterVector{boxes,
+                                                   scores,
+                                                   max_output_boxes_per_class,
+                                                   iou_threshold,
+                                                   score_treshold,
+                                                   soft_nms_sigma});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -669,7 +674,12 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
     auto handle = backend->compile(f);
 
     handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores, backend_max_output_boxes_per_class, backend_iou_threshold, backend_score_threshold, backend_soft_nms_sigma});
+                 {backend_boxes,
+                  backend_scores,
+                  backend_max_output_boxes_per_class,
+                  backend_iou_threshold,
+                  backend_score_threshold,
+                  backend_soft_nms_sigma});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);

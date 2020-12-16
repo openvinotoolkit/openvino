@@ -353,7 +353,8 @@ namespace
             return result;
         }
 
-        std::vector<int64_t> get_integers(const std::shared_ptr<HostTensor>& input, const Shape& shape)
+        std::vector<int64_t> get_integers(const std::shared_ptr<HostTensor>& input,
+                                          const Shape& shape)
         {
             size_t input_size = shape_size(shape);
             std::vector<int64_t> result(input_size);
@@ -561,7 +562,8 @@ namespace
         {
             InfoForNMS5 result;
 
-            result.max_output_boxes_per_class = inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
+            result.max_output_boxes_per_class =
+                inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
             result.iou_threshold = inputs.size() > 3 ? get_floats(inputs[3], Shape({}))[0] : 0.0f;
             result.score_threshold = inputs.size() > 4 ? get_floats(inputs[4], Shape({}))[0] : 0.0f;
             result.soft_nms_sigma = inputs.size() > 5 ? get_floats(inputs[5], Shape({}))[0] : 0.0f;
