@@ -139,7 +139,8 @@ public:
 };
 
 class EliminateDynamicBroadcastTest: public CommonTestUtils::TestsCommon,
-                              public testing::WithParamInterface<std::tuple<InputShape, InputShape, InputShape>> {
+                              public testing::WithParamInterface<std::tuple<InputShape, InputShape,
+                              InputShape, InputShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
 
@@ -147,9 +148,10 @@ public:
         const auto& input_shape = std::get<0>(GetParam());
         const auto& broadcast_input_shape = std::get<1>(GetParam());
         const auto& broadcast_shape = std::get<2>(GetParam());
+        const auto& output_shape = std::get<3>(GetParam());
 
         f = get_initial_function(input_shape, broadcast_input_shape, broadcast_shape);
-        f_ref = get_reference(input_shape, broadcast_shape);
+        f_ref = get_reference(input_shape, output_shape);
     }
 
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
@@ -214,6 +216,7 @@ INSTANTIATE_TEST_CASE_P(NoEliminateBroadcast, NoEliminateBroadcastTest,
                         ));
 
 INSTANTIATE_TEST_CASE_P(EliminateDynamicBroadcast, EliminateDynamicBroadcastTest,
-                        testing::Values(std::make_tuple(InputShape{2,2,4}, InputShape{2,DYN,4}, InputShape{2,DYN,4}),
-                                        std::make_tuple(InputShape{2,2,4}, InputShape{DYN,DYN,DYN}, InputShape{DYN,DYN,DYN})
+                        testing::Values(std::make_tuple(InputShape{2,2,4}, InputShape{2,DYN,4}, InputShape{2,DYN,4}, InputShape{2,DYN,4}),
+                                        std::make_tuple(InputShape{2,2,4}, InputShape{DYN,DYN,DYN}, InputShape{DYN,DYN,DYN}, InputShape{DYN,DYN,DYN}),
+                                        std::make_tuple(InputShape{2,2,4}, InputShape{2,2,4}, InputShape{2,DYN,4}, InputShape{2,2,4})
                         ));
