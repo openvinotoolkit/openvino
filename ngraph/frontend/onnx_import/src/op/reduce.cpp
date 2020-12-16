@@ -32,15 +32,20 @@ namespace ngraph
         {
             namespace
             {
-                std::shared_ptr<ngraph::Node> get_dynamic_all_axes_range(const Node& node){
+                std::shared_ptr<ngraph::Node> get_dynamic_all_axes_range(const Node& node)
+                {
                     const auto input = node.get_ng_inputs().at(0);
                     const auto shape_of_input = std::make_shared<default_opset::ShapeOf>(input);
-                    const auto scalar = default_opset::Constant::create(element::i64, Shape{1}, {0});
-                    const auto rank_of_input = std::make_shared<default_opset::ShapeOf>(shape_of_input);
-                    const auto rank_of_input_scalar = std::make_shared<default_opset::Squeeze>(rank_of_input, scalar);
+                    const auto scalar =
+                        default_opset::Constant::create(element::i64, Shape{1}, {0});
+                    const auto rank_of_input =
+                        std::make_shared<default_opset::ShapeOf>(shape_of_input);
+                    const auto rank_of_input_scalar =
+                        std::make_shared<default_opset::Squeeze>(rank_of_input, scalar);
                     const auto start = default_opset::Constant::create(element::i64, Shape{}, {0});
                     const auto step = default_opset::Constant::create(element::i64, Shape{}, {1});
-                    return std::make_shared<default_opset::Range>(start, rank_of_input_scalar, step, element::i64);
+                    return std::make_shared<default_opset::Range>(
+                        start, rank_of_input_scalar, step, element::i64);
                 }
 
                 std::shared_ptr<ngraph::Node> get_reduction_axes_from_input(const Node& node)
@@ -70,7 +75,7 @@ namespace ngraph
                     }
                     else
                     {
-                        if(input_rank.is_static())
+                        if (input_rank.is_static())
                         {
                             auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
                                 input_rank.get_length());
@@ -80,7 +85,7 @@ namespace ngraph
                         else
                         {
                             return get_dynamic_all_axes_range(node);
-                        }        
+                        }
                     }
                 }
 
@@ -93,7 +98,7 @@ namespace ngraph
 
                     if (reduction_axes.empty())
                     {
-                        if(input_rank.is_static())
+                        if (input_rank.is_static())
                         {
                             reduction_axes = onnx_import::common::get_monotonic_range<int64_t>(
                                 input_rank.get_length());
@@ -101,7 +106,7 @@ namespace ngraph
                         else
                         {
                             return get_dynamic_all_axes_range(node);
-                        }                        
+                        }
                     }
 
                     if (input_rank.is_static())
