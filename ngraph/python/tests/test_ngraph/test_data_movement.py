@@ -16,7 +16,7 @@
 import numpy as np
 
 import ngraph as ng
-from ngraph.impl import Type
+from ngraph.impl import Type, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -214,16 +214,16 @@ def test_gather_nd():
     assert list(node.get_output_shape(0)) == expected_shape
     assert node.get_output_element_type(0) == Type.f32
 
-def test_gather_elements():
+def test_gather_eleVments():
     indices_type = np.int32
     data_dtype = np.float32
-    data = np.array([[9, 1, 8, 73, 33],
-                     [5, 9, 12, 6, 32]], dtype=data_dtype)
-    indices = np.array([[2, 4, 0, 4, 1],
-                        [1, 2, 2, 4, 3]], dtype=indices_type)
-    expected = np.array([[8, 33, 9, 33, 1],
-                         [9, 12, 12, 32, 6]], dtype=data_dtype)
+    data = ng.parameter(Shape([2, 5]), dtype=data_dtype, name='data')
+    indices = ng.parameter(Shape([2, 100]), dtype=indices_type, name='indices')
     axis = 1
-    result = run_op_node([data, indices, axis], ng.gather_elements)
-    assert np.allclose(result, excepted)
+    expected_shape = [2, 100]
 
+    node = ng.gather_elements(data, indices, axis)
+    assert node.get_type_name() == "GatherElements"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_element_type(0) == Type.f32
