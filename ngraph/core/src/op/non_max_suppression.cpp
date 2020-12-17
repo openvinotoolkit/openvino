@@ -835,20 +835,15 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
     return max_output_boxes;
 }
 
-float op::v5::NonMaxSuppression::soft_nms_sigma_from_constant() const
+bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const
 {
-    float soft_nms_sigma = 0.0f;
-
-    if (inputs().size() < 6)
+    auto soft_nms_sigma_node = input_value(soft_nms_sigma_port).get_node_shared_ptr();
+    if (inputs().size() < 6 || !ngraph::op::is_constant(soft_nms_sigma_node))
     {
-        return soft_nms_sigma;
+        return false;
     }
-
-    const auto soft_nms_sigma_input =
-        as_type_ptr<op::Constant>(input_value(soft_nms_sigma_port).get_node_shared_ptr());
-    soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
-
-    return soft_nms_sigma;
+    const auto soft_nms_sigma_input = as_type_ptr<op::Constant>(soft_nms_sigma_node);
+    return soft_nms_sigma_input->cast_vector<float>().at(0) == 0.0f;
 }
 
 bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
