@@ -9,6 +9,16 @@
 #include <memory>
 #include <set>
 
+const char* coordTrans           = "coordinate_transformation_mode";
+const char* modeI                = "mode";
+const char* align                = "align_corners";
+const char* asymmetric           = "asymmetric";
+const char* linear               = "linear";
+const char* half_pixel           = "half_pixel";
+const char* linear_onnx          = "linear_onnx";
+const char* pytorch_half_pixel   = "pytorch_half_pixel";
+const char* tf_half_pixel_for_nn = "tf_half_pixel_for_nn";
+
 namespace vpu {
 
 namespace {
@@ -44,9 +54,9 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto align_corners = attrs().get<bool>("align_corners");
-        auto sampleType = attrs().get<InterpolateMode>("mode");
-        auto coordinateTransMode = attrs().get<InterpolateCoordTransMode>("coordinate_transformation_mode");
+        auto align_corners = attrs().get<bool>(align);
+        auto sampleType = attrs().get<InterpolateMode>(modeI);
+        auto coordinateTransMode = attrs().get<InterpolateCoordTransMode>(coordTrans);
 
         serializer.append(static_cast<int32_t>(align_corners));
         serializer.append(static_cast<uint32_t>(sampleType));
@@ -74,9 +84,9 @@ Stage StageBuilder::addInterpStage(
                         const Data& input,
                         const Data& output) {
     auto stage = model->addNewStage<InterpStage>(layer->name, StageType::Interp, layer, {input}, {output});
-    stage->attrs().set<bool>("align_corners", align_corners);
-    stage->attrs().set<InterpolateMode>("mode", mode);
-    stage->attrs().set<InterpolateCoordTransMode>("coordinate_transformation_mode", coordinateTransMode);
+    stage->attrs().set<bool>(align, align_corners);
+    stage->attrs().set<InterpolateMode>(modeI, mode);
+    stage->attrs().set<InterpolateCoordTransMode>(coordTrans, coordinateTransMode);
 
     return stage;
 }
@@ -89,28 +99,30 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
                      "Interp stage with name {} must have only 1 output, "
                      "actually provided {}", layer->name, outputs.size());
     ie::details::CaselessEq<std::string> cmp;
-    const auto coord = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
-    const auto interpMode = layer->GetParamAsString("mode", "linear");
+    const auto coord = layer->GetParamAsString(coordTrans, half_pixel);
+    const auto interpMode = layer->GetParamAsString(modeI, linear);
     InterpolateCoordTransMode coordinateTransMode = InterpolateCoordTransMode::HalfPixel;
     InterpolateMode mode = InterpolateMode::Linear;
 
-    if (cmp(coord, "asymmetric")) {
+    if (cmp(coord, asymmetric)) {
         coordinateTransMode = InterpolateCoordTransMode::Asymmetric;
-    } else if (cmp(coord, "half_pixel")) {
+    } else if (cmp(coord, half_pixel)) {
         coordinateTransMode = InterpolateCoordTransMode::HalfPixel;
-    } else if (cmp(coord, "pytorch_half_pixel")) {
+    } else if (cmp(coord, pytorch_half_pixel)) {
         coordinateTransMode = InterpolateCoordTransMode::PytorchHalfPixel;
-    } else if (cmp(coord, "tf_half_pixel_for_nn")) {
+    } else if (cmp(coord, tf_half_pixel_for_nn)) {
         coordinateTransMode = InterpolateCoordTransMode::TfHalfPixelForNn;
-    } else if (cmp(coord, "align_corners")) {
+    } else if (cmp(coord, align)) {
         coordinateTransMode = InterpolateCoordTransMode::AlignCorners;
+    } else {
+        VPU_THROW_EXCEPTION << "Current Interp doesn't support this coordinate transformation mode; layer name = " << layer->name;
     }
 
-    if (cmp(interpMode, "linear_onnx")) {
+    if (cmp(interpMode, linear_onnx)) {
         mode = InterpolateMode::LinearOnnx;
     }
 
-    _stageBuilder->addInterpStage(model, layer->name, layer, layer->GetParamAsInt("align_corners", 0), mode, coordinateTransMode, inputs[0], outputs[0]);
+    _stageBuilder->addInterpStage(model, layer->name, layer, layer->GetParamAsInt(align, 0), mode, coordinateTransMode, inputs[0], outputs[0]);
 }
 
 }  // namespace vpu
