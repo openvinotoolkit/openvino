@@ -235,6 +235,8 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     const auto input_rank = input_shape.rank().get_length();
 
+    // If the input 'axes' is given and this input is not Constant, we cannot infer any elements
+    // of the output shape. Hence, all components of the output shape should be dynamic.
     if (input_values().size() == 4 && !is_type<op::Constant>(input_value(3).get_node()))
     {
         PartialShape output_shape = input_shape;
