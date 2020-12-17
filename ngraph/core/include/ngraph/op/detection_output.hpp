@@ -28,11 +28,11 @@ namespace ngraph
             int background_label_id = 0;
             int top_k = -1;
             bool variance_encoded_in_target = false;
-            std::vector<int> keep_top_k = {1};
+            std::vector<int> keep_top_k;
             std::string code_type = std::string{"caffe.PriorBoxParameter.CORNER"};
             bool share_location = true;
             float nms_threshold;
-            float confidence_threshold = std::numeric_limits<float>::min();
+            float confidence_threshold = 0;
             bool clip_after_nms = false;
             bool clip_before_nms = false;
             bool decrease_label_id = false;

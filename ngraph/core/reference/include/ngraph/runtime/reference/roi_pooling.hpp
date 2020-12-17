@@ -109,8 +109,9 @@ namespace ngraph
 
                                     // Define an empty pooling region to be zero
                                     bool is_empty = (h_end <= h_start) || (w_end <= w_start);
-                                    output[pool_index] =
-                                        is_empty ? 0 : std::numeric_limits<T>::lowest();
+                                    output[pool_index] = is_empty
+                                                             ? static_cast<T>(0)
+                                                             : std::numeric_limits<T>::lowest();
 
                                     for (unsigned int h = h_start; h < h_end; h++)
                                     {
@@ -138,8 +139,10 @@ namespace ngraph
                         T roi_height = (roi_h_end - roi_h_start) * (height - 1);
                         T roi_width = (roi_w_end - roi_w_start) * (width - 1);
 
-                        T roi_height_scale = (pooled_h > 1) ? roi_height / (pooled_h - 1) : 0;
-                        T roi_width_scale = (pooled_w > 1) ? roi_width / (pooled_w - 1) : 0;
+                        T roi_height_scale =
+                            (pooled_h > 1) ? roi_height / (pooled_h - 1) : static_cast<T>(0);
+                        T roi_width_scale =
+                            (pooled_w > 1) ? roi_width / (pooled_w - 1) : static_cast<T>(0);
 
                         for (unsigned int c = 0; c < channels; c++)
                         {

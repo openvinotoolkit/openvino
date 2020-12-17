@@ -452,8 +452,8 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
         std::vector<std::shared_ptr<ngraph::Node>> concats;
         std::vector<std::shared_ptr<ngraph::Node>> nextLayerDependent;
 
-        for (CNNNetworkIterator itLayer{clonedNetwork.get()};
-             itLayer != CNNNetworkIterator();
+        for (InferenceEngine::details::CNNNetworkIterator itLayer{clonedNetwork.get()};
+             itLayer != InferenceEngine::details::CNNNetworkIterator();
              itLayer++) {
             auto layerIsSupported = [&] {
                 auto node = (*itLayer)->getNode();
@@ -490,7 +490,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                 continue;
             }
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
-                if (contains(originalOps, fusedLayerName)) {
+                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (layerIsSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
@@ -501,7 +501,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
         }
 
         for (auto&& layerName : supported) {
-            if (contains(unsupported, layerName)) {
+            if (InferenceEngine::details::contains(unsupported, layerName)) {
                 supported.erase(layerName);
             }
         }
@@ -512,10 +512,10 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
             const auto outputs = split->outputs();
             for (const auto& output : outputs) {
                 const auto& name = output.get_node()->get_friendly_name();
-                if (!contains(supported, name) &&
-                    !contains(depLayerNames, name) &&
-                    !contains(concatNames, name) &&
-                    !contains(splitNames, name)) {
+                if (!InferenceEngine::details::contains(supported, name) &&
+                    !InferenceEngine::details::contains(depLayerNames, name) &&
+                    !InferenceEngine::details::contains(concatNames, name) &&
+                    !InferenceEngine::details::contains(splitNames, name)) {
                     is_supported = false;
                     break;
                 }
@@ -530,9 +530,9 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
             const auto inputs = concat->inputs();
             for (const auto& input : inputs) {
                 const auto& name = input.get_node()->get_friendly_name();
-                if (!contains(supported, name) &&
-                    !contains(depLayerNames, name) &&
-                    !contains(concatNames, name)) {
+                if (!InferenceEngine::details::contains(supported, name) &&
+                    !InferenceEngine::details::contains(depLayerNames, name) &&
+                    !InferenceEngine::details::contains(concatNames, name)) {
                     is_supported = false;
                     break;
                 }
@@ -548,7 +548,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
             const auto inputs = cnl->inputs();
             for (const auto& input : inputs) {
                 const auto& name = input.get_node()->get_friendly_name();
-                if (!contains(supported, name)) {
+                if (!InferenceEngine::details::contains(supported, name)) {
                     is_supported = false;
                     break;
                 }
@@ -556,7 +556,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
             const auto outputs = cnl->outputs();
             for (const auto& output : outputs) {
                 const auto& name = output.get_node()->get_friendly_name();
-                if (!contains(supported, name)) {
+                if (!InferenceEngine::details::contains(supported, name)) {
                     is_supported = false;
                     break;
                 }
@@ -567,7 +567,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
         }
 
         for (auto&& node : function->get_ops()) {
-            if (contains(supported, node->get_friendly_name())) {
+            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
                 for (auto&& inputNodeOutput : node->input_values()) {
                     if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
@@ -579,6 +579,16 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                             supported.emplace(outputNodeInput.get_node()->get_friendly_name());
                         }
                     }
+                }
+            }
+
+            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            } else if (ngraph::op::is_output(node)) {
+                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
                 }
             }
         }

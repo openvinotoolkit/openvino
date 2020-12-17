@@ -40,6 +40,9 @@ namespace ngraph
         public:
             Output()
                 : m_node(nullptr)
+                , m_index(0)
+                , m_tensor(nullptr)
+                , m_inputs()
             {
             }
 
