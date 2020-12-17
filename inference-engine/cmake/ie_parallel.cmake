@@ -4,7 +4,8 @@
 
 function(set_ie_threading_interface_for TARGET_NAME)
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        find_package(TBB COMPONENTS tbb tbbmalloc)
+        find_package(TBB COMPONENTS tbb tbbmalloc
+                     PATHS "${IEDevScripts_DIR}")
         set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
         set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
