@@ -73,6 +73,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
         NODE_VALIDATION_CHECK(this,
                               seq_len_pshape.rank().get_length() == 1,
                               "The rank of sequence len tensor must be equal to 1.");
+
     }
 
     // check optional input type: blank index
@@ -82,6 +83,15 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
         NODE_VALIDATION_CHECK(this,
                               blank_index_type.is_integral_number(),
                               "The blank index type is expected to be an integer type. Got: ",
+                              blank_index_type);
+
+        const auto& blank_index_shape = get_input_partial_shape(2);
+        Shape blank_index_type_shape = blank_index_shape.to_shape();
+        NODE_VALIDATION_CHECK(this,
+                              blank_index_shape.is_dynamic() ||
+                              ngraph::is_scalar(blank_index_type_shape) ||
+                              (is_vector(blank_index_type_shape) && (blank_index_type_shape[0] == 1)),
+                              "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
                               blank_index_type);
     }
 
