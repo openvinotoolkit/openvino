@@ -44,8 +44,8 @@ class TFResize(Op):
         assert not node.half_pixel_centers or (node.half_pixel_centers and not node.align_corners), \
             attrs_msg.format(node_name, node.op)
 
-        num_of_in_nodes = len(node.in_nodes())
-        assert num_of_in_nodes == 2, \
+        connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+        assert len(connected_in_ports) == 2, \
             "Node {} with op {} number of inputs must be equal to 2.".format(node_name, node.op)
 
         new_sizes_value = node.in_port(1).data.get_value()
