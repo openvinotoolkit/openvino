@@ -33,6 +33,7 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
     target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
             "${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include"
+            "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
             "${IE_MAIN_SOURCE_DIR}/samples/common/samples"
             "${IE_MAIN_SOURCE_DIR}/samples/common/format_reader")
 
