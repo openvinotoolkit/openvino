@@ -169,4 +169,6 @@ void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node,
                           cldnn::activation_func func, cldnn::activation_additional_params params);
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, cldnn::eltwise_mode mode);
 
+bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node);
+
 }  // namespace CLDNNPlugin

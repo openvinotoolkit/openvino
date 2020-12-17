@@ -10,6 +10,8 @@
 #include "ngraph/op/deformable_convolution.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/fake_quantize.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 #include "api/convolution.hpp"
 #include "api/deconvolution.hpp"
@@ -70,7 +72,9 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::
     auto outPrecision = op->get_output_element_type(0);
 
     auto weightsName = inputs[1];
-    // WA: For non-constant weights (such as FakeQuantize op) dimensions order is GOIYZ, but
+
+    // WA: For the case with FakeQuantize op on weights that are not folderd by constant propagation pass for some reason.
+    // Dimensions order is GOIYZ, but
     // the selected format is OIZYX by default.
     if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1)) == nullptr) {
         std::string reshapeName = layerName + "_cldnn_weights_reshape";
@@ -90,9 +94,9 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::
         p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
 
         auto reorderPrim = cldnn::reorder(reorderName,
-                                          reshapeName,
-                                          DefaultFormatForDims(new_weights_shape.size()),
-                                          DataTypeFromPrecision(op->get_input_element_type(1)));
+                                        reshapeName,
+                                        DefaultFormatForDims(new_weights_shape.size()),
+                                        DataTypeFromPrecision(op->get_input_element_type(1)));
 
         p.AddPrimitive(reorderPrim);
         p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
@@ -154,9 +158,28 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
         }
     }
 
-    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
-    std::vector<cldnn::primitive_id> weights = {inputs[1]};
+    auto weightsName = inputs[1];
+    // WA: For the case with FakeQuantize op on weights that are not folderd by constant propagation pass for some reason.
+    // Dimensions order of weights blob is IOYX, but
+    // the selected format is OIYX by default. So we need to swap I and O dimensions to match the format
+    if (IsNodeOnConstPath(op->get_input_node_shared_ptr(1))) {
+        std::string reshapeName = layerName + "_cldnn_weights_reshape";
 
+        auto weights_shape = op->get_input_shape(1);
+        std::swap(weights_shape[0], weights_shape[1]);
+        auto reshapePrim = cldnn::reshape(reshapeName,
+                                          weightsName,
+                                          CldnnTensorFromIEDims(weights_shape));
+
+        p.AddPrimitive(reshapePrim);
+        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+
+        weightsName = reshapeName;
+    }
+
+    std::vector<cldnn::primitive_id> weights = {weightsName};
+
+    auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
     auto deconvPrim = cldnn::deconvolution(layerName,
         inputs[0],
         weights,

@@ -317,4 +317,30 @@ void Program::InitProfileInfo(const std::string& layerName,
     perfEntry.parentPrimitive = parentId;
 }
 
+// TODO: Does it make sense to add such method to ngraph core?
+bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
+    std::list<std::shared_ptr<ngraph::Node>> nodes_to_process = { node };
+    while (!nodes_to_process.empty()) {
+        auto& current_node = nodes_to_process.front();
+        nodes_to_process.pop_front();
+
+        for (size_t i = 0; i < current_node->get_input_size(); i++) {
+            auto input_node = current_node->get_input_node_shared_ptr(i);
+
+            // If input is constant, then drop if from the processing list
+            if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input_node) != nullptr)
+                continue;
+
+            // If the node doesn't have any parents and it's not a constant, then we deal with dynamic path
+            if (input_node->get_input_size() == 0) {
+                return false;
+            }
+
+            nodes_to_process.insert(nodes_to_process.end(), input_node);
+        }
+    }
+
+    return true;
+}
+
 }  // namespace CLDNNPlugin
