@@ -300,7 +300,7 @@ below is based on the template extension described on the
 The first step is to create a CMake configuration file which builds the extension. The content of the "CMakeLists.txt"
 file is the following:
 
-@snippet ../template_extension/CMakeLists.txt fft_cmake_list:cmake
+@snippet ../template_extension/CMakeLists.txt cmake:extension
 
 The CPU FFT kernel implementation uses OpenCV to perform the FFT that is why the extension library is linked with
 "opencv_core" which comes with the OpenVINO.
