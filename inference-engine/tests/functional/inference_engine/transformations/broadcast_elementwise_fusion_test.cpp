@@ -159,7 +159,8 @@ public:
                                                    const InputShape & broadcast_shape) {
         auto input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
         auto input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
-        auto input_shape_node =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{(size_t)(broadcast_shape.rank().get_length())});
+        auto input_shape_node =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64,
+                                                                             ngraph::Shape{(size_t)(broadcast_shape.rank().get_length())});
         auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input2, input_shape_node);
         auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input1, broadcast);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2, input_shape_node});
@@ -196,27 +197,23 @@ INSTANTIATE_TEST_CASE_P(EliminateBroadcast, EliminateBroadcastTest,
                                         std::make_tuple(InputShape{DYN, 2, 3}, InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
                                         std::make_tuple(InputShape{DYN, DYN, DYN}, InputShape{1, 1, 1}, TargetShape{1, 1, 1}),
                                         std::make_tuple(InputShape{1, 2, 3}, InputShape{2, 3}, TargetShape{2, 3}),
-                                        std::make_tuple(InputShape{1, 2, 1}, InputShape{1}, TargetShape{1})
-                                        ));
+                                        std::make_tuple(InputShape{1, 2, 1}, InputShape{1}, TargetShape{1})));
 
 INSTANTIATE_TEST_CASE_P(EliminateBroadcastSwapInputs, EliminateBroadcastSwapInputsTest,
                         testing::Values(std::make_tuple(InputShape{1, 2, 3}, InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
                                         std::make_tuple(InputShape{DYN, 2, 3}, InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
                                         std::make_tuple(InputShape{DYN, DYN, DYN}, InputShape{1, 1, 1}, TargetShape{1, 1, 1}),
                                         std::make_tuple(InputShape{1, 2, 3}, InputShape{2, 3}, TargetShape{2, 3}),
-                                        std::make_tuple(InputShape{1, 2, 1}, InputShape{1}, TargetShape{1})
-                        ));
+                                        std::make_tuple(InputShape{1, 2, 1}, InputShape{1}, TargetShape{1})));
 
 INSTANTIATE_TEST_CASE_P(NoEliminateBroadcast, NoEliminateBroadcastTest,
                         testing::Values(std::make_tuple(InputShape{1, 2, 1}, InputShape{3}, TargetShape{3}),
                                         std::make_tuple(InputShape{DYN, 2, 3}, InputShape{3, 2, 3}, TargetShape{3, 2, 3}),
                                         std::make_tuple(InputShape{DYN, DYN, DYN}, InputShape{3, 2, 1}, TargetShape{3, 2, 1}),
                                         std::make_tuple(ngraph::PartialShape::dynamic(), InputShape{1, 2, 3}, TargetShape{1, 2, 3}),
-                                        std::make_tuple(ngraph::PartialShape::dynamic(), ngraph::PartialShape::dynamic(), TargetShape{1, 2, 3})
-                        ));
+                                        std::make_tuple(ngraph::PartialShape::dynamic(), ngraph::PartialShape::dynamic(), TargetShape{1, 2, 3})));
 
 INSTANTIATE_TEST_CASE_P(EliminateDynamicBroadcast, EliminateDynamicBroadcastTest,
                         testing::Values(std::make_tuple(InputShape{2, 2, 4}, InputShape{2, DYN, 4}, InputShape{2, DYN, 4}, InputShape{2, DYN, 4}),
                                         std::make_tuple(InputShape{2, 2, 4}, InputShape{DYN, DYN, DYN}, InputShape{DYN, DYN, DYN}, InputShape{DYN, DYN, DYN}),
-                                        std::make_tuple(InputShape{2, 2, 4}, InputShape{2, 2, 4}, InputShape{2, DYN, 4}, InputShape{2, 2, 4})
-                        ));
+                                        std::make_tuple(InputShape{2, 2, 4}, InputShape{2, 2, 4}, InputShape{2, DYN, 4}, InputShape{2, 2, 4})));
