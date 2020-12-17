@@ -174,8 +174,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt openvino::conditional_compilation ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations
-                                       PUBLIC pugixml)
+                                               inference_engine_transformations pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
@@ -217,7 +216,8 @@ configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-vers
 add_library(xbyak INTERFACE)
 target_include_directories(xbyak INTERFACE ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak)
 
-ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api xbyak)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api)
 
 # install TBB
 

@@ -25,12 +25,20 @@ endforeach()
 message("")
 
 set(gflags_DIR "@gflags_BINARY_DIR@")
+
 # GNA lib dir
 set(GNA "@GNA@")
 
 # Targets
 
-include("${CMAKE_CURRENT_LIST_DIR}/inference_engine_targets_developer.cmake")
+if(USE_SYSTEM_PUGIXML)
+    find_package(PugiXML REQUIRED)
+    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+endif()
+
+foreach(component @openvino_export_components@)
+    include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
+endforeach()
 
 get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
 set(InferenceEngine_LIBRARIES IE::inference_engine)
@@ -44,7 +52,7 @@ list(APPEND CMAKE_MODULE_PATH "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_packag
                               "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package/download" # KMB, HDDL
                               "@IE_MAIN_SOURCE_DIR@/cmake") # HDDL
 
-# generic stuff from developer package
+# Inference Engine Developer Scripts package
 find_package(IEDevScripts REQUIRED
              PATHS "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package"
              NO_DEFAULT_PATH)

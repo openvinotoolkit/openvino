@@ -28,6 +28,7 @@ addIeTarget(
         DEPENDENCIES
             ngraphFunctions
         DEVELOPER_PACKAGE
+            inference_engine_tests
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )

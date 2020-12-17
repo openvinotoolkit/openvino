@@ -8,7 +8,7 @@ Example:
 addIeTarget(
    NAME core_lib
    ADD_CPPLINT
-   DEVELOPER_PACKAGE
+   DEVELOPER_PACKAGE <component>
    TYPE <SHARED / STATIC / EXECUTABLE>
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
    ADDITIONAL_SOURCE_DIRS
@@ -31,7 +31,6 @@ addIeTarget(
 function(addIeTarget)
     set(options
         ADD_CPPLINT                   # Enables code style checks for the target
-        DEVELOPER_PACKAGE             # Enables exporting of the target through the developer package
         )
     set(oneValueRequiredArgs
         TYPE # type of target, SHARED|STATIC|EXECUTABLE. SHARED and STATIC correspond to add_library, EXECUTABLE to add_executable
@@ -39,6 +38,7 @@ function(addIeTarget)
         ROOT # root directory to be used for recursive search of source files
         )
     set(oneValueOptionalArgs
+        DEVELOPER_PACKAGE             # Enables exporting of the target through the developer package
         )
     set(multiValueArgs
         INCLUDES                      # Extra include directories
@@ -121,10 +121,8 @@ function(addIeTarget)
     endif()
     if (ARG_DEVELOPER_PACKAGE)
         # developer package
-        ie_developer_export_targets(${ARG_NAME})
-        if (ARG_EXPORT_DEPENDENCIES)
-            ie_developer_export_targets(${ARG_NAME} ${ARG_EXPORT_DEPENDENCIES})
-        endif()
+        openvino_developer_export_targets(COMPONENT ${ARG_DEVELOPER_PACKAGE}
+                                          TARGETS ${ARG_NAME} ${ARG_EXPORT_DEPENDENCIES})
     endif()
     if(WIN32)
         # Provide default compile pdb name equal to target name

@@ -29,8 +29,10 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets_developer.cmake")
-file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
+foreach(component IN LISTS openvino_export_components)
+    file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+    unset(${component} CACHE)
+endforeach()
 
 #
 # Build
@@ -117,28 +119,32 @@ function(build_ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()
 
-file(REMOVE "${CMAKE_BINARY_DIR}/openvino_targets_developer.cmake")
-unset(OpenVINODeveloperPackageTargets CACHE)
-
 function(openvino_developer_export_targets)
-    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets};${ARGV}")
+    cmake_parse_arguments(EXPORT "" "COMPONENT" "TARGETS" ${ARGN})
+
+    set(${EXPORT_COMPONENT} "${${EXPORT_COMPONENT}};${EXPORT_TARGETS}")
 
     # to allow exporting of aliased targets with the original names
-    foreach(target_name ${OpenVINODeveloperPackageTargets})
+    foreach(target_name IN LISTS ${EXPORT_COMPONENT})
         if(TARGET "${target_name}")
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET "${original_name}")
                 message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
                         "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
-                list(REMOVE_ITEM OpenVINODeveloperPackageTargets ${target_name})
-                list(APPEND OpenVINODeveloperPackageTargets ${original_name})
+                list(REMOVE_ITEM ${EXPORT_COMPONENT} ${target_name})
+                list(APPEND ${EXPORT_COMPONENT} ${original_name})
             endif()
         endif()
     endforeach()
 
-    list(REMOVE_DUPLICATES OpenVINODeveloperPackageTargets)
-    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets}" CACHE INTERNAL
-        "Paths to extra Inference Engine plugins" FORCE)
+    list(REMOVE_DUPLICATES ${EXPORT_COMPONENT})
+    set(${EXPORT_COMPONENT} "${${EXPORT_COMPONENT}}" CACHE INTERNAL
+        "A list of OpenVINO ${EXPORT_COMPONENT} exported targets" FORCE)
+
+    list(APPEND openvino_export_components ${EXPORT_COMPONENT})
+    list(REMOVE_DUPLICATES openvino_export_components)
+    set(openvino_export_components "${openvino_export_components}" CACHE INTERNAL
+        "A list of OpenVINO exported components" FORCE)
 endfunction()
 
 add_subdirectory(openvino)

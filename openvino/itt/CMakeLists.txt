@@ -45,7 +45,7 @@ if(ENABLE_PROFILING_ITT)
             target_compile_options(ittnotify PRIVATE -Wno-undef)
         endif()
 
-        openvino_developer_export_targets(ittnotify)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittnotify)
     endif()
 endif()
 
