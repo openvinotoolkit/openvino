@@ -156,7 +156,7 @@ def replace_resize(graph: Graph, resize: Node):
     resize.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
 
 
-class ONNXResize11ToInterpolate4(MiddleReplacementPattern):
+class ONNXResize11ToInterpolate(MiddleReplacementPattern):
     """
     The transformation replaces ONNX Resize 11 with Interpolate-4.
     """

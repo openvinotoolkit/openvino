@@ -116,7 +116,7 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     rename_nodes([(resize, resize_name + '/delete_'), (interpolate4, resize_name)])
 
 
-class TFResizeToInterpolateV4(FrontReplacementOp):
+class TFResizeToInterpolate(FrontReplacementOp):
     """
     The transformation replaces TFResize with Interpolate-4.
     """

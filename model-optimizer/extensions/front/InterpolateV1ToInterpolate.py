@@ -27,7 +27,7 @@ def correct_pad(pad):
     return int64_array([pad] if not isinstance(pad, list) else pad)
 
 
-class InterpolateV1ToInterpolateV4(FrontReplacementPattern):
+class InterpolateV1ToInterpolate(FrontReplacementPattern):
     """
     This transformation replaces the operation Interpolate-1 with the operation Interpolate-4.
     """
