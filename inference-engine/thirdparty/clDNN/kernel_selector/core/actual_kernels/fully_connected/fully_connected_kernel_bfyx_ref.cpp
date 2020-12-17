@@ -34,8 +34,10 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableDifferentInputWeightsTypes();
     k.EnableDifferentTypes();
     k.EnableInputLayout(DataLayout::bf);
+    k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
+    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableBiasPerOutput();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
@@ -50,7 +52,11 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
                                                                           int) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    dispatchData.gws = { params.output.Feature().v, params.output.Batch().v, 1 };
+    std::vector<size_t> global = {params.output.Feature().v, params.output.Batch().v, 1};
+    if (params.output.GetLayout() == DataLayout::bfyx)
+        global = {params.output.Feature().v * params.output.Y().v, params.output.Batch().v, 1};
+
+    dispatchData.gws = global;
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -69,13 +75,14 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
         accumulator_dt = Datatype::F32;
         activation_dt = Datatype::F32;
     }
-
+    if (params.output.GetLayout() == DataLayout::bfyx)
+        jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf = { "", {"b", "ofm", "y", "x"}, "dequantized", activation_dt, 1 };
+        FusedOpsConfiguration conf = { "", {"b", "ofm", "oym", "0"}, "dequantized", activation_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
     return jit;
@@ -124,6 +131,10 @@ bool FullyConnected_bfyx_Ref::Validate(const Params& params, const optional_para
                         (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
 
     if (!is_quantization && !has_fused_op)
+        return false;
+
+    // We don't support 4d output
+    if (fc_params.output.GetLayout() == DataLayout::bfyx && fc_params.output.X().v > 1)
         return false;
 
     return true;
