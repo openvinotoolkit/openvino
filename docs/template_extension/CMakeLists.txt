@@ -9,7 +9,7 @@ set(TARGET_NAME "template_extension")
 
 find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_importer)
 find_package(InferenceEngine REQUIRED)
-find_package(OpenCV REQUIRED COMPONENTS core)
+find_package(OpenCV QUIET COMPONENTS core)
 
 set(SRC cpu_kernel.cpp extension.cpp op.cpp)
 
