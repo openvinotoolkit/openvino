@@ -54,9 +54,9 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales)
     auto target_shape = std::make_shared<op::Parameter>(element::i64, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
 
-    auto start = std::make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{2});
-    auto stop = std::make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{4});
-    auto step = std::make_shared<op::Constant>(et, Shape{}, std::vector<int32_t>{1});
+    auto start = std::make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{2});
+    auto stop = std::make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{4});
+    auto step = std::make_shared<op::Constant>(element::i32, Shape{}, std::vector<int32_t>{1});
     auto axes = std::make_shared<op::v4::Range>(start, stop, step, element::i32);
 
     InterpolateAttrs attrs;
