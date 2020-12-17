@@ -26,7 +26,7 @@ endif()
 find_package(TBB
     CONFIG
     PATHS ${TBBROOT}/cmake
-          ${CMAKE_CURRENT_LIST_DIR}/${IE_OWN_TBB_CONFIG}
+          ${IEDevScripts_DIR}/${IE_OWN_TBB_CONFIG}
     NO_DEFAULT_PATH
 )
 

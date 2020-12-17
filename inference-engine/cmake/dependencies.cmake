@@ -286,6 +286,8 @@ else()
     reset_deps_cache(OpenCV_DIR)
 endif()
 
+# TODO: remove global CMAKE_MODULE_PATH
+list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 include(cmake/ie_parallel.cmake)
 
 if (ENABLE_GNA)
