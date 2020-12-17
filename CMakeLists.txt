@@ -45,7 +45,6 @@ function(build_ngraph)
     endfunction()
 
     set(NGRAPH_BUILD_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} CACHE STRING "" FORCE)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${OpenVINO_MAIN_SOURCE_DIR}/ngraph/cmake/Modules/")
 
     if (ENABLE_SANITIZER)
         ngraph_set(NGRAPH_ADDRESS_SANITIZER TRUE)
