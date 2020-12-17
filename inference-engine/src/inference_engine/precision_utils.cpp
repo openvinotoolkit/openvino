@@ -129,7 +129,7 @@ ie_fp16 f32tof16(float x) {
         if (v.u & 0x007FFFFF) {
             return s | (v.u >> (23 - 10)) | 0x0200;  // return NAN f16
         } else {
-            return s | (v.u >> (23 - 10));  // return INF f16
+            return s | EXP_MASK_F16;  // return INF f16
         }
     }
 
