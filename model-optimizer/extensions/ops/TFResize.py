@@ -64,4 +64,4 @@ class TFResize(Op):
         output_shape[get_height_dim(layout, input_rank)] = new_sizes_value[0]
         output_shape[get_width_dim(layout, input_rank)] = new_sizes_value[1]
 
-        node.out_port(0).data.set_shape(output_shape.copy())
+        node.out_port(0).data.set_shape(output_shape)
