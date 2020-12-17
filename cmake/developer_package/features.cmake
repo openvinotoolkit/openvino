@@ -3,6 +3,7 @@
 #
 
 include(options)
+include(target_flags)
 
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
@@ -41,6 +42,8 @@ ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of fail
 
 ie_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
 
+ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
+
 #
 # Check features
 #
@@ -60,4 +63,8 @@ if(ENABLE_AVX512F)
     if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))
         set(ENABLE_AVX512F OFF CACHE BOOL "" FORCE)
     endif()
+endif()
+
+if (VERBOSE_BUILD)
+    set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "" FORCE)
 endif()

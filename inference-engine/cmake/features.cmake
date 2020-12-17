@@ -83,8 +83,6 @@ ie_dependent_option (ENABLE_SPEECH_DEMO "enable speech demo integration" ON "NOT
 
 ie_option (ENABLE_FUZZING "instrument build for fuzzing" OFF)
 
-ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
-
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
 ie_option (ENABLE_ALTERNATIVE_TEMP "in case of dependency conflict, to avoid modification in master, use local copy of dependency" ON)
@@ -100,3 +98,42 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 ie_option (USE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
+
+#
+# Process featues
+#
+
+if (ENABLE_PROFILING_RAW)
+    add_definitions(-DENABLE_PROFILING_RAW=1)
+endif()
+
+if (ENABLE_MYRIAD)
+    add_definitions(-DENABLE_MYRIAD=1)
+endif()
+
+if (ENABLE_MYRIAD_NO_BOOT AND ENABLE_MYRIAD )
+    add_definitions(-DENABLE_MYRIAD_NO_BOOT=1)
+endif()
+
+if (ENABLE_CLDNN)
+    add_definitions(-DENABLE_CLDNN=1)
+endif()
+
+if (ENABLE_MKL_DNN)
+    add_definitions(-DENABLE_MKL_DNN=1)
+endif()
+
+if (ENABLE_GNA)
+    add_definitions(-DENABLE_GNA)
+
+    if (UNIX AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
+        message(WARNING "${GNA_LIBRARY_VERSION} is not supported on GCC version ${CMAKE_CXX_COMPILER_VERSION}. Fallback to GNA1")
+        set(GNA_LIBRARY_VERSION GNA1)
+    endif()
+endif()
+
+if (ENABLE_SPEECH_DEMO)
+    add_definitions(-DENABLE_SPEECH_DEMO)
+endif()
+
+print_enabled_features()

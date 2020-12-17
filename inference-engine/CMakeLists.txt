@@ -4,7 +4,6 @@
 project(InferenceEngine)
 
 include(cmake/features.cmake)
-include(cmake/check_features.cmake)
 
 # resolving dependencies for the project
 include(cmake/dependencies.cmake)
@@ -71,7 +70,7 @@ function(ie_build_samples)
                 MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
         unset(${var})
     endforeach()
-    include(compile_flags/sanitizer)
+    include("${IEDevScripts_DIR}/compile_flags/sanitizer.cmake")
     add_subdirectory(samples)
 endfunction()
 

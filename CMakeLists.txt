@@ -8,17 +8,16 @@ project(OpenVINO)
 
 set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(IE_MAIN_SOURCE_DIR ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine)
-list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
-                              "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
+
+find_package(IEDevScripts REQUIRED
+             PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+             NO_DEFAULT_PATH)
+
+list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
 
 include(CTest)
-include(cmake/features.cmake) # TODO: split by OpenVINO and developer package options
-
-# include developer package
-include(cmake/developer_package/developer_package.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package
-include(cmake/check_features.cmake)
 include(cmake/dependencies.cmake)
 
 # resolving dependencies for the project

@@ -4,9 +4,19 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+if(NOT DEFINED IEDevScripts_DIR)
+    message(FATAL_ERROR "IEDevScripts_DIR is not defined")
+endif()
+
+set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
+list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
+
 include(features)
 
+#
 # Detect target
+#
+
 include(target_flags)
 
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
@@ -24,7 +34,10 @@ list(APPEND CMAKE_MODULE_PATH
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile")
 
-# prepare temporary folder
+#
+# Prepare temporary folder
+#
+
 function(set_temp_directory temp_variable source_tree_dir)
     if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
         message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
@@ -47,6 +60,10 @@ function(set_temp_directory temp_variable source_tree_dir)
         set(ALTERNATIVE_PATH "${ALTERNATIVE_PATH}" PARENT_SCOPE)
     endif()
 endfunction()
+
+#
+# For cross-compilation
+#
 
 # Search packages for the host system instead of packages for the target system
 # in case of cross compilation these macros should be defined by the toolchain file
@@ -88,7 +105,7 @@ else()
 endif()
 
 if(NOT DEFINED CMAKE_BUILD_TYPE)
-    debug_message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
+    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
@@ -205,3 +222,6 @@ include(add_ie_target)
 
 include(cpplint/cpplint)
 include(clang_format/clang_format)
+
+# Restore state
+set(CMAKE_MODULE_PATH ${OLD_CMAKE_MODULE_PATH})
