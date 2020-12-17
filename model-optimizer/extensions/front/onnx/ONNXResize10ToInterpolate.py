@@ -18,17 +18,17 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
 from extensions.ops.activation_ops import Floor
+from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.interpolate import Interpolate
 from extensions.ops.range import Range
 from extensions.ops.rank import Rank
 from mo.front.common.partial_infer.utils import int64_array, float_array
+from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.passes.convert_data_type import data_type_str_to_np
-from mo.front.common.replacement import FrontReplacementOp
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -39,15 +39,15 @@ def replace_resize(graph: Graph, resize: Node):
 
     resize_name = resize.soft_get('name', resize.id)
 
-    rank_node = Rank(graph, {'name': resize_name + '/rank_'}).create_node()
+    rank_node = Rank(graph, {'name': resize_name + '/max_axes'}).create_node()
     range_node = create_op_with_const_inputs(graph, Range, {0: int64_array(2), 2: int64_array(1)},
-                                             {'name': resize_name + '/rank_'})
+                                             {'name': resize_name + '/axes'})
 
     sizes_ss = create_op_with_const_inputs(graph, StridedSlice,
                                            {1: int64_array([2]),
                                             2: int64_array([0]),
                                             3: int64_array([1])},
-                                           {'name': resize_name + '/sizes_ss_',
+                                           {'name': resize_name + '/sizes_ss',
                                             'begin_mask': int64_array([1]),
                                             'end_mask': int64_array([0]),
                                             'new_axis_mask': int64_array([0]),
@@ -57,7 +57,7 @@ def replace_resize(graph: Graph, resize: Node):
                                             {1: int64_array([2]),
                                              2: int64_array([0]),
                                              3: int64_array([1])},
-                                            {'name': resize_name + '/scales_ss_',
+                                            {'name': resize_name + '/scales_ss',
                                              'begin_mask': int64_array([1]),
                                              'end_mask': int64_array([0]),
                                              'new_axis_mask': int64_array([0]),
@@ -78,17 +78,17 @@ def replace_resize(graph: Graph, resize: Node):
                                            'in_ports_count': 4}).create_node()
 
     range_node.out_port(0).connect(interpolate_node.in_port(3))
-    shape_of = Shape(graph, {'name': resize_name + '/ShapeOf_'}).create_node()
+    shape_of = Shape(graph, {'name': resize_name + '/ShapeOf'}).create_node()
 
     add_node = create_op_with_const_inputs(graph, Add,
                                            {1: float_array([1.0e-5])},
-                                           {'name': resize_name + '/Add_'})
+                                           {'name': resize_name + '/Add'})
 
     input_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
     cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
-    mul_node = Mul(graph, {'name': resize_name + '/Mul_'}).create_node()
-    floor_node = Floor(graph, {'name': resize_name + '/Floor_'}).create_node()
+    mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node()
+    floor_node = Floor(graph, {'name': resize_name + '/Floor'}).create_node()
     cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
 
     shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))

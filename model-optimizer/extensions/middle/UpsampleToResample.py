@@ -110,7 +110,7 @@ class UpsampleToResample(MiddleReplacementPattern):
                                           'ellipsis_mask': int64_array([0])
                                           })
 
-        mul = create_op_node_with_second_input(graph, Mul, factor_value, {'name': upsample_name + '/factor_mul_'})
+        mul = create_op_node_with_second_input(graph, Mul, factor_value, {'name': upsample_name + '/factor_mul'})
 
         source = upsample.in_port(0).get_connection().get_source()
         source.connect(shape.in_port(0))
@@ -127,7 +127,7 @@ class UpsampleToResample(MiddleReplacementPattern):
                                 get_height_dim(layout, input_shape_rank),
                                 get_width_dim(layout, input_shape_rank)])
 
-        axes_node = Const(graph, {'name': upsample_name + '/axis_', 'value': axes}).create_node()
+        axes_node = Const(graph, {'name': upsample_name + '/axis', 'value': axes}).create_node()
 
         interpolate = Interpolate(graph, {'mode': upsample.attrs()['mode'], 'antialias': 0,
                                           'pads_begin': int64_array([0]), 'pads_end': int64_array([0]),
@@ -141,13 +141,13 @@ class UpsampleToResample(MiddleReplacementPattern):
         mul.out_port(0).connect(interpolate.in_port(1))
         axes_node.out_port(0).connect(interpolate.in_port(3))
 
-        scales_node = Const(graph, {'name': upsample_name + '/scales_', 'value': factor_value}).create_node()
+        scales_node = Const(graph, {'name': upsample_name + '/scales', 'value': factor_value}).create_node()
         scales_node.out_port(0).connect(interpolate.in_port(2))
 
         upsample.in_port(0).get_connection().set_destination(interpolate.in_port(0))
         upsample.out_port(0).get_connection().set_source(interpolate.out_port(0))
 
-        rename_nodes([(upsample, upsample_name + '/delete_'), (interpolate, upsample_name)])
+        rename_nodes([(upsample, upsample_name + '/delete'), (interpolate, upsample_name)])
 
         convert_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
         convert_to_int = Cast(graph, dict(dst_type=np.int64)).create_node()

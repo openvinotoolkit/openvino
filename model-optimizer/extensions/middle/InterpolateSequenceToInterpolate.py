@@ -251,7 +251,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
 
         last_interp_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
 
-    rename_nodes([(last_interp_node, last_interp_node_name + '/delete_'), (interp_node, last_interp_node_name)])
+    rename_nodes([(last_interp_node, last_interp_node_name + '/delete'), (interp_node, last_interp_node_name)])
 
 
 class InterpolateSequenceToInterpolate(MiddleReplacementPattern):

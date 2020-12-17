@@ -96,18 +96,18 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
 
         scale = np.array([second_input_of_tile.value[d_idx]], dtype=np.float32)
         axis = d_idx - 1
-        axis_node = Const(graph, {'name': unsqueeze_name + '/axis_', 'value': int64_array([axis])}).create_node()
+        axis_node = Const(graph, {'name': unsqueeze_name + '/axis', 'value': int64_array([axis])}).create_node()
 
-        shape_node = Shape(graph, dict(name=unsqueeze_name + '/Shape_')).create_node()
-        scales_node = Const(graph, dict(name=unsqueeze_name + '/scales_', value=scale)).create_node()
-        mul_node = Mul(graph, dict(name=unsqueeze_name + '/Mul_')).create_node()
+        shape_node = Shape(graph, dict(name=unsqueeze_name + '/Shape')).create_node()
+        scales_node = Const(graph, dict(name=unsqueeze_name + '/scales', value=scale)).create_node()
+        mul_node = Mul(graph, dict(name=unsqueeze_name + '/Mul')).create_node()
         scales_node.out_port(0).connect(mul_node.in_port(1))
 
-        slice_begin = Const(graph, dict(name=unsqueeze_name + '/slice_begin_', value=int64_array([axis]))).create_node()
-        slice_end = Const(graph, dict(name=unsqueeze_name + '/slice_end_', value=int64_array([axis + 1]))).create_node()
+        slice_begin = Const(graph, dict(name=unsqueeze_name + '/slice_begin', value=int64_array([axis]))).create_node()
+        slice_end = Const(graph, dict(name=unsqueeze_name + '/slice_end', value=int64_array([axis + 1]))).create_node()
 
         strided_slice_node = StridedSlice(graph,
-                                          {'name': unsqueeze_name + '/StridedSlice_',
+                                          {'name': unsqueeze_name + '/StridedSlice',
                                            'begin_mask': int64_array([1]),
                                            'end_mask': int64_array([1]),
                                            'new_axis_mask': int64_array([0]),
@@ -132,7 +132,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
                                        in_ports_count=4,
                                        maybe_part_of_sequence=True)).create_node()
 
-        floor_node = Floor(graph, {'name': unsqueeze_name + '/Floor_'}).create_node()
+        floor_node = Floor(graph, {'name': unsqueeze_name + '/Floor'}).create_node()
         cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
 
         mul_node.out_port(0).connect(floor_node.in_port(0))

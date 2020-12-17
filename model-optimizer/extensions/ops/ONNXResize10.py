@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
 
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op

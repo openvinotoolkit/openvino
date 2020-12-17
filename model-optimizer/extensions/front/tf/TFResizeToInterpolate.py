@@ -43,7 +43,7 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     assert not resize.half_pixel_centers or (resize.half_pixel_centers and not resize.align_corners), \
         attrs_msg.format(resize_name, resize.op)
 
-    shape = Shape(graph, {'name': resize_name + '/shapeof_'}).create_node()
+    shape = Shape(graph, {'name': resize_name + '/shapeof'}).create_node()
 
     layout = graph.graph['layout']
     height_dim = get_height_dim(layout, 4)
@@ -54,7 +54,7 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
                                       2: int64_array([width_dim + 1]),
                                       3: int64_array([1])
                                       },
-                                     {'name': resize_name + '/StridedSlice_',
+                                     {'name': resize_name + '/StridedSlice',
                                       'begin_mask': int64_array([1]),
                                       'end_mask': int64_array([1]),
                                       'new_axis_mask': int64_array([0]),
@@ -62,7 +62,7 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
                                       'ellipsis_mask': int64_array([0])
                                       })
 
-    div_node = Div(graph, {'name': resize_name + '/Div_'}).create_node()
+    div_node = Div(graph, {'name': resize_name + '/Div'}).create_node()
 
     shape_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
     size_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
@@ -113,7 +113,7 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     sizes_connection.get_source().connect(size_to_float.in_port(0))
 
     resize.out_port(0).get_connection().set_source(interpolate4.out_port(0))
-    rename_nodes([(resize, resize_name + '/delete_'), (interpolate4, resize_name)])
+    rename_nodes([(resize, resize_name + '/delete'), (interpolate4, resize_name)])
 
 
 class TFResizeToInterpolate(FrontReplacementOp):

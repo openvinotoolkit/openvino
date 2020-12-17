@@ -42,7 +42,7 @@ class InterpolateV1ToInterpolate(FrontReplacementPattern):
             transformation_mode = 'align_corners' if int(node.soft_get('align_corners', 0)) else 'half_pixel'
             input_node = node.in_port(0).get_source().node
             sizes = node.in_port(1).get_source().node
-            axes_node = Const(graph, {'name': node.name + '/axis_', 'value': int64_array(node.axes)}).create_node()
+            axes_node = Const(graph, {'name': node.name + '/axis', 'value': int64_array(node.axes)}).create_node()
             fictive_scales = Const(graph, {'value': np.array([1.0, 1.0])}).create_node()
             interpolate4 = Interpolate(graph,
                                        {
