@@ -308,7 +308,6 @@ extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/remove_filtering_boxes_by_size.py
 extensions/front/onnx/reshape_ext.py
 extensions/front/onnx/resize_ext.py
-extensions/front/onnx/resize_to_interpolate.py
 extensions/front/onnx/reverse_sequence_ext.py
 extensions/front/onnx/rnn_ext.py
 extensions/front/onnx/roialign_ext.py
