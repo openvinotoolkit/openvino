@@ -642,12 +642,12 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     // Check that operation in default opsets
     auto isDefaultOpSet = [](const std::string& version) -> bool {
-        for (size_t i = 1; i <= 6; i++) {
-            std::string opset_name = "opset" + std::to_string(i);
-            if (version == opset_name)
-                return true;
-        }
-        return false;
+        static char const * prefix = "opset";
+        static size_t const prefixLen = strlen(prefix);
+        return version.length() == prefixLen + 1
+                && version.compare(0, prefixLen, prefix) == 0
+                && version[prefixLen] >= '1'
+                && version[prefixLen] <= '6';
     };
 
     for (size_t i = 0; i < inputs.size(); i++) {
