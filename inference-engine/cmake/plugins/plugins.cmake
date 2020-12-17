@@ -7,7 +7,7 @@ include(CMakeParseArguments)
 set(PLUGIN_FILES "" CACHE INTERNAL "")
 
 function(get_shared_library_name target_name library_name)
-    set(LIB_PREFIX "${CMAKE_SHARED_LIBRARY_PREFIX}")
+    set(LIB_PREFIX "${CMAKE_SHARED_MODULE_PREFIX}")
     set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
 
     set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
@@ -170,7 +170,7 @@ macro(ie_register_plugins)
     add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
                       COMMAND
                         "${CMAKE_COMMAND}"
-                        -D "CMAKE_SHARED_LIBRARY_PREFIX=${CMAKE_SHARED_LIBRARY_PREFIX}"
+                        -D "CMAKE_SHARED_MODULE_PREFIX=${CMAKE_SHARED_MODULE_PREFIX}"
                         -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
                         -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
                         -P "${IE_MAIN_SOURCE_DIR}/cmake/plugins/register_plugin_cmake.cmake"

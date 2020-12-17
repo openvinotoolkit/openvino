@@ -93,7 +93,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
-        file << FileUtils::FileTraits<char>::SharedLibraryPrefix();
+        file << FileUtils::FileTraits<char>::PluginLibraryPrefix();
         file << "mock_engine";
         file << IE_BUILD_POSTFIX;
         file << FileUtils::DotSymbol<char>::value;
