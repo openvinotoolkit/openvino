@@ -33,6 +33,9 @@ bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngra
         } else if (input_shape[i_dim].is_dynamic() && broadcast_shape[i_dim].is_static() &&
                    broadcast_shape[i_dim].get_length() != 1) {
             return false;
+        } else if (broadcast_shape[i_dim].is_dynamic() && input_shape[i_dim].is_static() &&
+                   input_shape[i_dim].get_length() == 1) {
+            return false;
         }
     }
     return true;
