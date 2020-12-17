@@ -56,10 +56,7 @@ void op::v6::GatherElements::validate_and_infer_types()
     set_output_type(0, data_type, indices_pshape);
 
     NODE_VALIDATION_CHECK(
-        this,
-        data_rank.is_dynamic() ||
-                data_rank.get_length() >= 1,
-        "data rank must be >= 1.");
+        this, data_rank.is_dynamic() || data_rank.get_length() >= 1, "data rank must be >= 1.");
 
     NODE_VALIDATION_CHECK(
         this,
@@ -68,20 +65,20 @@ void op::v6::GatherElements::validate_and_infer_types()
         "axis must be within interval (-data.rank,  data.rank - 1). But instead Got: ",
         m_axis);
 
-    NODE_VALIDATION_CHECK(
-        this,
-        indices_rank.is_dynamic() ||
-            indices_rank.get_length() >= 1,
-        "indices rank must be >= 1.");
+    NODE_VALIDATION_CHECK(this,
+                          indices_rank.is_dynamic() || indices_rank.get_length() >= 1,
+                          "indices rank must be >= 1.");
 
-    if (data_rank.is_static() && indices_rank.is_dynamic()){
+    if (data_rank.is_static() && indices_rank.is_dynamic())
+    {
         PartialShape out_shape_info(data_pshape);
         out_shape_info[axis] = Dimension::dynamic();
         set_output_type(0, data_type, out_shape_info);
         return;
     }
 
-    if (data_rank.is_dynamic()){
+    if (data_rank.is_dynamic())
+    {
         if (indices_rank.is_dynamic())
             set_output_type(0, data_type, PartialShape::dynamic());
         return;
@@ -105,16 +102,15 @@ void op::v6::GatherElements::validate_and_infer_types()
             // (and if intervals intersect) then output_pshape will be {1, 4, 5}
             Dimension curr_dim = data_pshape[i] & indices_pshape[i];
 
-            NODE_VALIDATION_CHECK(
-                this,
-                !curr_dim.get_interval().empty(),
-                "Shapes ",
-                data_pshape,
-                " and ",
-                indices_pshape,
-                " are not consistent. data and indices must have equal or "
-                "intersecting sizes, except for axis ",
-                m_axis);
+            NODE_VALIDATION_CHECK(this,
+                                  !curr_dim.get_interval().empty(),
+                                  "Shapes ",
+                                  data_pshape,
+                                  " and ",
+                                  indices_pshape,
+                                  " are not consistent. data and indices must have equal or "
+                                  "intersecting sizes, except for axis ",
+                                  m_axis);
 
             output_pshape[i] = curr_dim;
         }

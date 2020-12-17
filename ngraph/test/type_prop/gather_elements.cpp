@@ -152,7 +152,8 @@ TEST(type_prop, gather_elements_data_rank_static_indices_rank_dynamic)
     auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
     auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
     ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
-    ASSERT_EQ(GE->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), Dimension(1, 7), 5}));
+    ASSERT_EQ(GE->get_output_partial_shape(0),
+              PartialShape({Dimension::dynamic(), Dimension(1, 7), 5}));
 }
 
 TEST(type_prop, gather_elements_data_pshape_static_indices_rank_dynamic)
