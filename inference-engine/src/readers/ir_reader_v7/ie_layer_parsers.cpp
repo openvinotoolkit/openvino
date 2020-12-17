@@ -61,7 +61,6 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
 
     activation->params.erase("type");
 
-
     return activation;
 }
 
