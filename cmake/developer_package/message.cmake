@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(UNIX)
+if(UNIX AND ENABLE_ERROR_HIGHLIGHT)
     function(message)
         string(ASCII 27 ESC)
         set(RESET  "${ESC}[m")
