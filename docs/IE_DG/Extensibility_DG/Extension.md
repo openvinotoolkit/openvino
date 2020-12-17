@@ -1,7 +1,8 @@
 # Extension Library {#openvino_docs_IE_DG_Extensibility_DG_Extension}
 
 Inference Engine provides an InferenceEngine::IExtension interface, which defines the interface for Inference Engine Extension libraries.
-All extension libraries should be inherited from this interface.
+All extension libraries should be inherited from this interface. The example below contains implementation of two operations: `Template`
+used as an example in this document and `FFT` used as a more complex example from the [Custom Operations Guide](../../HOWTO/Custom_Layers_Guide.md).
 
 Based on that, declaration of an extension class can look as follows:
 

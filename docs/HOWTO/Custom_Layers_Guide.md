@@ -346,11 +346,16 @@ The result of this command is a compiled shared library (`.so`, `.dylib` or `.dl
 application using `Core` class instance method `AddExtension` like this
 `core.AddExtension(make_so_pointer<IExtension>(compiled_library_file_name), "CPU");`.
 
-To test that the extension is implemented correctly we can run the [Benchmark App](../../inference-engine/tools/benchmark_tool/README.md)
-the following way:
+To test that the extension is implemented correctly we can run the "mri_reconstruction_demo.py" with the following content:
+
+@snippet mri_reconstruction_demo.py mri_demo:demo
+
+The script can be executed using the following command line:
 ```bash
-python3 $INTEL_OPENVINO_DIR/deployment_tools/tools/benchmark_tool/benchmark_app.py \
+python3 mri_reconstruction_demo.py \
         -m <PATH_TO_IR>/wnet_20.xml \
+        -i <PATH_TO_SAMPLE_MRI_IMAGE>.npy \
+        -p <Hybrid-CS-Model-MRI_repo>/Data/sampling_mask_20perc.npy \
         -l <PATH_TO_BUILD_DIR>/libtemplate_extension.so \
         -d CPU
 ```
