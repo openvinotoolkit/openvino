@@ -50,7 +50,7 @@ void op::v6::GatherElements::validate_and_infer_types()
     auto indices_rank = indices_pshape.rank();
 
     int64_t axis = m_axis;
-    if (m_axis < 0)
+    if (m_axis < 0 && data_rank.is_static())
         axis += data_rank.get_length();
 
     set_output_type(0, data_type, indices_pshape);
