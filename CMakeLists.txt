@@ -14,6 +14,7 @@ find_package(IEDevScripts REQUIRED
              NO_DEFAULT_PATH)
 
 include(CTest)
+include(cmake/features.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)

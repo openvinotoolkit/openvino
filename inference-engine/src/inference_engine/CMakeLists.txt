@@ -189,10 +189,10 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 # InferenceEngineConfig.cmake for install tree
 
 configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
-               "${CMAKE_BINARY_DIR}/templates/InferenceEngineConfig.cmake" @ONLY)
+               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake" @ONLY)
 
 configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-              "${CMAKE_BINARY_DIR}/templates/InferenceEngineConfig-version.cmake"
+              "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
               COPYONLY)
 
 configure_file("${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"

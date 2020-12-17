@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include (target_flags)
-include (options)
-
 if(X86_64)
     set(ENABLE_MKL_DNN_DEFAULT ON)
 else()
