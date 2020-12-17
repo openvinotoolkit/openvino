@@ -77,9 +77,14 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 
 //! [extension:getImplTypes]
 std::vector<std::string> Extension::getImplTypes(const std::shared_ptr<ngraph::Node> &node) {
-    if (std::dynamic_pointer_cast<Operation>(node) || std::dynamic_pointer_cast<FFTOp>(node)) {
+    if (std::dynamic_pointer_cast<Operation>(node)) {
         return {"CPU"};
     }
+#ifdef OPENCV_IMPORT_ENABLED
+    if (std::dynamic_pointer_cast<FFTOp>(node)) {
+        return {"CPU"};
+    }
+#endif
     return {};
 }
 //! [extension:getImplTypes]
