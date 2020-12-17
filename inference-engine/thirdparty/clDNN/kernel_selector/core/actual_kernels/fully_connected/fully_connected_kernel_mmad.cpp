@@ -66,9 +66,21 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
 
     const auto& input = params.inputs[0];
     const auto& output = params.output;
+    size_t input_feature = input.Feature().v;
+    size_t input_batch = input.Batch().v;
+    size_t output_feature = output.Feature().v;
+    size_t output_batch = output.Batch().v;
+    // for 3d case
+    if (output.GetLayout() == DataLayout::bfyx) {
+        input_batch *= input.Feature().v;
+        input_feature = input.Y().v;
+        output_batch *= output.Feature().v;
+        output_feature = output.Y().v;
+    }
 
     tuning_data.sub_group_size = 8;
-    if (input.X().v == 1 && input.Y().v == 1 && input.Z().v == 1 && input.Batch().v == 1) {
+    if (input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 && 
+        ((input.Y().v == 1 && output.GetLayout() != DataLayout::bfyx) || (input.Feature().v == 1 && output.GetLayout() == DataLayout::bfyx)) ) {
         // Known cases for TGL where simd16 works better than simd8
         bool simd16_exception_1 = input.Feature().v == 25088 && output.Feature().v == 512;
         bool simd16_exception_2 = input.Feature().v == 21504 && output.Feature().v == 512;
@@ -79,14 +91,14 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
 
-    tuning_data.feature_blocks_count = input.GetLayout() == DataLayout::bfyx && input.Feature().v % sub_group_pack_size != 0 ?
-                                       input.Feature().v / sub_group_pack_size :
+    tuning_data.feature_blocks_count = input.GetLayout() == DataLayout::bfyx && input_feature % sub_group_pack_size != 0 ?
+                                       input_feature / sub_group_pack_size :
                                        input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 ?
-                                       CeilDiv(input.Feature().v, 32) % 2 == 0 ? CeilDiv(input.Feature().v, 64) : CeilDiv(input.Feature().v, 64) - 1 :
-                                       CeilDiv(input.Feature().v, sub_group_pack_size);
+                                       CeilDiv(input_feature, 32) % 2 == 0 ? CeilDiv(input_feature, 64) : CeilDiv(input_feature, 64) - 1 :
+                                       CeilDiv(input_feature, sub_group_pack_size);
 
-    bool slm_div_factor_exception = input.Batch().v == 300 && input.Feature().v == 2048 &&
-                                    output.Batch().v == 300 && (output.Feature().v == 324 || output.Feature().v == 81);
+    bool slm_div_factor_exception = input_batch == 300 && input_feature == 2048 &&
+                                    output_batch == 300 && (output_feature == 324 || output_feature == 81);
 
     if (tuning_data.feature_blocks_count && tuning_data.sub_group_size == 8 && !slm_div_factor_exception)
         while (tuning_data.feature_blocks_count % (tuning_data.slm_div_factor * 2) == 0 &&
@@ -120,7 +132,11 @@ FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(cons
     auto dispatchData = Parent::SetDefault(params);
     const auto& output = params.output;
 
-    dispatchData.gws = { Align(output.Feature().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, 1 };
+    std::vector<size_t> global = { Align(output.Feature().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, 1 };
+    if (output.GetLayout() == DataLayout::bfyx)
+        global = { Align(output.Y().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, output.Feature().v };
+
+    dispatchData.gws = global;
     dispatchData.lws = { tuning_data.work_group_size, 1, 1 };
 
     return dispatchData;
@@ -133,6 +149,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     auto jit = Parent::GetJitConstants(params, runInfo);
 
     auto& input = params.inputs[0];
+    auto& output = params.output;
     auto& weights = params.weights;
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
@@ -181,6 +198,9 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     bool has_feature_leftovers = (input.GetLayout() == DataLayout::bfyx && input.Feature().v % sub_group_pack_size) ||
                                  (input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 && CeilDiv(input.Feature().v, 32) % 2);
 
+    if (output.GetLayout() == DataLayout::bfyx)
+        has_feature_leftovers = input.Y().v % sub_group_pack_size;
+
     jit.AddConstant(MakeJitConstant("HAS_FEATURE_LEFTOVERS", has_feature_leftovers));
     jit.AddConstant(MakeJitConstant("FEATURE_BLOCKS_COUNT", tuning_data.feature_blocks_count));
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
@@ -200,9 +220,24 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     jit.AddConstant(MakeJitConstant("SPLIT_SPATIAL", split_spatial));
     jit.AddConstant(MakeJitConstant("SPATIAL_MAJOR", spatial_major));
 
+    if (output.GetLayout() == DataLayout::bfyx) {
+        jit.AddConstant(MakeJitConstant("FEATURE_PITCH", input.Y().pitch));
+        jit.AddConstant(MakeJitConstant("OUT_FEATURE_NUM", output.Y().v));
+        jit.AddConstant(MakeJitConstant("IN_FEATURE_NUM", input.Y().v));
+        jit.AddConstant(MakeJitConstant("IS_3D", true));
+    } else {
+        jit.AddConstant(MakeJitConstant("FEATURE_PITCH", input.Feature().pitch));
+        jit.AddConstant(MakeJitConstant("OUT_FEATURE_NUM", output.Feature().v));
+        jit.AddConstant(MakeJitConstant("IN_FEATURE_NUM", input.Feature().v));
+    }
+
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf = { "", {"batch", "feature", "0", "0"}, "dequantized", input_dt, 1 };
+        std::vector<std::string> idx_order = {"batch", "feature", "0", "0"};
+        if (output.GetLayout() == DataLayout::bfyx)
+            idx_order = {"batch", "skip_f", "feature", "0"};
+
+        FusedOpsConfiguration conf = { "", idx_order, "dequantized", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 

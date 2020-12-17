@@ -52,6 +52,7 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bf);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bf);
+    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableBatching();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
@@ -68,11 +69,17 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto& input = fc_params.inputs[0];
+    auto& output = fc_params.output;
 
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
-    if (input.GetDType() == Datatype::F16 && input.Batch().pitch % 2 != 0 && input.Batch().v > 1)
-        return false;
+    if (input.GetDType() == Datatype::F16) {
+        if (input.Batch().pitch % 2 != 0 && input.Batch().v > 1)
+            return false;
+        // for 3d case we have to check feature alignment as well
+        if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0 && input.Feature().v > 1)
+            return false;
+    }
 
     if (input.GetLayout() == DataLayout::bfyx) {
         // Padding on input is not supported.
@@ -80,6 +87,12 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
         if (input.X().pad.Total() != 0)
             return false;
         if (input.Y().pad.Total() != 0)
+            return false;
+    }
+
+    // We don't support 4d output
+    if (fc_params.output.GetLayout() == DataLayout::bfyx) {
+        if (input.X().v > 1)
             return false;
     }
 
@@ -127,13 +140,20 @@ struct TuneParamsSelector {
 
 bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, const tune_params& tparams) {
     // Check divisibility by dispatch tile sizes.
-    if (params.output.Batch().v % (tparams.tile_b * tparams.dispatch_bsv) != 0)
+    size_t output_f = params.output.Feature().v;
+    size_t output_b = params.output.Batch().v;
+    if (params.output.GetLayout() == DataLayout::bfyx) {
+        output_b *= params.output.Feature().v;
+        output_f = params.output.Y().v;
+    }
+
+    if (output_b % (tparams.tile_b * tparams.dispatch_bsv) != 0)
         return false;
-    if (CeilDiv(params.output.Feature().v, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
+    if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
         return false;
 
     // Same result can be achieved with smaller tile_ofm.
-    if (params.output.Feature().v <= (tparams.tile_ofm / 2) * simd)
+    if (output_f <= (tparams.tile_ofm / 2) * simd)
         return false;
     // No weights layout for such huge tile ofm.
     if (tparams.tile_ofm * simd > 64)
@@ -163,6 +183,12 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     size_t batch = params.output.Batch().v;
     size_t output_f = params.output.Feature().v;
+
+    // 3d output
+    if (params.output.GetLayout() == DataLayout::bfyx) {
+        batch *= params.output.Feature().v;
+        output_f = params.output.Y().v;
+    }
     Datatype dtype = params.inputs[0].GetDType();
 
     auto selector = TuneParamsSelector(params);
@@ -219,6 +245,10 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
     size_t feature_threads = CeilDiv(params.output.Feature().v, tparams.tile_ofm * simd);
     size_t batch_threads = params.output.Batch().v / tparams.tile_b;
+    if (params.output.GetLayout() == DataLayout::bfyx) {
+        feature_threads = CeilDiv(params.output.Y().v, tparams.tile_ofm * simd);
+        batch_threads = (params.output.Batch().v * params.output.Feature().v) / tparams.tile_b;
+    }
 
     dispatchData.gws[0] = feature_threads * batch_threads * simd;
     dispatchData.gws[1] = 1;
@@ -252,7 +282,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     jit.Merge(MakeConstantLoopUnrollJitConstants(dispatchData.tile_m));
 
-    bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.output.GetFirstElementOffset() % 2 != 0;
+    bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.inputs[0].GetFirstElementOffset() % 2 != 0;
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));
 
     auto activation_dt = GetActivationType(params);
@@ -260,13 +290,32 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
+    // for 3d output we are treating spatial as features
+    if (params.output.GetLayout() == DataLayout::bfyx) {
+        jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.output.Y().v));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.output.Y().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Feature().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.output.Feature().pitch));
+        jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
+    }
+    else {
+        jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.output.Feature().v));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.output.Feature().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Batch().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.output.Batch().pitch));
+    }
+
+    size_t output_f = params.output.GetLayout() == DataLayout::bfyx ? params.output.Y().v : params.output.Feature().v;
     if (!params.fused_ops.empty()) {
         auto boundary_check = BoundaryCheck::DISABLED;
-        if (params.output.Feature().v % (dispatchData.tile_n * simd) != 0)
+        if (output_f % (dispatchData.tile_n * simd) != 0)
             boundary_check = BoundaryCheck::ENABLED;
 
+        std::vector<std::string> idx_order = {"(out_b + bi)", "out_f", "0", "0"};
+        if (params.output.GetLayout() == DataLayout::bfyx)
+            idx_order = {"(out_b + bi) % OUTPUT_BATCH_NUM", "(out_b + bi) / OUTPUT_BATCH_NUM", "out_f", "0"};
         FusedOpsConfiguration conf = { "",
-                                       {"(out_b + bi)", "out_f", "0", "0"},
+                                       idx_order,
                                        "activated[bi]",
                                        activation_dt,
                                        dispatchData.tile_n,
@@ -284,6 +333,9 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                                                 const optional_params &options,
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
+    size_t output_b = fc_params.output.Batch().v;
+    if (fc_params.output.GetLayout() == DataLayout::bfyx)
+        output_b *= fc_params.output.Feature().v;
 
     if (autoTuneIndex >= 0 && autoTuneIndex < (int)auto_tune_params.size()
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
@@ -298,9 +350,9 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         weights_layout = WeightsLayout::os_iyx_osv64;
 
     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    if (fc_params.output.Batch().v > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
+    if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
-    if (fc_params.output.Batch().v > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
+    if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
         estimated_time = FORCE_PRIORITY_4;
 
     return GetCommonKernelsData(params,
