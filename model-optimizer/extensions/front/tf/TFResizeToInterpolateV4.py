@@ -26,7 +26,6 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
-from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -38,9 +37,6 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     num_of_inputs = len([port for port in resize.in_ports().values() if not port.disconnected()])
     assert num_of_inputs == 2, \
         "Number of inputs of {} (with name {}) should be equal to 2".format(resize.op, resize_name)
-
-    new_sizes_value = resize.in_port(1).data.get_value()
-    assert new_sizes_value is not None, "Node {} with op {} has no value in input port 1".format(resize_name, resize.op)
 
     attrs_msg = "If half_pixel_centers attribute of the node {} with op {} is True, " \
                 "the attribute align_corners must be False"
