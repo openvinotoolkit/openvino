@@ -196,7 +196,7 @@ configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-vers
               COPYONLY)
 
 configure_file("${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"
-               "${CMAKE_BINARY_DIR}/templates/ie_parallel.cmake"
+               "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
                COPYONLY)
 
 # Export Inference Engine targets
