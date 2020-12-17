@@ -132,17 +132,13 @@ namespace ngraph
                     const int64_t concat_axis = 0;
                     const auto concat_axis_const =
                         ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
-                    // provide scalar handing for scan outputs
+                    // Add dimension on which Concat will be performed
                     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
                          ++i)
                     {
-                        auto body_output_shape = body_outputs[i].get_partial_shape();
-                        if (body_output_shape.is_static() &&
-                            ngraph::is_scalar(body_output_shape.to_shape()))
-                        {
-                            body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
-                                body_outputs[i], concat_axis_const);
-                        }
+                        const auto& body_output_shape = body_outputs[i].get_partial_shape();
+                        body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
+                            body_outputs[i], concat_axis_const);
                     }
 
                     const auto& body_loop_out_cond = body_outputs.at(0).get_node_shared_ptr();

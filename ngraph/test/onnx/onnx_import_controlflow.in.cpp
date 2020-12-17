@@ -60,14 +60,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add)
     EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
     EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
     EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
-    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
+    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 1, 2}));
 
     auto test_case = test::TestCase<TestEngine>(function);
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
     test_case.run();
 }
 
@@ -89,7 +89,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
 
     test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
     test_case.add_expected_output<float>(
-        Shape{6, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f, 6.f, 6.f});
+        Shape{6, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f, 6.f, 6.f});
     test_case.run();
 }
 
@@ -140,7 +140,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_terminat
     test_case.add_input<float>({0.f, 0.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {4.f, 4.f});
-    test_case.add_expected_output<float>(Shape{4, 2}, {1, 1, 2, 2, 3, 3, 4, 4});
+    test_case.add_expected_output<float>(Shape{4, 1, 2}, {1, 1, 2, 2, 3, 3, 4, 4});
     test_case.run();
 }
 
@@ -182,7 +182,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_a
 
     test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
     test_case.add_expected_output<float>(
-        Shape{6, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f, 6.f, 6.f});
+        Shape{6, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f, 6.f, 6.f});
     test_case.run();
 }
 
@@ -220,7 +220,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_s
     test_case.add_input<float>({0.f, 0.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {2.f, 2.f, 4.f, 4.f, 6.f, 6.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {2.f, 2.f, 4.f, 4.f, 6.f, 6.f});
     test_case.run();
 }
 
@@ -234,7 +234,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope)
     test_case.add_input<float>({0.f, 0.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {12.f, 12.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {4.f, 4.f, 8.f, 8.f, 12.f, 12.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {4.f, 4.f, 8.f, 8.f, 12.f, 12.f});
     test_case.run();
 }
 
@@ -252,7 +252,7 @@ NGRAPH_TEST(${BACKEND_NAME},
     test_case.add_input<float>({3.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {18.f, 18.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {6.f, 6.f, 12.f, 12.f, 18.f, 18.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {6.f, 6.f, 12.f, 12.f, 18.f, 18.f});
     test_case.add_expected_output<float>(Shape{1}, {9.f});
     test_case.run();
 }
@@ -287,7 +287,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_
     test_case.add_input<float>({0.f, 0.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
     test_case.run();
 }
 
@@ -303,7 +303,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_graph)
     test_case.add_input<float>({1.f, 1.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
     test_case.run();
 }
 
@@ -356,7 +356,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond)
     test_case.add_input<float>({0.f, 0.f});
 
     test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
     test_case.run();
 }
 
@@ -415,8 +415,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skippe
     EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
     EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
     EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_static());
-    EXPECT_EQ(function->get_output_partial_shape(1).rank(), 2);
-    EXPECT_EQ(function->get_output_partial_shape(1), (PartialShape{Dimension::dynamic(), 2}));
+    EXPECT_EQ(function->get_output_partial_shape(1).rank(), 3);
+    EXPECT_EQ(function->get_output_partial_shape(1), (PartialShape{Dimension::dynamic(), 1, 2}));
 }
 
 // infinitive loop execution
