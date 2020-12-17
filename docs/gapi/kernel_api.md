@@ -9,7 +9,7 @@ Kernel-implementation hierarchy may look like:
 
 A pipeline itself then can be expressed only in terms of `A`, `B`, and so on, and choosing which implementation to use in execution becomes an external parameter.
 
-## Defining a Kernel
+## Define a Kernel
 G-API provides a macro to define a new kernel interface `G_TYPED_KERNEL()`:
 
 ```cpp
@@ -43,9 +43,10 @@ Kernel signature defines kernel's usage syntax -- which parameters it takes duri
 
 Kernel may accept values of any type, and G-API dynamic types are handled in a special way. All other types are opaque to G-API and passed to kernel in `outMeta()` or in execution callbacks as-is.
 
-Kernel's return value can only be of G-API dynamic type – `cv::GMat`, `cv::GScalar`, or `cv::GArray<T>`. If an operation has more than one output, it should be wrapped into an s`td::tuple<>` (which can contain only mentioned G-API types). Arbitrary-output-number operations are not supported.
+Kernel's return value can only be of G-API dynamic type – `cv::GMat`, `cv::GScalar`, or `cv::GArray<T>`. If an operation has more than one output, it should be wrapped into an `std::tuple<>` (which can contain only mentioned G-API types). Arbitrary-output-number operations are not supported.
 
-Once a kernel is defined, it can be used in pipelines with special, G-API-supplied method `::on()`. This method has the same signature as defined in kernel, so the following code is a perfectly legal construction:
+Once a kernel is defined, it can be used in pipelines with special, G-API-supplied method `on()`. This method has the same signature as defined in kernel, so the following code is a perfectly legal construction:
+
 ```cpp
 cv::GMat in;
 cv::GMat out = GFilter2D::on(/* GMat    */  in,
@@ -57,6 +58,7 @@ cv::GMat out = GFilter2D::on(/* GMat    */  in,
                              /* Scalar  */  cv::Scalar(0));
 ```
 This example has some verbosity, though, so usually a kernel declaration comes with a C++ function wrapper ("factory method") which enables optional parameters, more compact syntax, Doxygen comments, etc.:
+
 ```cpp
 cv::GMat filter2D(cv::GMat   in,
                   int        ddepth,
@@ -84,7 +86,7 @@ Metadata is an information about data kernel operates on. Since non-G-API types 
 
 The point of `outMeta()` is to propagate metadata information within computation from inputs to outputs and infer metadata of internal (intermediate, temporary) data objects. This information is required for further pipeline optimizations, memory allocation, and other operations done by G-API framework during graph compilation.
 
-## Implementing a kernel
+## Implement a Kernel
 Once a kernel is declared, its interface can be used to implement versions of this kernel in different backends. This concept is naturally projected from object-oriented programming "Interface/Implementation" idiom: an interface can be implemented multiple times, and different implementations of a kernel should be substitutable with each other without breaking the algorithm (pipeline) logic (Liskov Substitution Principle).
 
 Every backend defines its own way to implement a kernel interface. This way is regular, though – whatever plugin is, its kernel implementation must be "derived" from a kernel interface type.

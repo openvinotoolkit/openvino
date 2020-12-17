@@ -1,4 +1,4 @@
-# Implementing a face beautification algorithm with G-API {#openvino_docs_gapi_face_beautification}
+# Implementing a Face Beautification Algorithm {#openvino_docs_gapi_face_beautification}
 
 ## Introduction
 In this tutorial you will learn:
@@ -10,9 +10,9 @@ In this tutorial you will learn:
 ## Prerequisites
 This sample requires:
 
-* PC with GNU/Linux* or Microsoft Windows* (Apple macOS* is supported but was not tested);
-* OpenCV 4.2 or later built with [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html) (building with [Intel® TBB](https://www.threadingbuildingblocks.org/intel-tbb-tutorial) is a plus);
-* The following pre-trained models from the [Open Model Zoo](@ref omz_models_intel_index):
+* PC with GNU/Linux* or Microsoft Windows* (Apple macOS* is supported but was not tested)
+* OpenCV 4.2 or higher built with [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html) (building with [Intel® TBB](https://www.threadingbuildingblocks.org/intel-tbb-tutorial) is a plus)
+* The following pre-trained models from the [Open Model Zoo](@ref omz_models_intel_index)
       * [face-detection-adas-0001](@ref omz_models_intel_face_detection_adas_0001_description_face_detection_adas_0001)
       * [facial-landmarks-35-adas-0002](@ref omz_models_intel_facial_landmarks_35_adas_0002_description_facial_landmarks_35_adas_0002)
 
@@ -20,6 +20,8 @@ To download the models from the Open Model Zoo, use the [Model Downloader](@ref 
 
 ## Face Beautification Algorithm
 We will implement a simple face beautification algorithm using a combination of modern Deep Learning techniques and traditional Computer Vision. The general idea behind the algorithm is to make face skin smoother while preserving face features like eyes or a mouth contrast. The algorithm identifies parts of the face using a DNN inference, applies different filters to the parts found, and then combines it into the final result using basic image arithmetics:
+
+![Face Beautification Algorithm](..img/gapi_face_beautification_algorithm.svg)
 
 Briefly the algorithm is described as follows:
 
@@ -41,9 +43,10 @@ Generating face element masks based on a limited set of features (just 35 per fa
 
 ### Declare Deep Learning Topologies
 This sample is using two DNN detectors. Every network takes one input and produces one output. In G-API, networks are defined with macro G_API_NET():
-
+```cpp
 G_API_NET(FaceDetector,  <cv::GMat(cv::GMat)>, "face_detector");
 G_API_NET(LandmDetector, <cv::GMat(cv::GMat)>, "landm_detector");
+```
 To get more information, see Declaring Deep Learning topologies described in the "Face Analytics pipeline" tutorial.
 
 ### Describe the Processing Graph
@@ -168,7 +171,7 @@ GAPI_OCV_KERNEL(GCPUFacePostProc, GFacePostProc)
 };
 ```
 
-### Facial landmarks post-processing
+### Facial Landmarks Post-Processing
 The algorithm infers locations of face elements (like the eyes, the mouth and the head contour itself) using a generic facial landmarks detector (details) from OpenVINO™ Open Model Zoo. However, the detected landmarks as-is are not enough to generate masks — this operation requires regions of interest on the face represented by closed contours, so some interpolation is applied to get them. This landmarks processing and interpolation is performed by the following kernel:
 ```cpp
 GAPI_OCV_KERNEL(GCPUGetContours, GGetContours)
@@ -231,7 +234,7 @@ The kernel takes two arrays of denormalized landmarks coordinates and returns an
 
 Here and below `Contour` is a vector of points.
 
-#### Getting an eye contour
+#### Get an Eye Contour
 Eye contours are estimated with the following function:
 ```cpp
 inline int custom::getLineInclinationAngleDegrees(const cv::Point &ptLeft, const cv::Point &ptRight)
@@ -268,7 +271,7 @@ Briefly, this function restores the bottom side of an eye by a half-ellipse base
 
 The use of the `atan2()` instead of just `atan()` in function `custom::getLineInclinationAngleDegrees()` is essential as it allows to return a negative value depending on the `x` and the `y` signs so we can get the right angle even in case of upside-down face arrangement (if we put the points in the right order, of course).
 
-#### Getting a Forehead Contour
+#### Get a Forehead Contour
 The function approximates the forehead contour:
 ```cpp
 inline Contour custom::getForeheadEllipse(const cv::Point &ptJawLeft,
@@ -300,8 +303,8 @@ inline Contour custom::getForeheadEllipse(const cv::Point &ptJawLeft,
 ```
 As we have only jaw points in our detected landmarks, we have to get a half-ellipse based on three points of a jaw: the leftmost, the rightmost and the lowest one. The jaw width is assumed to be equal to the forehead width and the latter is calculated using the left and the right points. Speaking of the \f$Y\f$ axis, we have no points to get it directly, and instead assume that the forehead height is about \f$2/3\f$ of the jaw height, which can be figured out from the face center (the middle between the left and right points) and the lowest jaw point.
 
-### Drawing masks
-When we have all the contours needed, we are able to draw masks:
+### Draw Masks
+When we have all the contours needed, you are able to draw masks:
 
 ```cpp
 cv::GMat mskSharp        = custom::GFillPolyGContours::on(gimgIn, garElsConts);             // |
@@ -357,7 +360,7 @@ Network parameters are then wrapped in `cv::gapi::NetworkPackage`:
 auto networks      = cv::gapi::networks(faceParams, landmParams);
 ```
 
-More details in "Face Analytics Pipeline" ([Configuring the pipeline](@ref gapi_ifd_configuration) section).
+More details in "Face Analytics Pipeline" ([Configuring the Pipeline](@ref gapi_ifd_configuration) section).
 
 ### Kernel Packages
 In this example we use a lot of custom kernels, in addition to that we use Fluid backend to optimize out memory for G-API's standard kernels where applicable. The resulting kernel package is formed like this:
