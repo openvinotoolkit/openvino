@@ -89,6 +89,7 @@
                 <tab type="user" title="Broadcast-3" url="@ref openvino_docs_ops_movement_Broadcast_3"/>
                 <tab type="user" title="Bucketize-3" url="@ref openvino_docs_ops_condition_Bucketize_3"/>
                 <tab type="user" title="CTCGreedyDecoder-1" url="@ref openvino_docs_ops_sequence_CTCGreedyDecoder_1"/>
+                <tab type="user" title="CTCGreedyDecoderSeqLen-6" url="@ref openvino_docs_ops_sequence_CTCGreedyDecoderSeqLen_6"/>
                 <tab type="user" title="Ceiling-1" url="@ref openvino_docs_ops_arithmetic_Ceiling_1"/>
                 <tab type="user" title="Clamp-1" url="@ref openvino_docs_ops_activation_Clamp_1"/>
                 <tab type="user" title="Concat-1" url="@ref openvino_docs_ops_movement_Concat_1"/>
