@@ -73,7 +73,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales)
     EXPECT_EQ(interp->get_element_type(), element::f32);
     auto dyn_dim = Dimension::dynamic();
     auto expected_shape = PartialShape{dyn_dim, dyn_dim, dyn_dim, dyn_dim};
-    EXPECT_EQ(interp_part->get_output_partial_shape(0).same_scheme(expected_shape));
+    ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(expected_shape));
 }
 
 TEST(type_prop, interpolate_v4_partial)
