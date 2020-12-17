@@ -30,6 +30,5 @@ if (LINUX)
         else ()
             set(${res_var} NOTFOUND PARENT_SCOPE)
         endif ()
-
     endfunction()
 endif ()

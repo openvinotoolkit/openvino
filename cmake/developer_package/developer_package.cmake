@@ -4,6 +4,8 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+include(features)
+
 # Detect target
 include(target_flags)
 
@@ -21,79 +23,6 @@ endif()
 list(APPEND CMAKE_MODULE_PATH
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile")
-
-#
-# CPack
-#
-
-include(CPackComponent)
-unset(IE_CPACK_COMPONENTS_ALL CACHE)
-
-set(IE_CPACK_IE_DIR       deployment_tools/inference_engine)
-
-# Search packages for the host system instead of packages for the target system
-# in case of cross compilation these macros should be defined by the toolchain file
-if(NOT COMMAND find_host_package)
-    macro(find_host_package)
-        find_package(${ARGN})
-    endmacro()
-endif()
-if(NOT COMMAND find_host_program)
-    macro(find_host_program)
-        find_program(${ARGN})
-    endmacro()
-endif()
-
-#
-# ie_cpack_set_library_dir()
-#
-# Set library directory for cpack
-#
-function(ie_cpack_set_library_dir)
-    if(WIN32)
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/bin/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
-    else()
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_RUNTIME_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
-        set(IE_CPACK_ARCHIVE_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH_FOLDER} PARENT_SCOPE)
-    endif()
-endfunction()
-
-ie_cpack_set_library_dir()
-
-#
-# ie_cpack_add_component(NAME ...)
-#
-# Wraps original `cpack_add_component` and adds component to internal IE list
-#
-macro(ie_cpack_add_component NAME)
-    list(APPEND IE_CPACK_COMPONENTS_ALL ${NAME})
-    set(IE_CPACK_COMPONENTS_ALL "${IE_CPACK_COMPONENTS_ALL}" CACHE STRING "" FORCE)
-    cpack_add_component(${NAME} ${ARGN})
-endmacro()
-
-macro(ie_cpack)
-    set(CPACK_GENERATOR "TGZ")
-    string(REPLACE "/" "_" CPACK_PACKAGE_VERSION "${CI_BUILD_NUMBER}")
-    if(WIN32)
-        set(CPACK_PACKAGE_NAME inference-engine_${CMAKE_BUILD_TYPE})
-    else()
-        set(CPACK_PACKAGE_NAME inference-engine)
-    endif()
-    set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
-    set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
-    set(CPACK_PACKAGE_VENDOR "Intel")
-    set(CPACK_COMPONENTS_ALL ${ARGN})
-    set(CPACK_STRIP_FILES ON)
-
-    if(OS_FOLDER)
-        set(CPACK_SYSTEM_NAME "${OS_FOLDER}")
-    endif()
-
-    include(CPack)
-endmacro()
 
 # prepare temporary folder
 function(set_temp_directory temp_variable source_tree_dir)
@@ -119,10 +48,24 @@ function(set_temp_directory temp_variable source_tree_dir)
     endif()
 endfunction()
 
+# Search packages for the host system instead of packages for the target system
+# in case of cross compilation these macros should be defined by the toolchain file
+if(NOT COMMAND find_host_package)
+    macro(find_host_package)
+        find_package(${ARGN})
+    endmacro()
+endif()
+if(NOT COMMAND find_host_program)
+    macro(find_host_program)
+        find_program(${ARGN})
+    endmacro()
+endif()
+
 #
 # Common scripts
 #
 
+include(packaging)
 include(coverage/coverage)
 include(shellcheck/shellcheck)
 
@@ -134,7 +77,7 @@ include(debug)
 
 if(OS_FOLDER)
     message ("**** OS FOLDER IS: [${OS_FOLDER}]")
-    if("${OS_FOLDER}" STREQUAL "ON")
+    if(OS_FOLDER STREQUAL "ON")
         message ("**** USING OS FOLDER: [${CMAKE_SYSTEM_NAME}]")
         set(BIN_FOLDER "bin/${CMAKE_SYSTEM_NAME}/${ARCH_FOLDER}")
     else()
@@ -176,7 +119,7 @@ endif()
 set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
 set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
 
-if (WIN32 OR CMAKE_GENERATOR STREQUAL "Xcode")
+if (MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
     # Support CMake multiconfiguration for Visual Studio or Xcode build
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
 else ()
@@ -186,6 +129,7 @@ else ()
         set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
     endif()
 endif()
+
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
@@ -219,16 +163,18 @@ set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
 
 # LTO
 
-set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
-include(CheckIPOSupported)
+if(ENABLE_LTO)
+    set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+    include(CheckIPOSupported)
 
-check_ipo_supported(RESULT IPO_SUPPORTED
-                    OUTPUT OUTPUT_MESSAGE
-                    LANGUAGES C CXX)
+    check_ipo_supported(RESULT IPO_SUPPORTED
+                        OUTPUT OUTPUT_MESSAGE
+                        LANGUAGES C CXX)
 
-if(NOT IPO_SUPPORTED)
-    set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optmization" FORCE)
-    message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+    if(NOT IPO_SUPPORTED)
+        set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optmization" FORCE)
+        message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+    endif()
 endif()
 
 # General flags
