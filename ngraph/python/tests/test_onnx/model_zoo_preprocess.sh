@@ -65,15 +65,6 @@ function pull_and_postprocess_onnx_model_zoo() {
     find "$ONNX_MODELS_DIR" -name '*.tar.gz' -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && mkdir -p $BASEDIR' \; -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xzf "{}" -C $BASEDIR' \;
 
     echo "Postprocessing of ONNX Model Zoo models:"
-    echo "Fix yolo v4 model"
-    cd "$ONNX_MODELS_DIR/vision/object_detection_segmentation/yolov4/model/yolov4/yolov4/test_data_set"
-
-    mv input0.pb input_0.pb
-    mv input1.pb input_1.pb
-    mv input2.pb input_2.pb
-    mv output0.pb output_0.pb
-    mv output1.pb output_1.pb
-    mv output2.pb output_2.pb
 
     echo "Fix roberta model"
     cd "$ONNX_MODELS_DIR/text/machine_comprehension/roberta/model/roberta-sequence-classification-9/roberta-sequence-classification-9"
