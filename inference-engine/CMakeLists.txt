@@ -84,8 +84,6 @@ endif()
 
 add_subdirectory(ie_bridges/c)
 
-add_cpplint_report_target()
-
 #
 # Install
 #

@@ -30,10 +30,6 @@ elseif(MSVC AND AARCH64)
     set(ARCH_FOLDER arm64)
 endif()
 
-list(APPEND CMAKE_MODULE_PATH
-        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
-        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile")
-
 #
 # Prepare temporary folder
 #

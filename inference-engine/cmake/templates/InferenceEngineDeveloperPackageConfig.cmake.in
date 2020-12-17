@@ -4,6 +4,9 @@
 
 # Variables to export in plugin's projects
 
+set(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_MAIN_SOURCE_DIR@")
+set(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@")
+
 set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
@@ -35,11 +38,14 @@ set(InferenceEngine_LIBRARIES IE::inference_engine)
 # Common cmake includes
 #
 
-# list(APPEND CMAKE_MODULE_PATH "@OpenVINO_SOURCE_DIR@/cmake")
+# TODO: remove after private plugin change 
+list(APPEND CMAKE_MODULE_PATH "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package" # KMB
+                              "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package/download"  # KMB
+                              "@IE_MAIN_SOURCE_DIR@/cmake") # HDDL
 
 # generic stuff from developer package
 find_package(IEDevScripts REQUIRED
-             PATHS "@OpenVINO_SOURCE_DIR@/cmake/developer_package"
+             PATHS "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package"
              NO_DEFAULT_PATH)
 
 # Don't threat deprecated API warnings as errors in 3rd party apps

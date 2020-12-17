@@ -13,8 +13,6 @@ find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
              NO_DEFAULT_PATH)
 
-list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
-
 include(CTest)
 
 # These options are shared with 3rdparty plugins by means of developer package

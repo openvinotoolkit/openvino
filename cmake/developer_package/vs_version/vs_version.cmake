@@ -80,7 +80,7 @@ function(ie_add_vs_version_file)
     set(IE_VS_VER_INTERNALNAME_STR ${VS_VER_NAME})
 
     set(vs_version_output "${CMAKE_CURRENT_BINARY_DIR}/vs_version.rc")
-    configure_file("${OpenVINO_MAIN_SOURCE_DIR}/cmake/vs_version/vs_version.rc.in" "${vs_version_output}" @ONLY)
+    configure_file("${IEDevScripts_DIR}/vs_version/vs_version.rc.in" "${vs_version_output}" @ONLY)
 
     source_group("src" FILES ${vs_version_output})
     target_sources(${VS_VER_NAME} PRIVATE ${vs_version_output})
