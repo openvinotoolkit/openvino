@@ -461,15 +461,15 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     // Try to create operation from loaded opsets
-    GenericLayerParams params_copy = params;
+    auto version_copy = params.version
     const std::set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
                                                            "ExperimentalDetectronPriorGridGenerator"};
     if (experimental_detectrons.count(params.type) != 0) {
-        params_copy.version = "opset6";
+        version_copy = "opset6";
     }
 
-    if (!ngraphNode && opsets.count(params_copy.version)) {
-        auto opset = opsets.at(params_copy.version);
+    if (!ngraphNode && opsets.count(version_copy)) {
+        auto opset = opsets.at(version_copy);
         std::string type = params.type;
 
         if (type == "Const") {
