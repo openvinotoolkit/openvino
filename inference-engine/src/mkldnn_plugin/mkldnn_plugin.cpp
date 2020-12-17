@@ -7,7 +7,6 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
-#include <ngraph/pass/visualize_tree.hpp>
 
 #include <legacy/net_pass.h>
 #include <threading/ie_executor_manager.hpp>
@@ -97,10 +96,6 @@ Engine::~Engine() {
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork->getFunction();
-
-    ngraph::pass::Manager manager0;
-    manager0.register_pass<ngraph::pass::VisualizeTree>("/home/user/openvino-opensource/new-openvino/openvino/mask_rcnn_ngraph_before_transforms.png");
-    manager0.run_passes(nGraphFunc);
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
@@ -470,13 +465,11 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 }
             }
         }
-        for (auto&& unsupportedNode : unsupported) {
-            supported.erase(unsupportedNode);
-        }
+
         for (auto&& node : function->get_ops()) {
-            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
+            if (!InferenceEngine::details::contains(unsupported, node->get_friendly_name())) {
                 for (auto&& inputNodeOutput : node->input_values()) {
-                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
                     }
                 }
@@ -488,20 +481,12 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                     }
                 }
             }
-
-            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            } else if (ngraph::op::is_output(node)) {
-                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            }
         }
 
         for (auto&& layerName : supported) {
-            res.supportedLayersMap.emplace(layerName, GetName());
+            if (!InferenceEngine::details::contains(unsupported, layerName)) {
+                res.supportedLayersMap.emplace(layerName, GetName());
+            }
         }
     } else {
         details::CNNNetworkIterator i(network);
