@@ -86,9 +86,6 @@ include(packaging)
 include(coverage/coverage)
 include(shellcheck/shellcheck)
 
-# External dependencies
-find_package(Threads)
-
 # printing debug messages
 include(debug)
 

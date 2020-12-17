@@ -35,10 +35,12 @@ set(InferenceEngine_LIBRARIES IE::inference_engine)
 # Common cmake includes
 #
 
-list(APPEND CMAKE_MODULE_PATH "@OpenVINO_SOURCE_DIR@/cmake")
+# list(APPEND CMAKE_MODULE_PATH "@OpenVINO_SOURCE_DIR@/cmake")
 
 # generic stuff from developer package
-include(developer_package NO_POLICY_SCOPE)
+find_package(IEDevScripts REQUIRED
+             PATHS "@OpenVINO_SOURCE_DIR@/cmake/developer_package"
+             NO_DEFAULT_PATH)
 
 # Don't threat deprecated API warnings as errors in 3rd party apps
 ie_deprecated_no_errors()

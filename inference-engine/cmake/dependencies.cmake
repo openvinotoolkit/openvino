@@ -282,6 +282,8 @@ if (ENABLE_OPENCV)
         log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
     endif()
     debug_message(STATUS "opencv=" ${OPENCV})
+else()
+    reset_deps_cache(OpenCV_DIR)
 endif()
 
 include(cmake/ie_parallel.cmake)
