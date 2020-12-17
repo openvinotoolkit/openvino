@@ -42,8 +42,24 @@ struct ConstantAtributes {
     int offset = 0;
 };
 
+// Here operation type names are translated from ngraph convention to IR
+// convention. Most of them are the same, but there are exceptions, e.g
+// Constant (ngraph name) and Const (IR name). If there will be more
+// discrepancies discoverd, translations needs to be added here.
+std::string translate_type_name(std::string name) {
+    const std::unordered_map<std::string, std::string> translator = {
+        {"Constant", "Const"},
+        {"Relu", "ReLU"},
+        {"Softmax", "SoftMax"}};
+    if (translator.count(name) > 0) {
+        name = translator.at(name);
+    }
+    return name;
+}
+
 class XmlVisitor : public ngraph::AttributeVisitor {
     pugi::xml_node& m_data;
+    std::ostream &m_bin_data;
     std::string& m_node_type_name;
 
     template <typename T>
@@ -53,14 +69,30 @@ class XmlVisitor : public ngraph::AttributeVisitor {
     }
 
 public:
-    XmlVisitor(pugi::xml_node& data, std::string& node_type_name)
-        : m_data(data), m_node_type_name(node_type_name) {}
+    XmlVisitor(pugi::xml_node& data, std::ostream& bin_data, std::string& node_type_name)
+        : m_data(data), m_bin_data(bin_data), m_node_type_name(node_type_name) {}
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
-#if 0  // TODO: remove when Constant will support VisitorAPI
-        m_data.append_attribute(name.c_str());
-#endif
+        (void) name;
+        (void) adapter;
+    }
+    void on_adapter(const std::string& name,
+                    ngraph::ValueAccessor<void*>& adapter) override {
+        if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
+            using AlignedBufferAdapter =
+                ngraph::AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>;
+            if (auto a = ngraph::as_type<AlignedBufferAdapter>(&adapter)) {
+                const int64_t size = a->size();
+                const int64_t offset = m_bin_data.tellp();
+
+                m_data.append_attribute("offset").set_value(offset);
+                m_data.append_attribute("size").set_value(size);
+
+                auto data = static_cast<const char*>(a->get_ptr());
+                m_bin_data.write(data, size);
+            }
+        }
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<bool>& adapter) override {
@@ -175,20 +207,6 @@ const std::vector<Edge> create_edge_mapping(
     return edges;
 }
 
-// TODO: refactor to Vistor API when Constant will be supporting it
-ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
-                                     const ngraph::op::Constant& c) {
-    NGRAPH_CHECK(c.get_output_partial_shape(0.).is_static(),
-                 "Unsupported dynamic output shape in ", c);
-
-    ConstantAtributes attr;
-    const uint8_t* p = reinterpret_cast<const uint8_t*>(c.get_data_ptr());
-    attr.size = ngraph::shape_size(c.get_shape()) * c.get_element_type().size();
-    attr.offset = bin.size();
-    bin.insert(end(bin), p, p + attr.size);
-    return attr;
-}
-
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
@@ -212,21 +230,6 @@ std::string get_opset_name(
     }
 
     return "experimental";
-}
-
-// Here operation type names are translated from ngraph convention to IR
-// convention. Most of them are the same, but there are exceptions, e.g
-// Constant (ngraph name) and Const (IR name). If there will be more
-// discrepancies discoverd, translations needs to be added here.
-std::string translate_type_name(std::string name) {
-    const std::unordered_map<std::string, std::string> translator = {
-        {"Constant", "Const"},
-        {"Relu", "ReLU"},
-        {"Softmax", "SoftMax"}};
-    if (translator.count(name) > 0) {
-        name = translator.at(name);
-    }
-    return name;
 }
 
 std::string get_output_precision_name(ngraph::Output<Node>& o) {
@@ -365,7 +368,8 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 }
 
 void ngfunction_2_irv10(
-    pugi::xml_document& doc, std::vector<uint8_t>& bin,
+    pugi::xml_document& doc,
+    std::ostream& bin_file,
     ngraph::Function& f,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     const bool exec_graph = is_exec_graph(f);
@@ -403,7 +407,7 @@ void ngfunction_2_irv10(
         if (exec_graph) {
             visit_exec_graph_node(data, node_type_name, node);
         } else {
-            XmlVisitor visitor(data, node_type_name);
+            XmlVisitor visitor(data, bin_file, node_type_name);
             NGRAPH_CHECK(node->visit_attributes(visitor),
                          "Visitor API is not supported in ", node);
         }
@@ -414,13 +418,6 @@ void ngfunction_2_irv10(
             std::distance(data.attributes().begin(), data.attributes().end());
         if (data_attr_size == 0) {
             layer.remove_child(data);
-        }
-
-        // <layers/data> constant atributes (special case)
-        if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
-            ConstantAtributes attr = dump_constant_data(bin, *constant);
-            data.append_attribute("offset").set_value(attr.offset);
-            data.append_attribute("size").set_value(attr.size);
         }
 
         int port_id = 0;
@@ -482,10 +479,11 @@ void ngfunction_2_irv10(
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // prepare data
     pugi::xml_document xml_doc;
-    std::vector<uint8_t> constants;
+    std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
+    NGRAPH_CHECK(bin_file, "Can't open bin file");
     switch (m_version) {
     case Version::IR_V10:
-        ngfunction_2_irv10(xml_doc, constants, *f, m_custom_opsets);
+        ngfunction_2_irv10(xml_doc, bin_file, *f, m_custom_opsets);
         break;
     default:
         NGRAPH_UNREACHABLE("Unsupported version");
@@ -494,12 +492,10 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
     // create xml file
     std::ofstream xml_file(m_xmlPath, std::ios::out);
+    NGRAPH_CHECK(xml_file, "Can't open xml file");
     xml_doc.save(xml_file);
-
-    // create bin file
-    std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    bin_file.write(reinterpret_cast<const char*>(constants.data()),
-                   constants.size() * sizeof(constants[0]));
+    xml_file.flush();
+    bin_file.flush();
 
     // Return false because we didn't change nGraph Function
     return false;

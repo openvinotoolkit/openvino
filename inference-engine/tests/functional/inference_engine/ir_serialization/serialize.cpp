@@ -34,7 +34,8 @@ public:
 
         bool success;
         std::string message;
-        std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction());
+        std::tie(success, message) =
+            compare_functions(result.getFunction(), expected.getFunction(), true);
         ASSERT_TRUE(success) << message;
     }
 
