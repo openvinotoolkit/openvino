@@ -130,6 +130,42 @@ TEST(type_prop, gather_elements_interval_shapes)
     ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
     ASSERT_EQ(GE->get_output_partial_shape(0), PartialShape({1, Dimension(5, 7), 5}));
 }
+
+TEST(type_prop, gather_elements_data_rank_dynamic_indices_rank_static)
+{
+    PartialShape data_shape = PartialShape::dynamic();
+    PartialShape indices_shape{4, 7, 5};
+    int64_t axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
+    ASSERT_EQ(GE->get_output_partial_shape(0), PartialShape({4, 7, 5}));
+}
+
+TEST(type_prop, gather_elements_data_rank_static_indices_rank_dynamic)
+{
+    PartialShape data_shape{4, Dimension(1, 7), 5};
+    PartialShape indices_shape = PartialShape::dynamic();
+    int64_t axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
+    ASSERT_EQ(GE->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), Dimension(1, 7), 5}));
+}
+
+TEST(type_prop, gather_elements_data_pshape_static_indices_rank_dynamic)
+{
+    PartialShape data_shape{4, 7, 5};
+    PartialShape indices_shape = PartialShape::dynamic();
+    int64_t axis = 0;
+    auto D = make_shared<op::Parameter>(element::Type_t::i8, data_shape);
+    auto I = make_shared<op::Parameter>(element::Type_t::i64, indices_shape);
+    auto GE = make_shared<op::v6::GatherElements>(D, I, axis);
+    ASSERT_EQ(GE->get_element_type(), element::Type_t::i8);
+    ASSERT_EQ(GE->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 7, 5}));
+}
 // --------------------- Negative tests ------------------------------
 
 TEST(type_prop, gather_elements_type_inconsistency)
@@ -205,7 +241,7 @@ TEST(type_prop, gather_elements_rank_consistency_check)
     }
 }
 
-TEST(type_prop, gather_elements_shapes_inconsistency)
+TEST(type_prop, gather_elements_shape_inconsistency)
 {
     Shape data_shape{3, 3};
     Shape indices_shape{2, 1};

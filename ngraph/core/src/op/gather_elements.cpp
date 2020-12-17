@@ -49,70 +49,77 @@ void op::v6::GatherElements::validate_and_infer_types()
     auto data_rank = data_pshape.rank();
     auto indices_rank = indices_pshape.rank();
 
-    if (data_rank.is_static())
+    int64_t axis = m_axis;
+    if (m_axis < 0)
+        axis += data_rank.get_length();
+
+    set_output_type(0, data_type, indices_pshape);
+
+    NODE_VALIDATION_CHECK(
+        this,
+        data_rank.is_dynamic() ||
+                data_rank.get_length() >= 1,
+        "data rank must be >= 1.");
+
+    NODE_VALIDATION_CHECK(
+        this,
+        data_rank.is_dynamic() ||
+            ((-data_rank.get_length() <= m_axis) && (m_axis < data_rank.get_length())),
+        "axis must be within interval (-data.rank,  data.rank - 1). But instead Got: ",
+        m_axis);
+
+    NODE_VALIDATION_CHECK(
+        this,
+        indices_rank.is_dynamic() ||
+            indices_rank.get_length() >= 1,
+        "indices rank must be >= 1.");
+
+    if (data_rank.is_static() && indices_rank.is_dynamic()){
+        PartialShape out_shape_info(data_pshape);
+        out_shape_info[axis] = Dimension::dynamic();
+        set_output_type(0, data_type, out_shape_info);
+        return;
+    }
+
+    if (data_rank.is_dynamic()){
+        if (indices_rank.is_dynamic())
+            set_output_type(0, data_type, PartialShape::dynamic());
+        return;
+    }
+
+    // left only case when data_rank.is_static() && indices_rank.is_static()
+    NODE_VALIDATION_CHECK(this,
+                          data_rank.get_length() == indices_rank.get_length(),
+                          "data and indices rank must be equal. But instead got: ",
+                          data_rank.get_length(),
+                          " and ",
+                          indices_rank.get_length());
+
+    PartialShape output_pshape(indices_pshape);
+    for (int i = 0; i < indices_rank.get_length(); i++)
     {
-        int64_t data_rank_size = data_rank.get_length();
-
-        NODE_VALIDATION_CHECK(this, data_rank_size >= 1, "data rank must be >= 1.");
-
-        if (m_axis < 0)
+        if (i != axis)
         {
+            // if size of the current axis of indices is unknown it will retrieve it from data
+            // e.g., if data_shape = {4, 4, ?} indices_shape = {1, ?, 5} and axis = 0
+            // (and if intervals intersect) then output_pshape will be {1, 4, 5}
+            Dimension curr_dim = data_pshape[i] & indices_pshape[i];
+
             NODE_VALIDATION_CHECK(
                 this,
-                (-data_rank_size < m_axis) && (m_axis < data_rank_size - 1),
-                "axis must be within interval (-data.rank,  data.rank - 1). But instead Got: ",
+                !curr_dim.get_interval().empty(),
+                "Shapes ",
+                data_pshape,
+                " and ",
+                indices_pshape,
+                " are not consistent. data and indices must have equal or "
+                "intersecting sizes, except for axis ",
                 m_axis);
-            m_axis += data_rank_size;
+
+            output_pshape[i] = curr_dim;
         }
     }
-
-    if (indices_rank.is_static())
-    {
-        NODE_VALIDATION_CHECK(this, indices_rank.get_length() >= 1, "indices rank must be >= 1.");
-    }
-
-    if (indices_rank.is_static() && data_rank.is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              data_rank.get_length() == indices_rank.get_length(),
-                              "data and indices rank must be equal. But instead got: ",
-                              data_rank.get_length(),
-                              " and ",
-                              indices_rank.get_length());
-
-        PartialShape out_shape_info(indices_pshape);
-        stringstream data_shape_val, indices_shape_val;
-        for (int i = 0; i < indices_rank.get_length(); i++)
-        {
-            if (i != m_axis)
-            {
-                // if size of the current axis of indices is unknown it will retrieve it from data
-                // e.g., if data_shape = {4, 4, ?} indices_shape = {1, ?, 5} and axis = 0
-                // (and if intervals intersect) then out size along dim 2 is also 5
-                Dimension curr_dim = data_pshape[i] & indices_pshape[i];
-
-                NODE_VALIDATION_CHECK(this,
-                                      !curr_dim.get_interval().empty(),
-                                      "Shapes ",
-                                      data_pshape,
-                                      " and ",
-                                      indices_pshape,
-                                      " are not consistent. data and indices must have equal or "
-                                      "intersecting sizes, except for axis ",
-                                      m_axis);
-
-                out_shape_info[i] = curr_dim;
-            }
-        }
-        set_output_type(0, data_type, out_shape_info);
-    }
-    else // if (indices_rank.is_dynamic() || data_rank.is_dynamic())
-    {
-        // if at least one input has static rank propagate PartialShape of that input
-        // in the optimistic scenario at least we will have static rank
-        // in the worse scenario propagating any of PartialShapes is equivalent
-        set_output_type(0, data_type, indices_rank.is_static() ? indices_pshape : data_pshape);
-    }
+    set_output_type(0, data_type, output_pshape);
 }
 
 bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor)
