@@ -20,7 +20,10 @@ std::shared_ptr<ngraph::Node> shapeToConstant(const ngraph::element::Type& type,
 
 std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::Node>&, int startIndex, size_t elemCount);
 
-void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object);
+template<>
+inline void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
+    stream << object.name << " ver. " << object.version;
+}
 
 using Nodes = std::unordered_set<ngraph::Node*>;
 
