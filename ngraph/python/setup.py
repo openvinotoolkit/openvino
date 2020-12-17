@@ -151,8 +151,7 @@ def parallelCCompile(
         self._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
 
     # convert to list, imap is evaluated on-demand
-    print("OS CPU COUNT:" + str(os.cpu_count()))
-    pool = multiprocessing.pool.ThreadPool(1)
+    pool = multiprocessing.pool.ThreadPool(8)
     list(pool.imap(_single_compile, objects))
     return objects
 
