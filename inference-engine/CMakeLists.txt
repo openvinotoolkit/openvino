@@ -55,8 +55,8 @@ function(ie_developer_export)
         APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 
     # Custom target to build only Inference Engine Developer Package targets
-    add_custom_target(ie_dev_targets ALL DEPENDS ${OpenVINODeveloperPackageTargets} ${IEDeveloperPackageTargets} gflags
-                      inference_engine_ir_reader inference_engine_ir_v7_reader)
+    add_custom_target(ie_dev_targets ALL DEPENDS ${OpenVINODeveloperPackageTargets} ${IEDeveloperPackageTargets}
+                      gflags ie_libraries)
 endfunction()
 
 add_subdirectory(thirdparty)

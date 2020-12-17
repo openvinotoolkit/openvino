@@ -47,7 +47,7 @@ public:
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
             auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
-                FileUtils::makeSharedLibraryName<char>({},
+                FileUtils::makePluginLibraryName<char>({},
                     std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::details::InferenceEngineException & ex) {
@@ -97,7 +97,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         file << "mock_engine";
         file << IE_BUILD_POSTFIX;
         file << FileUtils::DotSymbol<char>::value;
-        file << FileUtils::FileTraits<char>::SharedLibraryExt();
+        file << FileUtils::FileTraits<char>::PluginLibraryExt();
         file << "\" name=\"";
         file << indexStr;
         file << "\"></plugin></plugins></ie>";
