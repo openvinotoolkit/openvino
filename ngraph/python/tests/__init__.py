@@ -195,8 +195,6 @@ xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::
                                       "Input order must have shape [n], where n is the rank of arg.")
 
 # Model MSFT issues:
-xfail_issue_36465 = xfail_test(reason="LSTM_Seq_lens: RuntimeError: get_shape was called on a "
-                                      "descriptor::Tensor with dynamic shape")
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
