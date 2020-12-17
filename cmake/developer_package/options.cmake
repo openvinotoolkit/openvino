@@ -4,7 +4,6 @@
 # Usage: ie_option(<option_variable> "description" <initial value or boolean expression> [IF <condition>])
 
 include (CMakeDependentOption)
-include (version)
 
 macro (ie_option variable description value)
     option(${variable} "${description}" ${value})
@@ -32,6 +31,10 @@ macro (ie_option_enum variable description value)
 endmacro()
 
 function (print_enabled_features)
+    if(NOT COMMAND set_ci_build_number)
+        message(FATAL_ERROR "CI_BUILD_NUMBER is not set yet")
+    endif()
+
     message(STATUS "Inference Engine enabled features: ")
     message(STATUS "")
     message(STATUS "    CI_BUILD_NUMBER: ${CI_BUILD_NUMBER}")

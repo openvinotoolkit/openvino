@@ -14,7 +14,7 @@ function(ie_shellcheck_process)
 
     cmake_parse_arguments(IE_SHELLCHECK "" "DIRECTORY" "SKIP" ${ARGN})
 
-    set(IE_SHELLCHECK_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/cmake/shellcheck/shellcheck_process.cmake")
+    set(IE_SHELLCHECK_SCRIPT "${IEDevScripts_DIR}/shellcheck/shellcheck_process.cmake")
     file(GLOB_RECURSE scripts "${IE_SHELLCHECK_DIRECTORY}/*.sh")
     foreach(script IN LISTS scripts)
         # check if we need to skip scripts

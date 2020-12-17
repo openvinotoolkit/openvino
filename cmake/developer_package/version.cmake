@@ -3,18 +3,24 @@
 #
 
 function (branchName VAR)
+    if(NOT DEFINED repo_root)
+        message(FATAL_ERROR "repo_root is not defined")
+    endif()
     execute_process(
             COMMAND git rev-parse --abbrev-ref HEAD
-            WORKING_DIRECTORY ${OpenVINO_MAIN_SOURCE_DIR}
+            WORKING_DIRECTORY ${repo_root}
             OUTPUT_VARIABLE GIT_BRANCH
             OUTPUT_STRIP_TRAILING_WHITESPACE)
     set (${VAR} ${GIT_BRANCH} PARENT_SCOPE)
 endfunction()
 
 function (commitHash VAR)
+    if(NOT DEFINED repo_root)
+        message(FATAL_ERROR "repo_root is not defined")
+    endif()
     execute_process(
             COMMAND git rev-parse HEAD
-            WORKING_DIRECTORY ${OpenVINO_MAIN_SOURCE_DIR}
+            WORKING_DIRECTORY ${repo_root}
             OUTPUT_VARIABLE GIT_COMMIT_HASH
             OUTPUT_STRIP_TRAILING_WHITESPACE)
     set (${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)

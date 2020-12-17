@@ -18,7 +18,7 @@ if(NOT TARGET ie_coverage)
 endif()
 
 set(IE_COVERAGE_REPORTS "${CMAKE_BINARY_DIR}/coverage")
-set(IE_COVERAGE_SCRIPT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/coverage")
+set(IE_COVERAGE_SCRIPT_DIR "${IEDevScripts_DIR}/coverage")
 
 include(CMakeParseArguments)
 

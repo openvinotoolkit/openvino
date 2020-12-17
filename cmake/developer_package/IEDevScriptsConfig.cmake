@@ -11,6 +11,14 @@ endif()
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 
+function(set_ci_build_number)
+    set(repo_root "${CMAKE_SOURCE_DIR}")
+    include(version)
+    set(CI_BUILD_NUMBER "${CI_BUILD_NUMBER}" PARENT_SCOPE)
+endfunction()
+
+set_ci_build_number()
+
 include(features)
 
 #
@@ -104,6 +112,9 @@ endif()
 
 # allow to override default OUTPUT_ROOT root
 if(NOT DEFINED OUTPUT_ROOT)
+    if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
+        message(FATAL_ERROR "OpenVINO_MAIN_SOURCE_DIR is not defined")
+    endif()
     set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
 endif()
 
@@ -199,13 +210,6 @@ include(whole_archive)
 include(linux_name)
 include(models)
 include(api_validator/api_validator)
-
-function(set_ci_build_number)
-    set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_SOURCE_DIR}")
-    include(version)
-    set(CI_BUILD_NUMBER "${CI_BUILD_NUMBER}" PARENT_SCOPE)
-endfunction()
-set_ci_build_number()
 
 include(vs_version/vs_version)
 include(plugins/plugins)
