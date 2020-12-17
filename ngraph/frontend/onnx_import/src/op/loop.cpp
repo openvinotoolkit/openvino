@@ -87,7 +87,10 @@ namespace ngraph
 
                     // optional inputs
                     Output<ngraph::Node> trip_count;
-                    if (ngraph::op::is_null(ng_inputs.at(0))) // trip count skipped
+                    // trip count skipped
+                    if (ngraph::op::is_null(ng_inputs.at(0)) ||
+                        as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())
+                                ->cast_vector<int64_t>()[0] == std::numeric_limits<int64_t>::max())
                     {
                         // -1 means infinite Loop
                         trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
