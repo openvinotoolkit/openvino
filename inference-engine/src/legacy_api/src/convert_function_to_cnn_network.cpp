@@ -1320,8 +1320,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"DeformablePSROIPooling"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+    addSpecificCreator({"DeformablePSROIPooling"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                                                      const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "PSROIPooling", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
@@ -1329,7 +1329,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         // temporary workaround due to incorrect usage of group_size in the nGraph operation for the DeformablePSROIPooling
         res->params["pooled_height"] = params.at("group_size");
         res->params["pooled_width"] = params.at("group_size");
+        return res;
+    });
 
+    addSpecificCreator({"CTCGreedyDecoder"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "CTCGreedyDecoder", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        res->params["ctc_merge_repeated"] = res->getBoolStrParamAsIntStr("ctc_merge_repeated");
         return res;
     });
 }
@@ -1359,9 +1367,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
         };
         const static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::CTCGreedyDecoder>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Ceiling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::FullyConnected>>(),

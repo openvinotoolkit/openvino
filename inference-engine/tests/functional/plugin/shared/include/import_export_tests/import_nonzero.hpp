@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "functional_test_utils/import_export_base/import_export_base.hpp"
+#include "base/import_export_base/import_export_base.hpp"
 
 namespace LayerTestsDefinitions {
 
