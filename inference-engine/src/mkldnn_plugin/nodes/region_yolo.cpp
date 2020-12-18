@@ -21,6 +21,7 @@
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
@@ -127,7 +128,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
@@ -168,10 +169,10 @@ private:
         uni_vmovups(vmm_aux2, table_val(1));
         uni_vsubps(vmm_aux2, vmm_aux2, vmm_src);
 
-        if (isa == cpu::x64::sse41) {
+        if (isa == x64::sse41) {
             uni_vblendvps(vmm_aux2, vmm_aux2, vmm_src, vmm_aux0);
             uni_vmovups(vmm_src, vmm_aux2);
-        } else if (isa == cpu::x64::avx2) {
+        } else if (isa == x64::avx2) {
             uni_vblendvps(vmm_src, vmm_aux2, vmm_src, vmm_aux0);
         } else {
             vptestmd(k_mask, vmm_aux0, vmm_aux0);
@@ -292,14 +293,14 @@ public:
             jcp.src_data_size = jcp.dst_data_size = output_prec.size();
 
             block_size = 1;
-            if (mayiuse(cpu::x64::avx512_common)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::avx512_common>(jcp));
+            if (mayiuse(x64::avx512_common)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_common>(jcp));
                 block_size = 16;
-            } else if (mayiuse(cpu::x64::avx2)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::avx2>(jcp));
+            } else if (mayiuse(x64::avx2)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx2>(jcp));
                 block_size = 8;
-            } else if (mayiuse(cpu::x64::sse41)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::sse41>(jcp));
+            } else if (mayiuse(x64::sse41)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::sse41>(jcp));
                 block_size = 4;
             }
 

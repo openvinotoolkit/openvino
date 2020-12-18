@@ -59,7 +59,7 @@ static TensorDesc makeChannelBlockedTensorDesc(const Precision& precision, const
 }
 
 static inline uint8_t* getDataPtr(const MKLDNNMemory& memoryPtr) {
-    return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.layout_desc.blocking.offset_padding *
+    return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.offset0 *
         MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(memoryPtr.GetDescriptor().data.data_type));
 }
 

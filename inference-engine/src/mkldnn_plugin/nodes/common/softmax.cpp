@@ -17,6 +17,7 @@
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
 using namespace mkldnn;
+using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
@@ -167,7 +168,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     }
 
 private:
-    using Vmm = typename conditional3<isa == x64::sse42, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -240,13 +241,13 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     jcp.dst_dt = outPrc;
 
     if (mayiuse(x64::avx512_common)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::avx512_common>(jcp));
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx512_common>(jcp));
         block_size = 16;
     } else if (mayiuse(x64::avx2)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::avx2>(jcp));
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx2>(jcp));
         block_size = 8;
     } else if (mayiuse(x64::sse41)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::sse41>(jcp));
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::sse41>(jcp));
         block_size = 4;
     }
     if (softmax_kernel)
