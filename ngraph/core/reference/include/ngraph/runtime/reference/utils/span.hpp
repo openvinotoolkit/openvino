@@ -20,8 +20,6 @@
 #include <limits>
 #include <type_traits>
 
-#include "ngraph/check.hpp"
-
 namespace ngraph
 {
     namespace runtime
@@ -54,6 +52,13 @@ namespace ngraph
                 {
                 };
 
+                template <typename It>
+                struct from_iterator
+                {
+                    using stored_value = typename std::remove_pointer<
+                        typename std::iterator_traits<It>::pointer>::type;
+                };
+
             } // namespace details
 
             /// @brief Span should mimic std::span
@@ -70,7 +75,7 @@ namespace ngraph
 
                 constexpr Span() = default;
 
-                constexpr Span(const Element* data, std::size_t size)
+                constexpr Span(Element* data, std::size_t size)
                     : m_data{data}
                     , m_size{size}
                 {
@@ -79,23 +84,16 @@ namespace ngraph
                 using value_type = Element;
                 using size_type = std::size_t;
 
-                constexpr const Element* begin() const noexcept { return m_data; }
-                constexpr const Element* end() const noexcept { return m_data + m_size; }
-                friend constexpr const Element* begin(const Span& s) noexcept { return s.begin(); }
-                friend constexpr const Element* end(const Span& s) noexcept { return s.end(); }
+                constexpr Element* begin() const noexcept { return m_data; }
+                constexpr Element* end() const noexcept { return m_data + m_size; }
+                friend constexpr Element* begin(const Span& s) noexcept { return s.begin(); }
+                friend constexpr Element* end(const Span& s) noexcept { return s.end(); }
                 constexpr std::size_t size() const noexcept { return m_size; }
                 constexpr bool empty() const noexcept { return !m_size; }
-                constexpr const Element& front() const noexcept { return *m_data; }
-                constexpr const Element& back() const noexcept { return *(m_data + (m_size - 1)); }
-                constexpr const Element& operator[](std::size_t idx) const
-                {
-                    return *(m_data + idx);
-                }
-                const Element& at(std::size_t idx) const
-                {
-                    NGRAPH_CHECK(idx < m_size, "Index: " + std::to_string(idx) + " out of range");
-                    return *(m_data + idx);
-                }
+                constexpr Element& front() const noexcept { return *m_data; }
+                constexpr Element& back() const noexcept { return *(m_data + (m_size - 1)); }
+                constexpr Element& operator[](std::size_t idx) const { return *(m_data + idx); }
+                Element& at(std::size_t idx) const { return *(m_data + idx); }
 
                 Span subspan(std::size_t offset,
                              std::size_t size = std::numeric_limits<std::size_t>::max())
@@ -108,32 +106,48 @@ namespace ngraph
                 }
 
             private:
-                const Element* m_data{nullptr};
+                Element* m_data{nullptr};
                 std::size_t m_size{0};
             };
 
             template <typename Iterator,
+                      typename value = typename details::from_iterator<Iterator>::stored_value,
                       details::Required<details::IsRandomAccessIt<Iterator>::value> = true>
-            Span<typename Iterator::value_type> span(Iterator first, Iterator second)
+            constexpr auto span(Iterator first, Iterator second) -> Span<value>
             {
-                using Span = Span<typename Iterator::value_type>;
-                return Span{std::addressof(*first),
-                            static_cast<typename Span::size_type>(std::distance(first, second))};
+                return Span<value>{
+                    std::addressof(*first),
+                    static_cast<typename Span<value>::size_type>(std::distance(first, second))};
             }
 
             template <typename Container,
                       // check if Container has contiguous range memory
                       typename = details::void_t<decltype(std::declval<Container>().data()),
                                                  decltype(std::declval<Container>().size())>>
-            Span<typename Container::value_type> span(const Container& c)
+            constexpr auto span(const Container& c) -> Span<const typename Container::value_type>
             {
-                return Span<typename Container::value_type>{c.data(), c.size()};
+                return {c.data(), c.size()};
+            }
+
+            template <typename Container,
+                      // check if Container has contiguous range memory
+                      typename = details::void_t<decltype(std::declval<Container>().data()),
+                                                 decltype(std::declval<Container>().size())>>
+            constexpr auto span(Container& c) -> Span<typename Container::value_type>
+            {
+                return {c.data(), c.size()};
             }
 
             template <typename Element>
-            Span<Element> span(const Element* data, std::size_t size)
+            constexpr auto span(const Element* data, std::size_t size) -> Span<const Element>
             {
-                return Span<Element>{data, size};
+                return {data, size};
+            }
+
+            template <typename Element>
+            constexpr auto span(Element* data, std::size_t size) -> Span<Element>
+            {
+                return {data, size};
             }
 
         } // namespace reference

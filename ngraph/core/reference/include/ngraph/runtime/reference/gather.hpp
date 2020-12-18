@@ -41,7 +41,9 @@ namespace ngraph
                 std::vector<size_t>
                     join(const Container& c1, const Container& c2, const Container& c3)
                 {
-                    static_assert(std::is_same<typename Container::value_type, size_t>::value,
+                    using container_value_type =
+                        typename std::remove_cv<typename Container::value_type>::type;
+                    static_assert(std::is_same<container_value_type, size_t>::value,
                                   "Expect same type in container");
                     std::vector<size_t> ret;
                     ret.reserve(c1.size() + c2.size() + c3.size());
