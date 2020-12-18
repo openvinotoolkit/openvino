@@ -33,15 +33,26 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
+                /// \brief Structure that specifies attributes of the operation
                 struct Attributes
                 {
+                    // specifies score threshold
                     float score_threshold;
+                    // specifies NMS threshold
                     float nms_threshold;
+                    // specifies maximal delta of logarithms for width and height
                     float max_delta_log_wh;
+                    // specifies number of detected classes
                     int num_classes;
+                    // specifies maximal number of detections per class
                     int post_nms_count;
+                    // specifies maximual number of detections per image
                     int max_detections_per_image;
+                    // a flag specifies whether to delete background classes or not
+                    // `true`  means background classes should be deleted,
+                    // `false` means background classes shouldn't be deleted.
                     bool class_agnostic_box_regression;
+                    // specifies deltas of weights
                     std::vector<float> deltas_weights;
                 };
 
