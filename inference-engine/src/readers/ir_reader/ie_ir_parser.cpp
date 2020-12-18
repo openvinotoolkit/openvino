@@ -247,56 +247,24 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
 }
 
 void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) {
-    auto body_node = node.child("body");
-
-    if (body_node.empty()) {
-        THROW_IE_EXCEPTION << "TensorIterator has no body.";
+    std::shared_ptr<ngraph::Function> ngraph_function;
+    if (!name.compare("body")) {
+        auto body_node = node.child(name.c_str());
+        if (body_node.empty()) {
+            THROW_IE_EXCEPTION << "TensorIterator has no body.";
+        }
+        ngraph_function = parse_function(node.child(name.c_str()), weights);
+    } else if (!name.compare("net")) {
+        ngraph_function = parse_function(node, weights);
+    } else {
+        THROW_IE_EXCEPTION << "Error: not recognized adapter name: " << name << ".";
     }
-
-    IRParser parser(10);
-    auto ngraph_function = parser.parse(node.child("body"), weights)->getFunction();
     // Disabled reshape for generic operations in the TI body
     ngraph::op::GenericIE::DisableReshape noReshape(ngraph_function);
     adapter.set(ngraph_function);
 }
 
-std::shared_ptr<ICNNNetwork> IRParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
-    return parser->parse(root, weights);
-}
-
-/**
- * Hold original blob in order to avoid situations when original blob is allocated on stack
- */
-class WeightsHolderBlob : public TBlob<uint8_t> {
-    Blob::CPtr originBlob;
-
-public:
-    explicit WeightsHolderBlob(const Blob::CPtr& weights) :
-        TBlob<uint8_t>(weights->getTensorDesc(),
-                       weights->cbuffer().as<uint8_t*>()),
-        originBlob(weights) { }
-};
-
-V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
-    // Load default opsets
-    opsets["opset1"] = ngraph::get_opset1();
-    opsets["opset2"] = ngraph::get_opset2();
-    opsets["opset3"] = ngraph::get_opset3();
-    opsets["opset4"] = ngraph::get_opset4();
-    opsets["opset5"] = ngraph::get_opset5();
-
-    // Load custom opsets
-    for (const auto& ext : exts) {
-        std::map<std::string, ngraph::OpSet> extOpsets = ext->getOpSets();
-        for (const auto& it : extOpsets) {
-            if (opsets.find(it.first) != opsets.end())
-                THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
-            opsets[it.first] = it.second;
-        }
-    }
-}
-
-std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
+std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(const pugi::xml_node& root, const Blob::CPtr& weights) {
     OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     using node_params = struct {
@@ -415,8 +383,53 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const 
 
     OV_ITT_TASK_NEXT(taskChain, "ConstructCNNNetwork");
 
-    CNNNetwork net(function, _exts);
+    return function;
+}
 
+std::shared_ptr<ICNNNetwork> IRParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
+    return parser->parse(root, weights);
+}
+
+/**
+ * Hold original blob in order to avoid situations when original blob is allocated on stack
+ */
+class WeightsHolderBlob : public TBlob<uint8_t> {
+    Blob::CPtr originBlob;
+
+public:
+    explicit WeightsHolderBlob(const Blob::CPtr& weights) :
+        TBlob<uint8_t>(weights->getTensorDesc(),
+                       weights->cbuffer().as<uint8_t*>()),
+        originBlob(weights) { }
+};
+
+V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
+    // Load default opsets
+    opsets["opset1"] = ngraph::get_opset1();
+    opsets["opset2"] = ngraph::get_opset2();
+    opsets["opset3"] = ngraph::get_opset3();
+    opsets["opset4"] = ngraph::get_opset4();
+    opsets["opset5"] = ngraph::get_opset5();
+
+    // Load custom opsets
+    for (const auto& ext : exts) {
+        std::map<std::string, ngraph::OpSet> extOpsets = ext->getOpSets();
+        for (const auto& it : extOpsets) {
+            if (opsets.find(it.first) != opsets.end())
+                THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
+            opsets[it.first] = it.second;
+        }
+    }
+}
+
+std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
+    OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
+
+    std::shared_ptr<ngraph::Function> function;
+    XmlDeserializer visitor(root, weights, opsets);
+    visitor.on_attribute("net", function);
+
+    CNNNetwork net(function, _exts);
     parsePreProcess(net, root, weights);
 
     return net;
@@ -548,7 +561,7 @@ void V10Parser::parsePreProcess(CNNNetwork& network, const pugi::xml_node& root,
     }
 }
 
-V10Parser::GenericLayerParams V10Parser::parseGenericParams(const pugi::xml_node& node) {
+V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {
     const auto parsePort = [](const pugi::xml_node& parentNode,
                               const GenericLayerParams& params,
                               bool input) -> GenericLayerParams::LayerPortData {
@@ -605,8 +618,10 @@ bool V10Parser::LayerBaseCreator::shouldCreate(const std::string& nodeType) cons
     return comparator(nodeType, type);
 }
 
-std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Output<ngraph::Node>>& inputs,
-                                                    const pugi::xml_node& node, const Blob::CPtr& weights,
+std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
+                                                    const std::vector<ngraph::Output<ngraph::Node>>& inputs,
+                                                    const pugi::xml_node& node,
+                                                    const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
@@ -701,7 +716,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         ngraphNode->set_friendly_name(params.name);
         ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node, weights);
+        XmlDeserializer visitor(node, weights, opsets);
         if (ngraphNode->visit_attributes(visitor))
             ngraphNode->constructor_validate_and_infer_types();
     }

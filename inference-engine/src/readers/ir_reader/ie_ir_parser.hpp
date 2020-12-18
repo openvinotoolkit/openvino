@@ -8,6 +8,7 @@
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
 # include <ie_ngraph_utils.hpp>
+# include <ngraph/opsets/opset.hpp>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>
@@ -51,7 +52,6 @@ public:
 };
 
 #ifdef IR_READER_V10
-
 class V10Parser : public IParser {
 public:
     explicit V10Parser(const std::vector<IExtensionPtr>& exts);
@@ -171,10 +171,6 @@ private:
         }
     };
 
-    std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
-                                             const Blob::CPtr& weights, const GenericLayerParams& params);
-
-    GenericLayerParams parseGenericParams(const pugi::xml_node& node);
     void parsePreProcess(CNNNetwork& network, const pugi::xml_node& root, const Blob::CPtr& weights);
 
     std::map<std::string, DataPtr> portsToData;
@@ -182,7 +178,8 @@ private:
 
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
-        explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights): node(node), weights(weights) {}
+        explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights,
+        const std::map<std::string, ngraph::OpSet>& opsets) : node(node), weights(weights), opsets(opsets) {}
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -281,6 +278,7 @@ private:
     private:
         const pugi::xml_node node;
         const Blob::CPtr& weights;
+        const std::map<std::string, ngraph::OpSet>& opsets;
         /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
         /// Shall be used only for ops which have port_map attribute.
         /// \param node xml op representation
@@ -297,6 +295,15 @@ private:
         /// \param type op type name to find
         /// \param type_id_in_function map container
         void map_type_in_function(const pugi::xml_node& node, std::string type, std::map<uint64_t, uint64_t>& type_id_in_function);
+        /// \brief Traverses xml node representation in order to create nGraph function for it.
+        /// \param node xml node representation
+        /// \param weights weights attached to current node
+        /// \return shared pointer to function representing input node
+        std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root, const Blob::CPtr& weights);
+
+        GenericLayerParams parseGenericParams(const pugi::xml_node& node);
+        std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
+                                             const Blob::CPtr& weights, const GenericLayerParams& params);
 
         bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
             if (!node) return false;
