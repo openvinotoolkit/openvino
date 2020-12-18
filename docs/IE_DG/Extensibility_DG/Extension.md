@@ -4,6 +4,8 @@ Inference Engine provides an InferenceEngine::IExtension interface, which define
 All extension libraries should be inherited from this interface. The example below contains implementation of two operations: `Template`
 used as an example in this document and `FFT` used as a more complex example from the [Custom Operations Guide](../../HOWTO/Custom_Layers_Guide.md).
 
+> **NOTE**: `FFT` operation is implemented using OpenCV library functions `cv::dft` and `cv::idft`.
+
 Based on that, declaration of an extension class can look as follows:
 
 @snippet template_extension/extension.hpp extension:header
