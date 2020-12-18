@@ -34,7 +34,6 @@ TEST(type_prop, abs_incompatible_input_type)
     Shape data_shape{3, 3};
     const auto param = make_shared<op::Parameter>(element::boolean, data_shape);
     ASSERT_THROW(make_shared<op::Abs>(param), ngraph::NodeValidationFailure);
-    ;
 }
 
 TEST(type_prop, abs_dynamic_shape_2D)
