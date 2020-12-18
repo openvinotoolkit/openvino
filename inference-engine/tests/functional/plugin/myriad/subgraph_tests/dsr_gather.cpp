@@ -38,6 +38,25 @@ using GatherParameters = std::tuple<
 
 class DSR_GatherBase : public testing::WithParamInterface<GatherParameters>,
                        public DSR_TestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<GatherParameters> obj) {
+        DataType dataType, idxType;
+        GatherTestCase gatherTestCase;
+        LayerTestsUtils::TargetDevice targetDevice;
+        std::tie(dataType, idxType, gatherTestCase, targetDevice) = obj.param;
+
+        std::ostringstream result;
+        result << "DT=" << dataType << "_";
+        result << "IT=" << idxType << "_";
+        result << "DataRealShape=" << CommonTestUtils::vec2str(gatherTestCase.inputShapes.shape) << "_";
+        result << "DataUBShape=" << CommonTestUtils::vec2str(gatherTestCase.inputShapes.upperBoundShape) << "_";
+        result << "IdxRealShape=" << CommonTestUtils::vec2str(gatherTestCase.inputShapes.shape) << "_";
+        result << "IdxUBShape=" << CommonTestUtils::vec2str(gatherTestCase.inputShapes.upperBoundShape) << "_";
+        result << "Axis=" << gatherTestCase.axis << "_";
+        result << "trgDev=" << targetDevice;
+        return result.str();
+    }
+
 protected:
     std::set<std::string> m_indicesInputNames;
 
@@ -90,7 +109,8 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherData, DSR_GatherDynamicDataStaticIdx,
                 GatherTestCase{DataShapeWithUpperBound{{800}, {1000}}, DataShapeWithUpperBound{{700}, {}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{800, 4}, {1000, 4}}, DataShapeWithUpperBound{{700}, {}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{800, 4}, {1000, 4}}, DataShapeWithUpperBound{{700}, {}}, -2}),
-        testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
+        testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        DSR_GatherBase::getTestCaseName);
 
 
 class DSR_GatherStaticDataDynamicIdx : public DSR_GatherBase {
@@ -128,7 +148,8 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherIdx, DSR_GatherStaticDataDynamicIdx, 
                 GatherTestCase{DataShapeWithUpperBound{{1000, 4}, {}}, DataShapeWithUpperBound{{800}, {1000}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{1000, 4}, {}}, DataShapeWithUpperBound{{800}, {1000}}, -2},
                 GatherTestCase{DataShapeWithUpperBound{{1, 3, 200, 304}, {}}, DataShapeWithUpperBound{{142, 64}, {300, 64}}, 2}),
-        testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
+        testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        DSR_GatherBase::getTestCaseName);
 
 
 class DSR_GatherDynamicDataDynamicIdx : public DSR_GatherBase {
@@ -163,6 +184,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicGather, DSR_GatherDynamicDataDynamicIdx, te
                 GatherTestCase{DataShapeWithUpperBound{{800}, {1000}}, DataShapeWithUpperBound{{700}, {1000}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{800, 4}, {1000, 4}}, DataShapeWithUpperBound{{700}, {1000}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{800, 4}, {1000, 4}}, DataShapeWithUpperBound{{700}, {1000}}, -2}),
-        testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
+        testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        DSR_GatherBase::getTestCaseName);
 
 }  // namespace
