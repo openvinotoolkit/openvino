@@ -20,9 +20,8 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/max_pool.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "onnx_import/utils/pooling_factory.hpp"
 #include "onnx_import/default_opset.hpp"
-
+#include "onnx_import/utils/pooling_factory.hpp"
 
 namespace ngraph
 {
@@ -46,8 +45,8 @@ namespace ngraph
                         //     ngraph::element::i64, Shape{1}, {0}));
 
                         // I32 - No IndexError, just result type mismatch (expected I64)
-                        max_pool.emplace_back(default_opset::Constant::create(
-                            ngraph::element::i32, Shape{1}, {0}));
+                        max_pool.emplace_back(
+                            default_opset::Constant::create(ngraph::element::i32, Shape{1}, {0}));
                     }
                     return max_pool;
                 }
