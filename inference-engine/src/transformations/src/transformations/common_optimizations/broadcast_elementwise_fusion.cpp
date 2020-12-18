@@ -18,7 +18,7 @@ bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngra
     const int64_t & broadcast_shape_rank = broadcast_shape.rank().get_length();
     if (broadcast_shape_rank > input_shape_rank) {
         //We can not eliminate broadcast op because
-        //in the case input_shape will be broadcast
+        //in the case input_shape will be broadcasted
         return false;
     }
     for (int64_t i_dim = input_shape_rank - 1, b_dim = broadcast_shape_rank - 1; i_dim >= 0 && b_dim >=0; --i_dim, --b_dim) {
@@ -36,6 +36,8 @@ bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngra
         } else if (broadcast_shape[i_dim].is_dynamic() && input_shape[i_dim].is_static() &&
                    input_shape[i_dim].get_length() == 1) {
             return false;
+        } else if (broadcast_shape[i_dim].is_dynamic() && input_shape[i_dim].is_dynamic()) {
+            return false;
         }
     }
     return true;
@@ -47,14 +49,10 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset5::Broadcast>({input2, pattern::any_input()});
     auto elementwise = ngraph::pattern::wrap_type<ngraph::op::util::BinaryElementwiseArithmetic>({input1, broadcast});
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto &pattern_value = m.get_pattern_value_map();
         auto broadcast_node = pattern_value[broadcast].get_node_shared_ptr();
         auto elementwise_input_node = pattern_value[input1].get_node_shared_ptr();
-        if (!broadcast_node) {
-            return false;
-        }
-
         auto elementwise_input_shape = elementwise_input_node->get_output_partial_shape(0);
         auto broadcast_output_shape = broadcast_node->get_output_partial_shape(0);
         if (!is_eliminate_broadcast(elementwise_input_shape, broadcast_output_shape)) {
@@ -69,5 +67,5 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(elementwise, "BroadcastElementwiseFusion");
-    register_matcher(m, matcher_pass_callback);
+    register_matcher(m, callback);
 }
