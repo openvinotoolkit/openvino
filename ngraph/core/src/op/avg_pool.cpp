@@ -75,19 +75,19 @@ void op::v1::AvgPool::validate_and_infer_types()
     }
 
     const PartialShape& arg_shape = get_input_partial_shape(0);
-    
+
     NODE_VALIDATION_CHECK(this,
-                          arg_shape.rank().compatible(4) || arg_shape.rank().compatible(5) ,
+                          arg_shape.rank().compatible(4) || arg_shape.rank().compatible(5),
                           "Expected a 4D or 5D tensor for the input. Got: ",
                           arg_shape);
-    
+
     if (arg_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
                               m_pads_end.size() == arg_shape.rank().get_max_length() - 2,
                               "Expected pads_end size to be equal to input size - 2. Got: ",
                               m_pads_end.size());
-        
+
         NODE_VALIDATION_CHECK(this,
                               m_pads_begin.size() == arg_shape.rank().get_max_length() - 2,
                               "Expected pads_begin size to be equal to input size - 2. Got: ",
@@ -97,7 +97,8 @@ void op::v1::AvgPool::validate_and_infer_types()
     auto output_shape = PartialShape::dynamic();
     if (arg_shape.rank().is_static())
     {
-        output_shape = std::vector<Dimension>(arg_shape.rank().get_max_length() , Dimension::dynamic());
+        output_shape =
+            std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
         if (arg_shape[0].is_static())
         {
             output_shape[0] = arg_shape[0]; // batch size
@@ -107,15 +108,16 @@ void op::v1::AvgPool::validate_and_infer_types()
             output_shape[1] = arg_shape[1]; // channel size
         }
     }
-        bool update_auto_padding_succeed = true;
+    bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        CoordinateDiff pads_end, pads_begin;
+        CoordinateDiff pads_end;
+        CoordinateDiff pads_begin;
         update_auto_padding_succeed =
             try_apply_auto_padding(arg_shape,
                                    m_kernel,
                                    m_strides,
-                                   Strides(m_kernel.size(), 1), // No dilation
+                                   Strides(m_kernel.size(), 1), // No dilationP
                                    m_auto_pad,
                                    pads_end,
                                    pads_begin);
