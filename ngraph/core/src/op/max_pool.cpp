@@ -200,31 +200,35 @@ namespace maxpool
     }
 } // namespace
 
+bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
+                                       const HostTensorVector& inputs) const
+{
+    auto arg_shape = inputs[0]->get_partial_shape();
+    auto pads_begin_s = get_pads_begin();
+    auto pads_end_s = get_pads_end();
+    update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
+    CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
+    CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
+    auto out_shape = infer_batched_pooling_forward(this,
+                                                   arg_shape,
+                                                   pads_begin,
+                                                   pads_end,
+                                                   get_kernel(),
+                                                   get_strides(),
+                                                   true,
+                                                   get_rounding_type() == op::RoundingType::CEIL);
+
+    return maxpool::evaluate_maxpool(inputs[0],
+                                     outputs[0],
+                                     out_shape.get_shape(),
+                                     get_kernel(),
+                                     get_strides(),
+                                     get_pads_begin(),
+                                     get_pads_end());
+}
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate, auto arg_shape = inputs[0]->get_partial_shape();
-                    auto pads_begin_s = get_pads_begin();
-                    auto pads_end_s = get_pads_end();
-                    update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
-                    CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
-                    CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
-                    auto out_shape = infer_batched_pooling_forward(this,
-                                                                   arg_shape,
-                                                                   pads_begin,
-                                                                   pads_end,
-                                                                   get_kernel(),
-                                                                   get_strides(),
-                                                                   true,
-                                                                   get_rounding_type() ==
-                                                                       op::RoundingType::CEIL);
-
-                    return maxpool::evaluate_maxpool(inputs[0],
-                                                     outputs[0],
-                                                     out_shape.get_shape(),
-                                                     get_kernel(),
-                                                     get_strides(),
-                                                     get_pads_begin(),
-                                                     get_pads_end()));
+    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate, return evaluate_maxpool(outputs, inputs));
     return false;
 }

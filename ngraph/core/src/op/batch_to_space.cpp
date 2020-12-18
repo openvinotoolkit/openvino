@@ -142,18 +142,24 @@ bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
-bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
-                                            const HostTensorVector& inputs) const
+namespace
 {
-    NGRAPH_OP_SCOPE(
-        v1_BatchToSpace, auto data = inputs[0]; size_t elem_size = data->get_element_type().size();
+    bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+    {
+        auto data = inputs[0];
+        size_t elem_size = data->get_element_type().size();
 
-        if (data->get_partial_shape().is_dynamic()) { return false; } auto data_shape =
-            data->get_shape();
-
-        if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5)) {
+        if (data->get_partial_shape().is_dynamic())
+        {
             return false;
-        } size_t block_values_size = shape_size(inputs[1]->get_shape());
+        }
+        auto data_shape = data->get_shape();
+
+        if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5))
+        {
+            return false;
+        }
+        size_t block_values_size = shape_size(inputs[1]->get_shape());
         const auto* block_values = inputs[1]->get_data_ptr<int64_t>();
         const auto* crops_begin_values = inputs[2]->get_data_ptr<int64_t>();
         const auto* crops_end_values = inputs[3]->get_data_ptr<int64_t>();
@@ -164,7 +170,10 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
         std::vector<size_t> plain_axes_order(block_values_size + 1);
         std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
         Shape squeezed_shape(data_shape.begin(), data_shape.end());
-        if (squeezed_shape.size() > block_values_size) { return false; }
+        if (squeezed_shape.size() > block_values_size)
+        {
+            return false;
+        }
 
         auto* flat_data = data->get_data_ptr<char>();
         std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
@@ -172,7 +181,8 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
         Shape post_transpose_shape(axes_order.size());
         std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
 
-        for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx) {
+        for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx)
+        {
             dispersed_shape[0] = block_values[block_idx];
             dispersed_shape[1] /= block_values[block_idx];
             runtime::opt_kernel::reshape(flat_data,
@@ -219,8 +229,10 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
         }
 
         std::vector<int64_t> upperbounds_values(data_shape.size());
-        for (size_t i = 0; i < data_shape.size();
-             ++i) { upperbounds_values[i] = data_shape[i] - crops_end_values[i]; }
+        for (size_t i = 0; i < data_shape.size(); ++i)
+        {
+            upperbounds_values[i] = data_shape[i] - crops_end_values[i];
+        }
 
         std::vector<size_t> begin_mask(data_shape.size(), 0);
         std::vector<size_t> end_mask(data_shape.size(), 0);
@@ -240,6 +252,13 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
                                                AxisSet());
         runtime::reference::strided_slice(
             flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
-        return true);
+        return true;
+    }
+}
+
+bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
+                                            const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_BatchToSpace, return batch_to_space_evaluate(outputs, inputs));
     return false;
 }
