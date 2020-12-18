@@ -7,6 +7,7 @@
 #include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+#include <ie_ngraph_utils.hpp>
 
 namespace {
 
@@ -100,6 +101,7 @@ protected:
         const auto& idxType = std::get<1>(parameters);
         const auto& gatherSetup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
+        outPrc = InferenceEngine::details::convertPrecision(inDataType);;
 
         const auto dataParam = std::make_shared<ngraph::opset3::Parameter>(inDataType, gatherSetup.inputShapes.shape);
         m_parameterVector.push_back(dataParam);
@@ -124,7 +126,8 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherIdx, DSR_GatherStaticDataDynamicIdx, 
         testing::Values(
                 GatherTestCase{DataShapeWithUpperBound{{1000}, {}}, DataShapeWithUpperBound{{800}, {1000}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{1000, 4}, {}}, DataShapeWithUpperBound{{800}, {1000}}, 0},
-                GatherTestCase{DataShapeWithUpperBound{{1000, 4}, {}}, DataShapeWithUpperBound{{800}, {1000}}, -2}),
+                GatherTestCase{DataShapeWithUpperBound{{1000, 4}, {}}, DataShapeWithUpperBound{{800}, {1000}}, -2},
+                GatherTestCase{DataShapeWithUpperBound{{1, 3, 200, 304}, {}}, DataShapeWithUpperBound{{142, 64}, {300, 64}}, 2}),
         testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
 
