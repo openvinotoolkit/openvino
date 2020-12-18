@@ -1716,7 +1716,6 @@ void MKLDNNInterpolateNode::createPrimitive() {
         THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() << "' did not set preferable primitive descriptor";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    Layout selected_layout = selectedPD->getConfig().inConfs[0].desc.getLayout();
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
     jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
@@ -2156,16 +2155,6 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
     auto srcDimPad5d = to5Dim(srcDimPad);
     auto dstDim5d = to5Dim(dstDim);
 
-    InterpolateLayoutType layout;
-    Layout selected_layout = getParentEdgeAt(DATA_ID)->getDesc().getLayout();
-    if (MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims()) == selected_layout) {
-        layout = InterpolateLayoutType::planar;
-    } else if ((selected_layout == NHWC) || (selected_layout == NDHWC)) {
-        layout = InterpolateLayoutType::by_channel;
-    } else {
-        layout = InterpolateLayoutType::block;
-    }
-
     uint8_t *src_data = nullptr;
     std::vector<uint8_t> srcPadded;
     if (hasPad) {
@@ -2178,7 +2167,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         SizeVector inShapeBlock = getBlockND(srcDim5d);
         SizeVector inShapePadBlock = getBlockND(srcDimPad5d);
 
-        if (layout == InterpolateLayoutType::planar) {
+        if (configured_for_layout == InterpolateLayoutType::planar) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
             uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
             parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
@@ -2188,7 +2177,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
                 cpu_memcpy(srcPad, src, srcDim5d[4] * srcDataSize);
             });
             src_data = src_data_pad;
-        } else if (layout == InterpolateLayoutType::by_channel) {
+        } else if (configured_for_layout == InterpolateLayoutType::by_channel) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
             uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
             parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
@@ -2199,7 +2188,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
                 cpu_memcpy(srcPad, src, srcDim5d[1] * srcDataSize);
             });
             src_data = src_data_pad;
-        } else if (layout == InterpolateLayoutType::block) {
+        } else if (configured_for_layout == InterpolateLayoutType::block) {
             size_t blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
             size_t CB = div_up(srcDimPad5d[1], blkSize);
             size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
@@ -2238,7 +2227,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
     switch (mode) {
         case InterpolateMode::nearest: {
             if (interpolateKernel) {
-                if (layout == InterpolateLayoutType::planar) {
+                if (configured_for_layout == InterpolateLayoutType::planar) {
                     NNPlanar(src_data, dst_data, N, C, ID, IH, IW, OD, OH, OW);
                 } else {
                     NNCGathered(src_data, dst_data, N, C, ID, IH, IW, OD, OH, OW);
@@ -2250,7 +2239,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         }
         case InterpolateMode::linear_onnx: {
             if (interpolateKernel) {
-                if (layout == InterpolateLayoutType::planar) {
+                if (configured_for_layout == InterpolateLayoutType::planar) {
                     linearOnnxPlanar(src_data, dst_data, N, C, IH, IW, OH, OW);
                 } else {
                     linearOnnxCGathered(src_data, dst_data, N, C, IH, IW, OH, OW);
@@ -2262,7 +2251,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         }
         case InterpolateMode::cubic: {
             if (interpolateKernel) {
-                if (layout == InterpolateLayoutType::planar) {
+                if (configured_for_layout == InterpolateLayoutType::planar) {
                     cubicPlanar(src_data, dst_data, N, C, IH, IW, OH, OW);
                 } else {
                     cubicCGathered(src_data, dst_data, N, C, IH, IW, OH, OW);
@@ -2424,7 +2413,6 @@ void MKLDNNInterpolateNode::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t 
     float *weightTop = reinterpret_cast<float*>(&indexTable[scratchLen + 2 * OW]);
     float *weightBottom = reinterpret_cast<float*>(&indexTable[scratchLen + 2 * OW + OH]);
 
-    Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
     bool isByChannel = (configured_for_layout == by_channel) ? true : false;
 
     int blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
@@ -2610,14 +2598,11 @@ void MKLDNNInterpolateNode::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_
     int *yOrigin = static_cast<int*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW]);
     float *yFactor = reinterpret_cast<float*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
-    Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
-    bool isByChannel = (layout == NHWC) ? true : false;
-
     int blkSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
     int CB = div_up(C, blkSize);
-    int CSize = isByChannel ? C : blkSize * CB;
-    int CGatherLen = isByChannel ? C : blkSize;
-    int workAmount = isByChannel ? C : CB;
+    int CSize = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize * CB;
+    int CGatherLen = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize;
+    int workAmount = configured_for_layout == InterpolateLayoutType::by_channel ? C : CB;
 
     parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
         uint8_t *out_ptr_nhw = out_ptr_ + (OH * OW * CSize * b + OW * CGatherLen * h + CGatherLen * w) * dstDataSize;
