@@ -63,6 +63,7 @@ namespace ngraph
                 void set_classes_index_type(const element::Type& classes_index_type)
                 {
                     m_classes_index_type = classes_index_type;
+                    validate_and_infer_types();
                 }
 
                 const element::Type& get_sequence_length_type() const
@@ -72,6 +73,7 @@ namespace ngraph
                 void set_sequence_length_type(const element::Type& sequence_length_type)
                 {
                     m_sequence_length_type = sequence_length_type;
+                    validate_and_infer_types();
                 }
 
             private:
