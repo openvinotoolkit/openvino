@@ -9,7 +9,7 @@ if(NOT DEFINED IEDevScripts_DIR)
 endif()
 
 set(OLD_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
-list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
+set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
