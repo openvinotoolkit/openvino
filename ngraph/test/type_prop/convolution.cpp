@@ -2638,8 +2638,7 @@ TEST(type_prop, conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
     auto conv = make_shared<op::v1::Convolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
-        {1, 1, Dimension::dynamic(), 5}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({1, 1, Dimension::dynamic(), 5}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 1}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 1}));
 }

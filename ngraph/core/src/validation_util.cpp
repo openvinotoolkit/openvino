@@ -653,8 +653,10 @@ bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
                 std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
             auto padding_lhs = padding_needed / 2;
             auto padding_rhs = padding_needed - padding_lhs;
-            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
-            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
+            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs
+                                                                        : padding_rhs);
+            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs
+                                                                        : padding_lhs);
         }
         else
         {
