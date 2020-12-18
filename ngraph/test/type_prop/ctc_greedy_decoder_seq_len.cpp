@@ -25,60 +25,75 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes)
 {
     PartialShape logits_shape{3, 100, 1200};
     PartialShape seq_len_shape{3};
-    Shape out_shape{3, 100};
+    Shape out_shape1{3, 100};
+    Shape out_shape2{3};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_len_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_shape(), out_shape);
+    ASSERT_EQ(G->get_output_element_type(0), element::i32);
+    ASSERT_EQ(G->get_output_element_type(1), element::i32);
+    ASSERT_EQ(G->get_output_shape(0), out_shape1);
+    ASSERT_EQ(G->get_output_shape(1), out_shape2);
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_output_static_shape1)
 {
     PartialShape logits_shape{Dimension::dynamic(), 100, 1200};
     PartialShape seq_len_shape{3};
-    Shape out_shape{3, 100};
+    Shape out_shape1{3, 100};
+    Shape out_shape2{3};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_len_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_shape(), out_shape);
+    ASSERT_EQ(G->get_output_element_type(0), element::i32);
+    ASSERT_EQ(G->get_output_element_type(1), element::i32);
+    ASSERT_EQ(G->get_output_shape(0), out_shape1);
+    ASSERT_EQ(G->get_output_shape(1), out_shape2);
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_shapes)
 {
     PartialShape logits_shape{Dimension::dynamic(), Dimension::dynamic(), 1200};
     PartialShape seq_len_shape{Dimension::dynamic()};
-    PartialShape out_shape{Dimension::dynamic(), Dimension::dynamic()};
+    PartialShape out_shape1{Dimension::dynamic(), Dimension::dynamic()};
+    PartialShape out_shape2{Dimension::dynamic()};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_len_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape));
+    ASSERT_EQ(G->get_output_element_type(0), element::i32);
+    ASSERT_EQ(G->get_output_element_type(1), element::i32);
+    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape1));
+    ASSERT_TRUE(G->get_output_partial_shape(1).same_scheme(out_shape2));
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks1)
 {
     PartialShape logits_shape = PartialShape::dynamic();
     PartialShape seq_len_shape{Dimension::dynamic()};
-    PartialShape out_shape{Dimension::dynamic(), Dimension::dynamic()};
+    PartialShape out_shape1{Dimension::dynamic(), Dimension::dynamic()};
+    PartialShape out_shape2{Dimension::dynamic()};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_len_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape));
+    ASSERT_EQ(G->get_output_element_type(0), element::i32);
+    ASSERT_EQ(G->get_output_element_type(1), element::i32);
+    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape1));
+    ASSERT_TRUE(G->get_output_partial_shape(1).same_scheme(out_shape2));
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks2)
 {
     PartialShape logits_shape = PartialShape::dynamic();
     PartialShape seq_mask_shape = PartialShape::dynamic();
-    PartialShape out_shape{Dimension::dynamic(), Dimension::dynamic()};
+    PartialShape out_shape1{Dimension::dynamic(), Dimension::dynamic()};
+    PartialShape out_shape2{Dimension::dynamic()};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_mask_shape);
     auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, false);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape));
+    ASSERT_EQ(G->get_output_element_type(0), element::i32);
+    ASSERT_EQ(G->get_output_element_type(1), element::i32);
+    ASSERT_TRUE(G->get_output_partial_shape(0).same_scheme(out_shape1));
+    ASSERT_TRUE(G->get_output_partial_shape(1).same_scheme(out_shape2));
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_incorrect_rank)
@@ -86,7 +101,7 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_incorrect_rank)
     PartialShape logits_shape{Dimension::dynamic(), 100, 1200, 5};
     PartialShape seq_len_shape{3};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_len_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
 
     try
     {
@@ -110,7 +125,7 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_incorrect_rank2)
     PartialShape logits_shape{3, 100, 1200};
     PartialShape seq_len_shape{3, 100};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_len_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
 
     try
     {
@@ -134,7 +149,7 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_mismatched_dim1)
     PartialShape logits_shape{4, 100, 1200};
     PartialShape seq_mask_shape{3};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
-    auto I = make_shared<op::Parameter>(element::f32, seq_mask_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_mask_shape);
 
     try
     {

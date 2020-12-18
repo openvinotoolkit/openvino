@@ -58,7 +58,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     if (logits_pshape.rank().is_dynamic() && seq_len_pshape.rank().is_dynamic())
     {
         set_output_type(
-            0, input_et, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1});
+            0, input_et, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
     }
 
     // check ranks of input tensors
@@ -98,6 +98,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     // validate input shapes and compute output shape
     ngraph::Dimension batch_size = Dimension::dynamic();
     ngraph::Dimension time_size = Dimension::dynamic();
+
     if (logits_pshape.rank().is_static())
     {
         if (logits_pshape[0].is_static())
@@ -109,6 +110,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
             time_size = logits_pshape[1];
         }
     }
+
     if (seq_len_pshape.rank().is_static())
     {
         if (seq_len_pshape[0].is_static())
@@ -122,7 +124,17 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
             batch_size = seq_len_pshape[0];
         }
     }
-    set_output_type(0, input_et, PartialShape{batch_size, time_size});
+
+    if (logits_pshape.rank().is_static() && seq_len_pshape.rank().is_static())
+    {
+        if (logits_pshape[0] == Dimension::dynamic() && seq_len_pshape[0] == Dimension::dynamic())
+        {
+            batch_size = seq_len_pshape[0] & logits_pshape[0];
+        }
+    }
+
+    set_output_type(0, m_classes_index_type, PartialShape{batch_size, time_size});
+    set_output_type(1, m_sequence_length_type, PartialShape{batch_size});
 }
 
 bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor)
