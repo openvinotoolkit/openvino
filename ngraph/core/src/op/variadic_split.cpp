@@ -16,6 +16,7 @@
 
 #include <numeric>
 
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/variadic_split.hpp"
@@ -216,9 +217,10 @@ namespace variadic_split
 bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-    const auto& data = inputs[0];
-    const auto& axis = inputs[1];
-    const auto& split_lengths = inputs[2];
+    NGRAPH_OP_SCOPE(
+        v1_VariadicSplit_evaluate, const auto& data = inputs[0]; const auto& axis = inputs[1];
+        const auto& split_lengths = inputs[2];
 
-    return variadic_split::evaluate_variadic_split(data, axis, split_lengths, outputs, this);
+        return variadic_split::evaluate_variadic_split(data, axis, split_lengths, outputs, this));
+    return false;
 }

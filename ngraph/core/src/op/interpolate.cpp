@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstring>
 #include <numeric>
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
 
@@ -420,77 +421,80 @@ static void pad_input_data(const uint8_t* data_ptr,
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
-    element::Type input_et = get_input_element_type(0);
-    size_t type_size = input_et.size();
+    NGRAPH_OP_SCOPE(
+        v4_Interpolate_evaluate, element::Type input_et = get_input_element_type(0);
+        size_t type_size = input_et.size();
 
-    Shape input_shape{inputs[data_port]->get_shape()};
-    Shape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
+        Shape input_shape{inputs[data_port]->get_shape()};
+        Shape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
 
-    auto axes = get_axes_vector(inputs);
-    size_t num_of_axes = axes.size();
+        auto axes = get_axes_vector(inputs);
+        size_t num_of_axes = axes.size();
 
-    auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes);
+        auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes);
 
-    PartialShape output_shape{padded_input_shape};
+        PartialShape output_shape{padded_input_shape};
 
-    if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
-    {
-        infer_using_scales(output_shape, axes, scales, padded_input_shape);
-    }
-    else
-    {
-        auto sizes = get_target_shape_vector(inputs, num_of_axes);
-        infer_using_shapes(output_shape, axes, sizes);
-    }
+        if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales) {
+            infer_using_scales(output_shape, axes, scales, padded_input_shape);
+        } else {
+            auto sizes = get_target_shape_vector(inputs, num_of_axes);
+            infer_using_shapes(output_shape, axes, sizes);
+        }
 
-    Shape out_shape = output_shape.to_shape();
+        Shape out_shape = output_shape.to_shape();
 
-    outputs[0]->set_element_type(inputs[0]->get_element_type());
-    outputs[0]->set_shape(out_shape);
+        outputs[0]->set_element_type(inputs[0]->get_element_type());
+        outputs[0]->set_shape(out_shape);
 
-    size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
+        size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
 
-    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
+        std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
 
-    const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
-    uint8_t* padded_data_ptr = padded_input_data.data();
+        const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
+        uint8_t* padded_data_ptr = padded_input_data.data();
 
-    pad_input_data(
-        data_ptr, padded_data_ptr, type_size, input_shape, padded_input_shape, m_attrs.pads_begin);
+        pad_input_data(data_ptr,
+                       padded_data_ptr,
+                       type_size,
+                       input_shape,
+                       padded_input_shape,
+                       m_attrs.pads_begin);
 
-    switch (input_et)
-    {
-    case element::Type_t::f32:
-        runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
-                                               padded_input_shape,
-                                               scales,
-                                               axes,
-                                               outputs[0]->get_data_ptr<float>(),
-                                               out_shape,
-                                               m_attrs);
-        break;
-    case element::Type_t::f16:
-        runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                 padded_input_shape,
-                                                 scales,
-                                                 axes,
-                                                 outputs[0]->get_data_ptr<float16>(),
-                                                 out_shape,
-                                                 m_attrs);
-        break;
-    case element::Type_t::i8:
-        runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
-                                                padded_input_shape,
-                                                scales,
-                                                axes,
-                                                outputs[0]->get_data_ptr<int8_t>(),
-                                                out_shape,
-                                                m_attrs);
-        break;
-    default:;
-    }
+        switch (input_et) {
+            case element::Type_t::f32:
+                runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                                       padded_input_shape,
+                                                       scales,
+                                                       axes,
+                                                       outputs[0]->get_data_ptr<float>(),
+                                                       out_shape,
+                                                       m_attrs);
+                break;
+            case element::Type_t::f16:
+                runtime::reference::interpolate<float16>(
+                    reinterpret_cast<float16*>(padded_data_ptr),
+                    padded_input_shape,
+                    scales,
+                    axes,
+                    outputs[0]->get_data_ptr<float16>(),
+                    out_shape,
+                    m_attrs);
+                break;
+            case element::Type_t::i8:
+                runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                                        padded_input_shape,
+                                                        scales,
+                                                        axes,
+                                                        outputs[0]->get_data_ptr<int8_t>(),
+                                                        out_shape,
+                                                        m_attrs);
+                break;
+            default:;
+        }
 
-    return true;
+        return true);
+    return false;
 }
 
 namespace ngraph

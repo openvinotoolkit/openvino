@@ -56,18 +56,12 @@ namespace asinhop
         out->set_unary(arg0);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_asinh, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_asinh, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_asinh, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_asinh, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_asinh, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_asinh, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -76,6 +70,7 @@ namespace asinhop
 
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Asinh::evaluate");
-    return asinhop::evaluate_asinh(inputs[0], outputs[0]);
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v3_Asinh_evaluate, rc = asinhop::evaluate_asinh(inputs[0], outputs[0]));
+    return rc;
 }

@@ -64,6 +64,14 @@ namespace topk
         return true;
     }
 
+#define EXECUTE_EVALUATE_TOPK(a, ...)                                                              \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(exec_topk_eval, _, a),                                          \
+                        rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__));         \
+    }                                                                                              \
+    break
+
     template <element::Type_t INPUT_ET>
     bool evaluate(const HostTensorPtr& arg,
                   const HostTensorPtr& out_indices,
@@ -78,14 +86,8 @@ namespace topk
         bool rc = true;
         switch (index_et)
         {
-        case element::Type_t::i64:
-            evaluate_execute<INPUT_ET, element::Type_t::i64>(
-                arg, out_indices, out_values, out_shape, axis, k, max, sort);
-            break;
-        case element::Type_t::i32:
-            evaluate_execute<INPUT_ET, element::Type_t::i32>(
-                arg, out_indices, out_values, out_shape, axis, k, max, sort);
-            break;
+            EXECUTE_EVALUATE_TOPK(i32, arg, out_indices, out_values, out_shape, axis, k, max, sort);
+            EXECUTE_EVALUATE_TOPK(i64, arg, out_indices, out_values, out_shape, axis, k, max, sort);
         default: rc = false; break;
         }
         return rc;
@@ -104,18 +106,72 @@ namespace topk
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(i64)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(u32)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(u64)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(f16)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(f32)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_topk,
+                             i32,
+                             arg,
+                             out_indices,
+                             out_values,
+                             out_shape,
+                             axis,
+                             k,
+                             max,
+                             sort,
+                             index_et);
+            NGRAPH_TYPE_CASE(evaluate_topk,
+                             i64,
+                             arg,
+                             out_indices,
+                             out_values,
+                             out_shape,
+                             axis,
+                             k,
+                             max,
+                             sort,
+                             index_et);
+            NGRAPH_TYPE_CASE(evaluate_topk,
+                             u32,
+                             arg,
+                             out_indices,
+                             out_values,
+                             out_shape,
+                             axis,
+                             k,
+                             max,
+                             sort,
+                             index_et);
+            NGRAPH_TYPE_CASE(evaluate_topk,
+                             u64,
+                             arg,
+                             out_indices,
+                             out_values,
+                             out_shape,
+                             axis,
+                             k,
+                             max,
+                             sort,
+                             index_et);
+            NGRAPH_TYPE_CASE(evaluate_topk,
+                             f16,
+                             arg,
+                             out_indices,
+                             out_values,
+                             out_shape,
+                             axis,
+                             k,
+                             max,
+                             sort,
+                             index_et);
+            NGRAPH_TYPE_CASE(evaluate_topk,
+                             f32,
+                             arg,
+                             out_indices,
+                             out_values,
+                             out_shape,
+                             axis,
+                             k,
+                             max,
+                             sort,
+                             index_et);
         default: rc = false; break;
         }
         return rc;
@@ -130,30 +186,23 @@ namespace topk
         return k;
     }
 
-#define CASE_GET_K(a)                                                                              \
-    case element::Type_t::a: k = get_k_from_hosttensor<element::Type_t::a>
+#define CASE_GET_K(a, ...)                                                                         \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(topk_get_k, _, a),                                              \
+                        k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__));               \
+    }                                                                                              \
+    break
 
     size_t read_k_from_host_tensor(const HostTensorPtr& arg_k)
     {
         size_t k = 0;
         switch (arg_k->get_element_type())
         {
-            CASE_GET_K(i8)(arg_k);
-            break;
-            CASE_GET_K(i16)(arg_k);
-            break;
-            CASE_GET_K(i32)(arg_k);
-            break;
-            CASE_GET_K(i64)(arg_k);
-            break;
-            CASE_GET_K(u8)(arg_k);
-            break;
-            CASE_GET_K(u16)(arg_k);
-            break;
-            CASE_GET_K(u32)(arg_k);
-            break;
-            CASE_GET_K(u64)(arg_k);
-            break;
+            CASE_GET_K(i8, arg_k);
+            CASE_GET_K(i32, arg_k);
+            CASE_GET_K(u8, arg_k);
+            CASE_GET_K(u32, arg_k);
         default:
             // other types are not supported and would have thrown in ctor
             ngraph_error("read_k_from_host_tensor: type is not integral\n");
@@ -330,10 +379,6 @@ size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
 
     size_t k = 0;
 
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wswitch-enum"
-#endif
     switch (static_cast<element::Type_t>(k_element_type))
     {
     case element::Type_t::i8: k = validate_and_get_k<int8_t>(k_constant); break;
@@ -341,9 +386,6 @@ size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
     case element::Type_t::i64: k = validate_and_get_k<int64_t>(k_constant); break;
     default: break;
     }
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
 
     return k;
 }
@@ -405,46 +447,40 @@ void op::v1::TopK::set_k(size_t k)
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::TopK::evaluate");
+    NGRAPH_OP_SCOPE(
+        v1_TopK_evaluate, Shape arg_shape = inputs[0]->get_shape();
+        // 1. get axis, mode ( max/min), sort_type
+        size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
+        bool compute_max = get_mode() == TopKMode::MAX ? true : false;
+        SortType sort_type = get_sort_type();
 
-    Shape arg_shape = inputs[0]->get_shape();
-    // 1. get axis, mode ( max/min), sort_type
-    size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
-    bool compute_max = get_mode() == TopKMode::MAX ? true : false;
-    SortType sort_type = get_sort_type();
+        // 2. get value of k - from constant node or from HT
+        size_t k = 0;
+        if (op::is_constant(input_value(1).get_node())) {
+            k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
+                                          get_input_element_type(1));
+            NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
+        } else { k = topk::read_k_from_host_tensor(inputs[1]); }
 
-    // 2. get value of k - from constant node or from HT
-    size_t k = 0;
-    if (op::is_constant(input_value(1).get_node()))
-    {
-        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
-                                      get_input_element_type(1));
-        NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
-    }
-    else
-    {
-        k = topk::read_k_from_host_tensor(inputs[1]);
-    }
+        // 3. Compute output_shape
+        auto output_shape = compute_output_shape(this->description(), inputs[0]->get_shape(), k);
 
-    // 3. Compute output_shape
-    auto output_shape = compute_output_shape(this->description(), inputs[0]->get_shape(), k);
+        // do this after compute_output_shape
+        if (k == 0) {
+            // the kernel can't handle k = 0, but output_shape[axis] = arg_shape[axis]
+            k = arg_shape[axis];
+        }
 
-    // do this after compute_output_shape
-    if (k == 0)
-    {
-        // the kernel can't handle k = 0, but output_shape[axis] = arg_shape[axis]
-        k = arg_shape[axis];
-    }
-
-    return topk::evaluate_topk(inputs[0],
-                               outputs[1],
-                               outputs[0],
-                               output_shape,
-                               axis,
-                               k,
-                               compute_max,
-                               sort_type,
-                               get_index_element_type());
+        return topk::evaluate_topk(inputs[0],
+                                   outputs[1],
+                                   outputs[0],
+                                   output_shape,
+                                   axis,
+                                   k,
+                                   compute_max,
+                                   sort_type,
+                                   get_index_element_type()));
+    return false;
 }
 
 // v3 version starts
@@ -497,10 +533,6 @@ size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
 
     size_t k = 0;
 
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wswitch-enum"
-#endif
     switch (static_cast<element::Type_t>(k_element_type))
     {
     case element::Type_t::i8: k = validate_and_get_k<int8_t>(k_constant); break;
@@ -513,9 +545,6 @@ size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
     case element::Type_t::u64: k = validate_and_get_k<uint64_t>(k_constant); break;
     default: break;
     }
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
 
     return k;
 }
@@ -533,6 +562,6 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::TopK::evaluate");
-    return op::v1::TopK::evaluate(outputs, inputs);
+    NGRAPH_OP_SCOPE(v3_TopK_evaluate, return op::v1::TopK::evaluate(outputs, inputs));
+    return false;
 }

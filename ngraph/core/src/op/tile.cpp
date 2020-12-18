@@ -16,6 +16,7 @@
 
 #include "ngraph/op/tile.hpp"
 
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/tile.hpp"
 
@@ -97,36 +98,31 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    const auto& data = inputs[0];
-    const auto& axis = inputs[1];
-    auto& output = outputs[0];
-    auto repeats_val = read_vector<int64_t>(axis);
-    auto repeats_rank = repeats_val.size();
-    Shape data_shape = data->get_shape();
-    auto data_rank = data_shape.size();
-    auto output_rank = std::max(data_rank, repeats_rank);
+    NGRAPH_OP_SCOPE(v0_Tile_evaluate, const auto& data = inputs[0]; const auto& axis = inputs[1];
+                    auto& output = outputs[0];
+                    auto repeats_val = read_vector<int64_t>(axis);
+                    auto repeats_rank = repeats_val.size();
+                    Shape data_shape = data->get_shape();
+                    auto data_rank = data_shape.size();
+                    auto output_rank = std::max(data_rank, repeats_rank);
 
-    // expand data shape and repeats to output rank
-    data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
-    repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
+                    // expand data shape and repeats to output rank
+                    data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
+                    repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
 
-    Shape output_shape(output_rank);
-    for (size_t i = 0; i < output_rank; i++)
-    {
-        output_shape[i] = data_shape[i] * repeats_val[i];
-    }
+                    Shape output_shape(output_rank);
+                    for (size_t i = 0; i < output_rank;
+                         i++) { output_shape[i] = data_shape[i] * repeats_val[i]; }
 
-    if (!output->get_is_allocated())
-    {
-        output->set_shape(output_shape);
-    }
+                    if (!output->get_is_allocated()) { output->set_shape(output_shape); }
 
-    runtime::reference::tile(data->get_data_ptr<const char>(),
-                             output->get_data_ptr<char>(),
-                             data->get_shape(),
-                             output_shape,
-                             data->get_element_type().size(),
-                             repeats_val);
+                    runtime::reference::tile(data->get_data_ptr<const char>(),
+                                             output->get_data_ptr<char>(),
+                                             data->get_shape(),
+                                             output_shape,
+                                             data->get_element_type().size(),
+                                             repeats_val);
 
-    return true;
+                    return true);
+    return false;
 }
