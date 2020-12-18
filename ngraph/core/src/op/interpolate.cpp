@@ -239,11 +239,7 @@ void op::v4::Interpolate::validate_and_infer_types()
     // of the output shape. Hence, all components of the output shape should be dynamic.
     if (input_values().size() == 4 && !is_type<op::Constant>(input_value(3).get_node()))
     {
-        PartialShape output_shape = input_shape;
-        for (size_t i = 0; i < input_rank; ++i)
-        {
-            output_shape[i] = Dimension::dynamic();
-        }
+        PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
     }
