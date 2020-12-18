@@ -137,12 +137,8 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "Argument element types are inconsistent.")
 xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "If")
-xfail_issue_44602 = xfail_test(reason="While validating node 'v0::Squeeze"
-                                      "map_1/while/select_bboxes/unstack__3689:0"
-                                      "(map_1/while/select_bboxes/unstack:3[3]:f32{15098,6},"
-                                      " Constant_55154[0]:u64{1}) -> (f32{?})' with friendly_name"
-                                      "'map_1/while/select_bboxes/unstack__3689:0':"
-                                      "provided axis value is invalid. Only axes of size 1 may be removed.")
+xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop"
+                                      "Not constant termination condition body output is not supported")
 xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
                                       "While validating node 'v1::OneHot OneHot_<number>"
                                       "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
