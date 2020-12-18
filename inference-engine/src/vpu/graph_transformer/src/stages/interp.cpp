@@ -9,15 +9,15 @@
 #include <memory>
 #include <set>
 
-const char* coordTrans           = "coordinate_transformation_mode";
-const char* modeI                = "mode";
-const char* align                = "align_corners";
-const char* asymmetric           = "asymmetric";
-const char* linear               = "linear";
-const char* half_pixel           = "half_pixel";
-const char* linear_onnx          = "linear_onnx";
-const char* pytorch_half_pixel   = "pytorch_half_pixel";
-const char* tf_half_pixel_for_nn = "tf_half_pixel_for_nn";
+constexpr auto coordinate_transformation_mode = "coordinate_transformation_mode";
+constexpr auto mode                 = "mode";
+constexpr auto align_corners        = "align_corners";
+constexpr auto asymmetric           = "asymmetric";
+constexpr auto linear               = "linear";
+constexpr auto half_pixel           = "half_pixel";
+constexpr auto linear_onnx          = "linear_onnx";
+constexpr auto pytorch_half_pixel   = "pytorch_half_pixel";
+constexpr auto tf_half_pixel_for_nn = "tf_half_pixel_for_nn";
 
 namespace vpu {
 
@@ -54,11 +54,11 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto align_corners = attrs().get<bool>(align);
-        auto sampleType = attrs().get<InterpolateMode>(modeI);
-        auto coordinateTransMode = attrs().get<InterpolateCoordTransMode>(coordTrans);
+        auto align = attrs().get<bool>(align_corners);
+        auto sampleType = attrs().get<InterpolateMode>(mode);
+        auto coordinateTransMode = attrs().get<InterpolateCoordTransMode>(coordinate_transformation_mode);
 
-        serializer.append(static_cast<int32_t>(align_corners));
+        serializer.append(static_cast<int32_t>(align));
         serializer.append(static_cast<uint32_t>(sampleType));
         serializer.append(static_cast<uint32_t>(coordinateTransMode));
     }
@@ -78,15 +78,15 @@ Stage StageBuilder::addInterpStage(
                         const Model& model,
                         const std::string& name,
                         const ie::CNNLayerPtr& layer,
-                        bool align_corners,
-                        InterpolateMode mode,
+                        bool align,
+                        InterpolateMode modeI,
                         InterpolateCoordTransMode coordinateTransMode,
                         const Data& input,
                         const Data& output) {
     auto stage = model->addNewStage<InterpStage>(layer->name, StageType::Interp, layer, {input}, {output});
-    stage->attrs().set<bool>(align, align_corners);
-    stage->attrs().set<InterpolateMode>(modeI, mode);
-    stage->attrs().set<InterpolateCoordTransMode>(coordTrans, coordinateTransMode);
+    stage->attrs().set<bool>(align_corners, align);
+    stage->attrs().set<InterpolateMode>(mode, modeI);
+    stage->attrs().set<InterpolateCoordTransMode>(coordinate_transformation_mode, coordinateTransMode);
 
     return stage;
 }
@@ -99,8 +99,8 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
                      "Interp stage with name {} must have only 1 output, "
                      "actually provided {}", layer->name, outputs.size());
     ie::details::CaselessEq<std::string> cmp;
-    const auto coord = layer->GetParamAsString(coordTrans, half_pixel);
-    const auto interpMode = layer->GetParamAsString(modeI, linear);
+    const auto coord = layer->GetParamAsString(coordinate_transformation_mode, half_pixel);
+    const auto interpMode = layer->GetParamAsString(mode, linear);
     InterpolateCoordTransMode coordinateTransMode = InterpolateCoordTransMode::HalfPixel;
     InterpolateMode mode = InterpolateMode::Linear;
 
@@ -112,7 +112,7 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
         coordinateTransMode = InterpolateCoordTransMode::PytorchHalfPixel;
     } else if (cmp(coord, tf_half_pixel_for_nn)) {
         coordinateTransMode = InterpolateCoordTransMode::TfHalfPixelForNn;
-    } else if (cmp(coord, align)) {
+    } else if (cmp(coord, align_corners)) {
         coordinateTransMode = InterpolateCoordTransMode::AlignCorners;
     } else {
         VPU_THROW_EXCEPTION << "Current Interp doesn't support this coordinate transformation mode; layer name = " << layer->name;
@@ -122,7 +122,7 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
         mode = InterpolateMode::LinearOnnx;
     }
 
-    _stageBuilder->addInterpStage(model, layer->name, layer, layer->GetParamAsInt(align, 0), mode, coordinateTransMode, inputs[0], outputs[0]);
+    _stageBuilder->addInterpStage(model, layer->name, layer, layer->GetParamAsInt(align_corners, 0), mode, coordinateTransMode, inputs[0], outputs[0]);
 }
 
 }  // namespace vpu
