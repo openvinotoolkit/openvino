@@ -388,7 +388,8 @@ PartialShape ngraph::infer_batched_pooling_forward(const Node* node,
 {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
-                              data_batch_shape.rank().get_length() >= 4 && data_batch_shape.rank().get_length() <= 5,
+                              data_batch_shape.rank().get_length() >= 3 &&
+                                  data_batch_shape.rank().get_length() <= 5,
                           "Data batch must have rank of at least 4 or 5 (one batch axis, ",
                           "one input-channel axis, and two or three spatial dimension) ",
                           "(data batch shape: ",
@@ -638,28 +639,28 @@ bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
         return false;
     }
     const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
-    const bool are_spatial_dims_static =
-        std::all_of(std::begin(image_dims) + 2, std::end(image_dims), [](const Dimension& dim) {
-            return dim.is_static();
-        });
-    if (!are_spatial_dims_static)
-    {
-        return false;
-    }
-
     for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++)
     {
-        int64_t image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
-        int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
-        int64_t filter_stride = static_cast<int64_t>(filter_strides[i]);
-        auto output_size = (image_size + filter_stride - 1) / filter_stride;
+        if (image_dims[i + 2].is_static())
+        {
+            int64_t image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
+            int64_t filter_size =
+                (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
+            int64_t filter_stride = static_cast<int64_t>(filter_strides[i]);
+            auto output_size = (image_size + filter_stride - 1) / filter_stride;
 
-        auto padding_needed =
-            std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
-        auto padding_lhs = padding_needed / 2;
-        auto padding_rhs = padding_needed - padding_lhs;
-        padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
-        padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
+            auto padding_needed =
+                std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
+            auto padding_lhs = padding_needed / 2;
+            auto padding_rhs = padding_needed - padding_lhs;
+            padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
+            padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
+        }
+        else
+        {
+            padding_below.push_back(0);
+            padding_above.push_back(0);
+        }
     }
     return true;
 }
