@@ -461,15 +461,15 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     // Try to create operation from loaded opsets
-    auto version_copy = params.version;
+    auto version = params.version;
     const std::set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
                                                            "ExperimentalDetectronPriorGridGenerator"};
     if (experimental_detectrons.count(params.type) != 0) {
-        version_copy = "opset6";
+        version = "opset6";
     }
 
-    if (!ngraphNode && opsets.count(version_copy)) {
-        auto opset = opsets.at(version_copy);
+    if (!ngraphNode && opsets.count(version)) {
+        auto opset = opsets.at(version);
         std::string type = params.type;
 
         if (type == "Const") {
