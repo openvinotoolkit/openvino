@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <chrono>
-#include <iostream>
 #include <numeric>
 
 #include "ngraph/coordinate_range.hpp"
@@ -41,7 +39,7 @@ namespace ngraph
 
                 template <typename Container>
                 std::vector<size_t>
-                    join(const Container& c1, const Container c2, const Container c3)
+                    join(const Container& c1, const Container& c2, const Container& c3)
                 {
                     static_assert(std::is_same<typename Container::value_type, size_t>::value,
                                   "Expect same type in container");
@@ -86,7 +84,9 @@ namespace ngraph
                 const auto copy_size = shape_size(reminder_part_shape);
 
                 const size_t copy_round_in_batch =
-                    indices_shape.empty() ? 1 : shape_size(indices_shape) / indices_shape.back();
+                    indices_shape.size() > 1
+                        ? shape_size(span(indices_shape.data(), indices_shape.size() - 1))
+                        : 1;
                 const size_t round_batch_offset = indices_shape.empty() ? 1 : indices_shape.back();
 
                 auto dst = out;
