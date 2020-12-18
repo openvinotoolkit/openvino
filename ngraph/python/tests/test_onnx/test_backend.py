@@ -306,10 +306,9 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_training_dropout_default_mask_cpu",
         "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_mask_cpu",
         "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
-        "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",
+        "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu"),
         # "OnnxBackendNodeModelTest.test_dropout_default_mask_cpu",
-        # "OnnxBackendNodeModelTest.test_dropout_default_mask_ratio_cpu"
-        ),
+        # "OnnxBackendNodeModelTest.test_dropout_default_mask_ratio_cpu"),
     (xfail_issue_38706,
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
     (xfail_issue_38736,
