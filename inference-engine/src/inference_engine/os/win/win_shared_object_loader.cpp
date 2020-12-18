@@ -67,18 +67,18 @@
 namespace InferenceEngine {
 namespace details {
 
+typedef DWORD(*GetDllDirectoryA_Fnc)(DWORD, LPSTR);
+typedef DWORD(*GetDllDirectoryW_Fnc)(DWORD, LPWSTR);
+
+static GetDllDirectoryA_Fnc IEGetDllDirectoryA;
+static GetDllDirectoryW_Fnc IEGetDllDirectoryW;
+
 /**
  * @brief WINAPI based implementation for loading a shared object
  */
 class SharedObjectLoader::Impl {
  private:
     HMODULE shared_object;
-
-    typedef DWORD(* GetDllDirectoryA_Fnc)(DWORD, LPSTR);
-    typedef DWORD(* GetDllDirectoryW_Fnc)(DWORD, LPWSTR);
-
-    static GetDllDirectoryA_Fnc IEGetDllDirectoryA;
-    static GetDllDirectoryW_Fnc IEGetDllDirectoryW;
 
     void LoadSymbols() {
         static std::once_flag loadFlag;
@@ -97,7 +97,7 @@ class SharedObjectLoader::Impl {
     // path was set to "" or NULL so reset it to "" to keep
     // application safe.
     void ExcludeCurrentDirectoryA() {
-#ifndef WINAPI_FAMILY
+#if !WINAPI_PARTITION_SYSTEM
         LoadSymbols();
         if (IEGetDllDirectoryA && IEGetDllDirectoryA(0, NULL) <= 1) {
             SetDllDirectoryA("");
@@ -107,7 +107,7 @@ class SharedObjectLoader::Impl {
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     void ExcludeCurrentDirectoryW() {
-#ifndef WINAPI_FAMILY
+#if !WINAPI_PARTITION_SYSTEM
         LoadSymbols();
         if (IEGetDllDirectoryW && IEGetDllDirectoryW(0, NULL) <= 1) {
             SetDllDirectoryW(L"");
@@ -123,12 +123,12 @@ class SharedObjectLoader::Impl {
         return last_sep;
     }
 
-    std::basic_string<CHAR> GetDirname(LPCSTR path) {
+    static std::string GetDirname(LPCSTR path) {
         auto pos = FindLastPathSeparator(path);
         if (pos == nullptr) {
             return path;
         }
-        std::basic_string<CHAR> original(path);
+        std::string original(path);
         original[pos - path] = 0;
         return original;
     }
@@ -139,36 +139,48 @@ class SharedObjectLoader::Impl {
         return last_sep;
     }
 
-    std::basic_string<WCHAR> GetDirname(LPCWSTR path) {
+    static std::wstring GetDirname(LPCWSTR path) {
         auto pos = FindLastPathSeparator(path);
         if (pos == nullptr) {
             return path;
         }
-        std::basic_string<WCHAR> original(path);
+        std::wstring original(path);
         original[pos - path] = 0;
         return original;
     }
 
-    std::basic_string<WCHAR> IncludePluginDirectory(LPCWSTR path) {
-        DWORD nBufferLength = GetDllDirectoryW(0, nullptr);
-        std::vector<WCHAR> lpBuffer(nBufferLength);
-        GetDllDirectoryW(nBufferLength, &lpBuffer.front());
+    void LoadPluginFromDirectoryW(LPCWSTR path) {
+#if !WINAPI_PARTITION_SYSTEM
+        LoadSymbols();
+        if (IEGetDllDirectoryW) {
+            DWORD nBufferLength = IEGetDllDirectoryW(0, NULL);
+            std::vector<WCHAR> lpBuffer(nBufferLength);
+            IEGetDllDirectoryW(nBufferLength, &lpBuffer.front());
 
-        auto dirname = GetDirname(path);
-        SetDllDirectoryW(dirname.c_str());
+            auto dirname = GetDirname(path);
+            SetDllDirectoryW(dirname.c_str());
+            shared_object = LoadLibraryW(path);
 
-        return &lpBuffer.front();
+            SetDllDirectoryW(&lpBuffer.front());
+        }
+#endif
     }
 #endif
-    std::basic_string<CHAR> IncludePluginDirectory(LPCSTR path) {
-        DWORD nBufferLength = GetDllDirectoryA(0, nullptr);
-        std::vector<CHAR> lpBuffer(nBufferLength);
-        GetDllDirectoryA(nBufferLength, &lpBuffer.front());
+    void LoadPluginFromDirectoryA(LPCSTR path) {
+#if !WINAPI_PARTITION_SYSTEM
+        LoadSymbols();
+        if (IEGetDllDirectoryA) {
+            DWORD nBufferLength = IEGetDllDirectoryA(0, NULL);
+            std::vector<CHAR> lpBuffer(nBufferLength);
+            IEGetDllDirectoryA(nBufferLength, &lpBuffer.front());
 
-        auto dirname = GetDirname(path);
-        SetDllDirectoryA(dirname.c_str());
+            auto dirname = GetDirname(path);
+            SetDllDirectoryA(dirname.c_str());
+            shared_object = LoadLibraryA(path);
 
-        return &lpBuffer.front();
+            SetDllDirectoryA(&lpBuffer.front());
+        }
+#endif
     }
 
  public:
@@ -185,11 +197,12 @@ class SharedObjectLoader::Impl {
      */
     explicit Impl(const wchar_t* pluginName) {
         ExcludeCurrentDirectoryW();
-        auto oldDir = IncludePluginDirectory(pluginName);
+        LoadPluginFromDirectoryW(pluginName);
 
-        shared_object = LoadLibraryW(pluginName);
+        if(!shared_object) {
+            shared_object = LoadLibraryW(pluginName);
+        }
 
-        SetDllDirectoryW(oldDir.c_str());
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
@@ -200,11 +213,12 @@ class SharedObjectLoader::Impl {
 
     explicit Impl(const char* pluginName) {
         ExcludeCurrentDirectoryA();
-        auto oldDir = IncludePluginDirectory(pluginName);
+        LoadPluginFromDirectoryA(pluginName);
 
-        shared_object = LoadLibraryA(pluginName);
+        if (!shared_object) {
+            shared_object = LoadLibraryA(pluginName);
+        }
 
-        SetDllDirectoryA(oldDir.c_str());
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
