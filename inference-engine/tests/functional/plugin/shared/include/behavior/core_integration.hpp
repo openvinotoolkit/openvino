@@ -61,17 +61,7 @@ namespace BehaviorTestsDefinitions {                                            
 {                                                                               \
     try {                                                                       \
         __VA_ARGS__;                                                            \
-    } catch(InferenceEngine::details::InferenceEngineException& ieException) {  \
-        auto notImplementedExceptionIsThrown =                                  \
-            std::string::npos != std::string {ieException.what()}               \
-            .find(NOT_IMPLEMENTED_str);                                         \
-        if (notImplementedExceptionIsThrown) {                                  \
-            GTEST_SKIP();                                                       \
-        } else {                                                                \
-            FAIL() << "thrown from expression: " # __VA_ARGS__ << std::endl     \
-            << "what: " << ieException.what();                                  \
-        }                                                                       \
-    } catch (const InferenceEngine::NotImplemented& ex) {                       \
+    } catch (const InferenceEngine::NotImplemented&) {                          \
         GTEST_SKIP();                                                           \
     }                                                                           \
 }
@@ -1370,9 +1360,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                expectedLayers.emplace(node->get_friendly_name());
-            }
+            expectedLayers.emplace(node->get_friendly_name());
         }
         QueryNetworkResult result;
         std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + CommonTestUtils::DEVICE_CPU);
@@ -1407,9 +1395,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                expectedLayers.emplace(node->get_friendly_name());
-            }
+            expectedLayers.emplace(node->get_friendly_name());
         }
         QueryNetworkResult result;
         ASSERT_NO_THROW(result = ie.QueryNetwork(multinputNetwork, CommonTestUtils::DEVICE_MULTI, {

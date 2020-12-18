@@ -7,7 +7,7 @@
 #include "subgraph_tests/split_conv_concat.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {

@@ -4,6 +4,12 @@
 
 if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
     set(InferenceEngine_LIBRARIES inference_engine inference_engine_c_api)
+    if(NOT TARGET IE::inference_engine)
+        add_library(IE::inference_engine ALIAS inference_engine)
+    endif()
+    if(TARGET inference_engine_c_api AND NOT TARGET IE::inference_engine_c_api)
+        add_library(IE::inference_engine_c_api ALIAS inference_engine_c_api)
+    endif()
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/targets.cmake")
     if(NOT MSVC)
