@@ -58,7 +58,7 @@ set_target_properties(ngraph PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON)
 
-target_link_libraries(ngraph PRIVATE openvino::itt ngraph::builder ngraph::reference)
+target_link_libraries(ngraph PRIVATE openvino::conditional_compilation openvino::itt ngraph::builder ngraph::reference)
 
 find_package(Graphviz QUIET)
 if (GRAPHVIZ_FOUND)
@@ -110,6 +110,7 @@ target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
                                           ${NGRAPH_INCLUDE_DIR}/pattern/op
                                           ${NGRAPH_INCLUDE_DIR}/runtime
                                           ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                          $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
                                           )
 
 #Add an alias so that library can be used inside the build tree, e.g. when testing
