@@ -21,6 +21,8 @@
 #include "ngraph/op/max_pool.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/utils/pooling_factory.hpp"
+#include "onnx_import/default_opset.hpp"
+
 
 namespace ngraph
 {
@@ -36,8 +38,16 @@ namespace ngraph
                     if (node.get_outputs_size() > 1)
                     {
                         NGRAPH_WARN << (node) << " Optional output `Indices` is not supported. ";
-                        // max_pool.emplace_back(std::make_shared<NullNode>()); // IndexError
-                        max_pool.emplace_back(max_pool[0]); // No IndexError
+                        // IndexError
+                        // max_pool.emplace_back(std::make_shared<NullNode>());
+
+                        // I64 - No IndexError, Cannot find blob with name: z
+                        // max_pool.emplace_back(default_opset::Constant::create(
+                        //     ngraph::element::i64, Shape{1}, {0}));
+
+                        // I32 - No IndexError, just result type mismatch (expected I64)
+                        max_pool.emplace_back(default_opset::Constant::create(
+                            ngraph::element::i32, Shape{1}, {0}));
                     }
                     return max_pool;
                 }
