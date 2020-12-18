@@ -87,10 +87,12 @@ namespace ngraph
 
                     // optional inputs
                     Output<ngraph::Node> trip_count;
-                    // trip count skipped
+                    // trip count skipped or has value max(int64_t) means infinitive loop
                     if (ngraph::op::is_null(ng_inputs.at(0)) ||
-                        as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())
-                                ->cast_vector<int64_t>()[0] == std::numeric_limits<int64_t>::max())
+                        (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
+                         as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())
+                                 ->cast_vector<int64_t>()[0] ==
+                             std::numeric_limits<int64_t>::max()))
                     {
                         // -1 means infinite Loop
                         trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
@@ -135,7 +137,7 @@ namespace ngraph
                     const int64_t concat_axis = 0;
                     const auto concat_axis_const =
                         ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
-                    // Add dimension on which Concat will be performed
+                    // add dimension along which scan outputs will be concatenated
                     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
                          ++i)
                     {
