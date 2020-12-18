@@ -56,7 +56,8 @@ namespace scatter_update
     case element::Type_t::a:                                                                       \
     {                                                                                              \
         NGRAPH_OP_SCOPE(OV_CC_CAT3(get_scatter_update_indices, _, a),                              \
-                        scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__));             \
+                        indices_casted_vector =                                                    \
+                            scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__));         \
     }                                                                                              \
     break;
 

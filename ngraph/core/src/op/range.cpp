@@ -26,6 +26,36 @@
 using namespace std;
 using namespace ngraph;
 
+//
+// The code in the following three functions is a bit awkward, to work around some compiler
+// warnings and the need to support our custom float16/bfloat16 type:
+//
+// (1) We can't use STL things like isnan, because our custom float16/bfloat16 types don't always
+//     support them.
+// (2) We check whether (x - x) == (x - x) to check for "is_finite".
+// (3) We have to break (x - x) out into a temporary because otherwise the compiler throws a
+//     warning about == on floats.
+// (4) We check <0 || >0 to check for != 0, because otherwise the compiler throws a warning about
+//     == on floats.
+//
+template <typename T>
+static typename std::enable_if<std::is_integral<T>::value, bool>::type check_value(T value)
+{
+    // Nothing to check for integral types.
+    return true;
+}
+
+template <typename T>
+static
+    typename std::enable_if<std::is_floating_point<T>::value || std::is_same<T, float16>::value ||
+                                std::is_same<T, bfloat16>::value,
+                            bool>::type
+    check_value(T value)
+{
+    T value_minus_value = value - value;
+    return value == value && value_minus_value == value_minus_value;
+}
+
 NGRAPH_RTTI_DEFINITION(op::v4::Range, "Range", 4);
 
 op::v4::Range::Range(const Output<Node>& start,
@@ -199,16 +229,31 @@ namespace rangeop
     bool evaluate(const HostTensorPtr& out,
                   const HostTensorPtr& start,
                   const HostTensorPtr& stop,
-                  const HostTensorPtr& step)
+                  const HostTensorPtr& step,
+                  int version)
     {
         using T = typename element_type_traits<ET>::value_type;
         T start_val;
         T stop_val;
         T step_val;
-        if (!(get_casted_value<T>(start, &start_val) && get_casted_value<T>(stop, &stop_val) &&
-              get_casted_value<T>(step, &step_val)))
+        if (version < 4)
         {
-            return false;
+            start_val = *start->get_data_ptr<ET>();
+            stop_val = *stop->get_data_ptr<ET>();
+            step_val = *step->get_data_ptr<ET>();
+            if (!(check_value(start_val) && check_value(stop_val) && check_value(step_val) &&
+                  (step_val != static_cast<T>(0))))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if (!(get_casted_value<T>(start, &start_val) && get_casted_value<T>(stop, &stop_val) &&
+                  get_casted_value<T>(step, &step_val)))
+            {
+                return false;
+            }
         }
 
         int64_t out_size = 0;
@@ -229,18 +274,24 @@ namespace rangeop
                         const HostTensorPtr& start,
                         const HostTensorPtr& stop,
                         const HostTensorPtr& step,
-                        const element::Type& output_type)
+                        const element::Type& output_type,
+                        int version)
     {
         bool rc = true;
         switch (output_type)
         {
-            NGRAPH_TYPE_CASE(evaluate_v4_range, bf16, out, start, stop, step);
-            NGRAPH_TYPE_CASE(evaluate_v4_range, f16, out, start, stop, step);
-            NGRAPH_TYPE_CASE(evaluate_v4_range, f32, out, start, stop, step);
-            NGRAPH_TYPE_CASE(evaluate_v4_range, i32, out, start, stop, step);
-            NGRAPH_TYPE_CASE(evaluate_v4_range, i64, out, start, stop, step);
-            NGRAPH_TYPE_CASE(evaluate_v4_range, u32, out, start, stop, step);
-            NGRAPH_TYPE_CASE(evaluate_v4_range, u64, out, start, stop, step);
+            NGRAPH_TYPE_CASE(evaluate_range, bf16, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, f16, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, f32, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, f64, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, i8, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, i16, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, i32, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, i64, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, u8, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, u16, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, u32, out, start, stop, step, version);
+            NGRAPH_TYPE_CASE(evaluate_range, u64, out, start, stop, step, version);
         default: rc = false; break;
         }
         return rc;
@@ -253,7 +304,7 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
                     HostTensorPtr start = inputs[0];
                     HostTensorPtr stop = inputs[1];
                     HostTensorPtr step = inputs[2];
-                    return rangeop::evaluate_power(out, start, stop, step, m_output_type));
+                    return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4));
     return false;
 }
 
@@ -263,36 +314,6 @@ op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const 
     : Op({start, stop, step})
 {
     constructor_validate_and_infer_types();
-}
-
-//
-// The code in the following three functions is a bit awkward, to work around some compiler
-// warnings and the need to support our custom float16/bfloat16 type:
-//
-// (1) We can't use STL things like isnan, because our custom float16/bfloat16 types don't always
-//     support them.
-// (2) We check whether (x - x) == (x - x) to check for "is_finite".
-// (3) We have to break (x - x) out into a temporary because otherwise the compiler throws a
-//     warning about == on floats.
-// (4) We check <0 || >0 to check for != 0, because otherwise the compiler throws a warning about
-//     == on floats.
-//
-template <typename T>
-static typename std::enable_if<std::is_integral<T>::value, bool>::type check_value(T value)
-{
-    // Nothing to check for integral types.
-    return true;
-}
-
-template <typename T>
-static
-    typename std::enable_if<std::is_floating_point<T>::value || std::is_same<T, float16>::value ||
-                                std::is_same<T, bfloat16>::value,
-                            bool>::type
-    check_value(T value)
-{
-    T value_minus_value = value - value;
-    return value == value && value_minus_value == value_minus_value;
 }
 
 template <typename T>
@@ -479,6 +500,6 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
         op_v0_Range_evaluate, HostTensorPtr out = outputs[0]; HostTensorPtr start = inputs[0];
         HostTensorPtr stop = inputs[1];
         HostTensorPtr step = inputs[2];
-        return rangeop::evaluate_power(out, start, stop, step, start->get_element_type()););
+        return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0));
     return false;
 }

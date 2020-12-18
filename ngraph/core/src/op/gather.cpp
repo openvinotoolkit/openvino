@@ -285,25 +285,42 @@ namespace gather
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Gather_evaluate int64_t axis = 0; switch (inputs[2]->get_element_type()) {
-        case element::Type_t::i8: axis = inputs[2]->get_data_ptr<element::Type_t::i8>()[0]; break;
-        case element::Type_t::i16: axis = inputs[2]->get_data_ptr<element::Type_t::i16>()[0]; break;
-        case element::Type_t::i32: axis = inputs[2]->get_data_ptr<element::Type_t::i32>()[0]; break;
-        case element::Type_t::i64: axis = inputs[2]->get_data_ptr<element::Type_t::i64>()[0]; break;
-        case element::Type_t::u8: axis = inputs[2]->get_data_ptr<element::Type_t::u8>()[0]; break;
-        case element::Type_t::u16: axis = inputs[2]->get_data_ptr<element::Type_t::u16>()[0]; break;
-        case element::Type_t::u32: axis = inputs[2]->get_data_ptr<element::Type_t::u32>()[0]; break;
-        case element::Type_t::u64: axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0]; break;
-        default: throw ngraph_error("axis element type is not integral data type");
-    }
+    NGRAPH_OP_SCOPE(
+        v1_Gather_evaluate, int64_t axis = 0; switch (inputs[2]->get_element_type()) {
+            case element::Type_t::i8:
+                axis = inputs[2]->get_data_ptr<element::Type_t::i8>()[0];
+                break;
+            case element::Type_t::i16:
+                axis = inputs[2]->get_data_ptr<element::Type_t::i16>()[0];
+                break;
+            case element::Type_t::i32:
+                axis = inputs[2]->get_data_ptr<element::Type_t::i32>()[0];
+                break;
+            case element::Type_t::i64:
+                axis = inputs[2]->get_data_ptr<element::Type_t::i64>()[0];
+                break;
+            case element::Type_t::u8:
+                axis = inputs[2]->get_data_ptr<element::Type_t::u8>()[0];
+                break;
+            case element::Type_t::u16:
+                axis = inputs[2]->get_data_ptr<element::Type_t::u16>()[0];
+                break;
+            case element::Type_t::u32:
+                axis = inputs[2]->get_data_ptr<element::Type_t::u32>()[0];
+                break;
+            case element::Type_t::u64:
+                axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0];
+                break;
+            default: throw ngraph_error("axis element type is not integral data type");
+        }
 
-                    if (axis < 0) {
-                        const auto& input_rank = get_input_partial_shape(PARAMS).rank();
-                        if (input_rank.is_static())
-                        {
-                            axis += input_rank.get_length();
-                        }
-                    } return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis));
+        if (axis < 0) {
+            const auto& input_rank = get_input_partial_shape(PARAMS).rank();
+            if (input_rank.is_static())
+            {
+                axis += input_rank.get_length();
+            }
+        } return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis));
     return false;
 }
 

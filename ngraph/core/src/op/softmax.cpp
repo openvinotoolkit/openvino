@@ -54,6 +54,7 @@ namespace
             NGRAPH_TYPE_CASE(evaluate_softmax, bf16, arg, out, shape, axes);
             NGRAPH_TYPE_CASE(evaluate_softmax, f16, arg, out, shape, axes);
             NGRAPH_TYPE_CASE(evaluate_softmax, f32, arg, out, shape, axes);
+            NGRAPH_TYPE_CASE(evaluate_softmax, f64, arg, out, shape, axes);
         default: rc = false; break;
         }
         return rc;

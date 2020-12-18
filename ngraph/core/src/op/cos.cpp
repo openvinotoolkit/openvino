@@ -78,7 +78,8 @@ namespace cosop
 
 bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(Cos_evaluate return cosop::evaluate_cos(
-        inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    NGRAPH_OP_SCOPE(
+        Cos_evaluate,
+        return cosop::evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0))));
     return false;
 }

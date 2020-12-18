@@ -203,7 +203,7 @@ namespace maxpool
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate auto arg_shape = inputs[0]->get_partial_shape();
+    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate, auto arg_shape = inputs[0]->get_partial_shape();
                     auto pads_begin_s = get_pads_begin();
                     auto pads_end_s = get_pads_end();
                     update_auto_padding(arg_shape, pads_begin_s, pads_end_s);

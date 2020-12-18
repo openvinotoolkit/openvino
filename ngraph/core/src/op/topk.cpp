@@ -200,9 +200,13 @@ namespace topk
         switch (arg_k->get_element_type())
         {
             CASE_GET_K(i8, arg_k);
+            CASE_GET_K(i16, arg_k);
             CASE_GET_K(i32, arg_k);
+            CASE_GET_K(i64, arg_k);
             CASE_GET_K(u8, arg_k);
+            CASE_GET_K(u16, arg_k);
             CASE_GET_K(u32, arg_k);
+            CASE_GET_K(u64, arg_k);
         default:
             // other types are not supported and would have thrown in ctor
             ngraph_error("read_k_from_host_tensor: type is not integral\n");

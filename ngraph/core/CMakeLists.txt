@@ -110,7 +110,6 @@ target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
                                           ${NGRAPH_INCLUDE_DIR}/pattern/op
                                           ${NGRAPH_INCLUDE_DIR}/runtime
                                           ${CMAKE_CURRENT_SOURCE_DIR}/src
-                                          $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
                                           )
 
 #Add an alias so that library can be used inside the build tree, e.g. when testing
