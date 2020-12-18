@@ -5,6 +5,7 @@
 #pragma once
 
 #include "cpp_interfaces/impl/ie_variable_state_internal.hpp"
+#include "blob_factory.hpp"
 #include "mkldnn_memory.h"
 
 #include <string>
@@ -14,7 +15,11 @@ namespace MKLDNNPlugin {
 class MKLDNNVariableState : public InferenceEngine::IVariableStateInternal {
 public:
     MKLDNNVariableState(std::string name, MKLDNNMemoryPtr storage) :
-            name(name), storage(storage) {}
+            name(name){
+        this->storage = make_blob_with_precision(MKLDNNMemoryDesc(storage->GetDescriptor()));
+        this->storage->allocate();
+        std::memcpy(this->storage->buffer(), storage->GetData(), storage->GetSize());
+    }
 
     std::string GetName() const override;
     void Reset() override;
@@ -23,7 +28,7 @@ public:
 
 private:
     std::string name;
-    MKLDNNMemoryPtr storage;
+    InferenceEngine::Blob::Ptr storage;
 };
 
 }  // namespace MKLDNNPlugin

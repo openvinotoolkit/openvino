@@ -49,6 +49,8 @@ public:
 
 private:
     void PushInputData();
+    void PushStates();
+    void PullStates();
 
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 
