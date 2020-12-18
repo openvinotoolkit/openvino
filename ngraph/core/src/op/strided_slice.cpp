@@ -172,6 +172,14 @@ void op::v1::StridedSlice::validate_and_infer_types()
                               ").");
     }
 
+    // Fill up strides input with default strides if not set by this point.
+    if (get_input_size() < 4)
+    {
+        set_argument(3,
+                     calculate_default_strides(get_input_node_ptr(1)->output(0),
+                                               get_input_node_ptr(2)->output(0)));
+    }
+
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
