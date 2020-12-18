@@ -36,6 +36,22 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes)
     ASSERT_EQ(G->get_output_shape(1), out_shape2);
 }
 
+TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_bi)
+{
+    PartialShape logits_shape{3, 100, 1200};
+    PartialShape seq_len_shape{3};
+    Shape out_shape1{3, 100};
+    Shape out_shape2{3};
+    auto P = make_shared<op::Parameter>(element::f32, logits_shape);
+    auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
+    auto BI = op::Constant::create(element::i32, Shape{}, {1});
+    auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, BI, false, element::i64, element::i64);
+    ASSERT_EQ(G->get_output_element_type(0), element::i64);
+    ASSERT_EQ(G->get_output_element_type(1), element::i64);
+    ASSERT_EQ(G->get_output_shape(0), out_shape1);
+    ASSERT_EQ(G->get_output_shape(1), out_shape2);
+}
+
 TEST(type_prop, ctc_greedy_decoder_seq_len_output_static_shape1)
 {
     PartialShape logits_shape{Dimension::dynamic(), 100, 1200};

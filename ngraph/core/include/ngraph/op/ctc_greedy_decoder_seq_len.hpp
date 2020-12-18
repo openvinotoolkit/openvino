@@ -58,18 +58,26 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
+                /// \brief Get merge_repeated attribute
                 bool get_merge_repeated() const { return m_merge_repeated; }
+
+                /// \brief Get classes_index_type attribute
                 const element::Type& get_classes_index_type() const { return m_classes_index_type; }
+
+                /// \brief Set classes_index_type attribute
                 void set_classes_index_type(const element::Type& classes_index_type)
                 {
                     m_classes_index_type = classes_index_type;
                     validate_and_infer_types();
                 }
 
+                /// \brief Get sequence_length_type attribute
                 const element::Type& get_sequence_length_type() const
                 {
                     return m_sequence_length_type;
                 }
+
+                /// \brief Set sequence_length_type attribute
                 void set_sequence_length_type(const element::Type& sequence_length_type)
                 {
                     m_sequence_length_type = sequence_length_type;
