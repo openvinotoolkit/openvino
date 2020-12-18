@@ -45,7 +45,8 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_bi)
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
     auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto BI = op::Constant::create(element::i32, Shape{}, {1});
-    auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, BI, false, element::i64, element::i64);
+    auto G =
+        make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, BI, false, element::i64, element::i64);
     ASSERT_EQ(G->get_output_element_type(0), element::i64);
     ASSERT_EQ(G->get_output_element_type(1), element::i64);
     ASSERT_EQ(G->get_output_shape(0), out_shape1);
