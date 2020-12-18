@@ -86,7 +86,7 @@ namespace logxor
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(op_v1_LogicalXor_evaluate,
+    NGRAPH_OP_SCOPE(v1_LogicalXor_evaluate,
                     return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob()));
     return false;
 }

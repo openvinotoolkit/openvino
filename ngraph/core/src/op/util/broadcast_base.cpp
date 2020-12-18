@@ -361,7 +361,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes) const
 {
-    NGRAPH_OP_SCOPE(op_util_BroadcastBase_evaluate,
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes,
                     runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
                                                   out->get_data_ptr<char>(),
                                                   arg0->get_shape(),
@@ -501,7 +501,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(
-        op_util_BroadcastBase_evaluate, Shape target_shape = get_target_shape(inputs[1]);
+        util_BroadcastBase_evaluate, Shape target_shape = get_target_shape(inputs[1]);
 
         PartialShape result_shape;
         std::pair<bool, AxisSet> pair_broadcast_axes;

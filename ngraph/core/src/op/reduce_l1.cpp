@@ -67,11 +67,11 @@ namespace reduce_l1
         bool rc = true;
         switch (arg->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_sum, i32, arg, out, axes, keep_dims);
-            NGRAPH_TYPE_CASE(evaluate_sum, i64, arg, out, axes, keep_dims);
-            NGRAPH_TYPE_CASE(evaluate_sum, bf16, arg, out, axes, keep_dims);
-            NGRAPH_TYPE_CASE(evaluate_sum, f16, arg, out, axes, keep_dims);
-            NGRAPH_TYPE_CASE(evaluate_sum, f32, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, i32, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, i64, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, bf16, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, f16, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, f32, arg, out, axes, keep_dims);
         default: rc = false; break;
         }
         return rc;
