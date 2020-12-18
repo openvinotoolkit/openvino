@@ -17,7 +17,7 @@
 import unittest
 from unittest.mock import patch
 
-from mo.front.caffe.extractors.crop import CropFrontExtractor
+from extensions.front.caffe.crop_ext import CropFrontExtractor
 from mo.front.common.partial_infer.crop import crop_infer
 from mo.ops.crop import Crop
 from mo.ops.op import Op
