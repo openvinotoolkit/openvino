@@ -46,16 +46,7 @@ struct ConstantAtributes {
 // convention. Most of them are the same, but there are exceptions, e.g
 // Constant (ngraph name) and Const (IR name). If there will be more
 // discrepancies discoverd, translations needs to be added here.
-std::string translate_type_name(std::string name) {
-    const std::unordered_map<std::string, std::string> translator = {
-        {"Constant", "Const"},
-        {"Relu", "ReLU"},
-        {"Softmax", "SoftMax"}};
-    if (translator.count(name) > 0) {
-        name = translator.at(name);
-    }
-    return name;
-}
+std::string translate_type_name(std::string name);
 
 class XmlVisitor : public ngraph::AttributeVisitor {
     pugi::xml_node& m_data;
@@ -207,6 +198,20 @@ const std::vector<Edge> create_edge_mapping(
     return edges;
 }
 
+// TODO: refactor to Vistor API when Constant will be supporting it
+ConstantAtributes dump_constant_data(std::ostream& bin,
+                                     const ngraph::op::Constant& c) {
+    NGRAPH_CHECK(c.get_output_partial_shape(0.).is_static(),
+                 "Unsupported dynamic output shape in ", c);
+
+    ConstantAtributes attr;
+    auto p = reinterpret_cast<const char*>(c.get_data_ptr());
+    attr.size = ngraph::shape_size(c.get_shape()) * c.get_element_type().size();
+    attr.offset = bin.tellp();
+    bin.write(p, attr.size);
+    return attr;
+}
+
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
@@ -230,6 +235,21 @@ std::string get_opset_name(
     }
 
     return "experimental";
+}
+
+// Here operation type names are translated from ngraph convention to IR
+// convention. Most of them are the same, but there are exceptions, e.g
+// Constant (ngraph name) and Const (IR name). If there will be more
+// discrepancies discoverd, translations needs to be added here.
+std::string translate_type_name(std::string name) {
+    const std::unordered_map<std::string, std::string> translator = {
+        {"Constant", "Const"},
+        {"Relu", "ReLU"},
+        {"Softmax", "SoftMax"}};
+    if (translator.count(name) > 0) {
+        name = translator.at(name);
+    }
+    return name;
 }
 
 std::string get_output_precision_name(ngraph::Output<Node>& o) {
@@ -418,6 +438,15 @@ void ngfunction_2_irv10(
             std::distance(data.attributes().begin(), data.attributes().end());
         if (data_attr_size == 0) {
             layer.remove_child(data);
+        }
+
+        // <layers/data> constant atributes (special case)
+        if (exec_graph) {
+            if (auto constant = dynamic_cast<ngraph::op::Constant *>(node)) {
+                ConstantAtributes attr = dump_constant_data(bin_file, *constant);
+                data.append_attribute("offset").set_value(attr.offset);
+                data.append_attribute("size").set_value(attr.size);
+            }
         }
 
         int port_id = 0;
