@@ -66,9 +66,9 @@ void DetectronTopKROIs::validate_and_infer_types()
                               rois_probs_shape);
 
         NODE_VALIDATION_CHECK(this,
-                              input_rois_shape[0] == input_rois_shape[0],
+                              input_rois_shape[0] == rois_probs_shape[0],
                               "Number of rois and number of probabilities should be equal. Got: ",
-                              input_rois_shape[0], input_rois_shape[0]);
+                              input_rois_shape[0], rois_probs_shape[0]);
 
         NODE_VALIDATION_CHECK(this,
                               input_rois_shape[1] == 4,
