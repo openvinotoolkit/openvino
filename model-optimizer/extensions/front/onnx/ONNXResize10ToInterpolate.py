@@ -80,6 +80,14 @@ def replace_resize(graph: Graph, resize: Node):
     range_node.out_port(0).connect(interpolate_node.in_port(3))
     shape_of = Shape(graph, {'name': resize_name + '/ShapeOf'}).create_node()
 
+    # When we calculate 'sizes' input as floor(input_shape * scales), we can get incorrect 'sizes' if, e.g.,
+    # scales = [1.0, 1.0, 1.33333, 2.0], input_shape = [1, 3, 30, 200], because
+    # input_shape * scales = [1, 3, 39.9999, 400], and floor(input_shape * scales)[2] == 39, not 40.
+    # Maybe we need to calculate 'sizes' input as floor(input_shape * scales + eps), where eps is some small
+    # floating point number, e.g. 1.0e-5. But, in this case, if scales = [1.0, 1.0, 1.333333, 2.0],
+    # input_shape = [1, 3, 30, 200], floor(input_shape * scales + eps) = 39, not 40, because
+    # input_shape[2] * scales[2] + 1.0e-5 =  39.99991.
+    # Hence, we need to calculate 'sizes' as floor(input_shape * (scales + eps)).
     add_node = create_op_with_const_inputs(graph, Add,
                                            {1: float_array([1.0e-5])},
                                            {'name': resize_name + '/Add'})
