@@ -557,6 +557,80 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout)
+{
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_default.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4});
+    test_case.add_input<float>({1});
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); 
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_basic_single)
+{
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_basic_single.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4});
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); 
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_mask)
+{
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_default_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4});
+    test_case.add_input<float>({1});
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
+    test_case.add_expected_output<int>(Shape{1, 4}, {true, true, true, true}); 
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_m_r_t)
+{
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_ratio_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4});
+    test_case.add_input<float>({1});
+    test_case.add_input<float>(Shape{}, {0.5});
+    test_case.add_input(std::vector<bool>{true});
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
+    test_case.add_expected_output<int>(Shape{1, 4}, {true, true, true, true}); 
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_m_r_t_const)
+{
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_const_m_r.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4});
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); 
+    test_case.add_expected_output<int>(Shape{1, 4}, {true, true, true, true}); 
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_r_t_const)
+{
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_const_r_t.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4});
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); 
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum_one_input)
 {
     auto function = onnx_import::import_onnx_model(
