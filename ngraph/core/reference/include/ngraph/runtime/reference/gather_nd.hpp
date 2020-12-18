@@ -21,7 +21,7 @@
 #include <numeric>
 
 #include "ngraph/coordinate_transform.hpp"
-#include "span.hpp"
+#include "utils/span.hpp"
 
 namespace ngraph
 {

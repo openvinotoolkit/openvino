@@ -23,7 +23,7 @@
 #include "ngraph/coordinate_range.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
-#include "span.hpp"
+#include "utils/span.hpp"
 
 namespace ngraph
 {
