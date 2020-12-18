@@ -32,7 +32,13 @@ namespace ngraph
                 OutputVector max_pool(const Node& node)
                 {
                     auto max_pool = pooling::PoolingFactory(node).make_max_pool();
-                    max_pool.emplace_back(std::make_shared<NullNode>()); // Indices (optional)
+                    if (node.get_outputs_size() > 1)
+                    {
+                        NGRAPH_WARN << (node) << " Optional output `Indices` is not supported "
+                                                     "and will be ignored ";
+                        return{max_pool[0].get_node_shared_ptr()->output(0), max_pool[0].get_node_shared_ptr()->output(0)}; // Indices (optional)
+
+                    }
                     return max_pool;
                 }
 
