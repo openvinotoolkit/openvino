@@ -18,7 +18,7 @@ protected:
 
     static std::string GetTimestamp();
 
-    static std::string GetTestName();
+    std::string GetTestName() const;
 };
 
 }  // namespace CommonTestUtils

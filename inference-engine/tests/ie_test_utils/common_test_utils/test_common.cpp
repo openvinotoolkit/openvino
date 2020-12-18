@@ -75,7 +75,7 @@ std::string TestsCommon::GetTimestamp() {
     return std::to_string(ns.count());
 }
 
-std::string TestsCommon::GetTestName() {
+std::string TestsCommon::GetTestName() const {
     std::string test_name =
         ::testing::UnitTest::GetInstance()->current_test_info()->name();
     std::replace_if(test_name.begin(), test_name.end(),
