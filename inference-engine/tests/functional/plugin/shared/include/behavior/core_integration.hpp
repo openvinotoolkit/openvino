@@ -426,7 +426,7 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
     Core ie;
 
     if (deviceName == CommonTestUtils::DEVICE_CPU || deviceName == CommonTestUtils::DEVICE_FPGA) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), InferenceEngineException);
+        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplemented);
     }
 }
 
