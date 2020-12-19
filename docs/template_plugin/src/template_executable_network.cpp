@@ -42,7 +42,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &             
     _cfg(cfg),
     _plugin(plugin) {
     // TODO: since Import network is not a mandatory functionality, this ctor can just be removed
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
 }
 // ! [executable_network:ctor_import_stream]
 
@@ -150,6 +150,6 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
 // ! [executable_network:export_impl]
 void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
     // TODO: Code which exports graph from std::ostream
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
 }
 // ! [executable_network:export_impl]

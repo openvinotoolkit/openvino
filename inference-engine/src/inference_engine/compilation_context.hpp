@@ -37,12 +37,11 @@ public:
 
 private:
     void validate() const {
-        if (m_constants.empty())
-            THROW_IE_EXCEPTION << "Constants are empty";
-            
+        // m_constants can be empty because we can have models w/o weights
+
         if (m_model.empty())
             THROW_IE_EXCEPTION << "Model string is empty";
     }
 };
 
-}  // InferenceEngine
+}  // namespace InferenceEngine

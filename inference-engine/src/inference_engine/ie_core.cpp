@@ -93,12 +93,7 @@ template <typename F>
 void allowNotImplemented(F && f) {
     try {
         f();
-    } catch (const details::InferenceEngineException & ex) {
-        std::string message = ex.what();
-        if (message.find(NOT_IMPLEMENTED_str) == std::string::npos) {
-            throw ex;
-        }
-    }
+    } catch (const NotImplemented & ex) { }
 }
 
 }  // namespace
@@ -177,6 +172,7 @@ class Core::Impl : public ICore {
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
+    std::mutex cacheMutex; // to prevent load and read of the same *.ovblob file
 
 public:
     Impl();
@@ -273,7 +269,6 @@ public:
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
-        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
 
         // check whether the network is already compiled and cached
         std::string networkHash;
@@ -297,18 +292,13 @@ public:
                 context.m_constants = std::move(serializer.getWeights());
                 context.m_model = std::move(serializer.getModel());
             } catch (const std::bad_cast &) {
-                // IR v7 or older is passed
+                // IR v7 or older is passed: cannot cast to CNNNetworkNGraphImpl
                 cachingIsAvailable = false;
                 std::cout << "IR v7 is passed; skip import and export" << std::endl;
             } catch (const ngraph::ngraph_error &) {
                 // failed to serialize the model - caching is not available
                 cachingIsAvailable = false;
                 std::cout << "failed to serialize the model; skip import and export" << std::endl;
-            } catch (const details::InferenceEngineException & ex) {
-                cachingIsAvailable = false;
-                std::cout << ex.what() << " skip import and export" << std::endl;
-                // should not be here
-                throw ex;
             }
 
             if (cachingIsAvailable)
@@ -319,11 +309,15 @@ public:
         std::string blobFileName = FileUtils::makePath(getIELibraryPath(), networkHash + ".ovblob");
         ExecutableNetwork execNetwork;
 
+        auto removeCacheEntry = [] (const std::string & blobFileName_) {
+            std::remove(blobFileName_.c_str());
+        };
+
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
+            // TODO: maybe we need to pass all config values: check with GNA, VPU, KMB
             auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, {});
             try {
-                std::ifstream compiledBlobStream(blobFileName.c_str());
-                execNetwork = GetCPPPluginByName(importConfig._deviceName).ImportNetwork(compiledBlobStream, importConfig._config);
+                execNetwork = GetCPPPluginByName(importConfig._deviceName).ImportNetwork(blobFileName, importConfig._config);
                 networkIsImported = true;
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
@@ -333,19 +327,21 @@ public:
                 //    (e.g. device arch is not compatible with device arch network compiled for
                 //     e.g. compiled for MYX, but current device is M2 stick)
                 std::cout << "NetworkNotRead: try to export one more time" << std::endl;
+                removeCacheEntry(blobFileName);
             }
         }
 
         if (!networkIsImported) {
-            ExecutableNetwork execNetwork = GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
+            auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+            execNetwork = GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
 
             if (cachingIsAvailable) {
                 try {
                     // need to export network for further import from "cache"
-                    std::ofstream compiledBlobStream(blobFileName.c_str());
-                    execNetwork.Export(compiledBlobStream);
-                } catch (const NotImplemented & ex) {
+                    execNetwork.Export(blobFileName);
+                } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
+                    removeCacheEntry(blobFileName);
                     std::cout << "Export is not implemented: skip import and export" << std::endl;
                 }
             }
