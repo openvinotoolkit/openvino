@@ -1468,8 +1468,7 @@ void MKLDNNReduceNode::createPrimitive() {
         THROW_IE_EXCEPTION << "Reduce layer with name " << getName() << "didn't set preferable primitive descriptor.";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    Layout selected_layout = selectedPD->getConfig().inConfs[REDUCE_DATA].desc.getLayout();
-    planar_layout = MKLDNNMemory::GetPlainLayout(getParentEdgeAt(REDUCE_DATA)->getDims()) == selected_layout;
+    planar_layout = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDesc().isPlainFormat();
 
     auto jcp = jit_reduce_config_params();
     jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].desc.getPrecision());

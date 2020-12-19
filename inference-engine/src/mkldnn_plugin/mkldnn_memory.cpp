@@ -321,8 +321,16 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::da
             desc = mkldnn::memory::desc(dims, dataType, format);
         }
         return;
+    } else {
+        // Trying to create plain descriptor
+        // This WA is needed since memory::format_tag doesn't contain plain tag for tensors with rank > 6D
+        mkldnn::memory::dims strides(dims.size(), 1);
+        for (int d = dims.size() - 2; d >= 0; d--) {
+            strides[d] = strides[d + 1] * (std::max)((int64_t)1, dims[d + 1]);
+        }
+
+        desc = mkldnn::memory::desc(dims, dataType, strides);
     }
-    MKLDNNMemory::CreateBlockingDesc(desc);
 }
 
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType) : desc() {
