@@ -37,7 +37,13 @@ public:
               Version version = Version::IR_V10, std::map<std::string, ngraph::OpSet> custom_opsets = {})
         : m_xmlPath{xmlPath}, m_binPath{binPath}, m_version{version}, m_custom_opsets{custom_opsets} {}
 
+    std::string getModel() const { return m_model; }
+    std::vector<uint8_t> getWeights() const { return m_constants; }
+
 private:
+    std::vector<uint8_t> m_constants;
+    std::string m_model;
+
     const std::string m_xmlPath;
     const std::string m_binPath;
     const Version m_version;

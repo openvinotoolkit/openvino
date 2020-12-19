@@ -482,10 +482,9 @@ void ngfunction_2_irv10(
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // prepare data
     pugi::xml_document xml_doc;
-    std::vector<uint8_t> constants;
     switch (m_version) {
     case Version::IR_V10:
-        ngfunction_2_irv10(xml_doc, constants, *f, m_custom_opsets);
+        ngfunction_2_irv10(xml_doc, m_constants, *f, m_custom_opsets);
         break;
     default:
         NGRAPH_UNREACHABLE("Unsupported version");
@@ -496,10 +495,16 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     std::ofstream xml_file(m_xmlPath, std::ios::out);
     xml_doc.save(xml_file);
 
+    {
+        std::stringstream stream;
+        xml_doc.save(stream);
+        m_model = stream.str();
+    }
+
     // create bin file
     std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    bin_file.write(reinterpret_cast<const char*>(constants.data()),
-                   constants.size() * sizeof(constants[0]));
+    bin_file.write(reinterpret_cast<const char*>(m_constants.data()),
+                   m_constants.size() * sizeof(m_constants[0]));
 
     // Return false because we didn't change nGraph Function
     return false;

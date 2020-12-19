@@ -15,8 +15,11 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <transformations/serialize.hpp>
 
+#include "cnn_network_ngraph_impl.hpp"
 #include <cpp_interfaces/exception2status.hpp>
+#include "compilation_context.hpp"
 #include "ie_plugin_cpp.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_itt.hpp"
@@ -271,7 +274,84 @@ public:
                                   const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        return GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
+
+        // check whether the network is already compiled and cached
+        std::string networkHash;
+        bool cachingIsAvailable = true;
+
+        {
+            NetworkCompilationContext context;
+
+            try {
+                const auto & ngraphImpl = dynamic_cast<const details::CNNNetworkNGraphImpl &>(
+                    static_cast<const ICNNNetwork&>(network));
+                std::map<std::string, ngraph::OpSet> custom_opsets;
+                for (auto extension : ngraphImpl._ie_extensions) {
+                    auto opset = extension->getOpSets();
+                    custom_opsets.insert(std::begin(opset), std::end(opset));
+                }
+                ngraph::pass::Serialize serializer(
+                    "", "", ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+                serializer.run_on_function(ngraphImpl._ngraph_function);
+
+                context.m_constants = std::move(serializer.getWeights());
+                context.m_model = std::move(serializer.getModel());
+            } catch (const std::bad_cast &) {
+                // IR v7 or older is passed
+                cachingIsAvailable = false;
+                std::cout << "IR v7 is passed; skip import and export" << std::endl;
+            } catch (const ngraph::ngraph_error &) {
+                // failed to serialize the model - caching is not available
+                cachingIsAvailable = false;
+                std::cout << "failed to serialize the model; skip import and export" << std::endl;
+            } catch (const details::InferenceEngineException & ex) {
+                cachingIsAvailable = false;
+                std::cout << ex.what() << " skip import and export" << std::endl;
+                // should not be here
+                throw ex;
+            }
+
+            if (cachingIsAvailable)
+                networkHash = context.computeHash();
+        }
+
+        bool networkIsImported = false;
+        std::string blobFileName = FileUtils::makePath(getIELibraryPath(), networkHash + ".ovblob");
+        ExecutableNetwork execNetwork;
+
+        if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
+            auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, {});
+            try {
+                std::ifstream compiledBlobStream(blobFileName.c_str());
+                execNetwork = GetCPPPluginByName(importConfig._deviceName).ImportNetwork(compiledBlobStream, importConfig._config);
+                networkIsImported = true;
+            } catch (const NotImplemented &) {
+                // 1. Device does not support ImportNetwork / Export flow
+                std::cout << "Import is not implemented: skip import and export" << std::endl;
+            } catch (const NetworkNotRead &) {
+                // 2. Device supports this flow, but failed to import network for some reason
+                //    (e.g. device arch is not compatible with device arch network compiled for
+                //     e.g. compiled for MYX, but current device is M2 stick)
+                std::cout << "NetworkNotRead: try to export one more time" << std::endl;
+            }
+        }
+
+        if (!networkIsImported) {
+            ExecutableNetwork execNetwork = GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
+
+            if (cachingIsAvailable) {
+                try {
+                    // need to export network for further import from "cache"
+                    std::ofstream compiledBlobStream(blobFileName.c_str());
+                    execNetwork.Export(compiledBlobStream);
+                } catch (const NotImplemented & ex) {
+                    // 1. Network export flow is not implemented in device
+                    std::cout << "Export is not implemented: skip import and export" << std::endl;
+                }
+            }
+        }
+
+        return execNetwork;
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
@@ -517,6 +597,7 @@ Core::Impl::Impl() {
     opsetNames.insert("opset2");
     opsetNames.insert("opset3");
     opsetNames.insert("opset4");
+    opsetNames.insert("opset5");
 }
 
 Core::Impl::~Impl() {}
@@ -591,10 +672,6 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::string
     return _impl->LoadNetwork(network, deviceName, config);
 }
 
-void Core::AddExtension(const IExtensionPtr& extension) {
-    _impl->AddExtension(extension);
-}
-
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::LoadNetwork");
@@ -641,6 +718,10 @@ void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_)
             << "MULTI device does not support extensions. Please, set extensions directly to fallback devices";
     }
 
+    _impl->AddExtension(extension);
+}
+
+void Core::AddExtension(const IExtensionPtr& extension) {
     _impl->AddExtension(extension);
 }
 

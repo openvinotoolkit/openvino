@@ -410,7 +410,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (auto extension : _ie_extensions) {
             auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
+            custom_opsets.insert(std::begin(opset), std::end(opset));
         }
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(
