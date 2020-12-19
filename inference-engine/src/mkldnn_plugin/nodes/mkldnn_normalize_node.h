@@ -126,6 +126,8 @@ private:
 
     std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
     std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
+
+    jit_normalize_config_params jcp = {};
 };
 
 }  // namespace MKLDNNPlugin

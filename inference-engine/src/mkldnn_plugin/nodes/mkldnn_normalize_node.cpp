@@ -904,15 +904,20 @@ void MKLDNNNormalizeNode::createPrimitive() {
         THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    Layout selected_layout = selectedPD->getConfig().inConfs[0].desc.getLayout();
-    auto jcp = jit_normalize_config_params();
     jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
     jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc.getPrecision());
     jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
     jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
-    jcp.is_nchw = selected_layout == MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims());
-    jcp.is_nhwc = selected_layout == Layout::NHWC;
-    jcp.is_blk = selected_layout == Layout::BLOCKED;
+
+    jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
+    if (getParentEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
+        jcp.is_nchw = true;
+    } else if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+        jcp.is_blk = true;
+    } else {
+        jcp.is_nhwc = true;
+    }
+
     jcp.across_spatial = across_spatial;
     jcp.channel_shared = channel_shared;
     auto dims = getParentEdgeAt(0)->getDesc().getDims();
@@ -1455,19 +1460,18 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
 template <typename in_data_t, typename out_data_t>
 void MKLDNNNormalizeNode::normalize_function(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    Layout selected_layout = selectedPD->getConfig().inConfs[0].desc.getLayout();
     if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
-        if (selected_layout == MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims())) {
+        if (jcp.is_nchw) {
             normalize_nchw(src_data, dst_data, dims);
-        } else if (selected_layout == Layout::NHWC) {
+        } else if (jcp.is_nhwc) {
             normalize_nhwc(src_data, dst_data, dims);
-        } else if (selected_layout == Layout::BLOCKED) {
+        } else if (jcp.is_blk) {
             normalize_blk(src_data, dst_data, dims);
         } else {
             THROW_IE_EXCEPTION << "The selected layout is not supported.";
         }
     } else {
-        if (selected_layout == MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims())) {
+        if (jcp.is_nchw) {
             normalize_nchw_ref(src_data, dst_data, dims);
         } else {
             THROW_IE_EXCEPTION << "Only support plain layout on machine w/o sse42.";
