@@ -476,6 +476,7 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
 //
 // ImportExportNetwork
 //
+
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;

@@ -5,6 +5,8 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
+#include "transformations/serialize.hpp"
+#include "xml_parse_utils.h"
 
 #include "template/template_config.hpp"
 #include "template_plugin.hpp"
@@ -41,8 +43,55 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &             
                                                      const Plugin::Ptr&             plugin) :
     _cfg(cfg),
     _plugin(plugin) {
-    // TODO: since Import network is not a mandatory functionality, this ctor can just be removed
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+    // read XML content
+    std::string xmlString;
+    std::uint64_t dataSize = 0;
+    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    xmlString.resize(dataSize);
+    model.read(const_cast<char*>(xmlString.c_str()), dataSize);
+
+    // read blob content
+    InferenceEngine::Blob::Ptr dataBlob;
+    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    if (0 != dataSize) {
+        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                        {static_cast<std::size_t>(dataSize)},
+                                        InferenceEngine::Layout::C));
+        dataBlob->allocate();
+        model.read(dataBlob->buffer(), dataSize);
+    }
+
+    auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+
+    auto inputs = cnnnetwork.getInputsInfo();
+    // auto inputsNode = subnetworkNode.child("inputs");
+    // for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
+    //     auto inputName = GetStrAttr(inputNode, "name");
+    //     inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
+    // }
+
+    auto outputs = cnnnetwork.getOutputsInfo();
+    // auto outputsNode = subnetworkNode.child("outputs");
+    // for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+    //     auto outputName = GetStrAttr(inputNode, "name");
+    //     outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
+    // }
+
+    copyInputOutputInfo(cnnnetwork.getInputsInfo(), cnnnetwork.getOutputsInfo(),
+        _networkInputs, _networkOutputs);
+
+    // TODO: create common function
+    try {
+        CompileNetwork(cnnnetwork.getFunction());
+        InitExecutor(); // creates thread-based executor using for async requests
+    } catch (const InferenceEngine::details::InferenceEngineException&) {
+        throw;
+    } catch (const std::exception & e) {
+        THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
+    } catch (...) {
+        THROW_IE_EXCEPTION << "Generic exception is thrown";
+    }
 }
 // ! [executable_network:ctor_import_stream]
 
@@ -149,7 +198,24 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
 
 // ! [executable_network:export_impl]
 void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
-    // TODO: Code which exports graph from std::ostream
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+    std::map<std::string, ngraph::OpSet> custom_opsets;
+    // for (auto extension : ngraphImpl._ie_extensions) {
+    //     auto opset = extension->getOpSets();
+    //     custom_opsets.insert(std::begin(opset), std::end(opset));
+    // }
+    ngraph::pass::Serialize serializer(
+        "", "", ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+    serializer.run_on_function(_function);
+
+    auto m_constants = std::move(serializer.getWeights());
+    auto m_model = std::move(serializer.getModel());
+
+    auto dataSize = static_cast<std::uint64_t>(m_model.size());
+    modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    modelStream.write(m_model.c_str(), dataSize);
+
+    dataSize = static_cast<std::uint64_t>(m_constants.size());
+    modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    modelStream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
 }
 // ! [executable_network:export_impl]

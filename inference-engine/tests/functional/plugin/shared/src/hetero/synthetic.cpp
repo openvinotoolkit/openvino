@@ -125,8 +125,8 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
     affinities += "\n{\n";
     for (auto&& node : std::get<Function>(param)._function->get_ordered_ops()) {
         if (!ngraph::op::is_constant(node) &&
-                !(ngraph::op::is_parameter(node)) &&
-                !(ngraph::op::is_output(node))) {
+            !(ngraph::op::is_parameter(node)) &&
+            !(ngraph::op::is_output(node))) {
             std::string affinity;
             if (std::get<Function>(param)._majorPluginNodeIds.end() !=
                 std::get<Function>(param)._majorPluginNodeIds.find(node->get_friendly_name())) {

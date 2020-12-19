@@ -8,6 +8,7 @@
 #include "hetero_itt.hpp"
 #include "xml_parse_utils.h"
 #include <caseless.hpp>
+#include "compilation_context.hpp"
 
 #include <vector>
 #include <deque>
@@ -415,12 +416,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             }}.run_on_function(ngraph::clone_function(*function));
     }
     for (auto&& network : networks) {
-        auto cfg = _config;
-        cfg[CONFIG_KEY_INTERNAL(SUBNETWORK_WITH_NETWORK_INPUTS)]
-            = isInputSubnetwork[std::distance(networks.data(), &network)] ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, cfg);
+        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
-                                                                 network._device, metaDevices[network._device]);
+            network._device, metaDevices[network._device]);
     }
 }
 
@@ -460,7 +458,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     auto configsNode = heteroNode.child("configs");
     for (auto configNode = configsNode.child("config"); !configNode.empty();
             configNode = configNode.next_sibling("config")) {
-            importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
+        importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
     }
 
     for (auto&& config : configs) {
@@ -511,26 +509,30 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             }
 
             auto outputsNode = subnetworkNode.child("outputs");
-            for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
-            }
+            // for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+            //     cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
+            // }
             auto outputs = cnnnetwork.getOutputsInfo();
             for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                outputs[GetStrAttr(outputNode, "name")]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
+                auto outputName = GetStrAttr(inputNode, "name");
+                outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
             }
+
             executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
             loaded = true;
         }
 
+        // restore network inputs and outputs
+
         for (auto&& input : executableNetwork.GetInputsInfo()) {
             if (networkInputs.end() != networkInputs.find(input.first)) {
-                _networkInputs.emplace(input.first, std::const_pointer_cast<InputInfo>(input.second));
+                _networkInputs.emplace(input.first, std::make_shared<InputInfo>(*input.second));
             }
         }
 
         for (auto&& output : executableNetwork.GetOutputsInfo()) {
             if (networkOutputs.end() != networkOutputs.find(output.first)) {
-                _networkOutputs.emplace(output.first, std::const_pointer_cast<Data>(output.second));
+                _networkOutputs.emplace(output.first, std::make_shared<Data>(*output.second));
             }
         }
 
@@ -564,9 +566,10 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
         auto subnet = subnetwork._clonedNetwork;
         IE_ASSERT(subnet.getFunction() != nullptr);
 
-        // inputs info
         auto subnetworkNode = subnetworksNode.append_child("subnetwork");
         subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
+
+        // inputs info
         auto subnetworkInputsNode = subnetworkNode.append_child("inputs");
         auto inputInfo = subnet.getInputsInfo();
         for (auto&& input : inputInfo) {
@@ -576,18 +579,22 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
         }
 
         // outputs info
-        auto outputInfo = subnet.getOutputsInfo();
-        auto outputIt = outputInfo.begin();
         auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
-        for (auto&& result : subnet.getFunction()->get_results()) {
-            auto outputNode = subnetworkOutputsNode.append_child("output");
-            auto sourceOutput = result->input_value(0);
-            outputNode.append_attribute("creatorName").set_value(sourceOutput.get_node()->get_friendly_name().c_str());
-            outputNode.append_attribute("name").set_value(outputIt->first.c_str());
-            outputNode.append_attribute("precision").set_value(outputIt->second->getPrecision().name());
-            outputNode.append_attribute("index").set_value(std::to_string(sourceOutput.get_index()).c_str());
-            ++outputIt;
+        auto outputInfo = subnet.getOutputsInfo();
+        for (auto&& output : outputInfo) {
+            auto outputNode = subnetworkInputsNode.append_child("output");
+            outputNode.append_attribute("name").set_value(output.first.c_str());
+            outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
         }
+        // for (auto&& result : subnet.getFunction()->get_results()) {
+        //     auto outputNode = subnetworkOutputsNode.append_child("output");
+        //     auto sourceOutput = result->input_value(0);
+        //     // outputNode.append_attribute("creatorName").set_value(sourceOutput.get_node()->get_friendly_name().c_str());
+        //     outputNode.append_attribute("name").set_value(outputIt->first.c_str());
+        //     outputNode.append_attribute("precision").set_value(outputIt->second->getPrecision().name());
+        //     // outputNode.append_attribute("index").set_value(std::to_string(sourceOutput.get_index()).c_str());
+        //     ++outputIt;
+        // }
     }
 
     auto configsNode = heteroNode.append_child("configs");

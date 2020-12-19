@@ -14,8 +14,6 @@
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <transformations/serialize.hpp>
 
 #include "cnn_network_ngraph_impl.hpp"
 #include <cpp_interfaces/exception2status.hpp>
@@ -271,54 +269,27 @@ public:
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
 
         // check whether the network is already compiled and cached
-        std::string networkHash;
-        bool cachingIsAvailable = true;
-
-        {
-            NetworkCompilationContext context;
-
-            try {
-                const auto & ngraphImpl = dynamic_cast<const details::CNNNetworkNGraphImpl &>(
-                    static_cast<const ICNNNetwork&>(network));
-                std::map<std::string, ngraph::OpSet> custom_opsets;
-                for (auto extension : ngraphImpl._ie_extensions) {
-                    auto opset = extension->getOpSets();
-                    custom_opsets.insert(std::begin(opset), std::end(opset));
-                }
-                ngraph::pass::Serialize serializer(
-                    "", "", ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
-                serializer.run_on_function(ngraphImpl._ngraph_function);
-
-                context.m_constants = std::move(serializer.getWeights());
-                context.m_model = std::move(serializer.getModel());
-            } catch (const std::bad_cast &) {
-                // IR v7 or older is passed: cannot cast to CNNNetworkNGraphImpl
-                cachingIsAvailable = false;
-                std::cout << "IR v7 is passed; skip import and export" << std::endl;
-            } catch (const ngraph::ngraph_error &) {
-                // failed to serialize the model - caching is not available
-                cachingIsAvailable = false;
-                std::cout << "failed to serialize the model; skip import and export" << std::endl;
-            }
-
-            if (cachingIsAvailable)
-                networkHash = context.computeHash();
-        }
-
-        bool networkIsImported = false;
-        std::string blobFileName = FileUtils::makePath(getIELibraryPath(), networkHash + ".ovblob");
-        ExecutableNetwork execNetwork;
+        NetworkCompilationContext context(network);
+        bool cachingIsAvailable = context.isCachingAvailable(), networkIsImported = false;
+        std::string networkHash = cachingIsAvailable ? context.computeHash() : std::string{};
 
         auto removeCacheEntry = [] (const std::string & blobFileName_) {
             std::remove(blobFileName_.c_str());
         };
 
+        ExecutableNetwork execNetwork;
+        std::string blobFileName = FileUtils::makePath(getIELibraryPath(), networkHash + ".ovblob");
+
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
             // TODO: maybe we need to pass all config values: check with GNA, VPU, KMB
+            // Looks like we should not
             auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, {});
             try {
-                execNetwork = GetCPPPluginByName(importConfig._deviceName).ImportNetwork(blobFileName, importConfig._config);
+                std::cout << "try to import\n\n" << std::endl;
+                std::ifstream networkStream(blobFileName);
+                execNetwork = GetCPPPluginByName(importConfig._deviceName).ImportNetwork(networkStream, importConfig._config);
                 networkIsImported = true;
+                std::cout << "Network is imported" << std::endl;
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
                 std::cout << "Import is not implemented: skip import and export" << std::endl;
@@ -342,6 +313,7 @@ public:
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
                     removeCacheEntry(blobFileName);
+                    std::cout << parsed._deviceName << std::endl;
                     std::cout << "Export is not implemented: skip import and export" << std::endl;
                 }
             }
