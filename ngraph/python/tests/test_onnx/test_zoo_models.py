@@ -34,7 +34,6 @@ from tests import (
     xfail_issue_40957,
     xfail_issue_39685,
     xfail_issue_37957,
-    xfail_issue_36465,
     xfail_issue_38084,
     xfail_issue_39669,
     xfail_issue_38726,
