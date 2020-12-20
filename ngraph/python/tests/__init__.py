@@ -195,8 +195,6 @@ xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::
                                       "Input order must have shape [n], where n is the rank of arg.")
 
 # Model MSFT issues:
-xfail_issue_36465 = xfail_test(reason="LSTM_Seq_lens: RuntimeError: get_shape was called on a "
-                                      "descriptor::Tensor with dynamic shape")
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
@@ -221,7 +219,6 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
                                       "indices value that points to non-existing output tensor element")
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
 xfail_issue_43380 = xfail_test(reason="RuntimeError: Sorting not possible, due to existed loop")
-xfail_issue_43382 = xfail_test(reason="Testing models which have upper bound output shape is not supported")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
 
 
