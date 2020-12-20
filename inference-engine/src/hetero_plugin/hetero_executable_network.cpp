@@ -8,7 +8,6 @@
 #include "hetero_itt.hpp"
 #include "xml_parse_utils.h"
 #include <caseless.hpp>
-#include "compilation_context.hpp"
 
 #include <vector>
 #include <deque>
@@ -22,13 +21,12 @@
 #include <array>
 #include <cstdint>
 
+#include "transformations/serialize.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
-
-#include "transformations/serialize.hpp"
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>

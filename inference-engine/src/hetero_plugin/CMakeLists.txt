@@ -16,8 +16,6 @@ ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
-target_include_directories(${TARGET_NAME} PRIVATE ../inference_engine)
-
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml inference_engine
     ${NGRAPH_LIBRARIES} inference_engine_transformations)
 

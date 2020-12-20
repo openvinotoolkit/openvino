@@ -51,16 +51,28 @@ public:
             std::cout << "failed to serialize the model; skip import and export" << std::endl;
         }
 
-        // put affinities
+        // put "affinity", "PrimitivesPriority" runtime information
 
         for (const auto & op : network.getFunction()->get_ordered_ops()) {
             ngraph::Node::RTMap rt = op->get_rt_info();
-            auto it = rt.find("affinity");
-            if (rt.end() != it) {
-                auto affinity = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(it->second);
+
+            auto affinity_it = rt.find("affinity");
+            if (rt.end() != affinity_it) {
+                auto affinity = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(affinity_it->second);
                 m_affinities += op->get_friendly_name() + "#" + affinity->get();
             }
+
+            auto priorities_it = rt.find("PrimitivesPriority");
+            if (rt.end() != priorities_it) {
+                auto primPriority = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(priorities_it->second);
+                m_affinities += op->get_friendly_name() + "#" + primPriority->get();
+            }
         }
+
+        // information about precisions, layouts
+
+
+        // information about preprocessing
     }
 
     bool isCachingAvailable() const {
@@ -75,7 +87,8 @@ public:
 
         // TODO: more values to hash
         // seed = hash_combine(seed, m_constants);
-        // seed = hash_combine(seed, m_affinities);
+        seed = hash_combine(seed, m_affinities);
+
 
         return std::to_string(seed);
     }
