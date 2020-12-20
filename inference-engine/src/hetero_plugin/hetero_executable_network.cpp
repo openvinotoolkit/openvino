@@ -509,9 +509,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             }
 
             auto outputsNode = subnetworkNode.child("outputs");
-            // for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-            //     cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
-            // }
             auto outputs = cnnnetwork.getOutputsInfo();
             for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
                 auto outputName = GetStrAttr(outputNode, "name");
@@ -586,15 +583,6 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
             outputNode.append_attribute("name").set_value(output.first.c_str());
             outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
         }
-        // for (auto&& result : subnet.getFunction()->get_results()) {
-        //     auto outputNode = subnetworkOutputsNode.append_child("output");
-        //     auto sourceOutput = result->input_value(0);
-        //     // outputNode.append_attribute("creatorName").set_value(sourceOutput.get_node()->get_friendly_name().c_str());
-        //     outputNode.append_attribute("name").set_value(outputIt->first.c_str());
-        //     outputNode.append_attribute("precision").set_value(outputIt->second->getPrecision().name());
-        //     // outputNode.append_attribute("index").set_value(std::to_string(sourceOutput.get_index()).c_str());
-        //     ++outputIt;
-        // }
     }
 
     auto configsNode = heteroNode.append_child("configs");
@@ -617,7 +605,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
                 THROW_IE_EXCEPTION << "Hetero plugin supports only ngraph function representation";
             }
 
-            // TODO:
+            // TODO: propogate custom opsets
             // const auto & ngraphImpl = static_cast<const details::CNNNetworkNGraphImpl &>(
             //     static_cast<const ICNNNetwork&>(subnet));
             std::map<std::string, ngraph::OpSet> custom_opsets;

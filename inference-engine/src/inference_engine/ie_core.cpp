@@ -15,7 +15,6 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/graph_util.hpp>
 
-#include "cnn_network_ngraph_impl.hpp"
 #include <cpp_interfaces/exception2status.hpp>
 #include "compilation_context.hpp"
 #include "ie_plugin_cpp.hpp"
@@ -170,7 +169,6 @@ class Core::Impl : public ICore {
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
-    std::mutex cacheMutex; // to prevent load and read of the same *.ovblob file
 
 public:
     Impl();

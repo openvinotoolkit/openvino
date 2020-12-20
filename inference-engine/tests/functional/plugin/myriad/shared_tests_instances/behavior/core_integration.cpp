@@ -47,13 +47,9 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    if (!strm.str().empty() && deviceName.find(CommonTestUtils::DEVICE_FPGA) != std::string::npos) {
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
-    }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm));
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
@@ -62,11 +58,9 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
@@ -76,18 +70,13 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrow
     std::string fileName{"ExportedNetwork"};
     {
         ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(fileName));
+        ASSERT_NO_THROW(executableNetwork.Export(fileName));
     }
-    if (CommonTestUtils::fileExists(fileName)) {
-        {
-            std::ifstream strm(fileName);
-            SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-        }
-        ASSERT_EQ(0, remove(fileName.c_str()));
+    {
+        std::ifstream strm(fileName);
+        ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
     }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 using IEClassNetworkTestP_VPU_GetMetric = IEClassNetworkTestP_VPU;

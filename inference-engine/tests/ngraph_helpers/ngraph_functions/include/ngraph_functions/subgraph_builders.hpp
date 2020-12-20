@@ -82,7 +82,7 @@ static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
     auto ngPrc = ngraph::element::Type_t::f32;
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
-    params[0]->set_friendly_name("param!!!");
+    // params[0]->set_friendly_name("param_0");
 
     auto conv1_0 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
@@ -118,7 +118,7 @@ static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
 
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1_4->output(0), relu2_4->output(0)}, 1);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
-    concat->set_friendly_name("result!!!");
+    // concat->set_friendly_name("result_0");
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("SplitMultiConvConcat");
     return fnPtr;

@@ -68,6 +68,8 @@ public:
     }
 
     std::string computeHash() const {
+        IE_ASSERT(isCachingAvailable());
+
         size_t seed {};
         seed = hash_combine(seed, m_model);
 

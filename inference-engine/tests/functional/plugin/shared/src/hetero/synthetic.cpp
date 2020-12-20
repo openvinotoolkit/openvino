@@ -100,7 +100,7 @@ void HeteroSyntheticTest::SetUp() {
             _registredPlugins.push_back(pluginParameter._name);
         }
         targetDevice += pluginParameter._name;
-        targetDevice = "TEMPLATE1";
+        targetDevice = "TEMPLATE0";
         --num;
     }
     function = std::get<Function>(param)._function;
@@ -109,7 +109,7 @@ void HeteroSyntheticTest::SetUp() {
 void HeteroSyntheticTest::TearDown() {
     if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
         for (auto&& pluginName : _registredPlugins) {
-            PluginCache::get().ie()->UnregisterPlugin(pluginName);
+            // PluginCache::get().ie()->UnregisterPlugin(pluginName);
         }
     }
 }
