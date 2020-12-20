@@ -132,7 +132,7 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
             } else {
                 affinity = pluginParameters.at(1)._name;
             }
-            // affinity = pluginParameters.at(0)._name; // TODO
+            affinity = pluginParameters.at(0)._name; // TODO
             node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
             affinities += "\t{" + node->get_friendly_name() + ",\t\t" + affinity + "}\n";
         }
