@@ -21,8 +21,8 @@ namespace InferenceEngine {
 class NetworkCompilationContext final {
 public:
     explicit NetworkCompilationContext(const CNNNetwork & network,
-        const std::map<std::string, std::string> & compileOptions = {},
-        bool print = false) {
+        const std::map<std::string, std::string> & compileOptions = {}) :
+            m_compileOptions(compileOptions) {
         try {
             const auto & ngraphImpl = dynamic_cast<const details::CNNNetworkNGraphImpl &>(
                         static_cast<const ICNNNetwork&>(network));
@@ -37,10 +37,6 @@ public:
 
             m_constants = std::move(serializer.getWeights());
             m_model = std::move(serializer.getModel());
-
-            std::cout << std::hash<std::string>()(m_model) << " !!!\n";
-            if (print)
-                std::cout << m_model << std::endl;
         } catch (const std::bad_cast &) {
             // IR v7 or older is passed: cannot cast to CNNNetworkNGraphImpl
             m_cachingIsAvailable = false;
@@ -85,10 +81,20 @@ public:
         size_t seed {};
         seed = hash_combine(seed, m_model);
 
-        // TODO: more values to hash
-        // seed = hash_combine(seed, m_constants);
+        for (auto & value : m_constants) {
+            seed = hash_combine(seed, value);
+        }
+
+        for (const auto & kvp : m_compileOptions) {
+            seed = hash_combine(seed, kvp.first + kvp.second);
+        }
+
         seed = hash_combine(seed, m_affinities);
 
+        // TODO: more values to hash
+        // 1. precisions
+        // 2. layouts
+        // 3. preprocessing
 
         return std::to_string(seed);
     }
@@ -104,7 +110,10 @@ private:
 
     // network structure (ngraph::Function description)
     std::vector<uint8_t> m_constants;
-    std::string m_model;
+    std::string m_model;;
+
+    // compile options
+    std::map<std::string, std::string> m_compileOptions;
 
     // runtime information
     std::string m_affinities;

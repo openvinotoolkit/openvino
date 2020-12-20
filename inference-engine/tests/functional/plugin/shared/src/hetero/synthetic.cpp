@@ -106,15 +106,12 @@ void HeteroSyntheticTest::SetUp() {
         targetDevice += ((num !=0) ? "," : "");
         --num;
     }
-    std::cout << targetDevice << std::endl;
     function = std::get<Function>(param)._function;
 }
 
 void HeteroSyntheticTest::TearDown() {
-    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        for (auto&& pluginName : _registredPlugins) {
-            // PluginCache::get().ie()->UnregisterPlugin(pluginName);
-        }
+    for (auto&& pluginName : _registredPlugins) {
+        PluginCache::get().ie()->UnregisterPlugin(pluginName);
     }
 }
 
@@ -126,8 +123,8 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
     affinities += "\n{\n";
     for (auto&& node : std::get<Function>(param)._function->get_ordered_ops()) {
         if (!ngraph::op::is_constant(node) &&
-            !(ngraph::op::is_parameter(node)) &&
-            !(ngraph::op::is_output(node))) {
+            !ngraph::op::is_parameter(node) &&
+            !ngraph::op::is_output(node)) {
             std::string affinity;
             if (std::get<Function>(param)._majorPluginNodeIds.end() !=
                 std::get<Function>(param)._majorPluginNodeIds.find(node->get_friendly_name())) {
@@ -135,7 +132,7 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
             } else {
                 affinity = pluginParameters.at(1)._name;
             }
-            affinity = pluginParameters.at(1)._name; // TODO
+            // affinity = pluginParameters.at(0)._name; // TODO
             node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
             affinities += "\t{" + node->get_friendly_name() + ",\t\t" + affinity + "}\n";
         }
@@ -148,9 +145,6 @@ TEST_P(HeteroSyntheticTest, someLayersToMajorPluginOthersToFallback) {
     auto affinities = SetUpAffinity();
     SCOPED_TRACE(affinities);
     Run();
-    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        ASSERT_NE(nullptr, cnnNetwork.getFunction());
-    }
 }
 
 }  //  namespace HeteroTests

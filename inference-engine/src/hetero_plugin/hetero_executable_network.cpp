@@ -539,6 +539,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     }
 
     networks = std::move(descs);
+    SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
 
 void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {

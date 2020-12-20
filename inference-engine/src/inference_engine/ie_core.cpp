@@ -267,7 +267,10 @@ public:
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
 
         // check whether the network is already compiled and cached
-        NetworkCompilationContext context(network);
+        auto compileConfig = config;
+        compileConfig["DEVICE_NAME"] = deviceName;
+
+        NetworkCompilationContext context(network, compileConfig);
         bool cachingIsAvailable = context.isCachingAvailable();
         bool networkIsImported = false;
         std::string networkHash = cachingIsAvailable ? context.computeHash() : std::string{};
@@ -276,13 +279,32 @@ public:
             std::remove(blobFileName_.c_str());
         };
 
+        auto getImportConfig = [] (const std::map<std::string, std::string> & loadConfig) {
+            std::map<std::string, std::string> importConfig;
+            auto copyConfigValue = [&] (const std::string & configKey) {
+                auto it = loadConfig.find(configKey);
+                if (it != loadConfig.end()) {
+                    importConfig[configKey] = it->second;
+                }
+            };
+
+            copyConfigValue(CONFIG_KEY(DEVICE_ID));
+
+            return importConfig;
+        };
+
+        // TODO: add keys to control caching
+        // CONFIG_KEY(CACHE_DIR) to point to cache root
+        // CONFIG_KEY(COMPILATION_CONTEXT_HASH) to specify hash for compilation context hash
+        // CONFIG_VALUE(AUTO_HASH) to force IE to compute hash by itself
+
         ExecutableNetwork execNetwork;
         std::string blobFileName = FileUtils::makePath(getIELibraryPath(), networkHash + ".ovblob");
 
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
             // TODO: maybe we need to pass all config values: check with GNA, VPU, KMB
             // Looks like we should not
-            auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, {});
+            auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
             try {
                 std::cout << "try to import\n\n" << std::endl;
                 std::ifstream networkStream(blobFileName);
@@ -309,10 +331,10 @@ public:
                 try {
                     // need to export network for further import from "cache"
                     execNetwork.Export(blobFileName);
+                    std::cout << "Network is exported for " << parsed._deviceName << std::endl;
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
                     removeCacheEntry(blobFileName);
-                    std::cout << parsed._deviceName << std::endl;
                     std::cout << "Export is not implemented: skip import and export" << std::endl;
                 }
             }
@@ -325,16 +347,16 @@ public:
                                     const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
 
-        if (parsed._deviceName.empty()) {
-            ExportMagic magic = {};
-            auto currentPos = networkModel.tellg();
-            networkModel.read(magic.data(), magic.size());
-            auto exportedWithName = (exportMagic == magic);
-            if (exportedWithName) {
-                std::getline(networkModel, parsed._deviceName);
-            }
-            networkModel.seekg(currentPos, networkModel.beg);
-        }
+        // if (parsed._deviceName.empty()) {
+        //     ExportMagic magic = {};
+        //     auto currentPos = networkModel.tellg();
+        //     networkModel.read(magic.data(), magic.size());
+        //     auto exportedWithName = (exportMagic == magic);
+        //     if (exportedWithName) {
+        //         std::getline(networkModel, parsed._deviceName);
+        //     }
+        //     networkModel.seekg(currentPos, networkModel.beg);
+        // }
 
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }

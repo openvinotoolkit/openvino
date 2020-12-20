@@ -89,14 +89,14 @@ public:
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string>& config) override {
-        parsePluginName(networkModel);
+        // parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, config);
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) override {
-        parsePluginName(networkModel);
+        // parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, context, config);
     }
 
