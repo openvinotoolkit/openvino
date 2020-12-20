@@ -43,6 +43,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
@@ -241,11 +242,17 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             transformer.transform(nGraphFunc);
         }
 
+        const auto reshape_fc_callback = [](const std::shared_ptr<const ::ngraph::Node>& node) -> bool {
+            return node->input_value(0).get_shape().size() <= 3lu;
+        };
+
         {
             ngraph::pass::Manager manager = ngraph::pass::Manager();
             manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
             manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             manager.set_callback(transformations_callback);
+            auto pass_config = manager.get_pass_config();
+            pass_config->set_callback<ngraph::pass::ReshapeFullyConnected>(reshape_fc_callback);
             manager.run_passes(nGraphFunc);
         }
 
