@@ -144,14 +144,21 @@ bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& vi
 bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
                                                            const HostTensorVector& inputs) const
 {
-    const auto& data = inputs[0]; const auto& out = outputs[0];
+    const auto& data = inputs[0];
+    const auto& out = outputs[0];
     const auto& out_shape = out->get_shape();
     size_t elem_size = data->get_element_type().size();
 
-    if (data->get_partial_shape().is_dynamic()) { return false; } auto data_shape =
-        data->get_shape();
+    if (data->get_partial_shape().is_dynamic())
+    {
+        return false;
+    }
+    auto data_shape = data->get_shape();
 
-    if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5)) { return false; }
+    if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5))
+    {
+        return false;
+    }
 
     size_t block_values_size = shape_size(inputs[1]->get_shape());
     const auto* block_values = inputs[1]->get_data_ptr<int64_t>();
@@ -160,16 +167,24 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 
     const char* pad_value = nullptr;
     const std::vector<char> pad_zero_value(elem_size, 0);
-    if (inputs.size() == 4) { pad_value = inputs[3]->get_data_ptr<char>(); } else {
+    if (inputs.size() == 4)
+    {
+        pad_value = inputs[3]->get_data_ptr<char>();
+    }
+    else
+    {
         pad_value = pad_zero_value.data();
-    } CoordinateDiff pads_begin_vec(shape_size(inputs[2]->get_shape()));
+    }
+    CoordinateDiff pads_begin_vec(shape_size(inputs[2]->get_shape()));
     pads_begin_vec.assign(pads_begin, pads_begin + shape_size(inputs[2]->get_shape()));
     CoordinateDiff pads_end_vec(shape_size(inputs[2]->get_shape()));
     pads_end_vec.assign(pads_end, pads_end + shape_size(inputs[2]->get_shape()));
 
     Shape padded_shape(data_shape.size());
-    for (size_t i = 0; i < data_shape.size();
-         ++i) { padded_shape[i] = data_shape[i] + pads_begin_vec[i] + pads_end_vec[i]; }
+    for (size_t i = 0; i < data_shape.size(); ++i)
+    {
+        padded_shape[i] = data_shape[i] + pads_begin_vec[i] + pads_end_vec[i];
+    }
 
     std::vector<char> padded_data(shape_size(padded_shape) * elem_size);
     ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
@@ -193,7 +208,8 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
     std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
     std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
 
-    for (int64_t block_idx = block_values_size - 1; block_idx >= 0; --block_idx) {
+    for (int64_t block_idx = block_values_size - 1; block_idx >= 0; --block_idx)
+    {
         int64_t sq_shape_idx = block_values_size - 1;
         int64_t axis_idx = axes_order.size() - 1;
         for (int64_t shape_idx = dispersed_shape.size() - 1; shape_idx >= 0; --shape_idx)
@@ -205,8 +221,7 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
             }
             else if (shape_idx == block_idx)
             {
-                dispersed_shape[shape_idx] =
-                    squeezed_shape[sq_shape_idx] / block_values[block_idx];
+                dispersed_shape[shape_idx] = squeezed_shape[sq_shape_idx] / block_values[block_idx];
                 axes_order[axis_idx] = shape_idx;
                 axis_idx--;
                 sq_shape_idx--;
@@ -258,7 +273,6 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v1_SpaceToBatch, return evaluate_space_to_batch(outputs, inputs));
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch, return evaluate_space_to_batch(outputs, inputs));
     return false;
 }

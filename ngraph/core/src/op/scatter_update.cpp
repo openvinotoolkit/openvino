@@ -64,7 +64,8 @@ namespace scatter_update
 bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outputs,
                                                     const HostTensorVector& inputs) const
 {
-    const auto& data = inputs[0]; const auto& indices = inputs[1];
+    const auto& data = inputs[0];
+    const auto& indices = inputs[1];
     const auto& updates = inputs[2];
     const auto& axis = inputs[3];
     const auto& out = outputs[0];
@@ -76,13 +77,15 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
                  "axis element type is not integral data type");
 
     int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
-    if (axis_val < 0) {
-        axis_val = ngraph::normalize_axis(
-                                          this, axis_val, static_cast<int64_t>(data->get_shape().size()));
+    if (axis_val < 0)
+    {
+        axis_val =
+            ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
     }
 
     std::vector<int64_t> indices_casted_vector;
-    switch (indices->get_element_type()) {
+    switch (indices->get_element_type())
+    {
         GET_INDICES(i8, indices);
         GET_INDICES(i16, indices);
         GET_INDICES(i32, indices);
@@ -110,7 +113,6 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v3_ScatterUpdate_evaluate, return evaluate_scatter_update(outputs, inputs));
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate, return evaluate_scatter_update(outputs, inputs));
     return false;
 }

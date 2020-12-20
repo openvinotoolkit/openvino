@@ -96,9 +96,11 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
-bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
-    const auto& data = inputs[0]; const auto& axis = inputs[1];
+    const auto& data = inputs[0];
+    const auto& axis = inputs[1];
     auto& output = outputs[0];
     auto repeats_val = read_vector<int64_t>(axis);
     auto repeats_rank = repeats_val.size();
@@ -111,10 +113,15 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
 
     Shape output_shape(output_rank);
-    for (size_t i = 0; i < output_rank;
-         i++) { output_shape[i] = data_shape[i] * repeats_val[i]; }
+    for (size_t i = 0; i < output_rank; i++)
+    {
+        output_shape[i] = data_shape[i] * repeats_val[i];
+    }
 
-    if (!output->get_is_allocated()) { output->set_shape(output_shape); }
+    if (!output->get_is_allocated())
+    {
+        output->set_shape(output_shape);
+    }
 
     runtime::reference::tile(data->get_data_ptr<const char>(),
                              output->get_data_ptr<char>(),

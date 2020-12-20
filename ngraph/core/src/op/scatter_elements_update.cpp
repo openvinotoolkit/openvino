@@ -265,8 +265,8 @@ namespace scatter_element_update
     }
 }
 
-bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTensorVector& outputs,
-                                                                    const HostTensorVector& inputs) const
+bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(
+    const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(),
                  "axis element type is not integral data type");
@@ -275,7 +275,8 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
     const auto& input_rank = get_input_partial_shape(0).rank();
     int64_t normalized_axis = axis;
 
-    if (normalized_axis < 0) {
+    if (normalized_axis < 0)
+    {
         if (input_rank.is_static())
         {
             normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
@@ -283,18 +284,18 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
         else
         {
             normalized_axis = ngraph::normalize_axis(
-                                                     this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
+                this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
         }
     }
 
-    return scatter_element_update::evaluate_scatter_element_update(inputs[0], inputs[1], inputs[2], inputs[3], outputs[0], normalized_axis);
+    return scatter_element_update::evaluate_scatter_element_update(
+        inputs[0], inputs[1], inputs[2], inputs[3], outputs[0], normalized_axis);
 }
 
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v3_ScatterElementsUpdate_evaluate,
-        return evaluate_scatter_element_update( outputs, inputs));
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate,
+                    return evaluate_scatter_element_update(outputs, inputs));
     return false;
 }

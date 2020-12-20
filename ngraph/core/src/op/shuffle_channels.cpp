@@ -151,14 +151,19 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
 
     Shape reshaped_out_shape(4, 1);
     size_t axis_zb = m_axis >= 0 ? m_axis : m_axis + data_shape.size();
-    for (size_t i = 0; i < axis_zb; ++i) { reshaped_out_shape[0] *= ds[i]; }
+    for (size_t i = 0; i < axis_zb; ++i)
+    {
+        reshaped_out_shape[0] *= ds[i];
+    }
 
     reshaped_out_shape[1] = m_group;
     reshaped_out_shape[2] = ds[axis_zb] / m_group;
 
-    for (size_t i = axis_zb + 1; i < ds.size(); ++i) {
+    for (size_t i = axis_zb + 1; i < ds.size(); ++i)
+    {
         reshaped_out_shape[3] *= ds[i];
-    } size_t data_size = shape_size(data_shape) * elem_size;
+    }
+    size_t data_size = shape_size(data_shape) * elem_size;
 
     // first reshape from data_shape to reshaped_out_shape is skipped since it doesn't affect
     // out
@@ -167,11 +172,13 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
     Shape transpose_axes_order = {0, 2, 1, 3};
     Shape transposed_shape(transpose_axes_order.size());
 
-    for (size_t i = 0; i < transpose_axes_order.size(); ++i) {
+    for (size_t i = 0; i < transpose_axes_order.size(); ++i)
+    {
         transposed_shape[i] = data_shape.at(transpose_axes_order.at(i));
-    } auto axis_vector = AxisVector{begin(transpose_axes_order), end(transpose_axes_order)};
+    }
+    auto axis_vector = AxisVector{begin(transpose_axes_order), end(transpose_axes_order)};
     runtime::opt_kernel::reshape(
-                                 arg, out, reshaped_out_shape, axis_vector, transposed_shape, elem_size);
+        arg, out, reshaped_out_shape, axis_vector, transposed_shape, elem_size);
 
     // last reshape from transposed_shape to data_shape is skipped since it doesn't affect out
     // data
@@ -180,7 +187,6 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
 bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        ShuffleChannels_evaluate, return evaluate_shuffle_channels(outputs, inputs));
+    NGRAPH_OP_SCOPE(ShuffleChannels_evaluate, return evaluate_shuffle_channels(outputs, inputs));
     return false;
 }

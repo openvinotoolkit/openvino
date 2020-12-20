@@ -449,7 +449,8 @@ void op::v1::TopK::set_k(size_t k)
         op::Constant::create(element::i64, Shape{}, {k})->output(0));
 }
 
-bool op::v1::TopK::evaluatetopk(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v1::TopK::evaluatetopk(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
 {
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
@@ -459,17 +460,23 @@ bool op::v1::TopK::evaluatetopk(const HostTensorVector& outputs, const HostTenso
 
     // 2. get value of k - from constant node or from HT
     size_t k = 0;
-    if (op::is_constant(input_value(1).get_node())) {
+    if (op::is_constant(input_value(1).get_node()))
+    {
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
                                       get_input_element_type(1));
         NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
-    } else { k = topk::read_k_from_host_tensor(inputs[1]); }
+    }
+    else
+    {
+        k = topk::read_k_from_host_tensor(inputs[1]);
+    }
 
     // 3. Compute output_shape
     auto output_shape = compute_output_shape(this->description(), inputs[0]->get_shape(), k);
 
     // do this after compute_output_shape
-    if (k == 0) {
+    if (k == 0)
+    {
         // the kernel can't handle k = 0, but output_shape[axis] = arg_shape[axis]
         k = arg_shape[axis];
     }
@@ -487,8 +494,7 @@ bool op::v1::TopK::evaluatetopk(const HostTensorVector& outputs, const HostTenso
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v1_TopK_evaluate, return evaluate_topk(outputs, inputs));
+    NGRAPH_OP_SCOPE(v1_TopK_evaluate, return evaluate_topk(outputs, inputs));
     return false;
 }
 

@@ -165,12 +165,13 @@ namespace variadic_split
 
         return true;
     }
-
 }
 
 bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inputs,
-                                                    const HostTensorVector& outputs) const 
-{ const auto& data_tensor = inputs[0]; const auto& axis_tensor = inputs[1];
+                                                    const HostTensorVector& outputs) const
+{
+    const auto& data_tensor = inputs[0];
+    const auto& axis_tensor = inputs[1];
     const auto& split_lengths_tensor = inputs[2];
     NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(),
                  "axis element type is not integral data type");
@@ -215,8 +216,6 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
 bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v1_VariadicSplit_evaluate,
-        return evaluate_variadic_split(inputs, outputs));
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate, return evaluate_variadic_split(inputs, outputs));
     return false;
 }

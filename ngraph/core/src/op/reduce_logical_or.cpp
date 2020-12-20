@@ -48,7 +48,8 @@ namespace
                                     bool keep_dims)
     {
         if (data->get_element_type() != element::boolean ||
-            !axes->get_element_type().is_integral_number()) {
+            !axes->get_element_type().is_integral_number())
+        {
             return false;
         }
         try
