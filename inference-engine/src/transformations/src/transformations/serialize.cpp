@@ -40,6 +40,7 @@ struct Edge {
 struct ConstantAtributes {
     int size = 0;
     int offset = 0;
+    const uint8_t* p = nullptr;
 };
 
 class XmlVisitor : public ngraph::AttributeVisitor {
@@ -176,16 +177,15 @@ const std::vector<Edge> create_edge_mapping(
 }
 
 // TODO: refactor to Vistor API when Constant will be supporting it
-ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
+ConstantAtributes dump_constant_data(const ConstantAtributes & prevAttr,
                                      const ngraph::op::Constant& c) {
     NGRAPH_CHECK(c.get_output_partial_shape(0.).is_static(),
                  "Unsupported dynamic output shape in ", c);
 
     ConstantAtributes attr;
-    const uint8_t* p = reinterpret_cast<const uint8_t*>(c.get_data_ptr());
+    attr.p = reinterpret_cast<const uint8_t*>(c.get_data_ptr());
     attr.size = ngraph::shape_size(c.get_shape()) * c.get_element_type().size();
-    attr.offset = bin.size();
-    bin.insert(end(bin), p, p + attr.size);
+    attr.offset = prevAttr.offset + prevAttr.size;
     return attr;
 }
 
@@ -365,7 +365,8 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 }
 
 void ngfunction_2_irv10(
-    pugi::xml_document& doc, std::vector<uint8_t>& bin,
+    pugi::xml_document& doc,
+    std::vector<ConstantAtributes>& constantAttrs,
     ngraph::Function& f,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     const bool exec_graph = is_exec_graph(f);
@@ -418,7 +419,9 @@ void ngfunction_2_irv10(
 
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
-            ConstantAtributes attr = dump_constant_data(bin, *constant);
+            ConstantAtributes attr = dump_constant_data(
+                constantAttrs.empty() ? ConstantAtributes{} : constantAttrs.back(), *constant);
+            constantAttrs.push_back(attr);
             data.append_attribute("offset").set_value(attr.offset);
             data.append_attribute("size").set_value(attr.size);
         }
@@ -482,10 +485,10 @@ void ngfunction_2_irv10(
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // prepare data
     pugi::xml_document xml_doc;
-    std::vector<uint8_t> constants;
+    std::vector<ConstantAtributes> constantAttrs;
     switch (m_version) {
     case Version::IR_V10:
-        ngfunction_2_irv10(xml_doc, constants, *f, m_custom_opsets);
+        ngfunction_2_irv10(xml_doc, constantAttrs, *f, m_custom_opsets);
         break;
     default:
         NGRAPH_UNREACHABLE("Unsupported version");
@@ -498,8 +501,10 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
     // create bin file
     std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    bin_file.write(reinterpret_cast<const char*>(constants.data()),
-                   constants.size() * sizeof(constants[0]));
+    for (const auto & constantAttr : constantAttrs) {
+        bin_file.write(reinterpret_cast<const char*>(constantAttr.p),
+                       constantAttr.size * sizeof(constantAttr.p[0]));
+    }
 
     // Return false because we didn't change nGraph Function
     return false;
