@@ -84,7 +84,7 @@ bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 {
     bool rc = false;
     NGRAPH_OP_SCOPE(
-        Asin_evaluate,
+        v0_Asin_evaluate,
         rc = asinop::evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0))));
     return rc;
 }

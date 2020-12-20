@@ -61,50 +61,56 @@ namespace scatter_update
     }                                                                                              \
     break;
 
+bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outputs,
+                                                    const HostTensorVector& inputs) const
+{
+    const auto& data = inputs[0]; const auto& indices = inputs[1];
+    const auto& updates = inputs[2];
+    const auto& axis = inputs[3];
+    const auto& out = outputs[0];
+
+    const auto elem_size = data->get_element_type().size();
+    out->set_shape(data->get_shape());
+
+    NGRAPH_CHECK(axis->get_element_type().is_integral_number(),
+                 "axis element type is not integral data type");
+
+    int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
+    if (axis_val < 0) {
+        axis_val = ngraph::normalize_axis(
+                                          this, axis_val, static_cast<int64_t>(data->get_shape().size()));
+    }
+
+    std::vector<int64_t> indices_casted_vector;
+    switch (indices->get_element_type()) {
+        GET_INDICES(i8, indices);
+        GET_INDICES(i16, indices);
+        GET_INDICES(i32, indices);
+        GET_INDICES(i64, indices);
+        GET_INDICES(u8, indices);
+        GET_INDICES(u16, indices);
+        GET_INDICES(u32, indices);
+        GET_INDICES(u64, indices);
+    default: return false;
+    }
+
+    runtime::reference::scatter_update(data->get_data_ptr<char>(),
+                                       indices_casted_vector.data(),
+                                       updates->get_data_ptr<char>(),
+                                       axis_val,
+                                       out->get_data_ptr<char>(),
+                                       elem_size,
+                                       data->get_shape(),
+                                       indices->get_shape(),
+                                       updates->get_shape());
+
+    return true;
+}
+
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(
-        v3_ScatterUpdate_evaluate, const auto& data = inputs[0]; const auto& indices = inputs[1];
-        const auto& updates = inputs[2];
-        const auto& axis = inputs[3];
-        const auto& out = outputs[0];
-
-        const auto elem_size = data->get_element_type().size();
-        out->set_shape(data->get_shape());
-
-        NGRAPH_CHECK(axis->get_element_type().is_integral_number(),
-                     "axis element type is not integral data type");
-
-        int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
-        if (axis_val < 0) {
-            axis_val = ngraph::normalize_axis(
-                this, axis_val, static_cast<int64_t>(data->get_shape().size()));
-        }
-
-        std::vector<int64_t> indices_casted_vector;
-        switch (indices->get_element_type()) {
-            GET_INDICES(i8, indices);
-            GET_INDICES(i16, indices);
-            GET_INDICES(i32, indices);
-            GET_INDICES(i64, indices);
-            GET_INDICES(u8, indices);
-            GET_INDICES(u16, indices);
-            GET_INDICES(u32, indices);
-            GET_INDICES(u64, indices);
-        default: return false;
-        }
-
-        runtime::reference::scatter_update(data->get_data_ptr<char>(),
-                                           indices_casted_vector.data(),
-                                           updates->get_data_ptr<char>(),
-                                           axis_val,
-                                           out->get_data_ptr<char>(),
-                                           elem_size,
-                                           data->get_shape(),
-                                           indices->get_shape(),
-                                           updates->get_shape());
-
-        return true);
+        v3_ScatterUpdate_evaluate, return evaluate_scatter_update(outputs, inputs));
     return false;
 }

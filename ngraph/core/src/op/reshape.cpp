@@ -235,111 +235,117 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
     }                                                                                              \
     break;
 
+bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
+                                       const HostTensorVector& inputs) const
+{
+    // infer and set output shape if the output shape contain -1
+    // and zero value dimension
+    size_t output_rank = inputs[1]->get_shape()[0];
+    std::vector<int64_t> out_shape_val;
+
+    switch (inputs[1]->get_element_type()) {
+        COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i64, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u8, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u16, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
+    default: throw ngraph_error("shape_pattern element type is not integral data type");
+    }
+
+    NODE_VALIDATION_CHECK(this,
+                          std::none_of(out_shape_val.begin(),
+                                       out_shape_val.end(),
+                                       [](int64_t v) { return v < -1; }),
+                          "Dim size cannot be less than -1 ");
+
+    int zero_dims = std::count_if(
+                                  out_shape_val.begin(), out_shape_val.end(), [](int64_t v) { return v == 0; });
+    int negative_dims = std::count_if(
+                                      out_shape_val.begin(), out_shape_val.end(), [](int64_t v) { return v == -1; });
+    NODE_VALIDATION_CHECK(this,
+                          negative_dims <= 1,
+                          "More than one dimension has size of -1 (",
+                          negative_dims,
+                          ")");
+
+    Shape output_shape;
+    std::copy(out_shape_val.begin(), out_shape_val.end(), std::back_inserter(output_shape));
+    if (!(zero_dims && m_special_zero) && !negative_dims) {
+        if (get_input_partial_shape(0).is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  shape_size(inputs[0]->get_shape()) ==
+                                  shape_size(output_shape),
+                                  "Requested output shape ",
+                                  output_shape,
+                                  " is incompatible with input shape ",
+                                  get_input_shape(0));
+        }
+        outputs[0]->set_shape(output_shape);
+    } else {
+        size_t output_elements = 1;
+        int negative_dim = -1;
+
+        auto input_shape = inputs[0]->get_shape();
+        size_t input_elements = shape_size(input_shape);
+
+        // compute the output shape
+        for (size_t i = 0; i < output_rank; i++)
+        {
+            if (out_shape_val[i] == 0 && m_special_zero)
+            {
+                // Copy input_shape[i] for zero values
+                NODE_VALIDATION_CHECK(
+                                      this, i < input_shape.size(), "'0' dimension is out of range");
+                output_shape[i] = input_shape[i];
+                output_elements *= input_shape[i];
+            }
+            else if (out_shape_val[i] == -1)
+            {
+                negative_dim = i;
+            }
+            else
+            {
+                output_elements *= out_shape_val[i];
+            }
+        }
+
+        if (negative_dim != -1)
+        {
+            // Infer size such that number of output elements matches
+            // input elements
+            if (output_elements == 0)
+            {
+                NODE_VALIDATION_CHECK(this,
+                                      input_elements == 0,
+                                      "Cannot infer '-1' dimension with zero-size output "
+                                      "dimension unless at least one input dimension is "
+                                      "also zero-size");
+                output_shape[negative_dim] = 0;
+            }
+            else
+            {
+                NODE_VALIDATION_CHECK(
+                                      this,
+                                      input_elements % output_elements == 0,
+                                      "Non-'-1' output dimensions do not evenly divide the input dimensions");
+                output_shape[negative_dim] = input_elements / output_elements;
+            }
+        }
+        outputs[0]->set_shape(output_shape);
+    } const AxisVector order = get_default_order(inputs[0]->get_shape());
+    return reshapeop::evaluate_reshape(inputs[0], outputs[0], order);
+}
+
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(
         v1_Reshape_evaluate,
-        // infer and set output shape if the output shape contain -1
-        // and zero value dimension
-        size_t output_rank = inputs[1]->get_shape()[0];
-        std::vector<int64_t> out_shape_val;
-
-        switch (inputs[1]->get_element_type()) {
-            COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(i64, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(u8, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(u16, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
-            COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
-        default: throw ngraph_error("shape_pattern element type is not integral data type");
-        }
-
-        NODE_VALIDATION_CHECK(this,
-                              std::none_of(out_shape_val.begin(),
-                                           out_shape_val.end(),
-                                           [](int64_t v) { return v < -1; }),
-                              "Dim size cannot be less than -1 ");
-
-        int zero_dims = std::count_if(
-            out_shape_val.begin(), out_shape_val.end(), [](int64_t v) { return v == 0; });
-        int negative_dims = std::count_if(
-            out_shape_val.begin(), out_shape_val.end(), [](int64_t v) { return v == -1; });
-        NODE_VALIDATION_CHECK(this,
-                              negative_dims <= 1,
-                              "More than one dimension has size of -1 (",
-                              negative_dims,
-                              ")");
-
-        Shape output_shape;
-        std::copy(out_shape_val.begin(), out_shape_val.end(), std::back_inserter(output_shape));
-        if (!(zero_dims && m_special_zero) && !negative_dims) {
-            if (get_input_partial_shape(0).is_static())
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      shape_size(inputs[0]->get_shape()) ==
-                                          shape_size(output_shape),
-                                      "Requested output shape ",
-                                      output_shape,
-                                      " is incompatible with input shape ",
-                                      get_input_shape(0));
-            }
-            outputs[0]->set_shape(output_shape);
-        } else {
-            size_t output_elements = 1;
-            int negative_dim = -1;
-
-            auto input_shape = inputs[0]->get_shape();
-            size_t input_elements = shape_size(input_shape);
-
-            // compute the output shape
-            for (size_t i = 0; i < output_rank; i++)
-            {
-                if (out_shape_val[i] == 0 && m_special_zero)
-                {
-                    // Copy input_shape[i] for zero values
-                    NODE_VALIDATION_CHECK(
-                        this, i < input_shape.size(), "'0' dimension is out of range");
-                    output_shape[i] = input_shape[i];
-                    output_elements *= input_shape[i];
-                }
-                else if (out_shape_val[i] == -1)
-                {
-                    negative_dim = i;
-                }
-                else
-                {
-                    output_elements *= out_shape_val[i];
-                }
-            }
-
-            if (negative_dim != -1)
-            {
-                // Infer size such that number of output elements matches
-                // input elements
-                if (output_elements == 0)
-                {
-                    NODE_VALIDATION_CHECK(this,
-                                          input_elements == 0,
-                                          "Cannot infer '-1' dimension with zero-size output "
-                                          "dimension unless at least one input dimension is "
-                                          "also zero-size");
-                    output_shape[negative_dim] = 0;
-                }
-                else
-                {
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        input_elements % output_elements == 0,
-                        "Non-'-1' output dimensions do not evenly divide the input dimensions");
-                    output_shape[negative_dim] = input_elements / output_elements;
-                }
-            }
-            outputs[0]->set_shape(output_shape);
-        } const AxisVector order = get_default_order(inputs[0]->get_shape());
-        return reshapeop::evaluate_reshape(inputs[0], outputs[0], order));
+        return evaluate_reshape(outputs, inputs));
     return false;
 }
 

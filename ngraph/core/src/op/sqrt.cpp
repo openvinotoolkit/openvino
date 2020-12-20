@@ -76,7 +76,7 @@ namespace sqrtop
 bool op::Sqrt::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(
-        Sqrt_evaluate,
+        v0_Sqrt_evaluate,
         return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(get_output_shape(0))));
     return false;
 }

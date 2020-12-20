@@ -108,12 +108,13 @@ namespace swish
         return true;
     }
 
-    bool evaluate_swish(const HostTensorPtr& arg0,
-                        const HostTensorPtr& arg1,
+    bool evaluate_swish(const HostTensorVector& inputs,
                         const HostTensorPtr& out,
                         const size_t count)
     {
         bool rc = true;
+        const HostTensorPtr arg0 = inputs[0];
+        const HostTensorPtr arg1 = inputs.size() == 2 ? inputs[1] : nullptr;
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
@@ -128,8 +129,7 @@ namespace swish
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_Swish_evaluate, HostTensorPtr in1 = nullptr; if (inputs.size() == 2) {
-        in1 = inputs[1];
-    } return swish::evaluate_swish(inputs[0], in1, outputs[0], shape_size(get_output_shape(0))););
+    NGRAPH_OP_SCOPE(v4_Swish_evaluate,
+    return swish::evaluate_swish(inputs[0], in1, outputs[0], shape_size(get_output_shape(0))););
     return false;
 }

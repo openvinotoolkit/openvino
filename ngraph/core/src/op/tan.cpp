@@ -79,7 +79,7 @@ namespace tanop
 bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(
-        Tan_evaluate,
+        v0_Tan_evaluate,
         return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0))));
     return false;
 }

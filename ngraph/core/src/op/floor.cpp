@@ -89,7 +89,7 @@ namespace floorop
 bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(
-        Floor_evaluate,
+        v0_Floor_evaluate,
         return floorop::evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0))));
     return false;
 }

@@ -47,6 +47,10 @@ namespace
                                     const HostTensorPtr& out,
                                     bool keep_dims)
     {
+        if (data->get_element_type() != element::boolean ||
+            !axes->get_element_type().is_integral_number()) {
+            return false;
+        }
         try
         {
             const AxisSet reduction_axes = eval::extract_reduction_axes(axes, "ReduceLogicalOr");
@@ -73,10 +77,6 @@ bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v1_ReduceLogicalOr_evaluate, const auto& data = inputs[0];
                     const auto& axes = inputs[1];
                     const auto& out = outputs[0];
-
-                    if (data->get_element_type() != element::boolean ||
-                        !axes->get_element_type().is_integral_number()) {
-                        return false;
-                    } return evaluate_reduce_logical_or(data, axes, out, get_keep_dims()));
+                    return evaluate_reduce_logical_or(data, axes, out, get_keep_dims()));
     return false;
 }

@@ -83,7 +83,7 @@ bool op::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 {
     bool rc = false;
     NGRAPH_OP_SCOPE(
-        Acos_evaluate,
+        v0_Acos_evaluate,
         rc = acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0))));
     return rc;
 }

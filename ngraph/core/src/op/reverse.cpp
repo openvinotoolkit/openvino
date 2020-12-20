@@ -168,41 +168,48 @@ namespace reverseop
     }                                                                                              \
     break;
 
+bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs,
+                                       const HostTensorVector& inputs) const
+{
+    AxisSet axes{}; size_t axes_rank = inputs[1]->get_element_count();
+    if (get_mode() == op::v1::Reverse::Mode::INDEX) {
+        switch (inputs[1]->get_element_type())
+        {
+            GET_AXES(i8, axes, inputs[1]);
+            GET_AXES(i16, axes, inputs[1]);
+            GET_AXES(i32, axes, inputs[1]);
+            GET_AXES(i64, axes, inputs[1]);
+            GET_AXES(u8, axes, inputs[1]);
+            GET_AXES(u16, axes, inputs[1]);
+            GET_AXES(u32, axes, inputs[1]);
+            GET_AXES(u64, axes, inputs[1]);
+        default: NGRAPH_CHECK(false, "Not supported axes type", inputs[1]->get_element_type());
+        }
+    } else // Mode::MASK
+    {
+        auto axes_mask = inputs[1]->get_data_ptr<bool>();
+        for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
+        {
+            if (axes_mask[i])
+            {
+                axes.emplace(i);
+            }
+        }
+    } runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                                  outputs[0]->get_data_ptr<char>(),
+                                  inputs[0]->get_shape(),
+                                  outputs[0]->get_shape(),
+                                  axes,
+                                  inputs[0]->get_element_type().size());
+    return true;
+}
+
 bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(
-        v1_Reverse_evaluate, AxisSet axes{}; size_t axes_rank = inputs[1]->get_element_count();
-        if (get_mode() == op::v1::Reverse::Mode::INDEX) {
-            switch (inputs[1]->get_element_type())
-            {
-                GET_AXES(i8, axes, inputs[1]);
-                GET_AXES(i16, axes, inputs[1]);
-                GET_AXES(i32, axes, inputs[1]);
-                GET_AXES(i64, axes, inputs[1]);
-                GET_AXES(u8, axes, inputs[1]);
-                GET_AXES(u16, axes, inputs[1]);
-                GET_AXES(u32, axes, inputs[1]);
-                GET_AXES(u64, axes, inputs[1]);
-            default: NGRAPH_CHECK(false, "Not supported axes type", inputs[1]->get_element_type());
-            }
-        } else // Mode::MASK
-        {
-            auto axes_mask = inputs[1]->get_data_ptr<bool>();
-            for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
-            {
-                if (axes_mask[i])
-                {
-                    axes.emplace(i);
-                }
-            }
-        } runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                      outputs[0]->get_data_ptr<char>(),
-                                      inputs[0]->get_shape(),
-                                      outputs[0]->get_shape(),
-                                      axes,
-                                      inputs[0]->get_element_type().size());
-        return true);
+        v1_Reverse_evaluate,
+        return evaluate_reverse(outputs, inputs));
     return false;
 }
 

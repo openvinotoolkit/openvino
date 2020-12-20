@@ -75,7 +75,7 @@ bool op::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
 {
     bool rc = false;
     NGRAPH_OP_SCOPE(
-        Abs_evaluate,
+        v0_Abs_evaluate,
         rc = absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0))));
     return rc;
 }

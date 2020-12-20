@@ -76,7 +76,7 @@ namespace signop
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(
-        Sign_evaluate,
+        v0_Sign_evaluate,
         return signop::evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0))));
     return false;
 }

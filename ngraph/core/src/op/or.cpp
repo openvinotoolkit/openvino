@@ -83,6 +83,6 @@ bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_LogicalOr_evaluate,
-                    return logor::evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob()););
+                    return logor::evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob()));
     return false;
 }
