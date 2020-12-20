@@ -21,7 +21,8 @@ generateVector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1, int32
     std::vector<typename ngraph::helpers::nGraphTypesTrait<dType>::value_type> res;
 
     if (seed == 1) {
-        seed = static_cast<unsigned long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+        seed = 0;
+        // seed = static_cast<unsigned long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
     }
 
     std::mt19937 gen(seed);

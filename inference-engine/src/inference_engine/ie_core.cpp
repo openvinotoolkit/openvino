@@ -270,7 +270,8 @@ public:
 
         // check whether the network is already compiled and cached
         NetworkCompilationContext context(network);
-        bool cachingIsAvailable = context.isCachingAvailable(), networkIsImported = false;
+        bool cachingIsAvailable = context.isCachingAvailable();
+        bool networkIsImported = false;
         std::string networkHash = cachingIsAvailable ? context.computeHash() : std::string{};
 
         auto removeCacheEntry = [] (const std::string & blobFileName_) {

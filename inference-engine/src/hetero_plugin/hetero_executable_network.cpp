@@ -514,7 +514,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             // }
             auto outputs = cnnnetwork.getOutputsInfo();
             for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                auto outputName = GetStrAttr(inputNode, "name");
+                auto outputName = GetStrAttr(outputNode, "name");
                 outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
             }
 

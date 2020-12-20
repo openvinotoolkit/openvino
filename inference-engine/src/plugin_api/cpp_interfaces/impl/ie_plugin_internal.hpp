@@ -74,6 +74,15 @@ public:
 
         impl->setNetworkInputs(networkInputsCloned);
         impl->setNetworkOutputs(networkOutputsCloned);
+
+        for (auto & info : networkInputsCloned) {
+            std::cout << info.first << " " << info.second->getPrecision().name() << std::endl;
+        }
+        
+        for (auto & info : networkOutputsCloned) {
+            std::cout << info.first << " " << info.second->getPrecision().name() << std::endl;
+        }
+
         impl->SetPointerToPlugin(shared_from_this());
 
         auto executableNetwork = make_executable_network(impl);
@@ -89,14 +98,14 @@ public:
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string>& config) override {
-        parsePluginName(networkModel);
+        // parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, config);
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) override {
-        parsePluginName(networkModel);
+        // parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, context, config);
     }
 

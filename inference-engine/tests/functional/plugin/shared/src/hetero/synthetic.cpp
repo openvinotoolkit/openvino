@@ -12,10 +12,7 @@
 namespace HeteroTests {
 
 static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders = {
-    [] {return ngraph::builder::subgraph::makeSplitMultiConvConcat();},
-    [] {return ngraph::builder::subgraph::makeNestedSplitConvConcat();},
-    [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranch();},
-    [] {return ngraph::builder::subgraph::makeSplitConvConcatNestedInBranchNestedOut();},
+    [] {return ngraph::builder::subgraph::makeSplitMultiConvConcat();}
 };
 
 std::vector<FunctionParameter> HeteroSyntheticTest::_singleMajorNodeFunctions{[] {
@@ -103,7 +100,7 @@ void HeteroSyntheticTest::SetUp() {
             _registredPlugins.push_back(pluginParameter._name);
         }
         targetDevice += pluginParameter._name;
-        targetDevice += ((num !=0) ? "," : "");
+        targetDevice = "TEMPLATE1";
         --num;
     }
     function = std::get<Function>(param)._function;
@@ -123,21 +120,21 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
     std::string affinities;
     auto& pluginParameters = std::get<Plugin>(param);
     affinities += "\n{\n";
-    for (auto&& node : std::get<Function>(param)._function->get_ordered_ops()) {
-        if (!ngraph::op::is_constant(node) &&
-            !(ngraph::op::is_parameter(node)) &&
-            !(ngraph::op::is_output(node))) {
-            std::string affinity;
-            if (std::get<Function>(param)._majorPluginNodeIds.end() !=
-                std::get<Function>(param)._majorPluginNodeIds.find(node->get_friendly_name())) {
-                affinity = pluginParameters.at(0)._name;
-            } else {
-                affinity = pluginParameters.at(1)._name;
-            }
-            node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
-            affinities += "\t{" + node->get_friendly_name() + ",\t\t" + affinity + "}\n";
-        }
-    }
+    // for (auto&& node : std::get<Function>(param)._function->get_ordered_ops()) {
+    //     if (!ngraph::op::is_constant(node) &&
+    //         !(ngraph::op::is_parameter(node)) &&
+    //         !(ngraph::op::is_output(node))) {
+    //         std::string affinity;
+    //         if (std::get<Function>(param)._majorPluginNodeIds.end() !=
+    //             std::get<Function>(param)._majorPluginNodeIds.find(node->get_friendly_name())) {
+    //             affinity = pluginParameters.at(0)._name;
+    //         } else {
+    //             affinity = pluginParameters.at(1)._name;
+    //         }
+    //         node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+    //         affinities += "\t{" + node->get_friendly_name() + ",\t\t" + affinity + "}\n";
+    //     }
+    // }
     affinities += "}";
     return affinities;
 }

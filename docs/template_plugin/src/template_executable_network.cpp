@@ -12,7 +12,12 @@
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
 
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+
 using namespace TemplatePlugin;
+
+static auto _const_network = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
@@ -25,7 +30,16 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
     try {
-        CompileNetwork(function);
+        std::pair<bool, std::string> res = compare_functions(_const_network,
+            std::const_pointer_cast<ngraph::Function>(function));
+        if (!res.first) {
+            std::cout << res.second << std::endl;
+        } else {
+            std::cout << "Networks are the same in LoadNetwork" << std::endl;
+        }
+
+        CompileNetwork(InferenceEngine::CNNNetwork(
+            std::const_pointer_cast<ngraph::Function>(_const_network)).getFunction());
         InitExecutor(); // creates thread-based executor using for async requests
     } catch (const InferenceEngine::details::InferenceEngineException&) {
         throw;
@@ -64,6 +78,24 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &             
 
     auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
 
+    std::pair<bool, std::string> res = compare_functions(_const_network, cnnnetwork.getFunction());
+    if (!res.first) {
+        std::cout << res.second << std::endl;
+    } else {
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+    }
+
+    // compare
+
     auto inputs = cnnnetwork.getInputsInfo();
     // auto inputsNode = subnetworkNode.child("inputs");
     // for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
@@ -78,8 +110,17 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &             
     //     outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
     // }
 
-    copyInputOutputInfo(cnnnetwork.getInputsInfo(), cnnnetwork.getOutputsInfo(),
-        _networkInputs, _networkOutputs);
+    for (auto & info : cnnnetwork.getInputsInfo()) {
+        std::cout << info.first << " -- " << info.second->getPrecision().name() << std::endl;
+    }
+
+    for (auto & info : cnnnetwork.getOutputsInfo()) {
+        std::cout << info.first << " -- " << info.second->getPrecision().name() << std::endl;
+    }
+
+    setNetworkInputs(cnnnetwork.getInputsInfo());
+    setNetworkOutputs(cnnnetwork.getOutputsInfo());
+    SetPointerToPlugin(_plugin->shared_from_this());
 
     // TODO: create common function
     try {
@@ -100,8 +141,78 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &             
 std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function);
 
 void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+    std::shared_ptr<ngraph::Function> readnetwork = nullptr;
+    {
+        ngraph::pass::Serialize serializer(
+            "", "", ngraph::pass::Serialize::Version::IR_V10);
+        serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(function));
+
+        auto m_constants = std::move(serializer.getWeights());
+        auto m_model = std::move(serializer.getModel());
+
+        std::stringstream modelStream;
+        {
+            // write to stream
+
+            auto dataSize = static_cast<std::uint64_t>(m_model.size());
+            modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            modelStream.write(m_model.c_str(), dataSize);
+
+            dataSize = static_cast<std::uint64_t>(m_constants.size());
+            modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            modelStream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+        }
+
+        // read from stream
+
+        std::stringstream & model = modelStream;
+
+        {
+            std::string xmlString;
+            std::uint64_t dataSize = 0;
+            model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            xmlString.resize(dataSize);
+            model.read(const_cast<char*>(xmlString.c_str()), dataSize);
+
+            // read blob content
+            InferenceEngine::Blob::Ptr dataBlob;
+            model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            if (0 != dataSize) {
+                dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+                    InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                {static_cast<std::size_t>(dataSize)},
+                                                InferenceEngine::Layout::C));
+                dataBlob->allocate();
+                model.read(dataBlob->buffer(), dataSize);
+            }
+
+            auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+            readnetwork = cnnnetwork.getFunction();
+
+            setNetworkInputs(cnnnetwork.getInputsInfo());
+            setNetworkOutputs(cnnnetwork.getOutputsInfo());
+        }
+
+        // WORKS
+
+        // // read blob content
+        // InferenceEngine::Blob::Ptr dataBlob;
+        // std::uint64_t dataSize = m_constants.size();
+        // if (0 != dataSize) {
+        //     dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+        //         InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+        //                                     {static_cast<std::size_t>(dataSize)},
+        //                                     InferenceEngine::Layout::C));
+        //     dataBlob->allocate();
+        //     std::memcpy(dataBlob->buffer(), &m_constants[0], dataSize);
+        // }
+
+        // auto cnnnetwork = _plugin->GetCore()->ReadNetwork(m_model, std::move(dataBlob));
+        // readnetwork = cnnnetwork.getFunction();
+    }
+
     // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
-    _function = TransformNetwork(function);
+    _function = TransformNetwork(readnetwork);
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
