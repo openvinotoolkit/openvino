@@ -161,7 +161,7 @@ Additionally, if you set the `-pc` parameter, the application outputs performanc
 If you set `-exec_graph_path`, the application reports executable graph information serialized.
 
 ```
-[Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
+[Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
 Progress: |................................| 100.00%
 
 [Step 9/9] Dumping statistics report

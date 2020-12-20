@@ -88,7 +88,8 @@ xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is no
 xfail_issue_35924 = xfail_test(reason="Assertion error - elu results mismatch")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_35929 = xfail_test(reason="RuntimeError: Incorrect precision f64!")
+xfail_issue_40319 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format FP64 is not "
+                                      "supported yet...")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
 xfail_issue_40485 = xfail_test(reason="Computation missmatch")
@@ -109,7 +110,6 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
                                       "with index 0 contains dynamic shapes: {<value>}. Try to use "
                                       "CNNNetwork::reshape() method in order to specialize shapes "
                                       "before the conversion.")
-xfail_issue_38085 = xfail_test(reason="RuntimeError: Interpolate operation should be converted to Interp")
 xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
 xfail_issue_38087 = xfail_test(reason="RuntimeError: Cannot cast to tensor desc. Format is unsupported!")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
@@ -135,16 +135,12 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "While validating node 'v1::<name> (sizes[0]:i64{4},"
                                       "Convert_29306[0]:f32{4}) -> (dynamic?)' with friendly_name '<name>':"
                                       "Argument element types are inconsistent.")
-xfail_issue_42297 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Conv): Conv__7398>':"
-                                      "Check 'data.get_partial_shape().rank().is_static()'"
-                                      " failed at ngraph/frontend/onnx_import/src/op/conv.cpp:102:"
-                                      "The input data tensor's rank has to be known (static)")
-xfail_issue_41814 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
-                                      " generic_loop_Loop__121>':"
-                                      "While validating ONNX node '<Node(TopK):"
-                                      " map_1/while/select_bboxes/sort_bboxes_10/TopKV2>':"
-                                      "Check 'tensor_rank.is_static()' failed at"
-                                      " ngraph/core/src/validation_util.cpp:882:")
+xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+                                      "If")
+xfail_issue_43439 = xfail_test(reason="Check 'tensor_rank.is_static()' failed at "
+                                      "ngraph/core/src/validation_util.cpp:884:"
+                                      "map_1/while/select_bboxes/sort_bboxes_10/TopKV2 "
+                                      "Rank must be static in order to normalize negative axis=-1")
 xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
                                       "While validating node 'v1::OneHot OneHot_<number>"
                                       "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
@@ -173,9 +169,25 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "NegativeLogLikelihoodLoss")
+xfail_issue_43523 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError:"
+                                      " Unrecognized attribute: axes for operator ReduceSum")
+xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
+xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
+xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
+xfail_issue_44854 = xfail_test(reason="E   Unsupported dynamic op: VariadicSplit")
+xfail_issue_44858 = xfail_test(reason="E   Unsupported dynamic op: Unsqueeze")
+xfail_issue_44956 = xfail_test(reason="E   Unsupported dynamic op: Loop")
+xfail_issue_44957 = xfail_test(reason="E   Unsupported dynamic op: NonZero")
+xfail_issue_44958 = xfail_test(reason="E   Unsupported dynamic op: Interpolate")
+xfail_issue_44965 = xfail_test(reason="E   RuntimeError: value info has no element")
+xfail_issue_44967 = xfail_test(reason="E   RuntimeError: unsupported element type: BFLOAT16")
+xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
+xfail_issue_44970 = xfail_test(reason="Assertion error")
+xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
+                                      "FakeQuantize_xxx has non const input on 1 port")
+
 
 # Model ONNX Zoo issues:
-xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismatch")
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
                                       "('Expected %s parameters, received %s.', 1, 3)")
 xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315,"
@@ -183,8 +195,6 @@ xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::
                                       "Input order must have shape [n], where n is the rank of arg.")
 
 # Model MSFT issues:
-xfail_issue_36465 = xfail_test(reason="LSTM_Seq_lens: RuntimeError: get_shape was called on a "
-                                      "descriptor::Tensor with dynamic shape")
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
@@ -209,5 +219,11 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
                                       "indices value that points to non-existing output tensor element")
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
 xfail_issue_43380 = xfail_test(reason="RuntimeError: Sorting not possible, due to existed loop")
-xfail_issue_43382 = xfail_test(reason="Testing models which have upper bound output shape is not supported")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
+
+
+xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")
+xfail_issue_43208 = xfail_test(reason="GPT-2 - AssertionError: zoo models results mismatch")
+xfail_issue_43209 = xfail_test(reason="GPT-2-LM-HEAD - AssertionError: zoo models results mismatch")
+xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo models results mismatch")
+xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")

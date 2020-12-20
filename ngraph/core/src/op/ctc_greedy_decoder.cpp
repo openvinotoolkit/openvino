@@ -32,22 +32,69 @@ op::CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
 
 void op::CTCGreedyDecoder::validate_and_infer_types()
 {
+    const auto& logits_pshape = get_input_partial_shape(0);
+    const auto& seq_mask_pshape = get_input_partial_shape(1);
     auto input_et = get_input_element_type(0);
-    if (get_input_partial_shape(0).is_static())
-    {
-        Shape input_shape = get_input_partial_shape(0).to_shape();
-        NODE_VALIDATION_CHECK(this,
-                              input_shape.size() >= 3,
-                              "CTCGreedyDecoder expects 3 or more dimensions for input. Got ",
-                              input_shape.size());
-        // TODO: Add more validation checks for seq_len
 
-        set_output_type(0, input_et, Shape{input_shape[1], input_shape[0], 1, 1});
-    }
-    else
+    // output dynamic rank tensor if all inputs are of dynamic rank
+    if (logits_pshape.rank().is_dynamic() && seq_mask_pshape.rank().is_dynamic())
     {
-        set_output_type(0, input_et, PartialShape::dynamic());
+        set_output_type(
+            0, input_et, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1});
     }
+
+    // check ranks of input tensors
+    if (logits_pshape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              logits_pshape.rank().get_length() == 3,
+                              "The rank of logits tensor must be equal to 3.");
+    }
+    if (seq_mask_pshape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              seq_mask_pshape.rank().get_length() == 2,
+                              "The rank of sequence mask tensor must be equal to 2.");
+    }
+
+    // validate input shapes and compute output shape
+    ngraph::Dimension batch_size = Dimension::dynamic();
+    ngraph::Dimension time_size = Dimension::dynamic();
+    if (logits_pshape.rank().is_static())
+    {
+        if (logits_pshape[0].is_static())
+        {
+            time_size = logits_pshape[0];
+        }
+        if (logits_pshape[1].is_static())
+        {
+            batch_size = logits_pshape[1];
+        }
+    }
+    if (seq_mask_pshape.rank().is_static())
+    {
+        if (seq_mask_pshape[0].is_static())
+        {
+            if (time_size != Dimension::dynamic())
+            {
+                NODE_VALIDATION_CHECK(this,
+                                      seq_mask_pshape[0] == time_size,
+                                      "The first dimensions of input tensors must match.");
+            }
+            time_size = seq_mask_pshape[0];
+        }
+        if (seq_mask_pshape[1].is_static())
+        {
+            if (batch_size != Dimension::dynamic())
+            {
+                NODE_VALIDATION_CHECK(this,
+                                      seq_mask_pshape[1] == batch_size,
+                                      "The second dimensions of input tensors must match.");
+            }
+            batch_size = seq_mask_pshape[1];
+        }
+    }
+    set_output_type(0, input_et, PartialShape{batch_size, time_size, 1, 1});
 }
 
 bool op::CTCGreedyDecoder::visit_attributes(AttributeVisitor& visitor)

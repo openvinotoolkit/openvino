@@ -151,6 +151,9 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         }
 
         std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(layer);
+        if (matMul == nullptr) {
+            return false;
+        }
         const size_t channelIndex1 = matMul->get_transpose_a() ? 0 : 1;
         const size_t channelIndex2 = matMul->get_transpose_b() ? 1 : 0;
 

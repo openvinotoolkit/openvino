@@ -90,7 +90,7 @@ void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCont
 
 bool AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Add> op = as_type_ptr<opset1::Add>(m.get_match_root());
-    if (!canBeTransformed(context, op)) {
+    if ((op == nullptr) || (!canBeTransformed(context, op))) {
         return false;
     }
 
@@ -197,6 +197,20 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
     }
 
     return true;
+}
+
+bool AddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
+    if (dequantization1.multiplyHasZero()) {
+        return false;
+    }
+
+    const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
+    if (dequantization2.multiplyHasZero()) {
+        return false;
+    }
+
+    return EltwiseBaseTransformation::canBeTransformed(context, layer);
 }
 
 } // namespace low_precision

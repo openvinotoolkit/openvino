@@ -31,8 +31,8 @@ def build_argparser():
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.",
                       required=True, type=str)
-    args.add_argument("-i", "--input", help="Required. Path to image file.",
-                      required=True, type=str, nargs="+")
+    args.add_argument("-i", "--input", help="Required. Path to an image file.",
+                      required=True, type=str)
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. "
                            "Absolute path to a shared library with the kernels implementations.",
@@ -58,8 +58,6 @@ def main():
     model = args.model
     log.info(f"Loading network:\n\t{model}")
     net = ie.read_network(model=model)
-    func = ng.function_from_cnn(net)
-    ops = func.get_ordered_ops()
     # -----------------------------------------------------------------------------------------------------
 
     # ------------- 2. Load Plugin for inference engine and extensions library if specified --------------
@@ -78,6 +76,7 @@ def main():
     # --------------------------- 3. Read and preprocess input --------------------------------------------
 
     print("inputs number: " + str(len(net.input_info.keys())))
+    assert len(net.input_info.keys()) == 1, 'Sample supports networks with one input'
 
     for input_key in net.input_info:
         print("input shape: " + str(net.input_info[input_key].input_data.shape))
@@ -88,13 +87,13 @@ def main():
     images = np.ndarray(shape=(n, c, h, w))
     images_hw = []
     for i in range(n):
-        image = cv2.imread(args.input[i])
+        image = cv2.imread(args.input)
         ih, iw = image.shape[:-1]
         images_hw.append((ih, iw))
         log.info("File was added: ")
-        log.info("        {}".format(args.input[i]))
+        log.info("        {}".format(args.input))
         if (ih, iw) != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            log.warning("Image {} is resized from {} to {}".format(args.input, image.shape[:-1], (h, w)))
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
@@ -112,7 +111,6 @@ def main():
     for input_key in net.input_info:
         if len(net.input_info[input_key].layout) == 4:
             input_name = input_key
-            log.info("Batch size is {}".format(net.batch_size))
             net.input_info[input_key].precision = 'U8'
         elif len(net.input_info[input_key].layout) == 2:
             input_info_name = input_key
@@ -135,6 +133,8 @@ def main():
     # --------------------------- Prepare output blobs ----------------------------------------------------
     log.info('Preparing output blobs')
 
+    func = ng.function_from_cnn(net)
+    ops = func.get_ordered_ops()
     output_name, output_info = "", net.outputs[next(iter(net.outputs.keys()))]
     output_ops = {op.friendly_name : op for op in ops \
                   if op.friendly_name in net.outputs and op.get_type_name() == "DetectionOutput"}
@@ -191,7 +191,7 @@ def main():
                 print()
 
     for imid in classes:
-        tmp_image = cv2.imread(args.input[imid])
+        tmp_image = cv2.imread(args.input)
         for box in boxes[imid]:
             cv2.rectangle(tmp_image, (box[0], box[1]), (box[2], box[3]), (232, 35, 244), 2)
         cv2.imwrite("out.bmp", tmp_image)

@@ -79,6 +79,11 @@ class StridedSlice(Op):
             'out_ports_count': 1,
             'infer': __class__.infer
         }, attrs)
+        assert 'new_axis_mask' in attrs, "Attribute 'new_axis_mask' of the StridedSlice node is not given."
+        assert 'shrink_axis_mask' in attrs, "Attribute 'shrink_axis_mask' of the StridedSlice node is not given."
+        assert 'ellipsis_mask' in attrs, "Attribute 'ellipsis_mask' of the StridedSlice node is not given."
+        assert 'begin_mask' in attrs, "Attribute 'begin_mask' of the StridedSlice node is not given."
+        assert 'end_mask' in attrs, "Attribute 'end_mask' of the StridedSlice node is not given."
 
     def backend_attrs(self):
         al = list()

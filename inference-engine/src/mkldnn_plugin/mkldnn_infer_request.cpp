@@ -105,6 +105,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
             // these precisions are supported by mkldnn, so we push the blob directly
             case InferenceEngine::Precision::I8:
             case InferenceEngine::Precision::I32:
+            case InferenceEngine::Precision::BF16:
             case InferenceEngine::Precision::FP32: {
                 break;
             }
@@ -146,6 +147,11 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     graph->Infer(m_curBatch);
 
     graph->PullOutputData(_outputs);
+}
+
+InferenceEngine::StatusCode MKLDNNPlugin::MKLDNNInferRequest::Cancel() {
+    graph->Cancel();
+    return InferenceEngine::OK;
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts(

@@ -27,44 +27,44 @@ Common migration process includes the following steps:
 
 1. Migrate from the `InferenceEngine::InferencePlugin` initialization:
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part0
+@snippet snippets/Migration_CoreAPI.cpp part0
 
 to the `InferenceEngine::Core` class initialization:
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part1
+@snippet snippets/Migration_CoreAPI.cpp part1
 
 2. Instead of using `InferenceEngine::CNNNetReader` to read IR:
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part2
+@snippet snippets/Migration_CoreAPI.cpp part2
 
 read networks using the Core class:
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part3
+@snippet snippets/Migration_CoreAPI.cpp part3
 
 The Core class also allows reading models from the ONNX format (more information is [here](./ONNX_Support.md)):
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part4
+@snippet snippets/Migration_CoreAPI.cpp part4
 
 3. Instead of adding CPU device extensions to the plugin:
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part5
+@snippet snippets/Migration_CoreAPI.cpp part5
 
 add extensions to CPU device using the Core class:
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part6
+@snippet snippets/Migration_CoreAPI.cpp part6
 
 4. Instead of setting configuration keys to a particular plugin, set (key, value) pairs via `InferenceEngine::Core::SetConfig`
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part7
+@snippet snippets/Migration_CoreAPI.cpp part7
 
 > **NOTE**: If `deviceName` is omitted as the last argument, configuration is set for all Inference Engine devices.
 
 5. Migrate from loading the network to a particular plugin:
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part8
+@snippet snippets/Migration_CoreAPI.cpp part8
 
 to `InferenceEngine::Core::LoadNetwork` to a particular device:
 
-@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part9
+@snippet snippets/Migration_CoreAPI.cpp part9
 
 After you have an instance of `InferenceEngine::ExecutableNetwork`, all other steps are as usual.

@@ -11,8 +11,6 @@ std::vector<std::string> disabledTestPatterns() {
     return {
             // Issues - 34059
             ".*BehaviorTests\\.pluginDoesNotChangeOriginalNetwork.*",
-            //TODO: Issue: 34349
-            R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
             //TODO: Issue: 34748
             R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39014
@@ -24,7 +22,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
             // TODO: Issue: 40958
             R"(.*(ConstantResultSubgraphTest).*)",
-
+            // TODO: Issue: 43794
+            R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
+            R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
             // TODO: Issue: 41467 -- "unsupported element type f16 op Convert"
             R"(.*(ConvertLayerTest).*targetPRC=FP16.*)",
             // TODO: Issue: 41466 -- "Unsupported op 'ConvertLike'"
@@ -34,5 +34,9 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue: 41461
             R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
             R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
+            // TODO: Issue: 43511
+            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=(Prod|Sub).*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=(FP16|FP32).*)",
+            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=Sum.*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=(FP16|FP32).*)",
+            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*OpType=Sub.*secondaryInputType=CONSTANT_opType=VECTOR_netPRC=I64.*)",
     };
 }
