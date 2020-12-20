@@ -302,8 +302,9 @@ public:
         std::string blobFileName = FileUtils::makePath(getIELibraryPath(), networkHash + ".ovblob");
 
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
-            // TODO: maybe we need to pass all config values: check with GNA, VPU, KMB
-            // Looks like we should not
+            // TODO: maybe we need to pass all config values?
+            // check with GNA, VPU, KMB teams
+            // Looks like we should not ...
             auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
             try {
                 std::cout << "try to import\n\n" << std::endl;
