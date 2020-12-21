@@ -47,6 +47,9 @@ public:
             std::cout << "failed to serialize the model; skip import and export" << std::endl;
         }
 
+        if (!m_cachingIsAvailable)
+            return;
+
         // put "affinity", "PrimitivesPriority" runtime information
 
         for (const auto & op : network.getFunction()->get_ordered_ops()) {
