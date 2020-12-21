@@ -71,6 +71,7 @@ target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_
 target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH}/ngraph
         ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
 target_include_directories(onnx_importer PRIVATE ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/core
+                                                 ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/editor
                                                  ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/op
                                                  ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/utils)
 
