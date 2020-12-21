@@ -207,7 +207,10 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code& kernels_source_code) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
     sorted_code scode;
-
+    // min number of OCL programs (needed to leverage the parallel compilation)
+    // using more than 2 doesn't help much as overall the task is rather I/O bottle-necked (to load/save binaries, protected with mutex)
+    const size_t num_programs = 2;
+    size_t kernels_counter = 0;
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str;
         full_code += get_undef_jit({full_code});
@@ -238,7 +241,7 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
             key += " __ONE_TIME__";
         }
 
-        auto& current_bucket = scode[key];
+        auto& current_bucket = scode[key + "_" + std::to_string(kernels_counter++%num_programs)];
         current_bucket.dump_custom_program = dump_custom_program;
         current_bucket.one_time = one_time_kernel;
 
@@ -451,10 +454,10 @@ void kernels_cache::build_all() {
         builds.push_back(std::async(std::launch::async,[&]() {
             auto kernels = build_program(program.second);
 
+            std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
             for (auto &k : kernels) {
                 const auto &entry_point = k.first;
                 const auto &k_id = program.second.entry_point_to_id[entry_point];
-                std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
                 if (program.second.one_time) {
                     _one_time_kernels[k_id] = k.second;
                 } else {
