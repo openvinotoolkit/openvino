@@ -41,6 +41,12 @@ namespace ngraph
         ///                            the model data
         void parse_from_istream(std::istream& model_stream,
                                 ONNX_NAMESPACE::ModelProto& model_proto);
+
+        /// \brief      Opens an ifstream for a given model file.
+        /// \param[in]  file_path  Path to the file containing an ONNX model.
+        ///
+        /// \return     An object of std::ifstream for a given model.
+        std::ifstream open_model_stream(const std::string& file_path);
     } // namespace onnx_import
 
 } // namespace ngraph

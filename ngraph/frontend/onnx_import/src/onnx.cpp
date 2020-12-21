@@ -107,12 +107,9 @@ namespace ngraph
 
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path)
         {
-            std::ifstream ifs{file_path, std::ios::in | std::ios::binary};
-            if (!ifs.is_open())
-            {
-                throw detail::error::file_open{file_path};
-            }
-            return import_onnx_model(ifs, file_path);
+            auto model_stream = open_model_stream(file_path);
+
+            return import_onnx_model(model_stream, file_path);
         }
 
         std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
