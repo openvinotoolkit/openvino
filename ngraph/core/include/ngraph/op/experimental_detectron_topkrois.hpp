@@ -43,14 +43,14 @@ namespace ngraph
                                               const Output<Node>& rois_probs,
                                               size_t max_rois = 0);
 
-                bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
+
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 size_t get_max_rois() const { return m_max_rois; }
                 void set_max_rois(const size_t max_rois) { m_max_rois = max_rois; }
-
             private:
                 size_t m_max_rois;
             };

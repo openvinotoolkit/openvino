@@ -58,6 +58,7 @@
 #include "ngraph/op/equal.hpp"
 #include "ngraph/op/erf.hpp"
 #include "ngraph/op/exp.hpp"
+#include "ngraph/op/experimental_detectron_topkrois.hpp"
 #include "ngraph/op/extractimagepatches.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/floor.hpp"
