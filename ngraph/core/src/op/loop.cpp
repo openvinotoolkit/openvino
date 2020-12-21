@@ -404,8 +404,13 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
 
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Loop::evaluate");
-    runtime::reference::loop(
-        m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
-    return true;
+    NGRAPH_OP_SCOPE(v5_Loop_evaluate,
+                    runtime::reference::loop(m_body,
+                                             m_output_descriptions,
+                                             m_input_descriptions,
+                                             m_special_body_ports,
+                                             outputs,
+                                             inputs);
+                    return true);
+    return false;
 }

@@ -67,10 +67,8 @@ namespace mish
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_mish, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_mish, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -79,6 +77,8 @@ namespace mish
 
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::Mish::evaluate");
-    return mish::evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v4_Mish_evaluate,
+        return mish::evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }

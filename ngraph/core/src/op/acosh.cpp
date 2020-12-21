@@ -56,18 +56,12 @@ namespace acoshop
         out->set_unary(arg0);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_acosh, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_acosh, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_acosh, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_acosh, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_acosh, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_acosh, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -76,6 +70,7 @@ namespace acoshop
 
 bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Acosh::evaluate");
-    return acoshop::evaluate_acosh(inputs[0], outputs[0]);
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v3_Acosh_evaluate, rc = acoshop::evaluate_acosh(inputs[0], outputs[0]));
+    return rc;
 }

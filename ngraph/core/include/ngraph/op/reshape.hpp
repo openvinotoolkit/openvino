@@ -71,6 +71,8 @@ namespace ngraph
 
             protected:
                 bool m_special_zero;
+                bool evaluate_reshape(const HostTensorVector& outputs,
+                                      const HostTensorVector& inputs) const;
             };
         }
     }
