@@ -203,6 +203,7 @@ if len(zoo_models) > 0:
 
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
             (xfail_issue_40957, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
+            (xfail_issue_45457, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
 
         ]
         for test_case in import_xfail_list + execution_xfail_list:
