@@ -139,6 +139,11 @@ namespace ngraph
             return import_onnx_model(ifs, file_path);
         }
 
+        std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
+        {
+            return nullptr;
+        }
+
         std::set<std::string> get_supported_operators(std::int64_t version,
                                                       const std::string& domain)
         {
