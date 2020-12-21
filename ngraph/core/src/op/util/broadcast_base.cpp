@@ -361,14 +361,15 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate<ET>");
-    runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
-                                  out->get_data_ptr<char>(),
-                                  arg0->get_shape(),
-                                  out->get_shape(),
-                                  broadcast_axes,
-                                  arg0->get_element_type().size());
-    return true;
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes,
+                    runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
+                                                  out->get_data_ptr<char>(),
+                                                  arg0->get_shape(),
+                                                  out->get_shape(),
+                                                  broadcast_axes,
+                                                  arg0->get_element_type().size());
+                    return true);
+    return false;
 }
 
 namespace
@@ -499,49 +500,41 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) con
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate");
+    NGRAPH_OP_SCOPE(
+        util_BroadcastBase_evaluate, Shape target_shape = get_target_shape(inputs[1]);
 
-    Shape target_shape = get_target_shape(inputs[1]);
+        PartialShape result_shape;
+        std::pair<bool, AxisSet> pair_broadcast_axes;
+        auto arg_shape = inputs[0]->get_shape();
 
-    PartialShape result_shape;
-    std::pair<bool, AxisSet> pair_broadcast_axes;
-    auto arg_shape = inputs[0]->get_shape();
+        if (m_mode.m_type == BroadcastType::NONE) {
+            AxisVector axes_mapping_val;
+            const auto axes_mapping_constant =
+                as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
+            if (axes_mapping_constant)
+            {
+                axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
+            }
+            else
+            {
+                // read from HT and save as AxisVector
+                get_axis_vector_from_ht(inputs[2], axes_mapping_val, arg_shape);
+            }
+            pair_broadcast_axes = get_broadcast_axes_none(axes_mapping_val, target_shape.size());
+            validate_target_shape_none(inputs[0]->get_shape(), axes_mapping_val, target_shape);
+            result_shape = target_shape;
+        } else if (m_mode.m_type == BroadcastType::PDPD) {
+            result_shape = get_result_shape_pdpd(arg_shape, target_shape, m_mode);
+            pair_broadcast_axes =
+                get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
+        } else if (m_mode.m_type == BroadcastType::NUMPY) {
+            result_shape = target_shape;
+            validate_target_shape_numpy(arg_shape, target_shape);
+            pair_broadcast_axes =
+                get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
+        } else { ngraph_error("Unsupported BroadcastType "); }
 
-    if (m_mode.m_type == BroadcastType::NONE)
-    {
-        AxisVector axes_mapping_val;
-        const auto axes_mapping_constant =
-            as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
-        if (axes_mapping_constant)
-        {
-            axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
-        }
-        else
-        {
-            // read from HT and save as AxisVector
-            get_axis_vector_from_ht(inputs[2], axes_mapping_val, arg_shape);
-        }
-        pair_broadcast_axes = get_broadcast_axes_none(axes_mapping_val, target_shape.size());
-        validate_target_shape_none(inputs[0]->get_shape(), axes_mapping_val, target_shape);
-        result_shape = target_shape;
-    }
-    else if (m_mode.m_type == BroadcastType::PDPD)
-    {
-        result_shape = get_result_shape_pdpd(arg_shape, target_shape, m_mode);
-        pair_broadcast_axes =
-            get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
-    }
-    else if (m_mode.m_type == BroadcastType::NUMPY)
-    {
-        result_shape = target_shape;
-        validate_target_shape_numpy(arg_shape, target_shape);
-        pair_broadcast_axes =
-            get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
-    }
-    else
-    {
-        ngraph_error("Unsupported BroadcastType ");
-    }
-
-    return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+        return evaluate_broadcast(
+            inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape()));
+    return false;
 }

@@ -144,7 +144,9 @@ namespace
 
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Concat::evaluate");
-    auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
-    return evaluate_concat(inputs, outputs[0], concat_axis);
+    NGRAPH_OP_SCOPE(v0_Concat_evaluate,
+                    auto concat_axis =
+                        get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
+                    return evaluate_concat(inputs, outputs[0], concat_axis));
+    return false;
 }
