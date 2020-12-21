@@ -9,12 +9,9 @@ project(OpenVINO)
 set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(IE_MAIN_SOURCE_DIR ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine)
 
-if(ANDROID)
-    set(IEDevScripts_DIR "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package")
-endif()
-
 find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+             NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
 include(CTest)
