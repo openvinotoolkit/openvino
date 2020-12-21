@@ -53,6 +53,11 @@ list(APPEND CMAKE_MODULE_PATH "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_packag
                               "@IE_MAIN_SOURCE_DIR@/cmake") # HDDL
 
 # Inference Engine Developer Scripts package
+
+if(ANDROID)
+    set(IEDevScripts_DIR "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package")
+endif()
+
 find_package(IEDevScripts REQUIRED
              PATHS "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package"
              NO_DEFAULT_PATH)
