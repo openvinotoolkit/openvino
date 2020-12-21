@@ -14,6 +14,7 @@
 #include "bf16transformer.h"
 #include "common/cpu_memcpy.h"
 #include "mkldnn_normalize_node.h"
+#include <mkldnn_selective_build.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -164,6 +165,9 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             }
         }
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
+
         this->preamble();
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -187,6 +191,8 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
 
@@ -228,6 +234,8 @@ private:
     Vmm vmm_d_weights = Vmm(5);
     Vmm vmm_d_bias = Vmm(6);
     Vmm vmm_zero = Vmm(7);
+
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -579,7 +587,10 @@ private:
         if (dst_dt == memory::f32) {
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::bf16) {
-            vcvtneps2bf16(ymm_dst, vmm_dst);
+            if (mayiuse(avx512_core_bf16))
+                vcvtneps2bf16(ymm_dst, vmm_dst);
+            else
+                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
@@ -751,7 +762,7 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
         weights_blob->allocate();
         float* src = layer->blobs.at("weights")->buffer();
         float* dst = weights_blob->wmap();
-        memcpy(dst, src, layer->blobs.at("weights")->byteSize());
+        cpu_memcpy(dst, src, layer->blobs.at("weights")->byteSize());
     } else if (weights_prec == Precision::BF16) {
         MKLDNNPlugin::BF16Transformer transformer;
         weights_blob = transformer.convertBF16ToFloat(tweights);
@@ -779,7 +790,7 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     }
 
     if (inputPrecision == Precision::BF16 || outputPrecision == Precision::BF16) {
-        if (!mayiuse(avx512_core_bf16))
+        if (!mayiuse(avx512_core))
             inputPrecision = outputPrecision = Precision::FP32;
         else
             inputPrecision = outputPrecision = Precision::BF16;
@@ -922,6 +933,29 @@ void MKLDNNNormalizeNode::createPrimitive() {
     }
 }
 
+namespace {
+
+struct NormalizeContext {
+    MKLDNNNormalizeNode &node;
+    const uint8_t *src;
+    uint8_t *dst;
+    const InferenceEngine::SizeVector& dims;
+};
+
+}   // namespace
+
+template<typename T>
+struct MKLDNNNormalizeNode::NormalizeExecute {
+    using src_t = typename std::tuple_element<0, T>::type;
+    using dst_t = typename std::tuple_element<1, T>::type;
+
+    void operator()(NormalizeContext & ctx) {
+        auto src = reinterpret_cast<const src_t *>(ctx.src);
+        auto dst = reinterpret_cast<dst_t *>(ctx.dst);
+        ctx.node.normalize_function<src_t, dst_t>(src, dst, ctx.dims);
+    }
+};
+
 void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -934,55 +968,24 @@ void MKLDNNNormalizeNode::execute(mkldnn::stream strm) {
 
     auto dims = getParentEdgeAt(0)->getDesc().getDims();
 
-    if (output_prec == Precision::U8) {
-        auto dst_data = reinterpret_cast<uint8_t *>(dst_ptr);
-        if (input_prec == Precision::U8) {
-            auto src_data = reinterpret_cast<const uint8_t *>(src_ptr);
-            normalize_function<uint8_t, uint8_t>(src_data, dst_data, dims);
-        } else if (input_prec == Precision::I8) {
-            auto src_data = reinterpret_cast<const int8_t *>(src_ptr);
-            normalize_function<int8_t, uint8_t>(src_data, dst_data, dims);
-        } else if (input_prec == Precision::FP32) {
-            auto src_data = reinterpret_cast<const float *>(src_ptr);
-            normalize_function<float, uint8_t>(src_data, dst_data, dims);
-        } else {
-            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
-        }
-    } else if (output_prec == Precision::I8) {
-        auto dst_data = reinterpret_cast<int8_t *>(dst_ptr);
-        if (input_prec == Precision::U8) {
-            auto src_data = reinterpret_cast<const uint8_t *>(src_ptr);
-            normalize_function<uint8_t, int8_t>(src_data, dst_data, dims);
-        } else if (input_prec == Precision::I8) {
-            auto src_data = reinterpret_cast<const int8_t *>(src_ptr);
-            normalize_function<int8_t, int8_t>(src_data, dst_data, dims);
-        } else if (input_prec == Precision::FP32) {
-            auto src_data = reinterpret_cast<const float *>(src_ptr);
-            normalize_function<float, int8_t>(src_data, dst_data, dims);
-        } else {
-            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
-        }
-    } else if (output_prec == Precision::FP32) {
-        auto dst_data = reinterpret_cast<float *>(dst_ptr);
-        if (input_prec == Precision::U8) {
-            auto src_data = reinterpret_cast<const uint8_t *>(src_ptr);
-            normalize_function<uint8_t, float>(src_data, dst_data, dims);
-        } else if (input_prec == Precision::I8) {
-            auto src_data = reinterpret_cast<const int8_t *>(src_ptr);
-            normalize_function<int8_t, float>(src_data, dst_data, dims);
-        } else if (input_prec == Precision::FP32) {
-            auto src_data = reinterpret_cast<const float *>(src_ptr);
-            normalize_function<float, float>(src_data, dst_data, dims);
-        } else {
-            THROW_IE_EXCEPTION << "Unsupported input precision: " << input_prec.name();
-        }
-    } else if (output_prec == Precision::BF16) {
-        auto dst_data = reinterpret_cast<bfloat16_t*>(dst_ptr);
-        auto src_data = reinterpret_cast<const bfloat16_t*>(src_ptr);
-        normalize_function<bfloat16_t, bfloat16_t>(src_data, dst_data, dims);
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported output precision: " << output_prec.name();
-    }
+    NormalizeContext ctx = {
+        *this,
+        src_ptr,
+        dst_ptr,
+        dims
+    };
+
+    OV_SWITCH(MKLDNNPlugin, NormalizeExecute, ctx, std::tie(input_prec, output_prec),
+    OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
+    OV_CASE2(Precision::I8, Precision::U8, int8_t, uint8_t),
+    OV_CASE2(Precision::FP32, Precision::U8, float, uint8_t),
+    OV_CASE2(Precision::U8, Precision::I8, uint8_t, int8_t),
+    OV_CASE2(Precision::I8, Precision::I8, int8_t, int8_t),
+    OV_CASE2(Precision::FP32, Precision::I8, float, int8_t),
+    OV_CASE2(Precision::U8, Precision::FP32, uint8_t, float),
+    OV_CASE2(Precision::I8, Precision::FP32, int8_t, float),
+    OV_CASE2(Precision::FP32, Precision::FP32, float, float),
+    OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t));
 }
 
 template <typename in_data_t, typename out_data_t>

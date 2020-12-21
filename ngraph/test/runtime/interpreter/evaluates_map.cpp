@@ -19,51 +19,51 @@
 #include "backend.hpp"
 #include "ngraph/ops.hpp"
 
-#include <interpreter/reference/mod.hpp>
 #include <ngraph/runtime/reference/abs.hpp>
+#include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
+#include <ngraph/runtime/reference/convolution.hpp>
+#include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
+#include <ngraph/runtime/reference/ctc_loss.hpp>
+#include <ngraph/runtime/reference/cum_sum.hpp>
+#include <ngraph/runtime/reference/detection_output.hpp>
+#include <ngraph/runtime/reference/elu.hpp>
+#include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
+#include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
+#include <ngraph/runtime/reference/embedding_segments_sum.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
+#include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
+#include <ngraph/runtime/reference/gather_tree.hpp>
+#include <ngraph/runtime/reference/gelu.hpp>
+#include <ngraph/runtime/reference/grn.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
+#include <ngraph/runtime/reference/hard_sigmoid.hpp>
+#include <ngraph/runtime/reference/log_softmax.hpp>
+#include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
+#include <ngraph/runtime/reference/mod.hpp>
+#include <ngraph/runtime/reference/mvn.hpp>
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
+#include <ngraph/runtime/reference/normalize_l2.hpp>
 #include <ngraph/runtime/reference/one_hot.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
+#include <ngraph/runtime/reference/psroi_pooling.hpp>
 #include <ngraph/runtime/reference/region_yolo.hpp>
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
+#include <ngraph/runtime/reference/roi_pooling.hpp>
+#include <ngraph/runtime/reference/scatter_nd_update.hpp>
 #include <ngraph/runtime/reference/select.hpp>
+#include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
+#include <ngraph/runtime/reference/squared_difference.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
-#include "ngraph/runtime/reference/avg_pool.hpp"
-#include "ngraph/runtime/reference/convolution.hpp"
-#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
-#include "ngraph/runtime/reference/ctc_loss.hpp"
-#include "ngraph/runtime/reference/cum_sum.hpp"
-#include "ngraph/runtime/reference/detection_output.hpp"
-#include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
-#include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
-#include "ngraph/runtime/reference/embedding_segments_sum.hpp"
-#include "ngraph/runtime/reference/fake_quantize.hpp"
-#include "ngraph/runtime/reference/gather_tree.hpp"
-#include "ngraph/runtime/reference/hard_sigmoid.hpp"
-#include "ngraph/runtime/reference/log_softmax.hpp"
-#include "ngraph/runtime/reference/lrn.hpp"
-#include "ngraph/runtime/reference/mvn.hpp"
-#include "ngraph/runtime/reference/normalize_l2.hpp"
-#include "ngraph/runtime/reference/region_yolo.hpp"
-#include "ngraph/runtime/reference/roi_pooling.hpp"
-#include "ngraph/runtime/reference/scatter_nd_update.hpp"
-#include "ngraph/runtime/reference/squared_difference.hpp"
-#include "reference/elu.hpp"
-#include "reference/gelu.hpp"
-#include "reference/grn.hpp"
-#include "reference/selu.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -577,8 +577,10 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::referenceDetectionOutput<T> refDetOut(
-            op->get_attrs(), op->get_input_shape(0), op->get_input_shape(2));
+        runtime::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
+                                                                  op->get_input_shape(0),
+                                                                  op->get_input_shape(2),
+                                                                  op->get_output_shape(0));
         if (op->get_input_size() == 3)
         {
             refDetOut.run(inputs[0]->get_data_ptr<const T>(),
@@ -1626,6 +1628,26 @@ namespace
                                            outputs[0]->get_data_ptr<T>(),
                                            op->get_output_shape(0),
                                            AxisSet{(size_t)i_axis});
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::PSROIPooling>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::psroi_pooling<T>(inputs[0]->get_data_ptr<T>(),
+                                             inputs[0]->get_shape(),
+                                             inputs[1]->get_data_ptr<T>(),
+                                             inputs[1]->get_shape(),
+                                             outputs[0]->get_data_ptr<T>(),
+                                             outputs[0]->get_shape(),
+                                             op->get_mode(),
+                                             op->get_spatial_scale(),
+                                             op->get_spatial_bins_x(),
+                                             op->get_spatial_bins_y());
+
         return true;
     }
 

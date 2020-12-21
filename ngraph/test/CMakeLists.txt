@@ -54,6 +54,7 @@ set(SRC
     control_dependencies.cpp
     convert_u1_to_string.cpp
     coordinate.cpp
+    coordinate_range.cpp
     copy.cpp
     element_type.cpp
     eval.cpp
@@ -118,6 +119,7 @@ set(SRC
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
+    type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
@@ -128,6 +130,7 @@ set(SRC
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
     type_prop/gather.cpp
+    type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
     type_prop/grn.cpp
@@ -155,6 +158,7 @@ set(SRC
     type_prop/parameter.cpp
     type_prop/prelu.cpp
     type_prop/proposal.cpp
+    type_prop/psroi_pooling.cpp
     type_prop/quantize.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
@@ -280,6 +284,7 @@ set(MULTI_TEST_SRC
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/cum_sum.in.cpp
+    backend/detection_output.in.cpp
     backend/divide.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
@@ -319,6 +324,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
+    backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp

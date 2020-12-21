@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/convert.hpp>
+#include <shared_test_classes/single_layer/convert.hpp>
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine;

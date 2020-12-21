@@ -229,7 +229,7 @@ class CustomReplacementDescriptorPoints(CustomReplacementDescriptor):
         start_points = self.get_internal_input_nodes(graph)
         end_points = self.get_internal_output_nodes(graph)
 
-        matched_nodes = sub_graph_between_nodes(graph, start_points, end_points)
+        matched_nodes = sub_graph_between_nodes(graph, start_points, end_points, include_control_flow=False)
         output_tensors = set()
         input_nodes_mapping = dict()  # key is the input tensor name, value is the pair: (input_port, output_node_name)
         for src_node_name, dst_node_name, edge_attrs in graph.edges(data=True):

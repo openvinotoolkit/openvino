@@ -115,14 +115,10 @@ namespace prelu
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i8)(arg, slope, out);
-            break;
-            TYPE_CASE(bf16)(arg, slope, out);
-            break;
-            TYPE_CASE(f16)(arg, slope, out);
-            break;
-            TYPE_CASE(f32)(arg, slope, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_prelu, i8, arg, slope, out);
+            NGRAPH_TYPE_CASE(evaluate_prelu, bf16, arg, slope, out);
+            NGRAPH_TYPE_CASE(evaluate_prelu, f16, arg, slope, out);
+            NGRAPH_TYPE_CASE(evaluate_prelu, f32, arg, slope, out);
         default: rc = false; break;
         }
         return rc;
@@ -131,6 +127,7 @@ namespace prelu
 
 bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::PRelu::evaluate");
-    return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
+    NGRAPH_OP_SCOPE(v0_PRelu_evaluate,
+                    return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]););
+    return false;
 }

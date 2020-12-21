@@ -89,6 +89,7 @@
                 <tab type="user" title="Broadcast-3" url="@ref openvino_docs_ops_movement_Broadcast_3"/>
                 <tab type="user" title="Bucketize-3" url="@ref openvino_docs_ops_condition_Bucketize_3"/>
                 <tab type="user" title="CTCGreedyDecoder-1" url="@ref openvino_docs_ops_sequence_CTCGreedyDecoder_1"/>
+                <tab type="user" title="CTCGreedyDecoderSeqLen-6" url="@ref openvino_docs_ops_sequence_CTCGreedyDecoderSeqLen_6"/>
                 <tab type="user" title="Ceiling-1" url="@ref openvino_docs_ops_arithmetic_Ceiling_1"/>
                 <tab type="user" title="Clamp-1" url="@ref openvino_docs_ops_activation_Clamp_1"/>
                 <tab type="user" title="Concat-1" url="@ref openvino_docs_ops_movement_Concat_1"/>
@@ -122,6 +123,7 @@
                 <tab type="user" title="GRUSequence-5" url="@ref openvino_docs_ops_sequence_GRUSequence_5"/>
                 <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                 <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
+                <tab type="user" title="GatherElements-6" url="@ref openvino_docs_ops_movement_GatherElements_6"/>
                 <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                 <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
                 <tab type="user" title="GreaterEqual-1" url="@ref openvino_docs_ops_comparison_GreaterEqual_1"/>
@@ -146,6 +148,7 @@
                 <tab type="user" title="LogSoftmax-5" url="@ref openvino_docs_ops_activation_LogSoftmax_5"/>
                 <tab type="user" title="Loop-5" url="@ref openvino_docs_ops_infrastructure_Loop_5"/>
                 <tab type="user" title="MVN-1" url="@ref openvino_docs_ops_normalization_MVN_1"/>
+                <tab type="user" title="MVN-6" url="@ref openvino_docs_ops_normalization_MVN_6"/>
                 <tab type="user" title="MatMul-1" url="@ref openvino_docs_ops_matrix_MatMul_1"/>
                 <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
                 <tab type="user" title="Maximum-1" url="@ref openvino_docs_ops_arithmetic_Maximum_1"/>
