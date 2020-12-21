@@ -128,6 +128,7 @@ set(SRC
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
     type_prop/gather.cpp
+    type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
     type_prop/grn.cpp

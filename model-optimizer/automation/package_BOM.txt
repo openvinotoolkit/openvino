@@ -263,6 +263,7 @@ extensions/front/onnx/flatten_ext.py
 extensions/front/onnx/flattenONNX_to_reshape.py
 extensions/front/onnx/fused_bn_ext.py
 extensions/front/onnx/gather_ext.py
+extensions/front/onnx/gatherelements_ext.py
 extensions/front/onnx/gathernd_ext.py
 extensions/front/onnx/gemm_ext.py
 extensions/front/onnx/group_norm_ext.py
@@ -635,6 +636,7 @@ extensions/ops/ExtractImagePatches.py
 extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
+extensions/ops/gatherelements.py
 extensions/ops/gathernd.py
 extensions/ops/GatherTree.py
 extensions/ops/gelu.py

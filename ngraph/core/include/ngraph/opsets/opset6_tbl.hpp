@@ -174,3 +174,4 @@ NGRAPH_OP(Round, ngraph::op::v5)
 
 // New operations added in opset6
 NGRAPH_OP(MVN, ngraph::op::v6)
+NGRAPH_OP(GatherElements, ngraph::op::v6)
