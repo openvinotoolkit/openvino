@@ -42,4 +42,3 @@ void DynamicRankInputShape(ngraph::element::Type_t type)
     const auto op = make_shared<Op>(param);
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
-
