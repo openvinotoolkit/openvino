@@ -25,6 +25,17 @@ namespace ngraph
 {
     namespace onnx_import
     {
+        /// \brief  Enum which determines scope (visibility) of nodes in GraphCache.
+        enum class NodeScope
+        {
+            // in parent graph scope
+            ParentGraph = 1,
+            // in subgraph scope
+            SubGraph,
+            // not available at all
+            Lack
+        };
+
         /// \brief      GraphCache stores and provides access to ONNX graph initializers.
         class GraphCache
         {
@@ -52,6 +63,16 @@ namespace ngraph
             ///
             /// \return     true if the node named `name` exist in the cache, false otherwise.
             virtual bool contains(const std::string& name) const;
+
+            /// \brief      Return NodeScope enum which determines scope of the node.
+            /// \note       If the method is called on GraphCache the ParentGraph enum
+            ///             value is retunred always.
+            ///
+            /// \param[in]  name       The name of the node.
+            ///
+            /// \return     SubGraph if node belongs to SubgraphCache, ParentGraph if
+            ///             is avalible in parent_graph_cache, otherwise Lack
+            virtual NodeScope node_scope(const std::string& name) const;
 
         private:
             std::map<std::string, Output<ngraph::Node>> m_graph_cache_map;
@@ -81,6 +102,14 @@ namespace ngraph
             /// \return     true if the node named `name` exist in the cache
             ///             (subgraph or parent graph), false otherwise.
             bool contains(const std::string& name) const override;
+
+            /// \brief      Return NodeScope enum which determines scope of the node.
+            ///
+            /// \param[in]  name       The name of the node.
+            ///
+            /// \return     SubGraph if the node belongs to SubgraphCache, ParentGraph if
+            ///             is avalible in parent_graph_cache, otherwise Lack
+            NodeScope node_scope(const std::string& name) const override;
 
         private:
             const GraphCache* m_parent_graph_cache;

@@ -43,6 +43,11 @@ namespace ngraph
             return (m_graph_cache_map.count(name) > 0);
         }
 
+        NodeScope GraphCache::node_scope(const std::string& name) const
+        {
+            return contains(name) ? NodeScope::ParentGraph : NodeScope::Lack;
+        }
+
         SubgraphCache::SubgraphCache(const GraphCache& parent_graph_cache)
             : m_parent_graph_cache{&parent_graph_cache}
         {
@@ -69,6 +74,22 @@ namespace ngraph
         {
             // the node is in subgraph or in parent graph scope
             return GraphCache::contains(name) || m_parent_graph_cache->contains(name);
+        }
+
+        NodeScope SubgraphCache::node_scope(const std::string& name) const
+        {
+            if (GraphCache::contains(name))
+            {
+                return NodeScope::SubGraph;
+            }
+            else if (m_parent_graph_cache->contains(name))
+            {
+                return NodeScope::ParentGraph;
+            }
+            else
+            {
+                return NodeScope::Lack;
+            }
         }
 
     } // namespace onnx_import

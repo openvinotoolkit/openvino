@@ -87,7 +87,12 @@ namespace ngraph
 
                     // optional inputs
                     Output<ngraph::Node> trip_count;
-                    if (ngraph::op::is_null(ng_inputs.at(0))) // trip count skipped
+                    // trip count skipped or has value max(int64_t) means infinitive loop
+                    if (ngraph::op::is_null(ng_inputs.at(0)) ||
+                        (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
+                         as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())
+                                 ->cast_vector<int64_t>()[0] ==
+                             std::numeric_limits<int64_t>::max()))
                     {
                         // -1 means infinite Loop
                         trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
@@ -132,17 +137,13 @@ namespace ngraph
                     const int64_t concat_axis = 0;
                     const auto concat_axis_const =
                         ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
-                    // provide scalar handing for scan outputs
+                    // add dimension along which scan outputs will be concatenated
                     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
                          ++i)
                     {
-                        auto body_output_shape = body_outputs[i].get_partial_shape();
-                        if (body_output_shape.is_static() &&
-                            ngraph::is_scalar(body_output_shape.to_shape()))
-                        {
-                            body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
-                                body_outputs[i], concat_axis_const);
-                        }
+                        const auto& body_output_shape = body_outputs[i].get_partial_shape();
+                        body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
+                            body_outputs[i], concat_axis_const);
                     }
 
                     const auto& body_loop_out_cond = body_outputs.at(0).get_node_shared_ptr();
@@ -191,6 +192,22 @@ namespace ngraph
                     {
                         loop->set_merged_input(*body_inputs_it++, dep, *body_outputs_it);
                         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
+                    }
+
+                    const auto& outputs_from_parent = body_graph.get_outputs_from_parent();
+                    CHECK_VALID_NODE(node,
+                                     std::distance(body_inputs_it, body_inputs.end()) ==
+                                         outputs_from_parent.size(),
+                                     "Expected number of invariant parameters is"
+                                     " not equal number of provided outputs from parent scope");
+
+                    // Set-up parameters from parent graph which are not changed during Loop's
+                    // iterations
+                    for (auto out_from_parent_it = outputs_from_parent.begin();
+                         body_inputs_it != body_inputs.end();
+                         ++body_inputs_it, ++out_from_parent_it)
+                    {
+                        loop->set_invariant_input(*body_inputs_it, *out_from_parent_it);
                     }
 
                     // Set-up scan outputs
