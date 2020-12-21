@@ -29,6 +29,19 @@ using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
 
+namespace
+{
+    using InputTypePred = std::function<bool(const std::shared_ptr<ngraph::Node>)>;
+
+    InputTypePred element_type_is(const element::Type et)
+    {
+        return [et](const std::shared_ptr<ngraph::Node> input) {
+            return std::dynamic_pointer_cast<onnx_import::default_opset::Parameter>(input)
+                       ->get_element_type() == et;
+        };
+    }
+} // namespace
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
 {
     // the original model contains 3 inputs with f32 data type
@@ -42,22 +55,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
                  std::back_inserter(graph_inputs),
                  [](const std::shared_ptr<ngraph::Node> node) { return op::is_parameter(node); });
 
-    const auto float_inputs = std::count_if(
-        std::begin(graph_inputs),
-        std::end(graph_inputs),
-        [](const std::shared_ptr<ngraph::Node> input) {
-            return std::dynamic_pointer_cast<onnx_import::default_opset::Parameter>(input)
-                       ->get_element_type() == element::f32;
-        });
+    const auto float_inputs_count = std::count_if(
+        std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::f32));
 
-    const auto integer_inputs = std::count_if(
-        std::begin(graph_inputs),
-        std::end(graph_inputs),
-        [](const std::shared_ptr<ngraph::Node> input) {
-            return std::dynamic_pointer_cast<onnx_import::default_opset::Parameter>(input)
-                       ->get_element_type() == element::i32;
-        });
+    const auto integer_inputs_count = std::count_if(
+        std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::i32));
 
-    EXPECT_EQ(float_inputs, 2);
-    EXPECT_EQ(integer_inputs, 1);
+    EXPECT_EQ(float_inputs_count, 2);
+    EXPECT_EQ(integer_inputs_count, 1);
 }
