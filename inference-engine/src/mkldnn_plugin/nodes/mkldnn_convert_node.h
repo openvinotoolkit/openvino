@@ -26,15 +26,15 @@ public:
     }
 
     void setDescs(const InferenceEngine::TensorDesc& input, const InferenceEngine::TensorDesc& output) {
-        this->input = input;
-        this->output = output;
+        this->input.reset(new InferenceEngine::TensorDesc(input));
+        this->output.reset(new InferenceEngine::TensorDesc(output));
     }
 
-    const InferenceEngine::TensorDesc& getInput() { return input; }
-    const InferenceEngine::TensorDesc& getOutput() { return output; }
+    std::shared_ptr<const InferenceEngine::TensorDesc> getInput() const { return input; }
+    std::shared_ptr<const InferenceEngine::TensorDesc> getOutput() const { return output; }
 private:
-    InferenceEngine::TensorDesc input;
-    InferenceEngine::TensorDesc output;
+    std::shared_ptr<InferenceEngine::TensorDesc> input;
+    std::shared_ptr<InferenceEngine::TensorDesc> output;
 };
 }  // namespace MKLDNNPlugin
 
