@@ -217,8 +217,8 @@ def test_gather_nd():
 def test_gather_eleVments():
     indices_type = np.int32
     data_dtype = np.float32
-    data = ng.parameter(Shape([2, 5]), dtype=data_dtype, name='data')
-    indices = ng.parameter(Shape([2, 100]), dtype=indices_type, name='indices')
+    data = ng.parameter(Shape([2, 5]), dtype=data_dtype, name="data")
+    indices = ng.parameter(Shape([2, 100]), dtype=indices_type, name="indices")
     axis = 1
     expected_shape = [2, 100]
 
