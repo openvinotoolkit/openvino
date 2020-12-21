@@ -14,8 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <algorithm>
+
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/test_control.hpp"
@@ -28,23 +31,33 @@ static std::string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
 {
+    // the original model contains 3 inputs with f32 data type
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.prototxt"));
 
-    unsigned int float_inputs = 0;
-    unsigned int integer_inputs = 0;
-    for (const auto& op : function->get_ops())
-    {
-        if (const auto param = std::dynamic_pointer_cast<onnx_import::default_opset::Parameter>(op))
-        {
-            if (param->get_element_type() == element::f32)
-            {
-                ++float_inputs;
-                continue;
-            }
-        }
-    }
+    const auto all_ops_in_graph = function->get_ops();
+    std::vector<std::shared_ptr<ngraph::Node>> graph_inputs;
+    std::copy_if(std::begin(all_ops_in_graph),
+                 std::end(all_ops_in_graph),
+                 std::back_inserter(graph_inputs),
+                 [](const std::shared_ptr<ngraph::Node> node) { return op::is_parameter(node); });
 
-    EXPECT_EQ(float_inputs, 1);
+    const auto float_inputs = std::count_if(
+        std::begin(graph_inputs),
+        std::end(graph_inputs),
+        [](const std::shared_ptr<ngraph::Node> input) {
+            return std::dynamic_pointer_cast<onnx_import::default_opset::Parameter>(input)
+                       ->get_element_type() == element::f32;
+        });
+
+    const auto integer_inputs = std::count_if(
+        std::begin(graph_inputs),
+        std::end(graph_inputs),
+        [](const std::shared_ptr<ngraph::Node> input) {
+            return std::dynamic_pointer_cast<onnx_import::default_opset::Parameter>(input)
+                       ->get_element_type() == element::i32;
+        });
+
+    EXPECT_EQ(float_inputs, 2);
     EXPECT_EQ(integer_inputs, 1);
 }
