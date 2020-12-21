@@ -63,6 +63,31 @@ NGRAPH_TEST(${BACKEND_NAME}, broadcast_scalar_vector)
         (vector<float>{6, 6, 6, 6}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, broadcast_scalar_vector_explicit_axis_0)
+{
+    Shape shape_a{};
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    Shape shape_r{1, 2};
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Broadcast>(
+            A,
+            op::Constant::create(element::u64, Shape{shape_r.size()}, shape_r),
+            op::Constant::create(element::i64, Shape{1}, {0})),
+        ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, shape_a);
+    copy_data(a, vector<float>{6});
+    auto result = backend->create_tensor(element::f32, shape_r);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        (vector<float>{6, 6}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, broadcast_scalar_matrix)
 {
     Shape shape_a{};
