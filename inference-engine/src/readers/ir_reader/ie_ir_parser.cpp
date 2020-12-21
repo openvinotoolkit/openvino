@@ -547,6 +547,10 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         if (pr_data) {
             rtInfo["PrimitivesPriority"] = std::make_shared<::ngraph::VariantWrapper<std::string> >(pr_data.value());
         }
+        const auto aw_data = dn.attribute("alt_width");
+        if (aw_data) {
+            rtInfo["alt_width"] = std::make_shared<::ngraph::VariantWrapper<std::string> >(aw_data.value());
+        }
     }
 
     ngraphNode->set_friendly_name(params.name);
