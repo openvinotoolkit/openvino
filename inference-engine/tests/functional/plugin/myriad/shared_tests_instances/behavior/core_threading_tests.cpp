@@ -19,5 +19,6 @@ INSTANTIATE_TEST_CASE_P(MYRIAD, CoreThreadingTests, testing::ValuesIn(params), C
 INSTANTIATE_TEST_CASE_P(DISABLED_MYRIAD, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(2),
-                     testing::Values(2)),
+                     testing::Values(2),
+                     testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);

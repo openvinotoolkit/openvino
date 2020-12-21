@@ -210,18 +210,19 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
 }
 
 void Config::AdjustKeyMapValues() {
-    key_config_map.clear();
+    std::lock_guard<std::mutex> lockGuard{ mtx4keyConfigMap };
+    keyConfigMap.clear();
 
     if (inputScaleFactors.empty()) {
         inputScaleFactors.push_back(1.0);
     }
-    key_config_map[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(inputScaleFactors[0]);
+    keyConfigMap[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(inputScaleFactors[0]);
     for (int n = 0; n < inputScaleFactors.size(); n++) {
-        key_config_map[GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(n)] =
+        keyConfigMap[GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(n)] =
                 std::to_string(inputScaleFactors[n]);
     }
-    key_config_map[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)] = dumpXNNPath;
-    key_config_map[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
+    keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)] = dumpXNNPath;
+    keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
 
     std::string device_mode;
     if (gnaFlags.sw_fp32) {
@@ -243,32 +244,34 @@ void Config::AdjustKeyMapValues() {
         }
     }
     IE_ASSERT(!device_mode.empty());
-    key_config_map[GNA_CONFIG_KEY(DEVICE_MODE)] = device_mode;
-    key_config_map[GNA_CONFIG_KEY(COMPACT_MODE)] =
+    keyConfigMap[GNA_CONFIG_KEY(DEVICE_MODE)] = device_mode;
+    keyConfigMap[GNA_CONFIG_KEY(COMPACT_MODE)] =
             gnaFlags.compact_mode ? PluginConfigParams::YES: PluginConfigParams::NO;
-    key_config_map[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
+    keyConfigMap[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
-    key_config_map[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
-    key_config_map[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
+    keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
+    keyConfigMap[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
             gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
-    key_config_map[CONFIG_KEY(PERF_COUNT)] =
+    keyConfigMap[CONFIG_KEY(PERF_COUNT)] =
             gnaFlags.performance_counting ? PluginConfigParams::YES: PluginConfigParams::NO;
-    key_config_map[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
-    key_config_map[CONFIG_KEY(SINGLE_THREAD)] =
+    keyConfigMap[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(gnaFlags.gna_lib_async_threads_num);
+    keyConfigMap[CONFIG_KEY(SINGLE_THREAD)] =
             gnaFlags.gna_openmp_multithreading ? PluginConfigParams::NO: PluginConfigParams::YES;
 }
 
 std::string Config::GetParameter(const std::string& name) const {
-    auto result = key_config_map.find(name);
-    if (result == key_config_map.end()) {
+    std::lock_guard<std::mutex> lockGuard{ mtx4keyConfigMap };
+    auto result = keyConfigMap.find(name);
+    if (result == keyConfigMap.end()) {
         THROW_GNA_EXCEPTION << "Unsupported config key: " << name;
     }
     return result->second;
 }
 
 std::vector<std::string> Config::GetSupportedKeys() const {
+    std::lock_guard<std::mutex> lockGuard{ mtx4keyConfigMap };
     std::vector<std::string> result;
-    for (auto&& configOption : key_config_map) {
+    for (auto&& configOption : keyConfigMap) {
         result.push_back(configOption.first);
     }
     return result;
