@@ -21,7 +21,6 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 # link common Inference Engine libraries
 target_link_libraries(${TARGET_NAME} PRIVATE
-    pugixml # for dummy implementation of Export / ImportNetwork flow
     IE::inference_engine
     IE::inference_engine_transformations
     ${NGRAPH_LIBRARIES})

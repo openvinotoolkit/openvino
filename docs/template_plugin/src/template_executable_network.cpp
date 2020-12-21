@@ -6,7 +6,6 @@
 #include <ie_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "transformations/serialize.hpp"
-#include "xml_parse_utils.h"
 
 #include "template/template_config.hpp"
 #include "template_plugin.hpp"
@@ -158,13 +157,13 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const st
 // ! [executable_network:get_metric]
 InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name) const {
     // TODO: return more supported values for metrics
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
             METRIC_KEY(NETWORK_NAME),
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS),
             METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)});
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> configKeys = {
             CONFIG_KEY(DEVICE_ID),
             CONFIG_KEY(PERF_COUNT),
@@ -174,10 +173,10 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
             configKeys.emplace_back(configKey);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (METRIC_KEY(NETWORK_NAME) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
         auto networkName = _function->get_friendly_name();
         IE_SET_METRIC_RETURN(NETWORK_NAME, networkName);
-    } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = _cfg._streamsExecutorConfig._streams;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {

@@ -437,6 +437,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     using namespace XMLParseUtils;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
+    _name = GetStrAttr(heteroNode, "name");
 
     std::unordered_set<std::string> networkInputs;
     pugi::xml_node inputsNode = heteroNode.child("inputs");
@@ -721,7 +722,7 @@ void collectPluginMetrics(std::vector<std::string> & baseMetrics,
 }  // namespace
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string &name) const {
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {
             METRIC_KEY(NETWORK_NAME),
             METRIC_KEY(SUPPORTED_METRICS),
@@ -745,7 +746,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
         }
 
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {
             "TARGET_FALLBACK",
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
@@ -768,9 +769,9 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
         }
 
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
-    } else if (METRIC_KEY(NETWORK_NAME) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, _name);
-    } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = 0u;
         for (auto&& desc : networks) {
             value = std::max(value, desc._network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
