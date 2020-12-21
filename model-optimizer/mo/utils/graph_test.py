@@ -211,3 +211,59 @@ class TestGraphUtils(unittest.TestCase):
         # after merging node 2 into sub-graph the node 2 will be removed and it is not known how to calculate the tensor
         # between node 2 and 3.
         self.assertListEqual(sorted(sub_graph_between_nodes(graph, [2], [8])), [n for n in node_names if n != 1])
+
+    def test_sub_graph_between_nodes_control_flow_included(self):
+        """
+        Check that the function works correctly for case when control flow edges must be traversed (edge 5 -> 2).
+        6 -> 5->
+                \
+           1 -> 2 -> 3 -> 4
+        """
+        graph = Graph()
+        graph.add_nodes_from(list(range(1, 7)))
+        graph.add_edges_from([(1, 2), (2, 3), (3, 4), (5, 2, {'control_flow_edge': True}), (6, 5)])
+        sub_graph_nodes = sub_graph_between_nodes(graph, [1], [4], include_control_flow=True)
+        self.assertIsNotNone(sub_graph_nodes)
+        self.assertListEqual(sorted(sub_graph_nodes), sorted([1, 2, 3, 4, 5, 6]))
+
+    def test_sub_graph_between_nodes_control_flow_not_included(self):
+        """
+        Check that the function works correctly for case when control flow edges should not be traversed (edge 5 -> 2).
+        6 -> 5->
+                \
+           1 -> 2 -> 3 -> 4
+        """
+        graph = Graph()
+        graph.add_nodes_from(list(range(1, 7)))
+        graph.add_edges_from([(1, 2), (2, 3), (3, 4), (5, 2, {'control_flow_edge': True}), (6, 5)])
+        sub_graph_nodes = sub_graph_between_nodes(graph, [1], [4], include_control_flow=False)
+        self.assertIsNotNone(sub_graph_nodes)
+        self.assertListEqual(sorted(sub_graph_nodes), sorted([1, 2, 3, 4]))
+
+    def test_sub_graph_between_nodes_control_flow_included_forward(self):
+        """
+        Check that the function works correctly for case when control flow edges should not be traversed (edge 3 -> 5).
+           1 -> 2 -> 3 -> 4
+                      \
+                       -> 5 -> 6
+        """
+        graph = Graph()
+        graph.add_nodes_from(list(range(1, 7)))
+        graph.add_edges_from([(1, 2), (2, 3), (3, 4), (3, 5, {'control_flow_edge': True}), (5, 6)])
+        sub_graph_nodes = sub_graph_between_nodes(graph, [1], [4], include_control_flow=True)
+        self.assertIsNotNone(sub_graph_nodes)
+        self.assertListEqual(sorted(sub_graph_nodes), sorted([1, 2, 3, 4, 5, 6]))
+
+    def test_sub_graph_between_nodes_control_flow_not_included_forward(self):
+        """
+        Check that the function works correctly for case when control flow edges should not be traversed (edge 3 -> 5).
+           1 -> 2 -> 3 -> 4
+                      \
+                       -> 5 -> 6
+        """
+        graph = Graph()
+        graph.add_nodes_from(list(range(1, 7)))
+        graph.add_edges_from([(1, 2), (2, 3), (3, 4), (3, 5, {'control_flow_edge': True}), (5, 6)])
+        sub_graph_nodes = sub_graph_between_nodes(graph, [1], [4], include_control_flow=False)
+        self.assertIsNotNone(sub_graph_nodes)
+        self.assertListEqual(sorted(sub_graph_nodes), sorted([1, 2, 3, 4]))

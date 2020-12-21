@@ -117,13 +117,17 @@ def is_connected_component(graph: Graph, node_names: list):
     return set(node_names).issubset(visited)
 
 
-def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None):
+def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None,
+                            include_control_flow=True):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. Input nodes for the sub-graph nodes are also
     added to the sub-graph. Constant inputs of the 'start_nodes' are also added to the sub-graph.
     :param graph: graph to operate on.
     :param start_nodes: list of nodes names that specifies start nodes.
     :param end_nodes: list of nodes names that specifies end nodes.
+    :param detect_extra_start_node: callable function to add additional nodes to the list of start nodes instead of
+    traversing the graph further. The list of additional start nodes is returned of the function is not None.
+    :param include_control_flow: flag to specify whether to follow the control flow edges or not
     :return: list of nodes of the identified sub-graph or None if the sub-graph cannot be extracted.
     """
     sub_graph_nodes = list()
@@ -133,23 +137,24 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
 
     nx.set_node_attributes(G=graph, name='prev', values=None)
     while len(d) != 0:
-        cur_node_name = d.popleft()
-        sub_graph_nodes.append(cur_node_name)
-        if cur_node_name not in end_nodes:  # do not add output nodes of the end_nodes
-            for _, dst_node_name in graph.out_edges(cur_node_name):
-                if dst_node_name not in visited:
+        cur_node_id = d.popleft()
+        sub_graph_nodes.append(cur_node_id)
+        if cur_node_id not in end_nodes:  # do not add output nodes of the end_nodes
+            for _, dst_node_name, attrs in graph.out_edges(cur_node_id, data=True):
+                if dst_node_name not in visited and (include_control_flow or not attrs.get('control_flow_edge', False)):
                     d.append(dst_node_name)
                     visited.add(dst_node_name)
-                    graph.node[dst_node_name]['prev'] = cur_node_name
+                    graph.node[dst_node_name]['prev'] = cur_node_id
 
-        for src_node_name, _ in graph.in_edges(cur_node_name):
+        for src_node_name, _, attrs in graph.in_edges(cur_node_id, data=True):
             # add input nodes for the non-start_nodes
-            if cur_node_name not in start_nodes and src_node_name not in visited:
-                if detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_name)):
-                    extra_start_nodes.append(cur_node_name)
+            if cur_node_id not in start_nodes and src_node_name not in visited and\
+                    (include_control_flow or not attrs.get('control_flow_edge', False)):
+                if detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_id)):
+                    extra_start_nodes.append(cur_node_id)
                 else:
                     d.append(src_node_name)
-                    graph.node[src_node_name]['prev'] = cur_node_name
+                    graph.node[src_node_name]['prev'] = cur_node_id
                     visited.add(src_node_name)
 
     # use forward dfs to check that all end nodes are reachable from at least one of input nodes
@@ -161,16 +166,16 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
             raise Error('End node "{}" is not reachable from start nodes: {}. '.format(end_node, start_nodes) +
                         refer_to_faq_msg(74))
 
-    for node_name in sub_graph_nodes:
+    for node_id in sub_graph_nodes:
         # sub-graph should not contain Placeholder nodes
-        if graph.node[node_name].get('op', '') == 'Parameter':
+        if graph.node[node_id].get('op', '') == 'Parameter':
             path = list()
-            cur_node = node_name
+            cur_node = node_id
             while cur_node and 'prev' in graph.node[cur_node]:
                 path.append(str(cur_node))
                 cur_node = graph.node[cur_node]['prev']
             log.debug("The path from input node is the following: {}".format('\n'.join(path)))
-            raise Error('The matched sub-graph contains network input node "{}". '.format(node_name) +
+            raise Error('The matched sub-graph contains network input node "{}". '.format(node_id) +
                         refer_to_faq_msg(75))
     if detect_extra_start_node is None:
         return sub_graph_nodes

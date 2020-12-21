@@ -33,6 +33,11 @@ class Div(FrontReplacementPattern):
         if div.in_port(0).data.get_value() is not None and div.in_port(1).data.get_value() is not None:
             return
 
+        # cannot replace Div with Mul when the divisor is integer because the reciprocal number will be 0
+        value = div.in_port(1).data.get_value()
+        if value is not None and type(value.item(0)) == int:
+            return
+
         graph = div.graph
         name = div.soft_get('name', div.id)
 
