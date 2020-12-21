@@ -30,17 +30,23 @@ namespace ngraph
                 {
                     const Output<ngraph::Node> lhs_node = node.get_ng_inputs().at(0);
                     Output<ngraph::Node> rhs_node = node.get_ng_inputs().at(1);
-                    auto lhs_rank = lhs_node.get_shape().size();
-                    auto rhs_rank = rhs_node.get_shape().size();
-                    auto axis = node.get_attribute_value<std::int64_t>("axis", lhs_rank - rhs_rank);
                     bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
                     if (broadcast)
                     {
-                        // Unidirectional broadcast right node to left shape.
-                        rhs_node = std::make_shared<default_opset::Broadcast>(
-                            rhs_node,
-                            std::make_shared<default_opset::ShapeOf>(lhs_node),
-                            default_opset::Constant::create(element::i64, Shape{1}, {axis}));
+                        if (node.has_attribute("axis"))
+                        {
+                            // Unidirectional broadcast right node to left shape.
+                            auto axis = node.get_attribute_value<std::int64_t>("axis");
+                            rhs_node = std::make_shared<default_opset::Broadcast>(
+                                rhs_node,
+                                std::make_shared<default_opset::ShapeOf>(lhs_node),
+                                default_opset::Constant::create(element::i64, Shape{1}, {axis}));
+                        }
+                        else
+                        {
+                            rhs_node = std::make_shared<default_opset::Broadcast>(
+                                rhs_node, std::make_shared<default_opset::ShapeOf>(lhs_node));
+                        }
                     }
                     return {std::make_shared<default_opset::Add>(
                         lhs_node, rhs_node, ngraph::op::AutoBroadcastSpec::NONE)};
