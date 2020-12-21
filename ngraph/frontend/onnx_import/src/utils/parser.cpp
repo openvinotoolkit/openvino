@@ -35,7 +35,7 @@ namespace ngraph
                                    file_path + ". Could not open the file.");
             };
 
-            parse_from_stream(file_stream, model_proto);
+            parse_from_istream(file_stream, model_proto);
         }
 
         void parse_from_istream(std::istream& model_stream, ONNX_NAMESPACE::ModelProto& model_proto)

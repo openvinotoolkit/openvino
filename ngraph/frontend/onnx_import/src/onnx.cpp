@@ -25,6 +25,7 @@
 #include "onnx_import/core/transform.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/ops_bridge.hpp"
+#include "onnx_import/utils/parser.hpp"
 
 namespace ngraph
 {
@@ -93,34 +94,9 @@ namespace ngraph
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {
-            if (!stream.good())
-            {
-                stream.clear();
-                stream.seekg(0);
-                if (!stream.good())
-                {
-                    throw detail::error::stream_corrupted();
-                }
-            }
-
             ONNX_NAMESPACE::ModelProto model_proto;
-            // Try parsing input as a binary protobuf message
-            if (!model_proto.ParseFromIstream(&stream))
-            {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
-                throw detail::error::stream_parse_binary();
-#else
-                // Rewind to the beginning and clear stream state.
-                stream.clear();
-                stream.seekg(0);
-                google::protobuf::io::IstreamInputStream iistream(&stream);
-                // Try parsing input as a prototxt message
-                if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
-                {
-                    throw detail::error::stream_parse_text();
-                }
-#endif
-            }
+
+            parse_from_istream(stream, model_proto);
 
             transform::expand_onnx_functions(model_proto);
             transform::fixup_legacy_operators(model_proto);
