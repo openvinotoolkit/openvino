@@ -82,7 +82,6 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
         input_map[ext_port_id] = _input;
     }
 
-    //FOREACH_CHILD(_input, node.child("port_map"), "input") {
     for (const auto& input : input_map) {
         auto &_input = input.second;
         auto axis_attr = _input.attribute("axis");
