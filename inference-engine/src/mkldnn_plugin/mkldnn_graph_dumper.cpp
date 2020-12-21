@@ -258,7 +258,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
         bool isAllEqual = true;
         for (size_t i = 1; i < outDescs.size(); i++) {
-            if (outDescs[i - 1].desc != outDescs[i].desc) {
+            if (MKLDNNMemoryDesc(outDescs[i - 1].desc).getFormat() != MKLDNNMemoryDesc(outDescs[i].desc).getFormat()) {
                 isAllEqual = false;
                 break;
             }
