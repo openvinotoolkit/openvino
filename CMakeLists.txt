@@ -123,6 +123,10 @@ endfunction()
 function(openvino_developer_export_targets)
     cmake_parse_arguments(EXPORT "" "COMPONENT" "TARGETS" ${ARGN})
 
+    if(EXPORT_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "openvino_developer_export_targets has unparsed arguments: ${EXPORT_UNPARSED_ARGUMENTS}")
+    endif()
+
     set(${EXPORT_COMPONENT} "${${EXPORT_COMPONENT}};${EXPORT_TARGETS}")
 
     # to allow exporting of aliased targets with the original names
