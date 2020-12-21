@@ -69,23 +69,6 @@ public:
         (void) adapter;
     }
     void on_adapter(const std::string& name,
-                    ngraph::ValueAccessor<void*>& adapter) override {
-        if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
-            using AlignedBufferAdapter =
-                ngraph::AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>;
-            if (auto a = ngraph::as_type<AlignedBufferAdapter>(&adapter)) {
-                const int64_t size = a->size();
-                const int64_t offset = m_bin_data.tellp();
-
-                m_data.append_attribute("offset").set_value(offset);
-                m_data.append_attribute("size").set_value(size);
-
-                auto data = static_cast<const char*>(a->get_ptr());
-                m_bin_data.write(data, size);
-            }
-        }
-    }
-    void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<bool>& adapter) override {
         m_data.append_attribute(name.c_str()).set_value(adapter.get());
     }
@@ -441,12 +424,10 @@ void ngfunction_2_irv10(
         }
 
         // <layers/data> constant atributes (special case)
-        if (exec_graph) {
-            if (auto constant = dynamic_cast<ngraph::op::Constant *>(node)) {
-                ConstantAtributes attr = dump_constant_data(bin_file, *constant);
-                data.append_attribute("offset").set_value(attr.offset);
-                data.append_attribute("size").set_value(attr.size);
-            }
+        if (auto constant = dynamic_cast<ngraph::op::Constant *>(node)) {
+            ConstantAtributes attr = dump_constant_data(bin_file, *constant);
+            data.append_attribute("offset").set_value(attr.offset);
+            data.append_attribute("size").set_value(attr.size);
         }
 
         int port_id = 0;
