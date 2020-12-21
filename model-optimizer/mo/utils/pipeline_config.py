@@ -64,12 +64,15 @@ mapping_rules = [
     ('crop_height', '.*/rfcn_box_predictor/crop_height'),
     ('crop_width', '.*/rfcn_box_predictor/crop_width'),
     'initial_crop_size',
+    ('use_matmul_crop_and_resize', 'use_matmul_crop_and_resize', False),
+    ('add_background_class', 'add_background_class', True),
     # Detection Output layer attributes
     ('postprocessing_score_converter', '.*/score_converter'),
     ('postprocessing_score_threshold', '.*/batch_non_max_suppression/score_threshold'),
     ('postprocessing_iou_threshold', '.*/batch_non_max_suppression/iou_threshold'),
     ('postprocessing_max_detections_per_class', '.*/batch_non_max_suppression/max_detections_per_class'),
     ('postprocessing_max_total_detections', '.*/batch_non_max_suppression/max_total_detections'),
+    ('share_box_across_classes', 'second_stage_box_predictor/.*/share_box_across_classes$', False),
     # Variances for predicted bounding box deltas (tx, ty, tw, th)
     ('frcnn_variance_x', 'box_coder/faster_rcnn_box_coder/x_scale', 10.0),
     ('frcnn_variance_y', 'box_coder/faster_rcnn_box_coder/y_scale', 10.0),

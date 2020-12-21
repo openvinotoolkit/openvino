@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/pad.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -209,7 +210,8 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
     }
 }
 
-bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto elem_size = data->get_element_type().size();
@@ -237,4 +239,10 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
                                     get_pad_mode());
 
     return true;
+}
+
+bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_Pad_evaluate, return evaluate_pad(outputs, inputs));
+    return false;
 }
