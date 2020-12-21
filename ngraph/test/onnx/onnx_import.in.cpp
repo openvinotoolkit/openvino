@@ -3412,3 +3412,47 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v7_broadcast)
     test_case.add_expected_output<float>(shape, {-2.0f, -2.0f, -2.0f, 1.0f, 1.0f, 1.0f});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_axis_1)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/div_v6_broadcast_axis_1.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    Shape shape{1, 3, 2, 2};
+    std::vector<float> A(shape_size(shape));
+    std::iota(A.begin(), A.end(), 1);
+    test_case.add_input<float>(A);
+    test_case.add_input<float>({3.0f, 4.0f, 5.0f});
+    test_case.add_expected_output<float>(
+        shape,
+        {0.3333333f, 0.6666666f, 1.0f, 1.333333f, 1.25f, 1.5f, 1.75f, 2.0f, 1.8f, 2.0, 2.2f, 2.4f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v7)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/div_v7.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f});
+    test_case.add_input<float>({3.0f, 8.0f, 7.0f});
+    test_case.add_expected_output<float>(Shape{3}, {0.3333333f, 0.25f, 0.4285714f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v7_broadcast)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/div_v7_broadcast.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    Shape shape{1, 2, 3};
+    std::vector<float> A(shape_size(shape));
+    std::iota(A.begin(), A.end(), 1);
+    test_case.add_input<float>(A);
+    test_case.add_input<float>({3.0f, 4.0f, 5.0f});
+    test_case.add_expected_output<float>(shape, {0.3333333f, 0.5f, 0.6f, 1.3333333f, 1.25f, 1.2f});
+    test_case.run();
+}
