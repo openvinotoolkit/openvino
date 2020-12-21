@@ -13,6 +13,7 @@
 #include "utils/general_utils.h"
 
 #include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "mkldnn_memory.h"
 #include "mkldnn_extension_utils.h"
 #include "nodes/common/cpu_memcpy.h"
@@ -575,12 +576,49 @@ mkldnn::memory::format_tag MKLDNNMemoryDesc::getFormat() const {
 }
 
 bool MKLDNNMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
-    memory::desc tmp_desc(desc.dims(), desc.data_type(), fmt);
+    memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
 
-    // Format doesn't depend on offset, so exclude it from check
-    tmp_desc.data.offset0 = desc.data.offset0;
+    if (desc.data.ndims != refDesc.data.ndims)
+        return false;
 
-    return (tmp_desc == desc);
+    if (desc.data.format_kind != dnnl_blocked || refDesc.data.format_kind != dnnl_blocked)
+        THROW_IE_EXCEPTION << "MKLDNNMemoryDesc::isSame is not implemented for non blocked memory format";
+
+    auto actualBlkDesc = desc.data.format_desc.blocking;
+    auto refBlkDesc = refDesc.data.format_desc.blocking;
+    if (actualBlkDesc.inner_nblks != refBlkDesc.inner_nblks)
+        return false;
+
+    for (size_t i = 0; i < actualBlkDesc.inner_nblks; ++i)
+        if (actualBlkDesc.inner_blks[i] != refBlkDesc.inner_blks[i])
+            return false;
+
+    for (size_t i = 0; i < actualBlkDesc.inner_nblks; ++i)
+        if (actualBlkDesc.inner_idxs[i] != refBlkDesc.inner_idxs[i])
+            return false;
+
+    auto actualStrides = desc.data.format_desc.blocking.strides;
+    auto refStrides = refDesc.data.format_desc.blocking.strides;
+
+    std::vector<size_t> actualOrder(desc.data.ndims);
+    std::iota(actualOrder.begin(), actualOrder.end(), 0);
+    std::sort(actualOrder.begin(), actualOrder.end(),
+              [&actualStrides] (size_t ind_l, size_t ind_r) {
+                  return actualStrides[ind_l] > actualStrides[ind_r];
+              });
+
+    std::vector<size_t> refOrder(refDesc.data.ndims);
+    std::iota(refOrder.begin(), refOrder.end(), 0);
+    std::sort(refOrder.begin(), refOrder.end(),
+              [&refStrides] (size_t ind_l, size_t ind_r) {
+                  return refStrides[ind_l] > refStrides[ind_r];
+              });
+
+    if (actualOrder != refOrder) {
+        return false;
+    }
+
+    return true;
 }
 
 bool MKLDNNMemoryDesc::isPlainFormat() const {
