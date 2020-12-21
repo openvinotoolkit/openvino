@@ -52,8 +52,6 @@ else ()
 endif ()
 
 list(APPEND EXPORT_DEPENDENCIES
-        ${PUGI}
-        ${NGRAPH_LIBRARIES}
         gtest
         gtest_main
         )
@@ -73,6 +71,10 @@ function(add_common_utils ADD_TARGET_NAME)
                 inference_engine_tests
             EXPORT_DEPENDENCIES
                 ${EXPORT_DEPENDENCIES}
+            LINK_LIBRARIES
+                PUBLIC
+                    ${PUGI}
+                    ${NGRAPH_LIBRARIES}
     )
 
     ie_faster_build(${ADD_TARGET_NAME}

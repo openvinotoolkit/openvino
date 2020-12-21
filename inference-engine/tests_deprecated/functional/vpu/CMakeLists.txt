@@ -40,8 +40,6 @@ addIeTarget(
         IESharedTests
         vpu_graph_transformer
         vpu_custom_kernels
-    EXPORT_DEPENDENCIES
-        vpu_custom_kernels
 )
 
 target_include_directories(VPUCommonTests INTERFACE
@@ -50,7 +48,6 @@ target_include_directories(VPUCommonTests INTERFACE
     $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
-openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS vpu_custom_kernels)
 addIeTargetTest(
     NAME MyriadFunctionalTests
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}/myriad_tests
