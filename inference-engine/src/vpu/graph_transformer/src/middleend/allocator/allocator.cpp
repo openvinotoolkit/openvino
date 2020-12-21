@@ -316,8 +316,18 @@ ShapeLocation Allocator::allocateShape(const Data& data) {
     } else {
         // Static allocation
         shapeLocation.dimsLocation = Location::Blob;
-        shapeLocation.dimsOffset = _blobMemOffset;
-        _blobMemOffset += dimsByteSize;
+
+        // Prevent allocation of same shapes multiple times
+        auto dimOrder = data->desc().dimsOrder().toPermutation();
+        auto dimValues = data->desc().dims();
+        auto itr = _staticShapeOffsets.find({dimOrder, dimValues});
+        if (itr != _staticShapeOffsets.end()) {
+            shapeLocation.dimsOffset = itr->second;
+        } else {
+            shapeLocation.dimsOffset = _blobMemOffset;
+            _blobMemOffset += dimsByteSize;
+            _staticShapeOffsets.insert({{dimOrder, dimValues}, shapeLocation.dimsOffset});
+        }
     }
 
 
