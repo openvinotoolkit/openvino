@@ -14,24 +14,19 @@
  limitations under the License.
 """
 
-import unittest
+from mo.front.onnx.extractors.utils import onnx_attr
+from mo.front.extractor import FrontExtractorOp
+from mo.ops.concat import Concat
+    
+class ConcatFrontExtractor(FrontExtractorOp):
+    op = 'concat'
+    enabled = True
 
-from mo.front.caffe.extractors.concat import concat_ext
-from mo.front.common.partial_infer.concat import concat_infer
-from mo.utils.unittest.extractors import FakeParam
-
-
-class FakeProtoLayer:
-    def __init__(self, axis):
-        self.concat_param = FakeParam('axis', axis)
-
-
-class TestConcat(unittest.TestCase):
-    def test_concat(self):
-        res = concat_ext(FakeProtoLayer(10), None)
-        exp_res = {
-            'axis': 10,
-            'infer': concat_infer,
-            'type': 'Concat'
+    @classmethod
+    def extract(cls, node):
+        pb = node.pb
+        mapping_rule = {
+           'axis': pb.concat_param.axis,
         }
-        self.assertEqual(res, exp_res)
+        Concat.update_node_stat(node, mapping_rule)
+        return cls.enabled

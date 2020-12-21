@@ -74,6 +74,7 @@ extensions/front/caffe/axpy.py
 extensions/front/caffe/binarization.py
 extensions/front/caffe/binary_conv_ext.py
 extensions/front/caffe/bn.py
+extensions/front/caffe/concat_ext.py
 extensions/front/caffe/conv_ext.py
 extensions/front/caffe/correlation_ext.py
 extensions/front/caffe/crop_ext.py
@@ -759,7 +760,6 @@ mo/front/caffe/custom_layers_mapping.py
 mo/front/caffe/extractor.py
 mo/front/caffe/extractors/__init__.py
 mo/front/caffe/extractors/batchnorm.py
-mo/front/caffe/extractors/concat.py
 mo/front/caffe/extractors/native_caffe.py
 mo/front/caffe/extractors/roipooling.py
 mo/front/caffe/extractors/scale.py

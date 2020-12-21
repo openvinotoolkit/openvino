@@ -15,7 +15,6 @@
 """
 
 from mo.front.caffe.extractors.batchnorm import batch_norm_ext
-from mo.front.caffe.extractors.concat import concat_ext
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
 from mo.front.caffe.extractors.roipooling import roipooling_ext
 from mo.front.caffe.extractors.scale import scale_ext
@@ -45,9 +44,6 @@ caffe_type_extractors = {
 
     # Activation Layers
     'scale': node_pb_arg(scale_ext),
-
-    # Utility Layers
-    'concat': node_pb_arg(concat_ext),
 
     # Custom, implemented in IE, Fast-RCNN-specific
     'roipooling': node_pb_arg(roipooling_ext),
