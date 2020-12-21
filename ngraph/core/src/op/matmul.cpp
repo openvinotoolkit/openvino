@@ -245,18 +245,12 @@ namespace matmul
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_matmul, i32, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, i64, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, u32, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, u64, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, f16, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, f32, arg0, arg1, output, transpose_a, transpose_b);
         default: rc = false; break;
         }
         return rc;
@@ -265,9 +259,10 @@ namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::MatMul::evaluate");
-    return matmul::evaluate_matmul(
-        inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+    NGRAPH_OP_SCOPE(v0_MatMul_evaluate,
+                    return matmul::evaluate_matmul(
+                        inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b()));
+    return false;
 }
 
 void ngraph::op::v0::MatMul::validate_and_infer_types()

@@ -19,6 +19,7 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/ops.hpp>
 #include <numeric>
+#include "itt.hpp"
 
 #include "depth_to_space.hpp"
 #include "ngraph/builder/reshape.hpp"
@@ -112,8 +113,8 @@ void op::DepthToSpace::validate_and_infer_types()
     }
 }
 
-bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
-                                const HostTensorVector& inputs) const
+bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
+                                               const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
@@ -158,10 +159,12 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
     vector<size_t> axes_order{0};
     switch (m_mode)
     {
-    // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2,
+    // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size,
+    // D1, D2,
     // ..., DK])
     // x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
-    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size,
+    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 *
+    // block_size,
     // ..., DK * block_size])
     case DepthToSpaceMode::DEPTH_FIRST:
     {
@@ -175,10 +178,12 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
 
         break;
     }
-    // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2,
+    // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K),
+    // D1, D2,
     // ..., DK])
     // x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
-    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size,
+    // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 *
+    // block_size,
     // ..., DK * block_size])
     case DepthToSpaceMode::BLOCKS_FIRST:
     default:
@@ -233,6 +238,13 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
                                  squeezed_shape,
                                  elem_size);
     return true;
+}
+
+bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
+                                const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate, return evaluate_depth_to_space(outputs, inputs));
+    return false;
 }
 namespace ngraph
 {

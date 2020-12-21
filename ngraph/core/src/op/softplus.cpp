@@ -65,12 +65,9 @@ namespace softplus
 
         switch (arg->get_element_type())
         {
-            TYPE_CASE(bf16)(arg, out, count);
-            break;
-            TYPE_CASE(f16)(arg, out, count);
-            break;
-            TYPE_CASE(f32)(arg, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_softplus, bf16, arg, out, count);
+            NGRAPH_TYPE_CASE(evaluate_softplus, f16, arg, out, count);
+            NGRAPH_TYPE_CASE(evaluate_softplus, f32, arg, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -80,6 +77,8 @@ namespace softplus
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::SoftPlus::evaluate");
-    return softplus::evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v4_SoftPlus_evaluate,
+        return softplus::evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }

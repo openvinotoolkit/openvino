@@ -15,6 +15,7 @@
 //*****************************************************************************
 #include "ngraph/runtime/reference/split.hpp"
 #include <numeric>
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/constant.hpp"
@@ -148,8 +149,7 @@ namespace split
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    const auto& data = inputs[0];
-    const auto& axis = inputs[1];
-
-    return split::evaluate_split(data, axis, outputs, m_num_splits, this);
+    NGRAPH_OP_SCOPE(v1_Split_evaluate, const auto& data = inputs[0]; const auto& axis = inputs[1];
+                    return split::evaluate_split(data, axis, outputs, m_num_splits, this));
+    return false;
 }

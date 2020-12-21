@@ -182,29 +182,27 @@ namespace maxpool
 
         switch (out->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-            break;
-            TYPE_CASE(i64)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-            break;
-            TYPE_CASE(u32)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-            break;
-            TYPE_CASE(u64)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-            break;
-            TYPE_CASE(f16)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-            break;
-            TYPE_CASE(f32)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
-            break;
+            NGRAPH_TYPE_CASE(
+                evaluate_maxpool, i32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+            NGRAPH_TYPE_CASE(
+                evaluate_maxpool, i64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+            NGRAPH_TYPE_CASE(
+                evaluate_maxpool, u32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+            NGRAPH_TYPE_CASE(
+                evaluate_maxpool, u64, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+            NGRAPH_TYPE_CASE(
+                evaluate_maxpool, f16, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+            NGRAPH_TYPE_CASE(
+                evaluate_maxpool, f32, arg, out, out_shape, kernel, strides, pad_begin, pad_end);
         default: rc = false; break;
         }
         return rc;
     }
 } // namespace
 
-bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
-                               const HostTensorVector& inputs) const
+bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
+                                       const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::MaxPool::evaluate");
-
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();
@@ -227,4 +225,10 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                      get_strides(),
                                      get_pads_begin(),
                                      get_pads_end());
+}
+bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate, return evaluate_maxpool(outputs, inputs));
+    return false;
 }

@@ -60,20 +60,13 @@ namespace signop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_sign, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sign, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sign, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sign, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sign, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sign, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sign, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -82,6 +75,8 @@ namespace signop
 
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sign::evaluate");
-    return signop::evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v0_Sign_evaluate,
+        return signop::evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }

@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/scatter_update.hpp"
+#include "itt.hpp"
 #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -41,8 +42,27 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
-                                     const HostTensorVector& inputs) const
+namespace scatter_update
+{
+    template <element::Type_t ET>
+    std::vector<int64_t> get_indices(const HostTensorPtr& in)
+    {
+        auto data_ptr = in->get_data_ptr<ET>();
+        return std::vector<int64_t>(data_ptr, data_ptr + in->get_element_count());
+    }
+}
+
+#define GET_INDICES(a, ...)                                                                        \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(get_scatter_update_indices, _, a),                              \
+                        indices_casted_vector =                                                    \
+                            scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__));         \
+    }                                                                                              \
+    break;
+
+bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outputs,
+                                                    const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& indices = inputs[1];
@@ -66,63 +86,15 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
     std::vector<int64_t> indices_casted_vector;
     switch (indices->get_element_type())
     {
-    case element::Type_t::i8:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::i8>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::i16:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::i16>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::i32:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::i32>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::i64:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::i64>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::u8:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::u8>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::u16:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::u16>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::u32:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::u32>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::u64:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::u64>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    default: throw ngraph_error("indices element type is not integral data type");
+        GET_INDICES(i8, indices);
+        GET_INDICES(i16, indices);
+        GET_INDICES(i32, indices);
+        GET_INDICES(i64, indices);
+        GET_INDICES(u8, indices);
+        GET_INDICES(u16, indices);
+        GET_INDICES(u32, indices);
+        GET_INDICES(u64, indices);
+    default: return false;
     }
 
     runtime::reference::scatter_update(data->get_data_ptr<char>(),
@@ -136,4 +108,11 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                        updates->get_shape());
 
     return true;
+}
+
+bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
+                                     const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate, return evaluate_scatter_update(outputs, inputs));
+    return false;
 }

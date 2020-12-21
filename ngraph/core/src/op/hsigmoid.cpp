@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/hsigmoid.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 
@@ -60,12 +61,9 @@ namespace
 
         switch (arg->get_element_type())
         {
-            TYPE_CASE(bf16)(arg, out, count);
-            break;
-            TYPE_CASE(f16)(arg, out, count);
-            break;
-            TYPE_CASE(f32)(arg, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_hsigmoid, bf16, arg, out, count);
+            NGRAPH_TYPE_CASE(evaluate_hsigmoid, f16, arg, out, count);
+            NGRAPH_TYPE_CASE(evaluate_hsigmoid, f32, arg, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -75,5 +73,8 @@ namespace
 bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    return evaluate_hsigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v5_HSigmoid_evaluate,
+        return evaluate_hsigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }

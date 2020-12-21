@@ -142,6 +142,23 @@ namespace
     }
 }
 
+bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs,
+                                           const HostTensorVector& inputs) const
+{
+    if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
+    {
+        auto arg_shape = inputs[0]->get_shape();
+        Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
+        PartialShape result_shape =
+            get_result_shape_bidirectional(this, PartialShape{arg_shape}, target_shape);
+        auto pair_broadcast_axes =
+            get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
+        return op::util::BroadcastBase::evaluate_broadcast(
+            inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+    }
+    return op::util::BroadcastBase::evaluate(outputs, inputs);
+}
+
 void op::v3::Broadcast::validate_and_infer_types()
 {
     if (m_mode.m_type == BroadcastType::NONE)
@@ -211,19 +228,8 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Broadcast::evaluate");
-    if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
-    {
-        auto arg_shape = inputs[0]->get_shape();
-        Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
-        PartialShape result_shape =
-            get_result_shape_bidirectional(this, PartialShape{arg_shape}, target_shape);
-        auto pair_broadcast_axes =
-            get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
-        return op::util::BroadcastBase::evaluate_broadcast(
-            inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
-    }
-    return op::util::BroadcastBase::evaluate(outputs, inputs);
+    NGRAPH_OP_SCOPE(v3_Broadcast_evaluate, return broadcast_evaluate(outputs, inputs));
+    return false;
 }
 
 namespace
@@ -312,6 +318,7 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Broadcast::evaluate");
-    return op::util::BroadcastBase::evaluate(outputs, inputs);
+    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate,
+                    return op::util::BroadcastBase::evaluate(outputs, inputs));
+    return false;
 }

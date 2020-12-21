@@ -66,20 +66,13 @@ namespace acosop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_acos, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_acos, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_acos, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_acos, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_acos, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_acos, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_acos, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -88,6 +81,9 @@ namespace acosop
 
 bool op::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Acos::evaluate");
-    return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    bool rc = false;
+    NGRAPH_OP_SCOPE(
+        v0_Acos_evaluate,
+        rc = acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return rc;
 }

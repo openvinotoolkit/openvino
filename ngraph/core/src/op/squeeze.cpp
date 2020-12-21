@@ -158,18 +158,12 @@ namespace squeeze
         bool rc = true;
         switch (element_type)
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -179,8 +173,9 @@ namespace squeeze
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Squeeze::evaluate");
-    return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate,
+                    return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]));
+    return false;
 }
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

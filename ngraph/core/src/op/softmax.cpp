@@ -35,23 +35,29 @@ using namespace ngraph;
 namespace
 {
     template <element::Type_t ET>
-    inline bool try_evaluate_softmax(const HostTensorPtr& arg,
-                                     const HostTensorPtr& out,
-                                     const Shape& shape,
-                                     const AxisSet& axes)
+    inline bool evaluate(const HostTensorPtr& arg,
+                         const HostTensorPtr& out,
+                         const Shape& shape,
+                         const AxisSet& axes)
     {
-        return (ET == arg->get_element_type()) &&
-               (runtime::reference::softmax(
-                    arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape, axes),
-                true);
+        runtime::reference::softmax(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape, axes);
+        return true;
     }
 
     bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
     {
         auto shape = out->get_shape();
-        return try_evaluate_softmax<element::Type_t::f16>(arg, out, shape, axes) ||
-               try_evaluate_softmax<element::Type_t::f32>(arg, out, shape, axes) ||
-               try_evaluate_softmax<element::Type_t::f64>(arg, out, shape, axes);
+        bool rc = true;
+
+        switch (arg->get_element_type())
+        {
+            NGRAPH_TYPE_CASE(evaluate_softmax, bf16, arg, out, shape, axes);
+            NGRAPH_TYPE_CASE(evaluate_softmax, f16, arg, out, shape, axes);
+            NGRAPH_TYPE_CASE(evaluate_softmax, f32, arg, out, shape, axes);
+            NGRAPH_TYPE_CASE(evaluate_softmax, f64, arg, out, shape, axes);
+        default: rc = false; break;
+        }
+        return rc;
     }
 }
 
@@ -95,7 +101,7 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Softmax::evaluate");
-    outputs[0]->set_unary(inputs[0]);
-    return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
+    NGRAPH_OP_SCOPE(v1_Softmax_evaluate, outputs[0]->set_unary(inputs[0]);
+                    return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis}));
+    return false;
 }

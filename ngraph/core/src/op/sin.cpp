@@ -62,20 +62,13 @@ namespace sinop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_sin, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -84,6 +77,8 @@ namespace sinop
 
 bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sin::evaluate");
-    return sinop::evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v0_Sin_evaluate,
+        return sinop::evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }

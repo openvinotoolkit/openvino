@@ -89,6 +89,8 @@ namespace ngraph
 
             private:
                 PadMode m_pad_mode;
+                bool evaluate_pad(const HostTensorVector& outputs,
+                                  const HostTensorVector& inputs) const;
             };
         }
     }

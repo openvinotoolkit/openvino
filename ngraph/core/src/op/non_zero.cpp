@@ -115,18 +115,21 @@ namespace nonzero
         return true;
     }
 
+#define TYPE_OUT_CASE(a, ...)                                                                      \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_nonzero_out, _, a),                                    \
+                        rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__)); \
+    }                                                                                              \
+    break;
     template <element::Type_t INPUT_ET>
     bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output)
     {
         bool rc = true;
         switch (output->get_element_type())
         {
-        case element::Type_t::i64:
-            rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::i64>(input, output);
-            break;
-        case element::Type_t::i32:
-            rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::i32>(input, output);
-            break;
+            TYPE_OUT_CASE(i64, input, output);
+            TYPE_OUT_CASE(i32, input, output);
         default: rc = false; break;
         }
 
@@ -139,20 +142,13 @@ namespace nonzero
 
         switch (input->get_element_type())
         {
-            TYPE_CASE(i32)(input, output);
-            break;
-            TYPE_CASE(i64)(input, output);
-            break;
-            TYPE_CASE(u8)(input, output);
-            break;
-            TYPE_CASE(u32)(input, output);
-            break;
-            TYPE_CASE(u64)(input, output);
-            break;
-            TYPE_CASE(f16)(input, output);
-            break;
-            TYPE_CASE(f32)(input, output);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_nonzero, i32, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, i64, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, u8, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, u32, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, u64, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, f16, input, output);
+            NGRAPH_TYPE_CASE(evaluate_nonzero, f32, input, output);
         default: rc = false; break;
         }
         return rc;
@@ -162,6 +158,6 @@ namespace nonzero
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::NonZero::evaluate");
-    return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
+    NGRAPH_OP_SCOPE(v3_NonZero_evaluate, return nonzero::evaluate_nonzero(inputs[0], outputs[0]));
+    return false;
 }

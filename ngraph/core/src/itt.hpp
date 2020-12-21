@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include <openvino/cc/factory.h>
+#include <openvino/cc/selective_build.h>
 #include <openvino/itt.hpp>
 
 namespace ngraph
@@ -31,7 +33,33 @@ namespace ngraph
         {
             OV_ITT_DOMAIN(nGraph);
             OV_ITT_DOMAIN(nGraphPass_LT);
-            OV_ITT_DOMAIN(nGraphOp, "nGraph::Op");
+            OV_ITT_DOMAIN(ngraph_op, "nGraph::Op");
         }
     }
+    OV_CC_DOMAINS(ngraph_op);
 }
+
+#if defined(SELECTIVE_BUILD) || defined(SELECTIVE_BUILD_ANALYZER)
+#define NGRAPH_OP_SCOPE(region, ...) OV_SCOPE(ngraph_op, region, __VA_ARGS__)
+#else
+#define NGRAPH_OP_SCOPE(region, ...)                                                               \
+    OV_ITT_SCOPED_TASK(itt::domains::ngraph_op, #region);                                          \
+    __VA_ARGS__
+#endif
+
+#define NGRAPH_TYPE_CASE(region, a, ...)                                                           \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        OV_SCOPE(                                                                                  \
+            ngraph_op, OV_CC_CAT3(region, _, a), rc = evaluate<element::Type_t::a>(__VA_ARGS__));  \
+    }                                                                                              \
+    break;
+
+#define NGRAPH_COPY_TENSOR(region, a, ...)                                                         \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        OV_SCOPE(ngraph_op,                                                                        \
+                 OV_CC_CAT3(region, _, a),                                                         \
+                 rc = copy_tensor<element::Type_t::a>(__VA_ARGS__));                               \
+    }                                                                                              \
+    break;

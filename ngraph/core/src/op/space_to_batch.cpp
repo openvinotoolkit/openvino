@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <memory>
 #include <numeric>
+#include "itt.hpp"
 
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
@@ -140,8 +141,8 @@ bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
-bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
-                                            const HostTensorVector& inputs) const
+bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
+                                                           const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
@@ -267,4 +268,11 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
     out->write(flat_data.data(), elem_size * shape_size(out->get_shape()));
 
     return true;
+}
+
+bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
+                                            const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch, return evaluate_space_to_batch(outputs, inputs));
+    return false;
 }

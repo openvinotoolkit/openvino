@@ -53,6 +53,10 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                bool evaluate_scatter_update(const HostTensorVector& outputs,
+                                             const HostTensorVector& inputs) const;
             };
         }
     }

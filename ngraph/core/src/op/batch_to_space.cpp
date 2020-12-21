@@ -18,6 +18,7 @@
 #include <memory>
 #include <numeric>
 #include <ops.hpp>
+#include "itt.hpp"
 
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
@@ -141,114 +142,123 @@ bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
+namespace
+{
+    bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+    {
+        auto data = inputs[0];
+        size_t elem_size = data->get_element_type().size();
+
+        if (data->get_partial_shape().is_dynamic())
+        {
+            return false;
+        }
+        auto data_shape = data->get_shape();
+
+        if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5))
+        {
+            return false;
+        }
+        size_t block_values_size = shape_size(inputs[1]->get_shape());
+        const auto* block_values = inputs[1]->get_data_ptr<int64_t>();
+        const auto* crops_begin_values = inputs[2]->get_data_ptr<int64_t>();
+        const auto* crops_end_values = inputs[3]->get_data_ptr<int64_t>();
+
+        Shape dispersed_shape(1);
+        dispersed_shape.insert(dispersed_shape.end(), data_shape.begin(), data_shape.end());
+        std::vector<size_t> axes_order(block_values_size + 1);
+        std::vector<size_t> plain_axes_order(block_values_size + 1);
+        std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
+        Shape squeezed_shape(data_shape.begin(), data_shape.end());
+        if (squeezed_shape.size() > block_values_size)
+        {
+            return false;
+        }
+
+        auto* flat_data = data->get_data_ptr<char>();
+        std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
+
+        Shape post_transpose_shape(axes_order.size());
+        std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
+
+        for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx)
+        {
+            dispersed_shape[0] = block_values[block_idx];
+            dispersed_shape[1] /= block_values[block_idx];
+            runtime::opt_kernel::reshape(flat_data,
+                                         dispersed_data.data(),
+                                         data_shape,
+                                         plain_axes_order,
+                                         dispersed_shape,
+                                         elem_size);
+
+            size_t val = 1;
+            for (size_t axis_idx = 0; axis_idx <= block_values_size; ++axis_idx)
+            {
+                if ((block_idx + 1) == axis_idx)
+                {
+                    axes_order[axis_idx] = 0;
+                }
+                else
+                {
+                    axes_order[axis_idx] = val;
+                    val++;
+                }
+            }
+            for (size_t axis_idx = 0; axis_idx < axes_order.size(); ++axis_idx)
+            {
+                post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
+            }
+
+            runtime::opt_kernel::reshape(dispersed_data.data(),
+                                         post_transpose_data.data(),
+                                         dispersed_shape,
+                                         axes_order,
+                                         post_transpose_shape,
+                                         elem_size);
+            squeezed_shape[0] = dispersed_shape[1];
+            squeezed_shape[block_idx] *= block_values[block_idx];
+            dispersed_shape[block_idx + 1] = squeezed_shape[block_idx];
+            runtime::opt_kernel::reshape(post_transpose_data.data(),
+                                         flat_data,
+                                         post_transpose_shape,
+                                         plain_axes_order,
+                                         squeezed_shape,
+                                         elem_size);
+            data_shape = squeezed_shape;
+        }
+
+        std::vector<int64_t> upperbounds_values(data_shape.size());
+        for (size_t i = 0; i < data_shape.size(); ++i)
+        {
+            upperbounds_values[i] = data_shape[i] - crops_end_values[i];
+        }
+
+        std::vector<size_t> begin_mask(data_shape.size(), 0);
+        std::vector<size_t> end_mask(data_shape.size(), 0);
+
+        std::vector<int64_t> begins(shape_size(inputs[2]->get_shape()));
+        begins.assign(crops_begin_values, crops_begin_values + shape_size(inputs[2]->get_shape()));
+
+        std::vector<int64_t> default_strides(begins.size(), 1);
+        SlicePlan slice_plan = make_slice_plan(data_shape,
+                                               begins,
+                                               upperbounds_values,
+                                               default_strides,
+                                               begin_mask,
+                                               end_mask,
+                                               AxisSet(),
+                                               AxisSet(),
+                                               AxisSet());
+        runtime::reference::strided_slice(
+            flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
+        return true;
+    }
+}
+
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    auto data = inputs[0];
-    size_t elem_size = data->get_element_type().size();
-
-    if (data->get_partial_shape().is_dynamic())
-    {
-        return false;
-    }
-    auto data_shape = data->get_shape();
-
-    if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5))
-    {
-        return false;
-    }
-    size_t block_values_size = shape_size(inputs[1]->get_shape());
-    const auto* block_values = inputs[1]->get_data_ptr<int64_t>();
-    const auto* crops_begin_values = inputs[2]->get_data_ptr<int64_t>();
-    const auto* crops_end_values = inputs[3]->get_data_ptr<int64_t>();
-
-    Shape dispersed_shape(1);
-    dispersed_shape.insert(dispersed_shape.end(), data_shape.begin(), data_shape.end());
-    std::vector<size_t> axes_order(block_values_size + 1);
-    std::vector<size_t> plain_axes_order(block_values_size + 1);
-    std::iota(plain_axes_order.begin(), plain_axes_order.end(), 0);
-    Shape squeezed_shape(data_shape.begin(), data_shape.end());
-    if (squeezed_shape.size() > block_values_size)
-    {
-        return false;
-    }
-
-    auto* flat_data = data->get_data_ptr<char>();
-    std::vector<char> dispersed_data(shape_size(data_shape) * elem_size);
-
-    Shape post_transpose_shape(axes_order.size());
-    std::vector<char> post_transpose_data(shape_size(data_shape) * elem_size);
-
-    for (size_t block_idx = 1; block_idx < block_values_size; ++block_idx)
-    {
-        dispersed_shape[0] = block_values[block_idx];
-        dispersed_shape[1] /= block_values[block_idx];
-        runtime::opt_kernel::reshape(flat_data,
-                                     dispersed_data.data(),
-                                     data_shape,
-                                     plain_axes_order,
-                                     dispersed_shape,
-                                     elem_size);
-
-        size_t val = 1;
-        for (size_t axis_idx = 0; axis_idx <= block_values_size; ++axis_idx)
-        {
-            if ((block_idx + 1) == axis_idx)
-            {
-                axes_order[axis_idx] = 0;
-            }
-            else
-            {
-                axes_order[axis_idx] = val;
-                val++;
-            }
-        }
-        for (size_t axis_idx = 0; axis_idx < axes_order.size(); ++axis_idx)
-        {
-            post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
-        }
-
-        runtime::opt_kernel::reshape(dispersed_data.data(),
-                                     post_transpose_data.data(),
-                                     dispersed_shape,
-                                     axes_order,
-                                     post_transpose_shape,
-                                     elem_size);
-        squeezed_shape[0] = dispersed_shape[1];
-        squeezed_shape[block_idx] *= block_values[block_idx];
-        dispersed_shape[block_idx + 1] = squeezed_shape[block_idx];
-        runtime::opt_kernel::reshape(post_transpose_data.data(),
-                                     flat_data,
-                                     post_transpose_shape,
-                                     plain_axes_order,
-                                     squeezed_shape,
-                                     elem_size);
-        data_shape = squeezed_shape;
-    }
-
-    std::vector<int64_t> upperbounds_values(data_shape.size());
-    for (size_t i = 0; i < data_shape.size(); ++i)
-    {
-        upperbounds_values[i] = data_shape[i] - crops_end_values[i];
-    }
-
-    std::vector<size_t> begin_mask(data_shape.size(), 0);
-    std::vector<size_t> end_mask(data_shape.size(), 0);
-
-    std::vector<int64_t> begins(shape_size(inputs[2]->get_shape()));
-    begins.assign(crops_begin_values, crops_begin_values + shape_size(inputs[2]->get_shape()));
-
-    std::vector<int64_t> default_strides(begins.size(), 1);
-    SlicePlan slice_plan = make_slice_plan(data_shape,
-                                           begins,
-                                           upperbounds_values,
-                                           default_strides,
-                                           begin_mask,
-                                           end_mask,
-                                           AxisSet(),
-                                           AxisSet(),
-                                           AxisSet());
-    runtime::reference::strided_slice(
-        flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
-    return true;
+    NGRAPH_OP_SCOPE(v1_BatchToSpace, return batch_to_space_evaluate(outputs, inputs));
+    return false;
 }

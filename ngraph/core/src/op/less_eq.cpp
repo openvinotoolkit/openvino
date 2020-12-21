@@ -68,20 +68,13 @@ namespace less_equalop
         out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_less_equal, boolean, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less_equal, i32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less_equal, i64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less_equal, u32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less_equal, u64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less_equal, f16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less_equal, f32, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
@@ -91,6 +84,8 @@ namespace less_equalop
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LessEqual::evaluate");
-    return less_equalop::evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    NGRAPH_OP_SCOPE(
+        v1_LessEqual_evaluate,
+        return less_equalop::evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob()));
+    return false;
 }

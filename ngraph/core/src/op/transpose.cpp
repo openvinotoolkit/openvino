@@ -144,6 +144,8 @@ namespace transpose
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Transpose::evaluate");
-    return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+    NGRAPH_OP_SCOPE(
+        v1_Transpose_evaluate,
+        return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]));
+    return false;
 }

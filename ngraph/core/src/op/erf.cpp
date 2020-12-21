@@ -61,20 +61,13 @@ namespace erfop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_erf, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -83,6 +76,8 @@ namespace erfop
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Erf::evaluate");
-    return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v0_Erf_evaluate,
+        return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }

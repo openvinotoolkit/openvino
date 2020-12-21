@@ -63,6 +63,10 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                bool evaluate_space_to_batch(const HostTensorVector& outputs,
+                                             const HostTensorVector& inputs) const;
             };
         }
         using v1::SpaceToBatch;
