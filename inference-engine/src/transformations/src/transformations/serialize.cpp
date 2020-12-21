@@ -486,7 +486,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // prepare data
     pugi::xml_document xml_doc;
     std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    NGRAPH_CHECK(bin_file, "Can't open bin file");
+    NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
     switch (m_version) {
     case Version::IR_V10:
         ngfunction_2_irv10(xml_doc, bin_file, *f, m_custom_opsets);
@@ -498,12 +498,38 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
     // create xml file
     std::ofstream xml_file(m_xmlPath, std::ios::out);
-    NGRAPH_CHECK(xml_file, "Can't open xml file");
+    NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
     xml_doc.save(xml_file);
     xml_file.flush();
     bin_file.flush();
 
     // Return false because we didn't change nGraph Function
     return false;
+}
+
+namespace {
+std::string bestBinPath(const std::string &xmlPath, const std::string &binPath) {
+    if (!binPath.empty()) {
+        return binPath;
+    }
+    std::string bestPath = xmlPath;
+    auto extention = bestPath.rbegin();
+    *(extention++) = 'n';
+    *(extention++) = 'i';
+    *(extention++) = 'b';
+    return bestPath;
+}
+
+} // namespace
+
+pass::Serialize::Serialize(const std::string& xmlPath,
+                           const std::string& binPath,
+                           pass::Serialize::Version version,
+                           std::map<std::string, OpSet> custom_opsets)
+    : m_xmlPath{xmlPath}
+    , m_binPath{bestBinPath(xmlPath, binPath)}
+    , m_version{version}
+    , m_custom_opsets{custom_opsets}
+{
 }
 // ! [function_pass:serialize_cpp]
