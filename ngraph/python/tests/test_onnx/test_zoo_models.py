@@ -29,7 +29,7 @@ from tests import (
     xfail_issue_38701,
     xfail_issue_43742,
     xfail_issue_43380,
-    xfail_issue_43439,
+    xfail_issue_45457,
     xfail_issue_39684,
     xfail_issue_40957,
     xfail_issue_39685,
@@ -152,7 +152,6 @@ if len(zoo_models) > 0:
 
             # Model MSFT
             (xfail_issue_43742, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
-            (xfail_issue_43439, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
             (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
         ]
         for test_case in import_xfail_list:
@@ -178,6 +177,7 @@ if len(zoo_models) > 0:
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_43380, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu"),
+            (xfail_issue_45457, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
 
             # Model MSFT
             (xfail_issue_37973, "test_MSFT_opset7_tf_inception_v2_model_cpu"),

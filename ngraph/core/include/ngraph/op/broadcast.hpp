@@ -82,6 +82,10 @@ namespace ngraph
                 std::pair<bool, AxisSet> get_broadcast_axes() const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                bool broadcast_evaluate(const HostTensorVector& outputs,
+                                        const HostTensorVector& inputs) const;
             };
         } // namespace v3
 
