@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "onnx_import/op/add.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/default_opset.hpp"
 
