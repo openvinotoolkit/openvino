@@ -76,6 +76,24 @@ TEST(ConditionalCompilationTests, SimpleScope) {
 #undef CCTests_Scope0
 }
 
+TEST(ConditionalCompilationTests, SimpleSectionDefine) {
+#define CCTests_Section1 1
+
+    int n = 0;
+#if OV_SCOPE_DEFINE(CCTests, Section1)
+    OV_SCOPE_TASK(CCTests, Section1);
+    n = 42;
+#endif
+    EXPECT_EQ(n, 42);
+
+#if OV_SCOPE_DEFINE(CCTests, Section2)
+    n = 43;
+#endif
+    EXPECT_EQ(n, 42);
+
+#undef CCTests_Section1
+}
+
 TEST(ConditionalCompilationTests, SwitchCase) {
     // Cases 0 and 2 are enabled
 #define CCTests_TestTemplateClass 1

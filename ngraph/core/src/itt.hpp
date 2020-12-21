@@ -63,3 +63,7 @@ namespace ngraph
                  rc = copy_tensor<element::Type_t::a>(__VA_ARGS__));                               \
     }                                                                                              \
     break;
+
+#define NGRAPH_OP_SCOPE_DEFILE(region) OV_SCOPE_DEFINE(ngraph_op, region)
+
+#define NGRAPH_OP_SCOPE_TASK(region) OV_SCOPE_TASK(ngraph_op, region)

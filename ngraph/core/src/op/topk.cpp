@@ -449,9 +449,10 @@ void op::v1::TopK::set_k(size_t k)
         op::Constant::create(element::i64, Shape{}, {k})->output(0));
 }
 
-bool op::v1::TopK::evaluate_topk(const HostTensorVector& outputs,
-                                 const HostTensorVector& inputs) const
+bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#if NGRAPH_OP_SCOPE_DEFILE(v1_TopK_evaluate)
+    NGRAPH_OP_SCOPE_TASK(v1_TopK_evaluate);
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
     size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
@@ -490,11 +491,7 @@ bool op::v1::TopK::evaluate_topk(const HostTensorVector& outputs,
                                compute_max,
                                sort_type,
                                get_index_element_type());
-}
-
-bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    NGRAPH_OP_SCOPE(v1_TopK_evaluate, return evaluate_topk(outputs, inputs));
+#endif
     return false;
 }
 
