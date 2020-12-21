@@ -359,6 +359,7 @@ set(MULTI_TEST_SRC
 
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND MULTI_TEST_SRC
+            onnx/onnx_editor.in.cpp
             onnx/onnx_import.in.cpp
             onnx/onnx_import_controlflow.in.cpp
             onnx/onnx_import_const_folding.in.cpp
