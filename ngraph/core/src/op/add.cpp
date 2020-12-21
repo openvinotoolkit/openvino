@@ -50,28 +50,17 @@ namespace add
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u8)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_add, i8, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, i16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, i32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, i64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, u8, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, u16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, u32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, u64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, bf16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, f16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_add, f32, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
@@ -104,6 +93,8 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Add::evaluate");
-    return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_Add_evaluate,
+                    rc = add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob()));
+    return rc;
 }

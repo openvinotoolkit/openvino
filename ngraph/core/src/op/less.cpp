@@ -50,20 +50,13 @@ namespace lessop
         out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_less, boolean, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less, i32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less, i64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less, u32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less, u64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less, f16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_less, f32, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
@@ -90,6 +83,7 @@ shared_ptr<Node> op::v1::Less::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v1::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Less::evaluate");
-    return lessop::evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
+    NGRAPH_OP_SCOPE(v1_Less_evaluate,
+                    return lessop::evaluate_less(inputs[0], inputs[1], outputs[0], get_autob()));
+    return false;
 }
