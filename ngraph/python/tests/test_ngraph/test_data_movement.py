@@ -214,6 +214,7 @@ def test_gather_nd():
     assert list(node.get_output_shape(0)) == expected_shape
     assert node.get_output_element_type(0) == Type.f32
 
+
 def test_gather_eleVments():
     indices_type = np.int32
     data_dtype = np.float32
