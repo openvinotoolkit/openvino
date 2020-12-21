@@ -542,7 +542,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeConcat) {
     compare(*output, *dstOut);
 }
 
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestNoRedundantReordersBeforeDWConvolution) {
+TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeDWConvolution) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>
@@ -3004,7 +3004,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersRmnet_SSSSD) {
     ASSERT_EQ(reorders_num, 1);
 }
 
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestFailedPartDPN92) {
+TEST_F(MKLDNNGraphStructureTests, TestFailedPartDPN92) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>
@@ -5184,7 +5184,7 @@ TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWithConcat) {
 }
 
 
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestRefPoolingWithConcat) {
+TEST_F(MKLDNNGraphStructureTests, TestRefPoolingWithConcat) {
     std::string model = R"V0G0N(
 <net batch="1" name="squeezenet1.1" version="3">
 	<layers>
@@ -5459,7 +5459,7 @@ TEST_F(MKLDNNGraphStructureTests, DISABLED_TestRefPoolingWithConcat) {
     compare(*outputBlobs1.begin()->second, *outputBlobs2.begin()->second);
 }
 
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConvolutionWith2DepthwiseOpFusing) {
+TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2DepthwiseOpFusing) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>
@@ -5602,7 +5602,7 @@ TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConvolutionWith2DepthwiseOpFusing
     compare(*output, *dstOut);
 }
 
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConvolutionWith2EltwiseOpFusing) {
+TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2EltwiseOpFusing) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>
@@ -5740,8 +5740,7 @@ TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConvolutionWith2EltwiseOpFusing) 
     compare(*output, *dstOut);
 }
 
-// TODO [oneDNN]: while depthwise post ops is not ported properly
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestGemmConvolutionWith2DepthwiseOpFusing) {
+TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWith2DepthwiseOpFusing) {
     std::string model = R"V0G0N(
 <net name="net" version="2" batch="1">
     <layers>
@@ -6460,7 +6459,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithMultipleData_2) {
     EXPECT_TRUE(out_check(outBlob3, -1));
 }
 
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestCreateGraphAllDataToConcat) {
+TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
     std::shared_ptr<ngraph::Function> function;
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;
@@ -6492,8 +6491,8 @@ TEST_F(MKLDNNGraphStructureTests, DISABLED_TestCreateGraphAllDataToConcat) {
     auto cnn = InferenceEngine::CNNNetwork(function);
 
     // Load the network
-    std::vector<size_t> inpSize = {5, 4, 1, 1};
-    std::vector<size_t> outSize = {5, 4, 3, 1};
+    std::vector<size_t> inpSize = {1, 1, 4, 5};
+    std::vector<size_t> outSize = {1, 3, 4, 5};
 
     InferenceEngine::BlobMap inputBlobs;
     InferenceEngine::BlobMap outputBlobs;
@@ -6522,7 +6521,7 @@ TEST_F(MKLDNNGraphStructureTests, DISABLED_TestCreateGraphAllDataToConcat) {
     compare(*outputBlobs["concat"], *dstOut);
 }
 
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestCreateGraphAllDataFromInputToConcat) {
+TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
     std::shared_ptr<ngraph::Function> function;
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;
@@ -6540,8 +6539,8 @@ TEST_F(MKLDNNGraphStructureTests, DISABLED_TestCreateGraphAllDataFromInputToConc
     auto cnn = InferenceEngine::CNNNetwork(function);
 
     // Load the network
-    std::vector<size_t> inpSize = {5, 4, 1, 1};
-    std::vector<size_t> outSize = {5, 4, 3, 1};
+    std::vector<size_t> inpSize = {1, 1, 4, 5};
+    std::vector<size_t> outSize = {1, 3, 4, 5};
 
     InferenceEngine::BlobMap inputBlobs;
     InferenceEngine::BlobMap outputBlobs;
@@ -6624,7 +6623,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCheckIncorrectScaleShift) {
     ASSERT_THROW(graph.CreateGraph(network), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConcatWithFourInputs) {
+TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
     std::shared_ptr<ngraph::Function> function;
     {
         ngraph::element::Type elementType = ngraph::element::Type_t::f32;
@@ -6662,8 +6661,8 @@ TEST_F(MKLDNNGraphStructureTests, DISABLED_TestConcatWithFourInputs) {
     auto cnn = InferenceEngine::CNNNetwork(function);
 
     // Load the network
-    std::vector<size_t> inpSize = {5, 4, 1, 1};
-    std::vector<size_t> outSize = {5, 4, 4, 1};
+    std::vector<size_t> inpSize = {1, 1, 4, 5};
+    std::vector<size_t> outSize = {1, 4, 4, 5};
 
     InferenceEngine::BlobMap inputBlobs;
     InferenceEngine::BlobMap outputBlobs;

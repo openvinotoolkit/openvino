@@ -291,7 +291,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphSoftMaxTests, DISABLED_TestsSoftMax) {}
+TEST_P(MKLDNNGraphSoftMaxTests, TestsSoftMax) {}
 
 
 INSTANTIATE_TEST_CASE_P(
