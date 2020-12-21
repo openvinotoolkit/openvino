@@ -14,15 +14,23 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <onnx/onnx_pb.h>
+#pragma once
+#include <string>
 
-#include "onnx_import/editor/editor.hpp"
-#include "onnx_import/utils/parser.hpp"
-
-using namespace ngraph;
-
-onnx_import::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
-    : m_model_proto{new ONNX_NAMESPACE::ModelProto{}}
-{
-    onnx_import::parse_from_file(model_path, *(m_model_proto.get()));
+namespace ONNX_NAMESPACE {
+    class ModelProto;
 }
+
+/// \brief              Top level nGraph namespace.
+namespace ngraph
+{
+    namespace onnx_import
+    {
+        /// \brief       Parses an ONNX model from a file located on a storage device.
+        ///
+        /// \param[in]   file_path    Path to the file containing an ONNX model.
+        /// \param[out]  model_proto  A reference to the object which will be filled with model data
+        void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto);
+    } // namespace onnx_import
+
+} // namespace ngraph

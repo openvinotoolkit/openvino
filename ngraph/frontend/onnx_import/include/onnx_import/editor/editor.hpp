@@ -43,7 +43,8 @@ namespace ngraph
             ONNXModelEditor() = delete;
             ~ONNXModelEditor() = default;
 
-            ONNXModelEditor(std::istream& model_stream);
+            /// \brief Creates an editor from a model file located on a storage device.
+            ONNXModelEditor(const std::string& model_path);
 
         private:
             std::unique_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
