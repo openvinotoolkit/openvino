@@ -63,20 +63,13 @@ namespace tanop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_tan, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_tan, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -85,6 +78,8 @@ namespace tanop
 
 bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Tan::evaluate");
-    return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v0_Tan_evaluate,
+        return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }
