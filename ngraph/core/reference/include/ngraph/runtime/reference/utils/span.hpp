@@ -94,7 +94,6 @@ namespace ngraph
                 constexpr Element& back() const noexcept { return *(m_data + (m_size - 1)); }
                 constexpr Element& operator[](std::size_t idx) const { return *(m_data + idx); }
                 Element& at(std::size_t idx) const { return *(m_data + idx); }
-
                 Span subspan(std::size_t offset,
                              std::size_t size = std::numeric_limits<std::size_t>::max())
                 {

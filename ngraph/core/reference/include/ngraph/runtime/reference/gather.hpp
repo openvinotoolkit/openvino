@@ -71,10 +71,10 @@ namespace ngraph
 
                 NGRAPH_CHECK(params_shape.size() >= axis, "Not enough axes in param_shape.");
 
-                const auto reminder_part_shape = span(params_shape).subspan(axis + 1);
+                const auto remainder_part_shape = span(params_shape).subspan(axis + 1);
 
                 const auto found_out_shape =
-                    join(params_axes_part, span(indices_shape), reminder_part_shape);
+                    join(params_axes_part, span(indices_shape), remainder_part_shape);
 
                 NGRAPH_CHECK(found_out_shape == out_shape,
                              "Output shape mismatch with calculations");
@@ -83,7 +83,7 @@ namespace ngraph
 
                 const auto batch_size = shape_size(batch_shape);
 
-                const auto copy_size = shape_size(reminder_part_shape);
+                const auto copy_size = shape_size(remainder_part_shape);
 
                 const size_t copy_round_in_batch =
                     indices_shape.size() > 1
