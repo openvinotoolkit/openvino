@@ -75,7 +75,7 @@ else:
 * *auto_pad*
 
   * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor. 
-    * None (not specified): use explicit padding values from `pads_begin` and `pads_end`.
+    * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
     * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
   * **Type**: string
