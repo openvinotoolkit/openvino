@@ -19,7 +19,6 @@
 #include <google/protobuf/text_format.h>
 #include <memory>
 
-#include "ngraph/except.hpp"
 #include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/model.hpp"
 #include "onnx_import/core/transform.hpp"
@@ -33,48 +32,6 @@ namespace ngraph
     {
         namespace detail
         {
-            namespace error
-            {
-                struct file_open : ngraph_error
-                {
-                    explicit file_open(const std::string& path)
-                        : ngraph_error{
-                              "Error during import of ONNX model expected to be in file: " + path +
-                              ". Could not open the file."}
-                    {
-                    }
-                };
-
-                struct stream_parse_binary : ngraph_error
-                {
-                    explicit stream_parse_binary()
-                        : ngraph_error{
-                              "Error during import of ONNX model provided as input stream "
-                              " with binary protobuf message."}
-                    {
-                    }
-                };
-
-                struct stream_parse_text : ngraph_error
-                {
-                    explicit stream_parse_text()
-                        : ngraph_error{
-                              "Error during import of ONNX model provided as input stream "
-                              " with prototxt protobuf message."}
-                    {
-                    }
-                };
-
-                struct stream_corrupted : ngraph_error
-                {
-                    explicit stream_corrupted()
-                        : ngraph_error{"Provided input stream has incorrect state."}
-                    {
-                    }
-                };
-
-            } // namespace error
-
             std::shared_ptr<Function>
                 convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
             {
