@@ -22,6 +22,7 @@
 #include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
+#include <ngraph/runtime/reference/bucketize.hpp>
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
 #include <ngraph/runtime/reference/convolution.hpp>
@@ -76,6 +77,70 @@ namespace
                   const HostTensorVector& inputs)
     {
         return false;
+    }
+
+    namespace bucketize_v3
+    {
+        template <element::Type_t t1, element::Type_t t2>
+        inline void evaluate(const shared_ptr<op::v3::Bucketize>& op,
+                             const HostTensorVector& outputs,
+                             const HostTensorVector& inputs)
+        {
+            using T1 = typename element_type_traits<t1>::value_type;
+            using T2 = typename element_type_traits<t2>::value_type;
+
+            runtime::reference::bucketize<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                                  inputs[1]->get_data_ptr<T1>(),
+                                                  outputs[0]->get_data_ptr<T2>(),
+                                                  op->get_input_shape(0),
+                                                  op->get_input_shape(1),
+                                                  op->get_with_right_bound());
+        }
+    } // namespace bucketize_v3
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        switch (op->get_input_element_type(0))
+        {
+        case element::Type_t::i8:
+            bucketize_v3::evaluate<element::Type_t::i8, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i16:
+            bucketize_v3::evaluate<element::Type_t::i16, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i32:
+            bucketize_v3::evaluate<element::Type_t::i32, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i64:
+            bucketize_v3::evaluate<element::Type_t::i64, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u8:
+            bucketize_v3::evaluate<element::Type_t::u8, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u16:
+            bucketize_v3::evaluate<element::Type_t::u16, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u32:
+            bucketize_v3::evaluate<element::Type_t::u32, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u64:
+            bucketize_v3::evaluate<element::Type_t::u64, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::f16:
+            bucketize_v3::evaluate<element::Type_t::f16, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::f32:
+            bucketize_v3::evaluate<element::Type_t::f32, ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::f64:
+            bucketize_v3::evaluate<element::Type_t::f64, ET>(op, outputs, inputs);
+            break;
+        default: return false;
+        }
+        return true;
     }
 
     template <element::Type_t ET>
