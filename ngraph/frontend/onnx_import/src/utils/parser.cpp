@@ -24,10 +24,32 @@
 
 namespace ngraph
 {
-    namespace
+    namespace onnx_import
     {
-        void parse_from_stream(std::istream& model_stream, ONNX_NAMESPACE::ModelProto& model_proto)
+        void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto)
         {
+            std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
+            if (!file_stream.is_open())
+            {
+                throw ngraph_error("Error during import of ONNX model expected to be in file: " +
+                                   file_path + ". Could not open the file.");
+            };
+
+            parse_from_stream(file_stream, model_proto);
+        }
+
+        void parse_from_istream(std::istream& model_stream, ONNX_NAMESPACE::ModelProto& model_proto)
+        {
+            if (!model_stream.good())
+            {
+                model_stream.clear();
+                model_stream.seekg(0);
+                if (!model_stream.good())
+                {
+                    throw ngraph_error("Provided input stream has incorrect state.");
+                }
+            }
+
             if (!model_proto.ParseFromIstream(&model_stream))
             {
 #ifdef NGRAPH_USE_PROTOBUF_LITE
@@ -48,21 +70,6 @@ namespace ngraph
                 }
 #endif
             }
-        }
-    } // namespace
-
-    namespace onnx_import
-    {
-        void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto)
-        {
-            std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
-            if (!file_stream.is_open())
-            {
-                throw ngraph_error("Error during import of ONNX model expected to be in file: " +
-                                   file_path + ". Could not open the file.");
-            };
-
-            parse_from_stream(file_stream, model_proto);
         }
     } // namespace onnx_import
 } // namespace ngraph

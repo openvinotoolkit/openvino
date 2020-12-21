@@ -17,7 +17,8 @@
 #pragma once
 #include <string>
 
-namespace ONNX_NAMESPACE {
+namespace ONNX_NAMESPACE
+{
     class ModelProto;
 }
 
@@ -29,8 +30,17 @@ namespace ngraph
         /// \brief       Parses an ONNX model from a file located on a storage device.
         ///
         /// \param[in]   file_path    Path to the file containing an ONNX model.
-        /// \param[out]  model_proto  A reference to the object which will be filled with model data
+        /// \param[out]  model_proto  A reference to the object which will be filled with
+        ///                           the model data
         void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto);
+
+        /// \brief       Parses an ONNX model from a stream (representing for example a file)
+        ///
+        /// \param[in]   model_stream  Path to the file containing an ONNX model.
+        /// \param[out]  model_proto   A reference to the object which will be filled with
+        ///                            the model data
+        void parse_from_istream(std::istream& model_stream,
+                                ONNX_NAMESPACE::ModelProto& model_proto);
     } // namespace onnx_import
 
 } // namespace ngraph
