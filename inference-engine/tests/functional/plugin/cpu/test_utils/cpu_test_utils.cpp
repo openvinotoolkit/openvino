@@ -156,12 +156,12 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     CPUInfo cpuInfo;
 
     if (!inFmts.empty()) {
-        cpuInfo.insert({std::string(ngraph::InputMemoryFormatsAttr),
-                        std::make_shared<ngraph::VariantWrapper<ngraph::InputMemoryFormats>>(ngraph::InputMemoryFormats(fmts2str(inFmts)))});
+        cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
+                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts)))});
     }
     if (!outFmts.empty()) {
-        cpuInfo.insert({std::string(ngraph::OutputMemoryFormatsAttr),
-                        std::make_shared<ngraph::VariantWrapper<ngraph::OutputMemoryFormats>>(ngraph::OutputMemoryFormats(fmts2str(outFmts)))});
+        cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
+                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts)))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});

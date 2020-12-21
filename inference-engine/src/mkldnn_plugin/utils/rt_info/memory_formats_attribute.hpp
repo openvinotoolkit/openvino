@@ -12,23 +12,23 @@
 
 namespace ngraph {
 
-constexpr const char *InputMemoryFormatsAttr = "InputMemoryFormats";
-constexpr const char *OutputMemoryFormatsAttr = "OutputMemoryFormats";
+constexpr const char *MLKDNNInputMemoryFormatsAttr = "MLKDNNInputMemoryFormats";
+constexpr const char *MLKDNNOutputMemoryFormatsAttr = "MLKDNNOutputMemoryFormats";
 
-class MemoryFormats {
+class MLKDNNMemoryFormats {
 protected:
     std::string memory_format;
 
 public:
-    MemoryFormats() = default;
-    explicit MemoryFormats(const std::string &_memory_format) : memory_format(_memory_format) {}
+    MLKDNNMemoryFormats() = default;
+    explicit MLKDNNMemoryFormats(const std::string &_memory_format) : memory_format(_memory_format) {}
     std::string getMemoryFormats() const { return memory_format; }
 };
 
 template <typename MemoryFormatsType>
-class MemoryFormatsHelper : public VariantImpl<MemoryFormatsType> {
+class MLKDNNMemoryFormatsHelper : public VariantImpl<MemoryFormatsType> {
 public:
-    MemoryFormatsHelper(const MemoryFormatsType& value) : VariantImpl<MemoryFormatsType>(value) {}
+    MLKDNNMemoryFormatsHelper(const MemoryFormatsType& value) : VariantImpl<MemoryFormatsType>(value) {}
 
     static std::string getMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
         const auto &rtInfo = node->get_rt_info();
@@ -63,42 +63,42 @@ public:
     }
 };
 
-class InputMemoryFormats : public MemoryFormats {
+class MLKDNNInputMemoryFormats : public MLKDNNMemoryFormats {
 public:
-    InputMemoryFormats() = default;
-    explicit InputMemoryFormats(const std::string &_memory_format) : MemoryFormats(_memory_format) {}
+    MLKDNNInputMemoryFormats() = default;
+    explicit MLKDNNInputMemoryFormats(const std::string &_memory_format) : MLKDNNMemoryFormats(_memory_format) {}
 };
 
-extern template class MemoryFormatsHelper<InputMemoryFormats>;
+extern template class MLKDNNMemoryFormatsHelper<MLKDNNInputMemoryFormats>;
 
 template<>
-class VariantWrapper<InputMemoryFormats> : public MemoryFormatsHelper<InputMemoryFormats> {
+class VariantWrapper<MLKDNNInputMemoryFormats> : public MLKDNNMemoryFormatsHelper<MLKDNNInputMemoryFormats> {
 public:
-    static constexpr VariantTypeInfo type_info{InputMemoryFormatsAttr, 0};
+    static constexpr VariantTypeInfo type_info{MLKDNNInputMemoryFormatsAttr, 0};
     const VariantTypeInfo &get_type_info() const override { return type_info; }
 
-    VariantWrapper(const InputMemoryFormats &value) : MemoryFormatsHelper<InputMemoryFormats>(value) {}
+    VariantWrapper(const MLKDNNInputMemoryFormats &value) : MLKDNNMemoryFormatsHelper<MLKDNNInputMemoryFormats>(value) {}
 };
 
-std::string getInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
+std::string getMLKDNNInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
-class OutputMemoryFormats : public MemoryFormats {
+class MLKDNNOutputMemoryFormats : public MLKDNNMemoryFormats {
 public:
-    OutputMemoryFormats() = default;
-    explicit OutputMemoryFormats(const std::string &_memory_format) : MemoryFormats(_memory_format) {}
+    MLKDNNOutputMemoryFormats() = default;
+    explicit MLKDNNOutputMemoryFormats(const std::string &_memory_format) : MLKDNNMemoryFormats(_memory_format) {}
 };
 
-extern template class MemoryFormatsHelper<OutputMemoryFormats>;
+extern template class MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats>;
 
 template<>
-class VariantWrapper<OutputMemoryFormats> : public MemoryFormatsHelper<OutputMemoryFormats> {
+class VariantWrapper<MLKDNNOutputMemoryFormats> : public MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats> {
 public:
-    static constexpr VariantTypeInfo type_info{OutputMemoryFormatsAttr, 0};
+    static constexpr VariantTypeInfo type_info{MLKDNNOutputMemoryFormatsAttr, 0};
     const VariantTypeInfo &get_type_info() const override { return type_info; }
 
-    VariantWrapper(const OutputMemoryFormats &value) : MemoryFormatsHelper<OutputMemoryFormats>(value) {}
+    VariantWrapper(const MLKDNNOutputMemoryFormats &value) : MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats>(value) {}
 };
 
-std::string getOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
+std::string getMLKDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
 }  // namespace ngraph

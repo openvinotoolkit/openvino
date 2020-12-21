@@ -194,7 +194,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
 
     auto ngraphNode = layer->getNode();
     if (ngraphNode != nullptr) {
-        std::string inputMemoryFormats = ngraph::getInputMemoryFormats(ngraphNode);
+        std::string inputMemoryFormats = ngraph::getMLKDNNInputMemoryFormats(ngraphNode);
         if (!inputMemoryFormats.empty()) {
             std::istringstream stream(inputMemoryFormats);
             std::string str;
@@ -205,7 +205,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
             }
         }
 
-        std::string outputMemoryFormats = ngraph::getOutputMemoryFormats(ngraphNode);
+        std::string outputMemoryFormats = ngraph::getMLKDNNOutputMemoryFormats(ngraphNode);
         if (!outputMemoryFormats.empty()) {
             std::istringstream stream(outputMemoryFormats);
             std::string str;
