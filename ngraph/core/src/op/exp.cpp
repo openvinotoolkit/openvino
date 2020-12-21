@@ -61,20 +61,13 @@ namespace expop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_exp, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_exp, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -83,6 +76,8 @@ namespace expop
 
 bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Exp::evaluate");
-    return expop::evaluate_exp(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v0_Exp_evaluate,
+        return expop::evaluate_exp(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }
