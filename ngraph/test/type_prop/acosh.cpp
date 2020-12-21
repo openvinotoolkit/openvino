@@ -14,13 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "unary_base.cpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "unary_base.cpp"
 
 TEST(type_prop, acosh_basic_shape_inference)
 {
-    
     BasicShapeInference<op::Acosh>(element::f32, Shape{2, 2});
 }
 
