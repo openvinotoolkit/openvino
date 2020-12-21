@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 
         OutputsDataMap outputs_info(network.getOutputsInfo());
         InputsDataMap inputs_info(network.getInputsInfo());
-        if (inputs_info.size() != 1 && outputs_info.size() != 1)
+        if (inputs_info.size() != 1 || outputs_info.size() != 1)
             throw std::logic_error("Sample supports clean SSD network with one input and one output");
 
         // --------------------------- Resize network to match image sizes and given batch----------------------
