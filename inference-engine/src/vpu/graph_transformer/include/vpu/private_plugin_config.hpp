@@ -44,6 +44,13 @@ DECLARE_VPU_CONFIG(MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION);
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
 
+/**
+ * @brief Used to enable reshapeBeforeConvTiling pass in cases where
+ * user have reshape parameter "alt_width" in IR.
+ * Default is "NO".
+ */
+DECLARE_VPU_CONFIG(MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM);
+
 //
 // Debug options
 //
