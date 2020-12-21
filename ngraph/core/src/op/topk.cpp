@@ -449,8 +449,8 @@ void op::v1::TopK::set_k(size_t k)
         op::Constant::create(element::i64, Shape{}, {k})->output(0));
 }
 
-bool op::v1::TopK::evaluatetopk(const HostTensorVector& outputs,
-                                const HostTensorVector& inputs) const
+bool op::v1::TopK::evaluate_topk(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
