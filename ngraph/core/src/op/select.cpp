@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/convert.hpp"
@@ -133,30 +134,18 @@ namespace detail
 
         switch (et)
         {
-            TYPE_CASE(i8)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(i64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u8)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(u64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(bf16)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(f32)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(f64)(output_values, input_values, autob);
-            break;
-            TYPE_CASE(boolean)(output_values, input_values, autob);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_select, i8, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, i64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u8, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
         default: rc = false; break;
         }
 
@@ -167,7 +156,9 @@ namespace detail
 bool op::v1::Select::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
-    const auto autob = get_auto_broadcast();
+    NGRAPH_OP_SCOPE(v1_Select_evaluate, const auto autob = get_auto_broadcast();
 
-    return detail::evaluate_select(output_values, input_values, autob, get_output_element_type(0));
+                    return detail::evaluate_select(
+                        output_values, input_values, autob, get_output_element_type(0)));
+    return false;
 }

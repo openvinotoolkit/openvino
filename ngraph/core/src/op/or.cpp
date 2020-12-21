@@ -66,20 +66,13 @@ namespace logor
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_logor, boolean, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_logor, i32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_logor, i64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_logor, u32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_logor, u64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_logor, f16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_logor, f32, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
@@ -89,6 +82,7 @@ namespace logor
 bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalOr::evaluate");
-    return logor::evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
+    NGRAPH_OP_SCOPE(v1_LogicalOr_evaluate,
+                    return logor::evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob()));
+    return false;
 }

@@ -204,20 +204,13 @@ namespace gather
 
         switch (out->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(boolean)(arg0, arg1, out, axis);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis);
         default: rc = false; break;
         }
         return rc;
@@ -290,9 +283,9 @@ namespace gather
     }
 } // namespace gather
 
-bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
+                                     const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Gather::evaluate");
     int64_t axis = 0;
     switch (inputs[2]->get_element_type())
     {
@@ -316,6 +309,12 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
         }
     }
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+}
+
+bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_Gather_evaluate, return evaluate_gather(outputs, inputs));
+    return false;
 }
 
 bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)
