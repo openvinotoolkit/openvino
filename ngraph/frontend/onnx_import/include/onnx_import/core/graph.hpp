@@ -67,10 +67,10 @@ namespace ngraph
 
         protected:
             ParameterVector m_parameters;
+            std::unique_ptr<GraphCache> m_cache;
 
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;
-            std::unique_ptr<GraphCache> m_cache;
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
@@ -91,6 +91,13 @@ namespace ngraph
             Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
                      Model& model,
                      const Graph& parent_graph);
+
+            /// \brief      Return outputs which are on the edge the subgraph and the parent graph.
+            /// \return     Vector of edge nodes from parent scope.
+            const std::vector<Output<ngraph::Node>> get_outputs_from_parent() const;
+
+        private:
+            std::vector<Output<ngraph::Node>> m_outputs_from_parent;
         };
 
         inline std::ostream& operator<<(std::ostream& outs, const Graph& graph)
