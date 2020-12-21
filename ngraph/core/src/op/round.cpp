@@ -58,30 +58,18 @@ namespace roundop
 
         switch (arg0->get_element_type())
         {
-            COPY_TENSOR(boolean)(arg0, out, count);
-            break;
-            COPY_TENSOR(i8)(arg0, out, count);
-            break;
-            COPY_TENSOR(i16)(arg0, out, count);
-            break;
-            COPY_TENSOR(i32)(arg0, out, count);
-            break;
-            COPY_TENSOR(i64)(arg0, out, count);
-            break;
-            COPY_TENSOR(u8)(arg0, out, count);
-            break;
-            COPY_TENSOR(u16)(arg0, out, count);
-            break;
-            COPY_TENSOR(u32)(arg0, out, count);
-            break;
-            COPY_TENSOR(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count, mode);
-            break;
-            TYPE_CASE(f32)(arg0, out, count, mode);
-            break;
-            TYPE_CASE(bf16)(arg0, out, count, mode);
-            break;
+            NGRAPH_COPY_TENSOR(evaluate_round, boolean, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_round, i8, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_round, i16, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_round, i32, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_round, i64, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_round, u8, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_round, u16, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_round, u32, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_round, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_round, f16, arg0, out, count, mode);
+            NGRAPH_TYPE_CASE(evaluate_round, f32, arg0, out, count, mode);
+            NGRAPH_TYPE_CASE(evaluate_round, bf16, arg0, out, count, mode);
         default: rc = false; break;
         }
         return rc;
@@ -117,9 +105,10 @@ shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Round::evaluate");
-    return roundop::evaluate_round(
-        inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
+    NGRAPH_OP_SCOPE(v5_Round_evaluate,
+                    return roundop::evaluate_round(
+                        inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode()));
+    return false;
 }
 
 namespace ngraph
