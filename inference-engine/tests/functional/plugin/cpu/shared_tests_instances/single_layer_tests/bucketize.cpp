@@ -11,14 +11,14 @@ using namespace LayerTestsDefinitions;
 
 const std::vector<std::vector<size_t>> dataShapes = {
     {20},
-    {2, 2, 10},
+    {1, 5, 10},
     {2, 3, 52, 52}
 };
 
 const std::vector<std::vector<size_t>> bucketsShapes = {
-    {3},
     {5},
-    {10}
+    {20},
+    {100}
 };
 
 const std::vector<InferenceEngine::Precision> inPrc = {

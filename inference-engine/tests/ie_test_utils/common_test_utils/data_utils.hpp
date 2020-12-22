@@ -184,6 +184,39 @@ void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t r
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
+void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr& blob,
+                                        uint32_t range,
+                                        int32_t start_from = 0,
+                                        const int32_t k = 1,
+                                        const int seed = 1) {
+    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
+
+    if (start_from < 0 && !std::is_signed<dataType>::value) {
+        start_from = 0;
+    }
+
+    if (range < blob->size()) {
+        range = blob->size() * 2;
+    }
+
+    std::mt19937 generator{seed};
+    std::uniform_int_distribution<int32_t> dist(k * start_from, k * (start_from + range));
+
+    std::set<dataType> elems;
+    while (elems.size() != blob->size()) {
+        auto value = static_cast<float>(dist(generator));
+        value /= static_cast<float>(k);
+        if (PRC == InferenceEngine::Precision::FP16) {
+            elems.insert(ngraph::float16(value).to_bits());
+        } else {
+            elems.insert(static_cast<dataType>(value));
+        }
+    }
+    std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
+}
+
+template<InferenceEngine::Precision::ePrecision PRC>
 void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
