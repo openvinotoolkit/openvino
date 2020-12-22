@@ -37,7 +37,10 @@ protected:
         const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
         const auto inputSubgraph1 = createInputSubgraphWithDSR(inDataType, inDataShapes.rhs);
 
-        const auto eltwise = ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, inputSubgraph1});
+        const auto eltwise = eltwiseType == ngraph::opset5::Select::type_info ?
+            ngraph::helpers::getNodeSharedPtr(eltwiseType, {createInputSubgraphWithDSR(
+                ngraph::element::boolean, inDataShapes.lhs), inputSubgraph0, inputSubgraph1}) :
+            ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, inputSubgraph1});
 
         return eltwise;
     }
@@ -56,7 +59,10 @@ protected:
         const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
         const auto input1 = createParameter(inDataType, inDataShapes.rhs.shape);
 
-        const auto eltwise = ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, input1});
+        const auto eltwise = eltwiseType == ngraph::opset5::Select::type_info ?
+            ngraph::helpers::getNodeSharedPtr(eltwiseType, {createParameter(
+                ngraph::element::boolean, inDataShapes.rhs.shape), inputSubgraph0, input1}) :
+            ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, input1});
 
         return eltwise;
     }
@@ -70,6 +76,7 @@ static const std::vector<ngraph::NodeTypeInfo> binaryEltwiseTypeVector = {
         ngraph::opset3::Equal::type_info,
         ngraph::opset3::Greater::type_info,
         ngraph::opset3::Power::type_info,
+        ngraph::opset5::Select::type_info,
 };
 
 static const std::set<ngraph::NodeTypeInfo> doNotSupportI32 = {

@@ -48,7 +48,7 @@ class Pooling(Op):
             ('exclude-pad', 'exclude_pad'),
 
             'rounding_type',
-            'auto_pad',
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
         ]
 
     @staticmethod
@@ -80,7 +80,7 @@ class Pooling(Op):
         stride_spatial = node.stride[node.spatial_dims]
         assert any(stride_spatial), 'Stride can not be zero in node {}'.format(node.id)
 
-        if node.has_valid('auto_pad'):
+        if node.has_valid('auto_pad') and node.auto_pad != 'explicit':
             node.pad_spatial_shape, node.output_spatial_shape = tf_window_op_pad_infer(input_spatial_shape,
                                                                                        window_spatial_shape,
                                                                                        stride_spatial, node.auto_pad)

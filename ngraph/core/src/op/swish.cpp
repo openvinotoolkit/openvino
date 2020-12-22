@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/swish.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 
@@ -107,20 +108,18 @@ namespace swish
         return true;
     }
 
-    bool evaluate_swish(const HostTensorPtr& arg0,
-                        const HostTensorPtr& arg1,
-                        const HostTensorPtr& out,
-                        const size_t count)
+    bool
+        evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out, const size_t count)
     {
         bool rc = true;
+        const HostTensorPtr arg0 = inputs[0];
+        const HostTensorPtr arg1 = inputs.size() == 2 ? inputs[1] : nullptr;
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(f16)(arg0, arg1, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_swish, f16, arg0, arg1, out, count);
+            NGRAPH_TYPE_CASE(evaluate_swish, f32, arg0, arg1, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -129,14 +128,8 @@ namespace swish
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    if (inputs.size() == 2)
-    {
-        return swish::evaluate_swish(
-            inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
-    }
-    else
-    {
-        return swish::evaluate_swish(
-            inputs[0], nullptr, outputs[0], shape_size(get_output_shape(0)));
-    }
+    NGRAPH_OP_SCOPE(
+        v4_Swish_evaluate,
+        return swish::evaluate_swish(inputs, outputs[0], shape_size(get_output_shape(0))););
+    return false;
 }
