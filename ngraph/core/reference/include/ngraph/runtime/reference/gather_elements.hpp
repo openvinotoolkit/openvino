@@ -61,7 +61,6 @@ namespace ngraph
                     return;
                 }
 
-
                 int64_t axis_mul = 1; // axis_mul = M*N*K in 3D case if axis = 0
                 for (int64_t i = axis + 1; i < data_shape.size(); i++)
                 {
