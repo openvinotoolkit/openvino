@@ -57,7 +57,7 @@ namespace ngraph
 
                 void validate_and_infer_types() override;
 
-                virtual std::shared_ptr<Node>
+                std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const Attributes& get_attrs() const { return m_attrs; }
