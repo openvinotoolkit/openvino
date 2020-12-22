@@ -71,6 +71,6 @@ namespace acoshop
 bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     bool rc = false;
-    NGRAPH_OP_SCOPE(v3_Acosh_evaluate, rc = acoshop::evaluate_acosh(inputs[0], outputs[0]));
+    NGRAPH_OP_SCOPE(v3_Acosh_evaluate) { rc = acoshop::evaluate_acosh(inputs[0], outputs[0]); }
     return rc;
 }
