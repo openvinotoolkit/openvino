@@ -74,8 +74,9 @@ namespace absop
 bool op::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     bool rc = false;
-    NGRAPH_OP_SCOPE(
-        v0_Abs_evaluate,
-        rc = absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    NGRAPH_OP_SCOPE(v0_Abs_evaluate)
+    {
+        rc = absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    }
     return rc;
 }

@@ -118,10 +118,13 @@ namespace nonzero
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_nonzero_out, _, a),                                    \
-                        rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__)); \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_nonzero_out, _, a))                                    \
+        {                                                                                          \
+            rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);              \
+        }                                                                                          \
     }                                                                                              \
-    break;
+    break
+
     template <element::Type_t INPUT_ET>
     bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output)
     {
@@ -158,6 +161,9 @@ namespace nonzero
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_NonZero_evaluate, return nonzero::evaluate_nonzero(inputs[0], outputs[0]));
+    NGRAPH_OP_SCOPE(v3_NonZero_evaluate)
+    {
+        return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
+    }
     return false;
 }
