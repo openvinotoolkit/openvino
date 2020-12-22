@@ -81,6 +81,5 @@ namespace ngraph
                 Attributes m_attrs;
             };
         } // namespace v6
-        using v6::ExperimentalDetectronDetectionOutput;
     } // namespace op
 } // namespace ngraph

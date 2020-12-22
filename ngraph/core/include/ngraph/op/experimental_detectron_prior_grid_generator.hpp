@@ -67,6 +67,5 @@ namespace ngraph
                 void validate();
             };
         } // namespace v6
-        using v6::ExperimentalDetectronPriorGridGenerator;
     } // namespace op
 } // namespace ngraph
