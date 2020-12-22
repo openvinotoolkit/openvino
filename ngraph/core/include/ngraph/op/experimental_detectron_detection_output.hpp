@@ -47,7 +47,7 @@ namespace ngraph
                     // specifies maximal number of detections per class
                     int post_nms_count;
                     // specifies maximual number of detections per image
-                    int max_detections_per_image;
+                    uint64_t max_detections_per_image;
                     // a flag specifies whether to delete background classes or not
                     // `true`  means background classes should be deleted,
                     // `false` means background classes shouldn't be deleted.
@@ -80,6 +80,6 @@ namespace ngraph
             private:
                 Attributes m_attrs;
             };
-        } // namespace v6
-    } // namespace op
-} // namespace ngraph
+        }
+    }
+}

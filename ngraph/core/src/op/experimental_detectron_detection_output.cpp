@@ -39,7 +39,7 @@ ExperimentalDetection::ExperimentalDetectronDetectionOutput(const Output<Node>& 
     constructor_validate_and_infer_types();
 }
 
-bool op::ExperimentalDetectronDetectionOutput::visit_attributes(AttributeVisitor& visitor)
+bool ExperimentalDetection::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("score_threshold", m_attrs.score_threshold);
     visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
@@ -52,9 +52,9 @@ bool op::ExperimentalDetectronDetectionOutput::visit_attributes(AttributeVisitor
     return true;
 }
 
-void op::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
+void ExperimentalDetection::validate_and_infer_types()
 {
-    size_t rois_num = static_cast<size_t>(m_attrs.max_detections_per_image);
+    uint64_t rois_num = m_attrs.max_detections_per_image;
     auto input_et = get_input_element_type(0);
 
     set_output_type(0, input_et, Shape{rois_num, 4});

@@ -38,7 +38,7 @@ GridGenerator::ExperimentalDetectronPriorGridGenerator(const Output<Node>& prior
     constructor_validate_and_infer_types();
 }
 
-bool op::ExperimentalDetectronPriorGridGenerator::visit_attributes(AttributeVisitor& visitor)
+bool GridGenerator::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("flatten", m_attrs.flatten);
     visitor.on_attribute("h", m_attrs.h);
@@ -60,7 +60,7 @@ static constexpr size_t priors_port = 0;
 static constexpr size_t featmap_port = 1;
 static constexpr size_t im_data_port = 2;
 
-void op::ExperimentalDetectronPriorGridGenerator::validate()
+void op::v6::ExperimentalDetectronPriorGridGenerator::validate()
 {
     auto priors_shape = get_input_partial_shape(priors_port);
     auto featmap_shape = get_input_partial_shape(featmap_port);
@@ -101,7 +101,7 @@ void op::ExperimentalDetectronPriorGridGenerator::validate()
                           num_batches_im_data);
 }
 
-void op::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
+void GridGenerator::validate_and_infer_types()
 {
     auto priors_shape = get_input_partial_shape(priors_port);
     auto featmap_shape = get_input_partial_shape(featmap_port);
