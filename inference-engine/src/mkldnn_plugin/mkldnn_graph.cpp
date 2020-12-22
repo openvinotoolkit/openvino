@@ -23,6 +23,7 @@
 #include "mkldnn_infer_request.h"
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_reorder_node.h>
+#include <nodes/mkldnn_convert_node.h>
 
 #include <legacy/graph_tools.hpp>
 #include <ie_algorithm.hpp>
@@ -457,6 +458,20 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
     }
 }
 
+static bool isReorderAvailable(const TensorDesc& parentDesc, const TensorDesc& childDesc, const mkldnn::engine& eng) {
+    memory::primitive_desc dstPrimitiveDesc(MKLDNNMemoryDesc(childDesc), eng);
+    memory::primitive_desc srcPrimitiveDesc(MKLDNNMemoryDesc(parentDesc), eng);
+    mkldnn::primitive_attr attr;
+
+    mkldnn_primitive_desc_t result = nullptr;
+    auto status = mkldnn_reorder_primitive_desc_create_v2(&result, srcPrimitiveDesc.get(), dstPrimitiveDesc.get(), attr.get());
+    if (result) {
+        mkldnn_primitive_desc_destroy(result);
+    }
+
+    return mkldnn_success == status;
+}
+
 void MKLDNNGraph::InitEdges() {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::InitEdges");
 
@@ -470,18 +485,42 @@ void MKLDNNGraph::InitEdges() {
     for (auto i = 0; i < numberOfEdges; i++) {
         if (graphEdges[i]->needReorder()) {
 #if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
-            auto &edge = graphEdges[i];
-            std::string basicLayerName = edge->getParent()->getName() + "_" +
-                    MKLDNNExtensionUtils::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
-                    edge->getChild()->getName();
-            std::string layerName = basicLayerName;
-            int idx = 0;
-            while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
-                idx++;
-                layerName = basicLayerName + "_" + std::to_string(idx);
+            auto edge = graphEdges[i];
+            bool insertReorder = true;
+
+            // Check if there is a reorder that supports the type conversion
+            if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
+                !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
+                //If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
+                std::string convertName = edge->getParent()->getName() + "_" +
+                                          edge->getInputDesc().getPrecision().name() + "_" + edge->getOutputDesc().getPrecision().name();
+
+                CNNLayerPtr convert(new CNNLayer(LayerParams{convertName, "Convert", edge->getInputDesc().getPrecision()}));
+                auto convertNode = std::make_shared<MKLDNNConvertNode>(convert, this->getEngine(), this->weightsCache);
+                convertNode->setDescs(edge->getInputDesc(), edge->getOutputDesc());
+                InsertNode(edge, convertNode, true);
+
+                //Check if reorder is still needed
+                if (convertNode->getChildEdgeAt(0)->needReorder()) {
+                    edge = convertNode->getChildEdgeAt(0);
+                } else {
+                    insertReorder = false;
+                }
             }
-            uniqueLayerNames.insert(layerName);
-            InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc());
+
+            if (insertReorder) {
+                std::string basicLayerName = edge->getParent()->getName() + "_" +
+                                             MKLDNNExtensionUtils::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                                             edge->getChild()->getName();
+                std::string layerName = basicLayerName;
+                int idx = 0;
+                while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+                    idx++;
+                    layerName = basicLayerName + "_" + std::to_string(idx);
+                }
+                uniqueLayerNames.insert(layerName);
+                InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc());
+            }
             graphEdges.erase(graphEdges.begin() + i);
             i--;
             numberOfEdges--;
@@ -1097,7 +1136,7 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
     reorderPtr->_scales = scales;
     reorderPtr->setOptimized(isOptimized);
 
-    InsertNode(edge, newReorder);
+    InsertNode(edge, newReorder, true);
 
     // Using the method MKLDNNEdge::getDesc() we can check that input and output tensor descriptors are equal.
     // Due to the specificity of MKLDNNGraphOptimizer::MergePermuteAndReorder() that isOptimized flag uses, we shouldn't do these checks.
@@ -1209,7 +1248,7 @@ InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 
-bool MKLDNNGraph::InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node) {
+bool MKLDNNGraph::InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node, bool initNode) {
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
     if (iIndex < 0 || oIndex < 0)
@@ -1219,12 +1258,10 @@ bool MKLDNNGraph::InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node) {
 
     edge->drop();
 
-    return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex);
+    return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }
 
-bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort) {
-    bool isOk = true;
-
+bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode) {
     MKLDNNEdgePtr beforeNode(new MKLDNNEdge(parent, node, parentPort, 0));
     MKLDNNEdgePtr afterNode(new MKLDNNEdge(node, child, 0, childPort));
 
@@ -1236,14 +1273,16 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
     afterNode->getParent()->childEdges.push_back(afterNode);
     child->parentEdges.push_back(afterNode);
 
-    node->getSupportedDescriptors();
-    node->initSupportedPrimitiveDescriptors();
-    node->filterSupportedPrimitiveDescriptors();
-    node->selectOptimalPrimitiveDescriptor();
-    node->initOptimalPrimitiveDescriptor();
+    if (initNode) {
+        node->getSupportedDescriptors();
+        node->initSupportedPrimitiveDescriptors();
+        node->filterSupportedPrimitiveDescriptors();
+        node->selectOptimalPrimitiveDescriptor();
+        node->initOptimalPrimitiveDescriptor();
+    }
 
     graphEdges.push_back(beforeNode);
     graphEdges.push_back(afterNode);
     graphNodes.push_back(node);
-    return isOk;
+    return true;
 }
