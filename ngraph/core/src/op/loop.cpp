@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/loop.hpp"
+#include <validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
@@ -184,18 +185,19 @@ void op::v5::Loop::validate_and_infer_types()
         {
             auto body_parameter =
                 m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            if (input_partial_shape.is_static())
+            const auto& input_partial_shape =
+                inputs().at(index).get_source_output().get_partial_shape();
+            if (input_partial_shape.rank().is_dynamic())
             {
-                // infer type for m_body_parameter
-                Shape out_shape{input_partial_shape.to_shape()};
-                out_shape[slice_input_description->m_axis] = slice_input_description->m_part_size;
-                body_parameter->set_partial_shape(out_shape);
+                body_parameter->set_partial_shape(PartialShape::dynamic());
             }
             else
             {
-                body_parameter->set_partial_shape(
-                    PartialShape::dynamic(input_partial_shape.rank()));
+                auto out_shape = input_partial_shape;
+                const auto axis = ngraph::normalize_axis(
+                    this, slice_input_description->m_axis, input_partial_shape.rank());
+                out_shape[axis] = slice_input_description->m_part_size;
+                body_parameter->set_partial_shape(out_shape);
             }
         }
         else if (auto merged_input_description =
@@ -247,47 +249,31 @@ void op::v5::Loop::validate_and_infer_types()
                 as_type_ptr<TensorIterator::ConcatOutputDescription>(output_description))
         {
             const auto& body_value_partial_shape = body_value.get_partial_shape();
-            if (body_value_partial_shape.rank().is_dynamic())
+            auto out_shape = body_value_partial_shape;
+            if (zero_number_of_iter)
             {
-                set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
+                out_shape = PartialShape{0};
             }
-            else
+            else if (out_shape.rank().is_static())
             {
-                auto axis = concat_output_description->m_axis;
-
-                NODE_VALIDATION_CHECK(this,
-                                      axis < body_value_partial_shape.rank().get_length(),
-                                      "Concatenation axis must be less than sliced output rank");
-
-                PartialShape out_shape{body_value_partial_shape};
-
-                if (body_value_partial_shape.is_static() &&
-                    ngraph::is_scalar(body_value_partial_shape.to_shape()))
+                const auto axis = ngraph::normalize_axis(
+                    this, concat_output_description->m_axis, out_shape.rank());
+                const auto rank = out_shape.rank().get_length();
+                if (rank == 0)
                 {
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        axis == 0,
-                        "Axis must be equal to 0 if concatenated output tensor slices are scalars. "
-                        "Loop output index: ",
-                        index);
-                    out_shape = Shape(1);
+                    out_shape = PartialShape{1};
                 }
 
-                if (m_num_iterations != -1 && body_value_partial_shape[axis].is_static())
+                if (out_shape[axis].is_static() && m_num_iterations != -1)
                 {
-                    out_shape[axis] =
-                        m_num_iterations * body_value_partial_shape[axis].get_length();
-                    if (zero_number_of_iter)
-                    {
-                        out_shape[0] = 0;
-                    }
+                    out_shape[axis] = Dimension{out_shape[axis].get_length() * m_num_iterations};
                 }
                 else
                 {
                     out_shape[axis] = Dimension::dynamic();
                 }
-                set_output_type(index, body_value.get_element_type(), out_shape);
             }
+            set_output_type(index, body_value.get_element_type(), out_shape);
         }
 
         else if (auto body_output_description =
