@@ -43,9 +43,9 @@ target_include_directories(${TARGET_NAME} PRIVATE ${NGRAPH_INCLUDE_PATH}
                                                   ${BUILDER_INCLUDE_DIR}/ngraph/
                                                   ${BUILDER_INCLUDE_DIR}/ngraph/builder)
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::builder ALIAS ${TARGET_NAME})
 
 # developer package
 
-openvino_developer_export_targets(ngraph::builder)
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::builder)
