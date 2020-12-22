@@ -82,7 +82,8 @@ namespace acosop
 bool op::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     bool rc = false;
-    NGRAPH_OP_SCOPE(v0_Acos_evaluate) {
+    NGRAPH_OP_SCOPE(v0_Acos_evaluate)
+    {
         rc = acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
     return rc;

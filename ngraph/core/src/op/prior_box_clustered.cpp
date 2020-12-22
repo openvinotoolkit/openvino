@@ -165,7 +165,8 @@ namespace prior_box_clustered
 bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_PriorBoxClustered_evaluate) {
+    NGRAPH_OP_SCOPE(v0_PriorBoxClustered_evaluate)
+    {
         // Todo (itikhono): enable the use of the reference implementation after
         // supporting constants as
         // outputs in plugins

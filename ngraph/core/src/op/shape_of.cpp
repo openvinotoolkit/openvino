@@ -154,7 +154,8 @@ namespace shape_of
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate) return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
+    NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate)
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
     return false;
 }
 
@@ -203,7 +204,8 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate) {
+    NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate)
+    {
         return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
     }
     return false;

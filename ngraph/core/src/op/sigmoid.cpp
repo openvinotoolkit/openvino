@@ -72,7 +72,8 @@ namespace sigmoid
 
 bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate) {
+    NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate)
+    {
         return sigmoid::evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
     return false;

@@ -318,7 +318,8 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate) {
+    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate)
+    {
         return op::util::BroadcastBase::evaluate(outputs, inputs);
     }
     return false;

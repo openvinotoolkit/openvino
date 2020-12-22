@@ -76,7 +76,8 @@ namespace logop
 
 bool op::Log::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Log_evaluate) {
+    NGRAPH_OP_SCOPE(v0_Log_evaluate)
+    {
         return logop::evaluate_log(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
     return false;

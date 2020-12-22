@@ -82,7 +82,8 @@ namespace floor_mod
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_FloorMod_evaluate) {
+    NGRAPH_OP_SCOPE(v1_FloorMod_evaluate)
+    {
         return floor_mod::evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
     }
     return false;

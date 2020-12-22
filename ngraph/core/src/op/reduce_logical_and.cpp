@@ -75,7 +75,8 @@ namespace
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
                                         const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_evaluate) { 
+    NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_evaluate)
+    {
         const auto& data = inputs[0];
         const auto& axes = inputs[1];
         const auto& out = outputs[0];

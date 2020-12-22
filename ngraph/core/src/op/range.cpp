@@ -300,13 +300,14 @@ namespace rangeop
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_Range_evaluate) {
+    NGRAPH_OP_SCOPE(v4_Range_evaluate)
+    {
         HostTensorPtr out = outputs[0];
         HostTensorPtr start = inputs[0];
         HostTensorPtr stop = inputs[1];
         HostTensorPtr step = inputs[2];
         return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
-    } 
+    }
     return false;
 }
 
@@ -498,7 +499,8 @@ void positive_range(T start_val, T stop_val, T step_val)
 
 bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(op_v0_Range_evaluate) {
+    NGRAPH_OP_SCOPE(op_v0_Range_evaluate)
+    {
         HostTensorPtr out = outputs[0];
         HostTensorPtr start = inputs[0];
         HostTensorPtr stop = inputs[1];

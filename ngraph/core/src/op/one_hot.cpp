@@ -208,6 +208,7 @@ namespace detail
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_OneHot_evaluate) return detail::evaluate_onehot(output_values, input_values, get_axis());
+    NGRAPH_OP_SCOPE(v1_OneHot_evaluate)
+    return detail::evaluate_onehot(output_values, input_values, get_axis());
     return false;
 }

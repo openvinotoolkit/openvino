@@ -192,7 +192,8 @@ namespace prior_box
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_PriorBox_evaluate) {
+    NGRAPH_OP_SCOPE(v0_PriorBox_evaluate)
+    {
         // Todo (itikhono): enable the use of the reference implementation after
         // supporting constants as
         // outputs in plugins

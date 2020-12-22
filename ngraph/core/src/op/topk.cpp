@@ -455,7 +455,7 @@ void op::v1::TopK::set_k(size_t k)
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_TopK_evaluate) 
+    NGRAPH_OP_SCOPE(v1_TopK_evaluate)
     {
         Shape arg_shape = inputs[0]->get_shape();
         // 1. get axis, mode ( max/min), sort_type

@@ -119,6 +119,7 @@ namespace convert
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v0_Convert_evaluate) return convert::evaluate_convert(input_values[0], output_values[0]);
+    NGRAPH_OP_SCOPE(v0_Convert_evaluate)
+    return convert::evaluate_convert(input_values[0], output_values[0]);
     return false;
 }
