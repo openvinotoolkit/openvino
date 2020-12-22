@@ -16,7 +16,6 @@
 
 from mo.front.caffe.extractors.batchnorm import batch_norm_ext
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
-from mo.front.caffe.extractors.scale import scale_ext
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.register_custom_ops import extension_op_extractor
 from mo.front.extractor import CaffePythonFrontExtractorOp
@@ -40,9 +39,6 @@ caffe_type_extractors = {
 
     # Normalization Layers
     'batchnorm': node_pb_arg(batch_norm_ext),
-
-    # Activation Layers
-    'scale': node_pb_arg(scale_ext),
 }
 
 
