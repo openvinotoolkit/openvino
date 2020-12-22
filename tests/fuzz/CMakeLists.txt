@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
-set(CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package" ${CMAKE_MODULE_PATH})
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
@@ -16,7 +16,7 @@ if (NOT TARGET IE::inference_engine)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
 endif()
 
-include(sanitizer)
+include(compile_flags/sanitizer)
 include(fuzzing)
 
 if (NOT ENABLE_FUZZING)

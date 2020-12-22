@@ -22,6 +22,7 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
         DEVELOPER_PACKAGE
+            inference_engine_tests
         INCLUDES
             PUBLIC
                 ${PUBLIC_HEADERS_DIR}
