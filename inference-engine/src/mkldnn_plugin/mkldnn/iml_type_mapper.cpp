@@ -17,12 +17,15 @@ impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
 
 #define SEARCH_WORD(_wrd) if (impl_desc_name.find(#_wrd) != std::string::npos) \
     res = static_cast<impl_desc_type>(res | impl_desc_type::_wrd);
+#define SEARCH_WORD_2(_wrd, _key) if (impl_desc_name.find(#_wrd) != std::string::npos) \
+    res = static_cast<impl_desc_type>(res | impl_desc_type::_key);
 
     SEARCH_WORD(ref);
     SEARCH_WORD(jit);
     SEARCH_WORD(gemm);
     SEARCH_WORD(blas);
     SEARCH_WORD(sse42);
+    SEARCH_WORD_2(sse41, sse42);
     SEARCH_WORD(avx2);
     SEARCH_WORD(avx512);
     SEARCH_WORD(any);
@@ -32,20 +35,18 @@ impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(avx);
-    if ((res & impl_desc_type::avx) != impl_desc_type::avx &&
+    if ((res & impl_desc_type::sse42) != impl_desc_type::sse42 &&
+        (res & impl_desc_type::avx) != impl_desc_type::avx &&
         (res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(uni);
-#undef SEARCH_WORD
-
-#define SEARCH_WORD_2(_wrd, _key) if (impl_desc_name.find(#_wrd) != std::string::npos) \
-    res = static_cast<impl_desc_type>(res | impl_desc_type::_key);
 
     SEARCH_WORD_2(nchw, ref);
-    SEARCH_WORD_2(sse41, sse42);
     SEARCH_WORD_2(ncdhw, ref);
     SEARCH_WORD_2(wino, winograd);
+
 #undef SEARCH_WORD_2
+#undef SEARCH_WORD
 
     return res;
 }
