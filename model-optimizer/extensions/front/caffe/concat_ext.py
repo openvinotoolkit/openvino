@@ -17,7 +17,8 @@
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.concat import Concat
-    
+
+
 class ConcatFrontExtractor(FrontExtractorOp):
     op = 'concat'
     enabled = True

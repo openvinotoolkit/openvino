@@ -14,15 +14,23 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.roipooling import roipooling_infer
+from mo.front.ops.roipooling import ROIPooling
 
+from mo.front.extractor import FrontExtractorOp
+  
+  
+class ROIPoolingFrontExtractor(FrontExtractorOp):
+    op = 'roipooling'
+    enabled = True
 
-def roipooling_ext(proto_layer, model_layer):
-    param = proto_layer.roi_pooling_param
-    return {
-        'type': 'ROIPooling',
-        'pooled_h': param.pooled_h,
-        'pooled_w': param.pooled_w,
-        'spatial_scale': param.spatial_scale,
-        'infer': roipooling_infer
-    }
+    @classmethod
+    def extract(cls, node):
+        param = node.pb.roi_pooling_param
+        attrs =  {
+            'pooled_h': param.pooled_h,
+            'pooled_w': param.pooled_w,
+            'spatial_scale': param.spatial_scale,
+        }
+        
+        ROIPooling.update_node_stat(node, attrs)
+        return cls.enabled
