@@ -166,7 +166,7 @@ namespace detail
             rc = evaluate<IT, OT>(__VA_ARGS__);                                                    \
         }                                                                                          \
     }                                                                                              \
-    break;
+    break
 
     template <element::Type_t out_t>
     bool evaluate(const HostTensorVector& output_values,
@@ -208,7 +208,8 @@ namespace detail
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_OneHot_evaluate) {
+    NGRAPH_OP_SCOPE(v1_OneHot_evaluate)
+    {
         return detail::evaluate_onehot(output_values, input_values, get_axis());
     }
     return false;

@@ -161,7 +161,8 @@ namespace nonzero
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_NonZero_evaluate) {
+    NGRAPH_OP_SCOPE(v3_NonZero_evaluate)
+    {
         return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
     }
     return false;

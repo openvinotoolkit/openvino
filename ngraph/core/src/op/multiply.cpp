@@ -84,7 +84,8 @@ shared_ptr<Node> op::v0::Multiply::clone_with_new_inputs(const OutputVector& new
 bool op::v0::Multiply::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Multiply_evaluate) {
+    NGRAPH_OP_SCOPE(v0_Multiply_evaluate)
+    {
         return multiplyop::evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
     }
     return false;
@@ -111,7 +112,8 @@ shared_ptr<Node> op::v1::Multiply::clone_with_new_inputs(const OutputVector& new
 bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Multiply_evaluate) {
+    NGRAPH_OP_SCOPE(v1_Multiply_evaluate)
+    {
         return multiplyop::evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
     }
     return false;

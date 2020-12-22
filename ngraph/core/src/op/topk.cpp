@@ -578,8 +578,6 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_TopK_evaluate) {
-        return op::v1::TopK::evaluate(outputs, inputs);
-    }
+    NGRAPH_OP_SCOPE(v3_TopK_evaluate) { return op::v1::TopK::evaluate(outputs, inputs); }
     return false;
 }
