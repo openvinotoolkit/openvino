@@ -43,7 +43,7 @@
     *       OV_SCOPE(MyModule, ScopeName) {
     *           // Any C++ code.
     *           cout << "Hello world!";
-    *       };
+    *       }
     *
     *  II. Template class instantiation using switch-case:
     *
@@ -226,17 +226,8 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 // Return second argument from possible sequences {1, 0}, {0, 1, 0}
 #define OV_CC_SCOPE_IS_ENABLED2(arg1_or_junk) OV_CC_SCOPE_SECOND_ARG(arg1_or_junk 1, 0)
 
-// Scope is disabled
-#define OV_CC_SCOPE_0(...)
-
-// Scope is enabled
-#define OV_CC_SCOPE_1(...) __VA_ARGS__
-
-#define OV_CC_DEFINE_0() 0
-#define OV_CC_DEFINE_1() 1
-
 #define OV_SCOPE(Module, region)                                                         \
-    if (OV_CC_CAT(OV_CC_DEFINE_, OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, region)))())
+    if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, region)))
 
 // Switch is disabled
 #define OV_CC_SWITCH_0(Module, fn, ctx, val)
