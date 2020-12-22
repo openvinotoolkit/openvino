@@ -114,6 +114,8 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate) return evaluate_scatter_update(outputs, inputs);
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate) {
+        return evaluate_scatter_update(outputs, inputs);
+    }
     return false;
 }

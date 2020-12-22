@@ -299,7 +299,8 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate)
-    return evaluate_scatter_element_update(outputs, inputs);
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate) {
+        return evaluate_scatter_element_update(outputs, inputs);
+    }
     return false;
 }

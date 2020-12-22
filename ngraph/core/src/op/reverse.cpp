@@ -213,7 +213,9 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs,
 bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Reverse_evaluate) return evaluate_reverse(outputs, inputs);
+    NGRAPH_OP_SCOPE(v1_Reverse_evaluate) {
+        return evaluate_reverse(outputs, inputs);
+    }
     return false;
 }
 

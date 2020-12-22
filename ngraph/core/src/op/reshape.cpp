@@ -345,7 +345,9 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Reshape_evaluate) return evaluate_reshape(outputs, inputs);
+    NGRAPH_OP_SCOPE(v1_Reshape_evaluate) {
+        return evaluate_reshape(outputs, inputs);
+    }
     return false;
 }
 
