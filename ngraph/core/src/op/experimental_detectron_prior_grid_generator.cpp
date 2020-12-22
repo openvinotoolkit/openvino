@@ -56,16 +56,10 @@ shared_ptr<Node> GridGenerator::clone_with_new_inputs(const OutputVector& new_ar
         new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
-static constexpr size_t priors_port = 0;
-static constexpr size_t featmap_port = 1;
-static constexpr size_t im_data_port = 2;
-
-void op::v6::ExperimentalDetectronPriorGridGenerator::validate()
+void GridGenerator::validate(const PartialShape& priors_shape,
+                             const PartialShape& featmap_shape,
+                             const PartialShape& im_data_shape)
 {
-    auto priors_shape = get_input_partial_shape(priors_port);
-    auto featmap_shape = get_input_partial_shape(featmap_port);
-    auto im_data_shape = get_input_partial_shape(im_data_port);
-
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic())
     {
         return;
@@ -103,11 +97,12 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate()
 
 void GridGenerator::validate_and_infer_types()
 {
-    auto priors_shape = get_input_partial_shape(priors_port);
-    auto featmap_shape = get_input_partial_shape(featmap_port);
+    auto priors_shape = get_input_partial_shape(0);
+    auto featmap_shape = get_input_partial_shape(1);
+    auto im_data_shape = get_input_partial_shape(2);
     auto input_et = get_input_element_type(0);
 
-    validate();
+    validate(priors_shape, featmap_shape);
 
     PartialShape out_shape;
     set_output_size(1);
