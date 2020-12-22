@@ -102,7 +102,7 @@ void GridGenerator::validate_and_infer_types()
     auto im_data_shape = get_input_partial_shape(2);
     auto input_et = get_input_element_type(0);
 
-    validate(priors_shape, featmap_shape);
+    validate(priors_shape, featmap_shape, im_data_shape);
 
     PartialShape out_shape;
     set_output_size(1);
