@@ -130,7 +130,6 @@ bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector
     NGRAPH_OP_SCOPE(v0_PRelu_evaluate)
     {
         return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
-        ;
     }
     return false;
 }

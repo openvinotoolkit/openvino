@@ -131,7 +131,6 @@ bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVe
     NGRAPH_OP_SCOPE(v4_Swish_evaluate)
     {
         return swish::evaluate_swish(inputs, outputs[0], shape_size(get_output_shape(0)));
-        ;
     }
     return false;
 }
