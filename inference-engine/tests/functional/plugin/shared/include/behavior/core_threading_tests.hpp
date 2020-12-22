@@ -17,6 +17,8 @@
 #include <functional_test_utils/test_model/test_model.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
+#include <common_test_utils/test_constants.hpp>
+#include <common_test_utils/common_layers_params.hpp>
 
 #include <gtest/gtest.h>
 #include <thread>
@@ -182,24 +184,31 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
 
 using Threads = unsigned int;
 using Iterations = unsigned int;
-using CoreThreadingParams = std::tuple<Params, Threads, Iterations>;
+
+enum struct ModelClass : unsigned {
+    Default,
+    ConvPoolRelu
+};
+
+using CoreThreadingParams = std::tuple<Params, Threads, Iterations, ModelClass>;
 
 class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<CoreThreadingParams>,
-                                         public CoreThreadingTestsBase {
+    public CoreThreadingTestsBase {
 public:
     void SetUp() override {
         std::tie(deviceName, config) = std::get<0>(GetParam());
-        numThreads =  std::get<1>(GetParam());
-        numIterations =  std::get<2>(GetParam());
+        numThreads = std::get<1>(GetParam());
+        numIterations = std::get<2>(GetParam());
+        modelClass = std::get<3>(GetParam());
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<Params, Threads, Iterations>> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<CoreThreadingParams > obj) {
         unsigned int numThreads, numIterations;
         std::string deviceName;
         Config config;
         std::tie(deviceName, config) = std::get<0>(obj.param);
-        numThreads =  std::get<1>(obj.param);
-        numIterations =  std::get<2>(obj.param);
+        numThreads = std::get<1>(obj.param);
+        numIterations = std::get<2>(obj.param);
         char separator('_');
         std::ostringstream result;
         result << "targetDevice=" << deviceName << separator;
@@ -212,8 +221,24 @@ public:
         return result.str();
     }
 
+    ModelClass modelClass;
     unsigned int numIterations;
     unsigned int numThreads;
+
+    std::vector<InferenceEngine::CNNNetwork> networks;
+    void SetupNetworks() {
+        if (modelClass == ModelClass::ConvPoolRelu) {
+            for (unsigned i = 0; i < numThreads; i++) {
+                networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeConvPoolRelu()));
+            }
+        } else {
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+        }
+    }
 };
 
 // tested function: LoadNetwork, AddExtension
@@ -223,12 +248,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    std::vector<InferenceEngine::CNNNetwork> networks;
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+    SetupNetworks();
 
     ie.SetConfig(config, deviceName);
     runParallel([&] () {
@@ -244,12 +264,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    std::vector<InferenceEngine::CNNNetwork> networks;
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+    SetupNetworks();
 
     ie.SetConfig(config, deviceName);
     runParallel([&] () {
@@ -297,12 +312,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
 
     std::atomic<unsigned int> counter{0u};
 
-    std::vector<InferenceEngine::CNNNetwork> networks;
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
-    networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+    SetupNetworks();
 
     runParallel([&] () {
         auto value = counter++;

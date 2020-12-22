@@ -52,5 +52,6 @@ INSTANTIATE_TEST_CASE_P(smoke_GPU, CoreThreadingTests, testing::ValuesIn(params)
 INSTANTIATE_TEST_CASE_P(smoke_GPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(4),
-                     testing::Values(20)),
+                     testing::Values(20),
+                     testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);
