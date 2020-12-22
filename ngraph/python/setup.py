@@ -151,7 +151,7 @@ def parallelCCompile(
         self._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
 
     # convert to list, imap is evaluated on-demand
-    pool = multiprocessing.pool.ThreadPool(8)
+    pool = multiprocessing.pool.ThreadPool(16)
     list(pool.imap(_single_compile, objects))
     return objects
 
