@@ -57,7 +57,7 @@ namespace
             else
             {
                 auto* tensor_type = type_proto->mutable_tensor_type();
-                tensor_type->set_elem_type(2);
+                tensor_type->set_elem_type(7);
             }
         }
     }

@@ -46,12 +46,12 @@ namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
 {
+    // the original model contains 2 inputs with i64 data type and one f32 input
     onnx_import::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.prototxt")};
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
 
-    editor.set_input_types({{"A", element::i32}});
+    editor.set_input_types({{"A", element::i64}});
 
-    // the original model contains 3 inputs with f32 data type
     const auto function = onnx_import::import_onnx_model(editor);
 
     const auto all_ops_in_graph = function->get_ops();
@@ -65,8 +65,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
         std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::f32));
 
     const auto integer_inputs_count = std::count_if(
-        std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::i32));
+        std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::i64));
 
-    EXPECT_EQ(float_inputs_count, 2);
-    EXPECT_EQ(integer_inputs_count, 1);
+    EXPECT_EQ(float_inputs_count, 0);
+    EXPECT_EQ(integer_inputs_count, 3);
 }
