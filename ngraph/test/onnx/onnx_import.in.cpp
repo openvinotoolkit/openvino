@@ -3213,7 +3213,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm.prototxt"));
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     Shape shape{2, 8, 2, 2};
     int size = shape_size(shape);
     std::vector<float> data(size);
