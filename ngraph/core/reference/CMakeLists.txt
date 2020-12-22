@@ -47,4 +47,4 @@ add_library(ngraph::reference ALIAS ${TARGET_NAME})
 
 # developer package
 
-openvino_developer_export_targets(ngraph::reference)
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::reference)

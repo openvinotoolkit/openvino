@@ -11,8 +11,5 @@ add_subdirectory(unit)
 
 if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(ie_test_utils)
-endif()
-
-if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()

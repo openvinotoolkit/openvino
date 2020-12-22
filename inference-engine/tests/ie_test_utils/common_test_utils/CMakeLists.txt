@@ -52,8 +52,6 @@ else ()
 endif ()
 
 list(APPEND EXPORT_DEPENDENCIES
-        ${PUGI}
-        ${NGRAPH_LIBRARIES}
         gtest
         gtest_main
         )
@@ -70,8 +68,13 @@ function(add_common_utils ADD_TARGET_NAME)
                 ${CMAKE_CURRENT_SOURCE_DIR}/gtest
             ADD_CPPLINT
             DEVELOPER_PACKAGE
+                inference_engine_tests
             EXPORT_DEPENDENCIES
                 ${EXPORT_DEPENDENCIES}
+            LINK_LIBRARIES
+                PUBLIC
+                    ${PUGI}
+                    ${NGRAPH_LIBRARIES}
     )
 
     ie_faster_build(${ADD_TARGET_NAME}
@@ -96,21 +99,21 @@ function(add_common_utils ADD_TARGET_NAME)
     endif ()
 
     target_include_directories(${ADD_TARGET_NAME}
-            PUBLIC
+        PUBLIC
             ${IE_TESTS_ROOT}/ie_test_utils
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
-            PRIVATE
+        PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            )
+        )
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
 
     target_link_libraries(${ADD_TARGET_NAME}
-            PUBLIC
+        PUBLIC
             ${EXPORT_DEPENDENCIES}
-            )
+        )
 endfunction()
 
 add_common_utils(${TARGET_NAME})

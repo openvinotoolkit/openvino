@@ -16,13 +16,13 @@
 
 set(TARGET_NAME itt)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp")
 
 if(ENABLE_PROFILING_ITT)
     if(DEFINED INTEL_VTUNE_DIR OR DEFINED ENV{INTEL_VTUNE_DIR})
-        find_package(ITT)
+        find_package(ITT
+                     PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+                     NO_DEFAULT_PATH)
         if(NOT ITT_FOUND)
             message(WARNING "Profiling option enabled, but no ITT library was found under INTEL_VTUNE_DIR")
         endif()
@@ -45,7 +45,7 @@ if(ENABLE_PROFILING_ITT)
             target_compile_options(ittnotify PRIVATE -Wno-undef)
         endif()
 
-        openvino_developer_export_targets(ittnotify)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittnotify)
     endif()
 endif()
 

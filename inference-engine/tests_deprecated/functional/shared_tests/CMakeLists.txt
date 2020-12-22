@@ -62,4 +62,4 @@ add_dependencies(${TARGET_NAME} HeteroPlugin)
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine_tests TARGETS ${TARGET_NAME})

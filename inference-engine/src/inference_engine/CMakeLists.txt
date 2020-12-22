@@ -174,8 +174,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt openvino::conditional_compilation ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations
-                                       PUBLIC pugixml)
+                                               inference_engine_transformations pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
@@ -186,28 +185,41 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# export targets
+# InferenceEngineConfig.cmake for install tree
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
+               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake" @ONLY)
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/config.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
-    COPYONLY)
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+              "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
+              COPYONLY)
 
-configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
-    "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-    COPYONLY)
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"
+               "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
+               COPYONLY)
 
-# developer package
+# Export Inference Engine targets
+
+export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+       APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
+
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-build.cmake.in"
+               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
+               COPYONLY)
+
+configure_file("${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
+               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
+               COPYONLY)
+
+# Export for developer package
 
 add_library(xbyak INTERFACE)
 target_include_directories(xbyak INTERFACE ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak)
 
-ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api xbyak)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api)
 
-# install
+# install TBB
 
 list(APPEND core_components ngraph)
 
@@ -234,6 +246,8 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
             DESTINATION ${IE_CPACK_IE_DIR}/external/tbb/cmake
             COMPONENT tbb)
 endif()
+
+# Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 

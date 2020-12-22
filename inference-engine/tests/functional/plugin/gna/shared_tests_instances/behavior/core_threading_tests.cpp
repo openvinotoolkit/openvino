@@ -16,7 +16,7 @@ std::vector< std::tuple<Device, Config> > paramsWithIterations{ params[0], param
 
 INSTANTIATE_TEST_CASE_P(GNA, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(GNA, CoreThreadingTestsWithIterations,
+INSTANTIATE_TEST_CASE_P(DISABLED_GNA, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(paramsWithIterations),
                      testing::Values(3),
                      testing::Values(4),

@@ -8,7 +8,7 @@
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <limits>
+#include <climits>
 #include <ie_parallel.hpp>
 
 #define THROW_ERROR THROW_IE_EXCEPTION << "Split layer with name '" << getName() <<"' "

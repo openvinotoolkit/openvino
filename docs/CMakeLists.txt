@@ -40,6 +40,7 @@ if(NOT ENABLE_DOCKER)
     endforeach()
 endif()
 
+set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation")
 set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation")
