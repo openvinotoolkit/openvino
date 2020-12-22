@@ -73,14 +73,14 @@ namespace details {
 /// \param layer node type
 /// \return pointer to CNNLayer with legacy representation of SubGraphOp.
 CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
-    auto tensor_iterator = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
-    if (!tensor_iterator) {
-        THROW_IE_EXCEPTION << "Cannot cast layer to TensorIterator.";
+    auto sub_graph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
+    if (!sub_graph) {
+        THROW_IE_EXCEPTION << "Cannot cast layer to SubGraphOp.";
     }
 
     // inputs/outputs of TensorIterator (ngraph representation)
-    auto parameters = tensor_iterator->get_function()->get_parameters();
-    auto results = tensor_iterator->get_function()->get_results();
+    auto parameters = sub_graph->get_function()->get_parameters();
+    auto results = sub_graph->get_function()->get_results();
 
     // Convert body (ngraph representation) to CNNNetwork.
     // This network will contain nodes of type = "Input" and data nodes with wrong names.
@@ -89,13 +89,13 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
 
     TensorIterator::Body body;
     {
-        InferenceEngine::CNNNetwork body_net(tensor_iterator->get_function());
+        InferenceEngine::CNNNetwork body_net(sub_graph->get_function());
         InferenceEngine::CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);
         if (!res) {
-            THROW_IE_EXCEPTION << "Loop detected. TensorIterator body should not contain loops.";
+            THROW_IE_EXCEPTION << "Loop detected. SubGraphOp body should not contain loops.";
         }
 
         // Get inputs/outputs of cnn network
@@ -144,7 +144,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         auto holder = body.inputs.back();
         if (is_constant_holder(holder)) {
             auto& holder_map = getInputTo(holder);
-            // remove_if
+
             for( auto it = holder_map.begin(); it != holder_map.end(); ) {
                 if( it->second->type == "Input")
                     it = holder_map.erase(it);
@@ -206,12 +206,12 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     res->body = body;
 
     // Port map: outputs
-    for (const auto& desc : tensor_iterator->get_output_descriptions()) {
+    for (const auto& desc : sub_graph->get_output_descriptions()) {
         auto body_output_idx = desc->m_body_value_index;
 
         std::string type_name = desc->get_type_info().name;
         if (type_name == "ConcatOutputDescription") {
-            auto output_desc = ::ngraph::as_type_ptr<ngraph::op::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ::ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(desc);
             IE_ASSERT(output_desc != nullptr);
 
             res->output_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
@@ -219,9 +219,8 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
                 static_cast<int>(output_desc->m_axis), static_cast<int>(output_desc->m_stride),
                 static_cast<int>(output_desc->m_start), static_cast<int>(output_desc->m_end),
                 static_cast<int>(output_desc->m_part_size)});
-
         } else if (type_name == "BodyOutputDescription") {
-            auto output_desc = ::ngraph::as_type_ptr<ngraph::op::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ::ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::BodyOutputDescription>(desc);
             IE_ASSERT(output_desc != nullptr);
 
             res->output_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
@@ -232,16 +231,16 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     }
 
     // Port map : inputs and back edges
-    for (const auto& desc : tensor_iterator->get_input_descriptions()) {
+    for (const auto& desc : sub_graph->get_input_descriptions()) {
         auto body_input_index = desc->m_body_parameter_index;
 
-        if (const auto slice_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::SliceInputDescription>(desc)) {
+        if (const auto slice_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::SliceInputDescription>(desc)) {
             res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
                 static_cast<int>(slice_desc->m_input_index), static_cast<int>(body_input_index),
                 static_cast<int>(slice_desc->m_axis), static_cast<int>(slice_desc->m_stride),
                 static_cast<int>(slice_desc->m_start), static_cast<int>(slice_desc->m_end),
                 static_cast<int>(slice_desc->m_part_size)});
-        } else if (const auto merge_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::MergedInputDescription>(desc)) {
+        } else if (const auto merge_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::MergedInputDescription>(desc)) {
             res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
                 static_cast<int>(merge_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
 
@@ -249,7 +248,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
 
             res->back_edges.emplace_back(InferenceEngine::TensorIterator::PortMap {
                 static_cast<int>(body_output_idx), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
-        } else if (const auto inv_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::InvariantInputDescription>(desc)) {
+        } else if (const auto inv_desc = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::InvariantInputDescription>(desc)) {
             res->input_port_map.emplace_back(InferenceEngine::TensorIterator::PortMap {
                     static_cast<int>(inv_desc->m_input_index), static_cast<int>(body_input_index), -1, 1, 0, -1, 1});
         } else {
