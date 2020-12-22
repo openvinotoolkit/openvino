@@ -32,7 +32,7 @@ Extension::Extension() {
     });
     #ifdef OPENCV_IMPORT_ENABLED
     ngraph::onnx_import::register_operator(
-        Operation::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+            FFTOp::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
             ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
             bool inverse = node.get_attribute_value<int64_t>("inverse");
             return {std::make_shared<FFTOp>(ng_inputs.at(0), inverse)};
@@ -46,6 +46,9 @@ Extension::Extension() {
 Extension::~Extension() {
 #ifdef NGRAPH_ONNX_IMPORT_ENABLED
     ngraph::onnx_import::unregister_operator(Operation::type_info.name, 1, "custom_domain");
+#endif
+#ifdef OPENCV_IMPORT_ENABLED
+    ngraph::onnx_import::unregister_operator(FFTOp::type_info.name, 1, "custom_domain");
 #endif
 }
 //! [extension:dtor]
