@@ -87,7 +87,14 @@ bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     bool rc = false;
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v1_LogicalAnd_evaluate,
                     rc = logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob()));
+=======
+    NGRAPH_OP_SCOPE(v1_LogicalAnd_evaluate)
+    {
+        rc = logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
+    }
+>>>>>>> upstream/master
     return rc;
 }

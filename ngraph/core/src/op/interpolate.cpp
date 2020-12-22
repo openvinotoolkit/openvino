@@ -497,7 +497,11 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs,
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v4_Interpolate_evaluate, return evaluate_interpolate(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v4_Interpolate_evaluate) { return evaluate_interpolate(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }
 

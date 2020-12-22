@@ -243,6 +243,10 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs,
 
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v1_Pad_evaluate, return evaluate_pad(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v1_Pad_evaluate) { return evaluate_pad(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }

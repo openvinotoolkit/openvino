@@ -83,8 +83,15 @@ namespace asinop
 bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     bool rc = false;
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(
         v0_Asin_evaluate,
         rc = asinop::evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+=======
+    NGRAPH_OP_SCOPE(v0_Asin_evaluate)
+    {
+        rc = asinop::evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    }
+>>>>>>> upstream/master
     return rc;
 }

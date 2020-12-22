@@ -228,7 +228,11 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v3_Broadcast_evaluate, return broadcast_evaluate(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v3_Broadcast_evaluate) { return broadcast_evaluate(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }
 
@@ -318,7 +322,14 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v1_Broadcast_evaluate,
                     return op::util::BroadcastBase::evaluate(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate)
+    {
+        return op::util::BroadcastBase::evaluate(outputs, inputs);
+    }
+>>>>>>> upstream/master
     return false;
 }

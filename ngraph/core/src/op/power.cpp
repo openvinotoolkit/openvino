@@ -86,7 +86,14 @@ shared_ptr<Node> op::v1::Power::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v1::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v1_Power_evaluate,
                     return power::evaluate_power(inputs[0], inputs[1], outputs[0], get_autob()));
+=======
+    NGRAPH_OP_SCOPE(v1_Power_evaluate)
+    {
+        return power::evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
+    }
+>>>>>>> upstream/master
     return false;
 }

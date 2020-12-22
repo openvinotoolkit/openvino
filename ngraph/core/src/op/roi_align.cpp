@@ -299,9 +299,17 @@ namespace roi_alinop
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(
         v3_ROIAlign_evaluate,
         return roi_alinop::evaluate_roi_align(
             inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode));
+=======
+    NGRAPH_OP_SCOPE(v3_ROIAlign_evaluate)
+    {
+        return roi_alinop::evaluate_roi_align(
+            inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
+    }
+>>>>>>> upstream/master
     return false;
 }

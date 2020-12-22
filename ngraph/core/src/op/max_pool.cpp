@@ -229,6 +229,10 @@ bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v1_MaxPool_evaluate, return evaluate_maxpool(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate) { return evaluate_maxpool(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }

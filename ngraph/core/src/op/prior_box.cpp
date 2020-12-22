@@ -192,11 +192,22 @@ namespace prior_box
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v0_PriorBox_evaluate,
                     // Todo (itikhono): enable the use of the reference implementation after
                     // supporting constants as
                     // outputs in plugins
                     // return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
                     return false);
+=======
+    NGRAPH_OP_SCOPE(v0_PriorBox_evaluate)
+    {
+        // Todo (itikhono): enable the use of the reference implementation after
+        // supporting constants as
+        // outputs in plugins
+        // return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
+        return false;
+    }
+>>>>>>> upstream/master
     return false;
 }

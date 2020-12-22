@@ -173,8 +173,15 @@ namespace squeeze
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v0_Squeeze_evaluate,
                     return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]));
+=======
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate)
+    {
+        return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+    }
+>>>>>>> upstream/master
     return false;
 }
 

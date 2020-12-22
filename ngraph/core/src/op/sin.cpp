@@ -77,8 +77,15 @@ namespace sinop
 
 bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(
         v0_Sin_evaluate,
         return sinop::evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+=======
+    NGRAPH_OP_SCOPE(v0_Sin_evaluate)
+    {
+        return sinop::evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    }
+>>>>>>> upstream/master
     return false;
 }

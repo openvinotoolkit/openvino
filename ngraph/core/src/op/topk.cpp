@@ -67,8 +67,15 @@ namespace topk
 #define EXECUTE_EVALUATE_TOPK(a, ...)                                                              \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
+<<<<<<< HEAD
         NGRAPH_OP_SCOPE(OV_CC_CAT3(exec_topk_eval, _, a),                                          \
                         rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__));         \
+=======
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(exec_topk_eval, _, a))                                          \
+        {                                                                                          \
+            rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                      \
+        }                                                                                          \
+>>>>>>> upstream/master
     }                                                                                              \
     break
 
@@ -189,8 +196,15 @@ namespace topk
 #define CASE_GET_K(a, ...)                                                                         \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
+<<<<<<< HEAD
         NGRAPH_OP_SCOPE(OV_CC_CAT3(topk_get_k, _, a),                                              \
                         k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__));               \
+=======
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(topk_get_k, _, a))                                              \
+        {                                                                                          \
+            k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__);                            \
+        }                                                                                          \
+>>>>>>> upstream/master
     }                                                                                              \
     break
 
@@ -452,44 +466,56 @@ void op::v1::TopK::set_k(size_t k)
 bool op::v1::TopK::evaluate_topk(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
     size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
     bool compute_max = get_mode() == TopKMode::MAX ? true : false;
     SortType sort_type = get_sort_type();
-
-    // 2. get value of k - from constant node or from HT
-    size_t k = 0;
-    if (op::is_constant(input_value(1).get_node()))
+=======
+    NGRAPH_OP_SCOPE(v1_TopK_evaluate)
     {
-        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
-                                      get_input_element_type(1));
-        NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
-    }
-    else
-    {
-        k = topk::read_k_from_host_tensor(inputs[1]);
-    }
+        Shape arg_shape = inputs[0]->get_shape();
+        // 1. get axis, mode ( max/min), sort_type
+        size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
+        bool compute_max = get_mode() == TopKMode::MAX ? true : false;
+        SortType sort_type = get_sort_type();
 
-    // 3. Compute output_shape
-    auto output_shape = compute_output_shape(this->description(), inputs[0]->get_shape(), k);
+        // 2. get value of k - from constant node or from HT
+        size_t k = 0;
+        if (op::is_constant(input_value(1).get_node()))
+        {
+            k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
+                                          get_input_element_type(1));
+            NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
+        }
+        else
+        {
+            k = topk::read_k_from_host_tensor(inputs[1]);
+        }
+>>>>>>> upstream/master
 
-    // do this after compute_output_shape
-    if (k == 0)
-    {
-        // the kernel can't handle k = 0, but output_shape[axis] = arg_shape[axis]
-        k = arg_shape[axis];
+        // 3. Compute output_shape
+        auto output_shape = compute_output_shape(this->description(), inputs[0]->get_shape(), k);
+
+        // do this after compute_output_shape
+        if (k == 0)
+        {
+            // the kernel can't handle k = 0, but output_shape[axis] = arg_shape[axis]
+            k = arg_shape[axis];
+        }
+
+        return topk::evaluate_topk(inputs[0],
+                                   outputs[1],
+                                   outputs[0],
+                                   output_shape,
+                                   axis,
+                                   k,
+                                   compute_max,
+                                   sort_type,
+                                   get_index_element_type());
     }
-
-    return topk::evaluate_topk(inputs[0],
-                               outputs[1],
-                               outputs[0],
-                               output_shape,
-                               axis,
-                               k,
-                               compute_max,
-                               sort_type,
-                               get_index_element_type());
+    return false;
 }
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -577,6 +603,10 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v3_TopK_evaluate, return op::v1::TopK::evaluate(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v3_TopK_evaluate) { return op::v1::TopK::evaluate(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }

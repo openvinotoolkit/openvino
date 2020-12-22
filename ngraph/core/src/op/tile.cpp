@@ -135,6 +135,10 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs,
 
 bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v0_Tile_evaluate, return evaluate_tile(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v0_Tile_evaluate) { return evaluate_tile(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }

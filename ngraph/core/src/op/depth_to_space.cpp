@@ -243,7 +243,11 @@ bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
 bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate, return evaluate_depth_to_space(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate) { return evaluate_depth_to_space(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }
 namespace ngraph

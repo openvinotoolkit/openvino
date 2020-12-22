@@ -55,9 +55,16 @@ namespace scatter_update
 #define GET_INDICES(a, ...)                                                                        \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
+<<<<<<< HEAD
         NGRAPH_OP_SCOPE(OV_CC_CAT3(get_scatter_update_indices, _, a),                              \
                         indices_casted_vector =                                                    \
                             scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__));         \
+=======
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(get_scatter_update_indices, _, a))                              \
+        {                                                                                          \
+            indices_casted_vector = scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__);  \
+        }                                                                                          \
+>>>>>>> upstream/master
     }                                                                                              \
     break;
 
@@ -113,6 +120,10 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate, return evaluate_scatter_update(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate) { return evaluate_scatter_update(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }

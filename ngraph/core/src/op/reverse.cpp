@@ -163,8 +163,15 @@ namespace reverseop
 #define GET_AXES(a, ...)                                                                           \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
+<<<<<<< HEAD
         NGRAPH_OP_SCOPE(OV_CC_CAT3(get_reverse_axes, _, a),                                        \
                         reverseop::get_axes<element::Type_t::a>(__VA_ARGS__));                     \
+=======
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(get_reverse_axes, _, a))                                        \
+        {                                                                                          \
+            reverseop::get_axes<element::Type_t::a>(__VA_ARGS__);                                  \
+        }                                                                                          \
+>>>>>>> upstream/master
     }                                                                                              \
     break;
 
@@ -211,7 +218,11 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs,
 bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(v1_Reverse_evaluate, return evaluate_reverse(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(v1_Reverse_evaluate) { return evaluate_reverse(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }
 

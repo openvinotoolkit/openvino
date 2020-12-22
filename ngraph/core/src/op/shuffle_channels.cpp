@@ -187,6 +187,10 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
 bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
+<<<<<<< HEAD
     NGRAPH_OP_SCOPE(ShuffleChannels_evaluate, return evaluate_shuffle_channels(outputs, inputs));
+=======
+    NGRAPH_OP_SCOPE(ShuffleChannels_evaluate) { return evaluate_shuffle_channels(outputs, inputs); }
+>>>>>>> upstream/master
     return false;
 }
