@@ -361,14 +361,16 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes) const
 {
-    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes,
-                    runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
-                                                  out->get_data_ptr<char>(),
-                                                  arg0->get_shape(),
-                                                  out->get_shape(),
-                                                  broadcast_axes,
-                                                  arg0->get_element_type().size());
-                    return true);
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes)
+    {
+        runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
+                                      out->get_data_ptr<char>(),
+                                      arg0->get_shape(),
+                                      out->get_shape(),
+                                      broadcast_axes,
+                                      arg0->get_element_type().size());
+        return true;
+    }
     return false;
 }
 
@@ -500,8 +502,9 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) con
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        util_BroadcastBase_evaluate, Shape target_shape = get_target_shape(inputs[1]);
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate)
+    {
+        Shape target_shape = get_target_shape(inputs[1]);
 
         PartialShape result_shape;
         std::pair<bool, AxisSet> pair_broadcast_axes;
@@ -535,6 +538,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
         } else { ngraph_error("Unsupported BroadcastType "); }
 
         return evaluate_broadcast(
-            inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape()));
+                                  inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+    }
     return false;
 }

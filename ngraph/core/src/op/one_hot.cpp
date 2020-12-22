@@ -159,10 +159,12 @@ namespace detail
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_one_hot_out, _, a),                                    \
-                        using IT = typename element_type_traits<element::Type_t::a>::value_type;   \
-                        using OT = typename element_type_traits<out_t>::value_type;                \
-                        rc = evaluate<IT, OT>(__VA_ARGS__));                                       \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_one_hot_out, _, a))                                    \
+        {                                                                                          \
+            using IT = typename element_type_traits<element::Type_t::a>::value_type;               \
+            using OT = typename element_type_traits<out_t>::value_type;                            \
+            rc = evaluate<IT, OT>(__VA_ARGS__);                                                    \
+        }                                                                                          \
     }                                                                                              \
     break;
 
@@ -206,7 +208,6 @@ namespace detail
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_OneHot_evaluate,
-                    return detail::evaluate_onehot(output_values, input_values, get_axis()););
+    NGRAPH_OP_SCOPE(v1_OneHot_evaluate) return detail::evaluate_onehot(output_values, input_values, get_axis());
     return false;
 }

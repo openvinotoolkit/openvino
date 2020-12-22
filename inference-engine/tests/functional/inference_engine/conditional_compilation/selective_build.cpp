@@ -62,36 +62,19 @@ struct TestNode : public TestNodeBase {
 
 TEST(ConditionalCompilationTests, SimpleScope) {
 #define CCTests_Scope0 1
-
     int n = 0;
 
     // Simple scope is enabled
-    OV_SCOPE(CCTests, Scope0, n = 42;);
+    OV_SCOPE(CCTests, Scope0) {
+        n = 42;
+    }
     EXPECT_EQ(n, 42);
 
     // Simple scope is disabled
-    OV_SCOPE(CCTests, Scope1, n = 0;);
+    OV_SCOPE(CCTests, Scope1) n = 43;
     EXPECT_EQ(n, 42);
 
 #undef CCTests_Scope0
-}
-
-TEST(ConditionalCompilationTests, SimpleSectionDefine) {
-#define CCTests_Section1 1
-
-    int n = 0;
-#if OV_SCOPE_DEFINE(CCTests, Section1)
-    OV_SCOPE_TASK(CCTests, Section1);
-    n = 42;
-#endif
-    EXPECT_EQ(n, 42);
-
-#if OV_SCOPE_DEFINE(CCTests, Section2)
-    n = 43;
-#endif
-    EXPECT_EQ(n, 42);
-
-#undef CCTests_Section1
 }
 
 TEST(ConditionalCompilationTests, SwitchCase) {

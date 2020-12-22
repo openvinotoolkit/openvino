@@ -60,28 +60,15 @@ struct TestNode : public TestNodeBase {
 
 }   // namespace
 
-TEST(ConditionalCompilationTests, SimpleSectionDefineAnalysys) {
-    int n = 0;
-
-#if OV_SCOPE_DEFINE(CCTests, Section1)
-    OV_SCOPE_TASK(CCTests, Section1);
-    n = 42;
-#endif
-    EXPECT_EQ(n, 42);
-
-#if OV_SCOPE_DEFINE(CCTests, Section2)
-    n = 43;
-#endif
-    EXPECT_EQ(n, 43);
-}
-
 TEST(ConditionalCompilationTests, SimpleScopeAnalysys) {
     int n = 0;
 
-    OV_SCOPE(CCTests, Scope0, n = 42;);
+    OV_SCOPE(CCTests, Scope0) n = 42;
     EXPECT_EQ(n, 42);
 
-    OV_SCOPE(CCTests, Scope1, n = 43;);
+    OV_SCOPE(CCTests, Scope1) {
+        n = 43;
+    }
     EXPECT_EQ(n, 43);
 }
 

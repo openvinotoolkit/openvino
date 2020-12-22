@@ -40,10 +40,10 @@
     * An example of using annotation:
     *
     *  I. Any C++ code block:
-    *       OV_SCOPE(MyModule, ScopeName,
+    *       OV_SCOPE(MyModule, ScopeName) {
     *           // Any C++ code.
     *           cout << "Hello world!";
-    *       );
+    *       };
     *
     *  II. Template class instantiation using switch-case:
     *
@@ -187,13 +187,8 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 
 }  // namespace internal
 
-#define OV_SCOPE(Module, region, ...)                                                       \
-    OV_ITT_SCOPED_TASK(OV_CC_CAT(SIMPLE_, Module), OV_CC_TOSTRING(region));                 \
-    __VA_ARGS__
-
-#define OV_SCOPE_DEFINE(Module, region) 1
-#define OV_SCOPE_TASK(Module, region)                                                       \
-    OV_ITT_SCOPED_TASK(OV_CC_CAT(SIMPLE_, Module), OV_CC_TOSTRING(region))
+#define OV_SCOPE(Module, region)                                                         \
+    OV_ITT_SCOPED_TASK(OV_CC_CAT(SIMPLE_, Module), OV_CC_TOSTRING(region));
 
 #define OV_SWITCH(Module, fn, ctx, val, ...)                                                \
     openvino::cc::internal::match<OV_CC_CAT(SWITCH_, Module), fn>                           \
@@ -240,12 +235,8 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 #define OV_CC_DEFINE_0() 0
 #define OV_CC_DEFINE_1() 1
 
-#define OV_SCOPE(Module, region, ...)           \
-    OV_CC_EXPAND(OV_CC_CAT(OV_CC_SCOPE_, OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, region)))(__VA_ARGS__))
-
-#define OV_SCOPE_DEFINE(Module, region)                                                     \
-    OV_CC_CAT(OV_CC_DEFINE_, OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, region)))()
-#define OV_SCOPE_TASK(Module, region)
+#define OV_SCOPE(Module, region)                                                         \
+    if (OV_CC_CAT(OV_CC_DEFINE_, OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, region)))())
 
 // Switch is disabled
 #define OV_CC_SWITCH_0(Module, fn, ctx, val)
@@ -264,10 +255,7 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 
 #define OV_CC_DOMAINS(Module)
 
-#define OV_SCOPE(Module, region, ...) __VA_ARGS__
-
-#define OV_SCOPE_DEFINE(Module, region) 1
-#define OV_SCOPE_TASK(Module, region)
+#define OV_SCOPE(Module, region)
 
 #define OV_SWITCH(Module, fn, ctx, val, ...)    \
     openvino::cc::internal::match<fn>(ctx, val, __VA_ARGS__);
