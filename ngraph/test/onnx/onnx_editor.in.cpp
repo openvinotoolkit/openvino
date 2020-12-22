@@ -48,6 +48,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
 {
     onnx_import::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.prototxt")};
+
+    editor.set_input_types({{"A", element::i32}});
+
     // the original model contains 3 inputs with f32 data type
     const auto function = onnx_import::import_onnx_model(editor);
 
