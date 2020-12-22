@@ -17,6 +17,7 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import embed_input, weights_biases
+from mo.front.extractor import FrontExtractorOp
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.utils.utils import NamedAttrsClass
 from mo.ops.scale_shift import ScaleShiftOp
