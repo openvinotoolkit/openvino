@@ -100,7 +100,6 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
-    type_prop/acos.cpp
     type_prop/unary_base.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
