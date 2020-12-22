@@ -175,22 +175,14 @@ namespace prior_box
         bool rc = true;
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i16)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u8)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u16)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, attrs);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
         default: rc = false; break;
         }
         return rc;
@@ -200,9 +192,11 @@ namespace prior_box
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::PriorBox::evaluate");
+    NGRAPH_OP_SCOPE(v0_PriorBox_evaluate,
+                    // Todo (itikhono): enable the use of the reference implementation after
+                    // supporting constants as
+                    // outputs in plugins
+                    // return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
+                    return false);
     return false;
-    // Todo (itikhono): enable the use of the reference implementation after supporting constants as
-    // outputs in plugins
-    // return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }

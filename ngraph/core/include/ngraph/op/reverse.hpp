@@ -73,6 +73,10 @@ namespace ngraph
                 /// Alternatively it can contain a boolean mask that indicates which axes should be
                 /// reversed.
                 Mode m_mode;
+
+            private:
+                bool evaluate_reverse(const HostTensorVector& outputs,
+                                      const HostTensorVector& inputs) const;
             };
         }
     }

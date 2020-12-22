@@ -24,7 +24,7 @@ python3 -m pip install --upgrade pip
 
 Run the command below:
    ```sh
-   pip install openvino-python
+   pip install openvino
    ```
 
 ### Step 3. Add PATH to environment variables
@@ -78,5 +78,5 @@ Now you are ready to develop and run your application.
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- [Intel® Distribution of OpenVINO™ toolkit PIP home page](https://pypi.org/project/openvino-python/)
+- [Intel® Distribution of OpenVINO™ toolkit PIP home page](https://pypi.org/project/openvino/)
 

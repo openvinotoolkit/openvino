@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstring>
 #include <numeric>
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
 
@@ -222,8 +223,8 @@ void op::v4::Interpolate::validate_and_infer_types()
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 ||
-                              input_et == element::i8,
-                          "Input element type must be f32, f16, or i8");
+                              input_et == element::i8 || input_et == element::bf16,
+                          "Input element type must be f32, f16, bf16 or i8");
 
     PartialShape input_shape = PartialShape(get_input_partial_shape(0));
 
@@ -417,8 +418,8 @@ static void pad_input_data(const uint8_t* data_ptr,
     }
 }
 
-bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
-                                   const HostTensorVector& inputs) const
+bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs,
+                                               const HostTensorVector& inputs) const
 {
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
@@ -491,6 +492,13 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
     }
 
     return true;
+}
+
+bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
+                                   const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v4_Interpolate_evaluate, return evaluate_interpolate(outputs, inputs));
+    return false;
 }
 
 namespace ngraph

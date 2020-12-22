@@ -10,10 +10,10 @@
 
 * *keep_dims*
 
-  * **Description**: If set to `True` it holds axes that are used for reduction. For each such axis, output dimension is equal to 1.
-  * **Range of values**: True or False
+  * **Description**: If set to `true` it holds axes that are used for reduction. For each such axis, output dimension is equal to 1.
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 **Inputs**
@@ -24,7 +24,7 @@
 
 **Outputs**
 
-* **1**: Tensor of the same type as the 1st input tensor and `shape[i] = shapeOf(input1)[i]` for all `i` that is not in the list of axes from the 2nd input. For dimensions from the 2nd input tensor, `shape[i] == 1` if `keep_dims == True`, or `i`-th dimension is removed from the output otherwise.
+* **1**: Tensor of the same type as the 1st input tensor and `shape[i] = shapeOf(input1)[i]` for all `i` that is not in the list of axes from the 2nd input. For dimensions from the 2nd input tensor, `shape[i] == 1` if `keep_dims == true`, or `i`-th dimension is removed from the output otherwise.
 
 **Types**
 
@@ -47,7 +47,7 @@ Corner cases:
 
 ```xml
 <layer id="1" type="ReduceProd" ...>
-    <data keep_dims="True" />
+    <data keep_dims="true" />
     <input>
         <port id="0">
             <dim>6</dim>
@@ -72,7 +72,7 @@ Corner cases:
 
 ```xml
 <layer id="1" type="ReduceProd" ...>
-    <data keep_dims="False" />
+    <data keep_dims="false" />
     <input>
         <port id="0">
             <dim>6</dim>
@@ -95,7 +95,7 @@ Corner cases:
 
 ```xml
 <layer id="1" type="ReduceProd" ...>
-    <data keep_dims="False" />
+    <data keep_dims="false" />
     <input>
         <port id="0">
             <dim>6</dim>
@@ -119,7 +119,7 @@ Corner cases:
 
 ```xml
 <layer id="1" type="ReduceProd" ...>
-    <data keep_dims="False" />
+    <data keep_dims="false" />
     <input>
         <port id="0">
             <dim>6</dim>

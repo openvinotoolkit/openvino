@@ -405,6 +405,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
         }
     }
 
+    OutputsDataMap outputsMap = network.getOutputsInfo();
+
     // [WA part2] Try to find non-quantized layers and convert them back to FP16
     if (config.enableInt8) {
         if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
@@ -417,13 +419,41 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
                 if (layer->outData.empty() || layer->insData.empty())
                     continue;
 
-                auto canReduceOutputPrecision = [](const CNNLayerPtr& l) -> bool {
-                    auto type = LayerTypeFromStr(l->type);
-                    // Don't do conversion for outputs
-                    auto next = GetNextLayers(l);
-                    if (next.empty()) {
-                        return false;
+                auto isOutputLayer = [](const CNNLayerPtr& l, const OutputsDataMap& networkOutputs) -> bool {
+                    bool is_output = false;
+
+                    if (GetNextLayers(l).empty())
+                        is_output = true;
+
+                    // Condition above is not enough, as network output layer
+                    // can still be used in other parts of the graph
+                    // (e.g. 1st output form TopK primitive may become network output
+                    // while 2nd output from the same primitive may still be used
+                    // in the graph).
+                    if (!is_output) {
+                        for (auto layerOutput : l->outData) {
+                            for (auto networkOutput : networkOutputs) {
+                               if (layerOutput->getName() == networkOutput.second->getName()) {
+                                   is_output = true;
+                                   break;
+                               }
+                            }
+
+                            if (is_output)
+                                break;
+                        }
                     }
+
+                    return is_output;
+                };
+
+                auto canReduceOutputPrecision = [](const CNNLayerPtr& l, const bool isNetworkOutput) -> bool {
+                    // Don't do the conversion for network outputs
+                    if (isNetworkOutput)
+                        return false;
+
+                    auto type = LayerTypeFromStr(l->type);
+                    auto next = GetNextLayers(l);
 
                     if (type == LayerType::ScaleShift) {
                         // ScaleShift is supposed to return Dequantized values, so in most of the cases we can convert it's output to FP16
@@ -462,9 +492,11 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cld
                     return result;
                 };
 
+                bool is_network_output = isOutputLayer(layer, outputsMap);
+
                 if (canReducePrecision(layer)) {
-                    convertLayerPrecision<Precision::FP32, Precision::FP16>(layer, GetNextLayers(layer).empty());
-                } else if (canReduceOutputPrecision(layer)) {
+                    convertLayerPrecision<Precision::FP32, Precision::FP16>(layer, is_network_output);
+                } else if (canReduceOutputPrecision(layer, is_network_output)) {
                     for (auto &out_data : layer->outData) {
                         if (out_data->getPrecision() == Precision::FP32)
                             out_data->setPrecision(Precision::FP16);
@@ -1052,6 +1084,8 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
     case FullyConnected: {
         groupSize = 1;
         outFeatures = static_cast<cldnn::tensor::value_type>(layer->outData[0]->getTensorDesc().getDims()[1]);
+        if (in0dims.size() == 3)
+            outFeatures = static_cast<cldnn::tensor::value_type>(layer->outData[0]->getTensorDesc().getDims()[2]);
         switch (in0dims.size()) {
             case 4:
                 weightDimsVec = { TensorValue(layer->outData[0]->getTensorDesc().getDims().back()),
@@ -1061,8 +1095,8 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
                 break;
             case 3:
                 weightDimsVec = { TensorValue(layer->outData[0]->getTensorDesc().getDims().back()),
-                                  TensorValue(in0dims[1]),
                                   TensorValue(in0dims[2]),
+                                  1,
                                   1 };
                 break;
             case 2:
@@ -1531,14 +1565,17 @@ void Program::CreateScaleShiftPrimitive(cldnn::topology& topology, InferenceEngi
     default: weightTensor = CldnnTensorFromIEDims(wDims);
         break;
     }
-    cldnn::layout blobLayout(DataTypeFromPrecision(layer->precision), m_defaultFormat, weightTensor);
-    scalePrimID = CreatePrimitiveFromBlob(topology, scalePrimID, scaleShiftLayer->_weights, blobLayout);
+    auto scales_dt = DataTypeFromPrecision(scaleShiftLayer->_weights->getTensorDesc().getPrecision());
+    cldnn::layout scalesLayout(scales_dt, m_defaultFormat, weightTensor);
+    scalePrimID = CreatePrimitiveFromBlob(topology, scalePrimID, scaleShiftLayer->_weights, scalesLayout);
     if (scaleShiftLayer->_biases != nullptr) {
+        auto shifts_dt = DataTypeFromPrecision(scaleShiftLayer->_biases->getTensorDesc().getPrecision());
+        cldnn::layout shiftsLayout(shifts_dt, m_defaultFormat, weightTensor);
         const auto& bDims = scaleShiftLayer->_biases->getTensorDesc().getDims();
         if (bDims != wDims) {
             THROW_CLDNN_EXCEPTION("Invalid bias blob dimensions in layer " << layer->name);
         }
-        biasPrimID = CreatePrimitiveFromBlob(topology, biasPrimID, scaleShiftLayer->_biases, blobLayout);
+        biasPrimID = CreatePrimitiveFromBlob(topology, biasPrimID, scaleShiftLayer->_biases, shiftsLayout);
     } else {
         biasPrimID = "";  // 0-bias
     }
@@ -2892,11 +2929,14 @@ void Program::CreateFullyConnectedPrimitive(cldnn::topology& topology, Inference
     IE_ASSERT(weightPrimID.size() == 1);
     IE_ASSERT(biasPrimID.size() <= 1);
 
+    auto outDims = layer->outData[0]->getTensorDesc().getDims().size();
     auto fcPrim = cldnn::fully_connected(fcLayerName,
                                          inputPrimitives[0],
                                          weightPrimID[0],
                                          biasPrimID.empty() ? "" : biasPrimID[0],
-                                         DataTypeFromPrecision(fcLayer->outData[0]->getTensorDesc().getPrecision()));
+                                         DataTypeFromPrecision(fcLayer->outData[0]->getTensorDesc().getPrecision()),
+                                         cldnn::padding(),
+                                         layer->outData[0]->getTensorDesc().getDims().size());
 
     topology.add(fcPrim);
 

@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <vector>
 #include <utility>
-#include <legacy/ie_util_internal.hpp>
 
 namespace HeteroPlugin {
 
@@ -38,10 +37,7 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string,
                                          InferenceEngine::Parameter> & options) const override;
 
-    ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
-
-
-    void SetAffinity(const InferenceEngine::CNNNetwork& network, const Configs &config);
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
         const Configs & localConfig) const;
@@ -49,15 +45,4 @@ public:
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string & deviceName) const;
 };
-
-struct HeteroLayerColorer {
-    explicit HeteroLayerColorer(const std::vector<std::string>& devices);
-
-    void operator() (const CNNLayerPtr layer,
-                    ordered_properties &printed_properties,
-                    ordered_properties &node_properties);
-
-    std::unordered_map<std::string, std::string> deviceColorMap;
-};
-
 }  // namespace HeteroPlugin

@@ -31,7 +31,12 @@ namespace ngraph
 
             } // namespace set_1
 
-        } // namespace op
+            namespace set_13
+            {
+                OutputVector unsqueeze(const Node& node);
+
+            } // namespace set_13
+        }     // namespace op
 
     } // namespace onnx_import
 
