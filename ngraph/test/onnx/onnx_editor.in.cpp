@@ -54,12 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
 
     const auto function = onnx_import::import_onnx_model(editor);
 
-    const auto all_ops_in_graph = function->get_ops();
-    std::vector<std::shared_ptr<ngraph::Node>> graph_inputs;
-    std::copy_if(std::begin(all_ops_in_graph),
-                 std::end(all_ops_in_graph),
-                 std::back_inserter(graph_inputs),
-                 [](const std::shared_ptr<ngraph::Node> node) { return op::is_parameter(node); });
+    const auto graph_inputs = function->get_parameters();
 
     const auto float_inputs_count = std::count_if(
         std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::f32));
