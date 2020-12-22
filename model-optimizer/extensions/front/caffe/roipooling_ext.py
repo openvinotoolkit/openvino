@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from mo.front.ops.roipooling import ROIPooling
+from mo.ops.roipooling import ROIPooling
 
 from mo.front.extractor import FrontExtractorOp
   
