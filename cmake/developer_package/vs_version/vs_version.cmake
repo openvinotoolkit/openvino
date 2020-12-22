@@ -21,6 +21,7 @@ if(IE_VS_VER_HAS_VERSION)
     set(IE_VS_VER_FILEVERSION_STR "${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}.0")
 endif()
 
+set(IE_VS_VER_COMPANY_NAME_STR "Intel Corporation")
 set(IE_VS_VER_PRODUCTVERSION_STR "${CI_BUILD_NUMBER}")
 set(IE_VS_VER_PRODUCTNAME_STR "OpenVINO toolkit")
 set(IE_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2020, Intel Corporation")
@@ -29,6 +30,7 @@ set(IE_VS_VER_COMMENTS_STR "https://docs.openvinotoolkit.org/")
 #
 # ie_add_vs_version_file(NAME <name>
 #                        FILEDESCRIPTION <file description>
+#                        [COMPANY_NAME <company name>]
 #                        [FILEVERSION <file version>]
 #                        [INTERNALNAME <internal name>]
 #                        [COPYRIGHT <name>]
@@ -43,7 +45,7 @@ function(ie_add_vs_version_file)
         return()
     endif()
 
-    cmake_parse_arguments(VS_VER "" "NAME;FILEDESCRIPTION;FILEVERSION;INTERNALNAME;COPYRIGHT;PRODUCTNAME;PRODUCTVERSION;COMMENTS;FILEVERSION_QUAD;PRODUCTVERSION_QUAD" "" ${ARGN})
+    cmake_parse_arguments(VS_VER "" "COMPANY_NAME;NAME;FILEDESCRIPTION;FILEVERSION;INTERNALNAME;COPYRIGHT;PRODUCTNAME;PRODUCTVERSION;COMMENTS;FILEVERSION_QUAD;PRODUCTVERSION_QUAD" "" ${ARGN})
 
     if(NOT TARGET ${VS_VER_NAME})
         message(FATAL_ERROR "${VS_VER_NAME} must define a target")
@@ -68,6 +70,7 @@ function(ie_add_vs_version_file)
         endif()
     endmacro()
 
+    _vs_ver_update_str_variable(COMPANY_NAME)
     _vs_ver_update_str_variable(FILEDESCRIPTION)
     _vs_ver_update_str_variable(FILEVERSION)
     _vs_ver_update_str_variable(INTERNALNAME)
