@@ -27,31 +27,24 @@ if(ENABLE_PROFILING_ITT)
             message(WARNING "Profiling option enabled, but no ITT library was found under INTEL_VTUNE_DIR")
         endif()
     else()
-        include(ExternalProject)
-        set(ITTAPI_BINARY_DIR  ${CMAKE_CURRENT_BINARY_DIR}/ittapi/build)
-        set(ITTAPI_SOURCE_DIR  ${CMAKE_CURRENT_BINARY_DIR}/ittapi/source)
-        set(ITTNOTIFY_LIBRARY  ${ITTAPI_BINARY_DIR}/bin/${CMAKE_STATIC_LIBRARY_PREFIX}ittnotify${CMAKE_STATIC_LIBRARY_SUFFIX})
-        ExternalProject_Add(
+        include(FetchContent)
+        FetchContent_Declare(
             ext_ittapi
-            PREFIX ittapi
             GIT_REPOSITORY https://github.com/intel/ittapi.git
             GIT_TAG v3.18.6
-            LOG_DOWNLOAD ON
-            LOG_CONFIGURE ON
-            LOG_BUILD ON
-            INSTALL_COMMAND ""
-            UPDATE_COMMAND ""
-            CMAKE_GENERATOR ${CMAKE_GENERATOR}
-            CMAKE_GENERATOR_PLATFORM ${CMAKE_GENERATOR_PLATFORM}
-            CMAKE_GENERATOR_TOOLSET ${CMAKE_GENERATOR_TOOLSET}
-            BINARY_DIR ${ITTAPI_BINARY_DIR}
-            SOURCE_DIR ${ITTAPI_SOURCE_DIR}
-            EXCLUDE_FROM_ALL TRUE
-            BUILD_BYPRODUCTS ${ITTNOTIFY_LIBRARY})
-        add_library(ittnotify INTERFACE)
-        add_dependencies(ittnotify ext_ittapi)
-        target_link_libraries(ittnotify INTERFACE ${ITTNOTIFY_LIBRARY})
-        target_include_directories(ittnotify INTERFACE ${ITTAPI_SOURCE_DIR}/include)
+        )
+
+        FetchContent_GetProperties(ext_ittapi)
+        if(NOT ext_ittapi_POPULATED)
+            FetchContent_Populate(ext_ittapi)
+            add_subdirectory(${ext_ittapi_SOURCE_DIR} ${ext_ittapi_BINARY_DIR})
+        endif()
+
+        target_compile_definitions(ittnotify INTERFACE ENABLE_PROFILING_ITT)
+        if (UNIX)
+            target_compile_options(ittnotify PRIVATE -Wno-undef)
+        endif()
+
         openvino_developer_export_targets(ittnotify)
     endif()
 endif()

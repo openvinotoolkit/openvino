@@ -32,6 +32,7 @@
 #include <os/windows/w_dirent.h>
 
 #include <inference_engine.hpp>
+#include <precision_utils.h>
 #include <common.hpp>
 #include <vpu/vpu_config.hpp>
 
@@ -145,8 +146,6 @@ public:
     }                                                                               \
 }
 
-static short f32tof16(float x);
-static float f16tof32(short x);
 static bool loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blob);
 static bool loadVideo(const std::vector<std::string> &imagesFolder, InferenceEngine::Blob::Ptr &blob);
 static bool loadBinaryTensor(const std::string &binaryFilename, InferenceEngine::Blob::Ptr &blob);
@@ -593,99 +592,6 @@ int main(int argc, char *argv[]) {
     return -1;
 }
 
-inline float asfloat(uint32_t v) {
-    return *reinterpret_cast<float *>(&v);
-}
-
-#define EXP_MASK_F32 0x7F800000U
-#define EXP_MASK_F16     0x7C00U
-
-static short f32tof16(float x) {
-    static float min16 = asfloat((127 - 14) << 23);
-
-    static float max16 = asfloat(((127 + 15) << 23) | 0x007FE000);
-    static uint32_t max16f16 = ((15 + 15) << 10) | 0x3FF;
-
-    union {
-        float f;
-        uint32_t u;
-    } v{};
-    v.f = x;
-
-    uint32_t s = (v.u >> 16) & 0x8000;
-
-    v.u &= 0x7FFFFFFF;
-
-    if ((v.u & EXP_MASK_F32) == EXP_MASK_F32) {
-        if (v.u & 0x007FFFFF) {
-            return s | (v.u >> (23 - 10)) | 0x0200;
-        } else {
-            return s | (v.u >> (23 - 10));
-        }
-    }
-
-    float halfULP = asfloat(v.u & EXP_MASK_F32) * asfloat((127 - 11) << 23);
-    v.f += halfULP;
-
-    if (v.f < min16 * 0.5F) {
-        return s;
-    }
-
-    if (v.f < min16) {
-        return s | (1 << 10);
-    }
-
-    if (v.f >= max16) {
-        return max16f16 | s;
-    }
-
-    v.u -= ((127 - 15) << 23);
-
-    v.u >>= (23 - 10);
-
-    return v.u | s;
-}
-
-static float f16tof32(short x) {
-    // this is storage for output result
-    uint32_t u = x;
-
-    // get sign in 32bit format
-    uint32_t s = ((u & 0x8000) << 16);
-
-    // check for NAN and INF
-    if ((u & EXP_MASK_F16) == EXP_MASK_F16) {
-        // keep mantissa only
-        u &= 0x03FF;
-
-        // check if it is NAN and raise 10 bit to be align with intrin
-        if (u) {
-            u |= 0x0200;
-        }
-
-        u <<= (23 - 10);
-        u |= EXP_MASK_F32;
-        u |= s;
-    } else if ((x & EXP_MASK_F16) == 0) {  // check for zero and denormals. both are converted to zero
-        u = s;
-    } else {
-        // abs
-        u = (u & 0x7FFF);
-
-        // shift mantissa and exp from f16 to f32 position
-        u <<= (23 - 10);
-
-        // new bias for exp (f16 bias is 15 and f32 bias is 127)
-        u += ((127 - 15) << 23);
-
-        // add sign
-        u |= s;
-    }
-
-    // finally represent result as float and return
-    return *reinterpret_cast<float *>(&u);
-}
-
 static bool loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blob) {
     InferenceEngine::TensorDesc tensDesc = blob->getTensorDesc();
     const InferenceEngine::Layout layout = tensDesc.getLayout();
@@ -737,7 +643,7 @@ static bool loadImage(const std::string &imageFilename, InferenceEngine::Blob::P
                 int x = static_cast<int>(std::floor((w + 0.5f) * xScale));
                 for (int c = 0; c < C; c++) {
                     blobDataPtr[n * strideN + c * strideC + h * strideH + w * strideW] =
-                            f32tof16(1.0 * RGB8[(y * img_w + x) * numImageChannels + c]);
+                            InferenceEngine::PrecisionUtils::f32tof16(1.0 * RGB8[(y * img_w + x) * numImageChannels + c]);
                 }
             }
         }
@@ -800,7 +706,7 @@ static bool loadVideo(const std::vector<std::string> &imagesFolder, InferenceEng
                     int x = static_cast<int>(std::floor((w + 0.5f) * xScale));
                     for (int c = 0; c < C; c++) {
                         blobDataPtr[n * strideN + c * strideC + d * strideD + h * strideH + w * strideW] =
-                                f32tof16(1.0 * RGB8[(y * img_w + x) * numImageChannels + c]);
+                                InferenceEngine::PrecisionUtils::f32tof16(1.0 * RGB8[(y * img_w + x) * numImageChannels + c]);
                     }
                 }
             }
@@ -845,7 +751,7 @@ bool loadBinaryTensor(const std::string &binaryFilename, InferenceEngine::Blob::
         for (size_t i = 0; i < count; i++) {
             float tmp = 0.f;
             binaryFile.read(reinterpret_cast<char *>(&tmp), sizeof(float));
-            blobDataPtr[i] = f32tof16(tmp);
+            blobDataPtr[i] = InferenceEngine::PrecisionUtils::f32tof16(tmp);
         }
     } else {
         std::cout << "loadBinaryTensor error: While reading a file an error is encountered" << std::endl;

@@ -16,6 +16,7 @@
 
 #include "ngraph/op/tile.hpp"
 
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/tile.hpp"
 
@@ -95,7 +96,8 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
-bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
@@ -129,4 +131,10 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
                              repeats_val);
 
     return true;
+}
+
+bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v0_Tile_evaluate, return evaluate_tile(outputs, inputs));
+    return false;
 }
