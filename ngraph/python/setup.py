@@ -25,7 +25,9 @@ import multiprocessing
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 from setuptools.command.install_lib import install_lib
-
+from setuptools.command.install import install as _install
+from setuptools.command.develop import develop as _develop
+from distutils.command.build import build as _build
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -55,6 +57,28 @@ data_files = []
 with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
     requirements = req.read().splitlines()
 
+cmdclass = {}
+for super_class in [_build, _install, _develop]:
+
+    class command(super_class):
+        """Add user options for build, install and develop commands."""
+
+        cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
+        user_options = super_class.user_options + [
+            ("config=", None, "Build configuration [{}].".format("|".join(cmake_build_types))),
+            ("jobs=", None, "Specifies the number of jobs to use with make."),
+            ("cmake-args=", None, "Additional options to be passed to CMake.")
+        ]
+
+        def initialize_options(self):
+            """Set default values for all the options that this command supports."""
+            super().initialize_options()
+            self.config = None
+            self.jobs = None
+            self.cmake_args = None
+
+    cmdclass[super_class.__name__] = command
+
 
 class CMakeExtension(Extension):
     """Build extension stub."""
@@ -71,25 +95,39 @@ class BuildCMakeExt(build_ext):
     cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
     user_options = [
         ("config=", None, "Build configuration [{}].".format("|".join(cmake_build_types))),
-        ("jobs=", None, "Specifies the number of jobs to use with make.")
+        ("jobs=", None, "Specifies the number of jobs to use with make."),
+        ("cmake-args=", None, "Additional options to be passed to CMake.")
     ]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
+        super().initialize_options()
+        self.build_base = "build"
         self.config = None
         self.jobs = None
-        super().initialize_options()
+        self.cmake_args = None
 
     def finalize_options(self):
         """Set final values for all the options that this command supports."""
+        super().finalize_options()
+
+        for cmd in ["build", "install", "develop"]:
+            self.set_undefined_options(cmd, ("config", "config"),
+                                       ("jobs", "jobs"),
+                                       ("cmake_args", "cmake_args"))
+
         if not self.config:
-            self.announce("Set default value for CMAKE_BUILD_TYPE = Release.", level=4)
-            self.config = "Release"
+            if self.debug:
+                self.config = "Debug"
+            else:
+                self.announce("Set default value for CMAKE_BUILD_TYPE = Release.", level=4)
+                self.config = "Release"
         else:
             build_types = [item.lower() for item in self.cmake_build_types]
             try:
                 i = build_types.index(str(self.config).lower())
                 self.config = self.cmake_build_types[i]
+                self.debug = True if "Debug" == self.config else False
             except ValueError:
                 self.announce("Unsupported CMAKE_BUILD_TYPE value: " + self.config, level=4)
                 self.announce("Supported values: {}".format(", ".join(self.cmake_build_types)), level=4)
@@ -97,7 +135,6 @@ class BuildCMakeExt(build_ext):
         if self.jobs is None and os.getenv("MAX_JOBS") is not None:
             self.jobs = os.getenv("MAX_JOBS")
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
-        super().finalize_options()
 
     def run(self):
         """Run CMake build for modules."""
@@ -108,7 +145,8 @@ class BuildCMakeExt(build_ext):
     def build_cmake(self, extension: Extension):
         """Cmake configure and build steps."""
         self.announce("Preparing the build environment", level=3)
-
+        plat_specifier = ".%s-%d.%d" % (self.plat_name, *sys.version_info[:2])
+        self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier, self.config)
         build_dir = pathlib.Path(self.build_temp)
 
         extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
@@ -124,11 +162,11 @@ class BuildCMakeExt(build_ext):
             bin_dir = build_dir
 
         self.announce("Configuring cmake project", level=3)
-
+        ext_args = self.cmake_args.split() if self.cmake_args else []
         self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
                     "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
-                    "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"])
+                    "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 
@@ -153,7 +191,7 @@ class InstallCMakeLibs(install_lib):
 
         root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("ngraph_DIR") is not None:
-            root_dir = pathlib.Path(os.environ["ngraph_DIR"])
+            root_dir = pathlib.Path(os.environ["ngraph_DIR"]) / ".."
 
         lib_ext = ""
         if "linux" in sys.platform:
@@ -177,6 +215,9 @@ class InstallCMakeLibs(install_lib):
         super().run()
 
 
+cmdclass["build_ext"] = BuildCMakeExt
+cmdclass["install_lib"] = InstallCMakeLibs
+
 setup(
     name="ngraph-core",
     description="nGraph - Intel's graph compiler and runtime for Neural Networks",
@@ -191,6 +232,5 @@ setup(
     data_files=data_files,
     zip_safe=False,
     extras_require={},
-    cmdclass={"build_ext": BuildCMakeExt,
-              "install_lib": InstallCMakeLibs}
+    cmdclass=cmdclass
 )
