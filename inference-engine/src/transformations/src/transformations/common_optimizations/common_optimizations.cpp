@@ -7,6 +7,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/itt.hpp"
 #include "transformations/common_optimizations/algebraic_simplification.hpp"
+#include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
@@ -62,6 +63,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
     manager.register_pass<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
+    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
     manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
