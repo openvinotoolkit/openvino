@@ -376,7 +376,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 
 void ngfunction_2_irv10(pugi::xml_document& doc,
                         std::ostream& bin_file,
-                        ngraph::Function& f,
+                        const ngraph::Function& f,
                         const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     const bool exec_graph = is_exec_graph(f);
 
