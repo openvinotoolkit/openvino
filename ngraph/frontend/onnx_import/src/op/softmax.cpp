@@ -41,7 +41,8 @@ namespace ngraph
 
                 const auto result = std::make_shared<default_opset::Softmax>(data_minus_max, 1);
                 const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
-                return std::make_shared<default_opset::Reshape>(result, data_shape, false);
+                const bool special_zero = false;
+                return std::make_shared<default_opset::Reshape>(result, data_shape, special_zero);
             }
         }
 
