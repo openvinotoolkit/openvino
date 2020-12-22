@@ -123,6 +123,8 @@ xfail_issue_38707 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "SoftmaxCrossEntropyLoss")
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
+xfail_issue_38709 = xfail_test(reason="While validating node 'v1::AvgPool AvgPool_264589 (x[0]:f32{1,3,32}) -> (dynamic?)' with friendly_name 'AvgPool_264589':"
+                                      "Expected a 4D or 5D tensor for the input. Got: {1,3,32}")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: roi has zero dimension which is not allowed")
 xfail_issue_38712 = xfail_test(reason="RuntimeError: Check '(fmod == 1) "
                                       "While validating ONNX node '<Node(Mod): z>': "
