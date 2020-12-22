@@ -83,8 +83,10 @@ namespace reduce_sum
 bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_ReduceSum_evaluate,
-                    return reduce_sum::evaluate_sum(
-                        inputs[0], outputs[0], get_reduction_axes(), get_keep_dims()));
+    NGRAPH_OP_SCOPE(v1_ReduceSum_evaluate)
+    {
+        return reduce_sum::evaluate_sum(
+            inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    }
     return false;
 }

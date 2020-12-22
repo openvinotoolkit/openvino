@@ -149,7 +149,11 @@ namespace split
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Split_evaluate, const auto& data = inputs[0]; const auto& axis = inputs[1];
-                    return split::evaluate_split(data, axis, outputs, m_num_splits, this));
+    NGRAPH_OP_SCOPE(v1_Split_evaluate)
+    {
+        const auto& data = inputs[0];
+        const auto& axis = inputs[1];
+        return split::evaluate_split(data, axis, outputs, m_num_splits, this);
+    }
     return false;
 }

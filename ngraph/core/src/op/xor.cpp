@@ -86,8 +86,10 @@ namespace logxor
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_LogicalXor_evaluate,
-                    return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob()));
+    NGRAPH_OP_SCOPE(v1_LogicalXor_evaluate)
+    {
+        return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+    }
     return false;
 }
 
@@ -109,7 +111,9 @@ shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Xor_evaluate,
-                    return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob()));
+    NGRAPH_OP_SCOPE(v0_Xor_evaluate)
+    {
+        return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+    }
     return false;
 }

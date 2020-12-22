@@ -230,8 +230,10 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
 #define COMPUTE_OUT_SHAPE_CASE(a, ...)                                                             \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(compute_reshape_out_shape, _, a),                               \
-                        reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__));         \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(compute_reshape_out_shape, _, a))                               \
+        {                                                                                          \
+            reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__);                      \
+        }                                                                                          \
     }                                                                                              \
     break;
 
@@ -343,7 +345,7 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Reshape_evaluate, return evaluate_reshape(outputs, inputs));
+    NGRAPH_OP_SCOPE(v1_Reshape_evaluate) { return evaluate_reshape(outputs, inputs); }
     return false;
 }
 

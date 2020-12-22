@@ -84,8 +84,9 @@ namespace less_equalop
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v1_LessEqual_evaluate,
-        return less_equalop::evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob()));
+    NGRAPH_OP_SCOPE(v1_LessEqual_evaluate)
+    {
+        return less_equalop::evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    }
     return false;
 }

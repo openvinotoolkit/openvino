@@ -115,10 +115,6 @@ namespace ngraph
                                            const PartialShape input_partial_shape,
                                            const int64_t k) const;
                 void set_axis(const Rank input_rank, const int64_t axis);
-
-            private:
-                bool evaluate_topk(const HostTensorVector& outputs,
-                                   const HostTensorVector& inputs) const;
             };
         } // namespace v1
 

@@ -58,11 +58,14 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
 
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(Result_evaluate, outputs[0]->set_unary(inputs[0]);
-                    void* output = outputs[0]->get_data_ptr();
-                    void* input = inputs[0]->get_data_ptr();
-                    memcpy(output, input, outputs[0]->get_size_in_bytes());
-                    return true);
+    NGRAPH_OP_SCOPE(Result_evaluate)
+    {
+        outputs[0]->set_unary(inputs[0]);
+        void* output = outputs[0]->get_data_ptr();
+        void* input = inputs[0]->get_data_ptr();
+        memcpy(output, input, outputs[0]->get_size_in_bytes());
+        return true;
+    }
     return false;
 }
 

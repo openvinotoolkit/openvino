@@ -228,7 +228,7 @@ bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVecto
 bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_SpaceToDepth_evaluate, return evaluate_space_to_depth(outputs, inputs));
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_evaluate) { return evaluate_space_to_depth(outputs, inputs); }
     return false;
 }
 

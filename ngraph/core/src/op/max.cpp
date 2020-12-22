@@ -77,8 +77,9 @@ shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& ne
 bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v1_ReduceMax_evaluate,
-        return maxop::evaluate_max(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims()));
+    NGRAPH_OP_SCOPE(v1_ReduceMax_evaluate)
+    {
+        return maxop::evaluate_max(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    }
     return false;
 }

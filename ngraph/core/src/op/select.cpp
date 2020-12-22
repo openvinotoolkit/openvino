@@ -156,9 +156,11 @@ namespace detail
 bool op::v1::Select::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_Select_evaluate, const auto autob = get_auto_broadcast();
-
-                    return detail::evaluate_select(
-                        output_values, input_values, autob, get_output_element_type(0)));
+    NGRAPH_OP_SCOPE(v1_Select_evaluate)
+    {
+        const auto autob = get_auto_broadcast();
+        return detail::evaluate_select(
+            output_values, input_values, autob, get_output_element_type(0));
+    }
     return false;
 }

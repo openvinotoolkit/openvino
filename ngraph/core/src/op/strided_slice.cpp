@@ -281,17 +281,19 @@ namespace strided_slice
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate,
-                    return strided_slice::evaluate_strided_slice(
-                        input_values[0],
-                        input_values[1],
-                        input_values[2],
-                        input_values[3],
-                        convert_mask_to_axis_set(get_begin_mask()),
-                        convert_mask_to_axis_set(get_end_mask()),
-                        convert_mask_to_axis_set(get_new_axis_mask()),
-                        convert_mask_to_axis_set(get_shrink_axis_mask()),
-                        convert_mask_to_axis_set(get_ellipsis_mask()),
-                        output_values[0]));
+    NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate)
+    {
+        return strided_slice::evaluate_strided_slice(
+            input_values[0],
+            input_values[1],
+            input_values[2],
+            input_values[3],
+            convert_mask_to_axis_set(get_begin_mask()),
+            convert_mask_to_axis_set(get_end_mask()),
+            convert_mask_to_axis_set(get_new_axis_mask()),
+            convert_mask_to_axis_set(get_shrink_axis_mask()),
+            convert_mask_to_axis_set(get_ellipsis_mask()),
+            output_values[0]);
+    }
     return false;
 }

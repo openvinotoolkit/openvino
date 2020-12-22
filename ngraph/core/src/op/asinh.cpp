@@ -71,6 +71,6 @@ namespace asinhop
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     bool rc = false;
-    NGRAPH_OP_SCOPE(v3_Asinh_evaluate, rc = asinhop::evaluate_asinh(inputs[0], outputs[0]));
+    NGRAPH_OP_SCOPE(v3_Asinh_evaluate) { rc = asinhop::evaluate_asinh(inputs[0], outputs[0]); }
     return rc;
 }

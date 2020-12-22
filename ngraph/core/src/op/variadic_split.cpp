@@ -216,6 +216,6 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
 bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate, return evaluate_variadic_split(inputs, outputs));
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate) { return evaluate_variadic_split(inputs, outputs); }
     return false;
 }

@@ -79,8 +79,10 @@ namespace reduce_l2
 bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_ReduceL2_evaluate,
-                    return reduce_l2::evaluate_reduce_l2(
-                        inputs[0], outputs[0], get_reduction_axes(), get_keep_dims()));
+    NGRAPH_OP_SCOPE(v4_ReduceL2_evaluate)
+    {
+        return reduce_l2::evaluate_reduce_l2(
+            inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    }
     return false;
 }

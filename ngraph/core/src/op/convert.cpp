@@ -66,8 +66,10 @@ namespace convert
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_covert_out, _, a),                                     \
-                        rc = evaluate<INPUT_ET, element::Type_t::a>(__VA_ARGS__));                 \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_covert_out, _, a))                                     \
+        {                                                                                          \
+            rc = evaluate<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                              \
+        }                                                                                          \
     }                                                                                              \
     break
 
@@ -117,7 +119,9 @@ namespace convert
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v0_Convert_evaluate,
-                    return convert::evaluate_convert(input_values[0], output_values[0]));
+    NGRAPH_OP_SCOPE(v0_Convert_evaluate)
+    {
+        return convert::evaluate_convert(input_values[0], output_values[0]);
+    }
     return false;
 }

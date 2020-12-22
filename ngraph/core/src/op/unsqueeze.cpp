@@ -150,8 +150,10 @@ namespace unsqueeze
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate,
-                    return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]));
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate)
+    {
+        return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+    }
     return false;
 }
 

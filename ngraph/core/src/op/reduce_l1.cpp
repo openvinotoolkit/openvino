@@ -81,8 +81,10 @@ namespace reduce_l1
 bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_ReduceL1_evaluate,
-                    return reduce_l1::evaluate_sum(
-                        inputs[0], outputs[0], get_reduction_axes(), get_keep_dims()));
+    NGRAPH_OP_SCOPE(v4_ReduceL1_evaluate)
+    {
+        return reduce_l1::evaluate_sum(
+            inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    }
     return false;
 }

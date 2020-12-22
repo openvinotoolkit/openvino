@@ -82,8 +82,9 @@ namespace atanop
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     bool rc = false;
-    NGRAPH_OP_SCOPE(
-        v0_Atan_evaluate,
-        rc = atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    NGRAPH_OP_SCOPE(v0_Atan_evaluate)
+    {
+        rc = atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    }
     return rc;
 }

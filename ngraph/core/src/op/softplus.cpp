@@ -77,8 +77,9 @@ namespace softplus
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v4_SoftPlus_evaluate,
-        return softplus::evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    NGRAPH_OP_SCOPE(v4_SoftPlus_evaluate)
+    {
+        return softplus::evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    }
     return false;
 }

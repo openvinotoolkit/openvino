@@ -259,6 +259,6 @@ namespace
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_BatchToSpace, return batch_to_space_evaluate(outputs, inputs));
+    NGRAPH_OP_SCOPE(v1_BatchToSpace) { return batch_to_space_evaluate(outputs, inputs); }
     return false;
 }

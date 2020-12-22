@@ -76,8 +76,9 @@ namespace erfop
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v0_Erf_evaluate,
-        return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    NGRAPH_OP_SCOPE(v0_Erf_evaluate)
+    {
+        return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    }
     return false;
 }

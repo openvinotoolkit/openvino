@@ -86,10 +86,11 @@ namespace clamp
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v0_Clamp_evaluate,
+    NGRAPH_OP_SCOPE(v0_Clamp_evaluate)
+    {
         return clamp::evaluate_clamp(
-            inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0))));
+            inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
+    }
     return false;
 }
 
