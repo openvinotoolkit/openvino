@@ -37,6 +37,7 @@ namespace
         {element::Type_t::u16, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16},
         {element::Type_t::u32, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32},
         {element::Type_t::u64, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64},
+        // TODO: handle dynamic input too?
     };
 
     ONNX_NAMESPACE::ValueInfoProto* find_graph_input(ONNX_NAMESPACE::GraphProto& graph,
@@ -75,7 +76,10 @@ namespace
                 auto* tensor_type = type_proto->mutable_tensor_type();
                 if (NG_2_ONNX_TYPES.count(elem_type) == 0)
                 {
-                    throw ngraph_error("TODO");
+                    throw ngraph_error(
+                        "The input type for input '" + onnx_input.name() +
+                        "' cannot be set to: " + element::Type(elem_type).get_type_name() +
+                        ". This type is not allowed in ONNX.");
                 }
                 else
                 {
