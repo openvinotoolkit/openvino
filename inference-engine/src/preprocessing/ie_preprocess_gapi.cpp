@@ -757,15 +757,6 @@ PreprocEngine::Update PreprocEngine::needUpdate(const CallDesc &newCallOrig) con
     return Update::NOTHING;
 }
 
-bool PreprocEngine::useGAPI() {
-    static const bool NO_GAPI = [](const char *str) -> bool {
-        std::string var(str ? str : "");
-        return var == "N" || var == "NO" || var == "OFF" || var == "0";
-    } (getenv("USE_GAPI"));
-
-    return !NO_GAPI;
-}
-
 void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst) {
     // Note: src blob is the ROI blob, dst blob is the network's input blob
 
@@ -904,7 +895,7 @@ void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
 }
 
 template<typename BlobTypePtr>
-bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
+void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
     ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
     int batch_size) {
 
@@ -953,7 +944,6 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
     if (algorithm == NO_RESIZE && std::get<0>(thisCall) == std::get<1>(thisCall)) {
         //if requested output parameters match input blob no need to do anything
         THROW_IE_EXCEPTION  << "No job to do in the PreProcessing ?";
-        return true;
     }
 
     const Update update = needUpdate(thisCall);
@@ -983,15 +973,10 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
 
     executeGraph(_lastComputation, batched_input_plane_mats, batched_output_plane_mats, batch_size,
         omp_serial, update);
-
-    return true;
 }
 
-bool PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool omp_serial, int batch_size) {
-    if (!useGAPI()) {
-        return false;
-    }
 
     const auto out_fmt = (in_fmt == ColorFormat::RAW) ? ColorFormat::RAW : ColorFormat::BGR;  // FIXME: get expected color format from network
 
