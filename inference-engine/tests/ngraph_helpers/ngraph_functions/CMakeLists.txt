@@ -22,12 +22,13 @@ addIeTarget(
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
-            PUBLIC
-                ${EXPORT_DEPENDENCIES}
+            PUBLIC        
+                ${NGRAPH_LIBRARIES}
+                ngraph_backend
+                interpreter_backend
         ADD_CPPLINT
         DEVELOPER_PACKAGE
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
+            inference_engine_tests
 )
 
 ie_faster_build(${TARGET_NAME}
