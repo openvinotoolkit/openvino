@@ -53,7 +53,7 @@ void op::v3::Bucketize::validate_and_infer_types()
                           data_et);
 
     NODE_VALIDATION_CHECK(this,
-                          buckets_et.is_real() || data_et.is_integral_number(),
+                          buckets_et.is_real() || buckets_et.is_integral_number(),
                           "Buckets input type must be numeric. Got: ",
                           buckets_et);
 
