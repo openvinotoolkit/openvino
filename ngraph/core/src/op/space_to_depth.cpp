@@ -18,6 +18,7 @@
 #include <memory>
 #include <numeric>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/space_to_depth.hpp"
@@ -109,8 +110,8 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
     }
 }
 
-bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
-                                            const HostTensorVector& inputs) const
+bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVector& outputs,
+                                                           const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
@@ -174,7 +175,8 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
     // x' = reshape(data, [N, C, D1/block_size, block_size, D2/block_size, block_size, ...,
     // DK/block_size, block_size])
     // x'' = transpose(x', [0,  1, 3, 5, ..., K + (K + 1),  2, 4, ..., K + K])
-    // y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ..., DK /
+    // y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ..., DK
+    // /
     // block_size])
     case SpaceToDepthMode::DEPTH_FIRST:
     {
@@ -184,7 +186,8 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
     // x' = reshape(data, [N, C, D1/block_size, block_size, D2/block_size, block_size, ... ,
     // DK/block_size, block_size])
     // x'' = transpose(x',  [0,  3, 5, ..., K + (K + 1), 1,  2, 4, ..., K + K])
-    // y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ..., DK /
+    // y = reshape(x'', [N, C * (block_size ^ K), D1 / block_size, D2 / block_size, ..., DK
+    // /
     // block_size])
     case SpaceToDepthMode::BLOCKS_FIRST:
     default: { axes_order.insert(axes_order.begin() + spatial_dims + 1, 1);
@@ -221,6 +224,12 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
                                  squeezed_shape,
                                  elem_size);
     return true;
+}
+bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
+                                            const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_evaluate, return evaluate_space_to_depth(outputs, inputs));
+    return false;
 }
 
 namespace ngraph

@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstring>
 #include <numeric>
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
 
@@ -417,8 +418,8 @@ static void pad_input_data(const uint8_t* data_ptr,
     }
 }
 
-bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
-                                   const HostTensorVector& inputs) const
+bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs,
+                                               const HostTensorVector& inputs) const
 {
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
@@ -491,6 +492,13 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
     }
 
     return true;
+}
+
+bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
+                                   const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v4_Interpolate_evaluate, return evaluate_interpolate(outputs, inputs));
+    return false;
 }
 
 namespace ngraph
