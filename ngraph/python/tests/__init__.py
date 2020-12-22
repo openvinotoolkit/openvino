@@ -184,14 +184,6 @@ xfail_issue_44970 = xfail_test(reason="Assertion error")
 xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
                                       "FakeQuantize_xxx has non const input on 1 port")
 
-
-# Model ONNX Zoo issues:
-xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
-                                      "('Expected %s parameters, received %s.', 1, 3)")
-xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315,"
-                                      "Constant_9353 -> (f32{?,?,?,?})' with friendly_name '315':"
-                                      "Input order must have shape [n], where n is the rank of arg.")
-
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
