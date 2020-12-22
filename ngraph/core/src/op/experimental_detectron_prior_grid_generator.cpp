@@ -24,21 +24,21 @@
 using namespace std;
 using namespace ngraph;
 
-using GridGenerator = op::v6::ExperimentalDetectronPriorGridGenerator;
+NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator,
+                       "ExperimentalDetectronPriorGridGenerator", 6);
 
-NGRAPH_RTTI_DEFINITION(GridGenerator, "ExperimentalDetectronPriorGridGenerator", 6);
-
-GridGenerator::ExperimentalDetectronPriorGridGenerator(const Output<Node>& priors,
-                                                       const Output<Node>& feature_map,
-                                                       const Output<Node>& im_data,
-                                                       const Attributes& attrs)
+op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
+    const Output<Node>& priors,
+    const Output<Node>& im_data,
+    const Output<Node>& feature_map,
+    const Attributes& attrs)
     : Op({priors, feature_map, im_data})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
-bool GridGenerator::visit_attributes(AttributeVisitor& visitor)
+bool op::v6::ExperimentalDetectronPriorGridGenerator::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("flatten", m_attrs.flatten);
     visitor.on_attribute("h", m_attrs.h);
@@ -48,7 +48,8 @@ bool GridGenerator::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-shared_ptr<Node> GridGenerator::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v6::ExperimentalDetectronPriorGridGenerator::clone_with_new_inputs(
+    const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
 
@@ -56,9 +57,9 @@ shared_ptr<Node> GridGenerator::clone_with_new_inputs(const OutputVector& new_ar
         new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
-void GridGenerator::validate(const PartialShape& priors_shape,
-                             const PartialShape& featmap_shape,
-                             const PartialShape& im_data_shape)
+void op::v6::ExperimentalDetectronPriorGridGenerator::validate(const PartialShape& priors_shape,
+                                                               const PartialShape& featmap_shape,
+                                                               const PartialShape& im_data_shape)
 {
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic())
     {
@@ -95,7 +96,7 @@ void GridGenerator::validate(const PartialShape& priors_shape,
                           num_batches_im_data);
 }
 
-void GridGenerator::validate_and_infer_types()
+void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
 {
     auto priors_shape = get_input_partial_shape(0);
     auto featmap_shape = get_input_partial_shape(1);

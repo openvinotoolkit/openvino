@@ -24,22 +24,22 @@
 using namespace std;
 using namespace ngraph;
 
-using ExperimentalDetection = op::v6::ExperimentalDetectronDetectionOutput;
+NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronDetectionOutput,
+                       "ExperimentalDetectronDetectionOutput", 6);
 
-NGRAPH_RTTI_DEFINITION(ExperimentalDetection, "ExperimentalDetectronDetectionOutput", 6);
-
-ExperimentalDetection::ExperimentalDetectronDetectionOutput(const Output<Node>& input_rois,
-                                                            const Output<Node>& input_deltas,
-                                                            const Output<Node>& input_scores,
-                                                            const Output<Node>& input_im_info,
-                                                            const Attributes& attrs)
+op::v6::ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(
+    const Output<Node>& input_rois,
+    const Output<Node>& input_deltas,
+    const Output<Node>& input_scores,
+    const Output<Node>& input_im_info,
+    const Attributes& attrs)
     : Op({input_rois, input_deltas, input_scores, input_im_info})
     , m_attrs(attrs)
 {
     constructor_validate_and_infer_types();
 }
 
-bool ExperimentalDetection::visit_attributes(AttributeVisitor& visitor)
+bool op::v6::ExperimentalDetectronDetectionOutput::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("score_threshold", m_attrs.score_threshold);
     visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
@@ -52,7 +52,7 @@ bool ExperimentalDetection::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void ExperimentalDetection::validate_and_infer_types()
+void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
 {
     size_t rois_num = m_attrs.max_detections_per_image;
     auto input_et = get_input_element_type(0);
@@ -62,7 +62,8 @@ void ExperimentalDetection::validate_and_infer_types()
     set_output_type(2, input_et, Shape{rois_num});
 }
 
-shared_ptr<Node> ExperimentalDetection::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v6::ExperimentalDetectronDetectionOutput::clone_with_new_inputs(
+    const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
 
