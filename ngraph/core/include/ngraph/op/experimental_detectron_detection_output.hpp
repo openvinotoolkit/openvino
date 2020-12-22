@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <vector>
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
@@ -47,7 +47,7 @@ namespace ngraph
                     // specifies maximal number of detections per class
                     int post_nms_count;
                     // specifies maximual number of detections per image
-                    uint64_t max_detections_per_image;
+                    size_t max_detections_per_image;
                     // a flag specifies whether to delete background classes or not
                     // `true`  means background classes should be deleted,
                     // `false` means background classes shouldn't be deleted.

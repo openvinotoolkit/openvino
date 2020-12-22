@@ -54,7 +54,7 @@ bool ExperimentalDetection::visit_attributes(AttributeVisitor& visitor)
 
 void ExperimentalDetection::validate_and_infer_types()
 {
-    uint64_t rois_num = m_attrs.max_detections_per_image;
+    size_t rois_num = m_attrs.max_detections_per_image;
     auto input_et = get_input_element_type(0);
 
     set_output_type(0, input_et, Shape{rois_num, 4});
