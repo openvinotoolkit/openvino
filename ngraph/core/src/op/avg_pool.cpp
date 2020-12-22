@@ -96,7 +96,6 @@ void op::v1::AvgPool::validate_and_infer_types()
                               m_kernel.size() == arg_shape.rank().get_max_length() - 2,
                               "Expected kernel size to be equal to input size - 2. Got: ",
                               m_kernel.size());
-
     }
 
     auto output_shape = PartialShape::dynamic();
