@@ -247,15 +247,22 @@ void op::v5::Loop::validate_and_infer_types()
                 as_type_ptr<TensorIterator::ConcatOutputDescription>(output_description))
         {
             const auto& body_value_partial_shape = body_value.get_partial_shape();
-            set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
-            if (body_value_partial_shape.is_static())
+            if (body_value_partial_shape.rank().is_dynamic())
             {
-                auto body_value_shape = body_value_partial_shape.to_shape();
+                set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
+            }
+            else
+            {
                 auto axis = concat_output_description->m_axis;
 
-                Shape out_shape{body_value_shape};
+                NODE_VALIDATION_CHECK(this,
+                                      axis < body_value_partial_shape.rank().get_length(),
+                                      "Concatenation axis must be less than sliced output rank");
 
-                if (body_value_shape.empty())
+                PartialShape out_shape{body_value_partial_shape};
+
+                if (body_value_partial_shape.is_static() &&
+                    ngraph::is_scalar(body_value_partial_shape.to_shape()))
                 {
                     NODE_VALIDATION_CHECK(
                         this,
@@ -266,23 +273,23 @@ void op::v5::Loop::validate_and_infer_types()
                     out_shape = Shape(1);
                 }
 
-                if (m_num_iterations != -1)
+                if (m_num_iterations != -1 && body_value_partial_shape[axis].is_static())
                 {
-                    out_shape[axis] = m_num_iterations * body_value_shape[axis];
+                    out_shape[axis] =
+                        m_num_iterations * body_value_partial_shape[axis].get_length();
                     if (zero_number_of_iter)
                     {
-                        out_shape.at(0) = 0;
+                        out_shape[0] = 0;
                     }
-                    set_output_type(index, body_value.get_element_type(), out_shape);
                 }
-            }
-            else
-            {
-                set_output_type(index,
-                                body_value.get_element_type(),
-                                PartialShape::dynamic(body_value.get_partial_shape().rank()));
+                else
+                {
+                    out_shape[axis] = Dimension::dynamic();
+                }
+                set_output_type(index, body_value.get_element_type(), out_shape);
             }
         }
+
         else if (auto body_output_description =
                      as_type_ptr<TensorIterator::BodyOutputDescription>(output_description))
         {
@@ -397,8 +404,13 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
 
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Loop::evaluate");
-    runtime::reference::loop(
-        m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
-    return true;
+    NGRAPH_OP_SCOPE(v5_Loop_evaluate,
+                    runtime::reference::loop(m_body,
+                                             m_output_descriptions,
+                                             m_input_descriptions,
+                                             m_special_body_ports,
+                                             outputs,
+                                             inputs);
+                    return true);
+    return false;
 }

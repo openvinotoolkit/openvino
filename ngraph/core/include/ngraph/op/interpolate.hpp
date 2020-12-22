@@ -234,6 +234,8 @@ namespace ngraph
                 std::vector<int64_t> get_axes() const;
 
             private:
+                bool evaluate_interpolate(const HostTensorVector& outputs,
+                                          const HostTensorVector& inputs) const;
                 InterpolateAttrs m_attrs;
 
                 /// \brief Corrects pads_begin and pads_end attributes.
