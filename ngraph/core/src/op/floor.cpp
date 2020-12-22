@@ -69,28 +69,17 @@ namespace floorop
 
         switch (arg0->get_element_type())
         {
-            COPY_TENSOR(boolean)(arg0, out, count);
-            break;
-            COPY_TENSOR(i8)(arg0, out, count);
-            break;
-            COPY_TENSOR(i16)(arg0, out, count);
-            break;
-            COPY_TENSOR(i32)(arg0, out, count);
-            break;
-            COPY_TENSOR(i64)(arg0, out, count);
-            break;
-            COPY_TENSOR(u8)(arg0, out, count);
-            break;
-            COPY_TENSOR(u16)(arg0, out, count);
-            break;
-            COPY_TENSOR(u32)(arg0, out, count);
-            break;
-            COPY_TENSOR(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_COPY_TENSOR(evaluate_floor, boolean, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_floor, i8, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_floor, i16, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_floor, i32, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_floor, i64, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_floor, u8, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_floor, u16, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_floor, u32, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_floor, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_floor, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_floor, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -99,6 +88,8 @@ namespace floorop
 
 bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Floor::evaluate");
-    return floorop::evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_OP_SCOPE(
+        v0_Floor_evaluate,
+        return floorop::evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    return false;
 }
