@@ -65,3 +65,25 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
     EXPECT_EQ(float_inputs_count, 0);
     EXPECT_EQ(integer_inputs_count, 3);
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_all_inputs_type_substitution)
+{
+    // the original model contains 2 inputs with i64 data type and one f32 input
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
+
+    editor.set_input_types({{"A", element::i8}, {"B", element::i8}, {"C", element::i8}});
+
+    const auto function = onnx_import::import_onnx_model(editor);
+
+    const auto graph_inputs = function->get_parameters();
+
+    const auto float_inputs_count = std::count_if(
+        std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::f32));
+
+    const auto integer_inputs_count = std::count_if(
+        std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::i8));
+
+    EXPECT_EQ(float_inputs_count, 0);
+    EXPECT_EQ(integer_inputs_count, 3);
+}

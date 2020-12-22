@@ -23,6 +23,22 @@ using namespace ngraph;
 
 namespace
 {
+    const std::map<element::Type_t, ONNX_NAMESPACE::TensorProto_DataType> NG_2_ONNX_TYPES = {
+        {element::Type_t::bf16,
+         ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16},
+        {element::Type_t::f16, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16},
+        {element::Type_t::f32, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT},
+        {element::Type_t::f64, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE},
+        {element::Type_t::i8, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8},
+        {element::Type_t::i16, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT16},
+        {element::Type_t::i32, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT32},
+        {element::Type_t::i64, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT64},
+        {element::Type_t::u8, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT8},
+        {element::Type_t::u16, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT16},
+        {element::Type_t::u32, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT32},
+        {element::Type_t::u64, ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64},
+    };
+
     ONNX_NAMESPACE::ValueInfoProto* find_graph_input(ONNX_NAMESPACE::GraphProto& graph,
                                                      const std::string& name)
     {
@@ -57,7 +73,14 @@ namespace
             else
             {
                 auto* tensor_type = type_proto->mutable_tensor_type();
-                tensor_type->set_elem_type(7);
+                if (NG_2_ONNX_TYPES.count(elem_type) == 0)
+                {
+                    throw ngraph_error("TODO");
+                }
+                else
+                {
+                    tensor_type->set_elem_type(NG_2_ONNX_TYPES.at(elem_type));
+                }
             }
         }
     }
