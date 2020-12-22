@@ -44,7 +44,7 @@ namespace
     }
 } // namespace
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
+NGRAPH_TEST(onnx_editor, single_input_type_substitution)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
     onnx_import::ONNXModelEditor editor{
@@ -66,7 +66,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
     EXPECT_EQ(integer_inputs_count, 3);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_all_inputs_type_substitution)
+NGRAPH_TEST(onnx_editor, all_inputs_type_substitution)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
     onnx_import::ONNXModelEditor editor{
