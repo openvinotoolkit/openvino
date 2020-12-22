@@ -313,7 +313,7 @@ bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Gather_evaluate, return evaluate_gather(outputs, inputs));
+    NGRAPH_OP_SCOPE(v1_Gather_evaluate) { return evaluate_gather(outputs, inputs); }
     return false;
 }
 

@@ -638,9 +638,12 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
 bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Constant_evaluate, auto output = outputs[0];
-                    output->write(get_data_ptr(), output->get_size_in_bytes());
-                    return true);
+    NGRAPH_OP_SCOPE(v0_Constant_evaluate)
+    {
+        auto output = outputs[0];
+        output->write(get_data_ptr(), output->get_size_in_bytes());
+        return true;
+    }
     return false;
 }
 

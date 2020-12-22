@@ -165,8 +165,10 @@ namespace scatter_element_update
 #define TYPE_AXS_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(scatter_element_update_axs, _, a),                              \
-                        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__));                   \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(scatter_element_update_axs, _, a))                              \
+        {                                                                                          \
+            rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);                                \
+        }                                                                                          \
     }                                                                                              \
     break;
 
@@ -201,8 +203,10 @@ namespace scatter_element_update
 #define TYPE_IND_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(scatter_element_update_ind, _, a),                              \
-                        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__));                       \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(scatter_element_update_ind, _, a))                              \
+        {                                                                                          \
+            rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);                                    \
+        }                                                                                          \
     }                                                                                              \
     break;
 
@@ -295,7 +299,9 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate,
-                    return evaluate_scatter_element_update(outputs, inputs));
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate)
+    {
+        return evaluate_scatter_element_update(outputs, inputs);
+    }
     return false;
 }
