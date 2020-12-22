@@ -45,19 +45,6 @@ namespace ngraph
                         size_t rank_size = pshape.rank().get_length();
                         NGRAPH_CHECK(rank_size >= 3, "3-D and above tensors supported only");
 
-                        if (pshape.is_static())
-                        {
-                            const auto& shape = pshape.to_shape();
-                            std::vector<size_t> new_shape{
-                                shape[0], num_groups, shape[1] / num_groups};
-                            for (size_t i = 2; i < rank_size; i++)
-                            {
-                                new_shape.push_back(shape[i]);
-                            }
-                            return default_opset::Constant::create(
-                                element::i64, Shape{new_shape.size()}, new_shape);
-                        }
-
                         auto shape = std::make_shared<default_opset::ShapeOf>(data);
                         auto splits = builder::opset1::split(shape, rank_size);
                         auto num_groups_const =
@@ -92,18 +79,7 @@ namespace ngraph
                         static_cast<size_t>(node.get_attribute_value<int64_t>("num_groups"));
                     float eps = node.get_attribute_value<float>("eps", 1e-5);
 
-                    auto data_pshape = data.get_partial_shape();
-                    std::shared_ptr<ngraph::Node> data_shape_node;
-                    if (data_pshape.is_static())
-                    {
-                        auto shape = data_pshape.to_shape();
-                        data_shape_node = default_opset::Constant::create(
-                            element::u64, Shape{shape.size()}, shape);
-                    }
-                    else
-                    {
-                        data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
-                    }
+                    auto data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
                     auto data_reshaped = std::make_shared<default_opset::Reshape>(
                         data, detail::create_group_norm_shape(data, num_groups), true);
 
