@@ -114,6 +114,7 @@ mkldnn::memory::format_tag str2fmt(const char *str) {
         CASE(Goihw16g);
 //        CASE(Goihw16g_s8s8);
 //        CASE(Goidhw8g_s8s8);
+        CASE(Goidhw4g);
         CASE(Goidhw8g);
         CASE(Goidhw16g);
 //        CASE(Goidhw16g_s8s8);
