@@ -46,6 +46,16 @@ namespace ngraph
                 }
                 return function;
             }
+
+            std::shared_ptr<Function> import_onnx_model(ONNX_NAMESPACE::ModelProto& model_proto,
+                                                        const std::string& model_path)
+            {
+                transform::expand_onnx_functions(model_proto);
+                transform::fixup_legacy_operators(model_proto);
+                transform::update_external_data_paths(model_proto, model_path);
+
+                return detail::convert_to_ng_function(model_proto);
+            }
         } // namespace detail
 
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
@@ -55,11 +65,7 @@ namespace ngraph
 
             parse_from_istream(stream, model_proto);
 
-            transform::expand_onnx_functions(model_proto);
-            transform::fixup_legacy_operators(model_proto);
-            transform::update_external_data_paths(model_proto, model_path);
-
-            return detail::convert_to_ng_function(model_proto);
+            return detail::import_onnx_model(model_proto, model_path);
         }
 
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path)
@@ -71,7 +77,10 @@ namespace ngraph
 
         std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
         {
-            return nullptr;
+            // this overload of the import_onnx_model is friended with the ONNXModelEditor
+            // and thus can access its private member holding the modified model_proto
+            // TODO: handle model path
+            return detail::import_onnx_model(*(model_editor.m_model_proto), "");
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,

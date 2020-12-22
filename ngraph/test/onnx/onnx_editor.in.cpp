@@ -15,11 +15,12 @@
 //*****************************************************************************
 
 #include <algorithm>
-
 #include "gtest/gtest.h"
+
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/editor/editor.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/test_control.hpp"
 
@@ -33,6 +34,7 @@ namespace
 {
     using InputTypePred = std::function<bool(const std::shared_ptr<ngraph::Node>)>;
 
+    // A higher order factory function that produces predicates bound to a particular element type
     InputTypePred element_type_is(const element::Type et)
     {
         return [et](const std::shared_ptr<ngraph::Node> input) {
@@ -44,9 +46,10 @@ namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_editor_single_input_type_substitution)
 {
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.prototxt")};
     // the original model contains 3 inputs with f32 data type
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.prototxt"));
+    const auto function = onnx_import::import_onnx_model(editor);
 
     const auto all_ops_in_graph = function->get_ops();
     std::vector<std::shared_ptr<ngraph::Node>> graph_inputs;

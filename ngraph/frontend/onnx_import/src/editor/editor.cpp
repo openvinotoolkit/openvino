@@ -24,5 +24,14 @@ using namespace ngraph;
 onnx_import::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
     : m_model_proto{new ONNX_NAMESPACE::ModelProto{}}
 {
-    onnx_import::parse_from_file(model_path, *(m_model_proto.get()));
+    onnx_import::parse_from_file(model_path, *m_model_proto);
+}
+
+onnx_import::ONNXModelEditor::~ONNXModelEditor() {
+    delete m_model_proto;
+}
+
+void onnx_import::ONNXModelEditor::set_input_types(
+    const std::map<std::string, element::Type_t>& input_types)
+{
 }
