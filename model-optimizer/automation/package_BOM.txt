@@ -434,8 +434,8 @@ extensions/front/tf/placeholder_ext.py
 extensions/front/tf/placeholder_with_default_ext.py
 extensions/front/tf/pooling_ext.py
 extensions/front/tf/prelu.py
-extensions/front/tf/range_ext.py
 extensions/front/tf/random_uniform_ext.py
+extensions/front/tf/range_ext.py
 extensions/front/tf/reduce_ext.py
 extensions/front/tf/reshape_related_ext.py
 extensions/front/tf/resize_bilinear.py
