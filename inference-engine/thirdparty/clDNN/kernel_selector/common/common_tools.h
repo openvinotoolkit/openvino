@@ -63,10 +63,14 @@ inline uint8_t GetActivationAdditionalParamsNumber(ActivationFunction func) {
     switch (func) {
         case ActivationFunction::LINEAR:
         case ActivationFunction::CLAMP:
+        case ActivationFunction::HARD_SIGMOID:
+        case ActivationFunction::SELU:
             paramsNum = 2;
             break;
         case ActivationFunction::RELU_NEGATIVE_SLOPE:
         case ActivationFunction::ELU:
+        case ActivationFunction::POW:
+        case ActivationFunction::SWISH:
             paramsNum = 1;
             break;
         default:

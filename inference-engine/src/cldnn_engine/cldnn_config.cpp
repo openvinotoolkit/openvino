@@ -7,6 +7,7 @@
 #include <cldnn/cldnn_config.hpp>
 #include "cldnn_config.h"
 #include "cpp_interfaces/exception2status.hpp"
+#include "details/ie_exception.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_api.h"
 #include "file_utils.h"

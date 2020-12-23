@@ -247,7 +247,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += "(!" + input0_str + " != !" + input1_str + ")";
                 break;
             case EltwiseMode::FLOOR_MOD:
-                op += "(" + input0_str + " - " + input0_str + " / " + input1_str + " * " + input1_str + ")";
+                op += "(" + input0_str + " - floor(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
                 break;
             case EltwiseMode::ASSIGN:
                 op += input0_str;

@@ -11,7 +11,7 @@ if (LINUX)
     endif()
 endif()
 
-file(GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
 addVersionDefines(cldnn_engine.cpp CI_BUILD_NUMBER CLDNN_VERSION)
@@ -22,9 +22,10 @@ ie_add_plugin(NAME ${TARGET_NAME}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
 target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
-                                             inference_engine inference_engine_legacy
+                                             inference_engine
                                              inference_engine_transformations
-                                             inference_engine_lp_transformations)
+                                             inference_engine_lp_transformations
+                                             ${NGRAPH_LIBRARIES})
 
 set(CLDNN_TOP_FOLDER "${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN")
 target_include_directories(${TARGET_NAME} PRIVATE

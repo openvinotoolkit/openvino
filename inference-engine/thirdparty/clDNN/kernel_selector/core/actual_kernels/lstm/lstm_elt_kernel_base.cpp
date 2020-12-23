@@ -20,6 +20,7 @@
 #include <string>
 
 namespace kernel_selector {
+
 JitConstants LSTMEltKernelBase::GetJitConstants(const lstm_elt_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
@@ -28,15 +29,6 @@ JitConstants LSTMEltKernelBase::GetJitConstants(const lstm_elt_params& params) c
         jit.AddConstants({MakeJitConstant("CELL_TERM", true),
                           MakeJitConstant("CELL", cell),
                           MakeJitConstant("CELL_DIRECTION", params.cell_direction)});
-    }
-    if (params.clip > 0) {
-        std::string psclip = toCodeString(params.clip);
-        std::string nsclip = toCodeString(-params.clip);
-        jit.AddConstants(
-            {MakeJitConstant("CLIP(x)",
-                             "((x > " + psclip + ") ? " + psclip + ": (x < " + nsclip + ") ? " + nsclip + " : (x))")});
-    } else {
-        jit.AddConstants({MakeJitConstant("CLIP(x)", "(x)")});
     }
     if (params.input_forget) {
         jit.AddConstants({MakeJitConstant("INPUT_FORGET", true)});
@@ -51,6 +43,31 @@ JitConstants LSTMEltKernelBase::GetJitConstants(const lstm_elt_params& params) c
         MakeJitConstant("GEMM_OFFSET_F", params.GetOffsetIndexF() * size),
         MakeJitConstant("GEMM_OFFSET_Z", params.GetOffsetIndexZ() * size),
     });
+
+    auto ftype = GetUnitType(params);
+    // if ReLU activation present, we have to reset accumulator type for the kernel to FP32
+    // to avoid possible overflows on FP16, since ReLU doesn't limit upper border of its result
+    for (size_t i = 0; i < params.activations.size(); i++) {
+        if (params.activations[i].function == ActivationFunction::RELU) {
+            ftype = Datatype::F32;
+            break;
+        }
+    }
+    jit.Merge(MakeTypeJitConstants(ftype, "ACCUMULATOR"));
+
+    static const std::vector<std::string> asuffixes = {"_F","_G","_H","_CLIP"};
+    for (size_t i = 0; i < params.activations.size(); i++) {
+        std::vector<base_activation_params> aparams = { params.activations[i] };
+        jit.Merge(MakeActivationJitConstants(aparams, ftype, asuffixes[i]));
+    }
+
+    if (params.clip <= 0) {
+        jit.AddConstants({
+                MakeJitConstant("ACTIVATION_PARAMS_CLIP", ""),
+                MakeJitConstant("ACTIVATION_CLIP(x, p)", "(x)"),
+            });
+    }
+
     return jit;
 }
 

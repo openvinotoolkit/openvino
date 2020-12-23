@@ -16,7 +16,7 @@ namespace CLDNNPlugin {
 using CLDNNCustomLayerPtr = std::shared_ptr<class CLDNNCustomLayer>;
 
 class clDNNEngine : public InferenceEngine::InferencePluginInternal,
-    public gpu::details::param_map_obj_getter {
+                    public InferenceEngine::gpu::details::param_map_obj_getter {
     struct impl;
     std::shared_ptr<impl> _impl;
 
@@ -27,8 +27,11 @@ class clDNNEngine : public InferenceEngine::InferencePluginInternal,
     CLDNNRemoteCLContext::Ptr m_defaultContext;
 
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
-    InferenceEngine::ICNNNetwork::Ptr CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network,
-                                                               CLDNNPlugin::Config config) const;
+    InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
+                                                         const CLDNNPlugin::Config& config) const;
+
+    void RegisterPrimitives();
+    void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
 public:
     clDNNEngine();
 
@@ -46,7 +49,7 @@ public:
                                                      const std::map<std::string, std::string>& config) const override;
 
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override;
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const ParamMap& params) override;
+    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const InferenceEngine::ParamMap& params) override;
 };
 
 };  // namespace CLDNNPlugin

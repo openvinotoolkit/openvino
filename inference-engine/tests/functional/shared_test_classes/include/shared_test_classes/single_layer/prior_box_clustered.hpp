@@ -67,7 +67,6 @@ protected:
     float offset;
     bool clip;
 
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
     void SetUp() override;
 };
 

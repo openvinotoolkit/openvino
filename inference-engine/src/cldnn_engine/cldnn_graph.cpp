@@ -17,8 +17,6 @@
 #include "simple_math.h"
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
-#include <legacy/graph_tools.hpp>
-#include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
 #include <fstream>
@@ -69,12 +67,12 @@ void CLDNNGraph::Build() {
     if (GetMaxDynamicBatchSize() > 1) {
         int m_bv_sz = m_program->GetMaxBatchSizeForSingleProgram();
         for (int b = m_bv_sz - 1; b >= 0; b--) {
-            auto network = BuildNetwork(m_program->getCompiledProgram(b));
+            auto network = BuildNetwork(m_program->GetCompiledProgram(b));
             m_networks.insert(m_networks.begin(), network);
             GetEngine()->release_pending_memory(network->get_id());
         }
     } else {
-        auto network = BuildNetwork(m_program->getCompiledProgram());
+        auto network = BuildNetwork(m_program->GetCompiledProgram());
         m_networks.emplace_back(network);
         GetEngine()->release_pending_memory(network->get_id());
     }
@@ -131,6 +129,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         }
     };
 
+    // TODO: Adjust output layer names to be aligned with ngraph and add new ops
     auto to_IE_type_name = [](const std::string& cldnn_name) -> std::string{
         static std::map<std::string, std::string> type_n2l {
                 { "activation", "Activation" },
@@ -748,6 +747,9 @@ std::string CLDNNGraph::MapOutputName(std::string outName) const {
     auto allPrimitiveIds = GetNetwork()->get_all_primitives();
 
     // Find correct output ID. Start with name stored in IR.
+    if (primitiveIDs.find(outName) == primitiveIDs.end()) {
+        THROW_IE_EXCEPTION << "output with name " << outName << " was not found in primitiveIDs";
+    }
     std::string outputID = primitiveIDs.at(outName);
     while (std::find(networkOutputsIDs.begin(), networkOutputsIDs.end(), outputID) == networkOutputsIDs.end()) {
         // If current ID isn't found in cldnn network outputs, get previous primitive id and try again.

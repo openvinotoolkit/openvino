@@ -273,7 +273,7 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
     size_t n = (bi == nullptr) ? inputBlob.size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
-    cldnn::primitive_id internalName = "input:" + inputName;
+    cldnn::primitive_id internalName = "parameter:" + inputName;
     auto locked = inputBlob.cbuffer();
     switch (inputBlob.getTensorDesc().getPrecision()) {
     case Precision::FP32: {
@@ -562,6 +562,7 @@ void CLDNNInferRequest::SetBlob(const char *name, const Blob::Ptr &data) {
 }
 
 void CLDNNInferRequest::AllocateInputs() {
+    auto inputLayouts = m_graph->GetInputLayouts();
     // allocate inputs
     for (auto& ni : _networkInputs) {
         std::string name = ni.first;
@@ -572,8 +573,14 @@ void CLDNNInferRequest::AllocateInputs() {
             cldnn::primitive_id YName(name + "_Y");
             cldnn::primitive_id UVName(name + "_UV");
 
-            input_alloc(YName, m_graph->GetInputLayouts().at(YName));
-            input_alloc(UVName, m_graph->GetInputLayouts().at(UVName));
+            if (inputLayouts.find(YName) == inputLayouts.end()) {
+                THROW_IE_EXCEPTION << "Input layout for " << YName << " is not found";
+            }
+            if (inputLayouts.find(UVName) == inputLayouts.end()) {
+                THROW_IE_EXCEPTION << "Input layout for " << UVName << " is not found";
+            }
+            input_alloc(YName, inputLayouts.at(YName));
+            input_alloc(UVName, inputLayouts.at(UVName));
 
             size_t height = desc.getDims()[2], width = desc.getDims()[3];
             cldnn::pointer<uint8_t> input_mem_ptr_Y = inputsMemory.at(YName).pointer<uint8_t>();
@@ -586,7 +593,10 @@ void CLDNNInferRequest::AllocateInputs() {
 
             _inputs[name] = make_shared_blob<NV12Blob>(blobY, blobUV);
         } else {
-            cldnn::layout layout = m_graph->GetInputLayouts().at(name);
+            if (inputLayouts.find(name) == inputLayouts.end()) {
+                THROW_IE_EXCEPTION << "Input layout for " << name << " is not found";
+            }
+            cldnn::layout layout = inputLayouts.at(name);
             input_alloc(name, layout);
             cldnn::pointer<uint8_t> mem_ptr = inputsMemory.at(name).pointer<uint8_t>();
             _inputs[name] = createInputBlob(desc, mem_ptr.data());
@@ -907,7 +917,7 @@ void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const
         return (blob_ptr == mem_ptr) && (blob.byteSize() == memory.size());
     };
 
-    cldnn::primitive_id internalName = "input:" + inputName;
+    cldnn::primitive_id internalName = "parameter:" + inputName;
     const cldnn::memory& memory = inputsMemory.at(inputName);
     auto _nw_ptr = m_graph->GetNetwork();
     auto prec = inputBlob.getTensorDesc().getPrecision();

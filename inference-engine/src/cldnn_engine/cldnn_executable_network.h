@@ -12,7 +12,6 @@
 #include <utility>
 #include "ie_blob.h"
 #include "cpp/ie_cnn_network.h"
-#include "debug_options.h"
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "cldnn_graph.h"
 #include "cldnn_config.h"
@@ -24,7 +23,7 @@ class CLDNNExecNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefa
 public:
     typedef std::shared_ptr<CLDNNExecNetwork> Ptr;
 
-    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteContext::Ptr context, Config config);
+    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, Config config);
 
     InferenceEngine::CNNNetwork GetExecGraphInfo() override;
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
@@ -33,11 +32,10 @@ public:
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
-    RemoteContext::Ptr GetContext() const override;
-
+    InferenceEngine::RemoteContext::Ptr GetContext() const override;
 
     std::vector<std::shared_ptr<CLDNNGraph>> m_graphs;
-    gpu::ClContext::Ptr m_context;
+    InferenceEngine::gpu::ClContext::Ptr m_context;
     Config m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
 };
