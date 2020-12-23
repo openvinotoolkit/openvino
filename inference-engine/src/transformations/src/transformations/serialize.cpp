@@ -3,6 +3,7 @@
 //
 
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <fstream>
 #include <unordered_map>
@@ -508,15 +509,27 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 }
 
 namespace {
-std::string bestBinPath(const std::string &xmlPath, const std::string &binPath) {
+
+std::string valid_xml_path(const std::string &path) {
+    NGRAPH_CHECK(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
+
+    const char *const extension = ".xml";
+    const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
+    NGRAPH_CHECK(has_xml_extension,
+                 "Path for xml file doesn't contains file name with 'xml' extension: \"" +
+                     path + "\"");
+    return path;
+}
+
+std::string provide_bin_path(const std::string &xmlPath, const std::string &binPath) {
     if (!binPath.empty()) {
         return binPath;
     }
+    assert(xmlPath.size() > 4); // should be check by valid_xml_path
     std::string bestPath = xmlPath;
-    auto extention = bestPath.rbegin();
-    *(extention++) = 'n';
-    *(extention++) = 'i';
-    *(extention++) = 'b';
+    const char *const extension = "bin";
+    const auto ext_size = std::strlen(extension);
+    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
     return bestPath;
 }
 
@@ -526,8 +539,8 @@ pass::Serialize::Serialize(const std::string& xmlPath,
                            const std::string& binPath,
                            pass::Serialize::Version version,
                            std::map<std::string, OpSet> custom_opsets)
-    : m_xmlPath{xmlPath}
-    , m_binPath{bestBinPath(xmlPath, binPath)}
+    : m_xmlPath{valid_xml_path(xmlPath)}
+    , m_binPath{provide_bin_path(xmlPath, binPath)}
     , m_version{version}
     , m_custom_opsets{custom_opsets}
 {
