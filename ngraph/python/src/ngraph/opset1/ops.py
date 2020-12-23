@@ -153,7 +153,7 @@ def avg_pool(
             "pads_begin": pads_begin,
             "pads_end": pads_end,
             "kernel": kernel_shape,
-            "exclude_pad": exclude_pad,
+            "exclude-pad": exclude_pad,
             "rounding_type": rounding_type.upper(),
             "auto_pad": auto_pad.upper(),
         },

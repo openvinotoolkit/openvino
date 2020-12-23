@@ -28,10 +28,17 @@ public:
     void setDynamicBatchLim(int lim) override;
 
 private:
-    void optimizedImpl(size_t MB);
+    void prepareOptimizedParams();
 
-    bool canUseOptimizedImpl = true;
     size_t axis = 1;
+
+    struct {
+        std::vector<size_t> dataSize;
+        std::vector<size_t> srcDataOffsets;
+        std::vector<uint8_t *> dstMemPtrs;
+        size_t srcDataStride;
+        size_t countStrides;
+    } optimizedParams;
 };
 
 }  // namespace MKLDNNPlugin

@@ -38,6 +38,7 @@
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <legacy/ie_util_internal.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
 
 namespace vpu {
 
@@ -135,6 +136,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"GatherND",                                           LAYER_PARSER(parseGatherND)},
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
         {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
+        {"GatherElements",                                     LAYER_PARSER(parseGatherElements)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -187,6 +189,7 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.get_pass_config()->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
 
     manager.set_callback(transformationsPredicate);
     manager.run_passes(nGraphFunc);
