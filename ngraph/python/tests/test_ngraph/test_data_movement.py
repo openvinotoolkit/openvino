@@ -215,7 +215,7 @@ def test_gather_nd():
     assert node.get_output_element_type(0) == Type.f32
 
 
-def test_gather_eleVments():
+def test_gather_elements():
     indices_type = np.int32
     data_dtype = np.float32
     data = ng.parameter(Shape([2, 5]), dtype=data_dtype, name="data")

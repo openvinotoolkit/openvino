@@ -56,6 +56,11 @@ namespace ngraph
                 {
                     for (int64_t i = 0; i < indices_shape[0]; i++)
                     {
+                        if (indices[i] > data_shape[0])
+                        {
+                            throw std::domain_error{
+                                "indices values of GatherElement exceed data size"};
+                        }
                         out[i] = data[indices[i]];
                     }
                     return;
@@ -71,6 +76,10 @@ namespace ngraph
                 for (int64_t i = 0; i < ngraph::shape_size(indices_shape); i++)
                 {
                     data_idx = i - axis_mul * (((i / axis_mul) % data_shape[axis]) - indices[i]);
+                    if (data_idx > ngraph::shape_size(data_shape))
+                    {
+                        throw std::domain_error{"indices values of GatherElement exceed data size"};
+                    }
                     out[i] = data[data_idx];
                 }
             }

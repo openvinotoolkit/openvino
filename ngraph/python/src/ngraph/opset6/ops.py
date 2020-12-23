@@ -69,8 +69,8 @@ def gather_elements(
 
     @param data:       N-D tensor with data for gathering
     @param indices:    N-D tensor with indices by which data is gathered
-    @param axis: axis along which elements are gathered
-    @return: The new node which performs GatherElements
+    @param axis:       axis along which elements are gathered
+    @return:           The new node which performs GatherElements
     """
     inputs = as_nodes(data, indices)
 
