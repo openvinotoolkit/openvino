@@ -99,7 +99,7 @@ Function::Function(const OutputVector& results,
 {
 }
 
-void Function::validate_nodes_and_infer_types()
+void Function::validate_nodes_and_infer_types() const
 {
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
                        "Function::validate_nodes_and_infer_types");

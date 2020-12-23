@@ -17,25 +17,16 @@ typedef std::tuple<std::string> SerializationParams;
 class SerializationTest: public CommonTestUtils::TestsCommon,
                          public testing::WithParamInterface<SerializationParams> {
 public:
+    std::string m_model_path;
     std::string m_out_xml_path;
     std::string m_out_bin_path;
 
     void SetUp() override {
-        const auto & model_path = IR_SERIALIZATION_MODELS_PATH + std::get<0>(GetParam());
+        m_model_path = IR_SERIALIZATION_MODELS_PATH + std::get<0>(GetParam());
 
-        const std::string test_name = "test"; //  ::testing::UnitTest::GetInstance()->current_test_info()->name();
+        const std::string test_name =  GetTestName() + "_" + GetTimestamp();
         m_out_xml_path = test_name + ".xml";
         m_out_bin_path = test_name + ".bin";
-
-        InferenceEngine::Core ie;
-        auto expected = ie.ReadNetwork(model_path);
-        expected.serialize(m_out_xml_path, m_out_bin_path);
-        auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
-
-        bool success;
-        std::string message;
-        std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction());
-        ASSERT_TRUE(success) << message;
     }
 
     void TearDown() override {
@@ -45,6 +36,15 @@ public:
 };
 
 TEST_P(SerializationTest, CompareFunctions) {
+    InferenceEngine::Core ie;
+    auto expected = ie.ReadNetwork(m_model_path);
+    expected.serialize(m_out_xml_path, m_out_bin_path);
+    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction(), true);
+    ASSERT_TRUE(success) << message;
 }
 
 INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,

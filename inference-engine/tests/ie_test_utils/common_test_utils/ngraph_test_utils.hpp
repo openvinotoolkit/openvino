@@ -18,8 +18,6 @@
 
 using TransformationTests = CommonTestUtils::TestsCommon;
 
-bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant);
-
 std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
