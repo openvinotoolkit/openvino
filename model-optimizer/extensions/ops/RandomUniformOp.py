@@ -13,29 +13,21 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
 from mo.graph.graph import Graph
 from mo.ops.op import Op
-import numpy as np
+from mo.front.common.partial_infer.random_uniform import tf_random_uniform_infer
 
-class BatchNormTraining(Op):
-    """
-    BatchNormInference will be replaced by BNToScaleShift FrontReplacer for Caffe or convert_batch_norm 
-    function for other frameworks
-    """
-    op = 'batchNormTraining'
-    enabled = False
+class RandomUniformOp(Op):
+    op = 'randomUniformOp'
+    enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': None,
             'op': self.op,
-            'in_ports_count': 5,
+            'type': None,
+            'infer': tf_random_uniform_infer,
+
+            'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': self.infer
         }, attrs)
-    @staticmethod
-    def infer(node):
-        output_shape = np.array(node.in_node(0).shape)
-        for port, out_node in node.out_nodes().items():
-            out_node.shape = output_shape
+

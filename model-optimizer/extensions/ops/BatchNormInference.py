@@ -16,6 +16,7 @@
 
 from mo.graph.graph import Graph
 from mo.ops.op import Op
+import numpy as np
 
 
 class BatchNormInference(Op):
@@ -36,4 +37,6 @@ class BatchNormInference(Op):
         }, attrs)
     @staticmethod
     def infer(node):
-        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
+        output_shape = np.array(node.in_node(0).shape)
+        for port, out_node in node.out_nodes().items():
+            out_node.shape = output_shape
