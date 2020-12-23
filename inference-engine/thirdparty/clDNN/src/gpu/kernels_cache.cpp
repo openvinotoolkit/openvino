@@ -428,13 +428,15 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
     }
 }
 
-kernels_cache::kernel_type kernels_cache::get_kernel(kernel_id id, bool one_time_kernel) {
-    build_all();
-    if (one_time_kernel) {
-        return _one_time_kernels.at(id);
-    } else {
-        return _kernels.at(id);
-    }
+kernels_cache::kernel_type kernels_cache::get_kernel(kernel_id id, bool one_time_kernel) const {
+    if (_pending_compilation)
+        throw std::runtime_error("Kernel cache is not compiled, call build_all() first!");
+
+    const auto& kernels = one_time_kernel ? _one_time_kernels : _kernels;
+    auto res = kernels.find(id);
+    if (kernels.end() == res)
+        throw std::runtime_error("Kernel " + id  + " not found in the kernel cache!");
+    return res->second;
 }
 
 void kernels_cache::build_all() {
@@ -450,6 +452,7 @@ void kernels_cache::build_all() {
     }
 
     std::vector<std::future<void>> builds;
+    std::cout << "sorted_program_code.size()" << sorted_program_code.size() << std::endl;
     for (auto& program : sorted_program_code) {
         builds.push_back(std::async(std::launch::async,[&]() {
             auto kernels = build_program(program.second);
