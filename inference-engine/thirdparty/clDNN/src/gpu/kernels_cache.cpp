@@ -405,8 +405,11 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
             }
         }
 
-        if (!err_log.empty())
-            throw std::runtime_error("Program build failed:\n" + std::move(err_log));
+        if (!err_log.empty()) {
+            static const size_t max_msg_length = 128;
+            std::string short_err_log = err_log.erase(max_msg_length);
+            throw std::runtime_error("Program build failed:\n" + std::move(short_err_log));
+        }
 
         return kmap;
     } catch (const cl::Error& err) {
