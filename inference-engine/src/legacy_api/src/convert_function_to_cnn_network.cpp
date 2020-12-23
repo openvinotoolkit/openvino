@@ -49,7 +49,7 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include <cpp/ie_cnn_network.h>
+#include "cpp/ie_cnn_network.h"
 
 #include "legacy/convert_function_to_cnn_network.hpp"
 #include "legacy/graph_tools.hpp"

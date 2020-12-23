@@ -413,8 +413,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
 
     // Load custom opsets
     for (const auto& ext : exts) {
-        std::map<std::string, ngraph::OpSet> extOpsets = ext->getOpSets();
-        for (const auto& it : extOpsets) {
+        for (const auto& it : ext->getOpSets()) {
             if (opsets.find(it.first) != opsets.end())
                 THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
             opsets[it.first] = it.second;
