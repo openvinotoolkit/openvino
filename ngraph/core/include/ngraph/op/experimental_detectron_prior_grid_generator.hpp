@@ -28,6 +28,9 @@ namespace ngraph
     {
         namespace v6
         {
+            /// \brief An operation ExperimentalDetectronPriorGridGenerator, according to
+            /// the repository https://github.com/openvinotoolkit/training_extensions
+            /// (see pytorch_toolkit/instance_segmentation/segmentoly/rcnn/prior_box.py).
             class NGRAPH_API ExperimentalDetectronPriorGridGenerator : public Op
             {
             public:
@@ -36,8 +39,8 @@ namespace ngraph
                 struct Attributes
                 {
                     bool flatten;
-                    int h;
-                    int w;
+                    int64_t h;
+                    int64_t w;
                     float stride_x;
                     float stride_y;
                 };
@@ -59,7 +62,7 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-
+                /// \brief Returns attributes of this operation.
                 const Attributes& get_attrs() const { return m_attrs; }
             private:
                 Attributes m_attrs;
