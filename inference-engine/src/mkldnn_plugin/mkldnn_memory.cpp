@@ -17,6 +17,7 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_extension_utils.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
 #include "ie_mkldnn.h"
 
 using namespace InferenceEngine;
@@ -90,8 +91,6 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
 
 // TODO: It should be done via wrap into Memory;
 void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format, const void* data, size_t size, bool ftz) const {
-    uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dataType));
-
     IE_ASSERT(!one_of(format, memory::format_tag::undef, memory::format_tag::any));
 
     auto dst_desc = GetDescriptor();
@@ -99,33 +98,30 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
 
     IE_ASSERT(size <= dst_desc.get_size());
 
-    if (dst_desc != src_desc) {
-        auto memData = GetDescriptor().data;
-        memory::dims dims{memData.dims, memData.dims + memData.ndims};
-
-        MKLDNNMemory src(eng);
-        src.Create(dims, dataType, format, data);
-
-        std::shared_ptr<mkldnn::reorder> pReorder =
-                std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
-
-        mkldnn::stream loc_stream(eng, stream::flags::default_flags);
-        pReorder->execute(loc_stream, *src.prim, *this->prim);
-    } else {
+    if (dst_desc == src_desc) {
+        uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dataType));
         uint8_t* dataPtr = static_cast<uint8_t*>(GetData());
         // We cannot support strides for i/o blobs because it affects performance.
         dataPtr += itemSize * prim->get_desc().data.offset0;
         cpu_memcpy(dataPtr, data, size);
-    }
 
-    if (ftz
-        && dataType == memory::data_type::f32
-        && prim->get_desc().data.format_kind != dnnl_format_kind_wino
-        && GetDataType() != memory::data_type::bf16) {
-        // Internal blobs haven't strides yet.
-        auto *memData = static_cast<float *>(GetData());
-        memData += prim->get_desc().data.offset0;
-        setSubnormalsToZero(memData, GetSize() / sizeof(float));
+        if (ftz
+            && dataType == memory::data_type::f32
+            && prim->get_desc().data.format_kind != dnnl_format_kind_wino
+            && GetDataType() != memory::data_type::bf16) {
+            // Internal blobs haven't strides yet.
+            auto *memData = static_cast<float *>(GetData());
+            memData += prim->get_desc().data.offset0;
+            setSubnormalsToZero(memData, GetSize() / sizeof(float));
+        }
+    } else {
+        auto memData = this->GetDescriptor().data;
+        memory::dims dims(memData.dims, memData.dims + memData.ndims);
+
+        MKLDNNMemory src(this->eng);
+        src.Create(dims, dataType, format, data);
+
+        this->SetData(src, ftz);
     }
 }
 
@@ -141,9 +137,38 @@ void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const
         auto copySize = size == 0 ? this->GetSize() : size;
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
-        mkldnn::reorder reorderPrim(src.GetPrimitive(), GetPrimitive());
-        mkldnn::stream loc_stream(eng, stream::flags::default_order);
-        reorderPrim.execute(loc_stream, *src.prim, *this->prim);
+        std::unique_ptr<mkldnn::reorder> pReorder;
+        std::shared_ptr<memory> srcMemoryPtr;
+
+        try {
+            pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), this->GetPrimitive()));
+            srcMemoryPtr = src.prim;
+        }
+        catch (const mkldnn::error &err) {
+            if (mkldnn_unimplemented == err.status && this->GetDataType() != src.GetDataType()) {
+                //we probably could not make the reorder because there is no one supporting this precision conversion
+                //lets try to convert data first using cpu_convert
+                std::vector<uint8_t> tmpBuff(src.GetSize());
+                auto data = static_cast<const uint8_t *>(src.GetPtr());
+
+                cpu_convert(data, tmpBuff.data(), MKLDNNExtensionUtils::DataTypeToIEPrecision(src.GetDataType()),
+                            MKLDNNExtensionUtils::DataTypeToIEPrecision(this->GetDataType()), src.GetElementsCount());
+
+                MKLDNNMemory tmpMem(this->eng);
+                tmpMem.Create(src.GetDims(), src.GetDataType(), src.GetFormat(), data);
+
+                pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), this->GetPrimitive()));
+                srcMemoryPtr = tmpMem.prim;
+            } else {
+                throw;
+            }
+        }
+        if (pReorder) {
+            mkldnn::stream loc_stream(this->eng, stream::flags::default_order);
+            pReorder->execute(loc_stream, *srcMemoryPtr, *this->prim);
+        } else {
+            THROW_IE_EXCEPTION << "Could not make mkldnn reorder.";
+        }
     }
 
     if (ftz
@@ -840,5 +865,4 @@ bool MKLDNNMemoryDesc::blocksExtended() const {
     }
     return false;
 }
-
 }  // namespace MKLDNNPlugin
