@@ -81,7 +81,7 @@
   * **1**: Input shape can be either (N,C,H), (N,C,H,W) or (N,C,H,W,D). Then the corressponding output shape will be (N,C,H_out), (N,C,H_out,W_out) or (N,C,H_out,W_out,D_out)
       H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1
       W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1
-      D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1
+    D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1
     
 
 **Mathematical Formulation**
@@ -149,5 +149,5 @@ output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
             <dim>16</dim>
         </port>
     </output>
-</laye
+</layer>
 ```
