@@ -319,8 +319,7 @@ namespace ngraph
                                                              int64_t end,
                                                              int64_t axis);
 
-                // protected:
-            public:
+            protected:
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
 
