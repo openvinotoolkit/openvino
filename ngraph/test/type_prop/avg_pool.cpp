@@ -56,8 +56,7 @@ TEST(type_prop, avg_pool_auto_padding_3D_nc_dims_dynamic_same_lower)
     auto mp = make_shared<op::v1::AvgPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode, auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme(
-        {Dimension::dynamic(), 32, 32}));
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 32, 32}));
     ASSERT_EQ(mp->get_pads_begin(), (Shape{1}));
     ASSERT_EQ(mp->get_pads_end(), (Shape{0}));
 }

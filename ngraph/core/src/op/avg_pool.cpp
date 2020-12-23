@@ -77,7 +77,8 @@ void op::v1::AvgPool::validate_and_infer_types()
     const PartialShape& arg_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this,
-                          arg_shape.rank().compatible(3) || arg_shape.rank().compatible(4) || arg_shape.rank().compatible(5),
+                          arg_shape.rank().compatible(3) || arg_shape.rank().compatible(4) ||
+                              arg_shape.rank().compatible(5),
                           "Expected a 3D, 4D or 5D tensor for the input. Got: ",
                           arg_shape);
 
