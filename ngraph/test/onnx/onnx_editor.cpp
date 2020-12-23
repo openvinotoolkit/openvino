@@ -114,6 +114,14 @@ NGRAPH_TEST(onnx_editor, unsupported_data_type_passed)
     EXPECT_THROW(editor.set_input_types({{"A", element::dynamic}}), ngraph_error);
 }
 
+NGRAPH_TEST(onnx_editor, incorrect_input_name_passed)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
+
+    EXPECT_THROW(editor.set_input_types({{"ShiaLaBeouf", element::i64}}), ngraph_error);
+}
+
 NGRAPH_TEST(onnx_editor, elem_type_missing_in_input)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
