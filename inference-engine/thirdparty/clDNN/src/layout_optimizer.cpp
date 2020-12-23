@@ -28,6 +28,7 @@
 
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
+#include "one_hot_inst.h"
 #include "permute_inst.h"
 #include "quantize_inst.h"
 #include "mvn_inst.h"
@@ -226,11 +227,20 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     return false;
 }
 
-bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node& /*next*/, format /*fmt_prev*/, format fmt_next) {
+bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node& next, format fmt_prev, format fmt_next) {
+    auto dt_prev = prev.get_output_layout().data_type;
+    auto dt_next = next.get_output_layout().data_type;
+
     if (prev.is_type<reorder>())
         return true;
 
     if (prev.is_type<binary_convolution>() && fmt_next == format::b_fs_yx_fsv16)
+        return true;
+
+    if (prev.is_type<one_hot>() &&
+        !data_type_traits::is_floating_point(dt_prev) &&
+        data_type_traits::is_floating_point(dt_next) &&
+        fmt_prev == fmt_next)
         return true;
 
     if (prev.is_type<quantize>() &&
@@ -365,7 +375,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         // Check for non-grouped or depthwise convolution
         if (input_layout.format.dimension() == 4 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
-            weights_layout.size.batch[0] >= 16 &&
+            weights_layout.size.batch[0] * weights_layout.size.group[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
              conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
              conv->split() == static_cast<int32_t>(input_layout.size.feature[0])))
@@ -545,6 +555,33 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
     return false;
 }
 
+// This function is needed to avoid performance regressions for the convolutions with byxf layout
+// Previously some topologies had scale operations which prevented byxf usage
+// Now instead of scale we have eltwise + fused_ops which might enable byxf convolution in unexpected cases
+// So here we check that given eltwise node is replacement of the old scale primitive
+// TODO: Adjust byxf convolution selection logic
+static bool is_scale_shift(const eltwise_node& node) {
+    if (node.get_dependencies().size() != 2)
+        return false;
+
+    if (node.get_primitive()->mode != eltwise_mode::prod)
+        return false;
+
+    if (node.get_fused_primitives().empty())
+        return false;
+
+    auto fused_op0 = node.get_fused_primitives().front();
+    auto fused_op0_node = fused_op0.node;
+
+    if (!fused_op0_node->is_type<eltwise>())
+        return false;
+
+    if (fused_op0_node->as<eltwise>().get_primitive()->mode != eltwise_mode::sum)
+        return false;
+
+    return true;
+}
+
 bool layout_optimizer::users_for_convolution_byxf_opt(program_node const& node, uint32_t depth) {
     // This function checks if byxf optimization can be applied to the required depth of node's users.
     // Setting depth to 1 will check only node's users, depth = 2 are user's users etc.
@@ -553,7 +590,7 @@ bool layout_optimizer::users_for_convolution_byxf_opt(program_node const& node, 
 
     for (auto& user : node.get_users()) {
         // primitives that support transitions byxf->other format and other format->byxf are valid for byxf opt
-        if (user->type() == cldnn::eltwise::type_id() || user->type() == cldnn::pooling::type_id()) {
+        if ((user->type() == cldnn::eltwise::type_id() && !is_scale_shift(user->as<eltwise>())) || user->type() == cldnn::pooling::type_id()) {
             if (!users_for_convolution_byxf_opt(*user, depth - 1))
                 return false;
         // convolution that is capable to use byxf and is performant is also valid for byxf opt
@@ -593,7 +630,7 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
                                       conv_dep)) {
                 return false;
             }
-        } else if (!dep->is_type<pooling>() && !dep->is_type<eltwise>()) {
+        } else if (!dep->is_type<pooling>() && (!dep->is_type<eltwise>() || !is_scale_shift(dep->as<eltwise>()))) {
             return false;
         }
 
