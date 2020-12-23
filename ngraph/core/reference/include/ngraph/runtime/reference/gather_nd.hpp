@@ -21,6 +21,7 @@
 #include <numeric>
 
 #include "ngraph/coordinate_transform.hpp"
+#include "utils/span.hpp"
 
 namespace ngraph
 {
@@ -28,52 +29,8 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace
+            namespace details
             {
-                template <bool check>
-                using Required = typename std::enable_if<check, bool>::type;
-
-                template <typename It>
-                struct IsRandomAccessIt
-                {
-                    static constexpr bool value =
-                        std::is_same<typename It::iterator_category,
-                                     std::random_access_iterator_tag>::value;
-                };
-
-                template <typename Iterator, Required<IsRandomAccessIt<Iterator>::value> = true>
-                class Span
-                {
-                public:
-                    Span(Iterator begin, Iterator end)
-                        : m_begin{begin}
-                        , m_end{end}
-                    {
-                    }
-
-                    Iterator begin() const { return m_begin; }
-                    Iterator end() const { return m_end; };
-                    typename Iterator::value_type operator[](size_t idx) const
-                    {
-                        return *next(m_begin, idx);
-                    }
-
-                    typename Iterator::difference_type size() const
-                    {
-                        return std::distance(m_begin, m_end);
-                    }
-
-                private:
-                    Iterator m_begin;
-                    Iterator m_end;
-                };
-
-                template <typename Iterator>
-                Span<Iterator> span(Iterator begin, Iterator end)
-                {
-                    return Span<Iterator>{begin, end};
-                };
-
                 template <typename Iterator>
                 std::vector<size_t> get_indices_offsets(const Iterator beg,
                                                         const Iterator end,
@@ -90,7 +47,7 @@ namespace ngraph
 
                     return offsets;
                 }
-            } // namespace
+            } // namespace details
 
             ///
             /// Implementation find maximum length of *slice* of input *params* which might be
@@ -143,14 +100,14 @@ namespace ngraph
                         "params_shape should have enough rank to be index by indices"};
                 }
 
-                const auto slice_shape =
-                    span(next(begin(params_shape), first_slice_index_in_params), end(params_shape));
+                const auto slice_shape = span(params_shape).subspan(first_slice_index_in_params);
                 const auto slice_size = shape_size(slice_shape);
 
                 const auto dims_begin = next(rbegin(params_shape), slice_shape.size());
                 const auto dims_end = next(dims_begin, indices_shape.back() - 1);
 
-                const auto indices_offsets = get_indices_offsets(dims_begin, dims_end, slice_size);
+                const auto indices_offsets =
+                    details::get_indices_offsets(dims_begin, dims_end, slice_size);
 
                 const auto batch_offset = indices_offsets.front() * params_shape[batch_dims];
 
