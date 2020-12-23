@@ -3,6 +3,7 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <vpu/stages/interpolate_stages.hpp>
 
 #include <vector>
 #include <unordered_set>
@@ -51,11 +52,11 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto antial = attrs().get<bool>(antialias);
-        auto fact = attrs().get<float>(factor);
-        auto sampleType = attrs().get<ResampleType>(typeInterpolate);
-        auto coordinateTransformationMode = attrs().get<InterpolateCoordTransMode>(coordinate_transformation_mode);
-        auto nearestMode = attrs().get<InterpolateNearestMode>(nearest_mode);
+        auto antial = attrs().get<bool>(g_antialias);
+        auto fact = attrs().get<float>(g_factor);
+        auto sampleType = attrs().get<ResampleType>(g_type);
+        auto coordinateTransformationMode = attrs().get<InterpolateCoordTransMode>(g_coordinate_transformation_mode);
+        auto nearestMode = attrs().get<InterpolateNearestMode>(g_nearest_mode);
 
         serializer.append(static_cast<int32_t>(antial));
         serializer.append(static_cast<float>(fact));
@@ -87,11 +88,11 @@ Stage StageBuilder::addResampleNearestStage(
             const Data& output) {
     auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, {input}, {output});
 
-    stage->attrs().set<bool>(antialias, antial);
-    stage->attrs().set<InterpolateCoordTransMode>(coordinate_transformation_mode, coordinateTransformationMode);
-    stage->attrs().set<InterpolateNearestMode>(nearest_mode, nearestMode);
-    stage->attrs().set<float>(factor, fact);
-    stage->attrs().set<ResampleType>(typeInterpolate, ResampleType::Nearest);
+    stage->attrs().set<bool>(g_antialias, antial);
+    stage->attrs().set<InterpolateCoordTransMode>(g_coordinate_transformation_mode, coordinateTransformationMode);
+    stage->attrs().set<InterpolateNearestMode>(g_nearest_mode, nearestMode);
+    stage->attrs().set<float>(g_factor, fact);
+    stage->attrs().set<ResampleType>(g_type, ResampleType::Nearest);
 
     return stage;
 }
@@ -105,16 +106,16 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
                      "actually provided {}", layer->name, outputs.size());
 
     ie::details::CaselessEq<std::string> cmp;
-    const auto method  = layer->GetParamAsString(typeInterpolate, "caffe.ResampleParameter.NEAREST");
-    const auto coord   = layer->GetParamAsString(coordinate_transformation_mode, half_pixel);
-    const auto nearest = layer->GetParamAsString(nearest_mode, round_prefer_ceil);
+    const auto method  = layer->GetParamAsString(g_type, "caffe.ResampleParameter.NEAREST");
+    const auto coord   = layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
+    const auto nearest = layer->GetParamAsString(g_nearest_mode, g_round_prefer_ceil);
     InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
     InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
-    if (cmp(coord, asymmetric)) {
+    if (cmp(coord, g_asymmetric)) {
         coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
     }
-    if (cmp(nearest, floor_mode)) {
+    if (cmp(nearest, g_floor_mode)) {
         nearestMode = InterpolateNearestMode::Floor;
     }
 
@@ -122,9 +123,9 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
         _stageBuilder->addResampleNearestStage(model,
                                                layer->name,
                                                layer,
-                                               layer->GetParamAsInt(antialias, 0),
+                                               layer->GetParamAsInt(g_antialias, 0),
                                                coordinateTransformationMode, nearestMode,
-                                               layer->GetParamAsFloat(factor, -1),
+                                               layer->GetParamAsFloat(g_factor, -1),
                                                inputs[0],
                                                outputs[0]);
     } else {
