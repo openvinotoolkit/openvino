@@ -6,7 +6,7 @@ include(CMakeParseArguments)
 
 set(PLUGIN_FILES "" CACHE INTERNAL "")
 
-function(get_shared_library_name target_name library_name)
+function(ie_plugin_get_file_name target_name library_name)
     set(LIB_PREFIX "${CMAKE_SHARED_MODULE_PREFIX}")
     set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
 
@@ -152,7 +152,7 @@ macro(ie_register_plugins)
 
         # create plugin file
         set(config_file_name "${CMAKE_BINARY_DIR}/plugins/${name}.xml")
-        get_shared_library_name(${name} library_name)
+        ie_plugin_get_file_name(${name} library_name)
 
         add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
            COMMAND
