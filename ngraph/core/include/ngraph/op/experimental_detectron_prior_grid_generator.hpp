@@ -36,12 +36,20 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
+                /// \brief Structure that specifies attributes of the operation
                 struct Attributes
                 {
+                    // Specifies whether the output tensor should be 2D or 4D
+                    // `true`  means the output tensor should be 2D tensor,
+                    // `false` means the output tensor should be 4D tensor.
                     bool flatten;
+                    // Specifies number of cells of the generated grid with respect to height.
                     int64_t h;
+                    // Specifies number of cells of the generated grid with respect to width.
                     int64_t w;
+                    // Specifies the step of generated grid with respect to x coordinate
                     float stride_x;
+                    // Specifies the step of generated grid with respect to y coordinate
                     float stride_y;
                 };
 
