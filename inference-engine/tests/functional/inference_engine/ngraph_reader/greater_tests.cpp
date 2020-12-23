@@ -133,7 +133,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadGreaterNetwork) {
     compareIRs(model, modelV5, 3211264);
 }
 
-TEST_F(NGraphReaderTests, DISABLED_ReadGreaterEqualNetwork) {
+TEST_F(NGraphReaderTests, ReadGreaterEqualNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
