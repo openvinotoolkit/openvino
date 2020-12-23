@@ -30,8 +30,8 @@ NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator,
 
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
-    const Output<Node>& im_data,
     const Output<Node>& feature_map,
+    const Output<Node>& im_data,
     const Attributes& attrs)
     : Op({priors, feature_map, im_data})
     , m_attrs(attrs)
@@ -119,6 +119,24 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
         if (m_attrs.flatten)
         {
             out_shape = PartialShape{Dimension::dynamic(), 4};
+        }
+
+        set_output_type(0, input_et, out_shape);
+        return;
+    }
+
+    if (priors_shape.is_dynamic() || featmap_shape.is_dynamic())
+    {
+        out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
+        if (m_attrs.flatten)
+        {
+            out_shape = PartialShape{Dimension::dynamic(), 4};
+        }
+        else
+        {
+            out_shape[0] = featmap_shape[2];
+            out_shape[1] = featmap_shape[3];
+            out_shape[2] = priors_shape[0];
         }
 
         set_output_type(0, input_et, out_shape);
