@@ -47,8 +47,7 @@ class TFSliceToSliceReplacer(FrontReplacementOp):
         minus_one_node = Const(graph, {'name': slice_name + '/minus_one', 'value': int64_array(-1)}).create_node()     
         
         #Select requires equal dtypes on ports 1 and 2.
-        #Dtype of [2] port is int64(summ_node -> cast to int64),
-        #so dtype of [1] (int32_max_node)  must be the same
+        #Dtype of [2] port is int64(summ_node -> cast to int64), so dtype of [1] (int32_max_node)  must be the same
         int32_max_node = Const(graph, {'name': slice_name + '/int32_max', 
                         'value': int64_array(np.iinfo(np.int32).max)}).create_node()
         select_node = Select(graph, {'name': slice_name + '/select'}).create_node()
