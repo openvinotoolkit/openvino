@@ -22,6 +22,28 @@
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/func_ref.hpp>
 
+constexpr auto coordinate_transformation_mode = "coordinate_transformation_mode";
+constexpr auto mode                 = "mode";
+constexpr auto align_corners        = "align_corners";
+constexpr auto asymmetric           = "asymmetric";
+constexpr auto linear               = "linear";
+constexpr auto half_pixel           = "half_pixel";
+constexpr auto linear_onnx          = "linear_onnx";
+constexpr auto nearest_mode         = "nearest_mode";
+constexpr auto pytorch_half_pixel   = "pytorch_half_pixel";
+constexpr auto tf_half_pixel_for_nn = "tf_half_pixel_for_nn";
+constexpr auto round_prefer_floor   = "round_prefer_floor";
+constexpr auto round_prefer_ceil    = "round_prefer_ceil";
+constexpr auto floor_mode           = "floor";
+constexpr auto ceil_mode            = "ceil";
+constexpr auto simple               = "simple";
+constexpr auto antialias            = "antialias";
+constexpr auto pads_begin           = "pads_begin";
+constexpr auto pads_end             = "pads_end";
+constexpr auto nearest              = "nearest";
+constexpr auto factor               = "factor";
+constexpr auto typeInterpolate      = "type";
+
 namespace vpu {
 
 namespace ie = InferenceEngine;

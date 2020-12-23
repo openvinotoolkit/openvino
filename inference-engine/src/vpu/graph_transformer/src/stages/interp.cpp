@@ -9,16 +9,6 @@
 #include <memory>
 #include <set>
 
-constexpr auto coordinate_transformation_mode = "coordinate_transformation_mode";
-constexpr auto mode                 = "mode";
-constexpr auto align_corners        = "align_corners";
-constexpr auto asymmetric           = "asymmetric";
-constexpr auto linear               = "linear";
-constexpr auto half_pixel           = "half_pixel";
-constexpr auto linear_onnx          = "linear_onnx";
-constexpr auto pytorch_half_pixel   = "pytorch_half_pixel";
-constexpr auto tf_half_pixel_for_nn = "tf_half_pixel_for_nn";
-
 namespace vpu {
 
 namespace {
@@ -115,7 +105,7 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
     } else if (cmp(coord, align_corners)) {
         coordinateTransMode = InterpolateCoordTransMode::AlignCorners;
     } else {
-        VPU_THROW_EXCEPTION << "Current Interp doesn't support this coordinate transformation mode; layer name = " << layer->name;
+        VPU_THROW_FORMAT("Current Interp doesn't support this coordinate transformation mode");
     }
 
     if (cmp(interpMode, linear_onnx)) {

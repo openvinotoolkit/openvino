@@ -10,18 +10,6 @@
 #include <set>
 #include <string>
 
-constexpr auto coordinate_transformation_mode = "coordinate_transformation_mode";
-constexpr auto mode                 = "mode";
-constexpr auto asymmetric           = "asymmetric";
-constexpr auto half_pixel           = "half_pixel";
-constexpr auto nearest_mode         = "nearest_mode";
-constexpr auto round_prefer_floor   = "round_prefer_floor";
-constexpr auto round_prefer_ceil    = "round_prefer_ceil";
-constexpr auto floor_mode           = "floor";
-constexpr auto antialias            = "antialias";
-constexpr auto factor               = "factor";
-constexpr auto typeI                = "type";
-
 namespace vpu {
 
 VPU_DECLARE_ENUM(ResampleType,
@@ -65,7 +53,7 @@ private:
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         auto antial = attrs().get<bool>(antialias);
         auto fact = attrs().get<float>(factor);
-        auto sampleType = attrs().get<ResampleType>(typeI);
+        auto sampleType = attrs().get<ResampleType>(typeInterpolate);
         auto coordinateTransformationMode = attrs().get<InterpolateCoordTransMode>(coordinate_transformation_mode);
         auto nearestMode = attrs().get<InterpolateNearestMode>(nearest_mode);
 
@@ -103,7 +91,7 @@ Stage StageBuilder::addResampleNearestStage(
     stage->attrs().set<InterpolateCoordTransMode>(coordinate_transformation_mode, coordinateTransformationMode);
     stage->attrs().set<InterpolateNearestMode>(nearest_mode, nearestMode);
     stage->attrs().set<float>(factor, fact);
-    stage->attrs().set<ResampleType>(typeI, ResampleType::Nearest);
+    stage->attrs().set<ResampleType>(typeInterpolate, ResampleType::Nearest);
 
     return stage;
 }
@@ -117,7 +105,7 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
                      "actually provided {}", layer->name, outputs.size());
 
     ie::details::CaselessEq<std::string> cmp;
-    const auto method  = layer->GetParamAsString(typeI, "caffe.ResampleParameter.NEAREST");
+    const auto method  = layer->GetParamAsString(typeInterpolate, "caffe.ResampleParameter.NEAREST");
     const auto coord   = layer->GetParamAsString(coordinate_transformation_mode, half_pixel);
     const auto nearest = layer->GetParamAsString(nearest_mode, round_prefer_ceil);
     InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
