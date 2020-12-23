@@ -118,6 +118,8 @@ Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_I
 
    ![](../img/openvino-install-windows-01.png)
 
+> **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.    
+
 3. Click **Next**.
 
 4. You are asked if you want to provide consent to gather information. Choose the option of your choice. Click **Next**.

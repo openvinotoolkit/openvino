@@ -21,7 +21,7 @@ To download the models from the Open Model Zoo, use the [Model Downloader](@ref 
 ## Face Beautification Algorithm
 We will implement a simple face beautification algorithm using a combination of modern Deep Learning techniques and traditional Computer Vision. The general idea behind the algorithm is to make face skin smoother while preserving face features like eyes or a mouth contrast. The algorithm identifies parts of the face using a DNN inference, applies different filters to the parts found, and then combines it into the final result using basic image arithmetics:
 
-![Face Beautification Algorithm](..img/gapi_face_beautification_algorithm.svg)
+![Face Beautification Algorithm](../img/gapi_face_beautification_algorithm.png)
 
 Briefly the algorithm is described as follows:
 
@@ -98,7 +98,7 @@ The resulting graph is a mixture of G-API's standard operations, user-defined op
 
 * A frame-oriented one is used to detect faces on the input frame.
 * An ROI-list oriented one is used to run landmarks inference on a list of faces – this version produces an array of landmarks per every face.
-More on this in "Face Analytics pipeline" (Building a GComputation section).
+More on this in "Face Analytics pipeline" ([Building a GComputation](@ref gapi_ifd_gcomputation) section).
 
 ### Unsharp mask in G-API
 The unsharp mask \f$U\f$ for image \f$I\f$ is defined as:
