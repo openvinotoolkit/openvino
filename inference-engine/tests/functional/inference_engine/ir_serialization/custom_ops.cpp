@@ -21,7 +21,7 @@
 #endif
 
 static std::string get_extension_path() {
-    return FileUtils::makeSharedLibraryName<char>(
+    return FileUtils::makePluginLibraryName<char>(
         {}, std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 

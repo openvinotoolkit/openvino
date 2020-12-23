@@ -27,7 +27,7 @@ const char DEVICE_HETERO[] = "HETERO";
 #else
     #if defined __APPLE__
         const char pre[] = "lib";
-        const char ext[] = ".dylib";
+        const char ext[] = ".so";
     #else
         const char pre[] = "lib";
         const char ext[] = ".so";

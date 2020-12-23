@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 using ExtensionTests = ::testing::Test;
 
 std::string getExtensionPath() {
-    return FileUtils::makeSharedLibraryName<char>({},
+    return FileUtils::makePluginLibraryName<char>({},
             std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 

@@ -6,9 +6,9 @@ include(CMakeParseArguments)
 
 set(PLUGIN_FILES "" CACHE INTERNAL "")
 
-function(get_shared_library_name target_name library_name)
-    set(LIB_PREFIX "${CMAKE_SHARED_LIBRARY_PREFIX}")
-    set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+function(ie_plugin_get_file_name target_name library_name)
+    set(LIB_PREFIX "${CMAKE_SHARED_MODULE_PREFIX}")
+    set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_MODULE_SUFFIX}")
 
     set("${library_name}" "${LIB_PREFIX}${target_name}${LIB_SUFFIX}" PARENT_SCOPE)
 endfunction()
@@ -52,7 +52,7 @@ function(ie_add_plugin)
         add_cpplint_target(${obj_lib}_cpplint FOR_TARGETS ${obj_lib})
     endforeach()
 
-    add_library(${IE_PLUGIN_NAME} SHARED ${input_files})
+    add_library(${IE_PLUGIN_NAME} MODULE ${input_files})
     target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
     ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -152,7 +152,7 @@ macro(ie_register_plugins)
 
         # create plugin file
         set(config_file_name "${CMAKE_BINARY_DIR}/plugins/${name}.xml")
-        get_shared_library_name(${name} library_name)
+        ie_plugin_get_file_name(${name} library_name)
 
         add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
            COMMAND
@@ -170,7 +170,7 @@ macro(ie_register_plugins)
     add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
                       COMMAND
                         "${CMAKE_COMMAND}"
-                        -D "CMAKE_SHARED_LIBRARY_PREFIX=${CMAKE_SHARED_LIBRARY_PREFIX}"
+                        -D "CMAKE_SHARED_MODULE_PREFIX=${CMAKE_SHARED_MODULE_PREFIX}"
                         -D "IE_CONFIG_OUTPUT_FILE=${config_output_file}"
                         -D "IE_CONFIGS_DIR=${CMAKE_BINARY_DIR}/plugins"
                         -P "${IEDevScripts_DIR}/plugins/register_plugin_cmake.cmake"

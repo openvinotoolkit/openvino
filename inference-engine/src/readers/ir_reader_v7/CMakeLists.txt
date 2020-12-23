@@ -14,9 +14,9 @@ list(APPEND LIBRARY_SRC ${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader/ie_ir_reader
 
 source_group("src" FILES ${LIBRARY_SRC})
 
-# Create shared library
+# Create module library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
+add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC})
 
 ie_faster_build(${TARGET_NAME}
     UNITY

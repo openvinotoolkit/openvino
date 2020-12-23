@@ -122,9 +122,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-# Create shared library file from object library
+# Create module library file from object library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME} MODULE
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}

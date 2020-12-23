@@ -12,9 +12,9 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 
 source_group("src" FILES ${LIBRARY_SRC})
 
-# Create shared library
+# Create module library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
+add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC})
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine ONNX reader plugin")

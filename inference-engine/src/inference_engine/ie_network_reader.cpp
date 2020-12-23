@@ -46,11 +46,11 @@ class Reader: public IReader {
     InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
         std::call_once(readFlag, [&] () {
             FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
-            FileUtils::FilePath readersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
+            FileUtils::FilePath readersLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
             if (!FileUtils::fileExist(readersLibraryPath)) {
                 THROW_IE_EXCEPTION << "Please, make sure that Inference Engine ONNX reader library "
-                    << FileUtils::fromFilePath(::FileUtils::makeSharedLibraryName({}, libraryName)) << " is in "
+                    << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
                     << getIELibraryPath();
             }
             ptr = InferenceEngine::details::SOPointer<IReader>(readersLibraryPath);
@@ -107,7 +107,7 @@ void registerReaders() {
     // TODO: Read readers info from XML
     auto create_if_exists = [] (const std::string name, const std::string library_name) {
         FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
-        FileUtils::FilePath readersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
+        FileUtils::FilePath readersLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
         if (!FileUtils::fileExist(readersLibraryPath))
             return std::shared_ptr<Reader>();

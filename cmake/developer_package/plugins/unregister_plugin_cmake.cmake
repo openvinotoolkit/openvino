@@ -3,7 +3,7 @@
 #
 
 if(NOT EXISTS "${IE_CONFIG_OUTPUT_FILE}")
-	return()
+    return()
 endif()
 
 # remove plugin file
@@ -16,19 +16,19 @@ file(STRINGS "${IE_CONFIG_OUTPUT_FILE}" content)
 set(skip_plugin OFF)
 foreach(line IN LISTS content)
     if("${line}" MATCHES "${IE_PLUGIN_NAME}")
-    	set(skip_plugin ON)
+        set(skip_plugin ON)
     endif()
 
     if(NOT skip_plugin)
-	    if(newContent)
-	        set(newContent "${newContent}\n${line}")
-	    else()
-	        set(newContent "${line}")
-	    endif()
+        if(newContent)
+            set(newContent "${newContent}\n${line}")
+        else()
+            set(newContent "${line}")
+        endif()
     endif()
 
     if("${line}" MATCHES "</plugin>")
-    	set(skip_plugin OFF)
+        set(skip_plugin OFF)
     endif()
 endforeach()
 
