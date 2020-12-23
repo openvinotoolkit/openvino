@@ -38,7 +38,6 @@ namespace
         {element::Type_t::u16, TensorProto_DataType::TensorProto_DataType_UINT16},
         {element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
         {element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
-        // TODO: handle dynamic input too?
     };
 
     ValueInfoProto* find_graph_input(GraphProto& graph, const std::string& name)

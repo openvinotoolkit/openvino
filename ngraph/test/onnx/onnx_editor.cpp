@@ -111,8 +111,7 @@ NGRAPH_TEST(onnx_editor, unsupported_data_type_passed)
     onnx_import::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
 
-    // input A doesn't have the "tensor_type" field in the model
-    EXPECT_THROW(editor.set_input_types({{"A", element::undefined}}), ngraph_error);
+    EXPECT_THROW(editor.set_input_types({{"A", element::dynamic}}), ngraph_error);
 }
 
 NGRAPH_TEST(onnx_editor, elem_type_missing_in_input)
@@ -121,7 +120,7 @@ NGRAPH_TEST(onnx_editor, elem_type_missing_in_input)
     onnx_import::ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/elem_type_missing_in_input.prototxt")};
 
-    // the
+    // the "elem_type" is missing in the model but it should be possible to set the type anyway
     EXPECT_NO_THROW(editor.set_input_types({{"A", element::i64}}));
 
     const auto function = onnx_import::import_onnx_model(editor);
