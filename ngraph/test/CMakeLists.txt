@@ -100,7 +100,6 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
-    type_prop/unary_ops.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -194,6 +193,7 @@ set(SRC
     type_prop/top_k.cpp
     type_prop/transpose.cpp
     type_prop/unary_elementwise.cpp
+    type_prop/unary_ops.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
