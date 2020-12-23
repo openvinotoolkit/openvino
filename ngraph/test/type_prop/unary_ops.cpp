@@ -19,20 +19,20 @@
 using namespace ngraph;
 
 template <class T>
-class UnaryOperator: public testing::Test
+class UnaryOperator : public testing::Test
 {
 };
 
 TYPED_TEST_CASE_P(UnaryOperator);
 
-TYPED_TEST_P(UnaryOperator, basic_param_inference) 
+TYPED_TEST_P(UnaryOperator, basic_param_inference)
 {
     {
         auto param = std::make_shared<op::Parameter>(element::f32, Shape{2, 2});
         auto op = std::make_shared<TypeParam>(param);
         ASSERT_EQ(op->get_shape(), (Shape{2, 2}));
         ASSERT_EQ(op->get_element_type(), element::f32);
-    }    
+    }
     {
         auto param = std::make_shared<op::Parameter>(element::i32, Shape{21, 15, 2});
         auto op = std::make_shared<TypeParam>(param);
@@ -47,7 +47,7 @@ TYPED_TEST_P(UnaryOperator, basic_param_inference)
     }
 }
 
-TYPED_TEST_P(UnaryOperator, incompatible_input_type) 
+TYPED_TEST_P(UnaryOperator, incompatible_input_type)
 {
     {
         const auto param = std::make_shared<op::Parameter>(element::boolean, Shape{100, 2, 50});
@@ -59,7 +59,7 @@ TYPED_TEST_P(UnaryOperator, incompatible_input_type)
     }
 }
 
-TYPED_TEST_P(UnaryOperator, dynamic_rank_input_shape) 
+TYPED_TEST_P(UnaryOperator, dynamic_rank_input_shape)
 {
     {
         const auto param = std::make_shared<op::Parameter>(element::f64, PartialShape::dynamic());
@@ -81,8 +81,7 @@ TYPED_TEST_P(UnaryOperator, dynamic_rank_input_shape)
 REGISTER_TYPED_TEST_CASE_P(UnaryOperator,
                            basic_param_inference,
                            incompatible_input_type,
-                           dynamic_rank_input_shape
-                           );
+                           dynamic_rank_input_shape);
 
 using MyTypes = ::testing::Types<op::Acos, op::Asin, op::Acosh>;
 
