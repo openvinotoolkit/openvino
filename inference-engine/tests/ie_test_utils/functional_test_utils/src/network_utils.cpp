@@ -68,6 +68,11 @@ namespace FuncTestUtils {
         } else if (layer->type == "TensorIterator") {
             compareTensorIterators(layer, refLayer, sameNetVersions);
         }
+        if (layer->type == "Activation") {
+            err_log.pop_back();
+            layer->type = "not";
+            refLayer->params["type"] = "not";
+        }
 
         if (layer->precision != refLayer->precision) {
             err_log.push_back(

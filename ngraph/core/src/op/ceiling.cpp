@@ -83,8 +83,9 @@ namespace ceiling
 
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v0_Ceiling_evaluate,
-        return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    NGRAPH_OP_SCOPE(v0_Ceiling_evaluate)
+    {
+        return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    }
     return false;
 }

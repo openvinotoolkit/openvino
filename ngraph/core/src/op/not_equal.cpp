@@ -84,9 +84,10 @@ shared_ptr<Node> op::v1::NotEqual::clone_with_new_inputs(const OutputVector& new
 bool op::v1::NotEqual::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v1_NotEqual_evaluate,
-        return not_equalop::evaluate_not_equal(inputs[0], inputs[1], outputs[0], get_autob()));
+    NGRAPH_OP_SCOPE(v1_NotEqual_evaluate)
+    {
+        return not_equalop::evaluate_not_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    }
     return false;
 }
 

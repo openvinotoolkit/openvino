@@ -78,8 +78,9 @@ namespace mean
 bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v1_ReduceMean_evaluate,
-        return mean::evaluate_mean(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims()));
+    NGRAPH_OP_SCOPE(v1_ReduceMean_evaluate)
+    {
+        return mean::evaluate_mean(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    }
     return false;
 }
