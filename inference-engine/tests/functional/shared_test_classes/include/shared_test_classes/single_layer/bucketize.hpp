@@ -6,6 +6,7 @@
 
 #include <tuple>
 #include <string>
+#include <random>
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"

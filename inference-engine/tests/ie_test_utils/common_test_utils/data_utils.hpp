@@ -188,7 +188,7 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr& blob,
                                         uint32_t range,
                                         int32_t start_from = 0,
                                         const int32_t k = 1,
-                                        const int seed = 1) {
+                                        const int32_t seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
 
@@ -200,7 +200,7 @@ void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr& blob,
         range = blob->size() * 2;
     }
 
-    std::mt19937 generator{seed};
+    std::mt19937 generator(seed);
     std::uniform_int_distribution<int32_t> dist(k * start_from, k * (start_from + range));
 
     std::set<dataType> elems;
