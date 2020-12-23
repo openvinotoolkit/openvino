@@ -320,6 +320,12 @@ namespace ngraph
                                                              int64_t end,
                                                              int64_t axis);
 
+                SubGraphOp(const SubGraphOp&) = delete;
+                SubGraphOp(SubGraphOp&&) = default;
+
+                SubGraphOp& operator=(const SubGraphOp&) = delete;
+                SubGraphOp& operator=(SubGraphOp&&) = default;
+
             protected:
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
