@@ -71,6 +71,6 @@ namespace atanhop
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     bool rc = false;
-    NGRAPH_OP_SCOPE(v3_Atanh_evaluate, rc = atanhop::evaluate_atanh(inputs[0], outputs[0]));
+    NGRAPH_OP_SCOPE(v3_Atanh_evaluate) { rc = atanhop::evaluate_atanh(inputs[0], outputs[0]); }
     return rc;
 }
