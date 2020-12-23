@@ -42,6 +42,10 @@ struct ConstantAtributes {
     int offset = 0;
 };
 
+void ngfunction_2_irv10(
+    pugi::xml_document& doc, std::vector<uint8_t>& bin,
+    ngraph::Function& f,
+    const std::map<std::string, ngraph::OpSet>& custom_opsets);
 class XmlVisitor : public ngraph::AttributeVisitor {
     pugi::xml_node& m_data;
     std::string& m_node_type_name;
@@ -110,6 +114,19 @@ public:
         ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
         m_data.append_attribute(name.c_str())
             .set_value(create_atribute_list(adapter).c_str());
+    }
+    void on_adapter(
+        const std::string& name,
+        ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
+        pugi::xml_document xml_body;
+        std::vector<uint8_t> constants;
+        std::map<std::string, ngraph::OpSet> m_custom_opsets;
+
+        ngfunction_2_irv10(xml_body, constants, *adapter.get(), m_custom_opsets);
+        xml_body.first_child().remove_attribute("name");
+        xml_body.first_child().remove_attribute("version");
+        xml_body.first_child().set_name(name.c_str());
+        m_data.append_copy(xml_body.first_child());
     }
 };
 
@@ -439,6 +456,9 @@ void ngfunction_2_irv10(
                         .set_value(std::to_string(d).c_str());
                 }
             }
+            if (node_type_name == "TensorIterator") {
+                layer.prepend_move(input);
+            }
         }
         // <layers/output>
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
@@ -456,6 +476,9 @@ void ngfunction_2_irv10(
                     dim.append_child(pugi::xml_node_type::node_pcdata)
                         .set_value(std::to_string(d).c_str());
                 }
+            }
+            if (node_type_name == "TensorIterator") {
+                layer.first_child().append_move(output);
             }
         }
     }
