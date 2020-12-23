@@ -77,8 +77,8 @@ void op::v1::AvgPool::validate_and_infer_types()
     const PartialShape& arg_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this,
-                          arg_shape.rank().compatible(4) || arg_shape.rank().compatible(5),
-                          "Expected a 4D or 5D tensor for the input. Got: ",
+                          arg_shape.rank().compatible(3) || arg_shape.rank().compatible(4) || arg_shape.rank().compatible(5),
+                          "Expected a 3D, 4D or 5D tensor for the input. Got: ",
                           arg_shape);
 
     if (arg_shape.rank().is_static())
@@ -95,6 +95,10 @@ void op::v1::AvgPool::validate_and_infer_types()
         NODE_VALIDATION_CHECK(this,
                               m_kernel.size() == arg_shape.rank().get_max_length() - 2,
                               "Expected kernel size to be equal to input size - 2. Got: ",
+                              m_kernel.size());
+        NODE_VALIDATION_CHECK(this,
+                              m_strides.size() == arg_shape.rank().get_max_length() - 2,
+                              "Expected strides size to be equal to input size - 2. Got: ",
                               m_kernel.size());
     }
 
@@ -121,7 +125,7 @@ void op::v1::AvgPool::validate_and_infer_types()
             try_apply_auto_padding(arg_shape,
                                    m_kernel,
                                    m_strides,
-                                   Strides(m_kernel.size(), 1), // No dilationP
+                                   Strides(m_kernel.size(), 1), // No dilation
                                    m_auto_pad,
                                    pads_end,
                                    pads_begin);
