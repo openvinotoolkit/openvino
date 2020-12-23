@@ -87,3 +87,14 @@ NGRAPH_TEST(onnx_editor, all_inputs_type_substitution)
     EXPECT_EQ(float_inputs_count, 0);
     EXPECT_EQ(integer_inputs_count, 3);
 }
+
+NGRAPH_TEST(onnx_editor, missing_type_in_input_descriptor)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_type.prototxt")};
+
+    // input A doesn't have the "type" field in the model and so the data type cannot be modified
+    EXPECT_THROW(
+        editor.set_input_types({{"A", element::f32}}),
+        ngraph_error);
+}
