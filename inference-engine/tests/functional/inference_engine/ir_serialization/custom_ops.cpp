@@ -53,7 +53,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
     bool success;
     std::string message;
     std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
+        compare_functions(result.getFunction(), expected.getFunction(), true);
 
     ASSERT_TRUE(success) << message;
 }
@@ -73,7 +73,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     bool success;
     std::string message;
     std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
+        compare_functions(result.getFunction(), expected.getFunction(), true);
 
     ASSERT_TRUE(success) << message;
 }
@@ -97,7 +97,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     bool success;
     std::string message;
     std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
+        compare_functions(result.getFunction(), expected.getFunction(), true);
 
     ASSERT_TRUE(success) << message;
 }
