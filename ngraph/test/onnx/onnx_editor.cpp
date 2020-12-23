@@ -94,7 +94,14 @@ NGRAPH_TEST(onnx_editor, missing_type_in_input_descriptor)
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_type.prototxt")};
 
     // input A doesn't have the "type" field in the model and so the data type cannot be modified
-    EXPECT_THROW(
-        editor.set_input_types({{"A", element::f32}}),
-        ngraph_error);
+    EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ngraph_error);
+}
+
+NGRAPH_TEST(onnx_editor, missing_tensor_type_in_input_descriptor)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_tensor_type.prototxt")};
+
+    // input A doesn't have the "tensor_type" field in the model
+    EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ngraph_error);
 }
