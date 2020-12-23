@@ -4980,6 +4980,20 @@ TEST_P(pooling_scale_activation, basic) {
     execute(p);
 }
 
+TEST_P(pooling_scale_activation, eltwise_mul) {
+    auto p = GetParam();
+
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / tensor{1, 1, 4, 4}.count())),
+                      pooling("pooling", "input", "", p.pool_mode, tensor(1, 1, 4, 4), tensor(1, 1, 2, 2)),
+                      eltwise("scale", {"pooling", "scale_data"}, eltwise_mode::prod, p.default_type),
+                      activation("activation", "scale", activation_func::relu),
+                      reorder("output_reorder", "activation", p.default_format, data_types::f32));
+
+    tolerance = 1e-05f;
+    execute(p);
+}
+
 INSTANTIATE_TEST_CASE_P(fusings_gpu,
                         pooling_scale_activation,
                         ::testing::ValuesIn(std::vector<pooling_test_params>{
