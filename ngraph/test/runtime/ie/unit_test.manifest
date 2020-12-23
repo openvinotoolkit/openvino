@@ -71,6 +71,7 @@ onnx_model_split_equal_parts_2d
 onnx_model_split_variable_parts_2d
 onnx_top_k_opset_10_const_k
 onnx_top_k_opset_11_const_k_smallest
+onnx_top_k_opset_11_const_k_smallest_negative_axis
 split_1d
 split_2d_axis_0
 split_2d_axis_1
@@ -248,6 +249,15 @@ IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
 ## Const layer has incorrect dimensions in the output data
 IE_CPU.nothing_to_reverse
 
+# Unsupported dynamic ops
+onnx_size_dyn_op
+
+# Constant network
+# MKLDNNGraph::CreateGraph: No inputs for the topology
+onnx_size_op_single
+onnx_size_op_graph_end
+onnx_size_op_graph_middle
+
 
 #-------------------------------------------------------------------------------
 #
@@ -412,13 +422,14 @@ reduce_sum_large_1d_to_scalar
 # Doesn't throw expected exception type.
 unhandled_op
 
-# Cannot cast ngraph node Reshape_158305 to CNNLayer
-transpose
-slice_matrix_axis_0_in_place_with_reshape
-reshape_t2v_012
-reshape_t2s_012
-reshape_t2s_120
-reshape_s2t
+# Const layer Constant_6325 has incorrect dimensions in the output data 0
+reshape_t2s
+
+# Expected equality of these values:
+#  (vector<char>{42})
+#    Which is: { '*' (42, 0x2A) }
+#  read_vector<char>(result)
+#    Which is: { '\0' }
 reshape_s2t1
 reshape_v2m_col
 reshape_v2m_row
@@ -915,7 +926,9 @@ broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
 
 # Cannot find blob with name: Parameter_1
+dyn_group_convolution_backprop_data
 dynamic_transpose
+transpose
 
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_axis_0_2d_input
@@ -1508,6 +1521,7 @@ IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
 # Not supported dynamic shapes cases for Loop
 onnx_controlflow_loop_2d_no_identity_termination_cond
 onnx_controlflow_loop_2d_no_identity_termination_cond_false
+onnx_controlflow_loop_2d_trip_count_max_int
 onnx_controlflow_loop_2d_const_no_identity_termination_cond
 onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 onnx_controlflow_loop_no_variadic_inputs_and_outputs

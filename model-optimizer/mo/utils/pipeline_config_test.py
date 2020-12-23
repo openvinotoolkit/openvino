@@ -148,6 +148,9 @@ class TestingSimpleProtoParser(unittest.TestCase):
                            'ssd_anchor_generator_min_scale': 0.2,
                            'ssd_anchor_generator_max_scale': 0.95,
                            'ssd_anchor_generator_interpolated_scale_aspect_ratio': 1.0,
+                           'use_matmul_crop_and_resize': False,
+                           'add_background_class': True,
+                           'share_box_across_classes': False,
                            }
         os.unlink(file_name)
         self.assertDictEqual(pipeline_config._model_params, expected_result)

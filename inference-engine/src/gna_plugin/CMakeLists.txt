@@ -12,7 +12,9 @@ file(GLOB_RECURSE HEADERS
 
 addVersionDefines(gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
 
-find_package(libGNA)
+find_package(libGNA REQUIRED
+             PATHS "${IE_MAIN_SOURCE_DIR}/cmake"
+             NO_DEFAULT_PATH)
 
 if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
     set(GNA_LIBRARY_VERSION_NUMBER 2)
@@ -71,5 +73,5 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
 
 file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
 install(FILES ${source_list} 
-         DESTINATION ${IE_CPACK_IE_DIR}/external/gna/lib
+        DESTINATION ${IE_CPACK_IE_DIR}/external/gna/lib
         COMPONENT gna)
