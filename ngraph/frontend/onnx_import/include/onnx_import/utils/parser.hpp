@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #pragma once
+#include <fstream>
 #include <string>
 
 namespace ONNX_NAMESPACE
@@ -22,30 +23,29 @@ namespace ONNX_NAMESPACE
     class ModelProto;
 }
 
-/// \brief              Top level nGraph namespace.
 namespace ngraph
 {
     namespace onnx_import
     {
-        /// \brief       Parses an ONNX model from a file located on a storage device.
+        /// \brief   Parses an ONNX model from a file located on a storage device.
         ///
-        /// \param[in]   file_path    Path to the file containing an ONNX model.
-        /// \param[out]  model_proto  A reference to the object which will be filled with
+        /// \param   file_path    Path to the file containing an ONNX model.
+        /// \param   model_proto  A reference to the object which will be filled with
         ///                           the model data
         void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto);
 
-        /// \brief       Parses an ONNX model from a stream (representing for example a file)
+        /// \brief   Parses an ONNX model from a stream (representing for example a file)
         ///
-        /// \param[in]   model_stream  Path to the file containing an ONNX model.
-        /// \param[out]  model_proto   A reference to the object which will be filled with
+        /// \param   model_stream  Path to the file containing an ONNX model.
+        /// \param   model_proto   A reference to the object which will be filled with
         ///                            the model data
         void parse_from_istream(std::istream& model_stream,
                                 ONNX_NAMESPACE::ModelProto& model_proto);
 
-        /// \brief      Opens an ifstream for a given model file.
-        /// \param[in]  file_path  Path to the file containing an ONNX model.
+        /// \brief   Opens an ifstream for a given model file.
+        /// \param   file_path  Path to the file containing an ONNX model.
         ///
-        /// \return     An object of std::ifstream for a given model.
+        /// \return  An object of std::ifstream for a given model.
         std::ifstream open_model_stream(const std::string& file_path);
     } // namespace onnx_import
 

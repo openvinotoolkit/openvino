@@ -47,14 +47,27 @@ namespace ngraph
             ONNXModelEditor() = delete;
             ~ONNXModelEditor();
 
-            /// \brief Creates an editor from a model file located on a storage device.
+            /// \brief Creates an editor from a model file located on a storage device. The file
+            ///        is parsed and loaded into the m_model_proto member variable.
+            ///
+            /// \param model_path Path to the file containing the model.
             ONNXModelEditor(const std::string& model_path);
 
+            /// \brief Modifies the in-memory representation of the model (m_model_proto) by setting
+            ///        custom input types for all inputs specified in the provided map.
+            ///
+            /// \param input_types A collection of pairs {input_name: new_input_type} that should be
+            ///                    used to modified the ONNX model loaded from a file. This method
+            ///                    throws an exception if the model doesn't contain any of
+            ///                    the inputs specified in its parameter.
             void set_input_types(const std::map<std::string, element::Type_t>& input_types);
 
         private:
             ONNX_NAMESPACE::ModelProto* m_model_proto;
+            const std::string m_model_path;
 
+            // This declaration lets the import_onnx_model function access the modified model
+            // without the need of exposing it to the public API of this class.
             friend std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor&);
         };
     } // namespace onnx_import

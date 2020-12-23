@@ -78,9 +78,9 @@ namespace ngraph
         std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
         {
             // this overload of the import_onnx_model is friended with the ONNXModelEditor
-            // and thus can access its private member holding the modified model_proto
-            // TODO: handle model path
-            return detail::import_onnx_model(*(model_editor.m_model_proto), "");
+            // and thus can access its private members
+            return detail::import_onnx_model(*(model_editor.m_model_proto),
+                                             model_editor.m_model_path);
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,
