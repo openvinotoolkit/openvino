@@ -30,8 +30,8 @@ namespace ngraph
         namespace v6
         {
             /// \brief An operation ExperimentalDetectronROIFeatureExtractor, according to
-            /// the repository https://github.com/openvinotoolkit/training_extensions
-            /// (see pytorch_toolkit/instance_segmentation/segmentoly/rcnn/roi_feature_extractor.py).
+            /// the repository https://github.com/openvinotoolkit/training_extensions (see the file
+            /// pytorch_toolkit/instance_segmentation/segmentoly/rcnn/roi_feature_extractor.py).
             class NGRAPH_API ExperimentalDetectronROIFeatureExtractor : public Op
             {
             public:
