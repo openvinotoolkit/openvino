@@ -27,7 +27,12 @@ namespace ngraph
     {
         void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto)
         {
-            auto file_stream = open_model_stream(file_path);
+            std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
+
+            if (!file_stream.is_open())
+            {
+                throw ngraph_error("Could not open the file: " + file_path);
+            };
 
             parse_from_istream(file_stream, model_proto);
         }
