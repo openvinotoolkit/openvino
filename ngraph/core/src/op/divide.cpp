@@ -106,8 +106,10 @@ shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Divide_evaluate,
-                    return divide::evaluate_divide(
-                        inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv()));
+    NGRAPH_OP_SCOPE(v1_Divide_evaluate)
+    {
+        return divide::evaluate_divide(
+            inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
+    }
     return false;
 }

@@ -101,7 +101,10 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Softmax_evaluate, outputs[0]->set_unary(inputs[0]);
-                    return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis}));
+    NGRAPH_OP_SCOPE(v1_Softmax_evaluate)
+    {
+        outputs[0]->set_unary(inputs[0]);
+        return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
+    }
     return false;
 }
