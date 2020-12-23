@@ -24,6 +24,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unsqueeze.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_variadic_split.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_loop.hpp"
 
 #include "vpu/ngraph/utilities.hpp"
 #include "vpu/utils/error.hpp"
@@ -77,6 +78,7 @@ const Validators& getValidators() {
     static const Validators validators = {
         {ngraph::opset5::Split::type_info,         validateSplit},
         {ngraph::opset5::VariadicSplit::type_info, validateSplit},
+        {ngraph::opset6::Loop::type_info,          validateLoop},
     };
     return validators;
 }
@@ -144,6 +146,8 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::ReduceMin::type_info,        dynamicToStaticShapeReduce},
         {ngraph::opset3::ReduceProd::type_info,       dynamicToStaticShapeReduce},
         {ngraph::opset3::ReduceSum::type_info,        dynamicToStaticShapeReduce},
+
+        {ngraph::opset6::Loop::type_info, dynamicToStaticShapeLoop},
     };
     return transformations;
 }
