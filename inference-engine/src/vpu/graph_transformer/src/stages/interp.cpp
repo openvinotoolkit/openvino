@@ -45,11 +45,11 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto align = attrs().get<bool>(g_align_corners);
+        auto align_corners = attrs().get<bool>(g_align_corners);
         auto sampleType = attrs().get<InterpolateMode>(g_mode);
         auto coordinateTransMode = attrs().get<InterpolateCoordTransMode>(g_coordinate_transformation_mode);
 
-        serializer.append(static_cast<int32_t>(align));
+        serializer.append(static_cast<int32_t>(align_corners));
         serializer.append(static_cast<uint32_t>(sampleType));
         serializer.append(static_cast<uint32_t>(coordinateTransMode));
     }
@@ -69,13 +69,13 @@ Stage StageBuilder::addInterpStage(
                         const Model& model,
                         const std::string& name,
                         const ie::CNNLayerPtr& layer,
-                        bool align,
+                        bool align_corners,
                         InterpolateMode mode,
                         InterpolateCoordTransMode coordinateTransMode,
                         const Data& input,
                         const Data& output) {
     auto stage = model->addNewStage<InterpStage>(layer->name, StageType::Interp, layer, {input}, {output});
-    stage->attrs().set<bool>(g_align_corners, align);
+    stage->attrs().set<bool>(g_align_corners, align_corners);
     stage->attrs().set<InterpolateMode>(g_mode, mode);
     stage->attrs().set<InterpolateCoordTransMode>(g_coordinate_transformation_mode, coordinateTransMode);
 

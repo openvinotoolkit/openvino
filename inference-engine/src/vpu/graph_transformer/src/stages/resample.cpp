@@ -52,14 +52,14 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto antial = attrs().get<bool>(g_antialias);
-        auto fact = attrs().get<float>(g_factor);
+        auto align_corners = attrs().get<bool>(g_antialias);
+        auto factor = attrs().get<float>(g_factor);
         auto sampleType = attrs().get<ResampleType>(g_type);
         auto coordinateTransformationMode = attrs().get<InterpolateCoordTransMode>(g_coordinate_transformation_mode);
         auto nearestMode = attrs().get<InterpolateNearestMode>(g_nearest_mode);
 
-        serializer.append(static_cast<int32_t>(antial));
-        serializer.append(static_cast<float>(fact));
+        serializer.append(static_cast<int32_t>(align_corners));
+        serializer.append(static_cast<float>(factor));
         serializer.append(static_cast<uint32_t>(sampleType));
         serializer.append(static_cast<uint32_t>(coordinateTransformationMode));
         serializer.append(static_cast<uint32_t>(nearestMode));
@@ -80,18 +80,18 @@ Stage StageBuilder::addResampleNearestStage(
             const Model& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
-            bool antial,
+            bool antialias,
             InterpolateCoordTransMode coordinateTransformationMode,
             InterpolateNearestMode nearestMode,
-            float fact,
+            float factor,
             const Data& input,
             const Data& output) {
     auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, {input}, {output});
 
-    stage->attrs().set<bool>(g_antialias, antial);
+    stage->attrs().set<bool>(g_antialias, antialias);
     stage->attrs().set<InterpolateCoordTransMode>(g_coordinate_transformation_mode, coordinateTransformationMode);
     stage->attrs().set<InterpolateNearestMode>(g_nearest_mode, nearestMode);
-    stage->attrs().set<float>(g_factor, fact);
+    stage->attrs().set<float>(g_factor, factor);
     stage->attrs().set<ResampleType>(g_type, ResampleType::Nearest);
 
     return stage;
