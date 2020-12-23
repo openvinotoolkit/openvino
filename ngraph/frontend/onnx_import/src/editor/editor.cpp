@@ -75,10 +75,10 @@ namespace
                 auto* tensor_type = type_proto->mutable_tensor_type();
                 if (NG_2_ONNX_TYPES.count(elem_type) == 0)
                 {
-                    throw ngraph_error(
-                        "The input type for input '" + onnx_input.name() +
-                        "' cannot be set to: " + element::Type(elem_type).get_type_name() +
-                        ". This type is not allowed in ONNX.");
+                    throw ngraph_error("The input type for input '" + onnx_input.name() +
+                                       "' cannot be set to: " +
+                                       element::Type(elem_type).get_type_name() +
+                                       ". This type is not allowed in ONNX.");
                 }
                 else
                 {
@@ -115,9 +115,9 @@ void onnx_import::ONNXModelEditor::set_input_types(
         }
         else
         {
-            throw ngraph_error(
-                "Could not set a custom element type for input: " + input_desc.first +
-                ". Such input was not found in the original ONNX model.");
+            throw ngraph_error("Could not set a custom element type for input: " +
+                               input_desc.first +
+                               ". Such input was not found in the original ONNX model.");
         }
     }
 }
