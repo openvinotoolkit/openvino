@@ -135,9 +135,6 @@ namespace
         case element::Type_t::f32:
             bucketize_v3::evaluate<element::Type_t::f32, ET>(op, outputs, inputs);
             break;
-        case element::Type_t::f64:
-            bucketize_v3::evaluate<element::Type_t::f64, ET>(op, outputs, inputs);
-            break;
         default: return false;
         }
         return true;
