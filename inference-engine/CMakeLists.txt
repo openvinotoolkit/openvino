@@ -1,7 +1,12 @@
 # Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 project(InferenceEngine)
+
+if(CMAKE_SOURCE_DIR STREQUAL "${InferenceEngine_SOURCE_DIR}")
+    message(FATAL_ERROR "Cmake source directory must point to <openvino_root>")
+endif()
 
 include(cmake/features.cmake)
 
