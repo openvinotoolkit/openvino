@@ -20,6 +20,7 @@ endfunction()
 set_ci_build_number()
 
 include(features)
+include(message)
 
 #
 # Detect target
