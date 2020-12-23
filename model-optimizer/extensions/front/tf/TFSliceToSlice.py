@@ -20,6 +20,7 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Add, Equal
 from extensions.ops.select import Select
 from mo.front.common.replacement import FrontReplacementOp
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, rename_nodes
 from mo.ops.const import Const
 from mo.ops.slice import Slice
@@ -43,9 +44,13 @@ class TFSliceToSliceReplacer(FrontReplacementOp):
         rename_nodes([(node, slice_name + '/to_be_removed'), (slice_node, slice_name)])
 
         eq_node = Equal(graph, {'name': slice_name + '/equal'}).create_node()
-        minus_one_node = Const(graph, {'name': slice_name + '/minus_one', 'value': np.array(-1)}).create_node()
-        int32_max_node = Const(graph, {'name': slice_name + '/int32_max', 'value': np.int64(np.iinfo(np.int32).max)}).create_node()
+        minus_one_node = Const(graph, {'name': slice_name + '/minus_one', 'value': int64_array(-1)}).create_node()     
         
+        #Select requires equal dtypes on ports 1 and 2.
+        #Dtype of [2] port is int64(summ_node -> cast to int64),
+        #so dtype of [1] (int32_max_node)  must be the same
+        int32_max_node = Const(graph, {'name': slice_name + '/int32_max', 
+                        'value': int64_array(np.iinfo(np.int32).max)}).create_node()
         select_node = Select(graph, {'name': slice_name + '/select'}).create_node()
 
         # node to convert sizes to ends
