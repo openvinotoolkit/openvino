@@ -218,6 +218,7 @@ namespace ngraph
                 };
 
                 virtual std::shared_ptr<Function> get_function() { return m_body; };
+                virtual std::shared_ptr<const Function> get_function() const { return m_body; };
                 virtual void set_function(const std::shared_ptr<Function>& func) { m_body = func; };
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
