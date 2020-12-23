@@ -108,9 +108,31 @@ NGRAPH_TEST(onnx_editor, missing_tensor_type_in_input_descriptor)
 
 NGRAPH_TEST(onnx_editor, unsupported_data_type_passed)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
-        SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
 
     // input A doesn't have the "tensor_type" field in the model
     EXPECT_THROW(editor.set_input_types({{"A", element::undefined}}), ngraph_error);
+}
+
+NGRAPH_TEST(onnx_editor, elem_type_missing_in_input)
+{
+    // the original model contains 2 inputs with i64 data type and one f32 input
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/elem_type_missing_in_input.prototxt")};
+
+    // the
+    EXPECT_NO_THROW(editor.set_input_types({{"A", element::i64}}));
+
+    const auto function = onnx_import::import_onnx_model(editor);
+
+    const auto graph_inputs = function->get_parameters();
+
+    const auto integer_inputs_count = std::count_if(
+        std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::i64));
+
+    EXPECT_EQ(integer_inputs_count, 2);
+
+    const auto function_result = function->get_result();
+    EXPECT_EQ(function_result->get_element_type(), element::i64);
 }
