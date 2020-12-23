@@ -258,7 +258,8 @@ void op::v1::Reshape::validate_and_infer_types()
     if (!reshape_pattern.empty())
     {
         std::vector<Dimension> output_shape(output_rank.get_length());
-        calculate_output_shape(this, reshape_pattern, minus_one_idx, input_pshape, output_shape);
+        reshapeop::calculate_output_shape(
+            this, reshape_pattern, minus_one_idx, input_pshape, output_shape);
         set_output_type(0, get_input_element_type(0), output_shape);
     }
 }
@@ -315,7 +316,7 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
     }
 
     std::vector<Dimension> output_shape(out_shape_val.size());
-    calculate_output_shape(
+    reshapeop::calculate_output_shape(
         this, reshape_pattern, minus_one_idx, inputs[0]->get_partial_shape(), output_shape);
     NGRAPH_CHECK(PartialShape(output_shape).is_static());
     outputs[0]->set_shape(PartialShape(output_shape).to_shape());
