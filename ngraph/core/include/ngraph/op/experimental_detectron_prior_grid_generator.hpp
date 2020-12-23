@@ -64,9 +64,7 @@ namespace ngraph
             private:
                 Attributes m_attrs;
 
-                void validate(const PartialShape& priors_shape,
-                              const PartialShape& featmap_shape,
-                              const PartialShape& im_data_shape);
+                void validate();
             };
         }
     }

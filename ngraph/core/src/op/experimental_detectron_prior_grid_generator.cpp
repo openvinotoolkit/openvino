@@ -25,7 +25,8 @@ using namespace std;
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator,
-                       "ExperimentalDetectronPriorGridGenerator", 6);
+                       "ExperimentalDetectronPriorGridGenerator",
+                       6);
 
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
@@ -57,10 +58,16 @@ shared_ptr<Node> op::v6::ExperimentalDetectronPriorGridGenerator::clone_with_new
         new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
-void op::v6::ExperimentalDetectronPriorGridGenerator::validate(const PartialShape& priors_shape,
-                                                               const PartialShape& featmap_shape,
-                                                               const PartialShape& im_data_shape)
+static constexpr size_t priors_port = 0;
+static constexpr size_t featmap_port = 1;
+static constexpr size_t im_data_port = 2;
+
+void op::v6::ExperimentalDetectronPriorGridGenerator::validate()
 {
+    auto priors_shape = get_input_partial_shape(priors_port);
+    auto featmap_shape = get_input_partial_shape(featmap_port);
+    auto im_data_shape = get_input_partial_shape(im_data_port);
+
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic())
     {
         return;
@@ -75,7 +82,7 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate(const PartialShap
                           priors_shape[1]);
 
     NODE_VALIDATION_CHECK(
-        this, featmap_shape.rank().get_length() == 4, "Feature_map rank must be equal to 2.");
+        this, featmap_shape.rank().get_length() == 4, "Feature_map rank must be equal to 4.");
 
     if (im_data_shape.rank().is_dynamic())
     {
@@ -98,12 +105,11 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate(const PartialShap
 
 void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
 {
-    auto priors_shape = get_input_partial_shape(0);
-    auto featmap_shape = get_input_partial_shape(1);
-    auto im_data_shape = get_input_partial_shape(2);
+    auto priors_shape = get_input_partial_shape(priors_port);
+    auto featmap_shape = get_input_partial_shape(featmap_port);
     auto input_et = get_input_element_type(0);
 
-    validate(priors_shape, featmap_shape, im_data_shape);
+    validate();
 
     PartialShape out_shape;
     set_output_size(1);
@@ -113,24 +119,6 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
         if (m_attrs.flatten)
         {
             out_shape = PartialShape{Dimension::dynamic(), 4};
-        }
-
-        set_output_type(0, input_et, out_shape);
-        return;
-    }
-
-    if (priors_shape.is_dynamic() || featmap_shape.is_dynamic())
-    {
-        out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
-        if (m_attrs.flatten)
-        {
-            out_shape = PartialShape{Dimension::dynamic(), 4};
-        }
-        else
-        {
-            out_shape[0] = featmap_shape[2];
-            out_shape[1] = featmap_shape[3];
-            out_shape[2] = priors_shape[0];
         }
 
         set_output_type(0, input_et, out_shape);
