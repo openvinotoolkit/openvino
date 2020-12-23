@@ -51,6 +51,10 @@ namespace ngraph
                 {
                     axis += data_shape.size();
                 }
+                if (axis < 0 || axis >= data_shape.size())
+                {
+                    throw std::domain_error{"axis for GatherElements exceeds allowed range [0, data_rank)"};
+                }
 
                 if (data_shape.size() == 1)
                 {
