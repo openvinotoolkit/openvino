@@ -31,15 +31,7 @@ namespace ngraph
                                                        const int64_t axis)
             {
                 const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
-
-                const auto axis_1 = default_opset::Constant::create(element::i64, Shape{1}, {1});
-                const auto max =
-                    std::make_shared<default_opset::ReduceMax>(coerced_data, axis_1, true);
-
-                const auto data_minus_max =
-                    std::make_shared<default_opset::Subtract>(coerced_data, max);
-
-                const auto result = std::make_shared<default_opset::Softmax>(data_minus_max, 1);
+                const auto result = std::make_shared<default_opset::Softmax>(coerced_data, 1);
                 if (data.get_partial_shape().is_static())
                 {
                     return ngraph::builder::opset1::reshape(result, data.get_shape());
