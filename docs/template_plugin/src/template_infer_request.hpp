@@ -65,7 +65,7 @@ private:
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages>   _durations;
 
-    InferenceEngine::BlobMap                                _networkOutputBlobs;
+//    InferenceEngine::BlobMap                                _networkOutputBlobs;
     ngraph::ParameterVector                                 _parameters;
     ngraph::ResultVector                                    _results;
 

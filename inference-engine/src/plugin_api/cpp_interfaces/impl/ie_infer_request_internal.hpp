@@ -132,6 +132,10 @@ public:
                                    << "Failed to set Blob with precision not corresponding to user output precision";
             }
             _outputs[name] = userBlob;
+            auto& devBlob = _deviceOutputs[name];
+            if (devBlob && postProcessingRequired(devBlob, userBlob)) {
+                addOutputPostProcessingFor(name, devBlob, userBlob);
+            }
         }
     }
 
@@ -171,6 +175,11 @@ public:
                 foundOutput->getTensorDesc().getLayout() != SCALAR
                 ? foundOutput->getTensorDesc().getDims()
                 : oneVector);
+
+            auto& devBlob = _deviceOutputs[name];
+            if (devBlob && postProcessingRequired(devBlob, data)) {
+                addOutputPostProcessingFor(name, devBlob, data);
+            }
         }
     }
 
@@ -244,8 +253,10 @@ protected:
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
     InferenceEngine::BlobMap _inputs;  //!< A map of user passed blobs for network inputs
     InferenceEngine::BlobMap _deviceInputs; //!< A map of actual network inputs, in plugin specific format
+    InferenceEngine::BlobMap _deviceOutputs; //!< A map of actual network outputs, in plugin specific format
     InferenceEngine::BlobMap _outputs;  //!< A map of user passed blobs for network outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;        //!< A map of pre-process data per input
+    std::map<std::string, PreProcessDataPtr> _postProcData;       //!< A map of post-process data per output
     int m_curBatch;  //!< Current batch value used in dynamic batching
 
     /**
@@ -265,6 +276,17 @@ protected:
             auto it = _preProcData.find(input.first);
             if (it != _preProcData.end()) {
                 _preProcData[input.first]->execute(input.second, _networkInputs[input.first]->getPreProcess(), serial,
+                                                   m_curBatch);
+            }
+        }
+    }
+    void execDataPostprocessing(InferenceEngine::BlobMap& postprocessedBlobs, bool serial = false) {
+        for (auto& input : postprocessedBlobs) {
+            // If there is a pre-process entry for an input then it must be pre-processed
+            // using preconfigured resize algorithm.
+            auto it = _postProcData.find(input.first);
+            if (it != _postProcData.end()) {
+                _postProcData[input.first]->execute(input.second, PreProcessInfo{}, serial,
                                                    m_curBatch);
             }
         }
@@ -399,6 +421,26 @@ protected:
                (blob_prec(userBlob) != dst_prec);
     }
 
+    /**
+     * @brief Checks whether pre-processing step is required for a given input
+     * @param info InputInfo corresponding to input blob
+     * @param userBlob Input Blob object corresponding to input info
+     * @param deviceBlob Blob object in plugin's desired format
+     * @return `True` if pre-processing is required, `false` otherwise
+     */
+    bool postProcessingRequired(const Blob::Ptr& srcBlob, const Blob::Ptr& dstBlob) {
+        // post-processing is required if:
+        // 1. network's layout != blob's layout (reorder required)
+        // 2. precision conversion is required
+
+        auto blob_layout = [](const Blob::Ptr& b) { return b->getTensorDesc().getLayout();   };
+        auto blob_prec   = [](const Blob::Ptr& b) { return b->getTensorDesc().getPrecision();};
+
+        return //preProcessInfo.getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE ||
+               (blob_layout(srcBlob) != blob_layout(dstBlob)) ||
+               (blob_prec(srcBlob)   != blob_prec(dstBlob));
+    }
+
     void addInputPreProcessingFor(const std::string& name, Blob::Ptr const& from, const Blob::Ptr& to) {
         auto ppDataIt = _preProcData.find(name);
         if (ppDataIt == _preProcData.end()) {
@@ -407,6 +449,19 @@ protected:
 
         auto& preproc_ptr = ppDataIt->second;
         preproc_ptr->isApplicable(from,  to);
+        // Stores the given blob as ROI blob. It will be used to fill in network input
+        // during pre-processing
+        preproc_ptr->setRoiBlob(from);
+    }
+
+    void addOutputPostProcessingFor(const std::string& name, Blob::Ptr const& from, const Blob::Ptr& /*to*/) {
+        auto ppDataIt = _postProcData.find(name);
+        if (ppDataIt == _postProcData.end()) {
+            ppDataIt = (_postProcData.emplace(name, CreatePreprocDataHelper())).first;
+        }
+
+        auto& preproc_ptr = ppDataIt->second;
+//        preproc_ptr->isApplicable(inBlob,  to);
         // Stores the given blob as ROI blob. It will be used to fill in network input
         // during pre-processing
         preproc_ptr->setRoiBlob(from);

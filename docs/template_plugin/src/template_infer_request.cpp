@@ -69,11 +69,12 @@ void TemplateInferRequest::allocateDeviceBuffers() {
     _outputTensors.resize(_networkOutputs.size());
 }
 
-template<typename BlobDataMap, typename GetNetworkPrecisionF>
+template<typename BlobDataMap, typename GetNetworkPrecisionF, typename AddExtraProcessingStepF>
 static void AllocateImpl(const BlobDataMap& blobDataMap,
                          BlobMap& blobMap,
                          BlobMap& networkBlobMap,
-                         GetNetworkPrecisionF&& GetNetworkPrecision) {
+                         GetNetworkPrecisionF&& GetNetworkPrecision,
+                         AddExtraProcessingStepF&& AddExtraProcessingStep) {
     for (auto&& blobData : blobDataMap) {
         auto& dims = blobData.second->getTensorDesc().getDims();
         auto& precision = blobData.second->getTensorDesc().getPrecision();
@@ -86,7 +87,7 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
         case Precision::FP32 : {
             blob = InferenceEngine::make_shared_blob<float>({precision, dims, layout});
         } break;
-        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported Input/Output Presision";
+        default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported Input/Output Precision";
         }
         blob->allocate();
         blobMap[blobData.first] = blob;
@@ -99,6 +100,7 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
                 networkBlob = blob;
             } else {
                 networkBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, dims, layout});
+                AddExtraProcessingStep(blobData.first, networkBlob, blob);
             }
         } break;
         default: THROW_IE_EXCEPTION << "Template Plugin: Unsupported network Input/Output Presision";
@@ -114,10 +116,17 @@ void TemplateInferRequest::allocateBlobs() {
     auto&& parameters = _executableNetwork->_function->get_parameters();
     AllocateImpl(_networkInputs, _inputs, _deviceInputs, [&] (const std::string& blobName) {
         return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
-    });
+    },
+    [&](const std::string&, const Blob::Ptr&,  const Blob::Ptr&){});
+
     auto&& results = _executableNetwork->_function->get_results();
-    AllocateImpl(_networkOutputs, _outputs, _networkOutputBlobs, [&] (const std::string& blobName) {
+    AllocateImpl(_networkOutputs, _outputs, _deviceOutputs, [&] (const std::string& blobName) {
         return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
+    },
+    [&](const std::string& blobName, const Blob::Ptr& devBlob,  const Blob::Ptr& networkBlob){
+        if (postProcessingRequired(devBlob, networkBlob )) {
+            addOutputPostProcessingFor(blobName, devBlob, networkBlob);
+        }
     });
 }
 
@@ -194,7 +203,7 @@ void TemplateInferRequest::inferPreprocess() {
     }
     for (auto&& output : _outputs) {
         auto outputBlob = output.second;
-        auto networkOutput = _networkOutputBlobs[output.first];
+        auto networkOutput = _deviceOutputs[output.first];
         auto index = _executableNetwork->_outputIndex[output.first];
         if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
             networkOutput = outputBlob;
@@ -230,15 +239,7 @@ void TemplateInferRequest::waitPipeline() {
 void TemplateInferRequest::inferPostprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Postprocess]);
     auto start = Time::now();
-    for (auto&& output : _outputs) {
-        auto outputBlob = output.second;
-        auto networkOutput = _networkOutputBlobs[output.first];
-        // perform precision conversion of network output's precision and computational
-        // graph output's precision are different
-        if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
-            blobCopy(networkOutput, outputBlob);
-        }
-    }
+    InferRequestInternal::execDataPostprocessing(_outputs);
     _durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
