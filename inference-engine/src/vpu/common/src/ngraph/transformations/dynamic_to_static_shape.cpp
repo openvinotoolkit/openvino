@@ -72,20 +72,22 @@ bool propagateUpperBoundFromExistingDSR(std::shared_ptr<ngraph::Function>& funct
     return function_changed;
 }
 
+using Validators = std::unordered_map<ngraph::DiscreteTypeInfo, std::function<void(const ngraph::Node&)>>;
+const Validators& getValidators() {
+    static const Validators validators = {
+        {ngraph::opset5::Split::type_info,         validateSplit},
+        {ngraph::opset5::VariadicSplit::type_info, validateSplit},
+    };
+    return validators;
+}
+
 void validateDynamicFunction(const ngraph::Function& function) {
-    for (auto const& split : function.get_ordered_ops()) {
-        if (split->get_type_info() != ngraph::opset5::Split::type_info && split->get_type_info() != ngraph::opset5::VariadicSplit::type_info) {
+    const auto& validators = getValidators();
+    for (const auto& node : function.get_ordered_ops()) {
+        if (!validators.count(node->get_type_info())) {
             continue;
         }
-
-        VPU_THROW_UNLESS(split->get_input_size() >= 2, "There is Split operation \"{}\" without specified axis", split->get_friendly_name());
-        const auto& axis = ngraph::as_type_ptr<ngraph::opset5::Constant>(split->input_value(1).get_node_shared_ptr());
-        VPU_THROW_UNLESS(axis != nullptr, "There is Split operation \"{}\" with dynamic axis \"{}\", but only constant axis is supported",
-                         split->get_friendly_name(), split->input_value(1).get_node_shared_ptr()->get_friendly_name());
-        const auto axisValue = ngraph::normalize_axis(split.get(), axis->cast_vector<std::int64_t>().front(), split->get_input_partial_shape(0).rank());
-        VPU_THROW_UNLESS(split->get_input_partial_shape(0)[axisValue].is_static(),
-                         "There is Split operation \"{}\" by dynamic dimension, but only split by static dimension is supported: shape = \"{}\", axis = \"{}\"",
-                         split->get_friendly_name(), split->get_input_partial_shape(0), axisValue);
+        validators.at(node->get_type_info())(*node);
     }
 }
 
