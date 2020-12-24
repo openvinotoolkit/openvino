@@ -23,7 +23,6 @@ from mo.graph.graph import Graph, Node, rename_nodes
 from mo.ops.broadcast import Broadcast
 
 
-
 class DropoutWithRandomUniformReplacer(FrontReplacementSubgraph):
     """
     This transformation replaces possible Dropout block (in inference mode) with RandomUniform
