@@ -29,9 +29,3 @@ class PackOp(Op):
             'infer': None,
         }
         super().__init__(graph, mandatory_props, attrs)
-
-    def supported_attrs(self):
-        return [
-            'axis'
-        ]
-
