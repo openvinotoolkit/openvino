@@ -120,6 +120,7 @@ extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
+extensions/front/DropoutWithRandomUniformReplacer.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
 extensions/front/FillToBroadcast.py
@@ -535,7 +536,6 @@ extensions/middle/Deconvolution3rdInputNormalization.py
 extensions/middle/DeleteControlFlowEdges.py
 extensions/middle/DeleteNotExecutable.py
 extensions/middle/DilatedConvolution.py
-extensions/middle/DropoutWithRandomUniformReplacer.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputReshape.py
 extensions/middle/FakeSplitOutputs.py
