@@ -145,6 +145,7 @@ steps:
 ![](../img/openvino-install-linux-02.png)
 **Optional:** You can choose **Customize** to change the installation directory or the components you want to install:
 ![](../img/openvino-install-linux-03.png)
+   > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
 By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
    - For root or administrator: `/opt/intel/openvino_<version>/`
    - For regular users: `/home/<USER>/intel/openvino_<version>/`
