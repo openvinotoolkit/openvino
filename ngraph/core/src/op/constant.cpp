@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #include "itt.hpp"
 #include "ngraph/log.hpp"
@@ -301,11 +302,11 @@ op::Constant::Constant(const element::Type& type, const Shape& shape)
     constructor_validate_and_infer_types();
 }
 
-void* op::Constant::allocate_buffer()
+void op::Constant::allocate_buffer()
 {
     m_data = make_shared<runtime::AlignedBuffer>(shape_size(m_shape) * m_element_type.size(),
                                                  host_alignment());
-    return get_data_ptr_nc();
+    std::memset(m_data->get_ptr(), 0, m_data->size());
 }
 
 op::Constant::Constant(const element::Type& type, const Shape& shape, const void* data)
@@ -638,9 +639,12 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
 bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Constant_evaluate, auto output = outputs[0];
-                    output->write(get_data_ptr(), output->get_size_in_bytes());
-                    return true);
+    NGRAPH_OP_SCOPE(v0_Constant_evaluate)
+    {
+        auto output = outputs[0];
+        output->write(get_data_ptr(), output->get_size_in_bytes());
+        return true;
+    }
     return false;
 }
 

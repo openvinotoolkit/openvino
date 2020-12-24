@@ -259,9 +259,11 @@ namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_MatMul_evaluate,
-                    return matmul::evaluate_matmul(
-                        inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b()));
+    NGRAPH_OP_SCOPE(v0_MatMul_evaluate)
+    {
+        return matmul::evaluate_matmul(
+            inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+    }
     return false;
 }
 

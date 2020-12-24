@@ -73,8 +73,9 @@ namespace
 bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v5_HSigmoid_evaluate,
-        return evaluate_hsigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0))));
+    NGRAPH_OP_SCOPE(v5_HSigmoid_evaluate)
+    {
+        return evaluate_hsigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    }
     return false;
 }

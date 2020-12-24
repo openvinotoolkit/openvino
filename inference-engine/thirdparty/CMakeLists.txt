@@ -70,13 +70,13 @@ set_target_properties(ade fluid stb_image PROPERTIES FOLDER thirdparty)
 
 # developer package
 
-ie_developer_export_targets(ade fluid)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
 if (NOT USE_SYSTEM_PUGIXML)
     set_target_properties(pugixml PROPERTIES FOLDER thirdparty)
-    ie_developer_export_targets(pugixml)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml)
     if(TARGET pugixml_mt)
-        ie_developer_export_targets(pugixml_mt)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml_mt)
         set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
     endif()
 endif()

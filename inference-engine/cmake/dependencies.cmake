@@ -4,10 +4,7 @@
 
 cmake_policy(SET CMP0054 NEW)
 
-include(models)
-
-#we have number of dependencies stored on ftp
-include(dependency_solver)
+# we have number of dependencies stored on ftp
 
 if (CMAKE_CROSSCOMPILING)
     set(CMAKE_STAGING_PREFIX "${TEMP}")
@@ -32,7 +29,6 @@ message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
 fetch_models_and_validation_set()
 
-include(linux_name)
 if(COMMAND get_linux_name)
     get_linux_name(LINUX_OS_NAME)
 endif()
@@ -40,7 +36,7 @@ endif()
 include(CMakeParseArguments)
 
 if (ENABLE_MYRIAD)
-    include(vpu_dependencies)
+    include(cmake/vpu_dependencies.cmake)
 endif()
 
 ## enable cblas_gemm from OpenBLAS package
@@ -286,9 +282,13 @@ if (ENABLE_OPENCV)
         log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
     endif()
     debug_message(STATUS "opencv=" ${OPENCV})
+else()
+    reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(ie_parallel)
+# TODO: remove global CMAKE_MODULE_PATH
+list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
+include(cmake/ie_parallel.cmake)
 
 if (ENABLE_GNA)
     reset_deps_cache(
@@ -363,18 +363,3 @@ if (ENABLE_SPEECH_DEMO)
     endif()
     update_deps_cache(SPEECH_LIBS_AND_DEMOS "${SPEECH_LIBS_AND_DEMOS}" "Path to SPEECH_LIBS_AND_DEMOS root folder")
 endif()
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
-        "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-        @ONLY)
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
-        "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
-        COPYONLY)
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"
-        "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
-        COPYONLY)
