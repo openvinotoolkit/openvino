@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-from mo.front.caffe.extractors.batchnorm import batch_norm_ext
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.register_custom_ops import extension_op_extractor
@@ -33,13 +32,7 @@ def node_pb_arg(pb_extractor):
 Keys are names that appear as layer names in .prototxt.
 Full list is available here: http://caffe.berkeleyvision.org/tutorial/layers.html
 """
-caffe_type_extractors = {
-    # Common Layers
-    'dropout': node_pb_arg(lambda _, __: dict(op='Dropout', infer=copy_shape_infer)),
-
-    # Normalization Layers
-    'batchnorm': node_pb_arg(batch_norm_ext),
-}
+caffe_type_extractors = {}
 
 
 def common_caffe_fields(node: Node) -> dict:
