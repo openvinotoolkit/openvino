@@ -27,7 +27,7 @@ from mo.ops.broadcast import Broadcast
 class DropoutWithRandomUniformReplacer(FrontReplacementSubgraph):
     """
     This transformation replaces possible Dropout block (in inference mode) with RandomUniform
-    with Broadcast of ones in a sub-graph.
+    to Broadcast of half-ones in a sub-graph.
     WARNING: the transformation can be triggered for other block with RandomUniform by mistake,
     i.e. replace the detected sub-graph to functionally non-equivalent sub-graph
 
