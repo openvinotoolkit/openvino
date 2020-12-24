@@ -23,6 +23,7 @@
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
 #include <openvino/itt.hpp>
+#include <ngraph/node.hpp>
 
 namespace MKLDNNPlugin {
 

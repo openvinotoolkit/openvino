@@ -49,6 +49,7 @@
 
 #include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_debug.h"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -190,22 +191,29 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
                 THROW_IE_EXCEPTION << "Unsupported CPU implementation " << str << " for node " << getName();
         }
     }
-    if (layer->params.find("InputMemoryFormats") != layer->params.end()) {
-        std::istringstream stream(layer->params["InputMemoryFormats"]);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            inputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+
+    auto ngraphNode = layer->getNode();
+    if (ngraphNode != nullptr) {
+        std::string inputMemoryFormats = ngraph::getMLKDNNInputMemoryFormats(ngraphNode);
+        if (!inputMemoryFormats.empty()) {
+            std::istringstream stream(inputMemoryFormats);
+            std::string str;
+            while (getline(stream, str, ',')) {
+                if (str.substr(0, 4) != "cpu:")
+                    continue;
+                inputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+            }
         }
-    }
-    if (layer->params.find("OutputMemoryFormats") != layer->params.end()) {
-        std::istringstream stream(layer->params["OutputMemoryFormats"]);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            outputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+
+        std::string outputMemoryFormats = ngraph::getMLKDNNOutputMemoryFormats(ngraphNode);
+        if (!outputMemoryFormats.empty()) {
+            std::istringstream stream(outputMemoryFormats);
+            std::string str;
+            while (getline(stream, str, ',')) {
+                if (str.substr(0, 4) != "cpu:")
+                    continue;
+                outputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+            }
         }
     }
 }

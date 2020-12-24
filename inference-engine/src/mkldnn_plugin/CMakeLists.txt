@@ -113,6 +113,7 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.cpp
         ${LAYERS}
         ${OS_SPECIFIC_SRC}
@@ -124,6 +125,7 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.h
