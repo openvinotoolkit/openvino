@@ -48,53 +48,43 @@ op::v3::NonZero::NonZero(const Output<Node>& arg, const element::Type& output_ty
 
 bool ngraph::op::v3::NonZero::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v3_NonZero_visit_attributes)
-    {
-        visitor.on_attribute("output_type", m_output_type);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v3_NonZero_visit_attributes);
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
 }
 
 void op::v3::NonZero::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types);
+    const PartialShape& input_shape = get_input_partial_shape(0);
+    const auto input_et = get_input_element_type(0);
+
+    NODE_VALIDATION_CHECK(this,
+                          input_et.is_integral() || input_et.is_real(),
+                          "NonZero input data type needs to be a numeric type. Got: ",
+                          input_et);
+    NODE_VALIDATION_CHECK(this,
+                          m_output_type == element::i64 || m_output_type == element::i32,
+                          "Output type must be i32 or i64");
+
+    // For scalar non-zero value case, onnx test case expects output shape {1, 1}
+    if (input_shape.rank() == 0)
     {
-        const PartialShape& input_shape = get_input_partial_shape(0);
-        const auto input_et = get_input_element_type(0);
-
-        NODE_VALIDATION_CHECK(this,
-                              input_et.is_integral() || input_et.is_real(),
-                              "NonZero input data type needs to be a numeric type. Got: ",
-                              input_et);
-        NODE_VALIDATION_CHECK(this,
-                              m_output_type == element::i64 || m_output_type == element::i32,
-                              "Output type must be i32 or i64");
-
-        // For scalar non-zero value case, onnx test case expects output shape {1, 1}
-        if (input_shape.rank() == 0)
-        {
-            set_output_type(
-                0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
-        }
-        else
-        {
-            set_output_type(
-                0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
-        }
-
-        set_input_is_relevant_to_shape(0);
+        set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
     }
+    else
+    {
+        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
+    }
+
+    set_input_is_relevant_to_shape(0);
 }
 
 shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v3_NonZero_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v3_NonZero_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
 }
 
 namespace nonzero
@@ -131,10 +121,8 @@ namespace nonzero
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_nonzero_out, _, a))                                    \
-        {                                                                                          \
-            rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);              \
-        }                                                                                          \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_nonzero_out, _, a));                                   \
+        rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                  \
     }                                                                                              \
     break
 
@@ -174,9 +162,6 @@ namespace nonzero
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_NonZero_evaluate)
-    {
-        return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v3_NonZero_evaluate);
+    return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
 }

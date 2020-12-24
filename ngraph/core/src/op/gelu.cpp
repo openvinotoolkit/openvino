@@ -42,8 +42,8 @@ op::Gelu::Gelu(const Output<Node>& data)
 
 bool ngraph::op::v0::Gelu::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v0_Gelu_visit_attributes) { return true; }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Gelu_visit_attributes);
+    return true;
 }
 
 // f(x) = 0.5 * x * (1.0 + erf( x / sqrt(2.0) )
@@ -69,15 +69,12 @@ OutputVector op::Gelu::decompose_op() const
 
 shared_ptr<Node> op::Gelu::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v0_Gelu_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Gelu_clone_with_new_inputs);
+    if (new_args.size() != 1)
     {
-        if (new_args.size() != 1)
-        {
-            throw ngraph_error("Incorrect number of new arguments");
-        }
-        return make_shared<Gelu>(new_args.at(0));
+        throw ngraph_error("Incorrect number of new arguments");
     }
-    return nullptr;
+    return make_shared<Gelu>(new_args.at(0));
 }
 
 void op::Gelu::pre_validate_and_infer_types()

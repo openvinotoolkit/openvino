@@ -89,16 +89,13 @@ op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
 
 bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(util_RNNCellBase_visit_attributes)
-    {
-        visitor.on_attribute("hidden_size", m_hidden_size);
-        visitor.on_attribute("activations", m_activations);
-        visitor.on_attribute("activations_alpha", m_activations_alpha);
-        visitor.on_attribute("activations_beta", m_activations_beta);
-        visitor.on_attribute("clip", m_clip);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(util_RNNCellBase_visit_attributes);
+    visitor.on_attribute("hidden_size", m_hidden_size);
+    visitor.on_attribute("activations", m_activations);
+    visitor.on_attribute("activations_alpha", m_activations_alpha);
+    visitor.on_attribute("activations_beta", m_activations_beta);
+    visitor.on_attribute("clip", m_clip);
+    return true;
 }
 
 void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(

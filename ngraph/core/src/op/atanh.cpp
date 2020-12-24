@@ -36,12 +36,9 @@ op::v3::Atanh::Atanh(const Output<Node>& arg)
 
 shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v3_Atanh_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        return make_shared<Atanh>(new_args.at(0));
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v3_Atanh_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<Atanh>(new_args.at(0));
 }
 
 namespace atanhop
@@ -74,7 +71,6 @@ namespace atanhop
 
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    bool rc = false;
-    NGRAPH_OP_SCOPE(v3_Atanh_evaluate) { rc = atanhop::evaluate_atanh(inputs[0], outputs[0]); }
-    return rc;
+    NGRAPH_OP_SCOPE(v3_Atanh_evaluate);
+    return atanhop::evaluate_atanh(inputs[0], outputs[0]);
 }

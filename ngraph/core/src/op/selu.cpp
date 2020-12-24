@@ -39,8 +39,8 @@ op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Ou
 
 bool ngraph::op::v0::Selu::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v0_Selu_visit_attributes) { return true; }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Selu_visit_attributes);
+    return true;
 }
 
 OutputVector op::v0::Selu::decompose_op() const
@@ -64,10 +64,7 @@ OutputVector op::v0::Selu::decompose_op() const
 
 shared_ptr<Node> op::v0::Selu::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v0_Selu_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        return make_shared<v0::Selu>(new_args.at(0), new_args.at(1), new_args.at(2));
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v0_Selu_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<v0::Selu>(new_args.at(0), new_args.at(1), new_args.at(2));
 }

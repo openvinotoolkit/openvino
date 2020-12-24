@@ -61,24 +61,21 @@ op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_va
 // instead of relying on op decomposition.
 void op::MVN::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v0_MVN_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_MVN_validate_and_infer_types);
+    // if m_across_channels is true we should calculate mean and variance per batch
+    // else we calculate these per channel
+    if (m_reduction_axes.empty() && input_value(0).get_partial_shape().rank().is_static())
     {
-        // if m_across_channels is true we should calculate mean and variance per batch
-        // else we calculate these per channel
-        if (m_reduction_axes.empty() && input_value(0).get_partial_shape().rank().is_static())
+        AxisSet reduction_axes;
+        size_t start_axis = m_across_channels ? 1 : 2;
+        for (size_t i = start_axis; i < input_value(0).get_partial_shape().rank().get_length(); ++i)
         {
-            AxisSet reduction_axes;
-            size_t start_axis = m_across_channels ? 1 : 2;
-            for (size_t i = start_axis; i < input_value(0).get_partial_shape().rank().get_length();
-                 ++i)
-            {
-                reduction_axes.insert(i);
-            }
-            set_reduction_axes(reduction_axes);
+            reduction_axes.insert(i);
         }
-
-        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        set_reduction_axes(reduction_axes);
     }
+
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 OutputVector op::MVN::decompose_op() const
@@ -111,28 +108,22 @@ OutputVector op::MVN::decompose_op() const
 
 shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v0_MVN_clone_with_new_inputs)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              new_args.size() == 1,
-                              "Expected 1 element in new_args for the MVN op but got ",
-                              new_args.size());
-        return make_shared<MVN>(new_args.at(0), m_reduction_axes, m_normalize_variance, m_eps);
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v0_MVN_clone_with_new_inputs);
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() == 1,
+                          "Expected 1 element in new_args for the MVN op but got ",
+                          new_args.size());
+    return make_shared<MVN>(new_args.at(0), m_reduction_axes, m_normalize_variance, m_eps);
 }
 
 bool op::MVN::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v0_MVN_visit_attributes)
-    {
-        visitor.on_attribute("eps", m_eps);
-        visitor.on_attribute("across_channels", m_across_channels);
-        visitor.on_attribute("normalize_variance", m_normalize_variance);
-        visitor.on_attribute("reduction_axes", m_reduction_axes);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_MVN_visit_attributes);
+    visitor.on_attribute("eps", m_eps);
+    visitor.on_attribute("across_channels", m_across_channels);
+    visitor.on_attribute("normalize_variance", m_normalize_variance);
+    visitor.on_attribute("reduction_axes", m_reduction_axes);
+    return true;
 }
 
 // ------------------------------ V6 ------------------------------
@@ -174,51 +165,43 @@ op::v6::MVN::MVN(const Output<Node>& data,
 
 void op::v6::MVN::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v6_MVN_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v6_MVN_validate_and_infer_types);
+    const auto data = get_input_partial_shape(0);
+    const auto axes = get_input_partial_shape(1);
+
+    if (axes.is_static())
     {
-        const auto data = get_input_partial_shape(0);
-        const auto axes = get_input_partial_shape(1);
+        NODE_VALIDATION_CHECK(this,
+                              is_vector(axes.to_shape()),
+                              "Expected 1D tensor for the 'axes' input. Got: ",
+                              axes);
 
-        if (axes.is_static())
-        {
-            NODE_VALIDATION_CHECK(this,
-                                  is_vector(axes.to_shape()),
-                                  "Expected 1D tensor for the 'axes' input. Got: ",
-                                  axes);
-
-            NODE_VALIDATION_CHECK(
-                this,
-                data.rank().is_dynamic() || data.rank().get_length() >= axes.get_shape()[0],
-                "Expected rank for the 'data' input to be higher than axes shape. Got: ",
-                data);
-        }
-
-        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        NODE_VALIDATION_CHECK(
+            this,
+            data.rank().is_dynamic() || data.rank().get_length() >= axes.get_shape()[0],
+            "Expected rank for the 'data' input to be higher than axes shape. Got: ",
+            data);
     }
+
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v6_MVN_clone_with_new_inputs)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              new_args.size() == 2,
-                              "Expected 2 element in new_args for the MVN op but got ",
-                              new_args.size());
-        return make_shared<op::v6::MVN>(
-            new_args.at(0), new_args.at(1), m_normalize_variance, m_eps, m_eps_mode);
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v6_MVN_clone_with_new_inputs);
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() == 2,
+                          "Expected 2 element in new_args for the MVN op but got ",
+                          new_args.size());
+    return make_shared<op::v6::MVN>(
+        new_args.at(0), new_args.at(1), m_normalize_variance, m_eps, m_eps_mode);
 }
 
 bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v6_MVN_visit_attributes)
-    {
-        visitor.on_attribute("eps", m_eps);
-        visitor.on_attribute("normalize_variance", m_normalize_variance);
-        visitor.on_attribute("eps_mode", m_eps_mode);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v6_MVN_visit_attributes);
+    visitor.on_attribute("eps", m_eps);
+    visitor.on_attribute("normalize_variance", m_normalize_variance);
+    visitor.on_attribute("eps_mode", m_eps_mode);
+    return true;
 }

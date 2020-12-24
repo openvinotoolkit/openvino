@@ -42,20 +42,9 @@ TEST(conditional_compilation, disabled_op_scope)
     NGRAPH_OP_SCOPE(Scope0) { n = 42; }
     EXPECT_EQ(n, 42);
 
-    try
-    {
-        // Simple scope is disabled
-        NGRAPH_OP_SCOPE(Scope1) { n = 43; }
-        EXPECT_EQ(n, 42);
-    }
-    catch (const ngraph::ngraph_error& err)
-    {
-        ASSERT_EQ(errMsg, err.what());
-        return;
-    }
+    // Simple scope is disabled
+    ASSERT_THROW(NGRAPH_OP_SCOPE(Scope1), ngraph::ngraph_error);
 #undef CCTests_Scope0
-
-    FAIL() << "Disabled case should throw an exception!";
 }
 
 #undef SELECTIVE_BUILD

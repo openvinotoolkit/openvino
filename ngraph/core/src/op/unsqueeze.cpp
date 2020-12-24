@@ -39,64 +39,59 @@ op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
 
 void op::v0::Unsqueeze::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
+    const auto data = input_value(0);
+    auto data_partial_shape = data.get_partial_shape();
+    const auto data_rank = data_partial_shape.rank();
+
+    const auto axes_node = input_value(1).get_node_shared_ptr();
+
+    if (data_rank.is_dynamic() || !op::is_constant(axes_node))
     {
-        const auto data = input_value(0);
-        auto data_partial_shape = data.get_partial_shape();
-        const auto data_rank = data_partial_shape.rank();
-
-        const auto axes_node = input_value(1).get_node_shared_ptr();
-
-        if (data_rank.is_dynamic() || !op::is_constant(axes_node))
-        {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-            return;
-        }
-
-        uint64_t data_rank_value = data_partial_shape.rank().get_length();
-
-        // Get value of axes from Constant
-        const auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
-        const auto axes_values = axes_constant->cast_vector<int64_t>();
-        const auto expanded_rank = data_rank_value + axes_values.size();
-        auto axes = normalize_axes(this->description(), axes_values, expanded_rank);
-
-        NODE_VALIDATION_CHECK(this, !axes.empty(), "'axes' input is mandatory.");
-        NODE_VALIDATION_CHECK(this,
-                              axes.size() == set<int64_t>(begin(axes), end(axes)).size(),
-                              "'axes' input has a duplicate axis.");
-
-        sort(begin(axes), end(axes), less<int64_t>());
-
-        vector<Dimension> output_shape{data_partial_shape};
-        for (auto axis : axes)
-        {
-            NODE_VALIDATION_CHECK(
-                this, axis <= expanded_rank, "provided 'axes' value ", axis, " is not valid.");
-
-            output_shape.insert(next(begin(output_shape), axis), 1);
-        }
-        set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
+        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        return;
     }
+
+    uint64_t data_rank_value = data_partial_shape.rank().get_length();
+
+    // Get value of axes from Constant
+    const auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
+    const auto axes_values = axes_constant->cast_vector<int64_t>();
+    const auto expanded_rank = data_rank_value + axes_values.size();
+    auto axes = normalize_axes(this->description(), axes_values, expanded_rank);
+
+    NODE_VALIDATION_CHECK(this, !axes.empty(), "'axes' input is mandatory.");
+    NODE_VALIDATION_CHECK(this,
+                          axes.size() == set<int64_t>(begin(axes), end(axes)).size(),
+                          "'axes' input has a duplicate axis.");
+
+    sort(begin(axes), end(axes), less<int64_t>());
+
+    vector<Dimension> output_shape{data_partial_shape};
+    for (auto axis : axes)
+    {
+        NODE_VALIDATION_CHECK(
+            this, axis <= expanded_rank, "provided 'axes' value ", axis, " is not valid.");
+
+        output_shape.insert(next(begin(output_shape), axis), 1);
+    }
+    set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_visit_attributes) { return true; }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_visit_attributes);
+    return true;
 }
 
 shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
+    if (new_args.size() != 2)
     {
-        if (new_args.size() != 2)
-        {
-            throw ngraph_error("Incorrect number of new arguments");
-        }
-        return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
+        throw ngraph_error("Incorrect number of new arguments");
     }
-    return nullptr;
+    return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
 namespace unsqueeze
@@ -158,11 +153,8 @@ namespace unsqueeze
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate)
-    {
-        return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate);
+    return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values,

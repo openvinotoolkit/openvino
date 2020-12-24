@@ -44,70 +44,62 @@ op::v1::Select::Select(const Output<Node>& arg0,
 
 void op::v1::Select::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v1_Select_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v1_Select_validate_and_infer_types);
+    // Condition element type check
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).is_dynamic() ||
+                              get_input_element_type(0) == element::boolean,
+                          "Argument 0 must have boolean element type (element type: ",
+                          get_input_element_type(0),
+                          ").");
+
+    // Then/Else element type check
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
+        "Argument 1 and 2 element types must match.");
+
+    PartialShape result_shape = get_input_partial_shape(2);
+    for (int i = 1; i >= 0; i--)
     {
-        // Condition element type check
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(0).is_dynamic() ||
-                                  get_input_element_type(0) == element::boolean,
-                              "Argument 0 must have boolean element type (element type: ",
-                              get_input_element_type(0),
-                              ").");
-
-        // Then/Else element type check
-        element::Type result_et;
-        NODE_VALIDATION_CHECK(
-            this,
-            element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
-            "Argument 1 and 2 element types must match.");
-
-        PartialShape result_shape = get_input_partial_shape(2);
-        for (int i = 1; i >= 0; i--)
+        if (get_auto_broadcast().m_type == op::AutoBroadcastType::NONE)
         {
-            if (get_auto_broadcast().m_type == op::AutoBroadcastType::NONE)
-            {
-                NODE_VALIDATION_CHECK(
-                    this,
-                    PartialShape::merge_into(result_shape, get_input_partial_shape(i)),
-                    "Argument shapes are inconsistent.");
-            }
-            else if (get_auto_broadcast().m_type == op::AutoBroadcastType::NUMPY ||
-                     get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD)
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      PartialShape::broadcast_merge_into(result_shape,
-                                                                         get_input_partial_shape(i),
-                                                                         get_auto_broadcast()),
-                                      "Argument shapes are inconsistent.");
-            }
-            else
-            {
-                NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
-            }
+            NODE_VALIDATION_CHECK(
+                this,
+                PartialShape::merge_into(result_shape, get_input_partial_shape(i)),
+                "Argument shapes are inconsistent.");
         }
-        set_output_type(0, result_et, result_shape);
+        else if (get_auto_broadcast().m_type == op::AutoBroadcastType::NUMPY ||
+                 get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  PartialShape::broadcast_merge_into(result_shape,
+                                                                     get_input_partial_shape(i),
+                                                                     get_auto_broadcast()),
+                                  "Argument shapes are inconsistent.");
+        }
+        else
+        {
+            NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
+        }
     }
+    set_output_type(0, result_et, result_shape);
 }
 
 shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v1_Select_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        return make_shared<v1::Select>(
-            new_args.at(0), new_args.at(1), new_args.at(2), m_auto_broadcast);
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v1_Select_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<v1::Select>(
+        new_args.at(0), new_args.at(1), new_args.at(2), m_auto_broadcast);
 }
 
 bool op::v1::Select::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v1_Select_visit_attributes)
-    {
-        visitor.on_attribute("auto_broadcast", m_auto_broadcast);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_Select_visit_attributes);
+    visitor.on_attribute("auto_broadcast", m_auto_broadcast);
+    return true;
 }
 
 namespace detail
@@ -167,11 +159,7 @@ namespace detail
 bool op::v1::Select::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_Select_evaluate)
-    {
-        const auto autob = get_auto_broadcast();
-        return detail::evaluate_select(
-            output_values, input_values, autob, get_output_element_type(0));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_Select_evaluate);
+    const auto autob = get_auto_broadcast();
+    return detail::evaluate_select(output_values, input_values, autob, get_output_element_type(0));
 }

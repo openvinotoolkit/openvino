@@ -46,13 +46,10 @@ op::NormalizeL2::NormalizeL2(const Output<Node>& data,
 
 bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v0_NormalizeL2_visit_attributes)
-    {
-        visitor.on_attribute("eps", m_eps);
-        visitor.on_attribute("eps_mode", m_eps_mode);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_NormalizeL2_visit_attributes);
+    visitor.on_attribute("eps", m_eps);
+    visitor.on_attribute("eps_mode", m_eps_mode);
+    return true;
 }
 
 void op::NormalizeL2::pre_validate_and_infer_types()
@@ -121,13 +118,10 @@ OutputVector op::NormalizeL2::decompose_op() const
 
 shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
+    if (new_args.size() != 2)
     {
-        if (new_args.size() != 2)
-        {
-            throw ngraph_error("Incorrect number of new arguments");
-        }
-        return make_shared<NormalizeL2>(new_args.at(0), new_args.at(1), m_eps, m_eps_mode);
+        throw ngraph_error("Incorrect number of new arguments");
     }
-    return nullptr;
+    return make_shared<NormalizeL2>(new_args.at(0), new_args.at(1), m_eps, m_eps_mode);
 }

@@ -70,12 +70,9 @@ op::v4::Range::Range(const Output<Node>& start,
 
 bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v4_Range_visit_attributes)
-    {
-        visitor.on_attribute("output_type", m_output_type);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v4_Range_visit_attributes);
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
 }
 
 void op::v4::Range::validate_and_infer_types()

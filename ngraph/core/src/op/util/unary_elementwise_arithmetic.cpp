@@ -47,14 +47,12 @@ void op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithm
 
 void op::util::UnaryElementwiseArithmetic::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_validate_and_infer_types)
-    {
-        validate_and_infer_elementwise_arithmetic();
-    }
+    NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_validate_and_infer_types);
+    validate_and_infer_elementwise_arithmetic();
 }
 
 bool op::util::UnaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_visit_attributes) { return true; }
-    return false;
+    NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_visit_attributes);
+    return true;
 }

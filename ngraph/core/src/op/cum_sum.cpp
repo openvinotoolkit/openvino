@@ -47,46 +47,38 @@ op::v0::CumSum::CumSum(const Output<Node>& arg, const bool exclusive, const bool
 
 bool op::v0::CumSum::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v0_CumSum_visit_attributes)
-    {
-        visitor.on_attribute("exclusive", m_exclusive);
-        visitor.on_attribute("reverse", m_reverse);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_CumSum_visit_attributes);
+    visitor.on_attribute("exclusive", m_exclusive);
+    visitor.on_attribute("reverse", m_reverse);
+    return true;
 }
 
 void op::v0::CumSum::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v0_CumSum_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_CumSum_validate_and_infer_types);
+    element::Type arg_type = get_input_element_type(0);
+    PartialShape arg_shape = get_input_partial_shape(0);
+    set_output_type(0, arg_type, arg_shape);
+
+    PartialShape axes_shape{PartialShape::dynamic()};
+    if (get_input_partial_shape(1).is_static())
     {
-        element::Type arg_type = get_input_element_type(0);
-        PartialShape arg_shape = get_input_partial_shape(0);
-        set_output_type(0, arg_type, arg_shape);
-
-        PartialShape axes_shape{PartialShape::dynamic()};
-        if (get_input_partial_shape(1).is_static())
-        {
-            axes_shape = get_input_partial_shape(1);
-        }
-
-        const auto& axis_type = get_input_element_type(1);
-        NODE_VALIDATION_CHECK(this,
-                              axis_type == element::i32 || axis_type == element::i64,
-                              "axis element type must be either int64_t or int32_t but got (",
-                              axis_type,
-                              ").");
+        axes_shape = get_input_partial_shape(1);
     }
+
+    const auto& axis_type = get_input_element_type(1);
+    NODE_VALIDATION_CHECK(this,
+                          axis_type == element::i32 || axis_type == element::i64,
+                          "axis element type must be either int64_t or int32_t but got (",
+                          axis_type,
+                          ").");
 }
 
 shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v0_CumSum_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        return make_shared<op::CumSum>(new_args.at(0), new_args.at(1), m_exclusive, m_reverse);
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v0_CumSum_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<op::CumSum>(new_args.at(0), new_args.at(1), m_exclusive, m_reverse);
 }
 
 shared_ptr<Node> op::v0::CumSum::get_default_value() const

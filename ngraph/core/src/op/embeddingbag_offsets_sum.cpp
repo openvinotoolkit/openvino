@@ -50,28 +50,25 @@ op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_t
 shared_ptr<Node>
     op::v3::EmbeddingBagOffsetsSum::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v3_EmbeddingBagOffsetsSum_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v3_EmbeddingBagOffsetsSum_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    if (new_args.size() == 3)
     {
-        check_new_args_count(this, new_args);
-        if (new_args.size() == 3)
-        {
-            return make_shared<op::v3::EmbeddingBagOffsetsSum>(
-                new_args.at(0), new_args.at(1), new_args.at(2));
-        }
-        else if (new_args.size() == 4)
-        {
-            return make_shared<op::v3::EmbeddingBagOffsetsSum>(
-                new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
-        }
-        else if (new_args.size() == 5)
-        {
-            return make_shared<op::v3::EmbeddingBagOffsetsSum>(
-                new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4));
-        }
-        else
-        {
-            throw ngraph_error("Incorrect number of arguments");
-        }
+        return make_shared<op::v3::EmbeddingBagOffsetsSum>(
+            new_args.at(0), new_args.at(1), new_args.at(2));
     }
-    return nullptr;
+    else if (new_args.size() == 4)
+    {
+        return make_shared<op::v3::EmbeddingBagOffsetsSum>(
+            new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
+    }
+    else if (new_args.size() == 5)
+    {
+        return make_shared<op::v3::EmbeddingBagOffsetsSum>(
+            new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4));
+    }
+    else
+    {
+        throw ngraph_error("Incorrect number of arguments");
+    }
 }

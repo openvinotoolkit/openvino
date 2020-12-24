@@ -39,22 +39,19 @@ op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_tab
 shared_ptr<Node>
     op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v3_EmbeddingBagPackedSum_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v3_EmbeddingBagPackedSum_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    if (new_args.size() == 2)
     {
-        check_new_args_count(this, new_args);
-        if (new_args.size() == 2)
-        {
-            return make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1));
-        }
-        else if (new_args.size() == 3)
-        {
-            return make_shared<op::v3::EmbeddingBagPackedSum>(
-                new_args.at(0), new_args.at(1), new_args.at(2));
-        }
-        else
-        {
-            throw ngraph_error("Incorrect number of arguments");
-        }
+        return make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1));
     }
-    return nullptr;
+    else if (new_args.size() == 3)
+    {
+        return make_shared<op::v3::EmbeddingBagPackedSum>(
+            new_args.at(0), new_args.at(1), new_args.at(2));
+    }
+    else
+    {
+        throw ngraph_error("Incorrect number of arguments");
+    }
 }

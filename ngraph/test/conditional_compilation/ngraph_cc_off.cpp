@@ -35,11 +35,13 @@ TEST(conditional_compilation, op_scope_with_disabled_cc)
     int n = 0;
 
     // Simple scope is enabled
-    NGRAPH_OP_SCOPE(Scope0) { n = 42; }
+    NGRAPH_OP_SCOPE(Scope0);
+    n = 42;
     EXPECT_EQ(n, 42);
 
     // Simple scope is disabled
-    NGRAPH_OP_SCOPE(Scope1) { n = 43; }
+    NGRAPH_OP_SCOPE(Scope1);
+    n = 43;
     EXPECT_EQ(n, 43);
 }
 

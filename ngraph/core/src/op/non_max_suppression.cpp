@@ -65,146 +65,130 @@ op::v1::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v1::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        NODE_VALIDATION_CHECK(this,
-                              new_args.size() >= 2 && new_args.size() <= 5,
-                              "Number of inputs must be 2, 3, 4 or 5");
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() >= 2 && new_args.size() <= 5,
+                          "Number of inputs must be 2, 3, 4 or 5");
 
-        const auto& arg2 = new_args.size() > 2
-                               ? new_args.at(2)
-                               : ngraph::op::Constant::create(element::i32, Shape{}, {0});
-        const auto& arg3 = new_args.size() > 3
-                               ? new_args.at(3)
-                               : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 = new_args.size() > 4
-                               ? new_args.at(4)
-                               : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg2 = new_args.size() > 2
+                           ? new_args.at(2)
+                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+    const auto& arg3 = new_args.size() > 3
+                           ? new_args.at(3)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg4 = new_args.size() > 4
+                           ? new_args.at(4)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
 
-        return std::make_shared<op::v1::NonMaxSuppression>(new_args.at(0),
-                                                           new_args.at(1),
-                                                           arg2,
-                                                           arg3,
-                                                           arg4,
-                                                           m_box_encoding,
-                                                           m_sort_result_descending);
-    }
-    return nullptr;
+    return std::make_shared<op::v1::NonMaxSuppression>(
+        new_args.at(0), new_args.at(1), arg2, arg3, arg4, m_box_encoding, m_sort_result_descending);
 }
 
 bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_visit_attributes)
-    {
-        visitor.on_attribute("box_encoding", m_box_encoding);
-        visitor.on_attribute("sort_result_descending", m_sort_result_descending);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_visit_attributes);
+    visitor.on_attribute("box_encoding", m_box_encoding);
+    visitor.on_attribute("sort_result_descending", m_sort_result_descending);
+    return true;
 }
 
 void op::v1::NonMaxSuppression::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types);
+    const auto boxes_ps = get_input_partial_shape(0);
+    const auto scores_ps = get_input_partial_shape(1);
+
+    // the spec doesn't say what exact type should be used for the output of this op
+    // that's why we're setting it to 64-bit integer to provide the maximum range of values
+    // support
+    // this will be changed (configurable) in the next version of this op
+    const auto& output_element_type = element::i64;
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape out_shape = {Dimension::dynamic(), 3};
+
+    if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
     {
-        const auto boxes_ps = get_input_partial_shape(0);
-        const auto scores_ps = get_input_partial_shape(1);
-
-        // the spec doesn't say what exact type should be used for the output of this op
-        // that's why we're setting it to 64-bit integer to provide the maximum range of values
-        // support
-        // this will be changed (configurable) in the next version of this op
-        const auto& output_element_type = element::i64;
-
-        // NonMaxSuppression produces triplets
-        // that have the following format: [batch_index, class_index, box_index]
-        PartialShape out_shape = {Dimension::dynamic(), 3};
-
-        if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
-        {
-            set_output_type(0, output_element_type, out_shape);
-            return;
-        }
-
-        NODE_VALIDATION_CHECK(this,
-                              boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
-                              "Expected a 3D tensor for the 'boxes' input. Got: ",
-                              boxes_ps);
-
-        NODE_VALIDATION_CHECK(this,
-                              scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
-                              "Expected a 3D tensor for the 'scores' input. Got: ",
-                              scores_ps);
-
-        if (inputs().size() >= 3)
-        {
-            const auto max_boxes_ps = get_input_partial_shape(2);
-            NODE_VALIDATION_CHECK(
-                this,
-                max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
-                "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
-                max_boxes_ps);
-        }
-
-        if (inputs().size() >= 4)
-        {
-            const auto iou_threshold_ps = get_input_partial_shape(3);
-            NODE_VALIDATION_CHECK(this,
-                                  iou_threshold_ps.is_dynamic() ||
-                                      is_scalar(iou_threshold_ps.to_shape()),
-                                  "Expected a scalar for the 'iou_threshold' input. Got: ",
-                                  iou_threshold_ps);
-        }
-
-        if (inputs().size() >= 5)
-        {
-            const auto score_threshold_ps = get_input_partial_shape(4);
-            NODE_VALIDATION_CHECK(this,
-                                  score_threshold_ps.is_dynamic() ||
-                                      is_scalar(score_threshold_ps.to_shape()),
-                                  "Expected a scalar for the 'score_threshold' input. Got: ",
-                                  score_threshold_ps);
-        }
-
-        const auto num_batches_boxes = boxes_ps[0];
-        const auto num_batches_scores = scores_ps[0];
-        NODE_VALIDATION_CHECK(
-            this,
-            num_batches_boxes.same_scheme(num_batches_scores),
-            "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
-            num_batches_boxes,
-            "; Scores: ",
-            num_batches_scores);
-
-        const auto num_boxes_boxes = boxes_ps[1];
-        const auto num_boxes_scores = scores_ps[2];
-        NODE_VALIDATION_CHECK(
-            this,
-            num_boxes_boxes.same_scheme(num_boxes_scores),
-            "'boxes' and 'scores' input shapes must match at the second and third "
-            "dimension respectively. Boxes: ",
-            num_boxes_boxes,
-            "; Scores: ",
-            num_boxes_scores);
-
-        NODE_VALIDATION_CHECK(this,
-                              boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
-                              "The last dimension of the 'boxes' input must be equal to 4. Got:",
-                              boxes_ps[2]);
-
-        const auto max_output_boxes_per_class = input_value(2).get_node_shared_ptr();
-        if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class))
-        {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto max_output_boxes_per_class = max_boxes_output_from_input();
-            const auto num_classes = scores_ps[1].get_length();
-
-            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
-        }
         set_output_type(0, output_element_type, out_shape);
+        return;
     }
+
+    NODE_VALIDATION_CHECK(this,
+                          boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
+                          "Expected a 3D tensor for the 'boxes' input. Got: ",
+                          boxes_ps);
+
+    NODE_VALIDATION_CHECK(this,
+                          scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
+                          "Expected a 3D tensor for the 'scores' input. Got: ",
+                          scores_ps);
+
+    if (inputs().size() >= 3)
+    {
+        const auto max_boxes_ps = get_input_partial_shape(2);
+        NODE_VALIDATION_CHECK(this,
+                              max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
+                              "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
+                              max_boxes_ps);
+    }
+
+    if (inputs().size() >= 4)
+    {
+        const auto iou_threshold_ps = get_input_partial_shape(3);
+        NODE_VALIDATION_CHECK(this,
+                              iou_threshold_ps.is_dynamic() ||
+                                  is_scalar(iou_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'iou_threshold' input. Got: ",
+                              iou_threshold_ps);
+    }
+
+    if (inputs().size() >= 5)
+    {
+        const auto score_threshold_ps = get_input_partial_shape(4);
+        NODE_VALIDATION_CHECK(this,
+                              score_threshold_ps.is_dynamic() ||
+                                  is_scalar(score_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'score_threshold' input. Got: ",
+                              score_threshold_ps);
+    }
+
+    const auto num_batches_boxes = boxes_ps[0];
+    const auto num_batches_scores = scores_ps[0];
+    NODE_VALIDATION_CHECK(this,
+                          num_batches_boxes.same_scheme(num_batches_scores),
+                          "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
+                          num_batches_boxes,
+                          "; Scores: ",
+                          num_batches_scores);
+
+    const auto num_boxes_boxes = boxes_ps[1];
+    const auto num_boxes_scores = scores_ps[2];
+    NODE_VALIDATION_CHECK(this,
+                          num_boxes_boxes.same_scheme(num_boxes_scores),
+                          "'boxes' and 'scores' input shapes must match at the second and third "
+                          "dimension respectively. Boxes: ",
+                          num_boxes_boxes,
+                          "; Scores: ",
+                          num_boxes_scores);
+
+    NODE_VALIDATION_CHECK(this,
+                          boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
+                          "The last dimension of the 'boxes' input must be equal to 4. Got:",
+                          boxes_ps[2]);
+
+    const auto max_output_boxes_per_class = input_value(2).get_node_shared_ptr();
+    if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
+        op::is_constant(max_output_boxes_per_class))
+    {
+        const auto num_boxes = num_boxes_boxes.get_length();
+        const auto max_output_boxes_per_class = max_boxes_output_from_input();
+        const auto num_classes = scores_ps[1].get_length();
+
+        out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
+    }
+    set_output_type(0, output_element_type, out_shape);
 }
 
 int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const
@@ -283,45 +267,39 @@ op::v3::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v3::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        NODE_VALIDATION_CHECK(this,
-                              new_args.size() >= 2 && new_args.size() <= 5,
-                              "Number of inputs must be 2, 3, 4 or 5");
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() >= 2 && new_args.size() <= 5,
+                          "Number of inputs must be 2, 3, 4 or 5");
 
-        const auto& arg2 = new_args.size() > 2
-                               ? new_args.at(2)
-                               : ngraph::op::Constant::create(element::i32, Shape{}, {0});
-        const auto& arg3 = new_args.size() > 3
-                               ? new_args.at(3)
-                               : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 = new_args.size() > 4
-                               ? new_args.at(4)
-                               : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg2 = new_args.size() > 2
+                           ? new_args.at(2)
+                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+    const auto& arg3 = new_args.size() > 3
+                           ? new_args.at(3)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg4 = new_args.size() > 4
+                           ? new_args.at(4)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
 
-        return std::make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
-                                                           new_args.at(1),
-                                                           arg2,
-                                                           arg3,
-                                                           arg4,
-                                                           m_box_encoding,
-                                                           m_sort_result_descending,
-                                                           m_output_type);
-    }
-    return nullptr;
+    return std::make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
+                                                       new_args.at(1),
+                                                       arg2,
+                                                       arg3,
+                                                       arg4,
+                                                       m_box_encoding,
+                                                       m_sort_result_descending,
+                                                       m_output_type);
 }
 
 bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_visit_attributes)
-    {
-        visitor.on_attribute("box_encoding", m_box_encoding);
-        visitor.on_attribute("sort_result_descending", m_sort_result_descending);
-        visitor.on_attribute("output_type", m_output_type);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_visit_attributes);
+    visitor.on_attribute("box_encoding", m_box_encoding);
+    visitor.on_attribute("sort_result_descending", m_sort_result_descending);
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
 }
 
 void op::v3::NonMaxSuppression::validate()
@@ -404,33 +382,31 @@ void op::v3::NonMaxSuppression::validate()
 
 void op::v3::NonMaxSuppression::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_validate_and_infer_types);
+    const auto boxes_ps = get_input_partial_shape(0);
+    const auto scores_ps = get_input_partial_shape(1);
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape out_shape = {Dimension::dynamic(), 3};
+
+    validate();
+
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
-        const auto boxes_ps = get_input_partial_shape(0);
-        const auto scores_ps = get_input_partial_shape(1);
-
-        // NonMaxSuppression produces triplets
-        // that have the following format: [batch_index, class_index, box_index]
-        PartialShape out_shape = {Dimension::dynamic(), 3};
-
-        validate();
-
-        if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
+        const auto num_boxes_boxes = boxes_ps[1];
+        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
+        if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
+            op::is_constant(max_output_boxes_per_class_node))
         {
-            const auto num_boxes_boxes = boxes_ps[1];
-            const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-            if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-                op::is_constant(max_output_boxes_per_class_node))
-            {
-                const auto num_boxes = num_boxes_boxes.get_length();
-                const auto num_classes = scores_ps[1].get_length();
-                const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto num_classes = scores_ps[1].get_length();
+            const auto max_output_boxes_per_class = max_boxes_output_from_input();
 
-                out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
-            }
+            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
         }
-        set_output_type(0, m_output_type, out_shape);
     }
+    set_output_type(0, m_output_type, out_shape);
 }
 
 int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const
@@ -513,65 +489,60 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        NODE_VALIDATION_CHECK(this,
-                              new_args.size() >= 2 && new_args.size() <= 5,
-                              "Number of inputs must be 2, 3, 4 or 5");
+    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() >= 2 && new_args.size() <= 5,
+                          "Number of inputs must be 2, 3, 4 or 5");
 
-        const auto& arg2 = new_args.size() > 2
-                               ? new_args.at(2)
-                               : ngraph::op::Constant::create(element::i32, Shape{}, {0});
-        const auto& arg3 = new_args.size() > 3
-                               ? new_args.at(3)
-                               : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 = new_args.size() > 4
-                               ? new_args.at(4)
-                               : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg2 = new_args.size() > 2
+                           ? new_args.at(2)
+                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+    const auto& arg3 = new_args.size() > 3
+                           ? new_args.at(3)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg4 = new_args.size() > 4
+                           ? new_args.at(4)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
 
-        return std::make_shared<op::v4::NonMaxSuppression>(new_args.at(0),
-                                                           new_args.at(1),
-                                                           arg2,
-                                                           arg3,
-                                                           arg4,
-                                                           m_box_encoding,
-                                                           m_sort_result_descending,
-                                                           m_output_type);
-    }
-    return nullptr;
+    return std::make_shared<op::v4::NonMaxSuppression>(new_args.at(0),
+                                                       new_args.at(1),
+                                                       arg2,
+                                                       arg3,
+                                                       arg4,
+                                                       m_box_encoding,
+                                                       m_sort_result_descending,
+                                                       m_output_type);
 }
 
 void op::v4::NonMaxSuppression::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types);
+    const auto boxes_ps = get_input_partial_shape(0);
+    const auto scores_ps = get_input_partial_shape(1);
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape out_shape = {Dimension::dynamic(), 3};
+
+    op::v3::NonMaxSuppression::validate();
+
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
-        const auto boxes_ps = get_input_partial_shape(0);
-        const auto scores_ps = get_input_partial_shape(1);
-
-        // NonMaxSuppression produces triplets
-        // that have the following format: [batch_index, class_index, box_index]
-        PartialShape out_shape = {Dimension::dynamic(), 3};
-
-        op::v3::NonMaxSuppression::validate();
-
-        if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
+        const auto num_boxes_boxes = boxes_ps[1];
+        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
+            op::is_constant(max_output_boxes_per_class_node))
         {
-            const auto num_boxes_boxes = boxes_ps[1];
-            const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-            if (num_boxes_boxes.is_static() && scores_ps[0].is_static() &&
-                scores_ps[1].is_static() && op::is_constant(max_output_boxes_per_class_node))
-            {
-                const auto num_boxes = num_boxes_boxes.get_length();
-                const auto num_classes = scores_ps[1].get_length();
-                const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto num_classes = scores_ps[1].get_length();
+            const auto max_output_boxes_per_class = max_boxes_output_from_input();
 
-                out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
-                               scores_ps[0].get_length();
-            }
+            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                           scores_ps[0].get_length();
         }
-        set_output_type(0, m_output_type, out_shape);
     }
+    set_output_type(0, m_output_type, out_shape);
 }
 
 // ------------------------------ V5 ------------------------------
@@ -666,63 +637,60 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v5::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        NODE_VALIDATION_CHECK(this,
-                              new_args.size() >= 2 && new_args.size() <= 6,
-                              "Number of inputs must be 2, 3, 4, 5 or 6");
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() >= 2 && new_args.size() <= 6,
+                          "Number of inputs must be 2, 3, 4, 5 or 6");
 
-        switch (new_args.size())
-        {
-        case 2:
-            return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
-                                                               new_args.at(1),
-                                                               m_box_encoding,
-                                                               m_sort_result_descending,
-                                                               m_output_type);
-            break;
-        case 3:
-            return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
-                                                               new_args.at(1),
-                                                               new_args.at(2),
-                                                               m_box_encoding,
-                                                               m_sort_result_descending,
-                                                               m_output_type);
-            break;
-        case 4:
-            return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
-                                                               new_args.at(1),
-                                                               new_args.at(2),
-                                                               new_args.at(3),
-                                                               m_box_encoding,
-                                                               m_sort_result_descending,
-                                                               m_output_type);
-            break;
-        case 5:
-            return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
-                                                               new_args.at(1),
-                                                               new_args.at(2),
-                                                               new_args.at(3),
-                                                               new_args.at(4),
-                                                               m_box_encoding,
-                                                               m_sort_result_descending,
-                                                               m_output_type);
-            break;
-        default:
-            return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
-                                                               new_args.at(1),
-                                                               new_args.at(2),
-                                                               new_args.at(3),
-                                                               new_args.at(4),
-                                                               new_args.at(5),
-                                                               m_box_encoding,
-                                                               m_sort_result_descending,
-                                                               m_output_type);
-            break;
-        }
+    switch (new_args.size())
+    {
+    case 2:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    case 3:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    case 4:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           new_args.at(3),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    case 5:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           new_args.at(3),
+                                                           new_args.at(4),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
+    default:
+        return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                           new_args.at(1),
+                                                           new_args.at(2),
+                                                           new_args.at(3),
+                                                           new_args.at(4),
+                                                           new_args.at(5),
+                                                           m_box_encoding,
+                                                           m_sort_result_descending,
+                                                           m_output_type);
+        break;
     }
-    return nullptr;
 }
 
 namespace
@@ -928,50 +896,45 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
 
 bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_visit_attributes)
-    {
-        visitor.on_attribute("box_encoding", m_box_encoding);
-        visitor.on_attribute("sort_result_descending", m_sort_result_descending);
-        visitor.on_attribute("output_type", m_output_type);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_visit_attributes);
+    visitor.on_attribute("box_encoding", m_box_encoding);
+    visitor.on_attribute("sort_result_descending", m_sort_result_descending);
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
 }
 
 void op::v5::NonMaxSuppression::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types);
+    const auto boxes_ps = get_input_partial_shape(0);
+    const auto scores_ps = get_input_partial_shape(1);
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape out_shape = {Dimension::dynamic(), 3};
+
+    validate();
+
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static() && get_input_size() > 2)
     {
-        const auto boxes_ps = get_input_partial_shape(0);
-        const auto scores_ps = get_input_partial_shape(1);
-
-        // NonMaxSuppression produces triplets
-        // that have the following format: [batch_index, class_index, box_index]
-        PartialShape out_shape = {Dimension::dynamic(), 3};
-
-        validate();
-
-        if (boxes_ps.rank().is_static() && scores_ps.rank().is_static() && get_input_size() > 2)
+        const auto num_boxes_boxes = boxes_ps[1];
+        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
+            op::is_constant(max_output_boxes_per_class_node))
         {
-            const auto num_boxes_boxes = boxes_ps[1];
-            const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-            if (num_boxes_boxes.is_static() && scores_ps[0].is_static() &&
-                scores_ps[1].is_static() && op::is_constant(max_output_boxes_per_class_node))
-            {
-                const auto num_boxes = num_boxes_boxes.get_length();
-                const auto num_classes = scores_ps[1].get_length();
-                const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto num_classes = scores_ps[1].get_length();
+            const auto max_output_boxes_per_class = max_boxes_output_from_input();
 
-                out_shape[0] = Dimension(0,
-                                         std::min(num_boxes, max_output_boxes_per_class) *
-                                             num_classes * scores_ps[0].get_length());
-            }
+            out_shape[0] = Dimension(0,
+                                     std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                                         scores_ps[0].get_length());
         }
-
-        set_output_type(0, m_output_type, out_shape);
-        set_output_type(1, element::f32, out_shape);
-        set_output_type(2, m_output_type, Shape{1});
     }
+
+    set_output_type(0, m_output_type, out_shape);
+    set_output_type(1, element::f32, out_shape);
+    set_output_type(2, m_output_type, Shape{1});
 }
 
 namespace ngraph
