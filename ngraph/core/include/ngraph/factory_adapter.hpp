@@ -49,11 +49,6 @@ namespace ngraph
                 }
                 visitor.on_attribute("name", type_info_name);
                 visitor.on_attribute("version", type_info_version);
-                if (!type_info_name.empty() && !m_ref)
-                {
-                    m_ref = std::shared_ptr<BASE_TYPE>(FactoryRegistry<BASE_TYPE>::get().create(
-                        DiscreteTypeInfo{type_info_name.c_str(), type_info_version}));
-                }
                 if (m_ref)
                 {
                     visitor.start_structure("value");
