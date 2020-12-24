@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <set>
 
 // #define ENABLE_ENV
 // #define ENABLE_ENV_PRINT
@@ -244,7 +245,11 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 
 KernelList kernel_selector_base::GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const {
     using PriorityPair = std::pair<KernelsPriority, std::shared_ptr<KernelBase>>;
-    std::vector<PriorityPair> sortedImpls;
+    auto comparePriority = [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {
+        return firstImpl.first < secondImpl.first;
+    };
+
+    std::multiset<PriorityPair, decltype(comparePriority)> sortedImpls(comparePriority);
     KernelList result;
 
     if (params.GetType() == kType && options.GetType() == kType) {
@@ -256,15 +261,8 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
                 continue;
             if (forceImplementation && params.forceImplementation != impl->GetName())
                 continue;
-            sortedImpls.emplace_back(impl->GetKernelsPriority(params, options), impl);
+            sortedImpls.emplace(impl->GetKernelsPriority(params, options), impl);
         }
-
-        stable_sort(
-            sortedImpls.begin(),
-            sortedImpls.end(),
-            [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {
-                return firstImpl.first < secondImpl.first;
-            });
 
         std::transform(
             sortedImpls.begin(),

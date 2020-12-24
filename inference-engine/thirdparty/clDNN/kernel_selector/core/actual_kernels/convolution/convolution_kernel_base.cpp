@@ -28,15 +28,6 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
-    const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
-
-    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
-
-    const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
-
-    if (!bWeightsOK) {
-        return false;
-    }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))

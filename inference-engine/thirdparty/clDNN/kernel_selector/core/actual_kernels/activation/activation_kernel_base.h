@@ -68,8 +68,5 @@ protected:
     virtual JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const activation_params& arg) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
-    KernelsPriority GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-        return DONT_USE_IF_HAVE_SOMETHING_ELSE; 
-    };
 };
 }  // namespace kernel_selector

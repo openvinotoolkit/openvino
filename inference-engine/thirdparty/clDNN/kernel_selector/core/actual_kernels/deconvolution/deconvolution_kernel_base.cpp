@@ -109,10 +109,6 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernelBase::SetDefault(const 
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernelBase::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
-}
-
 KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::DECONVOLUTION);
 
