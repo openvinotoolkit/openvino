@@ -55,7 +55,7 @@ void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
 
 void op::util::BinaryElementwiseLogical::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(util_BinaryElementwiseLogical_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_validate_and_infer_types)
     {
         validate_and_infer_elementwise_logical(m_autob);
     }
@@ -63,7 +63,7 @@ void op::util::BinaryElementwiseLogical::validate_and_infer_types()
 
 bool op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(util_BinaryElementwiseLogical_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_visit_attributes)
     {
         visitor.on_attribute("auto_broadcast", m_autob);
         return true;

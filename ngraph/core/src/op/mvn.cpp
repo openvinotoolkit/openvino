@@ -61,7 +61,7 @@ op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_va
 // instead of relying on op decomposition.
 void op::MVN::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(MVN_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_MVN_validate_and_infer_types)
     {
         // if m_across_channels is true we should calculate mean and variance per batch
         // else we calculate these per channel
@@ -111,7 +111,7 @@ OutputVector op::MVN::decompose_op() const
 
 shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(MVN_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_MVN_clone_with_new_inputs)
     {
         NODE_VALIDATION_CHECK(this,
                               new_args.size() == 1,
@@ -124,7 +124,7 @@ shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) co
 
 bool op::MVN::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(MVN_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_MVN_visit_attributes)
     {
         visitor.on_attribute("eps", m_eps);
         visitor.on_attribute("across_channels", m_across_channels);

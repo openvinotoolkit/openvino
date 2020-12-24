@@ -542,7 +542,7 @@ void positive_range(T start_val, T stop_val, T step_val)
 
 bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(op_v0_Range_evaluate)
+    NGRAPH_OP_SCOPE(v0_Range_evaluate)
     {
         HostTensorPtr out = outputs[0];
         HostTensorPtr start = inputs[0];

@@ -35,7 +35,7 @@ bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::Erf::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(Erf_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Erf_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<Erf>(new_args.at(0));

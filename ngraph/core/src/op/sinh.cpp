@@ -42,7 +42,7 @@ bool ngraph::op::v0::Sinh::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::Sinh::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(Sinh_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Sinh_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<Sinh>(new_args.at(0));

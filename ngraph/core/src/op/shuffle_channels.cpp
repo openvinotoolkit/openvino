@@ -73,7 +73,7 @@ size_t op::ShuffleChannels::get_zero_based_axis() const
 
 void op::ShuffleChannels::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(ShuffleChannels_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types)
     {
         const auto& data_type = get_input_element_type(0);
         if (get_input_partial_shape(0).is_static())
@@ -110,7 +110,7 @@ void op::ShuffleChannels::validate_and_infer_types()
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(ShuffleChannels_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_clone_with_new_inputs)
     {
         if (new_args.size() != 1)
         {
@@ -200,6 +200,6 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
 bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(ShuffleChannels_evaluate) { return evaluate_shuffle_channels(outputs, inputs); }
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_evaluate) { return evaluate_shuffle_channels(outputs, inputs); }
     return false;
 }

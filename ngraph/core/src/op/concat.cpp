@@ -41,7 +41,7 @@ op::Concat::Concat(const NodeVector& args, int64_t axis)
 
 bool op::Concat::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(Concat_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_Concat_visit_attributes)
     {
         visitor.on_attribute("axis", m_axis);
         return true;
@@ -51,7 +51,7 @@ bool op::Concat::visit_attributes(AttributeVisitor& visitor)
 
 void op::Concat::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(Concat_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_Concat_validate_and_infer_types)
     {
         NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
 
@@ -119,7 +119,7 @@ void op::Concat::validate_and_infer_types()
 
 shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(Concat_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Concat_clone_with_new_inputs)
     {
         // TODO(amprocte): Should we check the new_args count here?
         return make_shared<Concat>(new_args, m_axis);

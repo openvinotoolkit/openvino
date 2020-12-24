@@ -84,6 +84,6 @@ bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 
 bool op::Relu::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(Relu_visit_attributes) { return true; }
+    NGRAPH_OP_SCOPE(v0_Relu_visit_attributes) { return true; }
     return false;
 }

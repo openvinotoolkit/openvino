@@ -57,7 +57,7 @@ op::FakeQuantize::FakeQuantize(const Output<Node>& data,
 
 void op::FakeQuantize::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(FakeQuantize_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_validate_and_infer_types)
     {
         PartialShape data_pshape = get_input_partial_shape(0);
 
@@ -175,7 +175,7 @@ OutputVector op::FakeQuantize::decompose_op() const
 
 shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(FakeQuantize_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<FakeQuantize>(new_args.at(0), // X

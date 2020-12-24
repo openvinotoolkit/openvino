@@ -104,7 +104,7 @@ OutputVector op::HardSigmoid::decompose_op() const
 
 shared_ptr<Node> op::HardSigmoid::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(HardSigmoid_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_HardSigmoid_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
 

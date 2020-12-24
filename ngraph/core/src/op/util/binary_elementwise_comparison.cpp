@@ -37,7 +37,7 @@ op::util::BinaryElementwiseComparison::BinaryElementwiseComparison(const Output<
 
 void op::util::BinaryElementwiseComparison::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(util_BinaryElementwiseComparison_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseComparison_validate_and_infer_types)
     {
         auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, m_autob);
         PartialShape& args_pshape = std::get<1>(args_et_pshape);
@@ -48,7 +48,7 @@ void op::util::BinaryElementwiseComparison::validate_and_infer_types()
 
 bool op::util::BinaryElementwiseComparison::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(util_BinaryElementwiseComparison_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseComparison_visit_attributes)
     {
         visitor.on_attribute("auto_broadcast", m_autob);
         return true;

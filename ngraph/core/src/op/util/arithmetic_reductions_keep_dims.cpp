@@ -34,7 +34,7 @@ op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
 
 bool ngraph::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(util_ArithmeticReductionKeepDims_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_visit_attributes)
     {
         visitor.on_attribute("keep_dims", m_keep_dims);
         return true;
@@ -44,7 +44,7 @@ bool ngraph::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVi
 
 void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(util_ArithmeticReductionKeepDims_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_validate_and_infer_types)
     {
         if (m_keep_dims)
         {

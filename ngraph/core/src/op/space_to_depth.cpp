@@ -61,7 +61,7 @@ bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(SpaceToDepth_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_clone_with_new_inputs)
     {
         if (new_args.size() != 1)
         {

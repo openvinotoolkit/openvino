@@ -54,7 +54,7 @@ bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor
 
 void op::ReverseSequence::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(ReverseSequence_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_ReverseSequence_validate_and_infer_types)
     {
         auto input_shape = get_input_partial_shape(0);
         auto input_rank = input_shape.rank();
@@ -101,7 +101,7 @@ void op::ReverseSequence::validate_and_infer_types()
 
 shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(ReverseSequence_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_ReverseSequence_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<ReverseSequence>(

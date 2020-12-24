@@ -38,7 +38,7 @@ op::PriorBox::PriorBox(const Output<Node>& layer_shape,
 
 void op::PriorBox::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(PriorBox_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_PriorBox_validate_and_infer_types)
     {
         // shape node should have integer data type. For now we only allow i64
         auto layer_shape_et = get_input_element_type(0);
@@ -88,7 +88,7 @@ void op::PriorBox::validate_and_infer_types()
 
 shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(PriorBox_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_PriorBox_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
@@ -143,7 +143,7 @@ std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float
 
 bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(PriorBox_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_PriorBox_visit_attributes)
     {
         visitor.on_attribute("min_size", m_attrs.min_size);
         visitor.on_attribute("max_size", m_attrs.max_size);

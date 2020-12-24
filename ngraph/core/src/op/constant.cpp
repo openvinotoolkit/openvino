@@ -549,7 +549,7 @@ void op::Constant::set_data_shape(const Shape& shape)
 
 shared_ptr<Node> op::Constant::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(Constant_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Constant_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<Constant>(*this);

@@ -34,7 +34,7 @@ op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_t
 
 void op::Convert::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(Convert_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_Convert_validate_and_infer_types)
     {
         set_output_type(0, m_destination_type, get_input_partial_shape(0));
     }
@@ -42,7 +42,7 @@ void op::Convert::validate_and_infer_types()
 
 bool op::Convert::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(Convert_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_Convert_visit_attributes)
     {
         visitor.on_attribute("destination_type", m_destination_type);
         return true;

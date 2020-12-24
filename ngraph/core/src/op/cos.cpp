@@ -37,13 +37,13 @@ op::Cos::Cos(const Output<Node>& arg)
 
 bool op::Cos::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(Cos_visit_attributes) { return true; }
+    NGRAPH_OP_SCOPE(v0_Cos_visit_attributes) { return true; }
     return false;
 }
 
 shared_ptr<Node> op::Cos::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(Cos_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Cos_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<Cos>(new_args.at(0));

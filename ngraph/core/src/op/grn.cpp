@@ -101,7 +101,7 @@ OutputVector op::GRN::decompose_op() const
 
 shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(GRN_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_GRN_clone_with_new_inputs)
     {
         if (new_args.size() != 1)
         {

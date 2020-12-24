@@ -60,7 +60,7 @@ OutputVector op::SquaredDifference::decompose_op() const
 
 shared_ptr<Node> op::SquaredDifference::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(SquaredDifference_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_SquaredDifference_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
 

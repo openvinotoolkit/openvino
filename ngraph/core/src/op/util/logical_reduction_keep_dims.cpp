@@ -34,7 +34,7 @@ op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(
 
 bool ngraph::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(util_LogicalReductionKeepDims_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_visit_attributes)
     {
         visitor.on_attribute("keep_dims", m_keep_dims);
         return true;
@@ -44,7 +44,7 @@ bool ngraph::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisit
 
 void op::util::LogicalReductionKeepDims::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(util_LogicalReductionKeepDims_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_validate_and_infer_types)
     {
         if (m_keep_dims)
         {

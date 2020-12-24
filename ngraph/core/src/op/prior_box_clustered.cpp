@@ -38,7 +38,7 @@ op::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
 
 void op::PriorBoxClustered::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(PriorBoxClustered_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_PriorBoxClustered_validate_and_infer_types)
     {
         // shape node should have integer data type. For now we only allow i64
         auto layer_shape_et = get_input_element_type(0);
@@ -93,7 +93,7 @@ void op::PriorBoxClustered::validate_and_infer_types()
 
 shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(PriorBoxClustered_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_PriorBoxClustered_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<PriorBoxClustered>(new_args.at(0), new_args.at(1), m_attrs);
@@ -103,7 +103,7 @@ shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector
 
 bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(PriorBoxClustered_visit_attributes)
+    NGRAPH_OP_SCOPE(v0_PriorBoxClustered_visit_attributes)
     {
         float step = 0;
         float step_w_tmp = m_attrs.step_widths;

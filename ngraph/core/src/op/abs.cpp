@@ -36,7 +36,7 @@ op::Abs::Abs(const Output<Node>& arg)
 
 shared_ptr<Node> op::Abs::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(Abs_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Abs_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<Abs>(new_args.at(0));

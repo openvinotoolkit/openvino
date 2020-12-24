@@ -59,7 +59,7 @@ AxisSet op::LRN::get_reduction_axes() const
 
 void op::LRN::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(LRN_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_LRN_validate_and_infer_types)
     {
         element::Type arg_type = get_input_element_type(0);
         PartialShape arg_shape = get_input_partial_shape(0);

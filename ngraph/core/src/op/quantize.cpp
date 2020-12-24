@@ -44,7 +44,7 @@ op::Quantize::Quantize(const Output<Node>& input,
 
 void op::Quantize::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(Quantize_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_Quantize_validate_and_infer_types)
     {
         enum
         {
@@ -166,7 +166,7 @@ void op::Quantize::validate_and_infer_types()
 
 shared_ptr<Node> op::Quantize::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(Quantize_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Quantize_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<Quantize>(

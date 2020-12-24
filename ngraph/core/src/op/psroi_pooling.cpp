@@ -59,7 +59,7 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
 
 void op::PSROIPooling::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(PSROIPooling_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_validate_and_infer_types)
     {
         auto feat_maps_et = get_input_element_type(0);
         auto coords_et = get_input_element_type(1);
@@ -142,7 +142,7 @@ void op::PSROIPooling::validate_and_infer_types()
 
 shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(PSROIPooling_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
         return make_shared<PSROIPooling>(new_args.at(0),

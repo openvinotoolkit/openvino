@@ -43,7 +43,7 @@ bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor)
 
 void op::Result::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(Result_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v0_Result_validate_and_infer_types)
     {
         NODE_VALIDATION_CHECK(this,
                               get_input_size() == 1,
@@ -57,7 +57,7 @@ void op::Result::validate_and_infer_types()
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(Result_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v0_Result_clone_with_new_inputs)
     {
         check_new_args_count(this, new_args);
 
@@ -69,7 +69,7 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
 
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(Result_evaluate)
+    NGRAPH_OP_SCOPE(v0_Result_evaluate)
     {
         outputs[0]->set_unary(inputs[0]);
         void* output = outputs[0]->get_data_ptr();
