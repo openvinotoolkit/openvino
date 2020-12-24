@@ -1,30 +1,27 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vpu/utils/query_network.hpp>
+#include "vpu/ngraph/query_network.hpp"
+#include "ngraph/op/util/op_types.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
-#include <ie_algorithm.hpp>
-#include <vpu/frontend/frontend.hpp>
-#include <legacy/ie_util_internal.hpp>
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
-
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/opsets/opset3.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
+#include <ie_algorithm.hpp>
 
 
-InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNetwork& network, const InferenceEngine::ICore* core,
-                                                    const std::string& pluginName) {
+namespace vpu {
+
+InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::ICNNNetwork::Ptr& convertedNetwork,
+                                                    const std::shared_ptr<const ngraph::Function>& function,
+                                                    const std::string& pluginName, const std::vector<std::string>& supportedLayers) {
     InferenceEngine::QueryNetworkResult res;
 
-    auto function = network.getFunction();
     std::unordered_set<std::string> originalOps;
     for (auto& node : function->get_ops()) {
         originalOps.emplace(node->get_friendly_name());
     }
-    auto clonedNetwork = cloneNetwork(network);
-    auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
 
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
@@ -35,7 +32,8 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
     ngraph::NodeVector splits;
     ngraph::NodeVector concats;
 
-    const auto isLayerSupported = [&core, &splitNames, &concatNames, &concats, &splits](InferenceEngine::details::CNNNetworkIterator& layer) -> bool {
+    const auto isLayerSupported = [&supportedLayers, &splitNames, &concatNames, &concats, &splits]
+                                  (InferenceEngine::details::CNNNetworkIterator& layer) -> bool {
             auto node = (*layer)->getNode();
             if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
                 splitNames.emplace(node->get_friendly_name());
@@ -46,9 +44,7 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
                 concats.push_back(node);
                 return false;
             } else {
-                auto stageBuilder = std::make_shared<vpu::StageBuilder>();
-                auto frontEnd = std::make_shared<vpu::FrontEnd>(stageBuilder, core);
-                return frontEnd->isLayerSupported((*layer)->type);
+                return std::find(supportedLayers.begin(), supportedLayers.end(), (*layer)->type) != supportedLayers.end();
             }
     };
 
@@ -168,3 +164,5 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
 
     return res;
 }
+
+} // namespace vpu

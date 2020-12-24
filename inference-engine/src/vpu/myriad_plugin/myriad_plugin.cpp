@@ -17,11 +17,8 @@
 #include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
-#include <vpu/utils/query_network.hpp>
+#include <vpu/ngraph/query_network.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/rt_info/fused_names_attribute.hpp>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
 
 #include "generic_ie.hpp"
@@ -84,7 +81,14 @@ QueryNetworkResult Engine::QueryNetwork(
     }
 
     if (auto function = network.getFunction()) {
-        res = getQueryNetwork(network, GetCore(), GetName());
+        auto clonedNetwork = cloneNetwork(network);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
+        
+        auto stageBuilder = std::make_shared<vpu::StageBuilder>();
+        auto frontEnd = std::make_shared<vpu::FrontEnd>(stageBuilder, GetCore());
+        auto supportedLayers = frontEnd->getSupportedLayers();
+
+        res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
     } else {
         const auto log = std::make_shared<Logger>(
             "GraphCompiler",

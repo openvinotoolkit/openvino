@@ -152,8 +152,12 @@ ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
     return runCommonPasses(network);
 }
 
-bool FrontEnd::isLayerSupported(const std::string& type) {
-    return parsers.count(type) != 0;
+std::vector<std::string> FrontEnd::getSupportedLayers() {
+    std::vector<std::string> supportedLayers{};
+    for (const auto& layer : parsers) {
+        supportedLayers.push_back(layer.first);
+    }
+    return supportedLayers;
 }
 
 ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
