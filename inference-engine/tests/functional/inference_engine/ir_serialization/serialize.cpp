@@ -55,7 +55,7 @@ INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
                         std::make_tuple("add_abc_initializers.xml"),
                         std::make_tuple("experimental_detectron_roi_feature_extractor.xml"),
                         std::make_tuple("experimental_detectron_detection_output.xml"),
-                        std::make_tuple("experimental_detectron_detection_output-opset6.xml"),
+                        std::make_tuple("experimental_detectron_detection_output_opset6.xml"),
                         std::make_tuple("nms5.xml"),
                         std::make_tuple("shape_of.xml")));
 
