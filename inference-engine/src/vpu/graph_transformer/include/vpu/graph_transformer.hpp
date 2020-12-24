@@ -61,6 +61,7 @@ struct CompilationConfig final {
     bool mergeHwPoolToConv = true;
     bool hwDilation = false;
     bool forceDeprecatedCnnConversion = false;
+    bool enableEarlyEltwiseReLUFusion = true;
 
     std::map<std::string, std::vector<int>> ioStrides;
 
@@ -111,6 +112,7 @@ struct CompilationConfig final {
     bool forcePureTensorIterator = false;
     bool enableMemoryTypesAnnotation = false;
     bool enableWeightsAnalysis = true;
+    bool enableCustomReshapeParam = false;
 
     //
     // Deprecated options

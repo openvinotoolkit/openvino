@@ -33,8 +33,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 
-# Create shared library
-add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+# Create static or shared library depending on BUILD_SHARED_LIBS
+add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph
@@ -57,7 +58,7 @@ set_target_properties(ngraph PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON)
 
-target_link_libraries(ngraph PRIVATE openvino::itt ngraph::builder ngraph::reference)
+target_link_libraries(ngraph PRIVATE openvino::conditional_compilation openvino::itt ngraph::builder ngraph::reference)
 
 find_package(Graphviz QUIET)
 if (GRAPHVIZ_FOUND)
@@ -75,6 +76,9 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
         SOVERSION ${NGRAPH_API_VERSION})
 endif()
 target_compile_definitions(ngraph PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
+endif()
 
 if (LINUX)
     # nGraph links against one or more libraries (ex. LLVM) but we don't want to

@@ -78,14 +78,10 @@ namespace shape_of
         output_value->set_shape(Shape{shape.size()});
         switch (output_value->get_element_type())
         {
-            TYPE_CASE(i32)(shape, output_value);
-            break;
-            TYPE_CASE(i64)(shape, output_value);
-            break;
-            TYPE_CASE(u32)(shape, output_value);
-            break;
-            TYPE_CASE(u64)(shape, output_value);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_shape_of, i32, shape, output_value);
+            NGRAPH_TYPE_CASE(evaluate_shape_of, i64, shape, output_value);
+            NGRAPH_TYPE_CASE(evaluate_shape_of, u32, shape, output_value);
+            NGRAPH_TYPE_CASE(evaluate_shape_of, u64, shape, output_value);
         default: rc = false; break;
         }
         return rc;
@@ -100,7 +96,6 @@ namespace shape_of
         auto output_type = shape_of_node->get_output_element_type(0);
         if (partial_shape.is_static())
         {
-            NGRAPH_CHECK(pass::revalidate_and_ensure_static(shape_of_node->shared_from_this()));
             auto arg_shape = shape_of_input.get_shape();
             auto result_tensor =
                 make_shared<HostTensor>(output_type, shape_of_node->get_output_shape(0));
@@ -159,8 +154,11 @@ namespace shape_of
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::ShapeOf::evaluate");
-    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
+    NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate)
+    {
+        return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
+    }
+    return false;
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
@@ -208,8 +206,11 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::ShapeOf::evaluate");
-    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
+    NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate)
+    {
+        return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
+    }
+    return false;
 }
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)

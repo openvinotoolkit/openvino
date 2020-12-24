@@ -97,4 +97,4 @@ namespace ngraph
     protected:
         FactoryMap m_factory_map;
     };
-}
+} // namespace ngraph

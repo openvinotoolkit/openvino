@@ -207,3 +207,4 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, "ConvertSpaceToBatch");
     this->register_matcher(m, callback);
 }
+

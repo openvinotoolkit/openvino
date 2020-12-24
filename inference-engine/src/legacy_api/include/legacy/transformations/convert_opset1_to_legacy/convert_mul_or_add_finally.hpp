@@ -32,12 +32,9 @@ class INFERENCE_ENGINE_API_CLASS(ConvertMulOrAddFinally);
 
 class ngraph::pass::ConvertMulOrAddFinally: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     // This pass finally converts single Multiply and Add operations to ScaleShift or Power operation
-    ConvertMulOrAddFinally() : GraphRewrite() {
-        convert_mul_or_add_finally<ngraph::opset1::Add>();
-        convert_mul_or_add_finally<ngraph::opset1::Subtract>();
-        convert_mul_or_add_finally<ngraph::opset1::Multiply>();
-    }
+    ConvertMulOrAddFinally();
 
 private:
     template<typename T>

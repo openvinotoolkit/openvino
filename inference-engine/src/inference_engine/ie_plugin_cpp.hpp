@@ -92,7 +92,7 @@ public:
         CALL_STATEMENT(return ExecutableNetwork(actual->ImportNetwork(modelFileName, config), actual));
     }
 
-    QueryNetworkResult QueryNetwork(const ICNNNetwork& network,
+    QueryNetworkResult QueryNetwork(const CNNNetwork& network,
                                     const std::map<std::string, std::string>& config) const {
         QueryNetworkResult res;
         CALL_STATEMENT(res = actual->QueryNetwork(network, config));
@@ -109,7 +109,7 @@ public:
         CALL_STATEMENT(return actual->GetMetric(name, options));
     }
 
-    ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
                                   RemoteContext::Ptr context) {
         CALL_STATEMENT(return ExecutableNetwork(actual->LoadNetwork(network, config, context), actual));
     }
@@ -118,8 +118,8 @@ public:
         CALL_STATEMENT(return actual->CreateContext(params));
     }
 
-    RemoteContext::Ptr GetDefaultContext() {
-        CALL_STATEMENT(return actual->GetDefaultContext());
+    RemoteContext::Ptr GetDefaultContext(const ParamMap& params) {
+        CALL_STATEMENT(return actual->GetDefaultContext(params));
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,

@@ -6,7 +6,7 @@ All the tests are written in the [Google Test C++ framework](https://github.com/
 Inference Engine Plugin tests are included in the `IE::funcSharedTests` CMake target which is built within the OpenVINO repository
 (see [Build Plugin Using CMake](@ref plugin_build) guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
 
-Test definitions are splitted into tests class declaration (see `inference_engine/tests/functional/plugin/shared/include`) and tests class implementation (see `inference_engine/tests/functional/plugin/shared/src`) and include the following scopes of plugin conformance tests:
+Test definitions are split into tests class declaration (see `inference_engine/tests/functional/plugin/shared/include`) and tests class implementation (see `inference_engine/tests/functional/plugin/shared/src`) and include the following scopes of plugin conformance tests:
 
 1. **Behavior tests** (`behavior` sub-folder), which are a separate test group to check that a plugin satisfies basic Inference
 Engine concepts: plugin creation, multiple executable networks support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
@@ -25,7 +25,7 @@ Engine concepts: plugin creation, multiple executable networks support, multiple
 
     @snippet single_layer_tests/convolution.cpp test_convolution:instantiate
 
-3. **Sub-graph tests** (`subgraph_tests` sub-folder). This group of tests is designed to tests small patterns or combination of layers. E.g. when a particular topology is being enabled in a plugin e.g. TF ResNet-50, there is no need to add the whole topology to test tests. In opposite way, a particular repetative subgraph or pattern can be extracted from `ResNet-50` and added to the tests. The instantiation of the sub-graph tests is done in the same way as for single layer tests.  
+3. **Sub-graph tests** (`subgraph_tests` sub-folder). This group of tests is designed to tests small patterns or combination of layers. E.g. when a particular topology is being enabled in a plugin e.g. TF ResNet-50, there is no need to add the whole topology to test tests. In opposite way, a particular repetitive subgraph or pattern can be extracted from `ResNet-50` and added to the tests. The instantiation of the sub-graph tests is done in the same way as for single layer tests.
 > **Note**, such sub-graphs or patterns for sub-graph tests should be added to `IE::ngraphFunctions` library first (this library is a pre-defined set of small `ngraph::Function`) and re-used in sub-graph tests after.
 
 4. **HETERO tests** (`subgraph_tests` sub-folder) contains tests for `HETERO` scenario (manual or automatic affinities settings, tests for `QueryNetwork`).

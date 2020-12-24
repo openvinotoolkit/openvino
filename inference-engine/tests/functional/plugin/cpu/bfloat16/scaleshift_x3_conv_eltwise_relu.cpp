@@ -142,7 +142,7 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 2e-1;
+        threshold = 5e-1;
 
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
@@ -152,7 +152,6 @@ protected:
         expectedPrecisions["Add_2"] = "FP32";
         expectedPrecisions["ELT_1"] = "ndef";
         expectedPrecisions["RELU_1"] = "ndef";
-        expectedPrecisions["Add_3"] = "FP32";
     }
 };
 

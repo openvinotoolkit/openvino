@@ -18,10 +18,11 @@ import logging as log
 import numpy as np
 
 from extensions.ops.elementwise import Add, Mul
+from mo.front.common.layout import get_features_dim
 from mo.front.extractor import split_node_in_port
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -38,66 +39,58 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         return [MiddleStart]
 
     @staticmethod
+    def insert_pre_processing(graph: Graph, input_node: Node, node_mean_scale_values: np.array,
+                              preprocessing_name: str):
+        assert preprocessing_name in ['scale', 'mean']
+        if node_mean_scale_values.get(preprocessing_name) is None:
+            return
+        user_value = node_mean_scale_values[preprocessing_name]
+        value = 1 / user_value if preprocessing_name == 'scale' else user_value * (-1)
+        optimize_value = int(preprocessing_name == 'scale')
+        op = Mul if preprocessing_name == 'scale' else Add
+
+        if all([x == optimize_value for x in value]):
+            return
+        assert input_node.has_valid('shape')
+        features_dim_idx = get_features_dim(graph.graph['layout'], len(input_node.shape))
+        assert value.size == input_node.shape[features_dim_idx] or value.size == 1
+
+        shape = np.ones(len(input_node.shape), dtype=np.int64)
+        shape[features_dim_idx] = value.size
+        value = value.reshape(shape)
+
+        name = input_node.soft_get('name', input_node.id) + '/' + preprocessing_name
+        preprocessing = create_op_with_const_inputs(graph, op=op, port_value_dict={1: value}, op_attrs={'name': name})
+
+        for dst in input_node.out_port(0).get_destinations():
+            if dst.node.soft_get('type') != 'ShapeOf':
+                dst.get_connection().set_source(preprocessing.out_port(0))
+
+        input_node.out_port(0).connect(preprocessing.in_port(0))
+
+    @staticmethod
     def apply_scale(graph: Graph, input_node: Node, node_mean_scale_values: dict):
-        if 'scale' in node_mean_scale_values and node_mean_scale_values['scale'] is not None:
-            if all([x == 1 for x in node_mean_scale_values['scale']]):
-                return
-            out_node = input_node.out_node()
-            if not input_node.has_valid('shape'):
-                raise Error("Node {} has not valid shape attribute".format(input_node.id))
-            input_shape = input_node.shape
-
-            # Create Mul node
-            value = 1 / np.array(node_mean_scale_values['scale'])
-            graph.remove_edge(input_node.id, out_node.id)
-
-            mul_node = Mul(graph, dict(name="Mul_"))
-            mul_data = Op.create_input_data_node(graph, "data_mul_", np.array(value))
-            Op.expand_node_shape(mul_data, (len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 0))
-            mul_input = Op.create_data_node(graph, input_node, {'shape': out_node.shape})
-
-            mul_node.create_node_with_data(inputs=[mul_input, mul_data], data_nodes=out_node)
+        AddMeanScaleValues.insert_pre_processing(graph, input_node, node_mean_scale_values, preprocessing_name='scale')
 
     @staticmethod
     def apply_mean_value(graph: Graph, input_node: Node, node_mean_scale_values: dict):
-        if 'mean' in node_mean_scale_values and node_mean_scale_values['mean'] is not None:
-            if all([x == 0 for x in node_mean_scale_values['mean']]):
-                return
-            out_node = input_node.out_node()
-            if not input_node.has_valid('shape'):
-                raise Error("Node {} has not valid shape attribute".format(input_node.id))
-            input_shape = input_node.shape
-            # Create Add node
-            graph.remove_edge(input_node.id, out_node.id)
-
-            value = np.array(node_mean_scale_values['mean']) * (-1)
-
-            add_node = Add(graph, dict(name="Add_"))
-            add_data = Op.create_input_data_node(graph, "data_add_", np.array(value))
-            Op.expand_node_shape(add_data, (len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 0))
-            add_input = Op.create_data_node(graph, input_node, {'shape': out_node.shape})
-
-            add_node.create_node_with_data(inputs=[add_input, add_data], data_nodes=out_node)
+        AddMeanScaleValues.insert_pre_processing(graph, input_node, node_mean_scale_values, preprocessing_name='mean')
 
     def find_and_replace_pattern(self, graph: Graph):
-        input_nodes = {}
         values = graph.graph['cmd_params'].mean_scale_values
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.has_valid('op') and node.op == 'Parameter':
-                input_nodes.update({node.id: node})
+        input_nodes = graph.get_op_nodes(op='Parameter')
 
         if not isinstance(values, dict):
             if len(values) != len(input_nodes):
-                raise Error('Numbers of inputs and mean/scale values do not match. ' +
-                            refer_to_faq_msg(61))
+                raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
 
             data = np.copy(values)
             values = {}
-            for idx, key in enumerate(input_nodes.keys()):
+            for idx, node in enumerate(input_nodes):
+                assert node.has_valid('name')
                 values.update(
                     {
-                        input_nodes[key]['name']: {
+                        node['name']: {
                             'mean': data[idx][0],
                             'scale': data[idx][1]
                         }
@@ -112,12 +105,12 @@ class AddMeanScaleValues(MiddleReplacementPattern):
                 node_id = graph.get_node_id_by_name(node_name)
             except Error as e:
                 log.warning('node_name {} is not found in graph'.format(node_name))
-            if node_id not in input_nodes:
+            if Node(graph, node_id) not in input_nodes:
                 # if the user cutted-off input of the network then input node name specified in the --scale_values
                 # or --mean_values doesn't correspond to a real input node generated by Model Optimizer. But
                 # the information about initial input node name is stored in Placeholder's attribute 'initial_node_name'
                 new_node_id = None
-                for placeholder in input_nodes.values():
+                for placeholder in input_nodes:
                     try:
                         placeholder_port = int(placeholder.id.split("_")[-1])
                     except Exception as ex:

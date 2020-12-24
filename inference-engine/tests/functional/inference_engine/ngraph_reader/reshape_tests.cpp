@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadReshapeNetwork) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" version="opset1">
-            <data offset="0" size="16"/>
+            <data element_type="i64" offset="0" shape="2" size="16"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>2</dim>

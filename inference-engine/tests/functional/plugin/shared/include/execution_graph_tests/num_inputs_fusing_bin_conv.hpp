@@ -7,9 +7,9 @@
 #include <string>
 
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ExecutionGraphTests {
 
 class ExecGraphInputsFusingBinConv : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::string> {
 public:
@@ -22,4 +22,4 @@ protected:
     void TearDown() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace ExecutionGraphTests

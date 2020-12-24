@@ -86,7 +86,7 @@ The function accepts a const shared pointer to `ngraph::Function` object and per
 
 @snippet src/template_plugin.cpp plugin:transform_network
 
-> **NOTE**: After all these transformations, a `ngraph::Function` object cointains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `TransformNetwork` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set. 
+> **NOTE**: After all these transformations, a `ngraph::Function` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `TransformNetwork` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set.
 
 ### `QueryNetwork()`
 

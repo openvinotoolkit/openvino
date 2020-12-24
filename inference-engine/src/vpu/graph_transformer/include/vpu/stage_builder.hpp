@@ -335,9 +335,17 @@ public:
             const std::string& name,
             const ie::CNNLayerPtr& layer,
             bool antialias,
+            InterpolateCoordTransMode coordinateTransformationMode,
+            InterpolateNearestMode nearestMode,
             float factor,
             const Data& input,
             const Data& output);
+
+   Stage addGatherElementsStage(const Model &model,
+                                const std::string &name,
+                                const ie::CNNLayerPtr &layer,
+                                const Data &input, const Data &indices,
+                                const Data &output, int32_t axis);
 };
 
 }  // namespace vpu

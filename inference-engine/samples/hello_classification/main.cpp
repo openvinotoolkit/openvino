@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     try {
         // ------------------------------ Parsing and validation of input args ---------------------------------
         if (argc != 4) {
-            tcout << "Usage : ./hello_classification <path_to_model> <path_to_image> <device_name>" << std::endl;
+            tcout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
         // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
         if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
-        network.setBatchSize(1);
+        if (network.getInputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 input only");
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------

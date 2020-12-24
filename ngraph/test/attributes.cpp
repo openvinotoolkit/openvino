@@ -652,12 +652,12 @@ TEST(attributes, psroi_pooling_op)
     auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1024, 63, 38});
     auto coords = make_shared<op::Parameter>(element::f32, Shape{300, 5});
 
-    const int64_t output_dim = 882;
-    const int64_t group_size = 3;
+    const int64_t output_dim = 64;
+    const int64_t group_size = 4;
     const float spatial_scale = 0.0625;
     int spatial_bins_x = 1;
     int spatial_bins_y = 1;
-    string mode = "Avg";
+    string mode = "average";
 
     auto psroi_pool = make_shared<opset1::PSROIPooling>(
         input, coords, output_dim, group_size, spatial_scale, spatial_bins_x, spatial_bins_y, mode);
@@ -1350,10 +1350,10 @@ TEST(attributes, reorg_yolo_op_strides)
 TEST(attributes, roi_pooling_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset3::ROIPooling>();
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
-    const auto coords = make_shared<op::Parameter>(element::i32, Shape{2, 3});
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
+    const auto coords = make_shared<op::Parameter>(element::f32, Shape{2, 5});
 
-    const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123, "Bilinear");
+    const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123, "bilinear");
     NodeBuilder builder(op);
     const auto g_op = as_type_ptr<opset3::ROIPooling>(builder.create());
 
@@ -1473,11 +1473,11 @@ TEST(attributes, interpolate_op)
 TEST(attributes, detection_output_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset1::DetectionOutput>();
-    const auto box_logits = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
-    const auto class_preds = make_shared<op::Parameter>(element::f32, Shape{32});
-    const auto proposals = make_shared<op::Parameter>(element::f32, Shape{128, 2});
-    const auto aux_class_preds = make_shared<op::Parameter>(element::f32, Shape{16});
-    const auto aux_box_pred = make_shared<op::Parameter>(element::f32, Shape{32, 2});
+    const auto box_logits = make_shared<op::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
+    const auto class_preds = make_shared<op::Parameter>(element::f32, Shape{1, 2 * 32});
+    const auto proposals = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2 * 4});
+    const auto aux_class_preds = make_shared<op::Parameter>(element::f32, Shape{1, 2 * 2});
+    const auto aux_box_pred = make_shared<op::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
 
     op::DetectionOutputAttrs attrs;
     attrs.num_classes = 32;

@@ -21,6 +21,7 @@ const std::vector<float> argPadValue = {0.f, 1.f, 2.f, -1.f};
 const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::EDGE,
         ngraph::helpers::PadMode::REFLECT,
+        ngraph::helpers::PadMode::SYMMETRIC
 };
 
 const auto pad2DConstparams = testing::Combine(

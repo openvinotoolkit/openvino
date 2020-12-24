@@ -154,54 +154,16 @@ namespace squeeze
                           const HostTensorPtr& out)
     {
         auto element_type = arg0->get_element_type();
-        out->set_element_type(element_type);
-
-        auto data_shape = arg0->get_shape();
-        int64_t data_rank = static_cast<int64_t>(data_shape.size());
-        auto axes_shape = arg1->get_shape();
-        NGRAPH_CHECK(axes_shape.size() <= 1, "Axes to remove must be a vector or empty.");
-
-        auto out_shape = data_shape;
-        // Empty axes vector
-        if (axes_shape.size() == 0 || axes_shape[0] == 0)
-        {
-            out_shape.erase(std::remove(out_shape.begin(), out_shape.end(), 1), out_shape.end());
-        }
-        else
-        {
-            // Get axes
-            vector<int64_t> axes = read_index_vector(arg1);
-            // Normalize axes
-            std::transform(axes.begin(),
-                           axes.end(),
-                           axes.begin(),
-                           [data_rank](int64_t i) -> int64_t { return i < 0 ? data_rank + i : i; });
-            // Sort in decreasing order
-            std::set<int64_t, greater<int64_t>> axes_set(axes.begin(), axes.end());
-            for (int64_t axis : axes_set)
-            {
-                NGRAPH_CHECK(axis >= 0 && axis < data_rank, "Axis is out of bounds: ", axis);
-                NGRAPH_CHECK(out_shape[axis] == 1, "Only axis of size 1 can be removed.");
-                out_shape.erase(out_shape.begin() + axis);
-            }
-        }
-        out->set_shape(out_shape);
 
         bool rc = true;
         switch (element_type)
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -211,8 +173,11 @@ namespace squeeze
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Squeeze::evaluate");
-    return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate)
+    {
+        return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+    }
+    return false;
 }
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

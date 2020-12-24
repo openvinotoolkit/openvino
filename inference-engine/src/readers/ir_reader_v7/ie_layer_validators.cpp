@@ -2222,7 +2222,7 @@ void ScatterElementsUpdateValidator::checkShapes(const CNNLayer* layer, const ve
 
 #define REG_LAYER_VALIDATOR_FOR_TYPE(__validator, __type) _validators[#__type] = std::make_shared<__validator>(#__type)
 
-LayerValidators::LayerValidators() {
+LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(ActivationValidator, Activation);
     REG_LAYER_VALIDATOR_FOR_TYPE(ArgMaxValidator, ArgMax);
     REG_LAYER_VALIDATOR_FOR_TYPE(BatchNormalizationValidator, BatchNormalization);

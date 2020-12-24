@@ -29,7 +29,8 @@ public:
                   const std::vector<std::string> &activations,
                   const std::vector<float> &activations_alpha,
                   const std::vector<float> &activations_beta,
-                  float clip);
+                  float clip,
+                  int64_t seq_axis = 1);
 
     RNNSequenceIE() = delete;
 
@@ -50,6 +51,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
+    int64_t m_seq_axis;
     op::RecurrentSequenceDirection m_direction;
 };
 }  // namespace op

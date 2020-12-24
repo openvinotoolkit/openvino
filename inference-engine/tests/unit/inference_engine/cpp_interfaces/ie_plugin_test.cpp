@@ -25,7 +25,7 @@ protected:
     shared_ptr<MockExecutableNetworkInternal> mockExeNetworkInternal;
     shared_ptr<MockExecutableNetworkThreadSafe> mockExeNetworkTS;
     shared_ptr<MockInferRequestInternal> mockInferRequestInternal;
-    MockNotEmptyICNNNetwork mockNotEmptyNet;
+    std::shared_ptr<MockNotEmptyICNNNetwork> mockNotEmptyNet = std::make_shared<MockNotEmptyICNNNetwork>();
     std::string pluginId;
 
     ResponseDesc dsc;
@@ -50,14 +50,14 @@ protected:
     void getInferRequestWithMockImplInside(IInferRequest::Ptr &request) {
         ExecutableNetwork exeNetwork;
         InputsDataMap inputsInfo;
-        mockNotEmptyNet.getInputsInfo(inputsInfo);
+        mockNotEmptyNet->getInputsInfo(inputsInfo);
         OutputsDataMap outputsInfo;
-        mockNotEmptyNet.getOutputsInfo(outputsInfo);
+        mockNotEmptyNet->getOutputsInfo(outputsInfo);
         mockInferRequestInternal = make_shared<MockInferRequestInternal>(inputsInfo, outputsInfo);
         mockExeNetworkTS = make_shared<MockExecutableNetworkThreadSafe>();
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
-        ASSERT_NO_THROW(exeNetwork = plugin->LoadNetwork(mockNotEmptyNet, {}));
+        ASSERT_NO_THROW(exeNetwork = plugin->LoadNetwork(InferenceEngine::CNNNetwork(mockNotEmptyNet), {}));
         ASSERT_NO_THROW(request = exeNetwork.CreateInferRequest());
     }
 };

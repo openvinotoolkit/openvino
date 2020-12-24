@@ -25,7 +25,11 @@ namespace BehaviorTestsDefinitions {
         if (deathTestStyle == "fast") {
             ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
         }
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+            function = ngraph::builder::subgraph::makeReadConcatSplitAssign();
+        } else {
+            function = ngraph::builder::subgraph::makeConvPoolRelu();
+        }
     }
 
     void HoldersTest::TearDown() {
@@ -42,6 +46,12 @@ EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
         InferenceEngine::Core core;
         auto exe_net = core.LoadNetwork(cnnNet, deviceName);
         auto request = exe_net.CreateInferRequest();
+        std::vector<InferenceEngine::VariableState> states = {};
+        try {
+            states = request.QueryState();
+        } catch(...) {
+            // do nothing
+        }
 
         auto release = [&](int i) {
             switch (i) {
@@ -53,6 +63,9 @@ EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
                     break;
                 case 2:
                     request = {};
+                    break;
+                case 3:
+                    states = {};
                     break;
                 default:
                     break;

@@ -24,48 +24,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            /// \brief Elementwise addition operation.
-            ///
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. Use v1::Add instead of it.")
-                NGRAPH_API Add : public util::BinaryElementwiseArithmetic
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                static constexpr NodeTypeInfo type_info{"Add", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs an uninitialized addition operation
-                Add()
-                    : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NONE)
-                {
-                }
-
-                /// \brief Constructs an addition operation.
-                ///
-                /// \param arg0 Output that produces the first input tensor.<br>
-                /// `[d0, ...]`
-                /// \param arg1 Output that produces the second input tensor.<br>
-                /// `[d0, ...]`
-                /// \param auto_broadcast Auto broadcast specification
-                ///
-                /// Output `[d0, ...]`
-                ///
-                Add(const Output<Node>& arg0,
-                    const Output<Node>& arg1,
-                    const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec());
-
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                bool visit_attributes(AttributeVisitor& visitor) override;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-        } // namespace v0
-
         namespace v1
         {
             /// \brief Elementwise addition operation.
@@ -99,19 +57,13 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
                 bool visit_attributes(AttributeVisitor& visitor) override;
+
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
             };
-
         } // namespace v1
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Add;
-        NGRAPH_SUPPRESS_DEPRECATED_END
-    } // namespace op
-
-    NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")
-    NGRAPH_API
-    std::shared_ptr<Node> operator+(const Output<Node>& arg0, const Output<Node>& arg1);
+    }     // namespace op
 } // namespace ngraph

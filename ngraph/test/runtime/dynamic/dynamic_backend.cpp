@@ -286,12 +286,6 @@ bool runtime::dynamic::DynamicExecutable::call(
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_outputs;
 
         const ResultVector& results = clone->get_results();
-        for (auto& result : results)
-        {
-            NGRAPH_CHECK(result->get_output_partial_shape(0).is_static(),
-                         "Shape staticization failed for result node ",
-                         *result);
-        }
         NGRAPH_CHECK(results.size() == outputs.size());
 
         for (size_t i = 0; i < outputs.size(); i++)
@@ -300,7 +294,7 @@ bool runtime::dynamic::DynamicExecutable::call(
                     std::dynamic_pointer_cast<runtime::dynamic::DynamicTensor>(outputs[i]))
             {
                 dynamic_tensor->make_storage(results[i]->get_output_element_type(0),
-                                             results[i]->get_output_shape(0));
+                                             results[i]->get_output_partial_shape(0));
                 wrapped_outputs.push_back(dynamic_tensor->get_wrapped_tensor());
             }
             else
@@ -387,7 +381,7 @@ void runtime::dynamic::DynamicTensor::release_storage()
 }
 
 void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_type,
-                                                   const Shape& shape)
+                                                   const PartialShape& shape)
 {
     NGRAPH_CHECK(element_type.is_static(), "make_storage requires a static element type");
     NGRAPH_CHECK(get_element_type().is_dynamic() || get_element_type() == element_type,
@@ -400,7 +394,14 @@ void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_
                  shape,
                  " which is incompatible with dynamic tensor shape ",
                  get_partial_shape());
-    m_wrapped_tensor = m_wrapped_backend->create_tensor(element_type, shape);
+    if (shape.is_static())
+    {
+        m_wrapped_tensor = m_wrapped_backend->create_tensor(element_type, shape.get_shape());
+    }
+    else
+    {
+        m_wrapped_tensor = m_wrapped_backend->create_dynamic_tensor(element_type, shape);
+    }
 }
 
 const std::shared_ptr<ngraph::runtime::Tensor>&

@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "ngraph/coordinate_transform.hpp"
+
 #include <algorithm>
 #include <cstdio>
 #include <iostream>
@@ -23,7 +25,7 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/coordinate_transform.hpp"
+#include "ngraph/coordinate_index.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
@@ -44,7 +46,7 @@ namespace
 
     Coordinate default_source_start_corner(size_t n_axes) { return Coordinate(n_axes, 0); }
     Coordinate default_source_end_corner(const Shape& source_shape) { return source_shape; }
-}
+} // namespace
 
 CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape)
     : m_source_shape(source_shape)
@@ -54,20 +56,7 @@ CoordinateTransformBasic::CoordinateTransformBasic(const Shape& source_shape)
 // Compute the index of a source-space coordinate in the buffer.
 size_t CoordinateTransformBasic::index(const Coordinate& c) const noexcept
 {
-    size_t index = 0;
-    size_t stride = 1;
-    size_t const padding = c.size() - m_source_shape.size();
-
-    for (size_t axis = m_source_shape.size(); axis-- > 0;)
-    {
-        if (m_source_shape[axis] > 1)
-        {
-            index += c[axis + padding] * stride;
-            stride *= m_source_shape[axis];
-        }
-    }
-
-    return index;
+    return coordinate_index(c, m_source_shape);
 }
 
 CoordinateIterator CoordinateTransformBasic::begin() const noexcept

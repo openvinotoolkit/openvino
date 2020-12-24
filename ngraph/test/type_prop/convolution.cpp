@@ -2665,6 +2665,56 @@ TEST(type_prop, conv_v1_partial_data_shape_dynamic)
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
 }
 
+TEST(type_prop, conv_bprop_v1_partial_auto_padding_upper)
+{
+    const Shape shape1{1, 512, 1, 37};
+    const Shape shape2{512, 256, 1, 1};
+    const Shape shape3{2};
+    Strides strides{1, 2};
+    CoordinateDiff pads_begin{0, 0};
+    CoordinateDiff pads_end{0, 0};
+    Strides dilations{1, 1};
+    const auto auto_pad = op::PadType::SAME_UPPER;
+
+    auto in1 = make_shared<op::Parameter>(element::f32, shape1);
+    auto in2 = make_shared<op::Parameter>(element::f32, shape2);
+    std::vector<int64_t> data = {1, 74};
+    element::Type type = element::i64;
+    auto in3 = make_shared<op::Constant>(type, shape3, data);
+
+    auto conv = make_shared<op::v1::ConvolutionBackpropData>(
+        in1, in2, in3, strides, pads_begin, pads_end, dilations, auto_pad);
+    conv->validate_and_infer_types();
+
+    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 0}));
+}
+
+TEST(type_prop, conv_bprop_v1_partial_auto_padding_lower)
+{
+    const Shape shape1{1, 512, 1, 37};
+    const Shape shape2{512, 256, 1, 1};
+    const Shape shape3{2};
+    Strides strides{1, 2};
+    CoordinateDiff pads_begin{0, 0};
+    CoordinateDiff pads_end{0, 0};
+    Strides dilations{1, 1};
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto in1 = make_shared<op::Parameter>(element::f32, shape1);
+    auto in2 = make_shared<op::Parameter>(element::f32, shape2);
+    std::vector<int64_t> data = {1, 74};
+    element::Type type = element::i64;
+    auto in3 = make_shared<op::Constant>(type, shape3, data);
+
+    auto conv = make_shared<op::v1::ConvolutionBackpropData>(
+        in1, in2, in3, strides, pads_begin, pads_end, dilations, auto_pad);
+    conv->validate_and_infer_types();
+
+    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 0}));
+}
+
 TEST(type_prop, deformable_conv_incorrect_group)
 {
     const PartialShape data_batch_shape{1, 3, 96, 96};

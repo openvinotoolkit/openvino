@@ -173,6 +173,8 @@ VPU_DECLARE_ENUM(StageType,
     Swish = 135,
     GatherND = 136,
     HSwish = 137,
+    Ceiling = 138,
+    GatherElements = 139,
 )
 
 //
@@ -269,6 +271,21 @@ VPU_DECLARE_ENUM(BroadcastMode,
 //
 // StageDataInfo
 //
+
+VPU_DECLARE_ENUM(InterpolateCoordTransMode,
+    HalfPixel = 0,
+    PytorchHalfPixel = 1,
+    Asymmetric = 2,
+    TfHalfPixelForNn = 3,
+    AlignCorners = 4
+)
+VPU_DECLARE_ENUM(InterpolateNearestMode,
+    RoundPreferFloor = 0,
+    RoundPreferCeil = 1,
+    Floor = 2,
+    Ceil = 3,
+    Simple = 4
+)
 
 template <typename Val>
 class StageDataInfo final {

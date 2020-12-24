@@ -129,6 +129,9 @@ GNA2_API enum Gna2Status Gna2RequestEnqueue(
 GNA2_API enum Gna2Status Gna2RequestWait(
     uint32_t requestId,
     uint32_t timeoutMilliseconds) {
+    if (current != nullptr) {
+        return current->Gna2RequestWait(requestId, timeoutMilliseconds);
+    }
     return Gna2StatusSuccess;
 }
 
@@ -183,6 +186,16 @@ GNA2_API enum Gna2Status Gna2InstrumentationConfigAssignToRequestConfig(
     uint32_t instrumentationConfigId,
     uint32_t requestConfigId) {
     return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2GetLibraryVersion(
+    char* versionBuffer,
+    uint32_t versionBufferSize) {
+    if (versionBuffer != nullptr && versionBufferSize > 0) {
+        versionBuffer[0] = '\0';
+        return Gna2StatusSuccess;
+    }
+    return Gna2StatusNullArgumentNotAllowed;
 }
 
 #elif GNA_LIB_VER == 1

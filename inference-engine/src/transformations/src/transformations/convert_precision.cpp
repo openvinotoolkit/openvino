@@ -349,6 +349,8 @@ static std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::C
 
     auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
     auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
+    if (dst_data == nullptr)
+        throw ngraph_error("Can't get destination data pointer");
 
     std::vector<dst_type> final_data;
     for (size_t i = 0; i < size; ++i) {

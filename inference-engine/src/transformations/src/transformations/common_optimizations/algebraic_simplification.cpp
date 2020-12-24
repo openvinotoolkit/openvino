@@ -28,6 +28,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::AlgebraicSimplification, "AlgebraicSimplification", 0);
+
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
 static bool simplify_gather(std::shared_ptr<Node> node) {

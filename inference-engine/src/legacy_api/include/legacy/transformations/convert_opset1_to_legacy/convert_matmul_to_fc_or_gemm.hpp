@@ -27,6 +27,7 @@ class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToGemm);
 
 class ngraph::pass::ConvertMatMulToFCorGemm: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertMatMulToFCorGemm() {
         add_matcher<ngraph::pass::ConvertMatMulToFC>();
         add_matcher<ngraph::pass::ConvertMatMulToGemm>();

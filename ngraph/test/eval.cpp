@@ -132,7 +132,7 @@ TEST(eval, max_eval_minimum_constant)
 {
     auto c = op::Constant::create<int64_t>(element::i64, Shape{}, {27});
     auto p = make_shared<op::Parameter>(element::i64, Shape{});
-    auto m = make_shared<op::Minimum>(c, p);
+    auto m = make_shared<op::v1::Minimum>(c, p);
     auto result = maximum_value(m);
     ASSERT_TRUE(result.first);
     EXPECT_EQ(result.second, 27);
@@ -244,6 +244,43 @@ TEST(eval, evaluate_broadcast_v3_bidirectional)
     auto result_val = read_vector<float>(result);
     vector<float> expec{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4,
                         1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4};
+    ASSERT_EQ(result_val, expec);
+}
+
+TEST(eval, evaluate_broadcast_v3_bidirectional_target_rank_smaller_than_input)
+{
+    Shape shape_a{1, 1, 1, 1, 1, 1, 1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{4}, {1, 3, 1, 1});
+    auto bcast_v3 =
+        make_shared<op::v3::Broadcast>(A, target_shape, op::BroadcastType::BIDIRECTIONAL);
+    auto fun = make_shared<Function>(OutputVector{bcast_v3}, ParameterVector{A});
+
+    auto result = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(shape_a, {1.0f})}));
+    EXPECT_EQ(result->get_element_type(), element::f32);
+    EXPECT_EQ(result->get_partial_shape(), (PartialShape{1, 1, 1, 1, 1, 3, 1, 1}));
+    auto result_val = read_vector<float>(result);
+    vector<float> expec{1.0f, 1.0f, 1.0f};
+    ASSERT_EQ(result_val, expec);
+}
+
+TEST(eval, evaluate_broadcast_v3_bidirectional_target_rank_smaller_than_input_2)
+{
+    Shape shape_a{1, 3, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    auto target_shape = op::Constant::create<int32_t>(element::i32, Shape{2}, {3, 1});
+    auto bcast_v3 =
+        make_shared<op::v3::Broadcast>(A, target_shape, op::BroadcastType::BIDIRECTIONAL);
+    auto fun = make_shared<Function>(OutputVector{bcast_v3}, ParameterVector{A});
+
+    auto result = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate(
+        {result}, {make_host_tensor<element::Type_t::f32>(Shape{1, 3, 1}, {1.0f, 2.0f, 3.0f})}));
+    EXPECT_EQ(result->get_element_type(), element::f32);
+    EXPECT_EQ(result->get_partial_shape(), (PartialShape{1, 3, 1}));
+    auto result_val = read_vector<float>(result);
+    vector<float> expec{1.0f, 2.0f, 3.0f};
     ASSERT_EQ(result_val, expec);
 }
 

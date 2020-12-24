@@ -32,6 +32,7 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
 
 class ngraph::pass::ConvertTensorIteratorToLSTMSequence: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToLSTMSequence();
 };
 
@@ -43,6 +44,7 @@ public:
 
 class ngraph::pass::ConvertTensorIteratorToRNNSequence: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToRNNSequence();
 };
 
@@ -54,5 +56,6 @@ public:
 
 class ngraph::pass::ConvertTensorIteratorToGRUSequence: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToGRUSequence();
 };

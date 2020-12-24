@@ -19,8 +19,8 @@
 #include <low_precision/clamp.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/concat_function.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/concat_function.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 
@@ -103,6 +103,11 @@ public:
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transform.add<ngraph::pass::low_precision::ClampTransformation, ngraph::opset1::Clamp>(testValues.params);
         transform.transform(actualFunction);
+
+        if (!updatePrecisions) {
+            // there is no Convert operation after MaxPool in FP32
+            testValues.result.dequantizationOperations2.convert = {};
+        }
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithDifferentPrecisionOnChilds(
             precision,
@@ -213,7 +218,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     ConcatWithDifferentChildsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

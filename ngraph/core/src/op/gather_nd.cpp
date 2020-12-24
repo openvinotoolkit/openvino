@@ -142,7 +142,7 @@ void op::v5::GatherND::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, data_type, PartialShape{Dimension::dynamic()});
+        set_output_type(0, data_type, PartialShape::dynamic());
     }
 }
 

@@ -341,9 +341,17 @@ namespace ngraph
                 std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>
                     m_output_descriptions;
             };
+            using InputDescriptionPtr = std::shared_ptr<util::SubGraphOp::InputDescription>;
+            using OutputDescriptionPtr = std::shared_ptr<util::SubGraphOp::OutputDescription>;
+            using InputDescriptionVector = std::vector<InputDescriptionPtr>;
+            using OutputDescriptionVector = std::vector<OutputDescriptionPtr>;
         }
     }
     template class NGRAPH_API FactoryRegistry<op::util::SubGraphOp::InputDescription>;
+
+    template <>
+    FactoryRegistry<op::util::SubGraphOp::InputDescription>&
+        FactoryRegistry<op::util::SubGraphOp::InputDescription>::get();
 
     template <>
     class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::InputDescription>>
@@ -378,6 +386,10 @@ namespace ngraph
     };
 
     template class NGRAPH_API FactoryRegistry<op::util::SubGraphOp::OutputDescription>;
+
+    template <>
+    FactoryRegistry<op::util::SubGraphOp::OutputDescription>&
+        FactoryRegistry<op::util::SubGraphOp::OutputDescription>::get();
 
     template <>
     class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>

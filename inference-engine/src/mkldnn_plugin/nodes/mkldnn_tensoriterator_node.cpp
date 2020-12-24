@@ -193,7 +193,6 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
         THROW_IE_EXCEPTION << "Cannot convert to TensorIterator layer.";
 
     n_iter = getNumIteration(*ti);
-    MKLDNNGraph::ApplyUnrollPasses(ti->body);
     sub_graph.CreateGraph(ti->body, ext_mng, weightCache);
 
     // Try to detect inputs and outputs by indexes

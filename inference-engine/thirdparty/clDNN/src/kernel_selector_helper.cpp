@@ -205,6 +205,8 @@ kernel_selector::weights_layout to_weights_layout(format f) {
         case format::bfyx:
         case format::oiyx:
             return kernel_selector::weights_layout::oiyx;
+        case format::ioyx:
+            return kernel_selector::weights_layout::ioyx;
         case format::fyxb:
             return kernel_selector::weights_layout::iyxo;
         case format::byxf:
@@ -236,8 +238,12 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_xfbyb;
         case format::os_is_yx_isa8_osv8_isv4:
             return kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv4;
+        case format::os_is_yx_isa8_osv16_isv4:
+            return kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv4;
         case format::os_is_zyx_isa8_osv8_isv4:
             return kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv4;
+        case format::os_is_zyx_isa8_osv16_isv4:
+            return kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv4;
         case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
@@ -267,6 +273,8 @@ kernel_selector::weights_layout to_weights_layout(format f) {
         case format::bfzyx:
         case format::oizyx:
             return kernel_selector::weights_layout::oizyx;
+        case format::iozyx:
+            return kernel_selector::weights_layout::iozyx;
         case format::bs_xs_xsv8_bsv8:
             return kernel_selector::weights_layout::os_i_osv8__ai8;
         case format::bs_xs_xsv8_bsv16:
@@ -287,8 +295,12 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::os_zyxi_osv16;
         case format::goiyx:
             return kernel_selector::weights_layout::goiyx;
+        case format::gioyx:
+            return kernel_selector::weights_layout::gioyx;
         case format::goizyx:
             return kernel_selector::weights_layout::goizyx;
+        case format::giozyx:
+            return kernel_selector::weights_layout::giozyx;
         case format::g_os_iyx_osv16:
             return kernel_selector::weights_layout::g_os_iyx_osv16;
         case format::g_os_iyx_osv32:
@@ -382,6 +394,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_yx_isa8_osv8_isv4;
         case kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv4:
             return cldnn::format::os_is_zyx_isa8_osv8_isv4;
+        case kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv4:
+            return cldnn::format::os_is_yx_isa8_osv16_isv4;
+        case kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv4:
+            return cldnn::format::os_is_zyx_isa8_osv16_isv4;
         case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
@@ -518,12 +534,6 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
         default:
             return kernel_selector::tuning_mode::TUNING_DISABLED;
     }
-}
-
-std::string to_host_version(const cldnn::version_t& version) {
-    std::stringstream ss;
-    ss << version.major << "." << version.minor << "." << version.build << "." << version.revision;
-    return ss.str();
 }
 
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
@@ -735,7 +745,6 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     params.engineInfo.computeUnitsCount = device_info.compute_units_count;
     params.engineInfo.deviceCache = context->get_device_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
-    params.engineInfo.hostVersion = to_host_version(cldnn::get_version());
 
     auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;

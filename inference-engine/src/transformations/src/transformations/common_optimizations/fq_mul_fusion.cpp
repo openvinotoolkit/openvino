@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeMulFusion, "FakeQuantizeMulFusion", 0);
+
 namespace {
   std::pair<ngraph::Output<ngraph::Node>, ngraph::Output<ngraph::Node>>
   get_adjusted_output_range(ngraph::Output<ngraph::Node> out_low,

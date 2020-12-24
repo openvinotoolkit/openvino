@@ -17,10 +17,10 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
 
-ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
+ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_i32_output_type) {
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [force_i32_output_type](pattern::Matcher &m) {
         auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
         if (!nms_5) {
             return false;
@@ -72,6 +72,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
 
         std::shared_ptr<op::NonMaxSuppressionIE3> nms_legacy{nullptr};
 
+        auto output_type = force_i32_output_type ? element::i32 : nms_5->get_output_type();
         if (num_of_inputs > 5 && nms_5->soft_nms_sigma_from_input() != 0.0f) {
             new_soft_nms_sigma = std::make_shared<opset1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
             new_ops.emplace_back(new_soft_nms_sigma.get_node_shared_ptr());
@@ -84,8 +85,8 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                     new_soft_nms_sigma,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    nms_5->get_output_type());
-            new_ops.emplace_back(nms_legacy);
+                    output_type);
+            new_ops.push_back(nms_legacy);
         } else {
             nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
                     new_args.at(0),
@@ -95,13 +96,27 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                     new_score_threshold,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    nms_5->get_output_type());
-            new_ops.emplace_back(nms_legacy);
+                    output_type);
+            new_ops.push_back(nms_legacy);
+        }
+
+        Output<Node> output_0 = nms_legacy->output(0);
+        if (nms_5->output(0).get_element_type() != output_0.get_element_type()) {
+            output_0 = std::make_shared<opset1::Convert>(output_0, nms_5->output(0).get_element_type());
+            output_0.get_node_shared_ptr()->set_friendly_name(nms_5->get_friendly_name() + "/convert.0");
+            new_ops.emplace_back(output_0.get_node_shared_ptr());
+        }
+
+        Output<Node> output_2 = nms_legacy->output(2);
+        if (nms_5->output(2).get_element_type() != output_2.get_element_type()) {
+            output_2 = std::make_shared<opset1::Convert>(output_2, nms_5->output(2).get_element_type());
+            output_2.get_node_shared_ptr()->set_friendly_name(nms_5->get_friendly_name() + "/convert.2");
+            new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 
         nms_legacy->set_friendly_name(nms_5->get_friendly_name());
         ngraph::copy_runtime_info(nms_5, new_ops);
-        ngraph::replace_node(nms_5, nms_legacy);
+        ngraph::replace_node(nms_5, {output_0, nms_legacy->output(1), output_2});
         return true;
     };
 
