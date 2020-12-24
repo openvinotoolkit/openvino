@@ -88,7 +88,7 @@ TEST(type_prop, detectron_detection_output_dynamic_input_shapes)
         {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {1, 3}},
         {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {1, dyn_dim}},
         {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {dyn_dim, 3}},
-        {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {dyn_dim, dyn_dim}}
+        {{dyn_dim, 4}, {dyn_dim, 324}, {dyn_dim, 81}, {dyn_dim, dyn_dim}},
         {{1000, 4}, {1000, 324}, {1000, 81}, dyn_shape},
         {{1000, 4}, {1000, 324}, dyn_shape, {1, 3}},
         {{1000, 4}, {1000, 324}, dyn_shape, dyn_shape},
@@ -113,8 +113,8 @@ TEST(type_prop, detectron_detection_output_dynamic_input_shapes)
         auto scores = std::make_shared<op::Parameter>(element::f32, s.scores_shape);
         auto im_info = std::make_shared<op::Parameter>(element::f32, s.im_info_shape);
 
-        auto detection = std::make_shared<ExperimentalDetection>(
-            rois, deltas, scores, im_info, attrs);
+        auto detection =
+            std::make_shared<ExperimentalDetection>(rois, deltas, scores, im_info, attrs);
 
         ASSERT_EQ(detection->get_output_element_type(0), element::f32);
         ASSERT_EQ(detection->get_output_element_type(1), element::i32);
