@@ -54,9 +54,9 @@ class ExperimentalDetectronDetectionOutput(Op):
         # boxes
         node.out_node(0).shape = np.array([rois_num, 4], dtype=np.int64)
         # classes, scores, batch indices
-        # We use range(1, max([i for i in node.out_ports()])) instead of range(1, 3), because there are incorrectly
+        # We use range(1, max([i + 1 for i in node.out_ports()])) instead of range(1, 3), because there are incorrectly
         # generated models where ExperimentalDetectronDetectionOutput has 4 outputs.
-        for port_ind in range(1, max([i for i in node.out_ports()])):
+        for port_ind in range(1, max([i + 1 for i in node.out_ports()])):
             if not node.out_port(port_ind).disconnected():
                 node.out_port(port_ind).data.set_shape(int64_array([rois_num]))
 
