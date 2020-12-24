@@ -16,10 +16,6 @@
 
 #pragma once
 
-#include <algorithm>
-#include <cassert>
-#include <numeric>
-
 namespace ngraph
 {
     namespace runtime

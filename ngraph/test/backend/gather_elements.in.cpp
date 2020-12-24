@@ -184,12 +184,12 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x3_data_float32)
     auto fun = make_shared<Function>(OutputVector{gather_el}, ParameterVector{arg1, arg2});
     auto test_case = test::TestCase<TestEngine>(fun);
 
-    std::vector<float_t> data{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
+    std::vector<float> data{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     std::vector<int32_t> indices{1, 2, 0, 2, 0, 0};
 
-    test_case.add_input<float_t>(data);
+    test_case.add_input<float>(data);
     test_case.add_input<int32_t>(indices);
-    test_case.add_expected_output<float_t>(vector<float_t>{4.0f, 8.0f, 3.0f, 7.0f, 2.0f, 3.0f});
+    test_case.add_expected_output<float>(vector<float>{4.0f, 8.0f, 3.0f, 7.0f, 2.0f, 3.0f});
     test_case.run();
 }
 
