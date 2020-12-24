@@ -4,9 +4,6 @@
 
 #include "transformations/op_conversions/convert_mvn1.hpp"
 
-#include <memory>
-#include <vector>
-
 #include <ngraph/rt_info.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
@@ -24,15 +21,15 @@ ngraph::pass::ConvertMVN1::ConvertMVN1() {
             return false;
         }
 
-        auto input = mvn_node->input_value(0);
+        const auto input = mvn_node->input_value(0);
 
         // MVN-1 support only 4D input tensors
         if (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().get_length() == 4) {
             std::shared_ptr<ngraph::opset6::Constant> axes;
             if (mvn_node->get_across_channels()) {
-                auto axes = opset1::Constant::create(ngraph::element::i64, { 3 }, { 1, 2, 3 });
+                axes = opset6::Constant::create(ngraph::element::i64, { 3 }, { 1, 2, 3 });
             } else {
-                auto axes = opset1::Constant::create(ngraph::element::i64, { 2 }, { 2, 3 });
+                axes = opset6::Constant::create(ngraph::element::i64, { 2 }, { 2, 3 });
             }
             auto mvn6_node = std::make_shared<ngraph::opset6::MVN>(input,
                 axes,

@@ -19,21 +19,22 @@ ngraph::pass::MVNDecomposition::MVNDecomposition() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto mvn_node = std::dynamic_pointer_cast<ngraph::opset6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
+        auto match_root = m.get_match_root();
 
         if (mvn_node == nullptr || m_transformation_callback(mvn)) {
             return false;
         }
 
-        auto data = mvn_node->input_value(0);
-        auto axes = mvn_node->input_value(1);
+        const auto data = mvn_node->input_value(0);
+        const auto axes = mvn_node->input_value(1);
 
         auto mean = std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true);
         auto mean_normalization = std::make_shared<ngraph::opset6::Subtract>(data, mean);
 
         if (!mvn_node->get_normalize_variance()) {
-            mean_normalization->set_friendly_name(m.get_match_root()->get_friendly_name());
+            mean_normalization->set_friendly_name(match_root->get_friendly_name());
             ngraph::copy_runtime_info(mvn_node, { mean, mean_normalization });
-            ngraph::replace_node(m.get_match_root(), mean_normalization);
+            ngraph::replace_node(match_root, mean_normalization);
         } else {
             auto mul = std::make_shared<ngraph::opset6::Multiply>(mean_normalization, mean_normalization);
             auto sum = std::make_shared<ngraph::opset6::ReduceSum>(mul, axes, true);
@@ -56,9 +57,9 @@ ngraph::pass::MVNDecomposition::MVNDecomposition() {
                 div = std::make_shared<ngraph::opset6::Divide>(mean_normalization, sqrt);
             }
 
-            div->set_friendly_name(m.get_match_root()->get_friendly_name());
+            div->set_friendly_name(match_root->get_friendly_name());
             ngraph::copy_runtime_info(mvn_node, { mean, mean_normalization, mul, sum, eps_node, eps_add, sqrt, div });
-            ngraph::replace_node(m.get_match_root(), div);
+            ngraph::replace_node(match_root, div);
         }
         return true;
     };

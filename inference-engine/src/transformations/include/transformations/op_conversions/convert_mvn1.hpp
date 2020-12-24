@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API ConvertMVN1;
+class TRANSFORMATIONS_API ConvertMVN1;
 
 }  // namespace pass
 }  // namespace ngraph
