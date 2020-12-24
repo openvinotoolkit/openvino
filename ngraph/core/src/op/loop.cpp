@@ -45,7 +45,7 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 
         return false;
     }
-    throw ngraph_error("v5_Loop_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v5::Loop::validate_and_infer_types()
@@ -310,9 +310,7 @@ void op::v5::Loop::validate_and_infer_types()
                 }
             }
         }
-        return;
     }
-    throw ngraph_error("v5_Loop_validate_and_infer_types is disabled!");
 }
 
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
@@ -394,7 +392,7 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
         }
         return move(op);
     }
-    throw ngraph_error("v5_Loop_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
@@ -423,5 +421,5 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
                                  inputs);
         return true;
     }
-    throw ngraph_error("v5_Loop_evaluate is disabled!");
+    return false;
 }

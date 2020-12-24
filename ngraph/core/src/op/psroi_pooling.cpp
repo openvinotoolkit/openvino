@@ -54,7 +54,7 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("spatial_bins_y", m_spatial_bins_y);
         return true;
     }
-    throw ngraph_error("v0_PSROIPooling_visit_attributes is disabled!");
+    return false;
 }
 
 void op::PSROIPooling::validate_and_infer_types()
@@ -137,9 +137,7 @@ void op::PSROIPooling::validate_and_infer_types()
             }
             set_output_type(0, feat_maps_et, output_shape);
         }
-        return;
     }
-    throw ngraph_error("v0_PSROIPooling_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
@@ -156,5 +154,5 @@ shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new
                                          m_spatial_bins_y,
                                          m_mode);
     }
-    throw ngraph_error("v0_PSROIPooling_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

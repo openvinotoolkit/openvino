@@ -50,13 +50,11 @@ void op::util::UnaryElementwiseArithmetic::validate_and_infer_types()
     NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_validate_and_infer_types)
     {
         validate_and_infer_elementwise_arithmetic();
-        return;
     }
-    throw ngraph_error("util_UnaryElementwiseArithmetic_validate_and_infer_types is disabled!");
 }
 
 bool op::util::UnaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_visit_attributes) { return true; }
-    throw ngraph_error("util_UnaryElementwiseArithmetic_visit_attributes is disabled!");
+    return false;
 }

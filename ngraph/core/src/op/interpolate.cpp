@@ -49,7 +49,7 @@ bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("pads_end", m_attrs.pads_end);
         return true;
     }
-    throw ngraph_error("v0_Interpolate_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v0::Interpolate::validate_and_infer_types()
@@ -81,9 +81,7 @@ void op::v0::Interpolate::validate_and_infer_types()
             }
         }
         set_output_type(0, get_input_element_type(0), output_shape);
-        return;
     }
-    throw ngraph_error("v0_Interpolate_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const
@@ -93,7 +91,7 @@ shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& 
         check_new_args_count(this, new_args);
         return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    throw ngraph_error("v0_Interpolate_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace ngraph
@@ -159,7 +157,7 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("cube_coeff", m_attrs.cube_coeff);
         return true;
     }
-    throw ngraph_error("v4_Interpolate_visit_attributes is disabled!");
+    return false;
 }
 
 std::vector<int64_t> op::v4::Interpolate::get_axes() const
@@ -292,9 +290,7 @@ void op::v4::Interpolate::validate_and_infer_types()
         }
 
         set_output_type(0, get_input_element_type(0), output_shape);
-        return;
     }
-    throw ngraph_error("v4_Interpolate_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const
@@ -310,7 +306,7 @@ shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& 
         return make_shared<op::v4::Interpolate>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_attrs);
     }
-    throw ngraph_error("v4_Interpolate_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace
@@ -527,7 +523,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v4_Interpolate_evaluate) { return evaluate_interpolate(outputs, inputs); }
-    throw ngraph_error("v4_Interpolate_evaluate is disabled!");
+    return false;
 }
 
 namespace ngraph

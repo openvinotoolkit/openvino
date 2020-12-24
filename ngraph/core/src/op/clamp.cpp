@@ -91,7 +91,7 @@ bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVe
         return clamp::evaluate_clamp(
             inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
     }
-    throw ngraph_error("v0_Clamp_evaluate is disabled!");
+    return false;
 }
 
 NGRAPH_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
@@ -239,7 +239,7 @@ shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) 
 
         return make_shared<Clamp>(new_args.at(0), m_min, m_max);
     }
-    throw ngraph_error("v0_Clamp_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::Clamp::visit_attributes(AttributeVisitor& visitor)
@@ -250,5 +250,5 @@ bool op::Clamp::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("max", m_max);
         return true;
     }
-    throw ngraph_error("v0_Clamp_visit_attributes is disabled!");
+    return false;
 }

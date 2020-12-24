@@ -46,7 +46,7 @@ bool op::Concat::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("axis", m_axis);
         return true;
     }
-    throw ngraph_error("v0_Concat_visit_attributes is disabled!");
+    return false;
 }
 
 void op::Concat::validate_and_infer_types()
@@ -114,9 +114,7 @@ void op::Concat::validate_and_infer_types()
         {
             set_output_type(0, inputs_et, PartialShape::dynamic(concatenation_axis_output_dim));
         }
-        return;
     }
-    throw ngraph_error("v0_Concat_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const
@@ -126,7 +124,7 @@ shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args)
         // TODO(amprocte): Should we check the new_args count here?
         return make_shared<Concat>(new_args, m_axis);
     }
-    throw ngraph_error("v0_Concat_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace
@@ -164,5 +162,5 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
         auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
         return evaluate_concat(inputs, outputs[0], concat_axis);
     }
-    throw ngraph_error("v0_Concat_evaluate is disabled!");
+    return false;
 }

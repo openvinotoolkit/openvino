@@ -48,7 +48,7 @@ bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("weights_format", m_weights_format);
         return true;
     }
-    throw ngraph_error("v0_LSTMSequence_visit_attributes is disabled!");
+    return false;
 }
 OutputVector op::v0::LSTMSequence::decompose_op() const
 {
@@ -121,7 +121,7 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
             throw ngraph_error("Incorrect number of new arguments");
         }
     }
-    throw ngraph_error("v0_LSTMSequence_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
@@ -437,9 +437,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
         set_output_type(
             2, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
-        return;
     }
-    throw ngraph_error("v0_LSTMSequence_validate_and_infer_types is disabled!");
 }
 
 bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
@@ -449,7 +447,7 @@ bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("direction", m_direction);
         return op::util::RNNCellBase::visit_attributes(visitor);
     }
-    throw ngraph_error("v5_LSTMSequence_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
@@ -478,7 +476,7 @@ shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector&
             throw ngraph_error("Incorrect number of new arguments");
         }
     }
-    throw ngraph_error("v5_LSTMSequence_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 void op::v5::LSTMSequence::validate_and_infer_types()
@@ -624,7 +622,5 @@ void op::v5::LSTMSequence::validate_and_infer_types()
             1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
         set_output_type(
             2, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
-        return;
     }
-    throw ngraph_error("v5_LSTMSequence_validate_and_infer_types is disabled!");
 }

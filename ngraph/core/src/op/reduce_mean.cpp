@@ -42,7 +42,7 @@ shared_ptr<Node> op::v1::ReduceMean::clone_with_new_inputs(const OutputVector& n
         check_new_args_count(this, new_args);
         return make_shared<op::v1::ReduceMean>(new_args.at(0), new_args.at(1), get_keep_dims());
     }
-    throw ngraph_error("v1_ReduceMean_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace mean
@@ -86,5 +86,5 @@ bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs,
     {
         return mean::evaluate_mean(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
     }
-    throw ngraph_error("v1_ReduceMean_evaluate is disabled!");
+    return false;
 }

@@ -46,7 +46,7 @@ bool ngraph::op::v1::Mod::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("auto_broadcast", m_auto_broadcast);
         return true;
     }
-    throw ngraph_error("v1_Mod_visit_attributes is disabled!");
+    return false;
 }
 
 OutputVector op::v1::Mod::decompose_op() const
@@ -75,5 +75,5 @@ shared_ptr<Node> op::v1::Mod::clone_with_new_inputs(const OutputVector& new_args
     {
         return make_shared<Mod>(new_args.at(0), new_args.at(1), m_auto_broadcast);
     }
-    throw ngraph_error("v1_Mod_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

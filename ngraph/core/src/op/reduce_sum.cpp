@@ -47,7 +47,7 @@ shared_ptr<Node> op::v1::ReduceSum::clone_with_new_inputs(const OutputVector& ne
         check_new_args_count(this, new_args);
         return make_shared<ReduceSum>(new_args.at(0), new_args.at(1), get_keep_dims());
     }
-    throw ngraph_error("v1_ReduceSum_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace reduce_sum
@@ -92,5 +92,5 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs,
         return reduce_sum::evaluate_sum(
             inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
     }
-    throw ngraph_error("v1_ReduceSum_evaluate is disabled!");
+    return false;
 }

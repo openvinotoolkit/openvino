@@ -50,7 +50,7 @@ shared_ptr<Node> op::Atan::clone_with_new_inputs(const OutputVector& new_args) c
         check_new_args_count(this, new_args);
         return make_shared<Atan>(new_args.at(0));
     }
-    throw ngraph_error("v0_Atan_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace atanop
@@ -85,9 +85,10 @@ namespace atanop
 
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    bool rc = false;
     NGRAPH_OP_SCOPE(v0_Atan_evaluate)
     {
-        return atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+        rc = atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    throw ngraph_error("v0_Atan_evaluate is disabled!");
+    return rc;
 }

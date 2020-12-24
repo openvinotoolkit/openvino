@@ -148,9 +148,7 @@ void op::v3::ExtractImagePatches::validate_and_infer_types()
 
             set_output_type(0, get_input_element_type(0), output_Pshape);
         }
-        return;
     }
-    throw ngraph_error("v3_ExtractImagePatches_validate_and_infer_types is disabled!");
 }
 
 bool op::v3::ExtractImagePatches::visit_attributes(AttributeVisitor& visitor)
@@ -163,7 +161,7 @@ bool op::v3::ExtractImagePatches::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("auto_pad", m_padding);
         return true;
     }
-    throw ngraph_error("v3_ExtractImagePatches_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node>
@@ -178,5 +176,5 @@ shared_ptr<Node>
                                                         m_patch_selection_rates,
                                                         m_padding);
     }
-    throw ngraph_error("v3_ExtractImagePatches_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

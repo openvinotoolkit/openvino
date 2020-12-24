@@ -104,9 +104,7 @@ void op::util::IndexReduction::validate_and_infer_types()
         }
 
         set_output_type(0, m_index_element_type, output_shape);
-        return;
     }
-    throw ngraph_error("util_IndexReduction_validate_and_infer_types is disabled!");
 }
 
 bool op::util::IndexReduction::visit_attributes(AttributeVisitor& visitor)
@@ -117,5 +115,5 @@ bool op::util::IndexReduction::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("index_element_type", m_index_element_type);
         return true;
     }
-    throw ngraph_error("util_IndexReduction_visit_attributes is disabled!");
+    return false;
 }

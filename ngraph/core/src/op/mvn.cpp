@@ -78,9 +78,7 @@ void op::MVN::validate_and_infer_types()
         }
 
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-        return;
     }
-    throw ngraph_error("v0_MVN_validate_and_infer_types is disabled!");
 }
 
 OutputVector op::MVN::decompose_op() const
@@ -121,7 +119,7 @@ shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) co
                               new_args.size());
         return make_shared<MVN>(new_args.at(0), m_reduction_axes, m_normalize_variance, m_eps);
     }
-    throw ngraph_error("v0_MVN_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::MVN::visit_attributes(AttributeVisitor& visitor)
@@ -134,7 +132,7 @@ bool op::MVN::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("reduction_axes", m_reduction_axes);
         return true;
     }
-    throw ngraph_error("v0_MVN_visit_attributes is disabled!");
+    return false;
 }
 
 // ------------------------------ V6 ------------------------------
@@ -196,9 +194,7 @@ void op::v6::MVN::validate_and_infer_types()
         }
 
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-        return;
     }
-    throw ngraph_error("v6_MVN_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const
@@ -212,7 +208,7 @@ shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args
         return make_shared<op::v6::MVN>(
             new_args.at(0), new_args.at(1), m_normalize_variance, m_eps, m_eps_mode);
     }
-    throw ngraph_error("v6_MVN_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor)
@@ -224,5 +220,5 @@ bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("eps_mode", m_eps_mode);
         return true;
     }
-    throw ngraph_error("v6_MVN_visit_attributes is disabled!");
+    return false;
 }

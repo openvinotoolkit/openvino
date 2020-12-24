@@ -38,7 +38,7 @@ bool op::v5::LogSoftmax::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("axis", m_axis);
         return true;
     }
-    throw ngraph_error("v5_LogSoftmax_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v5::LogSoftmax::validate_and_infer_types()
@@ -57,9 +57,7 @@ void op::v5::LogSoftmax::validate_and_infer_types()
                                   ").");
 
         set_output_type(0, get_input_element_type(0), input_shape);
-        return;
     }
-    throw ngraph_error("v5_LogSoftmax_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v5::LogSoftmax::clone_with_new_inputs(const OutputVector& new_args) const
@@ -69,5 +67,5 @@ shared_ptr<Node> op::v5::LogSoftmax::clone_with_new_inputs(const OutputVector& n
         check_new_args_count(this, new_args);
         return make_shared<op::v5::LogSoftmax>(new_args.at(0), m_axis);
     }
-    throw ngraph_error("v5_LogSoftmax_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

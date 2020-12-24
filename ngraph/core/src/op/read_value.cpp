@@ -42,9 +42,7 @@ void op::ReadValue::validate_and_infer_types()
         else
             m_variable->update(info);
         set_output_type(0, arg_t, output_shape);
-        return;
     }
-    throw ngraph_error("v3_ReadValue_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const
@@ -54,7 +52,7 @@ shared_ptr<Node> op::ReadValue::clone_with_new_inputs(const OutputVector& new_ar
         check_new_args_count(this, new_args);
         return make_shared<ReadValue>(new_args.at(0), m_variable_id);
     }
-    throw ngraph_error("v3_ReadValue_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor)
@@ -64,5 +62,5 @@ bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("variable_id", m_variable_id);
         return true;
     }
-    throw ngraph_error("v3_ReadValue_visit_attributes is disabled!");
+    return false;
 }

@@ -133,13 +133,11 @@ void op::util::ScatterBase::validate_and_infer_types()
             set_input_is_relevant_to_shape(0);
         }
         set_output_type(0, data_et, data_shape);
-        return;
     }
-    throw ngraph_error("util_ScatterBase_validate_and_infer_types is disabled!");
 }
 
 bool op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(util_ScatterBase_visit_attributes) { return true; }
-    throw ngraph_error("util_ScatterBase_visit_attributes is disabled!");
+    return false;
 }

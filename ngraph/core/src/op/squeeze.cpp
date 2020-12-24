@@ -114,7 +114,7 @@ void op::Squeeze::pre_validate_and_infer_types()
 bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Squeeze_visit_attributes) { return true; }
-    throw ngraph_error("v0_Squeeze_visit_attributes is disabled!");
+    return false;
 }
 
 OutputVector op::Squeeze::decompose_op() const
@@ -141,7 +141,7 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
         }
         return make_shared<Squeeze>(new_args.at(0), new_args.at(1));
     }
-    throw ngraph_error("v0_Squeeze_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace squeeze
@@ -182,7 +182,7 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
     {
         return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
     }
-    throw ngraph_error("v0_Squeeze_evaluate is disabled!");
+    return false;
 }
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

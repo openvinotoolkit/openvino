@@ -39,7 +39,7 @@ bool ngraph::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVi
         visitor.on_attribute("keep_dims", m_keep_dims);
         return true;
     }
-    throw ngraph_error("v0_util_ArithmeticReductionKeepDims_visit_attributes is disabled!");
+    return false;
 }
 
 void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
@@ -103,7 +103,5 @@ void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
         {
             ArithmeticReduction::validate_and_infer_types();
         }
-        return;
     }
-    throw ngraph_error("v0_util_ArithmeticReductionKeepDims_validate_and_infer_types is disabled!");
 }

@@ -39,7 +39,7 @@ shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& n
         check_new_args_count(this, new_args);
         return make_shared<v1::LogicalXor>(new_args.at(0), new_args.at(1), this->get_autob());
     }
-    throw ngraph_error("v1_LogicalXor_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool ngraph::op::v1::LogicalXor::visit_attributes(AttributeVisitor& visitor)
@@ -49,7 +49,7 @@ bool ngraph::op::v1::LogicalXor::visit_attributes(AttributeVisitor& visitor)
         BinaryElementwiseLogical::visit_attributes(visitor);
         return true;
     }
-    throw ngraph_error("v1_LogicalXor_visit_attributes is disabled!");
+    return false;
 }
 
 namespace logxor
@@ -98,7 +98,7 @@ bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs,
     {
         return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
     }
-    throw ngraph_error("v1_LogicalXor_evaluate is disabled!");
+    return false;
 }
 
 constexpr NodeTypeInfo op::v0::Xor::type_info;
@@ -118,7 +118,7 @@ shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args
         check_new_args_count(this, new_args);
         return make_shared<v0::Xor>(new_args.at(0), new_args.at(1), this->get_autob());
     }
-    throw ngraph_error("v0_Xor_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -127,5 +127,5 @@ bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVect
     {
         return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
     }
-    throw ngraph_error("v0_Xor_evaluate is disabled!");
+    return false;
 }

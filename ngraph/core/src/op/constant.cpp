@@ -554,7 +554,7 @@ shared_ptr<Node> op::Constant::clone_with_new_inputs(const OutputVector& new_arg
         check_new_args_count(this, new_args);
         return make_shared<Constant>(*this);
     }
-    throw ngraph_error("v0_Constant_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 template <typename T>
@@ -641,7 +641,7 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("value", m_data);
         return true;
     }
-    throw ngraph_error("v0_Constant_visit_attributes is disabled!");
+    return false;
 }
 
 bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
@@ -653,7 +653,7 @@ bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
         output->write(get_data_ptr(), output->get_size_in_bytes());
         return true;
     }
-    throw ngraph_error("v0_Constant_evaluate is disabled!");
+    return false;
 }
 
 //

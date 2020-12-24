@@ -113,9 +113,7 @@ void op::LRN::validate_and_infer_types()
                               "Axes input must be integral numbers, but are: ",
                               axes_type,
                               ").");
-        return;
     }
-    throw ngraph_error("v0_LRN_validate_and_infer_types is disabled!");
 }
 
 bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
@@ -128,7 +126,7 @@ bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("size", m_size);
         return true;
     }
-    throw ngraph_error("v0_LRN_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) const
@@ -139,5 +137,5 @@ shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) co
         return make_shared<op::LRN>(
             new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
     }
-    throw ngraph_error("v0_LRN_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

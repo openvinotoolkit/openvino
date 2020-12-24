@@ -37,9 +37,7 @@ void op::Convert::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v0_Convert_validate_and_infer_types)
     {
         set_output_type(0, m_destination_type, get_input_partial_shape(0));
-        return;
     }
-    throw ngraph_error("v0_Convert_validate_and_infer_types is disabled!");
 }
 
 bool op::Convert::visit_attributes(AttributeVisitor& visitor)
@@ -49,7 +47,7 @@ bool op::Convert::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("destination_type", m_destination_type);
         return true;
     }
-    throw ngraph_error("v0_Convert_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args) const
@@ -59,7 +57,7 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
         check_new_args_count(this, new_args);
         return make_shared<Convert>(new_args.at(0), m_destination_type);
     }
-    throw ngraph_error("v0_Convert_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace convert
@@ -136,5 +134,5 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
     {
         return convert::evaluate_convert(input_values[0], output_values[0]);
     }
-    throw ngraph_error("v0_Convert_evaluate is disabled!");
+    return false;
 }

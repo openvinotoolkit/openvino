@@ -40,13 +40,13 @@ shared_ptr<Node> op::v1::GatherTree::clone_with_new_inputs(const OutputVector& n
         return make_shared<v1::GatherTree>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
     }
-    throw ngraph_error("v1_GatherTree_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_GatherTree_visit_attributes) { return true; }
-    throw ngraph_error("v1_GatherTree_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v1::GatherTree::validate_and_infer_types()
@@ -88,7 +88,5 @@ void op::v1::GatherTree::validate_and_infer_types()
 
         const auto& step_ids_et = get_input_element_type(0);
         set_output_type(0, step_ids_et, step_ids_rank);
-        return;
     }
-    throw ngraph_error("v1_GatherTree_validate_and_infer_types is disabled!");
 }

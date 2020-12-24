@@ -173,9 +173,7 @@ void op::v5::RNNSequence::validate_and_infer_types()
             {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
         set_output_type(
             1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
-        return;
     }
-    throw ngraph_error("v5_RNNSequence_validate_and_infer_types is disabled!");
 }
 
 bool op::v5::RNNSequence::visit_attributes(AttributeVisitor& visitor)
@@ -185,7 +183,7 @@ bool op::v5::RNNSequence::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("direction", m_direction);
         return op::util::RNNCellBase::visit_attributes(visitor);
     }
-    throw ngraph_error("v5_RNNSequence_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node>
@@ -207,5 +205,5 @@ shared_ptr<Node>
                                                 m_activations_beta,
                                                 m_clip);
     }
-    throw ngraph_error("v5_RNNSequence_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

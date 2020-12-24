@@ -266,7 +266,7 @@ bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("sort", m_sort);
         return true;
     }
-    throw ngraph_error("v1_TopK_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v1::TopK::validate_and_infer_types()
@@ -323,9 +323,7 @@ void op::v1::TopK::validate_and_infer_types()
         set_output_size(2);
         set_output_type(0, get_input_element_type(0), output_shape);
         set_output_type(1, m_index_element_type, output_shape);
-        return;
     }
-    throw ngraph_error("v1_TopK_validate_and_infer_types is disabled!");
 }
 
 Shape op::v1::TopK::compute_output_shape(const std::string& node_description,
@@ -441,7 +439,7 @@ shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
         return std::move(new_v1_topk);
     }
-    throw ngraph_error("v1_TopK_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 size_t op::v1::TopK::get_k() const
@@ -509,7 +507,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
                                    sort_type,
                                    get_index_element_type());
     }
-    throw ngraph_error("v1_TopK_evaluate is disabled!");
+    return false;
 }
 
 // v3 version starts
@@ -547,7 +545,7 @@ bool ngraph::op::v3::TopK::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("index_element_type", m_index_element_type);
         return true;
     }
-    throw ngraph_error("v3_TopK_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v3::TopK::validate_and_infer_types()
@@ -560,9 +558,7 @@ void op::v3::TopK::validate_and_infer_types()
             "K input has to be an integer type, which does match the provided one:",
             get_input_element_type(1));
         op::v1::TopK::validate_and_infer_types();
-        return;
     }
-    throw ngraph_error("v3_TopK_validate_and_infer_types is disabled!");
 }
 
 size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
@@ -600,11 +596,11 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
         return std::move(new_v3_topk);
     }
-    throw ngraph_error("v3_TopK_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v3_TopK_evaluate) { return op::v1::TopK::evaluate(outputs, inputs); }
-    throw ngraph_error("v3_TopK_evaluate is disabled!");
+    return false;
 }

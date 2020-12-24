@@ -60,7 +60,7 @@ bool op::DepthToSpace::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("mode", m_mode);
         return true;
     }
-    throw ngraph_error("v0_DepthToSpace_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new_args) const
@@ -73,7 +73,7 @@ shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new
         }
         return make_shared<DepthToSpace>(new_args.at(0), m_mode, m_blocksize);
     }
-    throw ngraph_error("v0_DepthToSpace_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 void op::DepthToSpace::validate_and_infer_types()
@@ -121,9 +121,7 @@ void op::DepthToSpace::validate_and_infer_types()
         {
             set_output_type(0, data_type, PartialShape::dynamic());
         }
-        return;
     }
-    throw ngraph_error("v0_DepthToSpace_validate_and_infer_types is disabled!");
 }
 
 bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
@@ -257,7 +255,7 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate) { return evaluate_depth_to_space(outputs, inputs); }
-    throw ngraph_error("v0_DepthToSpace_evaluate is disabled!");
+    return false;
 }
 namespace ngraph
 {

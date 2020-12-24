@@ -129,9 +129,7 @@ void op::v1::BatchToSpace::validate_and_infer_types()
         {
             set_output_type(0, data_type, PartialShape::dynamic());
         }
-        return;
     }
-    throw ngraph_error("v1_BatchToSpace_validate_and_infer_types is disabled!");
 }
 
 std::shared_ptr<ngraph::Node>
@@ -143,13 +141,13 @@ std::shared_ptr<ngraph::Node>
         return make_shared<BatchToSpace>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
     }
-    throw ngraph_error("v1_BatchToSpace_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_visit_attributes) { return true; }
-    throw ngraph_error("v1_BatchToSpace_visit_attributes is disabled!");
+    return false;
 }
 
 namespace
@@ -270,5 +268,5 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace) { return batch_to_space_evaluate(outputs, inputs); }
-    throw ngraph_error("v1_BatchToSpace is disabled!");
+    return false;
 }

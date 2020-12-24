@@ -70,7 +70,7 @@ bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visito
         visitor.on_attribute("auto_pad", m_auto_pad);
         return true;
     }
-    throw ngraph_error("v1_GroupConvolution_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v1::GroupConvolution::validate_and_infer_types()
@@ -179,9 +179,7 @@ void op::v1::GroupConvolution::validate_and_infer_types()
                                       m_dilations);
 
         set_output_type(0, result_et, result_shape);
-        return;
     }
-    throw ngraph_error("v1_GroupConvolution_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVector& new_args) const
@@ -197,7 +195,7 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
                                                  m_dilations,
                                                  m_auto_pad);
     }
-    throw ngraph_error("v1_GroupConvolution_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -279,7 +277,7 @@ bool ngraph::op::v1::GroupConvolutionBackpropData::visit_attributes(AttributeVis
         visitor.on_attribute("output_padding", m_output_padding);
         return true;
     }
-    throw ngraph_error("v1_GroupConvolutionBackpropData_visit_attributes is disabled!");
+    return false;
 }
 
 bool op::v1::GroupConvolutionBackpropData::is_dynamic() const
@@ -598,5 +596,5 @@ shared_ptr<Node>
                                                                  m_output_padding);
         }
     }
-    throw ngraph_error("v1_GroupConvolutionBackpropData_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

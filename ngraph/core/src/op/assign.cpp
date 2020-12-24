@@ -77,9 +77,7 @@ void op::v3::Assign::validate_and_infer_types()
         {
             set_output_type(0, arg_t, PartialShape::dynamic());
         }
-        return;
     }
-    throw ngraph_error("v3_Assign_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_args) const
@@ -89,7 +87,7 @@ shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_a
         check_new_args_count(this, new_args);
         return make_shared<Assign>(new_args.at(0), m_variable_id);
     }
-    throw ngraph_error("v3_Assign_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor)
@@ -99,5 +97,5 @@ bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("variable_id", m_variable_id);
         return true;
     }
-    throw ngraph_error("v3_Assign_visit_attributes is disabled!");
+    return false;
 }

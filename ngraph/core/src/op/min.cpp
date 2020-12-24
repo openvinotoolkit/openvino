@@ -77,7 +77,7 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
         check_new_args_count(this, new_args);
         return make_shared<op::v1::ReduceMin>(new_args.at(0), new_args.at(1), get_keep_dims());
     }
-    throw ngraph_error("v1_ReduceMin_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
@@ -87,5 +87,5 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
     {
         return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
     }
-    throw ngraph_error("v1_ReduceMin_evaluate is disabled!");
+    return false;
 }

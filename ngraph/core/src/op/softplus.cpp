@@ -34,7 +34,7 @@ op::v4::SoftPlus::SoftPlus(const Output<Node>& arg)
 bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v4_SoftPlus_visit_attributes) { return true; }
-    throw ngraph_error("v4_SoftPlus_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v4::SoftPlus::validate_and_infer_types()
@@ -43,9 +43,7 @@ void op::v4::SoftPlus::validate_and_infer_types()
     {
         set_output_size(1);
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-        return;
     }
-    throw ngraph_error("v4_SoftPlus_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new_args) const
@@ -55,7 +53,7 @@ shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new
         check_new_args_count(this, new_args);
         return make_shared<op::v4::SoftPlus>(new_args.at(0));
     }
-    throw ngraph_error("v4_SoftPlus_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace softplus
@@ -91,5 +89,5 @@ bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
     {
         return softplus::evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    throw ngraph_error("v4_SoftPlus_evaluate is disabled!");
+    return false;
 }

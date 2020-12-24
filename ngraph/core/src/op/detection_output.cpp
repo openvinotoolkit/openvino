@@ -268,9 +268,7 @@ void op::DetectionOutput::validate_and_infer_types()
         output_shape.push_back(7);
 
         set_output_type(0, box_logits_et, output_shape);
-        return;
     }
-    throw ngraph_error("v0_DetectionOutput_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const
@@ -299,7 +297,7 @@ shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& 
                                                 m_attrs);
         }
     }
-    throw ngraph_error("v0_DetectionOutput_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
@@ -324,5 +322,5 @@ bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("objectness_score", m_attrs.objectness_score);
         return true;
     }
-    throw ngraph_error("v0_DetectionOutput_visit_attributes is disabled!");
+    return false;
 }

@@ -37,7 +37,7 @@ op::Sinh::Sinh(const Output<Node>& arg)
 bool ngraph::op::v0::Sinh::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Sinh_visit_attributes) { return true; }
-    throw ngraph_error("v0_Sinh_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::Sinh::clone_with_new_inputs(const OutputVector& new_args) const
@@ -47,7 +47,7 @@ shared_ptr<Node> op::Sinh::clone_with_new_inputs(const OutputVector& new_args) c
         check_new_args_count(this, new_args);
         return make_shared<Sinh>(new_args.at(0));
     }
-    throw ngraph_error("v0_Sinh_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace sinhop
@@ -86,5 +86,5 @@ bool op::Sinh::evaluate(const HostTensorVector& outputs, const HostTensorVector&
     {
         return sinhop::evaluate_sinh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    throw ngraph_error("v0_Sinh_evaluate is disabled!");
+    return false;
 }

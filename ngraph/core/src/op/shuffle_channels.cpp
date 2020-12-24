@@ -49,7 +49,7 @@ bool ngraph::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor
         visitor.on_attribute("group", m_group);
         return true;
     }
-    throw ngraph_error("v0_ShuffleChannels_visit_attributes is disabled!");
+    return false;
 }
 
 size_t op::ShuffleChannels::get_zero_based_axis() const
@@ -105,9 +105,7 @@ void op::ShuffleChannels::validate_and_infer_types()
         {
             set_output_type(0, data_type, PartialShape::dynamic());
         }
-        return;
     }
-    throw ngraph_error("v0_ShuffleChannels_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const
@@ -123,7 +121,7 @@ shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& 
 
         return make_shared<ShuffleChannels>(new_args.at(0), m_axis, m_group);
     }
-    throw ngraph_error("v0_ShuffleChannels_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 Shape op::ShuffleChannels::get_pre_shuffle_shape(const Shape& data_shape) const
@@ -206,5 +204,5 @@ bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
     {
         return evaluate_shuffle_channels(outputs, inputs);
     }
-    throw ngraph_error("v0_ShuffleChannels_evaluate is disabled!");
+    return false;
 }

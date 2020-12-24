@@ -120,9 +120,7 @@ void op::v1::OneHot::validate_and_infer_types()
         }
 
         set_output_type(0, on_value_et, result_shape);
-        return;
     }
-    throw ngraph_error("v1_OneHot_validate_and_infer_types is disabled!");
 }
 
 bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor)
@@ -132,7 +130,7 @@ bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("axis", m_axis);
         return true;
     }
-    throw ngraph_error("v1_OneHot_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_args) const
@@ -143,7 +141,7 @@ shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_a
         return make_shared<v1::OneHot>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
     }
-    throw ngraph_error("v1_OneHot_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace detail
@@ -226,5 +224,5 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
     {
         return detail::evaluate_onehot(output_values, input_values, get_axis());
     }
-    throw ngraph_error("v1_OneHot_evaluate is disabled!");
+    return false;
 }

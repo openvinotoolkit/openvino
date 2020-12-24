@@ -118,7 +118,5 @@ void op::util::LogicalReduction::validate_and_infer_types()
                               "Input element type must be boolean.");
 
         set_output_type(0, element::boolean, result_shape);
-        return;
     }
-    throw ngraph_error("util_LogicalReduction_validate_and_infer_types is disabled!");
 }

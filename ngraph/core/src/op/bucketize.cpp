@@ -41,7 +41,7 @@ bool op::v3::Bucketize::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("with_right_bound", m_with_right_bound);
         return true;
     }
-    throw ngraph_error("v3_Bucketize_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v3::Bucketize::validate_and_infer_types()
@@ -68,9 +68,7 @@ void op::v3::Bucketize::validate_and_infer_types()
 
         set_output_size(1);
         set_output_type(0, m_output_type, data_pshape);
-        return;
     }
-    throw ngraph_error("v3_Bucketize_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const
@@ -82,5 +80,5 @@ shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& in
         return make_shared<v3::Bucketize>(
             inputs.at(0), inputs.at(1), m_output_type, m_with_right_bound);
     }
-    throw ngraph_error("v3_Bucketize_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

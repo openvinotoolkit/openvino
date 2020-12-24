@@ -82,7 +82,7 @@ shared_ptr<Node> op::v1::Equal::clone_with_new_inputs(const OutputVector& new_ar
         check_new_args_count(this, new_args);
         return make_shared<op::v1::Equal>(new_args.at(0), new_args.at(1), this->get_autob());
     }
-    throw ngraph_error("v1_Equal_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -91,5 +91,5 @@ bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVe
     {
         return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
     }
-    throw ngraph_error("v1_Equal_evaluate is disabled!");
+    return false;
 }

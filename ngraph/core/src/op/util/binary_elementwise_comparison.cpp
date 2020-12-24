@@ -43,9 +43,7 @@ void op::util::BinaryElementwiseComparison::validate_and_infer_types()
         PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
         set_output_type(0, element::boolean, args_pshape);
-        return;
     }
-    throw ngraph_error("v0_util_BinaryElementwiseComparison_validate_and_infer_types is disabled!");
 }
 
 bool op::util::BinaryElementwiseComparison::visit_attributes(AttributeVisitor& visitor)
@@ -55,5 +53,5 @@ bool op::util::BinaryElementwiseComparison::visit_attributes(AttributeVisitor& v
         visitor.on_attribute("auto_broadcast", m_autob);
         return true;
     }
-    throw ngraph_error("v0_util_BinaryElementwiseComparison_visit_attributes is disabled!");
+    return false;
 }

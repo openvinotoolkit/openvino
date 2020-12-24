@@ -41,7 +41,7 @@ op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
 bool ngraph::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_VariadicSplit_visit_attributes) { return true; }
-    throw ngraph_error("v1_VariadicSplit_visit_attributes is disabled!");
+    return false;
 }
 
 void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
@@ -143,9 +143,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
                 }
             }
         }
-        return;
     }
-    throw ngraph_error("v1_VariadicSplit_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector& new_args) const
@@ -155,7 +153,7 @@ shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector
         check_new_args_count(this, new_args);
         return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
     }
-    throw ngraph_error("v1_VariadicSplit_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace variadic_split
@@ -228,5 +226,5 @@ bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate) { return evaluate_variadic_split(inputs, outputs); }
-    throw ngraph_error("v1_VariadicSplit_evaluate is disabled!");
+    return false;
 }

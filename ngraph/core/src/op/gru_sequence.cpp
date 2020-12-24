@@ -179,9 +179,7 @@ void op::v5::GRUSequence::validate_and_infer_types()
             {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
         set_output_type(
             1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
-        return;
     }
-    throw ngraph_error("v5_GRUSequence_validate_and_infer_types is disabled!");
 }
 
 bool op::v5::GRUSequence::visit_attributes(AttributeVisitor& visitor)
@@ -192,7 +190,7 @@ bool op::v5::GRUSequence::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("linear_before_reset", m_linear_before_reset);
         return op::util::RNNCellBase::visit_attributes(visitor);
     }
-    throw ngraph_error("v5_GRUSequence_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::v5::GRUSequence::clone_with_new_inputs(const OutputVector& new_args) const
@@ -214,5 +212,5 @@ shared_ptr<Node> op::v5::GRUSequence::clone_with_new_inputs(const OutputVector& 
                                                 m_clip,
                                                 m_linear_before_reset);
     }
-    throw ngraph_error("v5_GRUSequence_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

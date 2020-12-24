@@ -56,7 +56,7 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("auto_pad", m_auto_pad);
         return true;
     }
-    throw ngraph_error("v1_Convolution_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v1::Convolution::validate_and_infer_types()
@@ -149,9 +149,7 @@ void op::v1::Convolution::validate_and_infer_types()
                                       m_dilations);
 
         set_output_type(0, result_et, result_shape);
-        return;
     }
-    throw ngraph_error("v1_Convolution_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const
@@ -167,7 +165,7 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
                                             m_dilations,
                                             m_auto_pad);
     }
-    throw ngraph_error("v1_Convolution_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 constexpr NodeTypeInfo op::v1::ConvolutionBackpropData::type_info;
@@ -208,7 +206,7 @@ bool op::v1::ConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor
         visitor.on_attribute("output_padding", m_output_padding);
         return true;
     }
-    throw ngraph_error("v1_ConvolutionBackpropData_visit_attributes is disabled!");
+    return false;
 }
 
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
@@ -449,9 +447,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
         set_input_is_relevant_to_shape(0);
         set_input_is_relevant_to_shape(1);
         set_output_type(0, result_et, output_pshape);
-        return;
     }
-    throw ngraph_error("v1_ConvolutionBackpropData_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node>
@@ -484,5 +480,5 @@ shared_ptr<Node>
                                                             m_output_padding);
         }
     }
-    throw ngraph_error("v1_ConvolutionBackpropData_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

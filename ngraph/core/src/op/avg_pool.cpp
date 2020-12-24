@@ -77,7 +77,7 @@ bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("rounding_type", m_rounding_type);
         return true;
     }
-    throw ngraph_error("v1_AvgPool_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v1::AvgPool::validate_and_infer_types()
@@ -148,9 +148,7 @@ void op::v1::AvgPool::validate_and_infer_types()
                                                           !m_exclude_pad,
                                                           m_rounding_type == op::RoundingType::CEIL)
                                                     : output_shape);
-        return;
     }
-    throw ngraph_error("v1_AvgPool_validate_and_infer_types is disabled!");
 }
 
 const Shape& op::v1::AvgPool::get_kernel() const
@@ -237,7 +235,7 @@ shared_ptr<Node> op::v1::AvgPool::clone_with_new_inputs(const OutputVector& new_
                                         m_rounding_type,
                                         m_auto_pad);
     }
-    throw ngraph_error("v1_AvgPool_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 shared_ptr<Node> op::v1::AvgPool::get_default_value() const

@@ -41,7 +41,7 @@ bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("element_type", m_element_type);
         return true;
     }
-    throw ngraph_error("v0_Parameter_visit_attributes is disabled!");
+    return false;
 }
 
 void op::Parameter::validate_and_infer_types()
@@ -50,9 +50,7 @@ void op::Parameter::validate_and_infer_types()
     {
         Op::validate_and_infer_types();
         set_output_type(0, m_element_type, m_partial_shape);
-        return;
     }
-    throw ngraph_error("v0_Parameter_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const
@@ -62,7 +60,7 @@ shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_ar
         check_new_args_count(this, new_args);
         return make_shared<Parameter>(m_element_type, m_partial_shape);
     }
-    throw ngraph_error("v0_Parameter_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::Parameter::is_relevant_to_shapes() const

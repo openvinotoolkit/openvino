@@ -151,9 +151,7 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
                                       m_dilations);
 
         set_output_type(0, data_batch_et, result_shape);
-        return;
     }
-    throw ngraph_error("v1_BinaryConvolution_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node>
@@ -172,7 +170,7 @@ shared_ptr<Node>
                                                   m_pad_value,
                                                   m_auto_pad);
     }
-    throw ngraph_error("v1_BinaryConvolution_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor)
@@ -188,7 +186,7 @@ bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("auto_pad", m_auto_pad);
         return true;
     }
-    throw ngraph_error("v1_BinaryConvolution_visit_attributes is disabled!");
+    return false;
 }
 
 namespace ngraph

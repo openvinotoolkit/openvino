@@ -34,7 +34,7 @@ op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats)
 bool ngraph::op::v0::Tile::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Tile_visit_attributes) { return true; }
-    throw ngraph_error("v0_Tile_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v0::Tile::validate_and_infer_types()
@@ -92,9 +92,7 @@ void op::v0::Tile::validate_and_infer_types()
 
         set_input_is_relevant_to_shape(0);
         set_input_is_relevant_to_shape(1);
-        return;
     }
-    throw ngraph_error("v0_Tile_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_args) const
@@ -104,7 +102,7 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
         check_new_args_count(this, new_args);
         return make_shared<Tile>(new_args.at(0), new_args.at(1));
     }
-    throw ngraph_error("v0_Tile_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs,
@@ -147,5 +145,5 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs,
 bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Tile_evaluate) { return evaluate_tile(outputs, inputs); }
-    throw ngraph_error("v0_Tile_evaluate is disabled!");
+    return false;
 }

@@ -38,7 +38,7 @@ op::util::ScatterNDBase::ScatterNDBase(const Output<Node>& data,
 bool op::util::ScatterNDBase::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(util_ScatterNDBase_visit_attributes) { return true; }
-    throw ngraph_error("util_ScatterNDBase_visit_attributes is disabled!");
+    return false;
 }
 
 void op::util::ScatterNDBase::validate_and_infer_types()
@@ -107,7 +107,5 @@ void op::util::ScatterNDBase::validate_and_infer_types()
         }
 
         set_output_type(0, inputs_et, inputs_shape);
-        return;
     }
-    throw ngraph_error("util_ScatterNDBase_validate_and_infer_types is disabled!");
 }

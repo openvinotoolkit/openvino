@@ -161,9 +161,7 @@ void op::Quantize::validate_and_infer_types()
         {
             set_output_type(0, quantized_type, PartialShape::dynamic());
         }
-        return;
     }
-    throw ngraph_error("v0_Quantize_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::Quantize::clone_with_new_inputs(const OutputVector& new_args) const
@@ -174,5 +172,5 @@ shared_ptr<Node> op::Quantize::clone_with_new_inputs(const OutputVector& new_arg
         return make_shared<Quantize>(
             new_args.at(0), new_args.at(1), new_args.at(2), m_type, m_axes, m_round_mode);
     }
-    throw ngraph_error("v0_Quantize_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

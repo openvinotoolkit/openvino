@@ -52,7 +52,7 @@ bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("eps_mode", m_eps_mode);
         return true;
     }
-    throw ngraph_error("v0_NormalizeL2_visit_attributes is disabled!");
+    return false;
 }
 
 void op::NormalizeL2::pre_validate_and_infer_types()
@@ -129,5 +129,5 @@ shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_
         }
         return make_shared<NormalizeL2>(new_args.at(0), new_args.at(1), m_eps, m_eps_mode);
     }
-    throw ngraph_error("v0_NormalizeL2_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

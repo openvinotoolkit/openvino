@@ -108,7 +108,7 @@ bool op::v3::GRUCell::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("linear_before_reset", m_linear_before_reset);
         return op::util::RNNCellBase::visit_attributes(visitor);
     }
-    throw ngraph_error("v3_GRUCell_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v3::GRUCell::validate_and_infer_types()
@@ -209,9 +209,7 @@ void op::v3::GRUCell::validate_and_infer_types()
         // Set output size, type and shape
         set_output_size(1);
         set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
-        return;
     }
-    throw ngraph_error("v3_GRUCell_validate_and_infer_types is disabled!");
 }
 
 void op::v3::GRUCell::add_default_bias_input()
@@ -260,5 +258,5 @@ shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_
             throw ngraph_error("Incorrect number of new arguments");
         }
     }
-    throw ngraph_error("v3_GRUCell_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

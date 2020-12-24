@@ -39,7 +39,7 @@ shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args
         check_new_args_count(this, new_args);
         return make_shared<Ceiling>(new_args.at(0));
     }
-    throw ngraph_error("v0_Ceiling_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace ceiling
@@ -91,5 +91,5 @@ bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVect
     {
         return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    throw ngraph_error("v0_Ceiling_evaluate is disabled!");
+    return false;
 }

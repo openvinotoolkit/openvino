@@ -49,7 +49,7 @@ bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor
         visitor.on_attribute("seq_axis", m_seq_axis);
         return true;
     }
-    throw ngraph_error("v0_ReverseSequence_visit_attributes is disabled!");
+    return false;
 }
 
 void op::ReverseSequence::validate_and_infer_types()
@@ -96,9 +96,7 @@ void op::ReverseSequence::validate_and_infer_types()
         }
 
         set_output_type(0, get_input_element_type(0), output_shape);
-        return;
     }
-    throw ngraph_error("v0_ReverseSequence_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const
@@ -109,5 +107,5 @@ shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& 
         return make_shared<ReverseSequence>(
             new_args.at(0), new_args.at(1), m_batch_axis, m_seq_axis);
     }
-    throw ngraph_error("v0_ReverseSequence_clone_with_new_inputs is disabled!");
+    return nullptr;
 }

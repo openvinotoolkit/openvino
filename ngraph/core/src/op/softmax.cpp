@@ -78,7 +78,7 @@ bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("axis", m_axis);
         return true;
     }
-    throw ngraph_error("v1_Softmax_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v1::Softmax::validate_and_infer_types()
@@ -96,9 +96,7 @@ void op::v1::Softmax::validate_and_infer_types()
                                   ").");
 
         set_output_type(0, get_input_element_type(0), input_shape);
-        return;
     }
-    throw ngraph_error("v1_Softmax_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_args) const
@@ -108,7 +106,7 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
         check_new_args_count(this, new_args);
         return make_shared<op::v1::Softmax>(new_args.at(0), m_axis);
     }
-    throw ngraph_error("v1_Softmax_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
@@ -119,5 +117,5 @@ bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
         outputs[0]->set_unary(inputs[0]);
         return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
     }
-    throw ngraph_error("v1_Softmax_evaluate is disabled!");
+    return false;
 }

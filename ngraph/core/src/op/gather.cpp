@@ -48,7 +48,7 @@ op::v1::Gather::Gather(const Output<Node>& params,
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Gather_visit_attributes) { return true; }
-    throw ngraph_error("v1_Gather_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v1::Gather::validate_and_infer_types()
@@ -115,9 +115,7 @@ void op::v1::Gather::validate_and_infer_types()
         }
 
         set_output_type(0, result_et, result_shape);
-        return;
     }
-    throw ngraph_error("v1_Gather_validate_and_infer_types is disabled!");
 }
 
 int64_t op::v1::Gather::get_axis() const
@@ -147,7 +145,7 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
         return make_shared<v1::Gather>(
             new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
     }
-    throw ngraph_error("v1_Gather_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace gather
@@ -325,7 +323,7 @@ bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Gather_evaluate) { return evaluate_gather(outputs, inputs); }
-    throw ngraph_error("v1_Gather_evaluate is disabled!");
+    return false;
 }
 
 bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)

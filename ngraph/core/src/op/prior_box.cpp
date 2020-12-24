@@ -83,9 +83,7 @@ void op::PriorBox::validate_and_infer_types()
         {
             set_output_type(0, element::f32, PartialShape::dynamic());
         }
-        return;
     }
-    throw ngraph_error("v0_PriorBox_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
@@ -95,7 +93,7 @@ shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_arg
         check_new_args_count(this, new_args);
         return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    throw ngraph_error("v0_PriorBox_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 int64_t op::PriorBox::number_of_priors(const PriorBoxAttrs& attrs)
@@ -161,7 +159,7 @@ bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("scale_all_sizes", m_attrs.scale_all_sizes);
         return true;
     }
-    throw ngraph_error("v0_PriorBox_visit_attributes is disabled!");
+    return false;
 }
 
 namespace prior_box
@@ -209,5 +207,5 @@ bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
     {
         return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
     }
-    throw ngraph_error("v0_PriorBox_evaluate is disabled!");
+    return false;
 }

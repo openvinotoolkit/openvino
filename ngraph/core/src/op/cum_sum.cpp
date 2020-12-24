@@ -53,7 +53,7 @@ bool op::v0::CumSum::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("reverse", m_reverse);
         return true;
     }
-    throw ngraph_error("v0_CumSum_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v0::CumSum::validate_and_infer_types()
@@ -76,9 +76,7 @@ void op::v0::CumSum::validate_and_infer_types()
                               "axis element type must be either int64_t or int32_t but got (",
                               axis_type,
                               ").");
-        return;
     }
-    throw ngraph_error("v0_CumSum_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_args) const
@@ -88,7 +86,7 @@ shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_a
         check_new_args_count(this, new_args);
         return make_shared<op::CumSum>(new_args.at(0), new_args.at(1), m_exclusive, m_reverse);
     }
-    throw ngraph_error("v0_CumSum_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 shared_ptr<Node> op::v0::CumSum::get_default_value() const

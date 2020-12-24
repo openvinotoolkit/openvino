@@ -162,9 +162,7 @@ void op::v3::ROIAlign::validate_and_infer_types()
             set_input_is_relevant_to_shape(1);
             set_input_is_relevant_to_shape(2);
         }
-        return;
     }
-    throw ngraph_error("v3_ROIAlign_validate_and_infer_types is disabled!");
 }
 
 bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor)
@@ -179,7 +177,7 @@ bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor)
 
         return true;
     }
-    throw ngraph_error("v3_ROIAlign_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new_args) const
@@ -196,7 +194,7 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
                                      m_spatial_scale,
                                      m_mode);
     }
-    throw ngraph_error("v3_ROIAlign_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace ngraph
@@ -318,5 +316,5 @@ bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
         return roi_alinop::evaluate_roi_align(
             inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
     }
-    throw ngraph_error("v3_ROIAlign_evaluate is disabled!");
+    return false;
 }

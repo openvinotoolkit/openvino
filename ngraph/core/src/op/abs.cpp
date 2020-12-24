@@ -41,7 +41,7 @@ shared_ptr<Node> op::Abs::clone_with_new_inputs(const OutputVector& new_args) co
         check_new_args_count(this, new_args);
         return make_shared<Abs>(new_args.at(0));
     }
-    throw ngraph_error("v0_Abs_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace absop
@@ -77,9 +77,10 @@ namespace absop
 
 bool op::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    bool rc = false;
     NGRAPH_OP_SCOPE(v0_Abs_evaluate)
     {
-        return absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+        rc = absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    throw ngraph_error("v0_Abs_evaluate is disabled!");
+    return rc;
 }

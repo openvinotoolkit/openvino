@@ -286,9 +286,7 @@ void op::util::BroadcastBase::validate_and_infer_types()
             }
         }
         set_output_type(0, get_input_element_type(0), result_shape);
-        return;
     }
-    throw ngraph_error("util_BroadcastBase_validate_and_infer_types is disabled!");
 }
 
 std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes_numpy_pdpd(
@@ -378,7 +376,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                       arg0->get_element_type().size());
         return true;
     }
-    throw ngraph_error("util_BroadcastBase_evaluate_axes is disabled!");
+    return false;
 }
 
 namespace
@@ -556,5 +554,5 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
         return evaluate_broadcast(
             inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
     }
-    throw ngraph_error("util_BroadcastBase_evaluate is disabled!");
+    return false;
 }

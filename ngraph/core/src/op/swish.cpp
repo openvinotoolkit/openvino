@@ -42,7 +42,7 @@ op::v4::Swish::Swish(const Output<Node>& arg, const Output<Node>& beta)
 bool op::v4::Swish::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v4_Swish_visit_attributes) { return true; }
-    throw ngraph_error("v4_Swish_visit_attributes is disabled!");
+    return false;
 }
 
 void op::v4::Swish::validate_and_infer_types()
@@ -75,9 +75,7 @@ void op::v4::Swish::validate_and_infer_types()
         }
         set_output_size(1);
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-        return;
     }
-    throw ngraph_error("v4_Swish_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_args) const
@@ -93,7 +91,7 @@ shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_ar
             return make_shared<op::v4::Swish>(new_args.at(0), new_args.at(1));
         }
     }
-    throw ngraph_error("v4_Swish_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace swish
@@ -142,5 +140,5 @@ bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVe
     {
         return swish::evaluate_swish(inputs, outputs[0], shape_size(get_output_shape(0)));
     }
-    throw ngraph_error("v4_Swish_evaluate is disabled!");
+    return false;
 }

@@ -145,13 +145,11 @@ void op::util::EmbeddingBagOffsetsBase::validate_and_infer_types()
         }
 
         set_output_type(0, result_et, result_shape);
-        return;
     }
-    throw ngraph_error("util_EmbeddingBagOffsetsBase_validate_and_infer_types is disabled!");
 }
 
 bool op::util::EmbeddingBagOffsetsBase::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(util_EmbeddingBagOffsetsBase_visit_attributes) { return true; }
-    throw ngraph_error("util_EmbeddingBagOffsetsBase_visit_attributes is disabled!");
+    return false;
 }

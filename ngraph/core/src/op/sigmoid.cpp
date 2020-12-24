@@ -35,7 +35,7 @@ shared_ptr<Node> op::Sigmoid::clone_with_new_inputs(const OutputVector& new_args
         check_new_args_count(this, new_args);
         return make_shared<Sigmoid>(new_args.at(0));
     }
-    throw ngraph_error("v0_Sigmoid_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 op::Sigmoid::Sigmoid(const Output<Node>& arg)
@@ -80,5 +80,5 @@ bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVect
     {
         return sigmoid::evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    throw ngraph_error("v0_Sigmoid_evaluate is disabled!");
+    return false;
 }

@@ -35,7 +35,7 @@ op::Floor::Floor(const Output<Node>& arg)
 bool ngraph::op::v0::Floor::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Floor_visit_attributes) { return true; }
-    throw ngraph_error("v0_Floor_visit_attributes is disabled!");
+    return false;
 }
 
 shared_ptr<Node> op::Floor::clone_with_new_inputs(const OutputVector& new_args) const
@@ -45,7 +45,7 @@ shared_ptr<Node> op::Floor::clone_with_new_inputs(const OutputVector& new_args) 
         check_new_args_count(this, new_args);
         return make_shared<Floor>(new_args.at(0));
     }
-    throw ngraph_error("v0_Floor_clone_with_new_inputs is disabled!");
+    return nullptr;
 }
 
 namespace floorop
@@ -97,5 +97,5 @@ bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector
     {
         return floorop::evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    throw ngraph_error("v0_Floor_evaluate is disabled!");
+    return false;
 }
