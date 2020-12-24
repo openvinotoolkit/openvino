@@ -27,9 +27,11 @@ from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, re
 
 nodes = {
     **regular_op_with_shaped_data('parameter', [1, 3, 227, 227],
-                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227],
+                                   'fw_tensor_debug_info': 'Placeholder'}),
     **regular_op_with_shaped_data('parameter_2', [1, 3, 227, 227],
-                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227]}),
+                                  {'type': 'Parameter', 'op': 'Parameter', 'shape': [1, 3, 227, 227],
+                                   'fw_tensor_debug_info': 'Placeholder'}),
 
     **regular_op_with_shaped_data('mul_scale', [1, 3, 227, 227], {'type': 'Multiply', 'op': 'Mul'}),
     **regular_op_with_shaped_data('add_mean', [1, 3, 227, 227], {'type': 'Add', 'op': 'Add'}),
@@ -44,7 +46,19 @@ nodes = {
 }
 
 
+def set_graph_attrs(graph, graph_ref):
+    for node in graph.get_data_nodes():
+        node['fw_tensor_debug_info'] = ['data_attributes', 0]
+    for graph_ref in graph_ref.get_data_nodes():
+        graph_ref['fw_tensor_debug_info'] = ['data_attributes', 0]
+
+
 class AddMeanScaleValuesTest(unittest.TestCase):
+    def check_graph_attrs(self, graph, graph_ref):
+        for node_name in graph.get_nodes_with_attributes():
+            if 'fw_tensor_debug_info' in graph.node[node_name]:
+                self.assertTrue(graph.node[node_name]['fw_tensor_debug_info'] == graph_ref.node[node_name]['fw_tensor_debug_info'])
+
     def test_mean_values_with_data_name(self):
         graph_ref = build_graph(nodes, [
             *connect('parameter', '0:add_mean'),
@@ -58,11 +72,13 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         argv = Namespace(mean_scale_values=mean_scale)
 
         graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         AddMeanScaleValues().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
     def test_mean_values_without_data_name(self):
         graph_ref = build_graph(nodes, [
@@ -78,11 +94,13 @@ class AddMeanScaleValuesTest(unittest.TestCase):
 
         graph = build_graph(nodes, [*connect('parameter', 'result')], {'parameter': {'name': 'None'}},
                             nodes_with_edges_only=True, cli=argv)
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         AddMeanScaleValues().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
     def test_mean_values_explicit_and_optimized(self):
         graph_ref = build_graph(nodes, [
@@ -96,6 +114,7 @@ class AddMeanScaleValuesTest(unittest.TestCase):
                                             'parameter_2': {'mean': np.array([0., 0., 0.])}})
         graph = build_graph(nodes, [*connect('parameter', 'result'), *connect('parameter_2', 'result_2')],
                             nodes_with_edges_only=True, cli=argv)
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         AddMeanScaleValues().find_and_replace_pattern(graph)
@@ -103,6 +122,7 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         self.assertTrue(flag, resp)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
     def test_mean_values_explicit_and_scale_values_optimized(self):
         graph_ref = build_graph(nodes, [
@@ -113,11 +133,13 @@ class AddMeanScaleValuesTest(unittest.TestCase):
 
         argv = Namespace(mean_scale_values={'parameter': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}})
         graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         AddMeanScaleValues().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
     def test_mean_values_optimized_and_scale_values_explicit(self):
         graph_ref = build_graph(nodes, [
@@ -129,11 +151,13 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         argv = Namespace(
             mean_scale_values={'parameter': {'scale': np.array([1., 2., 3.]), 'mean': np.array([0., 0., 0.])}})
         graph = build_graph(nodes, [*connect('parameter', 'result')], nodes_with_edges_only=True, cli=argv)
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         AddMeanScaleValues().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
     def test_mean_values_explicit_and_scale_values_explicit(self):
         graph_ref = build_graph(nodes, [
@@ -147,11 +171,13 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]), np.array([1., 2., 3.])]])
         graph = build_graph(nodes, [*connect('parameter', 'result')],
                             nodes_with_edges_only=True, cli=argv)
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         AddMeanScaleValues().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
     def test_mean_values_explicit_and_scale_values_explicit_on_cutted_graph(self):
         """
@@ -173,6 +199,7 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         graph = build_graph(
             nodes, [*connect('parameter', 'result'), *connect('parameter_2', 'op'), *connect('op', 'result_2')],
             {'parameter_2': {'initial_node_name': 'op'}}, nodes_with_edges_only=True, cli=argv)
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
         AddMeanScaleValues().find_and_replace_pattern(graph)
 
@@ -180,6 +207,7 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         self.assertTrue(flag, resp)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
     def test_mean_values_explicit_and_scale_values_explicit_with_shape_of(self):
         graph_ref = build_graph(nodes,
@@ -203,6 +231,7 @@ class AddMeanScaleValuesTest(unittest.TestCase):
                                 *connect('shape_of', 'result_2'),
                             ],
                             nodes_with_edges_only=True, cli=argv)
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         AddMeanScaleValues().find_and_replace_pattern(graph)
@@ -210,9 +239,15 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         self.assertTrue(flag, resp)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result_2', check_op_attrs=True)
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
 
 class ScaleInputTests(unittest.TestCase):
+    def check_graph_attrs(self, graph, graph_ref):
+        for node_name in graph.get_nodes_with_attributes():
+            if 'fw_tensor_debug_info' in graph.node[node_name]:
+                self.assertTrue(graph.node[node_name]['fw_tensor_debug_info'] == graph_ref.node[node_name]['fw_tensor_debug_info'])
+
     def test_scale_input(self):
         graph_ref = build_graph(nodes, [
             *connect('parameter', '0:mul_scale'),
@@ -222,17 +257,22 @@ class ScaleInputTests(unittest.TestCase):
             'scale_d': {'shape': [1, 1, 1, 1], 'value': np.array(1/255)}})
 
         graph = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True, cli=Namespace(scale=255))
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         ScaleInput().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
 
     def test_scale_input_2(self):
         graph_ref = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True)
         graph = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True, cli=Namespace(scale=1))
+        set_graph_attrs(graph, graph_ref)
         graph.graph['layout'] = 'NCHW'
 
         ScaleInput().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref)
+
