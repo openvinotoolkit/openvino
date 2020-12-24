@@ -111,28 +111,23 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
 
     validate();
 
-    PartialShape out_shape;
     set_output_size(1);
+    PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
+    if (m_attrs.flatten)
+    {
+        out_shape = PartialShape{Dimension::dynamic(), 4};
+    }
+
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic())
     {
-        out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
-        if (m_attrs.flatten)
-        {
-            out_shape = PartialShape{Dimension::dynamic(), 4};
-        }
-
         set_output_type(0, input_et, out_shape);
         return;
     }
 
-    if (priors_shape.is_dynamic() || featmap_shape.is_dynamic())
+    if (priors_shape[0].is_dynamic() || featmap_shape[2].is_dynamic() ||
+        featmap_shape[3].is_dynamic())
     {
-        out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
-        if (m_attrs.flatten)
-        {
-            out_shape = PartialShape{Dimension::dynamic(), 4};
-        }
-        else
+        if (!m_attrs.flatten)
         {
             out_shape[0] = featmap_shape[2];
             out_shape[1] = featmap_shape[3];
