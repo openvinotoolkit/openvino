@@ -330,13 +330,15 @@ The "fft_kernel.cpp" with the implementation of the CPU has the following conten
 Refer to the [How to Implement Custom CPU Operations](../IE_DG/Extensibility_DG/CPU_Kernel.md) for more details.
 
 #### Extension Implementation
-The source code of the extension itself consists of the header file "extension.hpp" with the following content:
+The source code of the extension itself contains the "extension.hpp" and "extension.cpp" files.
 
-@snippet extension.hpp fft_extension:header
+**extension.hpp**:
 
-and the "extension.cpp" file with the following content:
+@snippet ie_cpu_extension/extension.hpp fft_extension:header
 
-@snippet extension.cpp fft_extension:implementation
+**extension.cpp**:
+
+@snippet ie_cpu_extension/extension.cpp fft_extension:implementation
 
 ### Building and Running the Custom Extension
 In order to build the extension run the following:<br>
