@@ -204,6 +204,7 @@ endif()
 include(compile_flags/sdl)
 include(compile_flags/os_flags)
 include(compile_flags/sanitizer)
+include(fuzzing)  # Fuzz tests shodl be buildable with both ENABLE_FUZZING ON and OFF
 include(download/dependency_solver)
 include(cross_compile/cross_compiled_func)
 include(faster_build)
