@@ -35,7 +35,15 @@ bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 
-    return false;
+    for (const auto& output_description : m_output_descriptions)
+    {
+        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
+        {
+            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
+        }
+    }
+
+    return true;
 }
 
 void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
@@ -87,10 +95,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions.size(),
                           "Number of inputs must be the same as number of input descriptions");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_output_size() == m_output_descriptions.size(),
-                          "Number of outputs must be the same as number of output descriptions");
 
     std::vector<std::shared_ptr<Node>> ends;
 
@@ -226,6 +230,10 @@ void op::v0::TensorIterator::validate_and_infer_types()
             set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
         }
     }
+
+    NODE_VALIDATION_CHECK(this,
+                          get_output_size() == m_output_descriptions.size(),
+                          "Number of outputs must be the same as number of output descriptions");
 }
 
 std::shared_ptr<Function> op::v0::TensorIterator::get_function()
