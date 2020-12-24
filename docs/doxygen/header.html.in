@@ -35,7 +35,7 @@ $extrastylesheet
   <!--BEGIN PROJECT_NAME-->
   <div id="projectalign">
    <div id="projectname">
-     <a href="@IE_OUTPUT@/index.html" class="homelink-id">
+     <a href="<domain_placeholder>" class="homelink-id">
        <img src="assets/images/int-openvino-wht.svg" alt="OpenVINO™ Toolkit">
        <p>Documentation</p>
       </a>
@@ -52,5 +52,6 @@ $extrastylesheet
 <div id="secondnav">
     <div id="versionsSelector" class="nav-placeholder"></div>
     <div id="download-link" class="nav-placeholder"></div>
+    <div id="install-link" class="ovino-btn"><a href="https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html" target="_blank">Install OpenVINO™</a></div>
 </div>
 <!-- end header part -->

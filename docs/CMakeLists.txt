@@ -355,8 +355,7 @@ function(build_docs)
                                                                         --include_pot $<BOOL:${POT_DOCS_DIR}>
                                                                         --include_gst $<BOOL:${GST_DOCS_DIR}>
                        COMMENT "Parse doxygen log to find errors."
-                       VERBATIM
-                       )
+                       VERBATIM)
 
     # added linkcheker
 
