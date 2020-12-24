@@ -6,6 +6,8 @@
 #include <functional_test_utils/blob_utils.hpp>
 
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
+
 #include <ngraph/op/non_max_suppression.hpp>
 #include "vpu/ngraph/operations/static_shape_non_maximum_suppression.hpp"
 
@@ -28,7 +30,7 @@ using StaticShapeNMSTestParam = std::tuple<
 namespace LayerTestsDefinitions {
 
 class StaticShapeNMSLayerTest : public testing::WithParamInterface<StaticShapeNMSTestParam>,
-                                      virtual public LayerTestsUtils::LayerTestsCommon {
+                                virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StaticShapeNMSTestParam>& obj) {
         StaticShapeNMSParam NMSParams;
@@ -119,5 +121,97 @@ INSTANTIATE_TEST_CASE_P(DISABLED_accuracy, StaticShapeNMSLayerTest,
         ::testing::ValuesIn(NMSPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
         StaticShapeNMSLayerTest::getTestCaseName);
+
+class PreviousNMStoStaticShapeNMS : public testing::WithParamInterface<LayerTestsUtils::TargetDevice>,
+                                    virtual public LayerTestsUtils::LayerTestsCommon {
+protected:
+    virtual std::shared_ptr<ngraph::Node> createNMS(
+        const ngraph::Output<ngraph::Node>& inputBoxes,
+        const ngraph::Output<ngraph::Node>& inputScores,
+        const ngraph::Output<ngraph::Node>& maxOutputBoxesPerClassConst,
+        const ngraph::Output<ngraph::Node>& iouThresholdConst,
+        const ngraph::Output<ngraph::Node>& scoreThresholdConst) = 0;
+
+    void SetUp() override {
+        targetDevice = this->GetParam();
+
+        const auto inputBoxes = std::make_shared<ngraph::opset3::Parameter>(
+                ngraph::element::f32, ngraph::Shape({static_cast<size_t>(1), static_cast<size_t>(10), 4}));
+        const auto inputScores = std::make_shared<ngraph::opset3::Parameter>(
+                ngraph::element::f32, ngraph::Shape({static_cast<size_t>(1), static_cast<size_t>(5), static_cast<size_t>(10)}));
+        const auto maxOutputBoxesPerClassConst = std::make_shared<ngraph::opset3::Constant>(
+                ngraph::element::i64, ngraph::Shape{}, 10);
+        const auto iouThresholdConst = std::make_shared<ngraph::opset3::Constant>(
+                ngraph::element::f32, ngraph::Shape{}, .0f);
+        const auto scoreThresholdConst = std::make_shared<ngraph::opset3::Constant>(
+                ngraph::element::f32, ngraph::Shape{}, .0f);
+
+        const auto nms = createNMS(inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst);
+
+        function = std::make_shared<ngraph::Function>(nms->outputs(), ngraph::ParameterVector{inputBoxes, inputScores});
+    }
+};
+
+class NMS1toStaticShapeNMS : public PreviousNMStoStaticShapeNMS {
+protected:
+    std::shared_ptr<ngraph::Node> createNMS(
+            const ngraph::Output<ngraph::Node>& inputBoxes,
+            const ngraph::Output<ngraph::Node>& inputScores,
+            const ngraph::Output<ngraph::Node>& maxOutputBoxesPerClassConst,
+            const ngraph::Output<ngraph::Node>& iouThresholdConst,
+            const ngraph::Output<ngraph::Node>& scoreThresholdConst) override {
+        return std::make_shared<ngraph::opset1::NonMaxSuppression>(
+                inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst,
+                ngraph::opset1::NonMaxSuppression::BoxEncodingType::CORNER, false);
+    }
+};
+
+TEST_P(NMS1toStaticShapeNMS, PreviousNMSCanBeLoaded) {
+    ASSERT_NO_THROW(LoadNetwork());
+}
+
+INSTANTIATE_TEST_CASE_P(smoke_NetworkLoad, NMS1toStaticShapeNMS,
+                        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD));
+
+class NMS3toStaticShapeNMS : public PreviousNMStoStaticShapeNMS {
+    std::shared_ptr<ngraph::Node> createNMS(
+            const ngraph::Output<ngraph::Node>& inputBoxes,
+            const ngraph::Output<ngraph::Node>& inputScores,
+            const ngraph::Output<ngraph::Node>& maxOutputBoxesPerClassConst,
+            const ngraph::Output<ngraph::Node>& iouThresholdConst,
+            const ngraph::Output<ngraph::Node>& scoreThresholdConst) override {
+        return std::make_shared<ngraph::opset3::NonMaxSuppression>(
+                inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst,
+                ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER, false);
+    }
+};
+
+TEST_P(NMS3toStaticShapeNMS, PreviousNMSCanBeLoaded) {
+    ASSERT_NO_THROW(LoadNetwork());
+}
+
+INSTANTIATE_TEST_CASE_P(smoke_NetworkLoad, NMS3toStaticShapeNMS,
+                            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD));
+
+class NMS4toStaticShapeNMS : public PreviousNMStoStaticShapeNMS {
+protected:
+    std::shared_ptr<ngraph::Node> createNMS(
+            const ngraph::Output<ngraph::Node>& inputBoxes,
+            const ngraph::Output<ngraph::Node>& inputScores,
+            const ngraph::Output<ngraph::Node>& maxOutputBoxesPerClassConst,
+            const ngraph::Output<ngraph::Node>& iouThresholdConst,
+            const ngraph::Output<ngraph::Node>& scoreThresholdConst) override {
+        return std::make_shared<ngraph::opset4::NonMaxSuppression>(
+                inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst,
+                ngraph::opset4::NonMaxSuppression::BoxEncodingType::CORNER, false);
+    }
+};
+
+TEST_P(NMS4toStaticShapeNMS, PreviousNMSCanBeLoaded) {
+    ASSERT_NO_THROW(LoadNetwork());
+}
+
+INSTANTIATE_TEST_CASE_P(smoke_NetworkLoad, NMS4toStaticShapeNMS,
+                        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 }  // namespace LayerTestsDefinitions
