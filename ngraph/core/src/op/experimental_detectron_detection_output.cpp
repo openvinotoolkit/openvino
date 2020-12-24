@@ -58,6 +58,59 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
     size_t rois_num = m_attrs.max_detections_per_image;
     auto input_et = get_input_element_type(0);
 
+    auto rois_shape = get_input_partial_shape(0);
+    auto deltas_shape = get_input_partial_shape(1);
+    auto scores_shape = get_input_partial_shape(2);
+    auto im_info_shape = get_input_partial_shape(3);
+
+    if (rois_shape.rank().is_static() && deltas_shape.rank().is_static() &&
+        scores_shape.rank().is_static() && im_info_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(
+            this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
+        NODE_VALIDATION_CHECK(
+            this, deltas_shape.rank().get_length() == 2, "Input deltas rank must be equal to 2.");
+        NODE_VALIDATION_CHECK(
+            this, scores_shape.rank().get_length() == 2, "Input scores rank must be equal to 2.");
+        NODE_VALIDATION_CHECK(this,
+                              im_info_shape.rank().get_length() == 2,
+                              "Input image info rank must be equal to 2.");
+
+        NODE_VALIDATION_CHECK(this,
+                              rois_shape[1].is_static() && rois_shape[1].get_length() == 4u,
+                              "The last dimension of the 'input_rois' input must be equal to 4. "
+                              "Got: ",
+                              rois_shape[1]);
+
+        NODE_VALIDATION_CHECK(this,
+                              scores_shape[1].is_static() &&
+                                  scores_shape[1].get_length() == m_attrs.num_classes,
+                              "The last dimension of the 'input_scores' input must be equal to "
+                              "the value of the attribute 'num_classes'. Got: ",
+                              scores_shape[1]);
+
+        NODE_VALIDATION_CHECK(this,
+                              deltas_shape[1].is_static() &&
+                                  deltas_shape[1].get_length() == m_attrs.num_classes * 4,
+                              "The last dimension of the 'input_deltas' input must be equal to "
+                              "the value of the attribute 'num_classes' * 4. Got: ",
+                              deltas_shape[1]);
+
+        const auto num_batches_rois = rois_shape[0];
+        const auto num_batches_deltas = deltas_shape[0];
+        const auto num_batches_scores = scores_shape[0];
+        NODE_VALIDATION_CHECK(this,
+                              num_batches_rois.same_scheme(num_batches_deltas) &&
+                                  num_batches_deltas.same_scheme(num_batches_scores),
+                              "The first dimension of inputs 'input_rois', 'input_deltas', "
+                              "'input_scores' must match. input_rois: ",
+                              num_batches_rois,
+                              "; input_deltas: ",
+                              num_batches_deltas,
+                              "; input_scores: ",
+                              num_batches_scores);
+    }
+
     set_output_type(0, input_et, Shape{rois_num, 4});
     set_output_type(1, element::Type_t::i32, Shape{rois_num});
     set_output_type(2, input_et, Shape{rois_num});
