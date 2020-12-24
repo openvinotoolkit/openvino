@@ -19,11 +19,11 @@
 #include <ngraph/except.hpp>
 
 #ifdef SELECTIVE_BUILD_ANALYZER
-# define SELECTIVE_BUILD_ANALYZER_ON
-# undef SELECTIVE_BUILD_ANALYZER
+#define SELECTIVE_BUILD_ANALYZER_ON
+#undef SELECTIVE_BUILD_ANALYZER
 #elif defined(SELECTIVE_BUILD)
-# define SELECTIVE_BUILD_ON
-# undef SELECTIVE_BUILD
+#define SELECTIVE_BUILD_ON
+#undef SELECTIVE_BUILD
 #endif
 
 #define SELECTIVE_BUILD_ANALYZER
@@ -38,15 +38,11 @@ TEST(conditional_compilation, collect_op_scope)
     int n = 0;
 
     // Simple scope is enabled
-    NGRAPH_OP_SCOPE(Scope0) {
-        n = 42;
-    }
+    NGRAPH_OP_SCOPE(Scope0) { n = 42; }
     EXPECT_EQ(n, 42);
 
     // Simple scope is disabled
-    NGRAPH_OP_SCOPE(Scope1) {
-        n = 43;
-    }
+    NGRAPH_OP_SCOPE(Scope1) { n = 43; }
     EXPECT_EQ(n, 43);
 #undef CCTests_Scope0
 }
@@ -54,7 +50,7 @@ TEST(conditional_compilation, collect_op_scope)
 #undef SELECTIVE_BUILD_ANALYZER
 
 #ifdef SELECTIVE_BUILD_ANALYZER_ON
-# define SELECTIVE_BUILD_ANALYZER
+#define SELECTIVE_BUILD_ANALYZER
 #elif defined(SELECTIVE_BUILD_ON)
-# define SELECTIVE_BUILD
+#define SELECTIVE_BUILD
 #endif

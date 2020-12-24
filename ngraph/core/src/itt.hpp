@@ -45,7 +45,8 @@ OV_CC_DOMAINS(ngraph_op);
 #define NGRAPH_OP_SCOPE(region)                                                                    \
     if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(ngraph_op, _, region)) == 0)                             \
     {                                                                                              \
-        throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_op, _, region))) + " is disabled!");                                                      \
+        throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_op, _, region))) + \
+                                   " is disabled!");                                               \
     }                                                                                              \
     OV_SCOPE(ngraph_op, region)
 #else
