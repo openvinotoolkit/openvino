@@ -273,6 +273,6 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch, return evaluate_space_to_batch(outputs, inputs));
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch) { return evaluate_space_to_batch(outputs, inputs); }
     return false;
 }

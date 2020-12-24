@@ -79,8 +79,9 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(
-        v1_ReduceMin_evaluate,
-        return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims()));
+    NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate)
+    {
+        return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    }
     return false;
 }

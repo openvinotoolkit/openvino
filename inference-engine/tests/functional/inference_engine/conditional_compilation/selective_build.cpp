@@ -62,15 +62,16 @@ struct TestNode : public TestNodeBase {
 
 TEST(ConditionalCompilationTests, SimpleScope) {
 #define CCTests_Scope0 1
-
     int n = 0;
 
     // Simple scope is enabled
-    OV_SCOPE(CCTests, Scope0, n = 42;);
+    OV_SCOPE(CCTests, Scope0) {
+        n = 42;
+    }
     EXPECT_EQ(n, 42);
 
     // Simple scope is disabled
-    OV_SCOPE(CCTests, Scope1, n = 0;);
+    OV_SCOPE(CCTests, Scope1) n = 43;
     EXPECT_EQ(n, 42);
 
 #undef CCTests_Scope0
