@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- HTML header for doxygen $doxygenversion -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta http-equiv="X-UA-Compatible" content="IE=9"/>
+<meta name="generator" content="Doxygen $doxygenversion"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<!--BEGIN PROJECT_NAME--><title>$title - $projectname</title><!--END PROJECT_NAME-->
+<!--BEGIN !PROJECT_NAME--><title>$title</title><!--END !PROJECT_NAME-->
+<!-- <script type="text/javascript" src="$relpath^jquery.js"></script> -->
+<!-- JQuery 2.2.4 -->
+<script src="assets/jquery-2.2.4.min.js"></script>
+<script type="text/javascript" src="$relpath^dynsections.js"></script>
+<!-- Bootstrap 4.4.1 -->
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet"
+    type="text/css" />
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.bundle.min.js"
+    type="text/javascript"></script>
+<!-- $treeview -->
+$search
+$mathjax
+<link href="$relpath^$stylesheet" rel="stylesheet" type="text/css" />
+<link href="assets/customdoxygen.css" rel="stylesheet" type="text/css" />
+$extrastylesheet
+<script type="text/javascript" src="assets/openvino-layout.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.6.2/viewer.css" integrity="sha512-Fd7AWkSYX3RBadbJlBrETnOyX5tkcQu2oN+nO11c+kewdhPlNWQ1Hj83W3hN1odgyh+k7rpvvv7IxZq9bRomCg==" crossorigin="anonymous" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.6.2/viewer.min.js" integrity="sha512-VzJLwaOOYyQemqxRypvwosaCDSQzOGqmBFRrKuoOv7rF2DZPlTaamK1zadh7i2FRmmpdUPAE/VBkCwq2HKPSEQ==" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="top"><!-- do not remove this div, it is closed by doxygen! -->
+<!--BEGIN TITLEAREA-->
+<div id="titlearea">
+  <!--BEGIN PROJECT_NAME-->
+  <div id="projectalign">
+   <div id="projectname">
+     <a href="<domain_placeholder>" class="homelink-id">
+       <img src="assets/images/int-openvino-wht.svg" alt="OpenVINO™ Toolkit">
+       <p>Documentation</p>
+      </a>
+    </div>
+  </div>
+  <!--END PROJECT_NAME-->
+  <!--BEGIN DISABLE_INDEX-->
+   <!--BEGIN SEARCHENGINE-->
+   <div>$searchbox</div>
+   <!--END SEARCHENGINE-->
+  <!--END DISABLE_INDEX-->
+</div>
+<!--END TITLEAREA-->
+<div id="secondnav">
+    <div id="versionsSelector" class="nav-placeholder"></div>
+    <div id="download-link" class="nav-placeholder"></div>
+    <div id="install-link" class="ovino-btn"><a href="https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html" target="_blank">Install OpenVINO™</a></div>
+</div>
+<!-- end header part -->
