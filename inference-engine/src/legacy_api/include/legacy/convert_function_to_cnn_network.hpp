@@ -27,7 +27,7 @@ convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& gr
                              const ICNNNetwork &ngraphNetwork, 
                              CNNNetworkImpl* cnnNetworkImpl,
                              bool keep_constant_inputs = false);
-
+                             
 // TODO: move ConstAllocatorWrapper class, shareWeights add addBlob into CNNLayerCreator when NodeConverter class is removed 
 class ConstAllocatorWrapper : public IAllocator {
 public:
