@@ -107,6 +107,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
     const bool useLpt =
+        false &&
         (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
         ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
