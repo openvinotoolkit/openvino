@@ -9,6 +9,7 @@ list(APPEND EXPORT_DEPENDENCIES
         funcTestUtils
         ngraphFunctions
         lptNgraphFunctions
+        sharedTestClasses
         )
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -21,6 +22,7 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
         DEVELOPER_PACKAGE
+            inference_engine_tests
         INCLUDES
             PUBLIC
                 ${PUBLIC_HEADERS_DIR}

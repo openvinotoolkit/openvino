@@ -170,6 +170,12 @@ void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vector<
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }
 
+void AttributeVisitor::on_adapter(const string& name,
+                                  ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter)
+{
+    on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
+}
+
 const AttributeVisitor::node_id_t AttributeVisitor::invalid_node_id = "";
 
 void AttributeVisitor::register_node(const std::shared_ptr<Node>& node, node_id_t id)

@@ -67,7 +67,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             BF16Transformer bf16Transformer;
             CNNNetwork cnnetwork(_clonedNetwork);
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
-            // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
+            // Otherwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
             // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
             if (cfg.enforceBF16 == true)
                 bf16Transformer.convertToBFloat16(cnnetwork);

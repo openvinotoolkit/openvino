@@ -577,8 +577,10 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::referenceDetectionOutput<T> refDetOut(
-            op->get_attrs(), op->get_input_shape(0), op->get_input_shape(2));
+        runtime::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
+                                                                  op->get_input_shape(0),
+                                                                  op->get_input_shape(2),
+                                                                  op->get_output_shape(0));
         if (op->get_input_size() == 3)
         {
             refDetOut.run(inputs[0]->get_data_ptr<const T>(),

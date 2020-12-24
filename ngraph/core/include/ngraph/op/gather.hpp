@@ -57,6 +57,9 @@ namespace ngraph
                 static const int PARAMS;
                 static const int INDICES;
                 static const int AXIS;
+
+                bool evaluate_gather(const HostTensorVector& outputs,
+                                     const HostTensorVector& inputs) const;
             };
         } // namespace v1
     }     // namespace op

@@ -79,6 +79,10 @@ namespace ngraph
                 std::size_t m_blocksize;
                 DepthToSpaceMode m_mode;
                 DepthToSpaceMode mode_from_string(const std::string& mode) const;
+
+            private:
+                bool evaluate_depth_to_space(const HostTensorVector& outputs,
+                                             const HostTensorVector& inputs) const;
             };
         }
         using v0::DepthToSpace;
