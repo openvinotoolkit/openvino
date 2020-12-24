@@ -26,7 +26,7 @@ class ExperimentalDetectronPriorGridGenerator(Op):
         mandatory_props = dict(
             type=__class__.op,
             op=__class__.op,
-            version='experimental',
+            version='opset6',
             infer=__class__.infer,
         )
         super().__init__(graph, mandatory_props, attrs)
