@@ -461,6 +461,7 @@ void kernels_cache::build_all() {
             for (auto &k : kernels) {
                 const auto &entry_point = k.first;
                 const auto &k_id = program.second.entry_point_to_id[entry_point];
+                std::cout << "  k_id " << k_id << std::endl;
                 if (program.second.one_time) {
                     _one_time_kernels[k_id] = k.second;
                 } else {
