@@ -188,91 +188,91 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
 endif ()
 
 if (ENABLE_OPENCV)
-    reset_deps_cache(OpenCV_DIR)
+    if(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})
+        reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.5.1")
-    set(OPENCV_BUILD "044")
-    set(OPENCV_BUILD_YOCTO "337")
+        set(OPENCV_VERSION "4.5.1")
+        set(OPENCV_BUILD "044")
+        set(OPENCV_BUILD_YOCTO "337")
 
-    if (AARCH64)
-        if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-            set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-        elseif(DEFINED THIRDPARTY_SERVER_PATH)
-            set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-        else()
-            message(WARNING "OpenCV is not found!")
-        endif()
+        if (AARCH64)
+            if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+                set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+            elseif(DEFINED THIRDPARTY_SERVER_PATH)
+                set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+            else()
+                message(WARNING "OpenCV is not found!")
+            endif()
 
-        if(DEFINED IE_PATH_TO_DEPS)
-            set(OPENCV_SUFFIX "yocto_kmb")
-            set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
-
-            RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
-                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
-                    ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "b5239e0e50b9009f95a29cb11f0840ec085fa07f6c4d3349adf090f1e51b0787")
-
-            unset(IE_PATH_TO_DEPS)
-        endif()
-    else()
-        if (WIN32 AND X86_64)
-            RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_WIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
-                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
-                    ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "5250bfe5860c15eb1b31963c78804ee9b301a19d8d6e920c06ef41de681cb99e")
-        elseif(APPLE AND X86_64)
-            RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
-                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
-                    ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "f3ebc5cc72c86106c30cc711ac689e02281556bb43c09a89cd45cb99b6bef9a8")
-        elseif(LINUX)
-            if (AARCH64)
+            if(DEFINED IE_PATH_TO_DEPS)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
-            elseif (ARM)
-                set(OPENCV_SUFFIX "debian9arm")
-                set(OPENCV_HASH "0e787d6738092993bc92bb55975f52caabae45dc73473b5196d15e65e87d6b9d")
-            elseif (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
-                set(OPENCV_SUFFIX "centos7")
-                set(OPENCV_HASH "9b813af064d463b31fa1603b11b6559532a031d59bb0782d234380955fd397e0")
-            elseif (LINUX_OS_NAME MATCHES "CentOS 8")
-                set(OPENCV_SUFFIX "centos8")
-                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
-            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04")
-                set(OPENCV_SUFFIX "ubuntu16")
-                set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
-            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04")
-                set(OPENCV_SUFFIX "ubuntu18")
-                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
-            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
-                set(OPENCV_SUFFIX "ubuntu20")
-                set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
-            else()
-                message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
+
+                RESOLVE_DEPENDENCY(OPENCV
+                        ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
+                        TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
+                        ENVIRONMENT "OpenCV_DIR"
+                        VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
+                        SHA256 "b5239e0e50b9009f95a29cb11f0840ec085fa07f6c4d3349adf090f1e51b0787")
+
+                unset(IE_PATH_TO_DEPS)
             endif()
-            RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
-                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
-                    ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 ${OPENCV_HASH})
+        else()
+            if (WIN32 AND X86_64)
+                RESOLVE_DEPENDENCY(OPENCV
+                        ARCHIVE_WIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
+                        TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
+                        ENVIRONMENT "OpenCV_DIR"
+                        VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
+                        SHA256 "5250bfe5860c15eb1b31963c78804ee9b301a19d8d6e920c06ef41de681cb99e")
+            elseif(APPLE AND X86_64)
+                RESOLVE_DEPENDENCY(OPENCV
+                        ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
+                        TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
+                        ENVIRONMENT "OpenCV_DIR"
+                        VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
+                        SHA256 "f3ebc5cc72c86106c30cc711ac689e02281556bb43c09a89cd45cb99b6bef9a8")
+            elseif(LINUX)
+                if (AARCH64)
+                    set(OPENCV_SUFFIX "yocto_kmb")
+                    set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
+                elseif (ARM)
+                    set(OPENCV_SUFFIX "debian9arm")
+                    set(OPENCV_HASH "0e787d6738092993bc92bb55975f52caabae45dc73473b5196d15e65e87d6b9d")
+                elseif (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
+                    set(OPENCV_SUFFIX "centos7")
+                    set(OPENCV_HASH "9b813af064d463b31fa1603b11b6559532a031d59bb0782d234380955fd397e0")
+                elseif (LINUX_OS_NAME MATCHES "CentOS 8")
+                    set(OPENCV_SUFFIX "centos8")
+                    set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
+                elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04")
+                    set(OPENCV_SUFFIX "ubuntu16")
+                    set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
+                elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04")
+                    set(OPENCV_SUFFIX "ubuntu18")
+                    set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
+                elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
+                    set(OPENCV_SUFFIX "ubuntu20")
+                    set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
+                else()
+                    message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
+                endif()
+                RESOLVE_DEPENDENCY(OPENCV
+                        ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
+                        TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
+                        ENVIRONMENT "OpenCV_DIR"
+                        VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
+                        SHA256 ${OPENCV_HASH})
+            endif()
         endif()
-
+        if(ANDROID)
+            set(ocv_cmake_path "${OPENCV}/sdk/native/jni/")
+        else()
+            set(ocv_cmake_path "${OPENCV}/cmake")
+        endif()
+        update_deps_cache(OpenCV_DIR "${ocv_cmake_path}" "Path to OpenCV package folder")
     endif()
 
-    if(ANDROID)
-        set(ocv_cmake_path "${OPENCV}/sdk/native/jni/")
-    else()
-        set(ocv_cmake_path "${OPENCV}/cmake")
-    endif()
-
-    update_deps_cache(OpenCV_DIR "${ocv_cmake_path}" "Path to OpenCV package folder")
 
     if(WIN32)
         log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../bin")
@@ -285,6 +285,7 @@ if (ENABLE_OPENCV)
 else()
     reset_deps_cache(OpenCV_DIR)
 endif()
+
 
 # TODO: remove global CMAKE_MODULE_PATH
 list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
