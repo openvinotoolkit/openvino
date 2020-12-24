@@ -75,7 +75,7 @@ bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("output_type", m_output_type);
         return true;
     }
-    return false;
+    throw ngraph_error("v4_Range_visit_attributes is disabled!");
 }
 
 void op::v4::Range::validate_and_infer_types()
@@ -187,7 +187,9 @@ void op::v4::Range::validate_and_infer_types()
             result = PartialShape{Dimension(static_cast<int64_t>(strided))};
         }
         set_output_type(0, m_output_type, result);
+        return;
     }
+    throw ngraph_error("v4_Range_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_args) const
@@ -198,7 +200,7 @@ shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_ar
         return make_shared<v4::Range>(
             new_args.at(0), new_args.at(1), new_args.at(2), m_output_type);
     }
-    return nullptr;
+    throw ngraph_error("v4_Range_clone_with_new_inputs is disabled!");
 }
 
 template <typename T>
@@ -323,7 +325,7 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
         HostTensorPtr step = inputs[2];
         return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
     }
-    return false;
+    throw ngraph_error("v4_Range_evaluate is disabled!");
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
@@ -437,7 +439,7 @@ static PartialShape infer_output_shape(const op::v0::Range* node, const element:
 bool ngraph::op::v0::Range::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Range_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Range_visit_attributes is disabled!");
 }
 
 void op::v0::Range::validate_and_infer_types()
@@ -522,7 +524,9 @@ void op::v0::Range::validate_and_infer_types()
 #endif
 
         set_output_type(0, result_et, result_shape);
+        return;
     }
+    throw ngraph_error("v0_Range_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const
@@ -532,7 +536,7 @@ shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_ar
         check_new_args_count(this, new_args);
         return make_shared<Range>(new_args.at(0), new_args.at(1), new_args.at(2));
     }
-    return nullptr;
+    throw ngraph_error("v0_Range_clone_with_new_inputs is disabled!");
 }
 
 template <element::Type_t ET, typename T>
@@ -550,5 +554,5 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
         HostTensorPtr step = inputs[2];
         return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
     }
-    return false;
+    throw ngraph_error("v0_Range_evaluate is disabled!");
 }

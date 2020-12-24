@@ -98,7 +98,9 @@ void op::CTCGreedyDecoder::validate_and_infer_types()
             }
         }
         set_output_type(0, input_et, PartialShape{batch_size, time_size, 1, 1});
+        return;
     }
+    throw ngraph_error("v0_CTCGreedyDecoder_validate_and_infer_types is disabled!");
 }
 
 bool op::CTCGreedyDecoder::visit_attributes(AttributeVisitor& visitor)
@@ -108,7 +110,7 @@ bool op::CTCGreedyDecoder::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("ctc_merge_repeated", m_ctc_merge_repeated);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_CTCGreedyDecoder_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::CTCGreedyDecoder::clone_with_new_inputs(const OutputVector& new_args) const
@@ -118,5 +120,5 @@ shared_ptr<Node> op::CTCGreedyDecoder::clone_with_new_inputs(const OutputVector&
         check_new_args_count(this, new_args);
         return make_shared<CTCGreedyDecoder>(new_args.at(0), new_args.at(1), m_ctc_merge_repeated);
     }
-    return nullptr;
+    throw ngraph_error("v0_CTCGreedyDecoder_clone_with_new_inputs is disabled!");
 }

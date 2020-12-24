@@ -85,7 +85,9 @@ void op::FakeQuantize::validate_and_infer_types()
             }
         }
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
     }
+    throw ngraph_error("v0_FakeQuantize_validate_and_infer_types is disabled!");
 }
 
 bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
@@ -96,7 +98,7 @@ bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("auto_broadcast", m_auto_broadcast);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_FakeQuantize_visit_attributes is disabled!");
 }
 
 OutputVector op::FakeQuantize::decompose_op() const
@@ -186,5 +188,5 @@ shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new
                                          m_levels,
                                          m_auto_broadcast);
     }
-    return nullptr;
+    throw ngraph_error("v0_FakeQuantize_clone_with_new_inputs is disabled!");
 }

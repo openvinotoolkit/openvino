@@ -40,7 +40,7 @@ shared_ptr<Node> op::Relu::clone_with_new_inputs(const OutputVector& new_args) c
         check_new_args_count(this, new_args);
         return make_shared<Relu>(new_args.at(0));
     }
-    return nullptr;
+    throw ngraph_error("v0_Relu_clone_with_new_inputs is disabled!");
 }
 
 namespace relu
@@ -79,11 +79,11 @@ bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector&
     {
         return relu::evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    return false;
+    throw ngraph_error("v0_Relu_evaluate is disabled!");
 }
 
 bool op::Relu::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Relu_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Relu_visit_attributes is disabled!");
 }

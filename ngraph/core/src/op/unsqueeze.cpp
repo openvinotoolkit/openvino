@@ -77,13 +77,15 @@ void op::v0::Unsqueeze::validate_and_infer_types()
             output_shape.insert(next(begin(output_shape), axis), 1);
         }
         set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
+        return;
     }
+    throw ngraph_error("v0_Unsqueeze_validate_and_infer_types is disabled!");
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Unsqueeze_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Unsqueeze_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
@@ -96,7 +98,7 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
         }
         return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
     }
-    return nullptr;
+    throw ngraph_error("v0_Unsqueeze_clone_with_new_inputs is disabled!");
 }
 
 namespace unsqueeze
@@ -162,7 +164,7 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
     {
         return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
     }
-    return false;
+    throw ngraph_error("v0_Unsqueeze_evaluate is disabled!");
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values,

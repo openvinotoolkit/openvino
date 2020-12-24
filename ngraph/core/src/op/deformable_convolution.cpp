@@ -62,7 +62,7 @@ bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("deformable_group", m_deformable_group);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_DeformableConvolution_visit_attributes is disabled!");
 }
 
 void op::v1::DeformableConvolution::validate_and_infer_types()
@@ -201,7 +201,9 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
                                       m_dilations);
 
         set_output_type(0, result_et, result_shape);
+        return;
     }
+    throw ngraph_error("v1_DeformableConvolution_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node>
@@ -221,5 +223,5 @@ shared_ptr<Node>
                                                       m_group,
                                                       m_deformable_group);
     }
-    return nullptr;
+    throw ngraph_error("v1_DeformableConvolution_clone_with_new_inputs is disabled!");
 }

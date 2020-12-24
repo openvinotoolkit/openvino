@@ -43,7 +43,7 @@ op::Gelu::Gelu(const Output<Node>& data)
 bool ngraph::op::v0::Gelu::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Gelu_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Gelu_visit_attributes is disabled!");
 }
 
 // f(x) = 0.5 * x * (1.0 + erf( x / sqrt(2.0) )
@@ -77,7 +77,7 @@ shared_ptr<Node> op::Gelu::clone_with_new_inputs(const OutputVector& new_args) c
         }
         return make_shared<Gelu>(new_args.at(0));
     }
-    return nullptr;
+    throw ngraph_error("v0_Gelu_clone_with_new_inputs is disabled!");
 }
 
 void op::Gelu::pre_validate_and_infer_types()

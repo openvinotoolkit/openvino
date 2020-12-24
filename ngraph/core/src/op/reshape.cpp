@@ -72,7 +72,7 @@ bool op::v1::Reshape::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("special_zero", m_special_zero);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_Reshape_visit_attributes is disabled!");
 }
 
 void op::v1::Reshape::validate_and_infer_types()
@@ -230,7 +230,9 @@ void op::v1::Reshape::validate_and_infer_types()
         {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic(output_rank));
         }
+        return;
     }
+    throw ngraph_error("v1_Reshape_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_args) const
@@ -240,7 +242,7 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
         check_new_args_count(this, new_args);
         return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
     }
-    return nullptr;
+    throw ngraph_error("v1_Reshape_clone_with_new_inputs is disabled!");
 }
 
 #define COMPUTE_OUT_SHAPE_CASE(a, ...)                                                             \
@@ -362,7 +364,7 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Reshape_evaluate) { return evaluate_reshape(outputs, inputs); }
-    return false;
+    throw ngraph_error("v1_Reshape_evaluate is disabled!");
 }
 
 bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

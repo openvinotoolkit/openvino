@@ -31,5 +31,5 @@ shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVect
                                                     new_args.at(op::util::ScatterNDBase::INDICES),
                                                     new_args.at(op::util::ScatterNDBase::UPDATES));
     }
-    return nullptr;
+    throw ngraph_error("v3_ScatterNDUpdate_clone_with_new_inputs is disabled!");
 }

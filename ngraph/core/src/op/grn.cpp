@@ -49,7 +49,7 @@ bool ngraph::op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("bias", m_bias);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_GRN_visit_attributes is disabled!");
 }
 
 void op::GRN::pre_validate_and_infer_types()
@@ -109,5 +109,5 @@ shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) co
         }
         return make_shared<GRN>(new_args.at(0), m_bias);
     }
-    return nullptr;
+    throw ngraph_error("v0_GRN_clone_with_new_inputs is disabled!");
 }

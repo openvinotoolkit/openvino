@@ -203,7 +203,9 @@ void op::v3::Broadcast::validate_and_infer_types()
             set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
         }
         set_output_type(0, get_input_element_type(0), result_shape);
+        return;
     }
+    throw ngraph_error("v3_Broadcast_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
@@ -225,7 +227,7 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
             throw ngraph_error("Not supported number of Broadcast:v3 args");
         }
     }
-    return nullptr;
+    throw ngraph_error("v3_Broadcast_clone_with_new_inputs is disabled!");
 }
 
 bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
@@ -235,14 +237,14 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("mode", m_mode);
         return true;
     }
-    return false;
+    throw ngraph_error("v3_Broadcast_visit_attributes is disabled!");
 }
 
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v3_Broadcast_evaluate) { return broadcast_evaluate(outputs, inputs); }
-    return false;
+    throw ngraph_error("v3_Broadcast_evaluate is disabled!");
 }
 
 namespace
@@ -315,7 +317,9 @@ void op::v1::Broadcast::validate_and_infer_types()
         set_input_is_relevant_to_shape(0); // arg - Result element type
         set_input_is_relevant_to_shape(1); // target_shape - Result shape
         set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
+        return;
     }
+    throw ngraph_error("v1_Broadcast_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
@@ -326,7 +330,7 @@ shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& ne
         return make_shared<v1::Broadcast>(
             new_args.at(0), new_args.at(1), new_args.at(2), m_broadcast_spec);
     }
-    return nullptr;
+    throw ngraph_error("v1_Broadcast_clone_with_new_inputs is disabled!");
 }
 
 bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
@@ -336,7 +340,7 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("mode", m_broadcast_spec);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_Broadcast_visit_attributes is disabled!");
 }
 
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
@@ -346,5 +350,5 @@ bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
     {
         return op::util::BroadcastBase::evaluate(outputs, inputs);
     }
-    return false;
+    throw ngraph_error("v1_Broadcast_evaluate is disabled!");
 }

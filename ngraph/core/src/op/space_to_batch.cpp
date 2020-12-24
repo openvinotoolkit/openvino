@@ -129,7 +129,9 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
         {
             set_output_type(0, data_type, PartialShape::dynamic());
         }
+        return;
     }
+    throw ngraph_error("v1_SpaceToBatch_validate_and_infer_types is disabled!");
 }
 
 std::shared_ptr<Node>
@@ -141,13 +143,13 @@ std::shared_ptr<Node>
         return make_shared<SpaceToBatch>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
     }
-    return nullptr;
+    throw ngraph_error("v1_SpaceToBatch_clone_with_new_inputs is disabled!");
 }
 
 bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v1_SpaceToBatch_visit_attributes is disabled!");
 }
 
 bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
@@ -283,5 +285,5 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch) { return evaluate_space_to_batch(outputs, inputs); }
-    return false;
+    throw ngraph_error("v1_SpaceToBatch is disabled!");
 }

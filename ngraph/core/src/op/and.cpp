@@ -39,7 +39,7 @@ bool op::v1::LogicalAnd::visit_attributes(AttributeVisitor& visitor)
         BinaryElementwiseLogical::visit_attributes(visitor);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_LogicalAnd_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& new_args) const
@@ -49,7 +49,7 @@ shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& n
         check_new_args_count(this, new_args);
         return make_shared<v1::LogicalAnd>(new_args.at(0), new_args.at(1), this->get_autob());
     }
-    return nullptr;
+    throw ngraph_error("v1_LogicalAnd_clone_with_new_inputs is disabled!");
 }
 
 namespace logand
@@ -94,10 +94,9 @@ namespace logand
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-    bool rc = false;
     NGRAPH_OP_SCOPE(v1_LogicalAnd_evaluate)
     {
-        rc = logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
+        return logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
     }
-    return rc;
+    throw ngraph_error("v1_LogicalAnd_evaluate is disabled!");
 }

@@ -142,7 +142,7 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("weights_format", m_weights_format);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_LSTMCell_visit_attributes is disabled!");
 }
 
 void op::v0::LSTMCell::validate_and_infer_types()
@@ -297,7 +297,9 @@ void op::v0::LSTMCell::validate_and_infer_types()
         set_output_size(2);
         set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
         set_output_type(1, result_et, {merged_batch_size, merged_hidden_size});
+        return;
     }
+    throw ngraph_error("v0_LSTMCell_validate_and_infer_types is disabled!");
 }
 
 Output<Node> op::v0::LSTMCell::get_default_bias_input() const
@@ -371,7 +373,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
             throw ngraph_error("Incorrect number of new arguments");
         }
     }
-    return nullptr;
+    throw ngraph_error("v0_LSTMCell_clone_with_new_inputs is disabled!");
 }
 
 namespace ngraph
@@ -459,7 +461,7 @@ bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor)
     {
         return op::util::RNNCellBase::visit_attributes(visitor);
     }
-    return false;
+    throw ngraph_error("v4_LSTMCell_visit_attributes is disabled!");
 }
 
 void op::v4::LSTMCell::validate_and_infer_types()
@@ -573,7 +575,9 @@ void op::v4::LSTMCell::validate_and_infer_types()
         set_output_size(2);
         set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
         set_output_type(1, result_et, {merged_batch_size, merged_hidden_size});
+        return;
     }
+    throw ngraph_error("v4_LSTMCell_validate_and_infer_types is disabled!");
 }
 
 Output<Node> op::v4::LSTMCell::get_default_bias_input() const
@@ -619,5 +623,5 @@ shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new
             throw ngraph_error("Incorrect number of new arguments");
         }
     }
-    return nullptr;
+    throw ngraph_error("v4_LSTMCell_clone_with_new_inputs is disabled!");
 }

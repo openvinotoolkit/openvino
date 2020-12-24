@@ -98,7 +98,7 @@ bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("clip", m_clip);
         return true;
     }
-    return false;
+    throw ngraph_error("util_RNNCellBase_visit_attributes is disabled!");
 }
 
 void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(

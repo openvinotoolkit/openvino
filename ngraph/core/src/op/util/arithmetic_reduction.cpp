@@ -119,5 +119,7 @@ void op::util::ArithmeticReduction::validate_and_infer_types()
         set_input_is_relevant_to_shape(1);
 
         set_output_type(0, get_input_element_type(0), result_shape);
+        return;
     }
+    throw ngraph_error("util_ArithmeticReduction_validate_and_infer_types is disabled!");
 }

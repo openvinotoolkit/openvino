@@ -80,7 +80,7 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("auto_pad", m_auto_pad);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_MaxPool_visit_attributes is disabled!");
 }
 
 void op::v1::MaxPool::validate_and_infer_types()
@@ -138,7 +138,9 @@ void op::v1::MaxPool::validate_and_infer_types()
                                                           true,
                                                           m_rounding_type == op::RoundingType::CEIL)
                                                     : output_shape);
+        return;
     }
+    throw ngraph_error("v1_MaxPool_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
@@ -154,7 +156,7 @@ shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_
                                         m_rounding_type,
                                         m_auto_pad);
     }
-    return nullptr;
+    throw ngraph_error("v1_MaxPool_clone_with_new_inputs is disabled!");
 }
 
 shared_ptr<Node> op::v1::MaxPool::get_default_value() const
@@ -247,5 +249,5 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_MaxPool_evaluate) { return evaluate_maxpool(outputs, inputs); }
-    return false;
+    throw ngraph_error("v1_MaxPool_evaluate is disabled!");
 }

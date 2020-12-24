@@ -30,7 +30,7 @@ constexpr NodeTypeInfo op::Erf::type_info;
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Erf_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Erf_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::Erf::clone_with_new_inputs(const OutputVector& new_args) const
@@ -40,7 +40,7 @@ shared_ptr<Node> op::Erf::clone_with_new_inputs(const OutputVector& new_args) co
         check_new_args_count(this, new_args);
         return make_shared<Erf>(new_args.at(0));
     }
-    return nullptr;
+    throw ngraph_error("v0_Erf_clone_with_new_inputs is disabled!");
 }
 
 op::Erf::Erf(const Output<Node>& arg)
@@ -85,5 +85,5 @@ bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
     {
         return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    return false;
+    throw ngraph_error("v0_Erf_evaluate is disabled!");
 }

@@ -49,7 +49,7 @@ bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
 
         return true;
     }
-    return false;
+    throw ngraph_error("v0_TensorIterator_visit_attributes is disabled!");
 }
 
 void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
@@ -249,7 +249,9 @@ void op::v0::TensorIterator::validate_and_infer_types()
             this,
             get_output_size() == m_output_descriptions.size(),
             "Number of outputs must be the same as number of output descriptions");
+        return;
     }
+    throw ngraph_error("v0_TensorIterator_validate_and_infer_types is disabled!");
 }
 
 std::shared_ptr<Function> op::v0::TensorIterator::get_function()
@@ -317,5 +319,5 @@ std::shared_ptr<Node>
         }
         return move(op);
     }
-    return nullptr;
+    throw ngraph_error("v0_TensorIterator_clone_with_new_inputs is disabled!");
 }

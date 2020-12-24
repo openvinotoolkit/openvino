@@ -229,7 +229,9 @@ void op::v4::CTCLoss::validate_and_infer_types()
         {
             set_output_type(0, logits_type, PartialShape{Dimension::dynamic()});
         }
+        return;
     }
+    throw ngraph_error("v4_CTCLoss_validate_and_infer_types is disabled!");
 }
 
 bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor)
@@ -241,7 +243,7 @@ bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("unique", unique_);
         return true;
     }
-    return false;
+    throw ngraph_error("v4_CTCLoss_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_args) const
@@ -275,5 +277,5 @@ shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_
             throw ngraph_error("Incorrect number of arguments");
         }
     }
-    return nullptr;
+    throw ngraph_error("v4_CTCLoss_clone_with_new_inputs is disabled!");
 }

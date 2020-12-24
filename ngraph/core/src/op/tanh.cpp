@@ -37,7 +37,7 @@ op::Tanh::Tanh(const Output<Node>& arg)
 bool ngraph::op::v0::Tanh::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Tanh_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Tanh_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) const
@@ -47,7 +47,7 @@ shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) c
         check_new_args_count(this, new_args);
         return make_shared<Tanh>(new_args.at(0));
     }
-    return nullptr;
+    throw ngraph_error("v0_Tanh_clone_with_new_inputs is disabled!");
 }
 
 namespace tanhop
@@ -85,5 +85,5 @@ bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector&
     {
         return tanhop::evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    return false;
+    throw ngraph_error("v0_Tanh_evaluate is disabled!");
 }

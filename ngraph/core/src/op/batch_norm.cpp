@@ -45,7 +45,7 @@ bool op::v0::BatchNormInference::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("epsilon", m_epsilon);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_BatchNormInference_visit_attributes is disabled!");
 }
 
 void op::v0::BatchNormInference::validate_and_infer_types()
@@ -71,7 +71,9 @@ void op::v0::BatchNormInference::validate_and_infer_types()
                                      get_input_partial_shape(INPUT_VARIANCE));
 
         set_output_type(0, result_et, result_batch_shape);
+        return;
     }
+    throw ngraph_error("v0_BatchNormInference_validate_and_infer_types is disabled!");
 }
 
 std::shared_ptr<Node>
@@ -87,7 +89,7 @@ std::shared_ptr<Node>
                                                     new_args.at(4),
                                                     m_epsilon);
     }
-    return nullptr;
+    throw ngraph_error("v0_BatchNormInference_clone_with_new_inputs is disabled!");
 }
 
 NGRAPH_RTTI_DEFINITION(op::v5::BatchNormInference, "BatchNormInference", 5);
@@ -111,7 +113,7 @@ bool op::v5::BatchNormInference::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("epsilon", m_epsilon);
         return true;
     }
-    return false;
+    throw ngraph_error("v5_BatchNormInference_visit_attributes is disabled!");
 }
 
 void op::v5::BatchNormInference::validate_and_infer_types()
@@ -137,7 +139,9 @@ void op::v5::BatchNormInference::validate_and_infer_types()
                                      get_input_partial_shape(INPUT_VARIANCE));
 
         set_output_type(0, result_et, result_batch_shape);
+        return;
     }
+    throw ngraph_error("v5_BatchNormInference_validate_and_infer_types is disabled!");
 }
 
 std::shared_ptr<Node>
@@ -153,5 +157,5 @@ std::shared_ptr<Node>
                                                     new_args.at(4),
                                                     m_epsilon);
     }
-    return nullptr;
+    throw ngraph_error("v5_BatchNormInference_clone_with_new_inputs is disabled!");
 }

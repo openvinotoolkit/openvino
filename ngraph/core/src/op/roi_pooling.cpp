@@ -138,7 +138,9 @@ void op::ROIPooling::validate_and_infer_types()
         {
             set_input_is_relevant_to_shape(1);
         }
+        return;
     }
+    throw ngraph_error("v0_ROIPooling_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::ROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
@@ -149,7 +151,7 @@ shared_ptr<Node> op::ROIPooling::clone_with_new_inputs(const OutputVector& new_a
         return make_shared<ROIPooling>(
             new_args.at(0), new_args.at(1), m_output_size, m_spatial_scale, m_method);
     }
-    return nullptr;
+    throw ngraph_error("v0_ROIPooling_clone_with_new_inputs is disabled!");
 }
 
 bool op::ROIPooling::visit_attributes(AttributeVisitor& visitor)
@@ -163,5 +165,5 @@ bool op::ROIPooling::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("method", m_method);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_ROIPooling_visit_attributes is disabled!");
 }

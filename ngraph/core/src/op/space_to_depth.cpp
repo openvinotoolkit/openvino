@@ -56,7 +56,7 @@ bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("mode", m_mode);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_SpaceToDepth_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new_args) const
@@ -69,7 +69,7 @@ shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new
         }
         return make_shared<SpaceToDepth>(new_args.at(0), m_mode, m_blocksize);
     }
-    return nullptr;
+    throw ngraph_error("v0_SpaceToDepth_clone_with_new_inputs is disabled!");
 }
 
 void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
@@ -118,7 +118,9 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
         {
             set_output_type(0, data_type, PartialShape::dynamic());
         }
+        return;
     }
+    throw ngraph_error("v0_SpaceToDepth_validate_and_infer_types is disabled!");
 }
 
 bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVector& outputs,
@@ -240,7 +242,7 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_evaluate) { return evaluate_space_to_depth(outputs, inputs); }
-    return false;
+    throw ngraph_error("v0_SpaceToDepth_evaluate is disabled!");
 }
 
 namespace ngraph

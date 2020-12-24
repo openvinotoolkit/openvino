@@ -83,7 +83,7 @@ bool op::v1::DeformablePSROIPooling::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("part_size", m_part_size);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_DeformablePSROIPooling_visit_attributes is disabled!");
 }
 
 void op::v1::DeformablePSROIPooling::validate_and_infer_types()
@@ -131,7 +131,9 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types()
         }
 
         set_output_type(0, input_et, PartialShape(output_dim_vec));
+        return;
     }
+    throw ngraph_error("v1_DeformablePSROIPooling_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node>
@@ -172,5 +174,5 @@ shared_ptr<Node>
             throw ngraph_error("Not supported number of DeformablePSROIPooling args");
         }
     }
-    return nullptr;
+    throw ngraph_error("v1_DeformablePSROIPooling_clone_with_new_inputs is disabled!");
 }

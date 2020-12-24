@@ -85,7 +85,9 @@ void op::v0::Proposal::validate_and_infer_types()
         {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         }
+        return;
     }
+    throw ngraph_error("v0_Proposal_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
@@ -96,7 +98,7 @@ shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new
         return make_shared<op::v0::Proposal>(
             new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
     }
-    return nullptr;
+    throw ngraph_error("v0_Proposal_clone_with_new_inputs is disabled!");
 }
 
 bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
@@ -119,7 +121,7 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("framework", m_attrs.framework);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_Proposal_visit_attributes is disabled!");
 }
 
 NGRAPH_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
@@ -149,7 +151,9 @@ void op::v4::Proposal::validate_and_infer_types()
                 1, get_input_element_type(0), PartialShape{batch_size * m_attrs.post_nms_topn});
         else
             set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+        return;
     }
+    throw ngraph_error("v4_Proposal_validate_and_infer_types is disabled!");
 }
 
 std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
@@ -160,5 +164,5 @@ std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector
         return make_shared<op::v4::Proposal>(
             new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
     }
-    return nullptr;
+    throw ngraph_error("v4_Proposal_clone_with_new_inputs is disabled!");
 }

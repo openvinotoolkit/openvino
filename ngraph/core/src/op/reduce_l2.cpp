@@ -46,7 +46,7 @@ shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new
         check_new_args_count(this, new_args);
         return make_shared<op::v4::ReduceL2>(new_args.at(0), new_args.at(1), get_keep_dims());
     }
-    return nullptr;
+    throw ngraph_error("v4_ReduceL2_clone_with_new_inputs is disabled!");
 }
 
 namespace reduce_l2
@@ -88,5 +88,5 @@ bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs,
         return reduce_l2::evaluate_reduce_l2(
             inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
     }
-    return false;
+    throw ngraph_error("v4_ReduceL2_evaluate is disabled!");
 }

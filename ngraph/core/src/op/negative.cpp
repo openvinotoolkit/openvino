@@ -33,7 +33,7 @@ op::Negative::Negative(const Output<Node>& arg)
 bool ngraph::op::v0::Negative::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Negative_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Negative_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_args) const
@@ -43,7 +43,7 @@ shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_arg
         check_new_args_count(this, new_args);
         return make_shared<Negative>(new_args.at(0));
     }
-    return nullptr;
+    throw ngraph_error("v0_Negative_clone_with_new_inputs is disabled!");
 }
 
 namespace negativeop
@@ -83,7 +83,7 @@ bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVec
         return negativeop::evaluate_negative(
             inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    return false;
+    throw ngraph_error("v0_Negative_evaluate is disabled!");
 }
 
 shared_ptr<Node> ngraph::operator-(const Output<Node>& arg0)

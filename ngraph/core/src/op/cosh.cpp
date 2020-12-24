@@ -37,7 +37,7 @@ op::Cosh::Cosh(const Output<Node>& arg)
 bool op::Cosh::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Cosh_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Cosh_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::Cosh::clone_with_new_inputs(const OutputVector& new_args) const
@@ -47,7 +47,7 @@ shared_ptr<Node> op::Cosh::clone_with_new_inputs(const OutputVector& new_args) c
         check_new_args_count(this, new_args);
         return make_shared<Cosh>(new_args.at(0));
     }
-    return nullptr;
+    throw ngraph_error("v0_Cosh_clone_with_new_inputs is disabled!");
 }
 
 namespace coshop
@@ -86,5 +86,5 @@ bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector&
     {
         return coshop::evaluate_cosh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    return false;
+    throw ngraph_error("v0_Cosh_evaluate is disabled!");
 }

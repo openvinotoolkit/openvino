@@ -36,7 +36,7 @@ op::v4::HSwish::HSwish(const Output<Node>& arg)
 bool op::v4::HSwish::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v4_HSwish_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v4_HSwish_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_args) const
@@ -45,7 +45,7 @@ shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_a
     {
         return make_shared<op::v4::HSwish>(new_args.at(0));
     }
-    return nullptr;
+    throw ngraph_error("v4_HSwish_clone_with_new_inputs is disabled!");
 }
 
 namespace hswish
@@ -81,5 +81,5 @@ bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorV
     {
         return hswish::evaluate_hswish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    return false;
+    throw ngraph_error("v4_HSwish_evaluate is disabled!");
 }

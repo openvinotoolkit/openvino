@@ -119,7 +119,9 @@ void op::v6::GatherElements::validate_and_infer_types()
             }
         }
         set_output_type(0, data_type, output_pshape);
+        return;
     }
+    throw ngraph_error("v6_GatherElements_validate_and_infer_types is disabled!");
 }
 
 bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor)
@@ -129,7 +131,7 @@ bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("axis", m_axis);
         return true;
     }
-    return false;
+    throw ngraph_error("v6_GatherElements_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::v6::GatherElements::clone_with_new_inputs(const OutputVector& new_args) const
@@ -139,5 +141,5 @@ shared_ptr<Node> op::v6::GatherElements::clone_with_new_inputs(const OutputVecto
         check_new_args_count(this, new_args);
         return make_shared<op::v6::GatherElements>(new_args.at(0), new_args.at(1), m_axis);
     }
-    return nullptr;
+    throw ngraph_error("v6_GatherElements_clone_with_new_inputs is disabled!");
 }

@@ -117,7 +117,7 @@ bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("ellipsis_mask", m_ellipsis_mask);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_StridedSlice_visit_attributes is disabled!");
 }
 
 void op::v1::StridedSlice::validate_and_infer_types()
@@ -214,7 +214,9 @@ void op::v1::StridedSlice::validate_and_infer_types()
         {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data_rank));
         }
+        return;
     }
+    throw ngraph_error("v1_StridedSlice_validate_and_infer_types is disabled!");
 }
 
 AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask) const
@@ -245,7 +247,7 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                              m_shrink_axis_mask,
                                              m_ellipsis_mask);
     }
-    return nullptr;
+    throw ngraph_error("v1_StridedSlice_clone_with_new_inputs is disabled!");
 }
 
 namespace strided_slice
@@ -307,5 +309,5 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
             convert_mask_to_axis_set(get_ellipsis_mask()),
             output_values[0]);
     }
-    return false;
+    throw ngraph_error("v1_StridedSlice_evaluate is disabled!");
 }

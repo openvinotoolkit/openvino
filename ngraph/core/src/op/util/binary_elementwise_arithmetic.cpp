@@ -58,7 +58,9 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_validate_and_infer_types)
     {
         validate_and_infer_elementwise_arithmetic(m_autob);
+        return;
     }
+    throw ngraph_error("v0_util_BinaryElementwiseArithmetic_validate_and_infer_types is disabled!");
 }
 
 bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)
@@ -68,5 +70,5 @@ bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& v
         visitor.on_attribute("auto_broadcast", m_autob);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_util_BinaryElementwiseArithmetic_visit_attributes is disabled!");
 }

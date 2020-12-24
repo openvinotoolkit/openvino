@@ -75,7 +75,7 @@ shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& ne
         check_new_args_count(this, new_args);
         return make_shared<op::v1::ReduceMax>(new_args.at(0), new_args.at(1), get_keep_dims());
     }
-    return nullptr;
+    throw ngraph_error("v1_ReduceMax_clone_with_new_inputs is disabled!");
 }
 
 bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs,
@@ -85,5 +85,5 @@ bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs,
     {
         return maxop::evaluate_max(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
     }
-    return false;
+    throw ngraph_error("v1_ReduceMax_evaluate is disabled!");
 }

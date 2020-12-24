@@ -73,5 +73,5 @@ shared_ptr<Node>
             throw ngraph_error("Incorrect number of arguments");
         }
     }
-    return nullptr;
+    throw ngraph_error("v3_EmbeddingBagOffsetsSum_clone_with_new_inputs is disabled!");
 }

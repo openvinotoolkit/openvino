@@ -59,7 +59,7 @@ bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("mask", m_mask);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_RegionYolo_visit_attributes is disabled!");
 }
 
 void op::RegionYolo::validate_and_infer_types()
@@ -113,7 +113,9 @@ void op::RegionYolo::validate_and_infer_types()
         {
             set_output_type(0, input_et, PartialShape::dynamic());
         }
+        return;
     }
+    throw ngraph_error("v0_RegionYolo_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::RegionYolo::clone_with_new_inputs(const OutputVector& new_args) const
@@ -131,5 +133,5 @@ shared_ptr<Node> op::RegionYolo::clone_with_new_inputs(const OutputVector& new_a
                                        m_end_axis,
                                        m_anchors);
     }
-    return nullptr;
+    throw ngraph_error("v0_RegionYolo_clone_with_new_inputs is disabled!");
 }

@@ -81,7 +81,7 @@ bool op::v0::RNNCell::visit_attributes(AttributeVisitor& visitor)
     {
         return op::util::RNNCellBase::visit_attributes(visitor);
     }
-    return false;
+    throw ngraph_error("v0_RNNCell_visit_attributes is disabled!");
 }
 
 void op::v0::RNNCell::validate_and_infer_types()
@@ -180,7 +180,9 @@ void op::v0::RNNCell::validate_and_infer_types()
         // Set output size, type and shape
         set_output_size(1);
         set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
+        return;
     }
+    throw ngraph_error("v0_RNNCell_validate_and_infer_types is disabled!");
 }
 
 Output<Node> op::v0::RNNCell::get_default_bias_input() const
@@ -226,5 +228,5 @@ shared_ptr<Node> op::v0::RNNCell::clone_with_new_inputs(const OutputVector& new_
             throw ngraph_error("Incorrect number of new arguments");
         }
     }
-    return nullptr;
+    throw ngraph_error("v0_RNNCell_clone_with_new_inputs is disabled!");
 }

@@ -43,7 +43,7 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
         return make_shared<v3::ScatterUpdate>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
     }
-    return nullptr;
+    throw ngraph_error("v3_ScatterUpdate_clone_with_new_inputs is disabled!");
 }
 
 namespace scatter_update
@@ -119,5 +119,5 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate) { return evaluate_scatter_update(outputs, inputs); }
-    return false;
+    throw ngraph_error("v3_ScatterUpdate_evaluate is disabled!");
 }

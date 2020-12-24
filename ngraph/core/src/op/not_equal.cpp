@@ -82,7 +82,7 @@ shared_ptr<Node> op::v1::NotEqual::clone_with_new_inputs(const OutputVector& new
         check_new_args_count(this, new_args);
         return make_shared<op::v1::NotEqual>(new_args.at(0), new_args.at(1), this->get_autob());
     }
-    return nullptr;
+    throw ngraph_error("v1_NotEqual_clone_with_new_inputs is disabled!");
 }
 
 bool op::v1::NotEqual::evaluate(const HostTensorVector& outputs,
@@ -92,11 +92,11 @@ bool op::v1::NotEqual::evaluate(const HostTensorVector& outputs,
     {
         return not_equalop::evaluate_not_equal(inputs[0], inputs[1], outputs[0], get_autob());
     }
-    return false;
+    throw ngraph_error("v1_NotEqual_evaluate is disabled!");
 }
 
 bool op::v1::NotEqual::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_NotEqual_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v1_NotEqual_visit_attributes is disabled!");
 }

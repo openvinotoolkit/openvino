@@ -45,7 +45,7 @@ bool ngraph::op::v0::SquaredDifference::visit_attributes(AttributeVisitor& visit
         visitor.on_attribute("auto_broadcast", m_autobroadcast);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_SquaredDifference_visit_attributes is disabled!");
 }
 
 OutputVector op::SquaredDifference::decompose_op() const
@@ -66,5 +66,5 @@ shared_ptr<Node> op::SquaredDifference::clone_with_new_inputs(const OutputVector
 
         return make_shared<SquaredDifference>(new_args.at(0), new_args.at(1), get_autob());
     }
-    return nullptr;
+    throw ngraph_error("v0_SquaredDifference_clone_with_new_inputs is disabled!");
 }

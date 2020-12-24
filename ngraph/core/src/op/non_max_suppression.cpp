@@ -90,7 +90,7 @@ std::shared_ptr<Node>
                                                            m_box_encoding,
                                                            m_sort_result_descending);
     }
-    return nullptr;
+    throw ngraph_error("v1_NonMaxSuppression_clone_with_new_inputs is disabled!");
 }
 
 bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
@@ -101,7 +101,7 @@ bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
         visitor.on_attribute("sort_result_descending", m_sort_result_descending);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_NonMaxSuppression_visit_attributes is disabled!");
 }
 
 void op::v1::NonMaxSuppression::validate_and_infer_types()
@@ -204,7 +204,9 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
             out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
         }
         set_output_type(0, output_element_type, out_shape);
+        return;
     }
+    throw ngraph_error("v1_NonMaxSuppression_validate_and_infer_types is disabled!");
 }
 
 int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const
@@ -309,7 +311,7 @@ std::shared_ptr<Node>
                                                            m_sort_result_descending,
                                                            m_output_type);
     }
-    return nullptr;
+    throw ngraph_error("v3_NonMaxSuppression_clone_with_new_inputs is disabled!");
 }
 
 bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
@@ -321,7 +323,7 @@ bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
         visitor.on_attribute("output_type", m_output_type);
         return true;
     }
-    return false;
+    throw ngraph_error("v3_NonMaxSuppression_visit_attributes is disabled!");
 }
 
 void op::v3::NonMaxSuppression::validate()
@@ -430,7 +432,9 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
             }
         }
         set_output_type(0, m_output_type, out_shape);
+        return;
     }
+    throw ngraph_error("v3_NonMaxSuppression_validate_and_infer_types is disabled!");
 }
 
 int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const
@@ -539,7 +543,7 @@ std::shared_ptr<Node>
                                                            m_sort_result_descending,
                                                            m_output_type);
     }
-    return nullptr;
+    throw ngraph_error("v4_NonMaxSuppression_clone_with_new_inputs is disabled!");
 }
 
 void op::v4::NonMaxSuppression::validate_and_infer_types()
@@ -571,7 +575,9 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
             }
         }
         set_output_type(0, m_output_type, out_shape);
+        return;
     }
+    throw ngraph_error("v4_NonMaxSuppression_validate_and_infer_types is disabled!");
 }
 
 // ------------------------------ V5 ------------------------------
@@ -722,7 +728,7 @@ std::shared_ptr<Node>
             break;
         }
     }
-    return nullptr;
+    throw ngraph_error("v5_NonMaxSuppression_clone_with_new_inputs is disabled!");
 }
 
 namespace
@@ -935,7 +941,7 @@ bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
         visitor.on_attribute("output_type", m_output_type);
         return true;
     }
-    return false;
+    throw ngraph_error("v5_NonMaxSuppression_visit_attributes is disabled!");
 }
 
 void op::v5::NonMaxSuppression::validate_and_infer_types()
@@ -971,7 +977,9 @@ void op::v5::NonMaxSuppression::validate_and_infer_types()
         set_output_type(0, m_output_type, out_shape);
         set_output_type(1, element::f32, out_shape);
         set_output_type(2, m_output_type, Shape{1});
+        return;
     }
+    throw ngraph_error("v5_NonMaxSuppression_validate_and_infer_types is disabled!");
 }
 
 namespace ngraph

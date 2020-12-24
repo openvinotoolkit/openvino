@@ -38,7 +38,7 @@ op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
 bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v3_ScatterElementsUpdate_visit_attributes is disabled!");
 }
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types()
@@ -124,7 +124,9 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
 
         set_output_size(1);
         set_output_type(0, data_et, data_shape);
+        return;
     }
+    throw ngraph_error("v3_ScatterElementsUpdate_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node>
@@ -142,7 +144,7 @@ shared_ptr<Node>
         return make_shared<v3::ScatterElementsUpdate>(
             inputs.at(0), inputs.at(1), inputs.at(2), inputs.at(3));
     }
-    return nullptr;
+    throw ngraph_error("v3_ScatterElementsUpdate_clone_with_new_inputs is disabled!");
 }
 
 namespace scatter_element_update
@@ -312,5 +314,5 @@ bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
     {
         return evaluate_scatter_element_update(outputs, inputs);
     }
-    return false;
+    throw ngraph_error("v3_ScatterElementsUpdate_evaluate is disabled!");
 }

@@ -63,5 +63,7 @@ void op::util::FusedOp::validate_and_infer_types()
         }
 
         post_validate_and_infer_types();
+        return;
     }
+    throw ngraph_error("util_FusedOp_validate_and_infer_types is disabled!");
 }

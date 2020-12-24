@@ -43,7 +43,7 @@ op::HardSigmoid::HardSigmoid(const Output<Node>& data,
 bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_HardSigmoid_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_HardSigmoid_visit_attributes is disabled!");
 }
 
 void op::HardSigmoid::pre_validate_and_infer_types()
@@ -110,5 +110,5 @@ shared_ptr<Node> op::HardSigmoid::clone_with_new_inputs(const OutputVector& new_
 
         return make_shared<HardSigmoid>(new_args.at(0), new_args.at(1), new_args.at(2));
     }
-    return nullptr;
+    throw ngraph_error("v0_HardSigmoid_clone_with_new_inputs is disabled!");
 }

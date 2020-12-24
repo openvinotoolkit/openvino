@@ -44,7 +44,7 @@ bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("num_splits", m_num_splits);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_Split_visit_attributes is disabled!");
 }
 
 void op::v1::Split::validate_and_infer_types()
@@ -105,7 +105,9 @@ void op::v1::Split::validate_and_infer_types()
         }
 
         set_input_is_relevant_to_shape(0);
+        return;
     }
+    throw ngraph_error("v1_Split_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_args) const
@@ -115,7 +117,7 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
         check_new_args_count(this, new_args);
         return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
     }
-    return nullptr;
+    throw ngraph_error("v1_Split_clone_with_new_inputs is disabled!");
 }
 
 namespace split
@@ -167,5 +169,5 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
         const auto& axis = inputs[1];
         return split::evaluate_split(data, axis, outputs, m_num_splits, this);
     }
-    return false;
+    throw ngraph_error("v1_Split_evaluate is disabled!");
 }

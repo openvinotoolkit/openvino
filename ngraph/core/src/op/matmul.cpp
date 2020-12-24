@@ -46,7 +46,7 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("transpose_b", m_transpose_b);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_MatMul_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
@@ -56,7 +56,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
         check_new_args_count(this, new_args);
         return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
     }
-    return nullptr;
+    throw ngraph_error("v0_MatMul_clone_with_new_inputs is disabled!");
 }
 
 namespace matmul
@@ -272,7 +272,7 @@ bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVecto
         return matmul::evaluate_matmul(
             inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
     }
-    return false;
+    throw ngraph_error("v0_MatMul_evaluate is disabled!");
 }
 
 void ngraph::op::v0::MatMul::validate_and_infer_types()
@@ -309,5 +309,7 @@ void ngraph::op::v0::MatMul::validate_and_infer_types()
         {
             set_output_type(0, result_et, PartialShape::dynamic());
         }
+        return;
     }
+    throw ngraph_error("v0_MatMul_validate_and_infer_types is disabled!");
 }

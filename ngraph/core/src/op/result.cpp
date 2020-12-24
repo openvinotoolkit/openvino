@@ -38,7 +38,7 @@ op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
 bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Result_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Result_visit_attributes is disabled!");
 }
 
 void op::Result::validate_and_infer_types()
@@ -52,7 +52,9 @@ void op::Result::validate_and_infer_types()
                               " outputs (1 expected).");
 
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
     }
+    throw ngraph_error("v0_Result_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const
@@ -64,7 +66,7 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
         auto res = make_shared<Result>(new_args.at(0), m_needs_default_layout);
         return std::move(res);
     }
-    return nullptr;
+    throw ngraph_error("v0_Result_clone_with_new_inputs is disabled!");
 }
 
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -77,7 +79,7 @@ bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVecto
         memcpy(output, input, outputs[0]->get_size_in_bytes());
         return true;
     }
-    return false;
+    throw ngraph_error("v0_Result_evaluate is disabled!");
 }
 
 bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

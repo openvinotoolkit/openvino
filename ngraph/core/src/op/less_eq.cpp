@@ -43,7 +43,7 @@ shared_ptr<Node> op::v1::LessEqual::clone_with_new_inputs(const OutputVector& ne
         check_new_args_count(this, new_args);
         return make_shared<v1::LessEqual>(new_args.at(0), new_args.at(1), this->get_autob());
     }
-    return nullptr;
+    throw ngraph_error("v1_LessEqual_clone_with_new_inputs is disabled!");
 }
 
 namespace less_equalop
@@ -92,5 +92,5 @@ bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs,
     {
         return less_equalop::evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
     }
-    return false;
+    throw ngraph_error("v1_LessEqual_evaluate is disabled!");
 }

@@ -39,7 +39,7 @@ bool ngraph::op::v0::Elu::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("alpha", m_alpha);
         return true;
     }
-    return false;
+    throw ngraph_error("v0_Elu_visit_attributes is disabled!");
 }
 
 void op::v0::Elu::validate_and_infer_types()
@@ -48,7 +48,9 @@ void op::v0::Elu::validate_and_infer_types()
     {
         set_output_size(1);
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
     }
+    throw ngraph_error("v0_Elu_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::Elu::clone_with_new_inputs(const OutputVector& new_args) const
@@ -58,5 +60,5 @@ shared_ptr<Node> op::Elu::clone_with_new_inputs(const OutputVector& new_args) co
         check_new_args_count(this, new_args);
         return make_shared<Elu>(new_args.at(0), m_alpha);
     }
-    return nullptr;
+    throw ngraph_error("v0_Elu_clone_with_new_inputs is disabled!");
 }

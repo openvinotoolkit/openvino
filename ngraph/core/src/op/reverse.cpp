@@ -57,7 +57,7 @@ bool ngraph::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("mode", m_mode);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_Reverse_visit_attributes is disabled!");
 }
 
 void op::v1::Reverse::validate_and_infer_types()
@@ -139,7 +139,9 @@ void op::v1::Reverse::validate_and_infer_types()
         }
 
         set_output_type(0, get_input_element_type(0), input_shape);
+        return;
     }
+    throw ngraph_error("v1_Reverse_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const
@@ -149,7 +151,7 @@ shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_
         check_new_args_count(this, new_args);
         return make_shared<op::v1::Reverse>(new_args.at(0), new_args.at(1), m_mode);
     }
-    return nullptr;
+    throw ngraph_error("v1_Reverse_clone_with_new_inputs is disabled!");
 }
 
 op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode) const
@@ -227,7 +229,7 @@ bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Reverse_evaluate) { return evaluate_reverse(outputs, inputs); }
-    return false;
+    throw ngraph_error("v1_Reverse_evaluate is disabled!");
 }
 
 namespace ngraph

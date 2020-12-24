@@ -42,7 +42,7 @@ shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVec
         return make_shared<op::v1::ReduceLogicalAnd>(
             new_args.at(0), new_args.at(1), get_keep_dims());
     }
-    return nullptr;
+    throw ngraph_error("v1_ReduceLogicalAnd_clone_with_new_inputs is disabled!");
 }
 
 namespace
@@ -87,5 +87,5 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
         const auto& out = outputs[0];
         return evaluate_reduce_logical_and(data, axes, out, get_keep_dims());
     }
-    return false;
+    throw ngraph_error("v1_ReduceLogicalAnd_evaluate is disabled!");
 }

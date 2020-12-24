@@ -86,7 +86,9 @@ void op::v1::Select::validate_and_infer_types()
             }
         }
         set_output_type(0, result_et, result_shape);
+        return;
     }
+    throw ngraph_error("v1_Select_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_args) const
@@ -97,7 +99,7 @@ shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_a
         return make_shared<v1::Select>(
             new_args.at(0), new_args.at(1), new_args.at(2), m_auto_broadcast);
     }
-    return nullptr;
+    throw ngraph_error("v1_Select_clone_with_new_inputs is disabled!");
 }
 
 bool op::v1::Select::visit_attributes(AttributeVisitor& visitor)
@@ -107,7 +109,7 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("auto_broadcast", m_auto_broadcast);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_Select_visit_attributes is disabled!");
 }
 
 namespace detail
@@ -173,5 +175,5 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values,
         return detail::evaluate_select(
             output_values, input_values, autob, get_output_element_type(0));
     }
-    return false;
+    throw ngraph_error("v1_Select_evaluate is disabled!");
 }

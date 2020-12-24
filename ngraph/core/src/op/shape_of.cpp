@@ -48,7 +48,9 @@ void op::v3::ShapeOf::validate_and_infer_types()
                               "Output type must be i32 or i64");
         set_input_is_relevant_to_value(0, false);
         set_output_type(0, m_output_type, PartialShape{get_input_partial_shape(0).rank()});
+        return;
     }
+    throw ngraph_error("v3_ShapeOf_validate_and_infer_types is disabled!");
 }
 
 bool ngraph::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor)
@@ -58,7 +60,7 @@ bool ngraph::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("output_type", m_output_type);
         return true;
     }
-    return false;
+    throw ngraph_error("v3_ShapeOf_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const
@@ -70,7 +72,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
         new_shape_of->set_is_foldable(m_is_foldable);
         return new_shape_of;
     }
-    return nullptr;
+    throw ngraph_error("v3_ShapeOf_clone_with_new_inputs is disabled!");
 }
 
 namespace shape_of
@@ -195,13 +197,15 @@ void op::v0::ShapeOf::validate_and_infer_types()
     {
         set_input_is_relevant_to_value(0, false);
         set_output_type(0, element::i64, PartialShape{get_input_partial_shape(0).rank()});
+        return;
     }
+    throw ngraph_error("v0_ShapeOf_validate_and_infer_types is disabled!");
 }
 
 bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_ShapeOf_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_ShapeOf_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const
@@ -229,7 +233,7 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
     {
         return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
     }
-    return false;
+    throw ngraph_error("v0_ShapeOf_evaluate is disabled!");
 }
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)

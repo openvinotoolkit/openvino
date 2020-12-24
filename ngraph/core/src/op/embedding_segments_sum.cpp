@@ -180,7 +180,9 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
         }
 
         set_output_type(0, result_et, result_shape);
+        return;
     }
+    throw ngraph_error("v3_EmbeddingSegmentsSum_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node>
@@ -213,5 +215,5 @@ shared_ptr<Node>
             throw ngraph_error("Incorrect number of arguments");
         }
     }
-    return nullptr;
+    throw ngraph_error("v3_EmbeddingSegmentsSum_clone_with_new_inputs is disabled!");
 }

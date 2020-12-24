@@ -80,7 +80,7 @@ bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor)
         visitor.on_attribute("pad_mode", m_pad_mode);
         return true;
     }
-    return false;
+    throw ngraph_error("v1_Pad_visit_attributes is disabled!");
 }
 
 void op::v1::Pad::validate_and_infer_types()
@@ -202,7 +202,9 @@ void op::v1::Pad::validate_and_infer_types()
         {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         }
+        return;
     }
+    throw ngraph_error("v1_Pad_validate_and_infer_types is disabled!");
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const
@@ -220,7 +222,7 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
             return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
         }
     }
-    return nullptr;
+    throw ngraph_error("v1_Pad_clone_with_new_inputs is disabled!");
 }
 
 bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs,
@@ -257,5 +259,5 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs,
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Pad_evaluate) { return evaluate_pad(outputs, inputs); }
-    return false;
+    throw ngraph_error("v1_Pad_evaluate is disabled!");
 }

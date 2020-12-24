@@ -93,11 +93,13 @@ void op::util::EmbeddingBagPackedBase::validate_and_infer_types()
         }
 
         set_output_type(0, result_et, result_shape);
+        return;
     }
+    throw ngraph_error("util_EmbeddingBagPackedBase_validate_and_infer_types is disabled!");
 }
 
 bool op::util::EmbeddingBagPackedBase::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(util_EmbeddingBagPackedBase_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("util_EmbeddingBagPackedBase_visit_attributes is disabled!");
 }

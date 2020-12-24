@@ -38,7 +38,7 @@ op::Tan::Tan(const Output<Node>& arg)
 bool ngraph::op::v0::Tan::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Tan_visit_attributes) { return true; }
-    return false;
+    throw ngraph_error("v0_Tan_visit_attributes is disabled!");
 }
 
 shared_ptr<Node> op::Tan::clone_with_new_inputs(const OutputVector& new_args) const
@@ -48,7 +48,7 @@ shared_ptr<Node> op::Tan::clone_with_new_inputs(const OutputVector& new_args) co
         check_new_args_count(this, new_args);
         return make_shared<Tan>(new_args.at(0));
     }
-    return nullptr;
+    throw ngraph_error("v0_Tan_clone_with_new_inputs is disabled!");
 }
 
 namespace tanop
@@ -87,5 +87,5 @@ bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
     {
         return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
     }
-    return false;
+    throw ngraph_error("v0_Tan_evaluate is disabled!");
 }
