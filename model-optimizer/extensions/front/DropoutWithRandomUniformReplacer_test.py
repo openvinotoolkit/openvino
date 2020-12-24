@@ -28,16 +28,17 @@ class DropoutWithRandomUniformReplacerTest(unittest.TestCase):
         nodes = {
             **regular_op('input', {'type': 'Parameter'}),
             **regular_op('shape', {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'}),
-            **regular_op('random_uniform', {'type': 'RandomUniform', 'kind': 'op', 'op': 'RandomUniform'}),
+            **regular_op('random_uniform', {'type': 'RandomUniform', 'kind': 'op', 'op': 'RandomUniform',
+                                            'name': 'dropout/RU'}),
             **regular_op('mul', {'type': 'Mul', 'kind': 'op', 'op': 'Mul'}),
             **regular_op('add', {'type': 'Add', 'kind': 'op', 'op': 'Add'}),
             **regular_op('add2', {'type': 'Add', 'kind': 'op', 'op': 'Add'}),
-            **regular_op('floor', {'type': 'Floor', 'kind': 'op', 'op': 'Floor', 'name': 'dropout/Floor'}),
+            **regular_op('floor', {'type': 'Floor', 'kind': 'op', 'op': 'Floor'}),
             'add_const': {'kind': 'op', 'op': 'Const', 'value': np.array(0.0), 'data_type': np.float32},
             **result('result'),
 
             # new nodes to be added
-            'broadcast_const': {'kind': 'op', 'op': 'Const', 'value': np.array(1.0), 'data_type': np.float32},
+            'broadcast_const': {'kind': 'op', 'op': 'Const', 'value': np.array(0.5), 'data_type': np.float32},
             **regular_op('broadcast', {'type': 'Broadcast', 'kind': 'op', 'op': 'Broadcast'}),
         }
         edges = [('input', 'shape'),
@@ -48,7 +49,7 @@ class DropoutWithRandomUniformReplacerTest(unittest.TestCase):
                  ('add', 'add2'),
                  ('add2', 'floor'),
                  ('floor', 'result')]
-        graph = build_graph(nodes, edges)
+        graph = build_graph(nodes, edges, nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NCHW'
         graph.stage = 'front'
@@ -58,10 +59,15 @@ class DropoutWithRandomUniformReplacerTest(unittest.TestCase):
         edges_ref = [('input', 'shape'),
                      ('broadcast_const', 'broadcast'),
                      ('shape', 'broadcast'),
-                     ('broadcast', 'result')]
-        graph_ref = build_graph(nodes, edges_ref)
+                     ('broadcast', 'mul'),
+                     ('mul', 'add'),
+                     ('add_const', 'add'),
+                     ('add', 'add2'),
+                     ('add2', 'floor'),
+                     ('floor', 'result')]
+        graph_ref = build_graph(nodes, edges_ref, nodes_with_edges_only=True)
 
         # check graph structure after the transformation and output name
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(op='Broadcast')[-1]]['name'] == 'dropout/Floor')
+        self.assertTrue(graph.node[graph.get_nodes_with_attributes(op='Broadcast')[0]]['name'] == 'dropout/RU')

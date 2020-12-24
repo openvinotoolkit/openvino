@@ -38,15 +38,12 @@ class DropoutWithRandomUniformReplacer(FrontReplacementSubgraph):
                                      Const(0)
 
     Resulted block:
-    ShapeOf -> Broadcast
-                   /\
-                   |
-               Const(1)
+    ShapeOf --> Broadcast --> Mul ---> Add ---> Add -> Floor
+                  /\                   /\
+                  |                    |
+               Const(0.5)           Const(0)
     """
     enabled = True
-
-    def run_before(self):
-        return []
 
     @staticmethod
     def pattern(**kwargs):
@@ -72,15 +69,18 @@ class DropoutWithRandomUniformReplacer(FrontReplacementSubgraph):
 
     @staticmethod
     def replace_sub_graph(graph: Graph, match: dict, **kwargs):
-        log.warning('Possible dropout block with RandomUniform is detected.')
         random_uniform_node = match['random_uniform']
-        floor_node = match['floor']
-        floor_node_name = floor_node.soft_get('name', floor_node.id)
+        random_uniform_node_name = random_uniform_node.soft_get('name', random_uniform_node.id)
+        log.error("Possible dropout block with RandomUniform is detected. "
+                  "Replace {} with a Broadcast with constant value of 0.5 "
+                  "assuming that it is executed in inference mode.".format(random_uniform_node_name),
+                  extra={'is_warning': True})
         data_type = match['add_const'].data_type
         broadcast_node = create_op_with_const_inputs(graph, Broadcast,
-                                                     {0: np.array([1], dtype=data_type)},
-                                                     {'mode': 'numpy', 'name': floor_node_name + '/Broadcast'})
-        rename_nodes([(floor_node, floor_node_name + '/ToBeRemoved'), (broadcast_node, floor_node_name)])
+                                                     {0: np.array([0.5], dtype=data_type)},
+                                                     {'mode': 'numpy',
+                                                      'name': random_uniform_node_name + '/Broadcast'})
+        rename_nodes([(random_uniform_node, random_uniform_node_name + '/ToBeRemoved'),
+                      (broadcast_node, random_uniform_node_name)])
         random_uniform_node.in_port(0).get_connection().set_destination(broadcast_node.in_port(1))
-        floor_node.out_port(0).get_connection().set_source(broadcast_node.out_port(0))
-        pass
+        random_uniform_node.out_port(0).get_connection().set_source(broadcast_node.out_port(0))
