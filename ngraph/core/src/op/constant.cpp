@@ -549,8 +549,12 @@ void op::Constant::set_data_shape(const Shape& shape)
 
 shared_ptr<Node> op::Constant::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<Constant>(*this);
+    NGRAPH_OP_SCOPE(Constant_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<Constant>(*this);
+    }
+    return nullptr;
 }
 
 template <typename T>
@@ -625,15 +629,19 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const
 
 bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("element_type", m_element_type);
-    visitor.on_attribute("shape", m_shape);
-    if (m_data == nullptr)
+    NGRAPH_OP_SCOPE(v0_Constant_visit_attributes)
     {
-        // Filling in a fresh constant
-        allocate_buffer();
+        visitor.on_attribute("element_type", m_element_type);
+        visitor.on_attribute("shape", m_shape);
+        if (m_data == nullptr)
+        {
+            // Filling in a fresh constant
+            allocate_buffer();
+        }
+        visitor.on_attribute("value", m_data);
+        return true;
     }
-    visitor.on_attribute("value", m_data);
-    return true;
+    return false;
 }
 
 bool op::v0::Constant::evaluate(const HostTensorVector& outputs,

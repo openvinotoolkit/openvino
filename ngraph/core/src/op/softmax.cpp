@@ -73,29 +73,40 @@ op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis)
 
 bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("axis", m_axis);
-    return true;
+    NGRAPH_OP_SCOPE(v1_Softmax_visit_attributes)
+    {
+        visitor.on_attribute("axis", m_axis);
+        return true;
+    }
+    return false;
 }
 
 void op::v1::Softmax::validate_and_infer_types()
 {
-    const PartialShape& input_shape = get_input_partial_shape(0);
-    if (input_shape.rank().is_static())
-        NODE_VALIDATION_CHECK(this,
-                              m_axis < input_shape.rank().get_length(),
-                              "Reduction axis (",
-                              m_axis,
-                              ") is out of bounds (argument shape: ",
-                              input_shape,
-                              ").");
+    NGRAPH_OP_SCOPE(v1_Softmax_validate_and_infer_types)
+    {
+        const PartialShape& input_shape = get_input_partial_shape(0);
+        if (input_shape.rank().is_static())
+            NODE_VALIDATION_CHECK(this,
+                                  m_axis < input_shape.rank().get_length(),
+                                  "Reduction axis (",
+                                  m_axis,
+                                  ") is out of bounds (argument shape: ",
+                                  input_shape,
+                                  ").");
 
-    set_output_type(0, get_input_element_type(0), input_shape);
+        set_output_type(0, get_input_element_type(0), input_shape);
+    }
 }
 
 shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<op::v1::Softmax>(new_args.at(0), m_axis);
+    NGRAPH_OP_SCOPE(v1_Softmax_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<op::v1::Softmax>(new_args.at(0), m_axis);
+    }
+    return nullptr;
 }
 
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,

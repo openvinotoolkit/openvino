@@ -30,8 +30,12 @@ constexpr NodeTypeInfo op::Sigmoid::type_info;
 
 shared_ptr<Node> op::Sigmoid::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<Sigmoid>(new_args.at(0));
+    NGRAPH_OP_SCOPE(Sigmoid_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<Sigmoid>(new_args.at(0));
+    }
+    return nullptr;
 }
 
 op::Sigmoid::Sigmoid(const Output<Node>& arg)

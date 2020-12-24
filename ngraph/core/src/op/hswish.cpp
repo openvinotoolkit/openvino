@@ -35,12 +35,17 @@ op::v4::HSwish::HSwish(const Output<Node>& arg)
 
 bool op::v4::HSwish::visit_attributes(AttributeVisitor& visitor)
 {
-    return true;
+    NGRAPH_OP_SCOPE(v4_HSwish_visit_attributes) { return true; }
+    return false;
 }
 
 shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    return make_shared<op::v4::HSwish>(new_args.at(0));
+    NGRAPH_OP_SCOPE(v4_HSwish_clone_with_new_inputs)
+    {
+        return make_shared<op::v4::HSwish>(new_args.at(0));
+    }
+    return nullptr;
 }
 
 namespace hswish

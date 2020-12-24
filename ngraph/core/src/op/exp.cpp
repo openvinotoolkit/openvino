@@ -35,13 +35,18 @@ op::Exp::Exp(const Output<Node>& arg)
 
 bool ngraph::op::v0::Exp::visit_attributes(AttributeVisitor& visitor)
 {
-    return true;
+    NGRAPH_OP_SCOPE(v0_Exp_visit_attributes) { return true; }
+    return false;
 }
 
 shared_ptr<Node> op::Exp::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<Exp>(new_args.at(0));
+    NGRAPH_OP_SCOPE(v0_Exp_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<Exp>(new_args.at(0));
+    }
+    return nullptr;
 }
 
 namespace expop

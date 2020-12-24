@@ -41,25 +41,36 @@ op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type)
 
 void op::v3::ShapeOf::validate_and_infer_types()
 {
-    NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::i64 || m_output_type == element::i32,
-                          "Output type must be i32 or i64");
-    set_input_is_relevant_to_value(0, false);
-    set_output_type(0, m_output_type, PartialShape{get_input_partial_shape(0).rank()});
+    NGRAPH_OP_SCOPE(v3_ShapeOf_validate_and_infer_types)
+    {
+        NODE_VALIDATION_CHECK(this,
+                              m_output_type == element::i64 || m_output_type == element::i32,
+                              "Output type must be i32 or i64");
+        set_input_is_relevant_to_value(0, false);
+        set_output_type(0, m_output_type, PartialShape{get_input_partial_shape(0).rank()});
+    }
 }
 
 bool ngraph::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
+    NGRAPH_OP_SCOPE(v3_ShapeOf_visit_attributes)
+    {
+        visitor.on_attribute("output_type", m_output_type);
+        return true;
+    }
+    return false;
 }
 
 shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    auto new_shape_of = make_shared<op::v3::ShapeOf>(new_args.at(0), m_output_type);
-    new_shape_of->set_is_foldable(m_is_foldable);
-    return new_shape_of;
+    NGRAPH_OP_SCOPE(v3_ShapeOf_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        auto new_shape_of = make_shared<op::v3::ShapeOf>(new_args.at(0), m_output_type);
+        new_shape_of->set_is_foldable(m_is_foldable);
+        return new_shape_of;
+    }
+    return nullptr;
 }
 
 namespace shape_of
@@ -180,27 +191,35 @@ op::v0::ShapeOf::ShapeOf(const Output<Node>& arg)
 
 void op::v0::ShapeOf::validate_and_infer_types()
 {
-    set_input_is_relevant_to_value(0, false);
-    set_output_type(0, element::i64, PartialShape{get_input_partial_shape(0).rank()});
+    NGRAPH_OP_SCOPE(v0_ShapeOf_validate_and_infer_types)
+    {
+        set_input_is_relevant_to_value(0, false);
+        set_output_type(0, element::i64, PartialShape{get_input_partial_shape(0).rank()});
+    }
 }
 
 bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor)
 {
-    return true;
+    NGRAPH_OP_SCOPE(v0_ShapeOf_visit_attributes) { return true; }
+    return false;
 }
 
 shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    auto new_shape_of = make_shared<op::v0::ShapeOf>(new_args.at(0));
-    NGRAPH_CHECK(new_shape_of.get(),
-                 new_shape_of != nullptr,
-                 "Cannot clone ",
-                 description(),
-                 " operation with name ",
-                 get_friendly_name());
-    new_shape_of->set_is_foldable(m_is_foldable);
-    return new_shape_of;
+    NGRAPH_OP_SCOPE(v0_ShapeOf_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        auto new_shape_of = make_shared<op::v0::ShapeOf>(new_args.at(0));
+        NGRAPH_CHECK(new_shape_of.get(),
+                     new_shape_of != nullptr,
+                     "Cannot clone ",
+                     description(),
+                     " operation with name ",
+                     get_friendly_name());
+        new_shape_of->set_is_foldable(m_is_foldable);
+        return new_shape_of;
+    }
+    return nullptr;
 }
 
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,

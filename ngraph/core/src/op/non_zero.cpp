@@ -48,40 +48,53 @@ op::v3::NonZero::NonZero(const Output<Node>& arg, const element::Type& output_ty
 
 bool ngraph::op::v3::NonZero::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
+    NGRAPH_OP_SCOPE(v3_NonZero_visit_attributes)
+    {
+        visitor.on_attribute("output_type", m_output_type);
+        return true;
+    }
+    return false;
 }
 
 void op::v3::NonZero::validate_and_infer_types()
 {
-    const PartialShape& input_shape = get_input_partial_shape(0);
-    const auto input_et = get_input_element_type(0);
-
-    NODE_VALIDATION_CHECK(this,
-                          input_et.is_integral() || input_et.is_real(),
-                          "NonZero input data type needs to be a numeric type. Got: ",
-                          input_et);
-    NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::i64 || m_output_type == element::i32,
-                          "Output type must be i32 or i64");
-
-    // For scalar non-zero value case, onnx test case expects output shape {1, 1}
-    if (input_shape.rank() == 0)
+    NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types)
     {
-        set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
-    }
-    else
-    {
-        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
-    }
+        const PartialShape& input_shape = get_input_partial_shape(0);
+        const auto input_et = get_input_element_type(0);
 
-    set_input_is_relevant_to_shape(0);
+        NODE_VALIDATION_CHECK(this,
+                              input_et.is_integral() || input_et.is_real(),
+                              "NonZero input data type needs to be a numeric type. Got: ",
+                              input_et);
+        NODE_VALIDATION_CHECK(this,
+                              m_output_type == element::i64 || m_output_type == element::i32,
+                              "Output type must be i32 or i64");
+
+        // For scalar non-zero value case, onnx test case expects output shape {1, 1}
+        if (input_shape.rank() == 0)
+        {
+            set_output_type(
+                0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
+        }
+        else
+        {
+            set_output_type(
+                0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
+        }
+
+        set_input_is_relevant_to_shape(0);
+    }
 }
 
 shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
+    NGRAPH_OP_SCOPE(v3_NonZero_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
+    }
+    return nullptr;
 }
 
 namespace nonzero

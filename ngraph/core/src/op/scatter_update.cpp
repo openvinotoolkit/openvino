@@ -37,9 +37,13 @@ op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
 
 shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<v3::ScatterUpdate>(
-        new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<v3::ScatterUpdate>(
+            new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
+    }
+    return nullptr;
 }
 
 namespace scatter_update

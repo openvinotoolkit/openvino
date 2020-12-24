@@ -50,63 +50,74 @@ op::SpaceToDepth::SpaceToDepth(const Output<Node>& data, const std::string& mode
 
 bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("block_size", m_blocksize);
-    visitor.on_attribute("mode", m_mode);
-    return true;
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_visit_attributes)
+    {
+        visitor.on_attribute("block_size", m_blocksize);
+        visitor.on_attribute("mode", m_mode);
+        return true;
+    }
+    return false;
 }
 
 shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    if (new_args.size() != 1)
+    NGRAPH_OP_SCOPE(SpaceToDepth_clone_with_new_inputs)
     {
-        throw ngraph_error("Incorrect number of new arguments");
+        if (new_args.size() != 1)
+        {
+            throw ngraph_error("Incorrect number of new arguments");
+        }
+        return make_shared<SpaceToDepth>(new_args.at(0), m_mode, m_blocksize);
     }
-    return make_shared<SpaceToDepth>(new_args.at(0), m_mode, m_blocksize);
+    return nullptr;
 }
 
 void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
 {
-    PartialShape data_pshape = get_input_partial_shape(0);
-
-    const auto& data_type = get_input_element_type(0);
-
-    auto data = input_value(0);
-
-    if (data_pshape.is_static())
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_validate_and_infer_types)
     {
-        const auto& data_shape = data.get_shape();
+        PartialShape data_pshape = get_input_partial_shape(0);
 
-        NODE_VALIDATION_CHECK(
-            this,
-            !(data_shape.size() < 3),
-            "The input tensor with rank lower than 3 is not supported (input rank: ",
-            data_shape.size(),
-            ")");
+        const auto& data_type = get_input_element_type(0);
 
-        auto multiplier = std::pow(m_blocksize, data_shape.size() - 2);
+        auto data = input_value(0);
 
-        auto out_shape = data_shape;
-        out_shape[1] *= multiplier;
-        for (size_t i = 2; i < out_shape.size(); i++)
+        if (data_pshape.is_static())
         {
-            NODE_VALIDATION_CHECK(this,
-                                  m_blocksize > 0 && !(out_shape[i] % m_blocksize),
-                                  "The dimension on position: ",
-                                  i,
-                                  " equal to: ",
-                                  out_shape[i],
-                                  " must be a multiple of m_blocksize: ",
-                                  m_blocksize);
+            const auto& data_shape = data.get_shape();
 
-            out_shape[i] /= m_blocksize;
+            NODE_VALIDATION_CHECK(
+                this,
+                !(data_shape.size() < 3),
+                "The input tensor with rank lower than 3 is not supported (input rank: ",
+                data_shape.size(),
+                ")");
+
+            auto multiplier = std::pow(m_blocksize, data_shape.size() - 2);
+
+            auto out_shape = data_shape;
+            out_shape[1] *= multiplier;
+            for (size_t i = 2; i < out_shape.size(); i++)
+            {
+                NODE_VALIDATION_CHECK(this,
+                                      m_blocksize > 0 && !(out_shape[i] % m_blocksize),
+                                      "The dimension on position: ",
+                                      i,
+                                      " equal to: ",
+                                      out_shape[i],
+                                      " must be a multiple of m_blocksize: ",
+                                      m_blocksize);
+
+                out_shape[i] /= m_blocksize;
+            }
+
+            set_output_size(1);
+            set_output_type(0, data_type, out_shape);
         }
-
-        set_output_size(1);
-        set_output_type(0, data_type, out_shape);
-    }
-    else
-    {
-        set_output_type(0, data_type, PartialShape::dynamic());
+        else
+        {
+            set_output_type(0, data_type, PartialShape::dynamic());
+        }
     }
 }
 

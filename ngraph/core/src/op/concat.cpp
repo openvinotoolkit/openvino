@@ -41,77 +41,90 @@ op::Concat::Concat(const NodeVector& args, int64_t axis)
 
 bool op::Concat::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("axis", m_axis);
-    return true;
+    NGRAPH_OP_SCOPE(Concat_visit_attributes)
+    {
+        visitor.on_attribute("axis", m_axis);
+        return true;
+    }
+    return false;
 }
 
 void op::Concat::validate_and_infer_types()
 {
-    NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
-
-    PartialShape inputs_shape_scheme{PartialShape::dynamic()};
-    element::Type inputs_et{element::dynamic};
-    Dimension concatenation_axis_output_dim{0};
-
-    for (uint64_t i = 0; i < get_input_size(); i++)
+    NGRAPH_OP_SCOPE(Concat_validate_and_infer_types)
     {
-        NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(inputs_et, inputs_et, get_input_element_type(i)),
-                              "Argument element types are inconsistent.");
-        PartialShape this_input_shape = get_input_partial_shape(i);
-        Dimension this_input_rank = this_input_shape.rank();
-        if (this_input_rank.is_static())
+        NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
+
+        PartialShape inputs_shape_scheme{PartialShape::dynamic()};
+        element::Type inputs_et{element::dynamic};
+        Dimension concatenation_axis_output_dim{0};
+
+        for (uint64_t i = 0; i < get_input_size(); i++)
         {
-            if (get_concatenation_axis() < 0)
-            {
-                set_concatenation_axis(get_axis() < 0 ? get_axis() + this_input_rank.get_length()
-                                                      : get_axis());
-            }
-            auto concat_axis = get_concatenation_axis();
-            NODE_VALIDATION_CHECK(this,
-                                  concat_axis < this_input_rank.get_length(),
-                                  "Concatenation axis (",
-                                  concat_axis,
-                                  ") is out of bounds for ",
-                                  "argument ",
-                                  i,
-                                  ", which has shape ",
-                                  this_input_shape,
-                                  ".");
-
-            concatenation_axis_output_dim += this_input_shape[concat_axis];
-            this_input_shape[concat_axis] = Dimension::dynamic();
-
             NODE_VALIDATION_CHECK(
                 this,
-                PartialShape::merge_into(inputs_shape_scheme, this_input_shape),
-                "Argument shapes are inconsistent; they must have the same rank, and must have ",
-                "equal dimension everywhere except on the concatenation axis (axis ",
-                concat_axis,
-                ").");
+                element::Type::merge(inputs_et, inputs_et, get_input_element_type(i)),
+                "Argument element types are inconsistent.");
+            PartialShape this_input_shape = get_input_partial_shape(i);
+            Dimension this_input_rank = this_input_shape.rank();
+            if (this_input_rank.is_static())
+            {
+                if (get_concatenation_axis() < 0)
+                {
+                    set_concatenation_axis(
+                        get_axis() < 0 ? get_axis() + this_input_rank.get_length() : get_axis());
+                }
+                auto concat_axis = get_concatenation_axis();
+                NODE_VALIDATION_CHECK(this,
+                                      concat_axis < this_input_rank.get_length(),
+                                      "Concatenation axis (",
+                                      concat_axis,
+                                      ") is out of bounds for ",
+                                      "argument ",
+                                      i,
+                                      ", which has shape ",
+                                      this_input_shape,
+                                      ".");
+
+                concatenation_axis_output_dim += this_input_shape[concat_axis];
+                this_input_shape[concat_axis] = Dimension::dynamic();
+
+                NODE_VALIDATION_CHECK(
+                    this,
+                    PartialShape::merge_into(inputs_shape_scheme, this_input_shape),
+                    "Argument shapes are inconsistent; they must have the same rank, and must "
+                    "have ",
+                    "equal dimension everywhere except on the concatenation axis (axis ",
+                    concat_axis,
+                    ").");
+            }
+            else
+            {
+                concatenation_axis_output_dim += Dimension::dynamic();
+            }
+        }
+        PartialShape concatenated_shape = inputs_shape_scheme;
+
+        if (concatenated_shape.rank().is_static())
+        {
+            concatenated_shape[get_concatenation_axis()] = concatenation_axis_output_dim;
+            set_output_type(0, inputs_et, concatenated_shape);
         }
         else
         {
-            concatenation_axis_output_dim += Dimension::dynamic();
+            set_output_type(0, inputs_et, PartialShape::dynamic(concatenation_axis_output_dim));
         }
-    }
-    PartialShape concatenated_shape = inputs_shape_scheme;
-
-    if (concatenated_shape.rank().is_static())
-    {
-        concatenated_shape[get_concatenation_axis()] = concatenation_axis_output_dim;
-        set_output_type(0, inputs_et, concatenated_shape);
-    }
-    else
-    {
-        set_output_type(0, inputs_et, PartialShape::dynamic(concatenation_axis_output_dim));
     }
 }
 
 shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    // TODO(amprocte): Should we check the new_args count here?
-    return make_shared<Concat>(new_args, m_axis);
+    NGRAPH_OP_SCOPE(Concat_clone_with_new_inputs)
+    {
+        // TODO(amprocte): Should we check the new_args count here?
+        return make_shared<Concat>(new_args, m_axis);
+    }
+    return nullptr;
 }
 
 namespace

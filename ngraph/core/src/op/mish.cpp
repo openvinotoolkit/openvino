@@ -35,19 +35,27 @@ op::v4::Mish::Mish(const Output<Node>& arg)
 
 bool op::v4::Mish::visit_attributes(AttributeVisitor& visitor)
 {
-    return true;
+    NGRAPH_OP_SCOPE(v4_Mish_visit_attributes) { return true; }
+    return false;
 }
 
 void op::v4::Mish::validate_and_infer_types()
 {
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    NGRAPH_OP_SCOPE(v4_Mish_validate_and_infer_types)
+    {
+        set_output_size(1);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    }
 }
 
 shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<Mish>(new_args.at(0));
+    NGRAPH_OP_SCOPE(v4_Mish_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<Mish>(new_args.at(0));
+    }
+    return nullptr;
 }
 
 namespace mish

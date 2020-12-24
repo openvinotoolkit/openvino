@@ -36,13 +36,18 @@ op::Cosh::Cosh(const Output<Node>& arg)
 
 bool op::Cosh::visit_attributes(AttributeVisitor& visitor)
 {
-    return true;
+    NGRAPH_OP_SCOPE(Cosh_visit_attributes) { return true; }
+    return false;
 }
 
 shared_ptr<Node> op::Cosh::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<Cosh>(new_args.at(0));
+    NGRAPH_OP_SCOPE(Cosh_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<Cosh>(new_args.at(0));
+    }
+    return nullptr;
 }
 
 namespace coshop

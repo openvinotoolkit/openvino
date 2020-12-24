@@ -37,23 +37,34 @@ op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
 
 bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor)
 {
-    return true;
+    NGRAPH_OP_SCOPE(v0_Result_visit_attributes) { return true; }
+    return false;
 }
 
 void op::Result::validate_and_infer_types()
 {
-    NODE_VALIDATION_CHECK(
-        this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
+    NGRAPH_OP_SCOPE(Result_validate_and_infer_types)
+    {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_size() == 1,
+                              "Argument has ",
+                              get_input_size(),
+                              " outputs (1 expected).");
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    }
 }
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
+    NGRAPH_OP_SCOPE(Result_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
 
-    auto res = make_shared<Result>(new_args.at(0), m_needs_default_layout);
-    return std::move(res);
+        auto res = make_shared<Result>(new_args.at(0), m_needs_default_layout);
+        return std::move(res);
+    }
+    return nullptr;
 }
 
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const

@@ -38,90 +38,101 @@ op::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
 
 void op::PriorBoxClustered::validate_and_infer_types()
 {
-    // shape node should have integer data type. For now we only allow i64
-    auto layer_shape_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_et.is_integral_number(),
-                          "layer shape input must be an integral number, but is: ",
-                          layer_shape_et);
-
-    auto image_shape_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          image_shape_et.is_integral_number(),
-                          "image shape input must be an integral number, but is: ",
-                          image_shape_et);
-
-    auto layer_shape_rank = get_input_partial_shape(0).rank();
-    auto image_shape_rank = get_input_partial_shape(1).rank();
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_rank.compatible(image_shape_rank),
-                          "layer shape input rank ",
-                          layer_shape_rank,
-                          " must match image shape input rank ",
-                          image_shape_rank);
-
-    NODE_VALIDATION_CHECK(this,
-                          m_attrs.widths.size() == m_attrs.heights.size(),
-                          "Size of heights vector",
-                          m_attrs.widths.size(),
-                          " doesn't match size of widths vector ",
-                          m_attrs.widths.size());
-
-    set_input_is_relevant_to_shape(0);
-
-    if (auto const_shape = as_type_ptr<op::Constant>(input_value(0).get_node_shared_ptr()))
+    NGRAPH_OP_SCOPE(PriorBoxClustered_validate_and_infer_types)
     {
+        // shape node should have integer data type. For now we only allow i64
+        auto layer_shape_et = get_input_element_type(0);
         NODE_VALIDATION_CHECK(this,
-                              shape_size(const_shape->get_shape()) == 2,
-                              "Layer shape must have rank 2",
-                              const_shape->get_shape());
+                              layer_shape_et.is_integral_number(),
+                              "layer shape input must be an integral number, but is: ",
+                              layer_shape_et);
 
-        auto layer_shape = const_shape->get_shape_val();
-        // {Prior boxes, variances-adjusted prior boxes}
-        const auto num_priors = m_attrs.widths.size();
-        set_output_type(
-            0, element::f32, Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
-    }
-    else
-    {
-        set_output_type(0, element::f32, PartialShape::dynamic());
+        auto image_shape_et = get_input_element_type(1);
+        NODE_VALIDATION_CHECK(this,
+                              image_shape_et.is_integral_number(),
+                              "image shape input must be an integral number, but is: ",
+                              image_shape_et);
+
+        auto layer_shape_rank = get_input_partial_shape(0).rank();
+        auto image_shape_rank = get_input_partial_shape(1).rank();
+        NODE_VALIDATION_CHECK(this,
+                              layer_shape_rank.compatible(image_shape_rank),
+                              "layer shape input rank ",
+                              layer_shape_rank,
+                              " must match image shape input rank ",
+                              image_shape_rank);
+
+        NODE_VALIDATION_CHECK(this,
+                              m_attrs.widths.size() == m_attrs.heights.size(),
+                              "Size of heights vector",
+                              m_attrs.widths.size(),
+                              " doesn't match size of widths vector ",
+                              m_attrs.widths.size());
+
+        set_input_is_relevant_to_shape(0);
+
+        if (auto const_shape = as_type_ptr<op::Constant>(input_value(0).get_node_shared_ptr()))
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  shape_size(const_shape->get_shape()) == 2,
+                                  "Layer shape must have rank 2",
+                                  const_shape->get_shape());
+
+            auto layer_shape = const_shape->get_shape_val();
+            // {Prior boxes, variances-adjusted prior boxes}
+            const auto num_priors = m_attrs.widths.size();
+            set_output_type(
+                0, element::f32, Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
+        }
+        else
+        {
+            set_output_type(0, element::f32, PartialShape::dynamic());
+        }
     }
 }
 
 shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<PriorBoxClustered>(new_args.at(0), new_args.at(1), m_attrs);
+    NGRAPH_OP_SCOPE(PriorBoxClustered_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<PriorBoxClustered>(new_args.at(0), new_args.at(1), m_attrs);
+    }
+    return nullptr;
 }
 
 bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
-    float step = 0;
-    float step_w_tmp = m_attrs.step_widths;
-    float step_h_tmp = m_attrs.step_heights;
-
-    visitor.on_attribute("step", step);
-    visitor.on_attribute("step_w", m_attrs.step_widths);
-    visitor.on_attribute("step_h", m_attrs.step_heights);
-    if (step != 0)
+    NGRAPH_OP_SCOPE(PriorBoxClustered_visit_attributes)
     {
-        // deserialization:
-        // if step_w/h is 0 or did not change, replace it with step
-        if (m_attrs.step_widths == 0 || m_attrs.step_widths == step_w_tmp)
+        float step = 0;
+        float step_w_tmp = m_attrs.step_widths;
+        float step_h_tmp = m_attrs.step_heights;
+
+        visitor.on_attribute("step", step);
+        visitor.on_attribute("step_w", m_attrs.step_widths);
+        visitor.on_attribute("step_h", m_attrs.step_heights);
+        if (step != 0)
         {
-            m_attrs.step_widths = step;
+            // deserialization:
+            // if step_w/h is 0 or did not change, replace it with step
+            if (m_attrs.step_widths == 0 || m_attrs.step_widths == step_w_tmp)
+            {
+                m_attrs.step_widths = step;
+            }
+            if (m_attrs.step_heights == 0 || m_attrs.step_heights == step_h_tmp)
+            {
+                m_attrs.step_heights = step;
+            }
         }
-        if (m_attrs.step_heights == 0 || m_attrs.step_heights == step_h_tmp)
-        {
-            m_attrs.step_heights = step;
-        }
+        visitor.on_attribute("width", m_attrs.widths);
+        visitor.on_attribute("height", m_attrs.heights);
+        visitor.on_attribute("clip", m_attrs.clip);
+        visitor.on_attribute("offset", m_attrs.offset);
+        visitor.on_attribute("variance", m_attrs.variances);
+        return true;
     }
-    visitor.on_attribute("width", m_attrs.widths);
-    visitor.on_attribute("height", m_attrs.heights);
-    visitor.on_attribute("clip", m_attrs.clip);
-    visitor.on_attribute("offset", m_attrs.offset);
-    visitor.on_attribute("variance", m_attrs.variances);
-    return true;
+    return false;
 }
 
 namespace prior_box_clustered

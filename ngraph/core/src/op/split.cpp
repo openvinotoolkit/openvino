@@ -39,71 +39,83 @@ op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const s
 
 bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("num_splits", m_num_splits);
-    return true;
+    NGRAPH_OP_SCOPE(v1_Split_visit_attributes)
+    {
+        visitor.on_attribute("num_splits", m_num_splits);
+        return true;
+    }
+    return false;
 }
 
 void op::v1::Split::validate_and_infer_types()
 {
-    const auto data_ps = input_value(0).get_partial_shape();
-    const auto axis_ps = input_value(1).get_partial_shape();
-    const auto axis_et = input_value(1).get_element_type();
-
-    if (axis_ps.rank().is_static())
+    NGRAPH_OP_SCOPE(v1_Split_validate_and_infer_types)
     {
-        NODE_VALIDATION_CHECK(this,
-                              axis_ps.rank().get_length() == 0,
-                              "The 'axis' input is expected to be a scalar. Got: ",
-                              axis_ps);
-    }
+        const auto data_ps = input_value(0).get_partial_shape();
+        const auto axis_ps = input_value(1).get_partial_shape();
+        const auto axis_et = input_value(1).get_element_type();
 
-    NODE_VALIDATION_CHECK(
-        this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
-
-    PartialShape each_output_shape{data_ps};
-    if (op::is_constant(input_value(1).get_node()) && data_ps.rank().is_static())
-    {
-        const auto axis_input = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
-        auto axis = axis_input->cast_vector<int64_t>()[0];
-
-        const auto data_rank = get_input_partial_shape(0).rank();
-        axis = ngraph::normalize_axis(this, axis, data_rank);
-
-        if (data_ps[axis].is_static())
+        if (axis_ps.rank().is_static())
         {
-            const auto dimension_at_axis = data_ps[axis].get_length();
-
             NODE_VALIDATION_CHECK(this,
-                                  dimension_at_axis % m_num_splits == 0,
-                                  "The input tensor's dimension pointed by the 'axis' parameter: ",
-                                  dimension_at_axis,
-                                  " has to be a multiple of the 'num_splits' attribute value: ",
-                                  m_num_splits);
+                                  axis_ps.rank().get_length() == 0,
+                                  "The 'axis' input is expected to be a scalar. Got: ",
+                                  axis_ps);
+        }
 
-            each_output_shape[axis] = dimension_at_axis / m_num_splits;
+        NODE_VALIDATION_CHECK(
+            this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
+
+        PartialShape each_output_shape{data_ps};
+        if (op::is_constant(input_value(1).get_node()) && data_ps.rank().is_static())
+        {
+            const auto axis_input = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
+            auto axis = axis_input->cast_vector<int64_t>()[0];
+
+            const auto data_rank = get_input_partial_shape(0).rank();
+            axis = ngraph::normalize_axis(this, axis, data_rank);
+
+            if (data_ps[axis].is_static())
+            {
+                const auto dimension_at_axis = data_ps[axis].get_length();
+
+                NODE_VALIDATION_CHECK(
+                    this,
+                    dimension_at_axis % m_num_splits == 0,
+                    "The input tensor's dimension pointed by the 'axis' parameter: ",
+                    dimension_at_axis,
+                    " has to be a multiple of the 'num_splits' attribute value: ",
+                    m_num_splits);
+
+                each_output_shape[axis] = dimension_at_axis / m_num_splits;
+            }
+            else
+            {
+                each_output_shape[axis] = Dimension::dynamic();
+            }
         }
         else
         {
-            each_output_shape[axis] = Dimension::dynamic();
+            each_output_shape = PartialShape::dynamic(data_ps.rank());
         }
-    }
-    else
-    {
-        each_output_shape = PartialShape::dynamic(data_ps.rank());
-    }
 
-    for (size_t i = 0; i < m_num_splits; ++i)
-    {
-        set_output_type(i, get_input_element_type(0), each_output_shape);
-    }
+        for (size_t i = 0; i < m_num_splits; ++i)
+        {
+            set_output_type(i, get_input_element_type(0), each_output_shape);
+        }
 
-    set_input_is_relevant_to_shape(0);
+        set_input_is_relevant_to_shape(0);
+    }
 }
 
 shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
+    NGRAPH_OP_SCOPE(v1_Split_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
+    }
+    return nullptr;
 }
 
 namespace split

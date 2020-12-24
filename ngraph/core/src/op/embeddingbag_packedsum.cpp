@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/embeddingbag_packedsum.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
@@ -38,18 +39,22 @@ op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_tab
 shared_ptr<Node>
     op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    if (new_args.size() == 2)
+    NGRAPH_OP_SCOPE(v3_EmbeddingBagPackedSum_clone_with_new_inputs)
     {
-        return make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1));
+        check_new_args_count(this, new_args);
+        if (new_args.size() == 2)
+        {
+            return make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1));
+        }
+        else if (new_args.size() == 3)
+        {
+            return make_shared<op::v3::EmbeddingBagPackedSum>(
+                new_args.at(0), new_args.at(1), new_args.at(2));
+        }
+        else
+        {
+            throw ngraph_error("Incorrect number of arguments");
+        }
     }
-    else if (new_args.size() == 3)
-    {
-        return make_shared<op::v3::EmbeddingBagPackedSum>(
-            new_args.at(0), new_args.at(1), new_args.at(2));
-    }
-    else
-    {
-        throw ngraph_error("Incorrect number of arguments");
-    }
+    return nullptr;
 }

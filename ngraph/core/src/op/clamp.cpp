@@ -230,17 +230,25 @@ OutputVector op::Clamp::decompose_op() const
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NODE_VALIDATION_CHECK(this,
-                          new_args.size() == 1,
-                          "Expected 1 element in new_args for the Clamp op but got ",
-                          new_args.size());
+    NGRAPH_OP_SCOPE(Clamp_clone_with_new_inputs)
+    {
+        NODE_VALIDATION_CHECK(this,
+                              new_args.size() == 1,
+                              "Expected 1 element in new_args for the Clamp op but got ",
+                              new_args.size());
 
-    return make_shared<Clamp>(new_args.at(0), m_min, m_max);
+        return make_shared<Clamp>(new_args.at(0), m_min, m_max);
+    }
+    return nullptr;
 }
 
 bool op::Clamp::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("min", m_min);
-    visitor.on_attribute("max", m_max);
-    return true;
+    NGRAPH_OP_SCOPE(Clamp_visit_attributes)
+    {
+        visitor.on_attribute("min", m_min);
+        visitor.on_attribute("max", m_max);
+        return true;
+    }
+    return false;
 }

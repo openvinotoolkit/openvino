@@ -43,9 +43,13 @@ op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,
 
 bool ngraph::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("axis", m_axis);
-    visitor.on_attribute("group", m_group);
-    return true;
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_visit_attributes)
+    {
+        visitor.on_attribute("axis", m_axis);
+        visitor.on_attribute("group", m_group);
+        return true;
+    }
+    return false;
 }
 
 size_t op::ShuffleChannels::get_zero_based_axis() const
@@ -69,46 +73,55 @@ size_t op::ShuffleChannels::get_zero_based_axis() const
 
 void op::ShuffleChannels::validate_and_infer_types()
 {
-    const auto& data_type = get_input_element_type(0);
-    if (get_input_partial_shape(0).is_static())
+    NGRAPH_OP_SCOPE(ShuffleChannels_validate_and_infer_types)
     {
-        const auto shape = get_input_shape(0);
+        const auto& data_type = get_input_element_type(0);
+        if (get_input_partial_shape(0).is_static())
+        {
+            const auto shape = get_input_shape(0);
 
-        NODE_VALIDATION_CHECK(
-            this, shape.size() >= 1, "The input tensor's shape is expected to be at least 1D.");
-        size_t axis_zb = get_zero_based_axis();
+            NODE_VALIDATION_CHECK(
+                this, shape.size() >= 1, "The input tensor's shape is expected to be at least 1D.");
+            size_t axis_zb = get_zero_based_axis();
 
-        NODE_VALIDATION_CHECK(this,
-                              axis_zb < shape.size(),
-                              "The 'axis' parameter for ShuffleChannels has to point to one of the "
-                              "input tensor's shape dimensions.");
+            NODE_VALIDATION_CHECK(
+                this,
+                axis_zb < shape.size(),
+                "The 'axis' parameter for ShuffleChannels has to point to one of the "
+                "input tensor's shape dimensions.");
 
-        NODE_VALIDATION_CHECK(
-            this, m_group >= 1, "The 'group' parameter must be greater or equal to 1.");
+            NODE_VALIDATION_CHECK(
+                this, m_group >= 1, "The 'group' parameter must be greater or equal to 1.");
 
-        const auto channel_dim_size = shape.at(axis_zb);
-        NODE_VALIDATION_CHECK(
-            this,
-            channel_dim_size % m_group == 0,
-            "The channel dimension size has to be a multiple of the groups parameter value.");
-        set_output_size(1);
-        set_output_type(0, data_type, shape);
-    }
-    else
-    {
-        set_output_type(0, data_type, PartialShape::dynamic());
+            const auto channel_dim_size = shape.at(axis_zb);
+            NODE_VALIDATION_CHECK(
+                this,
+                channel_dim_size % m_group == 0,
+                "The channel dimension size has to be a multiple of the groups parameter value.");
+            set_output_size(1);
+            set_output_type(0, data_type, shape);
+        }
+        else
+        {
+            set_output_type(0, data_type, PartialShape::dynamic());
+        }
     }
 }
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    if (new_args.size() != 1)
+    NGRAPH_OP_SCOPE(ShuffleChannels_clone_with_new_inputs)
     {
-        throw ngraph_error("Expected 1 element in new_args for the ShuffleChannels op but got " +
-                           std::to_string(new_args.size()));
-    }
+        if (new_args.size() != 1)
+        {
+            throw ngraph_error(
+                "Expected 1 element in new_args for the ShuffleChannels op but got " +
+                std::to_string(new_args.size()));
+        }
 
-    return make_shared<ShuffleChannels>(new_args.at(0), m_axis, m_group);
+        return make_shared<ShuffleChannels>(new_args.at(0), m_axis, m_group);
+    }
+    return nullptr;
 }
 
 Shape op::ShuffleChannels::get_pre_shuffle_shape(const Shape& data_shape) const

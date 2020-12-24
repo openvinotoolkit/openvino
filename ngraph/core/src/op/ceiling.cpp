@@ -34,8 +34,12 @@ op::Ceiling::Ceiling(const Output<Node>& arg)
 
 shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<Ceiling>(new_args.at(0));
+    NGRAPH_OP_SCOPE(Ceiling_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<Ceiling>(new_args.at(0));
+    }
+    return nullptr;
 }
 
 namespace ceiling

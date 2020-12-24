@@ -155,133 +155,138 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
 
 void op::util::BroadcastBase::validate_and_infer_types()
 {
-    // shape node should have integer data type. For now we only allow i64
-    auto shape_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          shape_et.is_integral_number(),
-                          "Broadcast shape must be an integral number, but is: ",
-                          shape_et);
-    // shape node should produce a one dimensional shape.
-    auto broadcast_shape_rank = get_input_partial_shape(1).rank();
-    NODE_VALIDATION_CHECK(this,
-                          broadcast_shape_rank.compatible(1),
-                          "Broadcast shape rank must be 1, but has ",
-                          broadcast_shape_rank);
-
-    if (m_mode.m_type == BroadcastType::NONE)
+    NGRAPH_OP_SCOPE(util_BroadcastBase_validate_and_infer_types)
     {
-        // axes_mapping node should have integer data type. For now we only allow i64
-        auto axes_et = get_input_element_type(2);
+        // shape node should have integer data type. For now we only allow i64
+        auto shape_et = get_input_element_type(1);
         NODE_VALIDATION_CHECK(this,
-                              axes_et.is_integral_number(),
-                              "Broadcast axes must be integral numbers, but are: ",
-                              axes_et);
-        // axes_mapping node should produce a one dimensional shape.
-        auto axes_shape_rank = get_input_partial_shape(2).rank();
+                              shape_et.is_integral_number(),
+                              "Broadcast shape must be an integral number, but is: ",
+                              shape_et);
+        // shape node should produce a one dimensional shape.
+        auto broadcast_shape_rank = get_input_partial_shape(1).rank();
         NODE_VALIDATION_CHECK(this,
-                              axes_shape_rank.compatible(1),
-                              "Broadcast axes rank must be 1, but has ",
-                              axes_shape_rank);
-    }
+                              broadcast_shape_rank.compatible(1),
+                              "Broadcast shape rank must be 1, but has ",
+                              broadcast_shape_rank);
 
-    PartialShape result_shape{PartialShape::dynamic()};
-    const auto& input_shape = get_input_partial_shape(0);
-    const auto input_rank = input_shape.rank();
-    const auto& target_shape = input_value(1).get_partial_shape();
-    const bool is_target_shape_known =
-        target_shape.rank().is_static() && target_shape[0].is_static();
-
-    if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
-    {
-        if (input_rank.is_static() && is_target_shape_known)
+        if (m_mode.m_type == BroadcastType::NONE)
         {
-            result_shape = PartialShape::dynamic(
-                std::max(input_rank.get_length(), target_shape[0].get_length()));
-        }
-    }
-    else
-    {
-        if (is_target_shape_known)
-        {
-            result_shape = PartialShape::dynamic(target_shape[0].get_length());
-        }
-    }
-
-    const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
-
-    if (auto concat = as_type_ptr<op::v0::Concat>(input_value(1).get_node_shared_ptr()))
-    {
-        auto concat_inputs = concat->inputs();
-
-        if (concat->get_output_partial_shape(0).is_static() && concat->get_shape().size() == 1 &&
-            concat_inputs.size() == shape_size(concat->get_shape()))
-        {
-            auto output_partial_shape = vector<Dimension>{};
-            for (const auto& concat_input : concat_inputs)
-            {
-                auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
-                if (auto source_const_ptr = as_type_ptr<op::v0::Constant>(source_node_ptr))
-                {
-                    output_partial_shape.push_back(source_const_ptr->get_axis_vector_val()[0]);
-                }
-                else
-                {
-                    output_partial_shape.push_back(Dimension::dynamic());
-                }
-            }
-            result_shape = PartialShape(output_partial_shape);
-        }
-    }
-
-    if (m_mode.m_type == BroadcastType::NONE)
-    {
-        if (shape_constant)
-        {
-            result_shape = shape_constant->get_shape_val();
-        }
-        // Validate axes_mapping
-        if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static() &&
-            get_input_partial_shape(2).is_static())
-        {
-            auto arg_shape = get_input_shape(0);
-            auto axes_shape = get_input_shape(2);
-
-            // Rank(arg_shape) == shape_size(axes_mapping)
+            // axes_mapping node should have integer data type. For now we only allow i64
+            auto axes_et = get_input_element_type(2);
             NODE_VALIDATION_CHECK(this,
-                                  shape_size(axes_shape) == arg_shape.size(),
-                                  "Broadcast axes_mapping shape ",
-                                  axes_shape,
-                                  " doesn't match rank of input tensor ",
-                                  arg_shape.size());
+                                  axes_et.is_integral_number(),
+                                  "Broadcast axes must be integral numbers, but are: ",
+                                  axes_et);
+            // axes_mapping node should produce a one dimensional shape.
+            auto axes_shape_rank = get_input_partial_shape(2).rank();
+            NODE_VALIDATION_CHECK(this,
+                                  axes_shape_rank.compatible(1),
+                                  "Broadcast axes rank must be 1, but has ",
+                                  axes_shape_rank);
+        }
 
-            if (shape_constant && op::is_constant(input_value(2).get_node()))
+        PartialShape result_shape{PartialShape::dynamic()};
+        const auto& input_shape = get_input_partial_shape(0);
+        const auto input_rank = input_shape.rank();
+        const auto& target_shape = input_value(1).get_partial_shape();
+        const bool is_target_shape_known =
+            target_shape.rank().is_static() && target_shape[0].is_static();
+
+        if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
+        {
+            if (input_rank.is_static() && is_target_shape_known)
             {
-                auto target_shape = shape_constant->get_shape_val();
-                auto axes_mapping_val =
-                    as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr())
-                        ->get_axis_vector_val();
-                validate_target_shape_none(arg_shape, axes_mapping_val, target_shape);
+                result_shape = PartialShape::dynamic(
+                    std::max(input_rank.get_length(), target_shape[0].get_length()));
             }
         }
-    }
-    else if (m_mode.m_type == BroadcastType::NUMPY)
-    {
-        if (shape_constant)
+        else
         {
-            const auto target_shape = shape_constant->get_shape_val();
-            result_shape = target_shape;
-            validate_target_shape_numpy(input_shape, target_shape);
+            if (is_target_shape_known)
+            {
+                result_shape = PartialShape::dynamic(target_shape[0].get_length());
+            }
         }
-    }
-    else if (m_mode.m_type == BroadcastType::PDPD)
-    {
-        if (shape_constant)
+
+        const auto shape_constant =
+            as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+
+        if (auto concat = as_type_ptr<op::v0::Concat>(input_value(1).get_node_shared_ptr()))
         {
-            const auto target_shape = shape_constant->get_shape_val();
-            result_shape = get_result_shape_pdpd(input_shape, target_shape, m_mode);
+            auto concat_inputs = concat->inputs();
+
+            if (concat->get_output_partial_shape(0).is_static() &&
+                concat->get_shape().size() == 1 &&
+                concat_inputs.size() == shape_size(concat->get_shape()))
+            {
+                auto output_partial_shape = vector<Dimension>{};
+                for (const auto& concat_input : concat_inputs)
+                {
+                    auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
+                    if (auto source_const_ptr = as_type_ptr<op::v0::Constant>(source_node_ptr))
+                    {
+                        output_partial_shape.push_back(source_const_ptr->get_axis_vector_val()[0]);
+                    }
+                    else
+                    {
+                        output_partial_shape.push_back(Dimension::dynamic());
+                    }
+                }
+                result_shape = PartialShape(output_partial_shape);
+            }
         }
+
+        if (m_mode.m_type == BroadcastType::NONE)
+        {
+            if (shape_constant)
+            {
+                result_shape = shape_constant->get_shape_val();
+            }
+            // Validate axes_mapping
+            if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static() &&
+                get_input_partial_shape(2).is_static())
+            {
+                auto arg_shape = get_input_shape(0);
+                auto axes_shape = get_input_shape(2);
+
+                // Rank(arg_shape) == shape_size(axes_mapping)
+                NODE_VALIDATION_CHECK(this,
+                                      shape_size(axes_shape) == arg_shape.size(),
+                                      "Broadcast axes_mapping shape ",
+                                      axes_shape,
+                                      " doesn't match rank of input tensor ",
+                                      arg_shape.size());
+
+                if (shape_constant && op::is_constant(input_value(2).get_node()))
+                {
+                    auto target_shape = shape_constant->get_shape_val();
+                    auto axes_mapping_val =
+                        as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr())
+                            ->get_axis_vector_val();
+                    validate_target_shape_none(arg_shape, axes_mapping_val, target_shape);
+                }
+            }
+        }
+        else if (m_mode.m_type == BroadcastType::NUMPY)
+        {
+            if (shape_constant)
+            {
+                const auto target_shape = shape_constant->get_shape_val();
+                result_shape = target_shape;
+                validate_target_shape_numpy(input_shape, target_shape);
+            }
+        }
+        else if (m_mode.m_type == BroadcastType::PDPD)
+        {
+            if (shape_constant)
+            {
+                const auto target_shape = shape_constant->get_shape_val();
+                result_shape = get_result_shape_pdpd(input_shape, target_shape, m_mode);
+            }
+        }
+        set_output_type(0, get_input_element_type(0), result_shape);
     }
-    set_output_type(0, get_input_element_type(0), result_shape);
 }
 
 std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes_numpy_pdpd(

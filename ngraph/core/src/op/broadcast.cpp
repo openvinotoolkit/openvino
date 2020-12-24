@@ -161,68 +161,81 @@ bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs,
 
 void op::v3::Broadcast::validate_and_infer_types()
 {
-    if (m_mode.m_type == BroadcastType::NONE)
+    NGRAPH_OP_SCOPE(v3_Broadcast_validate_and_infer_types)
     {
-        NODE_VALIDATION_CHECK(this,
-                              get_input_size() == 3,
-                              "axes_mapping input should be provided if explicit mode is used");
-    }
-    else
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            get_input_size() == 2,
-            "axes_mapping input should not be provided for mode other than explicit");
-    }
-
-    util::BroadcastBase::validate_and_infer_types();
-
-    auto result_shape = get_output_partial_shape(0);
-    if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
-    {
-        if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static())
+        if (m_mode.m_type == BroadcastType::NONE)
         {
-            auto arg_shape = get_input_partial_shape(0);
+            NODE_VALIDATION_CHECK(this,
+                                  get_input_size() == 3,
+                                  "axes_mapping input should be provided if explicit mode is used");
+        }
+        else
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                get_input_size() == 2,
+                "axes_mapping input should not be provided for mode other than explicit");
+        }
 
-            const auto shape_constant =
-                as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
-            if (shape_constant)
+        util::BroadcastBase::validate_and_infer_types();
+
+        auto result_shape = get_output_partial_shape(0);
+        if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
+        {
+            if (get_input_partial_shape(0).rank().is_static() &&
+                get_input_partial_shape(1).is_static())
             {
-                auto target_shape = shape_constant->get_shape_val();
-                result_shape = get_result_shape_bidirectional(this, arg_shape, target_shape);
+                auto arg_shape = get_input_partial_shape(0);
+
+                const auto shape_constant =
+                    as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+                if (shape_constant)
+                {
+                    auto target_shape = shape_constant->get_shape_val();
+                    result_shape = get_result_shape_bidirectional(this, arg_shape, target_shape);
+                }
             }
         }
+        set_input_is_relevant_to_shape(0); // arg - Result element type
+        set_input_is_relevant_to_shape(1); // target_shape - Result shape
+        if (get_input_size() == 3)
+        {
+            set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
+        }
+        set_output_type(0, get_input_element_type(0), result_shape);
     }
-    set_input_is_relevant_to_shape(0); // arg - Result element type
-    set_input_is_relevant_to_shape(1); // target_shape - Result shape
-    if (get_input_size() == 3)
-    {
-        set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
-    }
-    set_output_type(0, get_input_element_type(0), result_shape);
 }
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    if (new_args.size() == 2)
+    NGRAPH_OP_SCOPE(v3_Broadcast_clone_with_new_inputs)
     {
-        return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), m_mode);
+        check_new_args_count(this, new_args);
+        if (new_args.size() == 2)
+        {
+            return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), m_mode);
+        }
+        else if (new_args.size() == 3)
+        {
+            return make_shared<v3::Broadcast>(
+                new_args.at(0), new_args.at(1), new_args.at(2), m_mode);
+        }
+        else
+        {
+            throw ngraph_error("Not supported number of Broadcast:v3 args");
+        }
     }
-    else if (new_args.size() == 3)
-    {
-        return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_mode);
-    }
-    else
-    {
-        throw ngraph_error("Not supported number of Broadcast:v3 args");
-    }
+    return nullptr;
 }
 
 bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("mode", m_mode);
-    return true;
+    NGRAPH_OP_SCOPE(v3_Broadcast_visit_attributes)
+    {
+        visitor.on_attribute("mode", m_mode);
+        return true;
+    }
+    return false;
 }
 
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
@@ -275,44 +288,55 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
 
 void op::v1::Broadcast::validate_and_infer_types()
 {
-    // m_type is deduced and not always explicitly stated, for cases where broadcast
-    // has 2 inputs its always NUMPY mode
-    if (m_broadcast_spec.m_type == AutoBroadcastType::NONE && get_input_size() < 3)
+    NGRAPH_OP_SCOPE(v1_Broadcast_validate_and_infer_types)
     {
-        m_broadcast_spec.m_type = AutoBroadcastType::NUMPY;
-    }
+        // m_type is deduced and not always explicitly stated, for cases where broadcast
+        // has 2 inputs its always NUMPY mode
+        if (m_broadcast_spec.m_type == AutoBroadcastType::NONE && get_input_size() < 3)
+        {
+            m_broadcast_spec.m_type = AutoBroadcastType::NUMPY;
+        }
 
-    // Mocking axes_mapping input for cases that don't require it
-    if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && get_input_size() < 3)
-    {
-        auto output = op::v0::Constant::create(element::u8, Shape{}, {0})->output(0);
-        set_argument(2, output);
-    }
+        // Mocking axes_mapping input for cases that don't require it
+        if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && get_input_size() < 3)
+        {
+            auto output = op::v0::Constant::create(element::u8, Shape{}, {0})->output(0);
+            set_argument(2, output);
+        }
 
-    // update the base class' mode spec
-    auto base_spec = to_broadcast_mode(m_broadcast_spec);
-    if (util::BroadcastBase::m_mode.m_type != base_spec.m_type)
-    {
-        util::BroadcastBase::m_mode = base_spec;
-    }
+        // update the base class' mode spec
+        auto base_spec = to_broadcast_mode(m_broadcast_spec);
+        if (util::BroadcastBase::m_mode.m_type != base_spec.m_type)
+        {
+            util::BroadcastBase::m_mode = base_spec;
+        }
 
-    util::BroadcastBase::validate_and_infer_types();
-    set_input_is_relevant_to_shape(0); // arg - Result element type
-    set_input_is_relevant_to_shape(1); // target_shape - Result shape
-    set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
+        util::BroadcastBase::validate_and_infer_types();
+        set_input_is_relevant_to_shape(0); // arg - Result element type
+        set_input_is_relevant_to_shape(1); // target_shape - Result shape
+        set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
+    }
 }
 
 shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<v1::Broadcast>(
-        new_args.at(0), new_args.at(1), new_args.at(2), m_broadcast_spec);
+    NGRAPH_OP_SCOPE(v1_Broadcast_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<v1::Broadcast>(
+            new_args.at(0), new_args.at(1), new_args.at(2), m_broadcast_spec);
+    }
+    return nullptr;
 }
 
 bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("mode", m_broadcast_spec);
-    return true;
+    NGRAPH_OP_SCOPE(v1_Broadcast_visit_attributes)
+    {
+        visitor.on_attribute("mode", m_broadcast_spec);
+        return true;
+    }
+    return false;
 }
 
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,

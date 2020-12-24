@@ -36,13 +36,18 @@ op::Sin::Sin(const Output<Node>& arg)
 
 bool ngraph::op::v0::Sin::visit_attributes(AttributeVisitor& visitor)
 {
-    return true;
+    NGRAPH_OP_SCOPE(v0_Sin_visit_attributes) { return true; }
+    return false;
 }
 
 shared_ptr<Node> op::Sin::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<Sin>(new_args.at(0));
+    NGRAPH_OP_SCOPE(Sin_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<Sin>(new_args.at(0));
+    }
+    return nullptr;
 }
 
 namespace sinop

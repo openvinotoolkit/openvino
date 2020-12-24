@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
@@ -54,11 +55,18 @@ void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
 
 void op::util::BinaryElementwiseLogical::validate_and_infer_types()
 {
-    validate_and_infer_elementwise_logical(m_autob);
+    NGRAPH_OP_SCOPE(util_BinaryElementwiseLogical_validate_and_infer_types)
+    {
+        validate_and_infer_elementwise_logical(m_autob);
+    }
 }
 
 bool op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("auto_broadcast", m_autob);
-    return true;
+    NGRAPH_OP_SCOPE(util_BinaryElementwiseLogical_visit_attributes)
+    {
+        visitor.on_attribute("auto_broadcast", m_autob);
+        return true;
+    }
+    return false;
 }

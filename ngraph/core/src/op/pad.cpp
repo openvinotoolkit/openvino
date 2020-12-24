@@ -75,139 +75,152 @@ CoordinateDiff op::v1::Pad::get_pads_end() const
 
 bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("pad_mode", m_pad_mode);
-    return true;
+    NGRAPH_OP_SCOPE(v1_Pad_visit_attributes)
+    {
+        visitor.on_attribute("pad_mode", m_pad_mode);
+        return true;
+    }
+    return false;
 }
 
 void op::v1::Pad::validate_and_infer_types()
 {
-    element::Type result_et;
-
-    const auto& arg_element_type = get_input_element_type(0);
-    const auto& pads_begin_element_type = get_input_element_type(1);
-    const auto& pads_end_element_type = get_input_element_type(2);
-
-    if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4)
+    NGRAPH_OP_SCOPE(v1_Pad_validate_and_infer_types)
     {
-        const auto& arg_pad_element_type = get_input_element_type(3);
-        const auto& arg_pad_shape = get_input_partial_shape(3);
-        NODE_VALIDATION_CHECK(
-            this,
-            element::Type::merge(result_et, arg_element_type, arg_pad_element_type),
-            "Argument element types do not match (input arg element type: ",
-            arg_element_type,
-            ", arg_pad element type: ",
-            arg_pad_element_type,
-            ").");
+        element::Type result_et;
+
+        const auto& arg_element_type = get_input_element_type(0);
+        const auto& pads_begin_element_type = get_input_element_type(1);
+        const auto& pads_end_element_type = get_input_element_type(2);
+
+        if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4)
+        {
+            const auto& arg_pad_element_type = get_input_element_type(3);
+            const auto& arg_pad_shape = get_input_partial_shape(3);
+            NODE_VALIDATION_CHECK(
+                this,
+                element::Type::merge(result_et, arg_element_type, arg_pad_element_type),
+                "Argument element types do not match (input arg element type: ",
+                arg_element_type,
+                ", arg_pad element type: ",
+                arg_pad_element_type,
+                ").");
+
+            NODE_VALIDATION_CHECK(this,
+                                  arg_pad_shape.compatible(PartialShape{}),
+                                  "Argument for padding value is not a scalar (shape: ",
+                                  arg_pad_shape,
+                                  ").");
+        }
 
         NODE_VALIDATION_CHECK(this,
-                              arg_pad_shape.compatible(PartialShape{}),
-                              "Argument for padding value is not a scalar (shape: ",
-                              arg_pad_shape,
+                              pads_begin_element_type.is_integral_number(),
+                              "pads_begin must be an integral number, but is: ",
+                              pads_begin_element_type,
                               ").");
-    }
 
-    NODE_VALIDATION_CHECK(this,
-                          pads_begin_element_type.is_integral_number(),
-                          "pads_begin must be an integral number, but is: ",
-                          pads_begin_element_type,
-                          ").");
+        NODE_VALIDATION_CHECK(this,
+                              pads_end_element_type.is_integral_number(),
+                              "pads_end must be an integral number, but is: ",
+                              pads_end_element_type,
+                              ").");
 
-    NODE_VALIDATION_CHECK(this,
-                          pads_end_element_type.is_integral_number(),
-                          "pads_end must be an integral number, but is: ",
-                          pads_end_element_type,
-                          ").");
+        const auto& pads_begin_shape = get_input_partial_shape(1);
+        const auto& pads_begin_rank = pads_begin_shape.rank();
 
-    const auto& pads_begin_shape = get_input_partial_shape(1);
-    const auto& pads_begin_rank = pads_begin_shape.rank();
+        NODE_VALIDATION_CHECK(this,
+                              pads_begin_rank.compatible(1),
+                              "Argument for pads_begin is not 1D (shape: ",
+                              pads_begin_rank,
+                              ").");
 
-    NODE_VALIDATION_CHECK(this,
-                          pads_begin_rank.compatible(1),
-                          "Argument for pads_begin is not 1D (shape: ",
-                          pads_begin_rank,
-                          ").");
+        const auto& pads_end_shape = get_input_partial_shape(2);
+        const auto& pads_end_rank = pads_end_shape.rank();
+        NODE_VALIDATION_CHECK(this,
+                              pads_end_rank.compatible(1),
+                              "Argument for pads_end is not 1D (shape: ",
+                              pads_end_rank,
+                              ").");
 
-    const auto& pads_end_shape = get_input_partial_shape(2);
-    const auto& pads_end_rank = pads_end_shape.rank();
-    NODE_VALIDATION_CHECK(this,
-                          pads_end_rank.compatible(1),
-                          "Argument for pads_end is not 1D (shape: ",
-                          pads_end_rank,
-                          ").");
-
-    const auto& arg_shape = get_input_partial_shape(0);
-    const auto& arg_shape_rank = arg_shape.rank();
-    if (arg_shape_rank.is_static() && pads_begin_shape.is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            pads_begin_shape[0].get_length() <= arg_shape_rank.get_length(),
-            "Number of elements of pads_begin must be >= 0 and <= arg rank (pads_begin_shape[0]: ",
-            pads_begin_shape[0],
-            ").");
-    }
-    if (arg_shape_rank.is_static() && pads_end_shape.is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            pads_end_shape[0].get_length() <= arg_shape_rank.get_length(),
-            "Number of elements of pads_end must be >= 0 and <= arg rank (pads_end_shape[0]: ",
-            pads_end_shape[0],
-            ").");
-    }
-    const auto& pads_begin_coord = get_pads_begin();
-    const auto& pads_end_coord = get_pads_end();
-
-    auto pads_begin_node = input_value(1).get_node_shared_ptr();
-    auto pads_end_node = input_value(2).get_node_shared_ptr();
-    if (arg_shape_rank.is_static() && op::is_constant(pads_begin_node) &&
-        op::is_constant(pads_end_node))
-    {
-        const auto implied_rank = pads_begin_coord.size();
-        std::vector<Dimension> result_dims(implied_rank, Dimension::dynamic());
-        for (size_t i = 0; i < implied_rank; i++)
+        const auto& arg_shape = get_input_partial_shape(0);
+        const auto& arg_shape_rank = arg_shape.rank();
+        if (arg_shape_rank.is_static() && pads_begin_shape.is_static())
         {
-            if (arg_shape[i].is_static())
+            NODE_VALIDATION_CHECK(this,
+                                  pads_begin_shape[0].get_length() <= arg_shape_rank.get_length(),
+                                  "Number of elements of pads_begin must be >= 0 and <= arg rank "
+                                  "(pads_begin_shape[0]: ",
+                                  pads_begin_shape[0],
+                                  ").");
+        }
+        if (arg_shape_rank.is_static() && pads_end_shape.is_static())
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                pads_end_shape[0].get_length() <= arg_shape_rank.get_length(),
+                "Number of elements of pads_end must be >= 0 and <= arg rank (pads_end_shape[0]: ",
+                pads_end_shape[0],
+                ").");
+        }
+        const auto& pads_begin_coord = get_pads_begin();
+        const auto& pads_end_coord = get_pads_end();
+
+        auto pads_begin_node = input_value(1).get_node_shared_ptr();
+        auto pads_end_node = input_value(2).get_node_shared_ptr();
+        if (arg_shape_rank.is_static() && op::is_constant(pads_begin_node) &&
+            op::is_constant(pads_end_node))
+        {
+            const auto implied_rank = pads_begin_coord.size();
+            std::vector<Dimension> result_dims(implied_rank, Dimension::dynamic());
+            for (size_t i = 0; i < implied_rank; i++)
             {
-                ptrdiff_t result_dim =
-                    pads_begin_coord[i] + arg_shape[i].get_length() + pads_end_coord[i];
-                result_dims[i] = static_cast<size_t>(result_dim);
-                if (i > 1)
+                if (arg_shape[i].is_static())
                 {
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        m_pad_mode != op::PadMode::EDGE || arg_shape[i].get_length() >= 1,
-                        "EDGE padding mode requires an input of dimension of at least 1 at each "
-                        "spatial axis.");
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        m_pad_mode != op::PadMode::REFLECT || arg_shape[i].get_length() >= 2,
-                        "REFLECT padding mode requires an input of dimension of at least 2 at each "
-                        "spatial axis.");
+                    ptrdiff_t result_dim =
+                        pads_begin_coord[i] + arg_shape[i].get_length() + pads_end_coord[i];
+                    result_dims[i] = static_cast<size_t>(result_dim);
+                    if (i > 1)
+                    {
+                        NODE_VALIDATION_CHECK(this,
+                                              m_pad_mode != op::PadMode::EDGE ||
+                                                  arg_shape[i].get_length() >= 1,
+                                              "EDGE padding mode requires an input of dimension of "
+                                              "at least 1 at each "
+                                              "spatial axis.");
+                        NODE_VALIDATION_CHECK(this,
+                                              m_pad_mode != op::PadMode::REFLECT ||
+                                                  arg_shape[i].get_length() >= 2,
+                                              "REFLECT padding mode requires an input of dimension "
+                                              "of at least 2 at each "
+                                              "spatial axis.");
+                    }
                 }
             }
+            set_output_type(0, get_input_element_type(0), result_dims);
         }
-        set_output_type(0, get_input_element_type(0), result_dims);
-    }
-    else
-    {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        else
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        }
     }
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    if (get_input_size() == 4)
+    NGRAPH_OP_SCOPE(v1_Pad_clone_with_new_inputs)
     {
-        return make_shared<v1::Pad>(
-            new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
+        check_new_args_count(this, new_args);
+        if (get_input_size() == 4)
+        {
+            return make_shared<v1::Pad>(
+                new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
+        }
+        else
+        {
+            return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
+        }
     }
-    else
-    {
-        return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
-    }
+    return nullptr;
 }
 
 bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs,

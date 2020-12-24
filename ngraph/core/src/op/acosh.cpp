@@ -36,8 +36,12 @@ op::v3::Acosh::Acosh(const Output<Node>& arg)
 
 shared_ptr<Node> op::v3::Acosh::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<Acosh>(new_args.at(0));
+    NGRAPH_OP_SCOPE(v3_Acosh_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<Acosh>(new_args.at(0));
+    }
+    return nullptr;
 }
 
 namespace acoshop

@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 #include "ngraph/op/mod.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/abs.hpp"
@@ -40,8 +41,12 @@ op::v1::Mod::Mod(const Output<Node>& A,
 
 bool ngraph::op::v1::Mod::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("auto_broadcast", m_auto_broadcast);
-    return true;
+    NGRAPH_OP_SCOPE(v1_Mod_visit_attributes)
+    {
+        visitor.on_attribute("auto_broadcast", m_auto_broadcast);
+        return true;
+    }
+    return false;
 }
 
 OutputVector op::v1::Mod::decompose_op() const
@@ -66,5 +71,9 @@ OutputVector op::v1::Mod::decompose_op() const
 
 shared_ptr<Node> op::v1::Mod::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    return make_shared<Mod>(new_args.at(0), new_args.at(1), m_auto_broadcast);
+    NGRAPH_OP_SCOPE(v1_Mod_clone_with_new_inputs)
+    {
+        return make_shared<Mod>(new_args.at(0), new_args.at(1), m_auto_broadcast);
+    }
+    return nullptr;
 }

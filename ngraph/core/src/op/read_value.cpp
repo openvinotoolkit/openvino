@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/read_value.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -30,25 +31,36 @@ op::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& vari
 
 void op::ReadValue::validate_and_infer_types()
 {
-    auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    NGRAPH_OP_SCOPE(v3_ReadValue_validate_and_infer_types)
+    {
+        auto arg_t = get_input_element_type(0);
+        auto output_shape = get_input_partial_shape(0);
 
-    VariableInfo info = {output_shape, arg_t, m_variable_id};
-    if (m_variable == nullptr)
-        m_variable = std::make_shared<Variable>(info);
-    else
-        m_variable->update(info);
-    set_output_type(0, arg_t, output_shape);
+        VariableInfo info = {output_shape, arg_t, m_variable_id};
+        if (m_variable == nullptr)
+            m_variable = std::make_shared<Variable>(info);
+        else
+            m_variable->update(info);
+        set_output_type(0, arg_t, output_shape);
+    }
 }
 
 shared_ptr<Node> op::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<ReadValue>(new_args.at(0), m_variable_id);
+    NGRAPH_OP_SCOPE(v3_ReadValue_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<ReadValue>(new_args.at(0), m_variable_id);
+    }
+    return nullptr;
 }
 
 bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("variable_id", m_variable_id);
-    return true;
+    NGRAPH_OP_SCOPE(v3_ReadValue_visit_attributes)
+    {
+        visitor.on_attribute("variable_id", m_variable_id);
+        return true;
+    }
+    return false;
 }

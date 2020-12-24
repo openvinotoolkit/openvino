@@ -18,6 +18,7 @@
 #include <iterator>
 #include <sstream>
 #include "itt.hpp"
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
@@ -51,92 +52,104 @@ op::v1::Reverse::Reverse(const Output<Node>& data,
 
 bool ngraph::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("mode", m_mode);
-    return true;
+    NGRAPH_OP_SCOPE(v1_Reverse_visit_attributes)
+    {
+        visitor.on_attribute("mode", m_mode);
+        return true;
+    }
+    return false;
 }
 
 void op::v1::Reverse::validate_and_infer_types()
 {
-    if (m_mode == Mode::MASK)
+    NGRAPH_OP_SCOPE(v1_Reverse_validate_and_infer_types)
     {
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(1) == element::boolean,
-                              "In 'mask' mode the second input must contain boolean values.");
-    }
-
-    const auto input_shape = get_input_partial_shape(0);
-    const auto input_rank = input_shape.rank();
-
-    const auto rev_axes_shape = get_input_partial_shape(1);
-    const auto rev_axes_rank = rev_axes_shape.rank();
-
-    if (rev_axes_rank.is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              rev_axes_rank.get_length() == 1,
-                              "The reversed_axes input must be a 1D tensor (got ",
-                              rev_axes_rank.get_length(),
-                              ").");
-
         if (m_mode == Mode::MASK)
         {
-            if (input_rank.is_static() && rev_axes_shape[0].is_static())
-            {
-                const auto rev_axes_mask_elems_count = rev_axes_shape[0].get_length();
-                NODE_VALIDATION_CHECK(this,
-                                      rev_axes_mask_elems_count == input_rank.get_length(),
-                                      "The number of elements in the reversed_axes tensor (",
-                                      rev_axes_mask_elems_count,
-                                      ") must match the input data tensor rank (",
-                                      input_rank.get_length(),
-                                      ") in 'mask' mode.");
-            }
+            NODE_VALIDATION_CHECK(this,
+                                  get_input_element_type(1) == element::boolean,
+                                  "In 'mask' mode the second input must contain boolean values.");
         }
-    }
 
-    if (input_rank.is_static())
-    {
-        const auto rank = input_rank.get_length();
-        const auto rev_axes_node = input_value(1).get_node_shared_ptr();
+        const auto input_shape = get_input_partial_shape(0);
+        const auto input_rank = input_shape.rank();
 
-        if (op::is_constant(rev_axes_node))
+        const auto rev_axes_shape = get_input_partial_shape(1);
+        const auto rev_axes_rank = rev_axes_shape.rank();
+
+        if (rev_axes_rank.is_static())
         {
-            const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
+            NODE_VALIDATION_CHECK(this,
+                                  rev_axes_rank.get_length() == 1,
+                                  "The reversed_axes input must be a 1D tensor (got ",
+                                  rev_axes_rank.get_length(),
+                                  ").");
 
-            if (m_mode == Mode::INDEX)
+            if (m_mode == Mode::MASK)
             {
-                const AxisSet rev_axes = rev_axes_constant->get_axis_set_val();
-
-                NODE_VALIDATION_CHECK(this,
-                                      rev_axes.size() <= rank,
-                                      "Too many axes(",
-                                      rev_axes,
-                                      ") have been provided for given input shape(",
-                                      input_shape,
-                                      ").");
-
-                bool all_axes_in_range = all_of(rev_axes.begin(),
-                                                rev_axes.end(),
-                                                [&rank](const size_t axis) { return axis < rank; });
-
-                NODE_VALIDATION_CHECK(this,
-                                      all_axes_in_range,
-                                      "Some of the provided axes (",
-                                      rev_axes,
-                                      ") are out of bounds (input rank: ",
-                                      input_rank.get_length(),
-                                      ").");
+                if (input_rank.is_static() && rev_axes_shape[0].is_static())
+                {
+                    const auto rev_axes_mask_elems_count = rev_axes_shape[0].get_length();
+                    NODE_VALIDATION_CHECK(this,
+                                          rev_axes_mask_elems_count == input_rank.get_length(),
+                                          "The number of elements in the reversed_axes tensor (",
+                                          rev_axes_mask_elems_count,
+                                          ") must match the input data tensor rank (",
+                                          input_rank.get_length(),
+                                          ") in 'mask' mode.");
+                }
             }
         }
-    }
 
-    set_output_type(0, get_input_element_type(0), input_shape);
+        if (input_rank.is_static())
+        {
+            const auto rank = input_rank.get_length();
+            const auto rev_axes_node = input_value(1).get_node_shared_ptr();
+
+            if (op::is_constant(rev_axes_node))
+            {
+                const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
+
+                if (m_mode == Mode::INDEX)
+                {
+                    const AxisSet rev_axes = rev_axes_constant->get_axis_set_val();
+
+                    NODE_VALIDATION_CHECK(this,
+                                          rev_axes.size() <= rank,
+                                          "Too many axes(",
+                                          rev_axes,
+                                          ") have been provided for given input shape(",
+                                          input_shape,
+                                          ").");
+
+                    bool all_axes_in_range =
+                        all_of(rev_axes.begin(), rev_axes.end(), [&rank](const size_t axis) {
+                            return axis < rank;
+                        });
+
+                    NODE_VALIDATION_CHECK(this,
+                                          all_axes_in_range,
+                                          "Some of the provided axes (",
+                                          rev_axes,
+                                          ") are out of bounds (input rank: ",
+                                          input_rank.get_length(),
+                                          ").");
+                }
+            }
+        }
+
+        set_output_type(0, get_input_element_type(0), input_shape);
+    }
 }
 
 shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<op::v1::Reverse>(new_args.at(0), new_args.at(1), m_mode);
+    NGRAPH_OP_SCOPE(v1_Reverse_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<op::v1::Reverse>(new_args.at(0), new_args.at(1), m_mode);
+    }
+    return nullptr;
 }
 
 op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode) const

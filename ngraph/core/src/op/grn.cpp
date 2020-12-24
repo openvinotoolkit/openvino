@@ -15,6 +15,7 @@
 //*****************************************************************************
 #include <algorithm>
 #include <iterator>
+#include "itt.hpp"
 
 #include "grn.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -43,8 +44,12 @@ op::GRN::GRN(const Output<Node>& data, float bias)
 
 bool ngraph::op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("bias", m_bias);
-    return true;
+    NGRAPH_OP_SCOPE(v0_GRN_visit_attributes)
+    {
+        visitor.on_attribute("bias", m_bias);
+        return true;
+    }
+    return false;
 }
 
 void op::GRN::pre_validate_and_infer_types()
@@ -96,9 +101,13 @@ OutputVector op::GRN::decompose_op() const
 
 shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    if (new_args.size() != 1)
+    NGRAPH_OP_SCOPE(GRN_clone_with_new_inputs)
     {
-        throw ngraph_error("Incorrect number of new arguments");
+        if (new_args.size() != 1)
+        {
+            throw ngraph_error("Incorrect number of new arguments");
+        }
+        return make_shared<GRN>(new_args.at(0), m_bias);
     }
-    return make_shared<GRN>(new_args.at(0), m_bias);
+    return nullptr;
 }

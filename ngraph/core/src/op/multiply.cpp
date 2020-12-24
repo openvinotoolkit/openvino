@@ -77,8 +77,12 @@ op::v0::Multiply::Multiply(const Output<Node>& arg0,
 
 shared_ptr<Node> op::v0::Multiply::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<op::v0::Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
+    NGRAPH_OP_SCOPE(v0_Multiply_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<op::v0::Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
+    }
+    return nullptr;
 }
 
 bool op::v0::Multiply::evaluate(const HostTensorVector& outputs,
@@ -105,8 +109,12 @@ op::v1::Multiply::Multiply(const Output<Node>& arg0,
 
 shared_ptr<Node> op::v1::Multiply::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<op::v1::Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
+    NGRAPH_OP_SCOPE(v1_Multiply_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<op::v1::Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
+    }
+    return nullptr;
 }
 
 bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,

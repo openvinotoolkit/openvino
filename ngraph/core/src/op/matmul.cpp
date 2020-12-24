@@ -40,15 +40,23 @@ op::MatMul::MatMul(const Output<Node>& A,
 
 bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("transpose_a", m_transpose_a);
-    visitor.on_attribute("transpose_b", m_transpose_b);
-    return true;
+    NGRAPH_OP_SCOPE(v0_MatMul_visit_attributes)
+    {
+        visitor.on_attribute("transpose_a", m_transpose_a);
+        visitor.on_attribute("transpose_b", m_transpose_b);
+        return true;
+    }
+    return false;
 }
 
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    check_new_args_count(this, new_args);
-    return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
+    NGRAPH_OP_SCOPE(v0_MatMul_clone_with_new_inputs)
+    {
+        check_new_args_count(this, new_args);
+        return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
+    }
+    return nullptr;
 }
 
 namespace matmul
@@ -269,34 +277,37 @@ bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVecto
 
 void ngraph::op::v0::MatMul::validate_and_infer_types()
 {
-    element::Type result_et;
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-        "Arguments do not have the same element type (arg0 element type: ",
-        get_input_element_type(0),
-        ", arg1 element type: ",
-        get_input_element_type(1),
-        ").");
-
-    const auto& A_partial_shape = get_input_partial_shape(0);
-    const auto& B_partial_shape = get_input_partial_shape(1);
-
-    if (A_partial_shape.rank().is_static() && B_partial_shape.rank().is_static())
+    NGRAPH_OP_SCOPE(v0_MatMul_validate_and_infer_types)
     {
-        PartialShape output_shape;
+        element::Type result_et;
 
-        const bool transpose_a = get_transpose_a();
-        const bool transpose_b = get_transpose_b();
+        NODE_VALIDATION_CHECK(
+            this,
+            element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+            "Arguments do not have the same element type (arg0 element type: ",
+            get_input_element_type(0),
+            ", arg1 element type: ",
+            get_input_element_type(1),
+            ").");
 
-        output_shape = matmul::validate_matmul_output_shape(
-            A_partial_shape, B_partial_shape, transpose_a, transpose_b);
+        const auto& A_partial_shape = get_input_partial_shape(0);
+        const auto& B_partial_shape = get_input_partial_shape(1);
 
-        set_output_type(0, result_et, output_shape);
-    }
-    else
-    {
-        set_output_type(0, result_et, PartialShape::dynamic());
+        if (A_partial_shape.rank().is_static() && B_partial_shape.rank().is_static())
+        {
+            PartialShape output_shape;
+
+            const bool transpose_a = get_transpose_a();
+            const bool transpose_b = get_transpose_b();
+
+            output_shape = matmul::validate_matmul_output_shape(
+                A_partial_shape, B_partial_shape, transpose_a, transpose_b);
+
+            set_output_type(0, result_et, output_shape);
+        }
+        else
+        {
+            set_output_type(0, result_et, PartialShape::dynamic());
+        }
     }
 }
