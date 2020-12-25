@@ -77,125 +77,119 @@ bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
 
 void op::v4::Range::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v4_Range_validate_and_infer_types)
+    NGRAPH_OP_SCOPE(v4_Range_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this,
+                          m_output_type.is_integral_number() || m_output_type.is_real(),
+                          "output tensor type should be a numeric type. Got: ",
+                          m_output_type);
+
+    set_input_is_relevant_to_shape(0);
+    set_input_is_relevant_to_shape(1);
+    set_input_is_relevant_to_shape(2);
+
+    NODE_VALIDATION_CHECK(
+                          this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(
+                          this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(
+                          this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).is_integral_number() ||
+                          get_input_element_type(0).is_real(),
+                          "'start' input scalar should be a numeric type. Got: ",
+                          get_input_element_type(0));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(1).is_integral_number() ||
+                          get_input_element_type(1).is_real(),
+                          "'stop' input scalar should be a numeric type. Got: ",
+                          get_input_element_type(1));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(2).is_integral_number() ||
+                          get_input_element_type(2).is_real(),
+                          "'step' input scalar should be a numeric type. Got: ",
+                          get_input_element_type(2));
+
+    auto const_start = as_type_ptr<op::Constant>(this->input_value(0).get_node_shared_ptr());
+    auto const_stop = as_type_ptr<op::Constant>(this->input_value(1).get_node_shared_ptr());
+    auto const_step = as_type_ptr<op::Constant>(this->input_value(2).get_node_shared_ptr());
+
+    double start = 0;
+    double stop = 0;
+    double step = 0;
+
+    if (const_start != nullptr)
     {
+        std::vector<double> start_val = const_start->cast_vector<double>();
+        NODE_VALIDATION_CHECK(this, start_val.size() == 1);
+        start = start_val[0];
         NODE_VALIDATION_CHECK(this,
-                              m_output_type.is_integral_number() || m_output_type.is_real(),
-                              "output tensor type should be a numeric type. Got: ",
-                              m_output_type);
-
-        set_input_is_relevant_to_shape(0);
-        set_input_is_relevant_to_shape(1);
-        set_input_is_relevant_to_shape(2);
-
-        NODE_VALIDATION_CHECK(
-            this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
-        NODE_VALIDATION_CHECK(
-            this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
-        NODE_VALIDATION_CHECK(
-            this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
-
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(0).is_integral_number() ||
-                                  get_input_element_type(0).is_real(),
-                              "'start' input scalar should be a numeric type. Got: ",
-                              get_input_element_type(0));
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(1).is_integral_number() ||
-                                  get_input_element_type(1).is_real(),
-                              "'stop' input scalar should be a numeric type. Got: ",
-                              get_input_element_type(1));
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(2).is_integral_number() ||
-                                  get_input_element_type(2).is_real(),
-                              "'step' input scalar should be a numeric type. Got: ",
-                              get_input_element_type(2));
-
-        auto const_start = as_type_ptr<op::Constant>(this->input_value(0).get_node_shared_ptr());
-        auto const_stop = as_type_ptr<op::Constant>(this->input_value(1).get_node_shared_ptr());
-        auto const_step = as_type_ptr<op::Constant>(this->input_value(2).get_node_shared_ptr());
-
-        double start = 0;
-        double stop = 0;
-        double step = 0;
-
-        if (const_start != nullptr)
-        {
-            std::vector<double> start_val = const_start->cast_vector<double>();
-            NODE_VALIDATION_CHECK(this, start_val.size() == 1);
-            start = start_val[0];
-            NODE_VALIDATION_CHECK(this,
-                                  std::isfinite(start) && !std::isnan(start),
-                                  "'start' cannot be nan or infinite.");
-        }
-
-        if (const_stop != nullptr)
-        {
-            std::vector<double> stop_val = const_stop->cast_vector<double>();
-            NODE_VALIDATION_CHECK(this, stop_val.size() == 1);
-            stop = stop_val[0];
-            NODE_VALIDATION_CHECK(this,
-                                  std::isfinite(stop) && !std::isnan(stop),
-                                  "'stop' cannot be nan or infinite.");
-        }
-
-        if (const_step != nullptr)
-        {
-            std::vector<double> step_val = const_step->cast_vector<double>();
-            NODE_VALIDATION_CHECK(this, step_val.size() == 1);
-            step = step_val[0];
-            NODE_VALIDATION_CHECK(this,
-                                  std::isfinite(step) && !std::isnan(step),
-                                  "'step' cannot be nan or infinite.");
-        }
-
-        PartialShape result{PartialShape::dynamic(1)};
-
-        if (const_start != nullptr && const_stop != nullptr && const_step != nullptr)
-        {
-            // all inputs must be casted to output_type before
-            // the rounding for casting values are done towards zero
-            if (m_output_type.is_integral_number() && get_input_element_type(0).is_real())
-            {
-                start = std::trunc(start);
-            }
-            if (m_output_type.is_integral_number() && get_input_element_type(1).is_real())
-            {
-                stop = std::trunc(stop);
-            }
-            if (m_output_type.is_integral_number() && get_input_element_type(2).is_real())
-            {
-                step = std::trunc(step);
-            }
-
-            // the number of elements is: max(ceil((stop − start) / step), 0)
-            double span;
-            if ((step > 0 && start >= stop) || (step < 0 && start <= stop))
-            {
-                span = 0;
-            }
-            else
-            {
-                span = stop - start;
-            }
-
-            double strided = ceil(fabs(span) / fabs(step));
-
-            result = PartialShape{Dimension(static_cast<int64_t>(strided))};
-        }
-        set_output_type(0, m_output_type, result);
+                              std::isfinite(start) && !std::isnan(start),
+                              "'start' cannot be nan or infinite.");
     }
+
+    if (const_stop != nullptr)
+    {
+        std::vector<double> stop_val = const_stop->cast_vector<double>();
+        NODE_VALIDATION_CHECK(this, stop_val.size() == 1);
+        stop = stop_val[0];
+        NODE_VALIDATION_CHECK(this,
+                              std::isfinite(stop) && !std::isnan(stop),
+                              "'stop' cannot be nan or infinite.");
+    }
+
+    if (const_step != nullptr)
+    {
+        std::vector<double> step_val = const_step->cast_vector<double>();
+        NODE_VALIDATION_CHECK(this, step_val.size() == 1);
+        step = step_val[0];
+        NODE_VALIDATION_CHECK(this,
+                              std::isfinite(step) && !std::isnan(step),
+                              "'step' cannot be nan or infinite.");
+    }
+
+    PartialShape result{PartialShape::dynamic(1)};
+
+    if (const_start != nullptr && const_stop != nullptr && const_step != nullptr)
+    {
+        // all inputs must be casted to output_type before
+        // the rounding for casting values are done towards zero
+        if (m_output_type.is_integral_number() && get_input_element_type(0).is_real())
+        {
+            start = std::trunc(start);
+        }
+        if (m_output_type.is_integral_number() && get_input_element_type(1).is_real())
+        {
+            stop = std::trunc(stop);
+        }
+        if (m_output_type.is_integral_number() && get_input_element_type(2).is_real())
+        {
+            step = std::trunc(step);
+        }
+
+        // the number of elements is: max(ceil((stop − start) / step), 0)
+        double span;
+        if ((step > 0 && start >= stop) || (step < 0 && start <= stop))
+        {
+            span = 0;
+        }
+        else
+        {
+            span = stop - start;
+        }
+
+        double strided = ceil(fabs(span) / fabs(step));
+
+        result = PartialShape{Dimension(static_cast<int64_t>(strided))};
+    }
+    set_output_type(0, m_output_type, result);
 }
 
 shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v4_Range_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        return make_shared<v4::Range>(
-            new_args.at(0), new_args.at(1), new_args.at(2), m_output_type);
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v4_Range_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<v4::Range>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_type);
 }
 
 template <typename T>
@@ -312,15 +306,12 @@ namespace rangeop
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_Range_evaluate)
-    {
-        HostTensorPtr out = outputs[0];
-        HostTensorPtr start = inputs[0];
-        HostTensorPtr stop = inputs[1];
-        HostTensorPtr step = inputs[2];
-        return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v4_Range_evaluate);
+    HostTensorPtr out = outputs[0];
+    HostTensorPtr start = inputs[0];
+    HostTensorPtr stop = inputs[1];
+    HostTensorPtr step = inputs[2];
+    return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
@@ -433,103 +424,98 @@ static PartialShape infer_output_shape(const op::v0::Range* node, const element:
 
 bool ngraph::op::v0::Range::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v0_Range_visit_attributes) { return true; }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Range_visit_attributes);
+    return true;
 }
 
 void op::v0::Range::validate_and_infer_types()
 {
-    NGRAPH_OP_SCOPE(v0_Range_validate_and_infer_types)
-    {
-        set_input_is_relevant_to_shape(0);
-        set_input_is_relevant_to_shape(1);
-        set_input_is_relevant_to_shape(2);
+    NGRAPH_OP_SCOPE(v0_Range_validate_and_infer_types);
+    set_input_is_relevant_to_shape(0);
+    set_input_is_relevant_to_shape(1);
+    set_input_is_relevant_to_shape(2);
 
-        auto result_et = element::dynamic;
+    auto result_et = element::dynamic;
 
-        NODE_VALIDATION_CHECK(
-            this,
-            element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                element::Type::merge(result_et, result_et, get_input_element_type(2)),
-            "Element types for start, stop, and step do not match.");
+    NODE_VALIDATION_CHECK(
+                          this,
+                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+                          element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+                          element::Type::merge(result_et, result_et, get_input_element_type(2)),
+                          "Element types for start, stop, and step do not match.");
 
-        NODE_VALIDATION_CHECK(this,
-                              result_et != element::boolean,
-                              "Element type for start, stop, and step, must not be boolean.");
+    NODE_VALIDATION_CHECK(this,
+                          result_et != element::boolean,
+                          "Element type for start, stop, and step, must not be boolean.");
 
-        NODE_VALIDATION_CHECK(
-            this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
-        NODE_VALIDATION_CHECK(
-            this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
-        NODE_VALIDATION_CHECK(
-            this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(
+                          this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(
+                          this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(
+                          this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
 
-        PartialShape result_shape;
+    PartialShape result_shape;
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
 #endif
-        switch (result_et)
-        {
-        case element::Type_t::bf16:
-            result_shape = infer_output_shape<bfloat16>(this, result_et);
-            break;
-        case element::Type_t::f16:
-            result_shape = infer_output_shape<float16>(this, result_et);
-            break;
-        case element::Type_t::f32: result_shape = infer_output_shape<float>(this, result_et); break;
-        case element::Type_t::f64:
-            result_shape = infer_output_shape<double>(this, result_et);
-            break;
-        case element::Type_t::i8: result_shape = infer_output_shape<int8_t>(this, result_et); break;
-        case element::Type_t::i16:
-            result_shape = infer_output_shape<int16_t>(this, result_et);
-            break;
-        case element::Type_t::i32:
-            result_shape = infer_output_shape<int32_t>(this, result_et);
-            break;
-        case element::Type_t::i64:
-            result_shape = infer_output_shape<int64_t>(this, result_et);
-            break;
-        case element::Type_t::u8:
-            result_shape = infer_output_shape<uint8_t>(this, result_et);
-            break;
-        case element::Type_t::u16:
-            result_shape = infer_output_shape<uint16_t>(this, result_et);
-            break;
-        case element::Type_t::u32:
-            result_shape = infer_output_shape<uint32_t>(this, result_et);
-            break;
-        case element::Type_t::u64:
-            result_shape = infer_output_shape<uint64_t>(this, result_et);
-            break;
-        case element::Type_t::dynamic: result_shape = PartialShape::dynamic(1); break;
-        case element::Type_t::u1:
-        case element::Type_t::undefined:
-        case element::Type_t::boolean:
-            NODE_VALIDATION_CHECK(
-                this, false, "Internal nGraph error: unsupported element type: ", result_et);
-            break;
-        }
+    switch (result_et)
+    {
+    case element::Type_t::bf16:
+        result_shape = infer_output_shape<bfloat16>(this, result_et);
+        break;
+    case element::Type_t::f16:
+        result_shape = infer_output_shape<float16>(this, result_et);
+        break;
+    case element::Type_t::f32: result_shape = infer_output_shape<float>(this, result_et); break;
+    case element::Type_t::f64:
+                               result_shape = infer_output_shape<double>(this, result_et);
+                               break;
+    case element::Type_t::i8: result_shape = infer_output_shape<int8_t>(this, result_et); break;
+    case element::Type_t::i16:
+                              result_shape = infer_output_shape<int16_t>(this, result_et);
+                              break;
+    case element::Type_t::i32:
+                              result_shape = infer_output_shape<int32_t>(this, result_et);
+                              break;
+    case element::Type_t::i64:
+                              result_shape = infer_output_shape<int64_t>(this, result_et);
+                              break;
+    case element::Type_t::u8:
+                              result_shape = infer_output_shape<uint8_t>(this, result_et);
+                              break;
+    case element::Type_t::u16:
+                              result_shape = infer_output_shape<uint16_t>(this, result_et);
+                              break;
+    case element::Type_t::u32:
+                              result_shape = infer_output_shape<uint32_t>(this, result_et);
+                              break;
+    case element::Type_t::u64:
+                              result_shape = infer_output_shape<uint64_t>(this, result_et);
+                              break;
+    case element::Type_t::dynamic: result_shape = PartialShape::dynamic(1); break;
+    case element::Type_t::u1:
+    case element::Type_t::undefined:
+    case element::Type_t::boolean:
+                                   NODE_VALIDATION_CHECK(
+                                                         this, false, "Internal nGraph error: unsupported element type: ", result_et);
+                                   break;
+    }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic pop
 #endif
 
-        set_output_type(0, result_et, result_shape);
-    }
+    set_output_type(0, result_et, result_shape);
 }
 
 shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v0_Range_clone_with_new_inputs)
-    {
-        check_new_args_count(this, new_args);
-        return make_shared<Range>(new_args.at(0), new_args.at(1), new_args.at(2));
-    }
-    return nullptr;
+    NGRAPH_OP_SCOPE(v0_Range_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<Range>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
 template <element::Type_t ET, typename T>
@@ -539,13 +525,10 @@ void positive_range(T start_val, T stop_val, T step_val)
 
 bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Range_evaluate)
-    {
-        HostTensorPtr out = outputs[0];
-        HostTensorPtr start = inputs[0];
-        HostTensorPtr stop = inputs[1];
-        HostTensorPtr step = inputs[2];
-        return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Range_evaluate);
+    HostTensorPtr out = outputs[0];
+    HostTensorPtr start = inputs[0];
+    HostTensorPtr stop = inputs[1];
+    HostTensorPtr step = inputs[2];
+    return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
 }

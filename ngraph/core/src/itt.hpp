@@ -53,15 +53,19 @@ OV_CC_DOMAINS(ngraph_op);
 #define NGRAPH_TYPE_CASE(region, a, ...)                                                           \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        OV_SCOPE(ngraph_op, OV_CC_CAT3(region, _, a));                                             \
-        rc = evaluate<element::Type_t::a>(__VA_ARGS__);                                            \
+        OV_SCOPE(ngraph_op, OV_CC_CAT3(region, _, a))                                              \
+        {                                                                                          \
+            rc = evaluate<element::Type_t::a>(__VA_ARGS__);                                        \
+        }                                                                                          \
     }                                                                                              \
     break
 
 #define NGRAPH_COPY_TENSOR(region, a, ...)                                                         \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        OV_SCOPE(ngraph_op, OV_CC_CAT3(region, _, a));                                             \
-        rc = copy_tensor<element::Type_t::a>(__VA_ARGS__);                                         \
+        OV_SCOPE(ngraph_op, OV_CC_CAT3(region, _, a))                                              \
+        {                                                                                          \
+            rc = copy_tensor<element::Type_t::a>(__VA_ARGS__);                                     \
+        }                                                                                          \
     }                                                                                              \
     break
