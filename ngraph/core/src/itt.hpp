@@ -44,8 +44,8 @@ OV_CC_DOMAINS(ngraph_op);
 #elif defined(SELECTIVE_BUILD)
 #define NGRAPH_OP_SCOPE(region)                                                                    \
     if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(ngraph_op, _, region)) == 0)                             \
-        throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_op, _, region))) + \
-                                   " is disabled!")
+    throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_op, _, region))) +     \
+                               " is disabled!")
 #else
 #define NGRAPH_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ngraph::itt::domains::ngraph_op, #region)
 #endif

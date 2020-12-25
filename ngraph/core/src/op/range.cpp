@@ -88,25 +88,25 @@ void op::v4::Range::validate_and_infer_types()
     set_input_is_relevant_to_shape(2);
 
     NODE_VALIDATION_CHECK(
-                          this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
+        this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
     NODE_VALIDATION_CHECK(
-                          this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
+        this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
     NODE_VALIDATION_CHECK(
-                          this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
+        this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
 
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_integral_number() ||
-                          get_input_element_type(0).is_real(),
+                              get_input_element_type(0).is_real(),
                           "'start' input scalar should be a numeric type. Got: ",
                           get_input_element_type(0));
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number() ||
-                          get_input_element_type(1).is_real(),
+                              get_input_element_type(1).is_real(),
                           "'stop' input scalar should be a numeric type. Got: ",
                           get_input_element_type(1));
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(2).is_integral_number() ||
-                          get_input_element_type(2).is_real(),
+                              get_input_element_type(2).is_real(),
                           "'step' input scalar should be a numeric type. Got: ",
                           get_input_element_type(2));
 
@@ -123,9 +123,8 @@ void op::v4::Range::validate_and_infer_types()
         std::vector<double> start_val = const_start->cast_vector<double>();
         NODE_VALIDATION_CHECK(this, start_val.size() == 1);
         start = start_val[0];
-        NODE_VALIDATION_CHECK(this,
-                              std::isfinite(start) && !std::isnan(start),
-                              "'start' cannot be nan or infinite.");
+        NODE_VALIDATION_CHECK(
+            this, std::isfinite(start) && !std::isnan(start), "'start' cannot be nan or infinite.");
     }
 
     if (const_stop != nullptr)
@@ -133,9 +132,8 @@ void op::v4::Range::validate_and_infer_types()
         std::vector<double> stop_val = const_stop->cast_vector<double>();
         NODE_VALIDATION_CHECK(this, stop_val.size() == 1);
         stop = stop_val[0];
-        NODE_VALIDATION_CHECK(this,
-                              std::isfinite(stop) && !std::isnan(stop),
-                              "'stop' cannot be nan or infinite.");
+        NODE_VALIDATION_CHECK(
+            this, std::isfinite(stop) && !std::isnan(stop), "'stop' cannot be nan or infinite.");
     }
 
     if (const_step != nullptr)
@@ -143,9 +141,8 @@ void op::v4::Range::validate_and_infer_types()
         std::vector<double> step_val = const_step->cast_vector<double>();
         NODE_VALIDATION_CHECK(this, step_val.size() == 1);
         step = step_val[0];
-        NODE_VALIDATION_CHECK(this,
-                              std::isfinite(step) && !std::isnan(step),
-                              "'step' cannot be nan or infinite.");
+        NODE_VALIDATION_CHECK(
+            this, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
     }
 
     PartialShape result{PartialShape::dynamic(1)};
@@ -438,22 +435,22 @@ void op::v0::Range::validate_and_infer_types()
     auto result_et = element::dynamic;
 
     NODE_VALIDATION_CHECK(
-                          this,
-                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                          element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                          element::Type::merge(result_et, result_et, get_input_element_type(2)),
-                          "Element types for start, stop, and step do not match.");
+        this,
+        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+            element::Type::merge(result_et, result_et, get_input_element_type(2)),
+        "Element types for start, stop, and step do not match.");
 
     NODE_VALIDATION_CHECK(this,
                           result_et != element::boolean,
                           "Element type for start, stop, and step, must not be boolean.");
 
     NODE_VALIDATION_CHECK(
-                          this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
+        this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
     NODE_VALIDATION_CHECK(
-                          this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
+        this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
     NODE_VALIDATION_CHECK(
-                          this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
+        this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
 
     PartialShape result_shape;
 
@@ -464,45 +461,25 @@ void op::v0::Range::validate_and_infer_types()
 #endif
     switch (result_et)
     {
-    case element::Type_t::bf16:
-        result_shape = infer_output_shape<bfloat16>(this, result_et);
-        break;
-    case element::Type_t::f16:
-        result_shape = infer_output_shape<float16>(this, result_et);
-        break;
+    case element::Type_t::bf16: result_shape = infer_output_shape<bfloat16>(this, result_et); break;
+    case element::Type_t::f16: result_shape = infer_output_shape<float16>(this, result_et); break;
     case element::Type_t::f32: result_shape = infer_output_shape<float>(this, result_et); break;
-    case element::Type_t::f64:
-                               result_shape = infer_output_shape<double>(this, result_et);
-                               break;
+    case element::Type_t::f64: result_shape = infer_output_shape<double>(this, result_et); break;
     case element::Type_t::i8: result_shape = infer_output_shape<int8_t>(this, result_et); break;
-    case element::Type_t::i16:
-                              result_shape = infer_output_shape<int16_t>(this, result_et);
-                              break;
-    case element::Type_t::i32:
-                              result_shape = infer_output_shape<int32_t>(this, result_et);
-                              break;
-    case element::Type_t::i64:
-                              result_shape = infer_output_shape<int64_t>(this, result_et);
-                              break;
-    case element::Type_t::u8:
-                              result_shape = infer_output_shape<uint8_t>(this, result_et);
-                              break;
-    case element::Type_t::u16:
-                              result_shape = infer_output_shape<uint16_t>(this, result_et);
-                              break;
-    case element::Type_t::u32:
-                              result_shape = infer_output_shape<uint32_t>(this, result_et);
-                              break;
-    case element::Type_t::u64:
-                              result_shape = infer_output_shape<uint64_t>(this, result_et);
-                              break;
+    case element::Type_t::i16: result_shape = infer_output_shape<int16_t>(this, result_et); break;
+    case element::Type_t::i32: result_shape = infer_output_shape<int32_t>(this, result_et); break;
+    case element::Type_t::i64: result_shape = infer_output_shape<int64_t>(this, result_et); break;
+    case element::Type_t::u8: result_shape = infer_output_shape<uint8_t>(this, result_et); break;
+    case element::Type_t::u16: result_shape = infer_output_shape<uint16_t>(this, result_et); break;
+    case element::Type_t::u32: result_shape = infer_output_shape<uint32_t>(this, result_et); break;
+    case element::Type_t::u64: result_shape = infer_output_shape<uint64_t>(this, result_et); break;
     case element::Type_t::dynamic: result_shape = PartialShape::dynamic(1); break;
     case element::Type_t::u1:
     case element::Type_t::undefined:
     case element::Type_t::boolean:
-                                   NODE_VALIDATION_CHECK(
-                                                         this, false, "Internal nGraph error: unsupported element type: ", result_et);
-                                   break;
+        NODE_VALIDATION_CHECK(
+            this, false, "Internal nGraph error: unsupported element type: ", result_et);
+        break;
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #pragma GCC diagnostic pop
