@@ -78,9 +78,8 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
         this, deltas_shape.rank().get_length() == 2, "Input deltas rank must be equal to 2.");
     NODE_VALIDATION_CHECK(
         this, scores_shape.rank().get_length() == 2, "Input scores rank must be equal to 2.");
-    NODE_VALIDATION_CHECK(this,
-                          im_info_shape.rank().get_length() == 2,
-                          "Input image info rank must be equal to 2.");
+    NODE_VALIDATION_CHECK(
+        this, im_info_shape.rank().get_length() == 2, "Input image info rank must be equal to 2.");
 
     NODE_VALIDATION_CHECK(this,
                           rois_shape[1].is_static() && rois_shape[1].get_length() == 4u,
