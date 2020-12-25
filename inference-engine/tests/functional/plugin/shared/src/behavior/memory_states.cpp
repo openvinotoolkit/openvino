@@ -54,8 +54,8 @@ TEST_P(VariableStateTest, smoke_VariableState_SetState) {
         auto element_count = state_val->size();
 
         float *new_state_data = new float[element_count];
-        for(int i=0; i<element_count;i++){
-            new_state_data[i]=new_state_val;
+        for (int i = 0; i < element_count; i++) {
+            new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
@@ -87,8 +87,8 @@ TEST_P(VariableStateTest, smoke_VariableState_Reset) {
         auto element_count = state_val->size();
 
         float *new_state_data = new float[element_count];
-        for(int i=0; i<element_count;i++){
-            new_state_data[i]=new_state_val;
+        for (int i = 0; i < element_count; i++) {
+            new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
@@ -146,8 +146,8 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
         auto element_count = state_val->size();
 
         float *new_state_data = new float[element_count];
-        for(int i=0; i<element_count;i++){
-            new_state_data[i]=new_state_val;
+        for (int i = 0; i < element_count; i++) {
+            new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
@@ -178,14 +178,14 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
         auto element_count = state_val->size();
 
         float *new_state_data = new float[element_count];
-        for(int i=0; i<element_count;i++){
-            new_state_data[i]=new_state_val;
+        for (int i = 0; i < element_count; i++) {
+            new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
         delete new_state_data;
-        
+    
         state.SetState(stateBlob);
     }
 
@@ -222,8 +222,8 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
         auto element_count = state_val->size();
 
         float *new_state_data = new float[element_count];
-        for(int i=0; i<element_count;i++){
-            new_state_data[i]=new_state_val;
+        for (int i = 0; i < element_count; i++) {
+            new_state_data[i] = new_state_val;
         }
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
@@ -231,7 +231,6 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
         delete new_state_data;
         state.SetState(stateBlob);
     }
-    
     for (auto&& state : inferReq2.QueryState()) {
         state.Reset();
     }
