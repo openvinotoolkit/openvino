@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <sstream>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/parameter.hpp"
@@ -34,6 +35,7 @@ op::Parameter::Parameter(const element::Type& element_type, const PartialShape& 
 
 bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Parameter_visit_attributes);
     visitor.on_attribute("shape", m_partial_shape);
     visitor.on_attribute("element_type", m_element_type);
     return true;
@@ -41,12 +43,15 @@ bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
 
 void op::Parameter::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Parameter_validate_and_infer_types);
+    ;
     Op::validate_and_infer_types();
     set_output_type(0, m_element_type, m_partial_shape);
 }
 
 shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Parameter_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Parameter>(m_element_type, m_partial_shape);
 }
