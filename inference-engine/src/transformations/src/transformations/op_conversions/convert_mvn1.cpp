@@ -6,7 +6,7 @@
 
 #include <ngraph/rt_info.hpp>
 
-#include <algorithm>
+#include <numeric>
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset6.hpp>
