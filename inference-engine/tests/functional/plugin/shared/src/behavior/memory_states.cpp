@@ -228,7 +228,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete new_state_data;
+        delete []new_state_data;
         state.SetState(stateBlob);
     }
     for (auto&& state : inferReq2.QueryState()) {
