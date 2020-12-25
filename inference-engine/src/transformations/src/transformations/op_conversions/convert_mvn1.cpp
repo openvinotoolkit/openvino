@@ -6,6 +6,8 @@
 
 #include <ngraph/rt_info.hpp>
 
+#include <algorithm>
+
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -24,13 +26,17 @@ ngraph::pass::ConvertMVN1::ConvertMVN1() {
         const auto input = mvn_node->input_value(0);
 
         // MVN-1 support only 4D input tensors
-        if (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().get_length() == 4) {
-            std::shared_ptr<ngraph::opset6::Constant> axes;
+        auto input_rank = input.get_partial_shape().rank();
+        if (input_rank.is_static() && input_rank.get_length() == 4) {
+            int start_axis;
             if (mvn_node->get_across_channels()) {
-                axes = opset6::Constant::create(ngraph::element::i64, { 3 }, { 1, 2, 3 });
+                start_axis = 1;
             } else {
-                axes = opset6::Constant::create(ngraph::element::i64, { 2 }, { 2, 3 });
+                start_axis = 2;
             }
+            std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
+            std::iota(axes_v.begin(), axes_v.end(), start_axis);
+            auto axes = opset6::Constant::create(ngraph::element::i64, { axes_v.size() }, axes_v);
             auto mvn6_node = std::make_shared<ngraph::opset6::MVN>(input,
                 axes,
                 mvn_node->get_normalize_variance(),
