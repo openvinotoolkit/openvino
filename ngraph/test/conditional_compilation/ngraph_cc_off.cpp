@@ -14,19 +14,39 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/scatter_nd_update.hpp"
-#include "itt.hpp"
+#include "gtest/gtest.h"
+
+#include <ngraph/except.hpp>
+
+#ifdef SELECTIVE_BUILD_ANALYZER
+#define SELECTIVE_BUILD_ANALYZER_ON
+#undef SELECTIVE_BUILD_ANALYZER
+#elif defined(SELECTIVE_BUILD)
+#define SELECTIVE_BUILD_ON
+#undef SELECTIVE_BUILD
+#endif
+
+#include "../core/src/itt.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ScatterNDUpdate::type_info;
-
-shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const
+TEST(conditional_compilation, op_scope_with_disabled_cc)
 {
-    NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    return make_shared<op::v3::ScatterNDUpdate>(new_args.at(op::util::ScatterNDBase::INPUTS),
-                                                new_args.at(op::util::ScatterNDBase::INDICES),
-                                                new_args.at(op::util::ScatterNDBase::UPDATES));
+    int n = 0;
+
+    // Simple scope is enabled
+    NGRAPH_OP_SCOPE(Scope0);
+    n = 42;
+    EXPECT_EQ(n, 42);
+
+    // Simple scope is disabled
+    NGRAPH_OP_SCOPE(Scope1);
+    n = 43;
+    EXPECT_EQ(n, 43);
 }
+
+#ifdef SELECTIVE_BUILD_ANALYZER_ON
+#define SELECTIVE_BUILD_ANALYZER
+#elif defined(SELECTIVE_BUILD_ON)
+#define SELECTIVE_BUILD
+#endif
