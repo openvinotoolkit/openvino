@@ -116,16 +116,7 @@ target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
 add_library(ngraph::ngraph ALIAS ngraph)
 
 if (NOT WIN32)
-    target_link_libraries(ngraph PRIVATE dl)
-endif()
-
-# Build subdirectories for all build types on Windows
-if(WIN32)
-    foreach(BUILD_TYPE Release Debug RelWithDebInfo MinSizeRel)
-        if(NOT EXISTS ${NGRAPH_BUILD_DIR}/${BUILD_TYPE})
-            file(MAKE_DIRECTORY ${NGRAPH_BUILD_DIR}/${BUILD_TYPE})
-        endif()
-    endforeach()
+    target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
 #-----------------------------------------------------------------------------------------------
