@@ -59,5 +59,4 @@ should be called with `weights` passed as an empty `Blob`.
 - Inference Engine Developer Guide: [Inference Engine Developer Guide](Deep_Learning_Inference_Engine_DevGuide.md)
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](Samples_Overview.md)
 - For information on a set of pre-trained models, see the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
-- For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

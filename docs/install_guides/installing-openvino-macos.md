@@ -291,10 +291,6 @@ For example, to install the `libusb` library using Homebrew\*, use the following
 brew install libusb
 ```
 
-## <a name="Hello-World-Tutorial"></a>Hello World Tutorials
-
-Visit the Intel Distribution of OpenVINO Toolkit [Inference Tutorials for Face Detection and Car Detection Exercises](https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r3_0)
-
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 
 Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
