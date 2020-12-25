@@ -20,7 +20,7 @@ namespace vpu {
 
 InterpolateCoordTransMode coordinateChoice(std::string coordinateTransformation) {
     ie::details::CaselessEq<std::string> cmp;
-    InterpolateCoordTransMode coordinateTransformationMode;
+    InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
     if (cmp(coordinateTransformation, g_asymmetric)) {
         coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
     } else if (cmp(coordinateTransformation, g_half_pixel)) {
