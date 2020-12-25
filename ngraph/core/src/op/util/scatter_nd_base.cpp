@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/scatter_nd_base.hpp"
+#include "itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 
@@ -36,11 +37,13 @@ op::util::ScatterNDBase::ScatterNDBase(const Output<Node>& data,
 
 bool op::util::ScatterNDBase::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(util_ScatterNDBase_visit_attributes);
     return true;
 }
 
 void op::util::ScatterNDBase::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_ScatterNDBase_validate_and_infer_types);
     element::Type inputs_et = get_input_element_type(INPUTS);
     element::Type indices_et = get_input_element_type(INDICES);
     element::Type updates_et = get_input_element_type(UPDATES);
@@ -74,7 +77,8 @@ void op::util::ScatterNDBase::validate_and_infer_types()
             updates_shape.rank().get_length() ==
                 indices_shape.rank().get_length() + inputs_shape.rank().get_length() -
                     indices_shape[indices_shape.rank().get_length() - 1].get_length() - 1,
-        "Rank of updates must be rank of inputs + rank of indices - last dimension of indices - 1");
+        "Rank of updates must be rank of inputs + rank of indices - last dimension of indices "
+        "- 1");
 
     bool compatible = true;
     if (inputs_shape.is_static() && indices_shape.is_static() && updates_shape.is_static())
