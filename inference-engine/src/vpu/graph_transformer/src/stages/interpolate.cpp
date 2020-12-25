@@ -18,6 +18,25 @@ using namespace InferenceEngine;
 
 namespace vpu {
 
+InterpolateCoordTransMode coordinateChoice(std::string coordinateTransformation) {
+    ie::details::CaselessEq<std::string> cmp;
+    InterpolateCoordTransMode coordinateTransformationMode;
+    if (cmp(coordinateTransformation, g_asymmetric)) {
+        coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
+    } else if (cmp(coordinateTransformation, g_half_pixel)) {
+        coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+    } else if (cmp(coordinateTransformation, g_pytorch_half_pixel)) {
+        coordinateTransformationMode = InterpolateCoordTransMode::PytorchHalfPixel;
+    } else if (cmp(coordinateTransformation, g_tf_half_pixel_for_nn)) {
+        coordinateTransformationMode = InterpolateCoordTransMode::TfHalfPixelForNn;
+    } else if (cmp(coordinateTransformation, g_align_corners)) {
+        coordinateTransformationMode = InterpolateCoordTransMode::AlignCorners;
+    } else {
+        VPU_THROW_FORMAT("Current Interpolate does not support this coordinate transformation mode");
+    }
+    return coordinateTransformationMode;
+}
+
 void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() <= 4 && inputs.size() >= 1,
                      "Interpolate stage with name {} must have no more than 4 inputs and no less than 1 input, actually provided {} inputs",
@@ -61,20 +80,6 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
                 InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
-                if (cmp(coordinateTransformation, g_asymmetric)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
-                } else if (cmp(coordinateTransformation, g_half_pixel)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-                } else if (cmp(coordinateTransformation, g_pytorch_half_pixel)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::PytorchHalfPixel;
-                } else if (cmp(coordinateTransformation, g_tf_half_pixel_for_nn)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::TfHalfPixelForNn;
-                } else if (cmp(coordinateTransformation, g_align_corners)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::AlignCorners;
-                } else {
-                    VPU_THROW_FORMAT("Current Interpolate does not support this coordinate transformation mode");
-                }
-
                 if (cmp(near, g_round_prefer_floor)) {
                     nearestMode = InterpolateNearestMode::RoundPreferFloor;
                 } else if (cmp(near, g_round_prefer_ceil)) {
@@ -88,6 +93,8 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 } else {
                     VPU_THROW_FORMAT("Current Interpolate does not support this nearest mode");
                 }
+
+                coordinateTransformationMode = coordinateChoice(coordinateTransformation);
 
                 _stageBuilder->addResampleNearestStage(model,
                                                        _layer->name,
@@ -108,20 +115,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 if (cmp(interpolateMode, g_linear_onnx)) {
                     mode = InterpolateMode::LinearOnnx;
                 }
-
-                if (cmp(coordinateTransformation, g_asymmetric)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
-                } else if (cmp(coordinateTransformation, g_half_pixel)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-                } else if (cmp(coordinateTransformation, g_pytorch_half_pixel)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::PytorchHalfPixel;
-                } else if (cmp(coordinateTransformation, g_tf_half_pixel_for_nn)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::TfHalfPixelForNn;
-                } else if (cmp(coordinateTransformation, g_align_corners)) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::AlignCorners;
-                } else {
-                    VPU_THROW_FORMAT("Current Interpolate does not support this coordinate transformation mode");
-                }
+                coordinateTransformationMode = coordinateChoice(coordinateTransformation);
 
                 _stageBuilder->addInterpStage(model,
                                               _layer->name,
