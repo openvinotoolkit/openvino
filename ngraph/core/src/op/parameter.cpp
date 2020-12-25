@@ -44,7 +44,6 @@ bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
 void op::Parameter::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_Parameter_validate_and_infer_types);
-    ;
     Op::validate_and_infer_types();
     set_output_type(0, m_element_type, m_partial_shape);
 }

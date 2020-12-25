@@ -48,9 +48,7 @@ op::v1::Gather::Gather(const Output<Node>& params,
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Gather_visit_attributes);
-    {
-        return true;
-    }
+    return true;
 }
 
 void op::v1::Gather::validate_and_infer_types()

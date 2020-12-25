@@ -18,7 +18,6 @@
 #include <iterator>
 #include <sstream>
 #include "itt.hpp"
-#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
