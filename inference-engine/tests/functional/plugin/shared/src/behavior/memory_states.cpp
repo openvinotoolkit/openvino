@@ -185,7 +185,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
         delete new_state_data;
-    
+
         state.SetState(stateBlob);
     }
 
