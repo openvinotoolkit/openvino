@@ -34,11 +34,13 @@ op::v1::Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_
 
 bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Transpose_visit_attributes);
     return true;
 }
 
 void op::v1::Transpose::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Transpose_validate_and_infer_types);
     const auto& input_order_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           input_order_et.is_dynamic() || input_order_et.is_integral_number(),
@@ -82,6 +84,7 @@ void op::v1::Transpose::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Transpose_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
@@ -144,9 +147,6 @@ namespace transpose
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_Transpose_evaluate)
-    {
-        return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_Transpose_evaluate);
+    return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }

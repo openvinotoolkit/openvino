@@ -40,11 +40,13 @@ op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
 
 bool ngraph::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_visit_attributes);
     return true;
 }
 
 void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
     set_input_is_relevant_to_value(0);
     set_input_is_relevant_to_value(1);
     set_input_is_relevant_to_value(2);
@@ -143,6 +145,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
@@ -216,6 +219,6 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
 bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate) { return evaluate_variadic_split(inputs, outputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate);
+    return evaluate_variadic_split(inputs, outputs);
 }

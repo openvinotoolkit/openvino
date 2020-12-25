@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/logical_reduction_keep_dims.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
@@ -33,12 +34,14 @@ op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(
 
 bool ngraph::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_visit_attributes);
     visitor.on_attribute("keep_dims", m_keep_dims);
     return true;
 }
 
 void op::util::LogicalReductionKeepDims::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_validate_and_infer_types);
     if (m_keep_dims)
     {
         const auto input_shape = get_input_partial_shape(0);
@@ -86,7 +89,7 @@ void op::util::LogicalReductionKeepDims::validate_and_infer_types()
                 }
                 else
                 {
-                    dims.push_back(Dimension{1});
+                    dims.emplace_back(Dimension{1});
                 }
             }
             result_shape = PartialShape(dims);

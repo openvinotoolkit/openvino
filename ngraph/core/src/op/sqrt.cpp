@@ -36,11 +36,13 @@ op::Sqrt::Sqrt(const Output<Node>& arg)
 
 bool ngraph::op::v0::Sqrt::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Sqrt_visit_attrinutes);
     return true;
 }
 
 shared_ptr<Node> op::Sqrt::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Sqrt_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sqrt>(new_args.at(0));
 }
@@ -75,9 +77,6 @@ namespace sqrtop
 
 bool op::Sqrt::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Sqrt_evaluate)
-    {
-        return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Sqrt_evaluate);
+    return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

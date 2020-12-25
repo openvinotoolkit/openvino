@@ -40,6 +40,7 @@ op::MatMul::MatMul(const Output<Node>& A,
 
 bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_MatMul_visit_attributes);
     visitor.on_attribute("transpose_a", m_transpose_a);
     visitor.on_attribute("transpose_b", m_transpose_b);
     return true;
@@ -47,6 +48,7 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_MatMul_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
 }
@@ -259,16 +261,14 @@ namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_MatMul_evaluate)
-    {
-        return matmul::evaluate_matmul(
-            inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_MatMul_evaluate);
+    return matmul::evaluate_matmul(
+        inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }
 
 void ngraph::op::v0::MatMul::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_MatMul_validate_and_infer_types);
     element::Type result_et;
 
     NODE_VALIDATION_CHECK(

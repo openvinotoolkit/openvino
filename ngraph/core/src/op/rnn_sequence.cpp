@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/rnn_sequence.hpp"
+#include "itt.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
 #include "ngraph/opsets/opset4.hpp"
 
@@ -57,6 +58,7 @@ op::v5::RNNSequence::RNNSequence(const Output<Node>& X,
 
 void op::v5::RNNSequence::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v5_RNNSequence_validate_and_infer_types);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -169,6 +171,7 @@ void op::v5::RNNSequence::validate_and_infer_types()
 
 bool op::v5::RNNSequence::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v5_RNNSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
@@ -176,6 +179,7 @@ bool op::v5::RNNSequence::visit_attributes(AttributeVisitor& visitor)
 shared_ptr<Node>
     op::v5::RNNSequence::clone_with_new_inputs(const ngraph::OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v5_RNNSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v5::RNNSequence>(new_args.at(0),
                                             new_args.at(1),

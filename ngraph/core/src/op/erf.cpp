@@ -29,11 +29,13 @@ constexpr NodeTypeInfo op::Erf::type_info;
 
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Erf_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Erf::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Erf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Erf>(new_args.at(0));
 }
@@ -76,9 +78,6 @@ namespace erfop
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Erf_evaluate)
-    {
-        return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Erf_evaluate);
+    return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

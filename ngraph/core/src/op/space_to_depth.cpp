@@ -50,6 +50,7 @@ op::SpaceToDepth::SpaceToDepth(const Output<Node>& data, const std::string& mode
 
 bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_visit_attributes);
     visitor.on_attribute("block_size", m_blocksize);
     visitor.on_attribute("mode", m_mode);
     return true;
@@ -57,6 +58,7 @@ bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_clone_with_new_inputs);
     if (new_args.size() != 1)
     {
         throw ngraph_error("Incorrect number of new arguments");
@@ -66,6 +68,7 @@ shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new
 
 void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_validate_and_infer_types);
     PartialShape data_pshape = get_input_partial_shape(0);
 
     const auto& data_type = get_input_element_type(0);
@@ -228,8 +231,8 @@ bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVecto
 bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_SpaceToDepth_evaluate) { return evaluate_space_to_depth(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v0_SpaceToDepth_evaluate);
+    return evaluate_space_to_depth(outputs, inputs);
 }
 
 namespace ngraph

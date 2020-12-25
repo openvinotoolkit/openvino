@@ -16,6 +16,7 @@
 
 #include "ngraph/op/non_max_suppression.hpp"
 #include <cstring>
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -64,6 +65,7 @@ op::v1::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v1::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 5,
@@ -85,6 +87,7 @@ std::shared_ptr<Node>
 
 bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     return true;
@@ -92,11 +95,13 @@ bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 
 void op::v1::NonMaxSuppression::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
     // the spec doesn't say what exact type should be used for the output of this op
-    // that's why we're setting it to 64-bit integer to provide the maximum range of values support
+    // that's why we're setting it to 64-bit integer to provide the maximum range of values
+    // support
     // this will be changed (configurable) in the next version of this op
     const auto& output_element_type = element::i64;
 
@@ -262,6 +267,7 @@ op::v3::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v3::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 5,
@@ -289,6 +295,7 @@ std::shared_ptr<Node>
 
 bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -375,6 +382,7 @@ void op::v3::NonMaxSuppression::validate()
 
 void op::v3::NonMaxSuppression::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -481,6 +489,7 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 5,
@@ -508,6 +517,7 @@ std::shared_ptr<Node>
 
 void op::v4::NonMaxSuppression::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -627,6 +637,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v5::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 6,
@@ -885,6 +896,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
 
 bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -893,6 +905,7 @@ bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 
 void op::v5::NonMaxSuppression::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 

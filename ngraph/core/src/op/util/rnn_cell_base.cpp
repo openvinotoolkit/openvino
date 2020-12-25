@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <iterator>
 #include <locale>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/add.hpp"
@@ -88,6 +89,7 @@ op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
 
 bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(util_RNNCellBase_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);

@@ -44,6 +44,7 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
 
 void op::v1::SpaceToBatch::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types);
     PartialShape data_pshape = get_input_partial_shape(0);
     const auto& data_type = get_input_element_type(0);
     const auto& block_shape_type = get_input_element_type(1);
@@ -131,6 +132,7 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
 std::shared_ptr<Node>
     ngraph::op::v1::SpaceToBatch::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<SpaceToBatch>(
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
@@ -138,6 +140,7 @@ std::shared_ptr<Node>
 
 bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_visit_attributes);
     return true;
 }
 
@@ -273,6 +276,6 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch) { return evaluate_space_to_batch(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch);
+    return evaluate_space_to_batch(outputs, inputs);
 }

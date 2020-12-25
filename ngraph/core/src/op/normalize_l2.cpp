@@ -15,6 +15,7 @@
 //*****************************************************************************
 #include <algorithm>
 #include <iterator>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/norm.hpp"
@@ -45,6 +46,7 @@ op::NormalizeL2::NormalizeL2(const Output<Node>& data,
 
 bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_NormalizeL2_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("eps_mode", m_eps_mode);
     return true;
@@ -116,6 +118,7 @@ OutputVector op::NormalizeL2::decompose_op() const
 
 shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");

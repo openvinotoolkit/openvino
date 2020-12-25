@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/proposal.hpp"
+#include "itt.hpp"
 
 #include "ngraph/op/constant.hpp"
 
@@ -35,6 +36,7 @@ op::v0::Proposal::Proposal(const Output<Node>& class_probs,
 
 void op::v0::Proposal::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Proposal_validate_and_infer_types);
     const auto& class_probs_pshape = get_input_partial_shape(0);
     const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
     const auto& image_shape_pshape = get_input_partial_shape(2);
@@ -84,12 +86,14 @@ void op::v0::Proposal::validate_and_infer_types()
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Proposal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v0::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
 bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Proposal_visit_attributes);
     visitor.on_attribute("base_size", m_attrs.base_size);
     visitor.on_attribute("pre_nms_topn", m_attrs.pre_nms_topn);
     visitor.on_attribute("post_nms_topn", m_attrs.post_nms_topn);
@@ -120,6 +124,7 @@ op::v4::Proposal::Proposal(const Output<Node>& class_probs,
 
 void op::v4::Proposal::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
     v0::Proposal::validate_and_infer_types();
 
     const auto& class_probs_pshape = get_input_partial_shape(0);
@@ -136,6 +141,7 @@ void op::v4::Proposal::validate_and_infer_types()
 
 std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_Proposal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }

@@ -36,6 +36,7 @@ op::v3::Asinh::Asinh(const Output<Node>& arg)
 
 shared_ptr<Node> op::v3::Asinh::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_Asinh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Asinh>(new_args.at(0));
 }
@@ -70,7 +71,6 @@ namespace asinhop
 
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    bool rc = false;
-    NGRAPH_OP_SCOPE(v3_Asinh_evaluate) { rc = asinhop::evaluate_asinh(inputs[0], outputs[0]); }
-    return rc;
+    NGRAPH_OP_SCOPE(v3_Asinh_evaluate);
+    return asinhop::evaluate_asinh(inputs[0], outputs[0]);
 }

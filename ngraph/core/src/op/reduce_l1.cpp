@@ -41,6 +41,7 @@ shared_ptr<Node> op::v4::ReduceL1::get_default_value() const
 
 shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_ReduceL1_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::ReduceL1>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -81,10 +82,6 @@ namespace reduce_l1
 bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_ReduceL1_evaluate)
-    {
-        return reduce_l1::evaluate_sum(
-            inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v4_ReduceL1_evaluate);
+    return reduce_l1::evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

@@ -75,12 +75,14 @@ CoordinateDiff op::v1::Pad::get_pads_end() const
 
 bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Pad_visit_attributes);
     visitor.on_attribute("pad_mode", m_pad_mode);
     return true;
 }
 
 void op::v1::Pad::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Pad_validate_and_infer_types);
     element::Type result_et;
 
     const auto& arg_element_type = get_input_element_type(0);
@@ -140,12 +142,12 @@ void op::v1::Pad::validate_and_infer_types()
     const auto& arg_shape_rank = arg_shape.rank();
     if (arg_shape_rank.is_static() && pads_begin_shape.is_static())
     {
-        NODE_VALIDATION_CHECK(
-            this,
-            pads_begin_shape[0].get_length() <= arg_shape_rank.get_length(),
-            "Number of elements of pads_begin must be >= 0 and <= arg rank (pads_begin_shape[0]: ",
-            pads_begin_shape[0],
-            ").");
+        NODE_VALIDATION_CHECK(this,
+                              pads_begin_shape[0].get_length() <= arg_shape_rank.get_length(),
+                              "Number of elements of pads_begin must be >= 0 and <= arg rank "
+                              "(pads_begin_shape[0]: ",
+                              pads_begin_shape[0],
+                              ").");
     }
     if (arg_shape_rank.is_static() && pads_end_shape.is_static())
     {
@@ -175,16 +177,18 @@ void op::v1::Pad::validate_and_infer_types()
                 result_dims[i] = static_cast<size_t>(result_dim);
                 if (i > 1)
                 {
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        m_pad_mode != op::PadMode::EDGE || arg_shape[i].get_length() >= 1,
-                        "EDGE padding mode requires an input of dimension of at least 1 at each "
-                        "spatial axis.");
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        m_pad_mode != op::PadMode::REFLECT || arg_shape[i].get_length() >= 2,
-                        "REFLECT padding mode requires an input of dimension of at least 2 at each "
-                        "spatial axis.");
+                    NODE_VALIDATION_CHECK(this,
+                                          m_pad_mode != op::PadMode::EDGE ||
+                                              arg_shape[i].get_length() >= 1,
+                                          "EDGE padding mode requires an input of dimension of "
+                                          "at least 1 at each "
+                                          "spatial axis.");
+                    NODE_VALIDATION_CHECK(this,
+                                          m_pad_mode != op::PadMode::REFLECT ||
+                                              arg_shape[i].get_length() >= 2,
+                                          "REFLECT padding mode requires an input of dimension "
+                                          "of at least 2 at each "
+                                          "spatial axis.");
                 }
             }
         }
@@ -198,6 +202,7 @@ void op::v1::Pad::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Pad_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (get_input_size() == 4)
     {
@@ -243,6 +248,6 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs,
 
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Pad_evaluate) { return evaluate_pad(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v1_Pad_evaluate);
+    return evaluate_pad(outputs, inputs);
 }

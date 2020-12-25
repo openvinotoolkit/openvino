@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/gather_elements.hpp"
+#include "itt.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
@@ -35,6 +36,7 @@ op::v6::GatherElements::GatherElements(const Output<Node>& data,
 
 void op::v6::GatherElements::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v6_GatherElements_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
     const auto& indices_type = get_input_element_type(1);
 
@@ -120,12 +122,14 @@ void op::v6::GatherElements::validate_and_infer_types()
 
 bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v6_GatherElements_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 shared_ptr<Node> op::v6::GatherElements::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v6_GatherElements_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v6::GatherElements>(new_args.at(0), new_args.at(1), m_axis);
 }

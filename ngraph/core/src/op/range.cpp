@@ -70,12 +70,14 @@ op::v4::Range::Range(const Output<Node>& start,
 
 bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_Range_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
     return true;
 }
 
 void op::v4::Range::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_Range_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           m_output_type.is_integral_number() || m_output_type.is_real(),
                           "output tensor type should be a numeric type. Got: ",
@@ -182,6 +184,7 @@ void op::v4::Range::validate_and_infer_types()
 
 shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_Range_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v4::Range>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_type);
 }
@@ -300,15 +303,12 @@ namespace rangeop
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_Range_evaluate)
-    {
-        HostTensorPtr out = outputs[0];
-        HostTensorPtr start = inputs[0];
-        HostTensorPtr stop = inputs[1];
-        HostTensorPtr step = inputs[2];
-        return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v4_Range_evaluate);
+    HostTensorPtr out = outputs[0];
+    HostTensorPtr start = inputs[0];
+    HostTensorPtr stop = inputs[1];
+    HostTensorPtr step = inputs[2];
+    return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
@@ -421,11 +421,13 @@ static PartialShape infer_output_shape(const op::v0::Range* node, const element:
 
 bool ngraph::op::v0::Range::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Range_visit_attributes);
     return true;
 }
 
 void op::v0::Range::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Range_validate_and_infer_types);
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
@@ -488,6 +490,7 @@ void op::v0::Range::validate_and_infer_types()
 
 shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Range_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Range>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
@@ -499,13 +502,10 @@ void positive_range(T start_val, T stop_val, T step_val)
 
 bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(op_v0_Range_evaluate)
-    {
-        HostTensorPtr out = outputs[0];
-        HostTensorPtr start = inputs[0];
-        HostTensorPtr stop = inputs[1];
-        HostTensorPtr step = inputs[2];
-        return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Range_evaluate);
+    HostTensorPtr out = outputs[0];
+    HostTensorPtr start = inputs[0];
+    HostTensorPtr stop = inputs[1];
+    HostTensorPtr step = inputs[2];
+    return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
 }

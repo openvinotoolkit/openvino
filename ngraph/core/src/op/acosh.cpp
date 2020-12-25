@@ -36,6 +36,7 @@ op::v3::Acosh::Acosh(const Output<Node>& arg)
 
 shared_ptr<Node> op::v3::Acosh::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_Acosh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Acosh>(new_args.at(0));
 }
@@ -70,7 +71,6 @@ namespace acoshop
 
 bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    bool rc = false;
-    NGRAPH_OP_SCOPE(v3_Acosh_evaluate) { rc = acoshop::evaluate_acosh(inputs[0], outputs[0]); }
-    return rc;
+    NGRAPH_OP_SCOPE(v3_Acosh_evaluate);
+    return acoshop::evaluate_acosh(inputs[0], outputs[0]);
 }

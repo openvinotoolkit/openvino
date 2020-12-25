@@ -37,6 +37,7 @@ op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution
 
 bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v5_Loop_visit_attributes);
     visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
@@ -46,6 +47,7 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 
 void op::v5::Loop::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v5_Loop_validate_and_infer_types);
     if (m_special_body_ports.current_iteration_input_idx >= 0)
     {
         const auto& cur_iter_rank = m_body->get_parameters()
@@ -299,7 +301,9 @@ void op::v5::Loop::validate_and_infer_types()
 
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body params
+    NGRAPH_OP_SCOPE(v5_Loop_clone_with_new_inputs);
+    // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body
+    // params
     OutputVector body_params_args(new_args.begin() + 2, new_args.end());
     auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1]);
     for (int idx = 2; idx < new_args.size(); ++idx)
@@ -390,15 +394,8 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
 
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v5_Loop_evaluate)
-    {
-        runtime::reference::loop(m_body,
-                                 m_output_descriptions,
-                                 m_input_descriptions,
-                                 m_special_body_ports,
-                                 outputs,
-                                 inputs);
-        return true;
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v5_Loop_evaluate);
+    runtime::reference::loop(
+        m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
+    return true;
 }

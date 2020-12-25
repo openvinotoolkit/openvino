@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/quantize.hpp"
+#include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
 #include "ngraph/shape_util.hpp"
@@ -43,6 +44,7 @@ op::Quantize::Quantize(const Output<Node>& input,
 
 void op::Quantize::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Quantize_validate_and_infer_types);
     enum
     {
         INPUT,
@@ -159,6 +161,7 @@ void op::Quantize::validate_and_infer_types()
 
 shared_ptr<Node> op::Quantize::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Quantize_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Quantize>(
         new_args.at(0), new_args.at(1), new_args.at(2), m_type, m_axes, m_round_mode);

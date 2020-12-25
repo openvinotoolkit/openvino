@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/scatter_base.hpp"
+#include "itt.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
@@ -35,6 +36,7 @@ op::util::ScatterBase::ScatterBase(const Output<Node>& data,
 
 void op::util::ScatterBase::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
     const auto& data_et = get_input_element_type(DATA);
     const auto& indices_et = get_input_element_type(INDICES);
     const auto& updates_et = get_input_element_type(UPDATES);
@@ -133,5 +135,6 @@ void op::util::ScatterBase::validate_and_infer_types()
 
 bool op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(util_ScatterBase_visit_attributes);
     return true;
 }

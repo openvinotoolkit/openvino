@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
+#include "itt.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace ngraph;
@@ -46,10 +47,12 @@ void op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithm
 
 void op::util::UnaryElementwiseArithmetic::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_validate_and_infer_types);
     validate_and_infer_elementwise_arithmetic();
 }
 
 bool op::util::UnaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_visit_attributes);
     return true;
 }

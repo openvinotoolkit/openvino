@@ -54,6 +54,7 @@ op::DepthToSpace::DepthToSpace(const Output<Node>& data,
 
 bool op::DepthToSpace::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_visit_attributes);
     visitor.on_attribute("block_size", m_blocksize);
     visitor.on_attribute("mode", m_mode);
     return true;
@@ -61,6 +62,7 @@ bool op::DepthToSpace::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_clone_with_new_inputs);
     if (new_args.size() != 1)
     {
         throw ngraph_error("Incorrect number of new arguments");
@@ -70,6 +72,7 @@ shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new
 
 void op::DepthToSpace::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
     PartialShape data_pshape = get_input_partial_shape(0);
 
     const auto& data_type = get_input_element_type(0);
@@ -243,8 +246,8 @@ bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
 bool op::DepthToSpace::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate) { return evaluate_depth_to_space(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate);
+    return evaluate_depth_to_space(outputs, inputs);
 }
 namespace ngraph
 {

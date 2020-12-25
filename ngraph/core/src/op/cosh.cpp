@@ -36,11 +36,13 @@ op::Cosh::Cosh(const Output<Node>& arg)
 
 bool op::Cosh::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Cosh_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Cosh::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Cosh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Cosh>(new_args.at(0));
 }
@@ -77,9 +79,6 @@ namespace coshop
 
 bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Cosh_evaluate)
-    {
-        return coshop::evaluate_cosh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Cosh_evaluate);
+    return coshop::evaluate_cosh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

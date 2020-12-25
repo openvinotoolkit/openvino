@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/lstm_sequence.hpp"
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
@@ -34,6 +35,7 @@ NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
 
 bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_LSTMSequence_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -71,6 +73,7 @@ OutputVector op::v0::LSTMSequence::decompose_op() const
 
 shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 8)
     {
@@ -263,6 +266,7 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
 
 void op::v0::LSTMSequence::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
     std::vector<ngraph::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;
@@ -272,7 +276,8 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     auto merged_num_directions = Dimension::dynamic();
     auto result_et = element::dynamic;
 
-    // Copy all inputs without peephole and initial_cell_state information for further validation
+    // Copy all inputs without peephole and initial_cell_state information for further
+    // validation
     for (size_t i = 0; i < get_input_size() - 1; i++)
     {
         // exclude initial_cell_state from the loop
@@ -320,7 +325,8 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(6)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do not "
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do "
+        "not "
         "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
@@ -421,12 +427,14 @@ void op::v0::LSTMSequence::validate_and_infer_types()
 
 bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v5_LSTMSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v5_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 7)
     {
@@ -452,6 +460,7 @@ shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector&
 
 void op::v5::LSTMSequence::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v5_LSTMSequence_validate_and_infer_types);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -505,7 +514,8 @@ void op::v5::LSTMSequence::validate_and_infer_types()
             element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(6)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do not "
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do "
+        "not "
         "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension

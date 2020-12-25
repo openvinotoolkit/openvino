@@ -35,11 +35,13 @@ op::v5::HSigmoid::HSigmoid(const Output<Node>& arg)
 
 bool op::v5::HSigmoid::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v5_HSigmoid_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v5::HSigmoid::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v5_HSigmoid_clone_with_new_inputs);
     return make_shared<op::v5::HSigmoid>(new_args.at(0));
 }
 
@@ -73,9 +75,6 @@ namespace
 bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v5_HSigmoid_evaluate)
-    {
-        return evaluate_hsigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v5_HSigmoid_evaluate);
+    return evaluate_hsigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

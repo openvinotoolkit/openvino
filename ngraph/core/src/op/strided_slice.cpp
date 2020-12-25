@@ -108,6 +108,7 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
 
 bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_StridedSlice_visit_attributes);
     visitor.on_attribute("begin_mask", m_begin_mask);
     visitor.on_attribute("end_mask", m_end_mask);
     visitor.on_attribute("new_axis_mask", m_new_axis_mask);
@@ -118,6 +119,7 @@ bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::StridedSlice::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_StridedSlice_validate_and_infer_types);
     const auto& begin_mask_et = get_input_element_type(1);
     const auto& end_mask_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
@@ -224,6 +226,7 @@ AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t
 
 shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::StridedSlice>(new_args.at(0),
                                          new_args.at(1),
@@ -281,19 +284,15 @@ namespace strided_slice
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate)
-    {
-        return strided_slice::evaluate_strided_slice(
-            input_values[0],
-            input_values[1],
-            input_values[2],
-            input_values[3],
-            convert_mask_to_axis_set(get_begin_mask()),
-            convert_mask_to_axis_set(get_end_mask()),
-            convert_mask_to_axis_set(get_new_axis_mask()),
-            convert_mask_to_axis_set(get_shrink_axis_mask()),
-            convert_mask_to_axis_set(get_ellipsis_mask()),
-            output_values[0]);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
+    return strided_slice::evaluate_strided_slice(input_values[0],
+                                                 input_values[1],
+                                                 input_values[2],
+                                                 input_values[3],
+                                                 convert_mask_to_axis_set(get_begin_mask()),
+                                                 convert_mask_to_axis_set(get_end_mask()),
+                                                 convert_mask_to_axis_set(get_new_axis_mask()),
+                                                 convert_mask_to_axis_set(get_shrink_axis_mask()),
+                                                 convert_mask_to_axis_set(get_ellipsis_mask()),
+                                                 output_values[0]);
 }

@@ -42,6 +42,7 @@ op::PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope)
 
 bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_PRelu_visit_attributes);
     return true;
 }
 
@@ -88,6 +89,7 @@ OutputVector op::PRelu::decompose_op() const
 
 shared_ptr<Node> op::PRelu::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_PRelu_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");
@@ -127,9 +129,6 @@ namespace prelu
 
 bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_PRelu_evaluate)
-    {
-        return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_PRelu_evaluate);
+    return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }

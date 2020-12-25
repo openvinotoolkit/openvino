@@ -81,22 +81,20 @@ op::v1::Add::Add(const Output<Node>& arg0,
 
 bool op::v1::Add::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Add_visit_attributes);
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
 }
 
 shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Add_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Add>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    bool rc = false;
-    NGRAPH_OP_SCOPE(v1_Add_evaluate)
-    {
-        rc = add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
-    }
-    return rc;
+    NGRAPH_OP_SCOPE(v1_Add_evaluate);
+    return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }

@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/detection_output.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -45,6 +46,7 @@ op::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 
 void op::DetectionOutput::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this, m_attrs.num_classes > 0, "Number of classes must be greater than zero");
 
@@ -266,6 +268,7 @@ void op::DetectionOutput::validate_and_infer_types()
 
 shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     auto num_args = new_args.size();
@@ -291,6 +294,7 @@ shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& 
 
 bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_DetectionOutput_visit_attributes);
     visitor.on_attribute("num_classes", m_attrs.num_classes);
     visitor.on_attribute("background_label_id", m_attrs.background_label_id);
     visitor.on_attribute("top_k", m_attrs.top_k);

@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/gather_nd.hpp"
+#include "itt.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
@@ -35,6 +36,7 @@ op::v5::GatherND::GatherND(const Output<Node>& data,
 
 void op::v5::GatherND::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v5_GatherND_validate_and_infer_types);
     // check types of input tensors
     const auto& data_type = get_input_element_type(0);
     const auto& indices_type = get_input_element_type(1);
@@ -88,7 +90,8 @@ void op::v5::GatherND::validate_and_infer_types()
                 this,
                 (indices_pshape[indices_pshape.rank().get_length() - 1].get_length() +
                  m_batch_dims) <= data_pshape.rank().get_length(),
-                "Length of a tuple with indices must not exceed a rank of data tensor excluding "
+                "Length of a tuple with indices must not exceed a rank of data tensor "
+                "excluding "
                 "batch dimensions.");
         }
     }
@@ -148,12 +151,14 @@ void op::v5::GatherND::validate_and_infer_types()
 
 bool op::v5::GatherND::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v5_GatherND_visit_attributes);
     visitor.on_attribute("batch_dims", m_batch_dims);
     return true;
 }
 
 shared_ptr<Node> op::v5::GatherND::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v5_GatherND_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v5::GatherND>(new_args.at(0), new_args.at(1), m_batch_dims);
 }

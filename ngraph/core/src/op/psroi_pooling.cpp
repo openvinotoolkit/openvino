@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/psroi_pooling.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
@@ -43,6 +44,7 @@ op::PSROIPooling::PSROIPooling(const Output<Node>& input,
 
 bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_visit_attributes);
     visitor.on_attribute("output_dim", m_output_dim);
     visitor.on_attribute("group_size", m_group_size);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
@@ -54,6 +56,7 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
 
 void op::PSROIPooling::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_validate_and_infer_types);
     auto feat_maps_et = get_input_element_type(0);
     auto coords_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
@@ -134,6 +137,7 @@ void op::PSROIPooling::validate_and_infer_types()
 
 shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PSROIPooling>(new_args.at(0),
                                      new_args.at(1),

@@ -36,6 +36,7 @@ op::v1::ReduceLogicalOr::ReduceLogicalOr(const Output<Node>& data,
 
 shared_ptr<Node> op::v1::ReduceLogicalOr::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_ReduceLogicalOr_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::ReduceLogicalOr>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -75,12 +76,9 @@ namespace
 bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_ReduceLogicalOr_evaluate)
-    {
-        const auto& data = inputs[0];
-        const auto& axes = inputs[1];
-        const auto& out = outputs[0];
-        return evaluate_reduce_logical_or(data, axes, out, get_keep_dims());
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_ReduceLogicalOr_evaluate);
+    const auto& data = inputs[0];
+    const auto& axes = inputs[1];
+    const auto& out = outputs[0];
+    return evaluate_reduce_logical_or(data, axes, out, get_keep_dims());
 }
