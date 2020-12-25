@@ -17,4 +17,8 @@
 add_subdirectory(itt)
 add_subdirectory(conditional_compilation)
 
+if(ENABLE_OMZ)
+    add_subdirectory(open_model_zoo)
+endif()
+
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::itt openvino::conditional_compilation)
