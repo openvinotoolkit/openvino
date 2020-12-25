@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,6 +60,36 @@ public:
         offset += has_iou_threshold();
         return get_dependency(offset);
     }
+
+    bool has_soft_nms_sigma() const { return !get_primitive()->soft_nms_sigma.empty(); }
+    program_node& soft_nms_sigma_node() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        offset += has_iou_threshold();
+        offset += has_score_threshold();
+        return get_dependency(offset);
+    }
+
+    bool has_second_output() const { return !get_primitive()->second_output.empty(); }
+    program_node& second_output_node() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        offset += has_iou_threshold();
+        offset += has_score_threshold();
+        offset += has_soft_nms_sigma();
+        return get_dependency(offset);
+    }
+
+    bool has_third_output() const { return !get_primitive()->third_output.empty(); }
+    program_node& third_output_node() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        offset += has_iou_threshold();
+        offset += has_score_threshold();
+        offset += has_soft_nms_sigma();
+        offset += has_second_output();
+        return get_dependency(offset);
+    }
 };
 
 using non_max_suppression_node = typed_program_node<non_max_suppression>;
@@ -101,6 +131,36 @@ public:
         size_t offset = 2;
         offset += has_num_select_per_class();
         offset += has_iou_threshold();
+        return dep_memory(offset);
+    }
+
+    bool has_soft_nms_sigma() const { return node.has_soft_nms_sigma(); }
+    memory_impl& soft_nms_sigma_mem() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        offset += has_iou_threshold();
+        offset += has_score_threshold();
+        return dep_memory(offset);
+    }
+
+    bool has_second_output() const { return node.has_second_output(); }
+    memory_impl& second_output_mem() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        offset += has_iou_threshold();
+        offset += has_score_threshold();
+        offset += has_soft_nms_sigma();
+        return dep_memory(offset);
+    }
+
+    bool has_third_output() const { return node.has_third_output(); }
+    memory_impl& third_output_mem() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        offset += has_iou_threshold();
+        offset += has_score_threshold();
+        offset += has_soft_nms_sigma();
+        offset += has_second_output();
         return dep_memory(offset);
     }
 };

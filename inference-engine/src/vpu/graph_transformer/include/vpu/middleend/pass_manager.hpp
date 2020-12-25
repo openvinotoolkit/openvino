@@ -249,6 +249,8 @@ public:
 
     Pass::Ptr annotateMemoryTypes();
 
+    Pass::Ptr reshapeBeforeConvTiling();
+
 protected:
     StageBuilder::Ptr _stageBuilder;
     BackEnd::Ptr _backEnd;
