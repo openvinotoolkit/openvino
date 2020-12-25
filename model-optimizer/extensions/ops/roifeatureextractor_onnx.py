@@ -26,7 +26,7 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
         mandatory_props = dict(
             type=__class__.op,
             op=__class__.op,
-            version='experimental',
+            version='opset6',
             infer=__class__.infer,
             out_ports_count=2,
         )
