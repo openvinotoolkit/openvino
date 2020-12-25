@@ -17,7 +17,7 @@ import logging as log
 
 from extensions.ops.BatchNormInference import BatchNormInference
 from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
+from mo.front.caffe.extractors.utils import embed_input
 
 
 
@@ -31,5 +31,24 @@ class BatchNormalizationExtractor(FrontExtractorOp):
         attr_dict = {
            'eps': eps,
         }
+        if pb_model:
+
+            blobs = pb_model.blobs
+            assert len(blobs) >= 2, 'BatchNorm accepts not less then two input blobs'
+            mean = np.array(blobs[0].data)
+            variance = np.array(blobs[1].data)
+
+            if len(blobs) == 3:
+                scale = blobs[2].data[0]
+                if scale != 0:
+                    scale = 1.0 / scale
+                mean *= scale
+                variance *= scale
+
+            embed_input(attrs, 1, 'gamma', np.ones(mean.shape), 'gamma')
+            embed_input(attrs, 2, 'beta', np.zeros(variance.shape), 'beta')
+            embed_input(attrs, 3, 'mean', mean, 'biases')
+            embed_input(attrs, 4, 'variance', variance, 'weights')
+
         BatchNormInference.update_node_stat(node, attr_dict)
         return cls.enabled
