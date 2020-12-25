@@ -18,7 +18,7 @@ import logging as log
 from extensions.ops.BatchNormInference import BatchNormInference
 from mo.front.extractor import FrontExtractorOp
 from mo.front.caffe.extractors.utils import embed_input
-
+import numpy as np
 
 
 class BatchNormalizationExtractor(FrontExtractorOp):
@@ -28,9 +28,10 @@ class BatchNormalizationExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         eps = node.pb.batch_norm_param.eps
-        attr_dict = {
+        attrs= {
            'eps': eps,
         }
+        pb_model = None if not node.has('pb_model') else node.pb_model
         if pb_model:
 
             blobs = pb_model.blobs
@@ -50,5 +51,5 @@ class BatchNormalizationExtractor(FrontExtractorOp):
             embed_input(attrs, 3, 'mean', mean, 'biases')
             embed_input(attrs, 4, 'variance', variance, 'weights')
 
-        BatchNormInference.update_node_stat(node, attr_dict)
+        BatchNormInference.update_node_stat(node, attrs)
         return cls.enabled
