@@ -69,6 +69,14 @@ GNA2_API Gna2Status Gna2DeviceClose(
     return Gna2StatusSuccess;
 }
 
+GNA2_API Gna2Status Gna2DeviceGetCount(
+    uint32_t * numberOfDevices) {
+    if (numberOfDevices != nullptr) {
+        *numberOfDevices = 1;
+    }
+    return Gna2StatusSuccess;
+}
+
 GNA2_API enum Gna2Status Gna2MemoryFree(
     void * memory) {
     if (current != nullptr) {
@@ -242,6 +250,19 @@ GNA2_API enum Gna2Status Gna2InstrumentationConfigAssignToRequestConfig(
         return current->Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, requestConfigId);
     }
     return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2GetLibraryVersion(
+    char* versionBuffer,
+    uint32_t versionBufferSize) {
+    if (current != nullptr) {
+        return current->Gna2GetLibraryVersion(versionBuffer, versionBufferSize);
+    }
+    if (versionBuffer != nullptr && versionBufferSize > 0) {
+        versionBuffer[0] = '\0';
+        return Gna2StatusSuccess;
+    }
+    return Gna2StatusNullArgumentNotAllowed;
 }
 
 #elif GNA_LIB_VER == 1

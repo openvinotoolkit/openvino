@@ -25,11 +25,15 @@
 #pragma warning(disable : 4275)
 #endif
 
+#ifdef NGRAPH_STATIC_LIBRARY // defined if we are building or calling NGRAPH as a static library
+#define NGRAPH_API
+#else
 #ifdef ngraph_EXPORTS // defined if we are building the NGRAPH DLL (instead of using it)
 #define NGRAPH_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #define NGRAPH_API NGRAPH_HELPER_DLL_IMPORT
 #endif // ngraph_EXPORTS
+#endif // NGRAPH_STATIC_LIBRARY
 
 #ifndef ENABLE_UNICODE_PATH_SUPPORT
 #ifdef _WIN32

@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     try {
         // ------------------------------ Parsing and validation of input args ---------------------------------
         if (argc != 5) {
-            std::cout << "Usage : ./hello_reshape_ssd <path_to_model> <path_to_image> <device> <batch>"
+            std::cout << "Usage : "<< argv[0] <<" <path_to_model> <path_to_image> <device> <batch>"
                       << std::endl;
             return EXIT_FAILURE;
         }
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 
         OutputsDataMap outputs_info(network.getOutputsInfo());
         InputsDataMap inputs_info(network.getInputsInfo());
-        if (inputs_info.size() != 1 && outputs_info.size() != 1)
+        if (inputs_info.size() != 1 || outputs_info.size() != 1)
             throw std::logic_error("Sample supports clean SSD network with one input and one output");
 
         // --------------------------- Resize network to match image sizes and given batch----------------------

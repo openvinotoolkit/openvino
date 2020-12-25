@@ -52,7 +52,7 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
             if (auto new_max_per_class_const = std::dynamic_pointer_cast<opset1::Constant>(new_max_per_class.get_node_shared_ptr())) {
                 new_max_per_class = opset1::Constant::create(element::i64, Shape{1}, new_max_per_class_const->cast_vector<int64_t>());
             } else {
-                new_max_per_class = std::make_shared<ngraph::op::Unsqueeze>(
+                new_max_per_class = std::make_shared<ngraph::op::v0::Unsqueeze>(
                         nms->input_value(2),
                         opset1::Constant::create(element::i64, Shape{1}, {0}));
                 new_ops.push_back(new_max_per_class.get_node_shared_ptr());
@@ -60,14 +60,14 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
         }
         auto new_iou_threshold = nms->input_value(3);
         if (iou_threshold_rank.get_length() == 0) {
-            new_iou_threshold = std::make_shared<ngraph::op::Unsqueeze>(
+            new_iou_threshold = std::make_shared<ngraph::op::v0::Unsqueeze>(
                     nms->input_value(3),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
         }
         auto new_score_threshold = nms->input_value(4);
         if (score_threshold_rank.get_length() == 0) {
-            new_score_threshold = std::make_shared<ngraph::op::Unsqueeze>(
+            new_score_threshold = std::make_shared<ngraph::op::v0::Unsqueeze>(
                     nms->input_value(4),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(new_score_threshold.get_node_shared_ptr());

@@ -11,6 +11,7 @@
 #include <cmath>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "utils/bfloat16.hpp"
 #include "ie_parallel.hpp"
 #include "mkldnn_quantize_node.h"
 #include <map>
@@ -21,6 +22,7 @@
 #include "jit_mkldnn_emitters.hpp"
 #include "ref_eltwise.hpp"
 #include "mkldnn_pooling_node.h"
+#include <mkldnn_selective_build.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -30,6 +32,32 @@ using namespace mkldnn::impl::cpu;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_eltwise_call_args, field)
+
+namespace {
+
+template<typename T>
+struct SupportedPrecisions {
+    void operator()(std::set<Precision> &precisions) {
+        precisions = T::get_supported_precisions();
+    }
+};
+
+struct EltwiseEmitterContext {
+    std::shared_ptr<jit_emitter> emitter;
+    mkldnn::impl::cpu::jit_generator *host;
+    mkldnn::impl::cpu::cpu_isa_t host_isa;
+    const MKLDNNNode * node;
+    InferenceEngine::Precision exec_prc;
+};
+
+template<typename T>
+struct EltwiseEmitter {
+    void operator()(EltwiseEmitterContext & ctx) {
+        ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.node, ctx.exec_prc);
+    }
+};
+
+}   // namespace
 
 template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_generator {
@@ -80,6 +108,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                         this, post_ops.get()->entry_[post_ops.get()->len_ - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
 
@@ -246,6 +277,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
+
         eltwise_emitter->emit_table();
         for (int i = 0; i < post_op_emitters.size(); i++) {
             post_op_emitters[i]->emit_table();
@@ -293,6 +327,8 @@ private:
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
 
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
 
@@ -310,68 +346,119 @@ private:
 
     std::set<Precision> get_supported_precisions(MKLDNNNode& node) {
         auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
-        switch (eltwiseNode.getOpType()) {
-            case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
-            case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
-                return jit_mkldnn_emitter::get_supported_precisions();
-            case Add:               return jit_add_emitter::get_supported_precisions();
-            case MulAdd:            return jit_mul_add_emitter::get_supported_precisions();
-            case Subtract:          return jit_subtract_emitter::get_supported_precisions();
-            case Multiply:          return jit_multiply_emitter::get_supported_precisions();
-            case Divide:            return jit_divide_emitter::get_supported_precisions();
-            case FloorMod:          return jit_floor_mod_emitter::get_supported_precisions();
-            case Mod:               return jit_mod_emitter::get_supported_precisions();
-            case Maximum:           return jit_maximum_emitter::get_supported_precisions();
-            case Minimum:           return jit_minimum_emitter::get_supported_precisions();
-            case SquaredDifference: return jit_squared_difference_emitter::get_supported_precisions();
-            case PowerDynamic:      return jit_power_dynamic_emitter::get_supported_precisions();
-            case Equal:             return jit_equal_emitter::get_supported_precisions();
-            case NotEqual:          return jit_not_equal_emitter::get_supported_precisions();
-            case Greater:           return jit_greater_emitter::get_supported_precisions();
-            case GreaterEqual:      return jit_greater_equal_emitter::get_supported_precisions();
-            case Less:              return jit_less_emitter::get_supported_precisions();
-            case LessEqual:         return jit_less_equal_emitter::get_supported_precisions();
-            case LogicalAnd:        return jit_logical_and_emitter::get_supported_precisions();
-            case LogicalOr:         return jit_logical_or_emitter::get_supported_precisions();
-            case LogicalXor:        return jit_logical_xor_emitter::get_supported_precisions();
-            case LogicalNot:        return jit_logical_not_emitter::get_supported_precisions();
-            case PowerStatic:       return jit_power_static_emitter::get_supported_precisions();
-            case Prelu:             return jit_prelu_emitter::get_supported_precisions();
-            default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise emitter";
-        }
+
+        std::set<Precision> precisions;
+
+        OV_SWITCH(MKLDNNPlugin, SupportedPrecisions, precisions, eltwiseNode.getOpType(),
+        OV_CASE(Relu, jit_mkldnn_emitter),
+        OV_CASE(Gelu, jit_mkldnn_emitter),
+        OV_CASE(Elu, jit_mkldnn_emitter),
+        OV_CASE(Tanh, jit_mkldnn_emitter),
+        OV_CASE(Logistic, jit_mkldnn_emitter),
+        OV_CASE(Square, jit_mkldnn_emitter),
+        OV_CASE(Abs, jit_mkldnn_emitter),
+        OV_CASE(Sqrt, jit_mkldnn_emitter),
+        OV_CASE(Linear, jit_mkldnn_emitter),
+        OV_CASE(BoundedRelu, jit_mkldnn_emitter),
+        OV_CASE(SoftRelu, jit_mkldnn_emitter),
+        OV_CASE(Relu6, jit_mkldnn_emitter),
+        OV_CASE(Exp, jit_mkldnn_emitter),
+        OV_CASE(Clamp, jit_mkldnn_emitter),
+        OV_CASE(Swish, jit_mkldnn_emitter),
+        OV_CASE(Hswish, jit_mkldnn_emitter),
+        OV_CASE(Mish, jit_mkldnn_emitter),
+        OV_CASE(Hsigmoid, jit_mkldnn_emitter),
+        OV_CASE(Round, jit_mkldnn_emitter),
+        OV_CASE(Add, jit_add_emitter),
+        OV_CASE(MulAdd, jit_mul_add_emitter),
+        OV_CASE(Subtract, jit_subtract_emitter),
+        OV_CASE(Multiply, jit_multiply_emitter),
+        OV_CASE(Divide, jit_divide_emitter),
+        OV_CASE(FloorMod, jit_floor_mod_emitter),
+        OV_CASE(Mod, jit_mod_emitter),
+        OV_CASE(Maximum, jit_maximum_emitter),
+        OV_CASE(Minimum, jit_minimum_emitter),
+        OV_CASE(SquaredDifference, jit_squared_difference_emitter),
+        OV_CASE(PowerDynamic, jit_power_dynamic_emitter),
+        OV_CASE(Equal, jit_equal_emitter),
+        OV_CASE(NotEqual, jit_not_equal_emitter),
+        OV_CASE(Greater, jit_greater_emitter),
+        OV_CASE(GreaterEqual, jit_greater_equal_emitter),
+        OV_CASE(Less, jit_less_emitter),
+        OV_CASE(LessEqual, jit_less_equal_emitter),
+        OV_CASE(LogicalAnd, jit_logical_and_emitter),
+        OV_CASE(LogicalOr, jit_logical_or_emitter),
+        OV_CASE(LogicalXor, jit_logical_xor_emitter),
+        OV_CASE(LogicalNot, jit_logical_not_emitter),
+        OV_CASE(PowerStatic, jit_power_static_emitter),
+        OV_CASE(Prelu, jit_prelu_emitter));
+
+        if (precisions.empty())
+            THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise emitter";
+
+        return precisions;
     }
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(MKLDNNNode& node, Precision exec_prec) {
         auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
-        switch (eltwiseNode.getOpType()) {
-            case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
-            case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
-                                    return std::make_shared<jit_mkldnn_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Add:               return std::make_shared<jit_add_emitter>(this, isa, eltwiseNode, exec_prec);
-            case MulAdd:            return std::make_shared<jit_mul_add_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Subtract:          return std::make_shared<jit_subtract_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Multiply:          return std::make_shared<jit_multiply_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Divide:            return std::make_shared<jit_divide_emitter>(this, isa, eltwiseNode, exec_prec);
-            case FloorMod:          return std::make_shared<jit_floor_mod_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Mod:               return std::make_shared<jit_mod_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Maximum:           return std::make_shared<jit_maximum_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Minimum:           return std::make_shared<jit_minimum_emitter>(this, isa, eltwiseNode, exec_prec);
-            case SquaredDifference: return std::make_shared<jit_squared_difference_emitter>(this, isa, eltwiseNode, exec_prec);
-            case PowerDynamic:      return std::make_shared<jit_power_dynamic_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Equal:             return std::make_shared<jit_equal_emitter>(this, isa, eltwiseNode, exec_prec);
-            case NotEqual:          return std::make_shared<jit_not_equal_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Greater:           return std::make_shared<jit_greater_emitter>(this, isa, eltwiseNode, exec_prec);
-            case GreaterEqual:      return std::make_shared<jit_greater_equal_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Less:              return std::make_shared<jit_less_emitter>(this, isa, eltwiseNode, exec_prec);
-            case LessEqual:         return std::make_shared<jit_less_equal_emitter>(this, isa, eltwiseNode, exec_prec);
-            case LogicalAnd:        return std::make_shared<jit_logical_and_emitter>(this, isa, eltwiseNode, exec_prec);
-            case LogicalOr:         return std::make_shared<jit_logical_or_emitter>(this, isa, eltwiseNode, exec_prec);
-            case LogicalXor:        return std::make_shared<jit_logical_xor_emitter>(this, isa, eltwiseNode, exec_prec);
-            case LogicalNot:        return std::make_shared<jit_logical_not_emitter>(this, isa, eltwiseNode, exec_prec);
-            case PowerStatic:       return std::make_shared<jit_power_static_emitter>(this, isa, eltwiseNode, exec_prec);
-            case Prelu:             return std::make_shared<jit_prelu_emitter>(this, isa, eltwiseNode, exec_prec);
-            default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise emitter";
-        }
+        const MKLDNNNode * eltwiseNodePtr = dynamic_cast<const MKLDNNNode*>(&node);
+
+        EltwiseEmitterContext ctx = {
+            nullptr,
+            this,
+            isa,
+            eltwiseNodePtr,
+            exec_prec
+        };
+
+        OV_SWITCH(MKLDNNPlugin, EltwiseEmitter, ctx, eltwiseNode.getOpType(),
+        OV_CASE(Relu, jit_mkldnn_emitter),
+        OV_CASE(Gelu, jit_mkldnn_emitter),
+        OV_CASE(Elu, jit_mkldnn_emitter),
+        OV_CASE(Tanh, jit_mkldnn_emitter),
+        OV_CASE(Logistic, jit_mkldnn_emitter),
+        OV_CASE(Square, jit_mkldnn_emitter),
+        OV_CASE(Abs, jit_mkldnn_emitter),
+        OV_CASE(Sqrt, jit_mkldnn_emitter),
+        OV_CASE(Linear, jit_mkldnn_emitter),
+        OV_CASE(BoundedRelu, jit_mkldnn_emitter),
+        OV_CASE(SoftRelu, jit_mkldnn_emitter),
+        OV_CASE(Relu6, jit_mkldnn_emitter),
+        OV_CASE(Exp, jit_mkldnn_emitter),
+        OV_CASE(Clamp, jit_mkldnn_emitter),
+        OV_CASE(Swish, jit_mkldnn_emitter),
+        OV_CASE(Hswish, jit_mkldnn_emitter),
+        OV_CASE(Mish, jit_mkldnn_emitter),
+        OV_CASE(Hsigmoid, jit_mkldnn_emitter),
+        OV_CASE(Round, jit_mkldnn_emitter),
+        OV_CASE(Add, jit_add_emitter),
+        OV_CASE(MulAdd, jit_mul_add_emitter),
+        OV_CASE(Subtract, jit_subtract_emitter),
+        OV_CASE(Multiply, jit_multiply_emitter),
+        OV_CASE(Divide, jit_divide_emitter),
+        OV_CASE(FloorMod, jit_floor_mod_emitter),
+        OV_CASE(Mod, jit_mod_emitter),
+        OV_CASE(Maximum, jit_maximum_emitter),
+        OV_CASE(Minimum, jit_minimum_emitter),
+        OV_CASE(SquaredDifference, jit_squared_difference_emitter),
+        OV_CASE(PowerDynamic, jit_power_dynamic_emitter),
+        OV_CASE(Equal, jit_equal_emitter),
+        OV_CASE(NotEqual, jit_not_equal_emitter),
+        OV_CASE(Greater, jit_greater_emitter),
+        OV_CASE(GreaterEqual, jit_greater_equal_emitter),
+        OV_CASE(Less, jit_less_emitter),
+        OV_CASE(LessEqual, jit_less_equal_emitter),
+        OV_CASE(LogicalAnd, jit_logical_and_emitter),
+        OV_CASE(LogicalOr, jit_logical_or_emitter),
+        OV_CASE(LogicalXor, jit_logical_xor_emitter),
+        OV_CASE(LogicalNot, jit_logical_not_emitter),
+        OV_CASE(PowerStatic, jit_power_static_emitter),
+        OV_CASE(Prelu, jit_prelu_emitter));
+
+        if (!ctx.emitter)
+            THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise emitter";
+
+        return ctx.emitter;
     }
 
     inline void compute_eltwise_op() {
@@ -538,8 +625,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:
                 if (isa == avx512_common) {
@@ -764,6 +854,18 @@ MKLDNNEltwiseNode::initializers = {
             opType = Hsigmoid;
             algorithm = mkldnn::eltwise_hsigmoid;
         }},
+        {"round", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Round;
+            std::string mode = activationLayer->GetParamAsString("mode", "half_to_even");
+            if (mode == "half_to_even")
+                algorithm = mkldnn::eltwise_round_half_to_even;
+            else if (mode == "half_away_from_zero")
+                algorithm = mkldnn::eltwise_round_half_away_from_zero;
+            else
+                THROW_IE_EXCEPTION << "Round layer with name " << activationLayer->name << " doesn't support mode " << mode;
+        }},
 };
 
 void MKLDNNEltwiseNode::init() {
@@ -833,7 +935,8 @@ void MKLDNNEltwiseNode::init() {
                comparator(layerType, "swish") ||
                comparator(layerType, "hswish") ||
                comparator(layerType, "mish") ||
-               comparator(layerType, "hsigmoid")) {
+               comparator(layerType, "hsigmoid") ||
+               comparator(layerType, "round")) {
         initializers[layerType](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
     } else {
         THROW_IE_EXCEPTION << "Unsupported algorithm for Eltwise node with name `" << getName() << "`.";
@@ -843,7 +946,8 @@ void MKLDNNEltwiseNode::init() {
 size_t MKLDNNEltwiseNode::getOpInputsNum() const {
     switch (getOpType()) {
         case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt: case PowerStatic:
-        case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+        case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
+        case Mish: case Hsigmoid: case Round:
         case LogicalNot:
             return 1;
         case Add: case Subtract: case Multiply: case Divide: case FloorMod: case Mod: case Maximum: case Minimum: case SquaredDifference:
@@ -933,7 +1037,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (!mayiuse(avx512_core_bf16)) {
+    if (!mayiuse(avx512_core)) {
         bool hasBF16 = false;
         for (auto &inPrc : inputPrecisions)
             if (inPrc == Precision::BF16)
@@ -1197,13 +1301,17 @@ void MKLDNNEltwiseNode::createPrimitive() {
         fullWorkAmount *= dims_out[i];
     }
 
+    isDynBatchEnabled = config.dynBatchSupport;
+
     size_t minimalConcurrency = parallel_get_max_threads();
     size_t minimalJitWorkAmount = 256;
     size_t currentJitWorkAmount = dims_out[dims_out.size() - 1];
     int collapsedDims = 0;
     if (canUseOptimizedImpl) {
         bool hasDifferentDims = false;
-        while (currentJitWorkAmount < minimalJitWorkAmount) {
+        while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
+               // we shouldn't collapse batch dimension in case dynamic batch is enabled
+               (!isDynBatchEnabled || (config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() - collapsedDims > 2))) {
             if (dims_out.size() - collapsedDims - 2 < 0)
                 break;
 
@@ -1255,7 +1363,6 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     }
 
-    isDynBatchEnabled = config.dynBatchSupport;
     batchDimIdx = tensorRank - config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
     schedulerWorkAmount = fullWorkAmount / dims_out[dims_out.size() - 1];
 
@@ -1469,7 +1576,8 @@ void MKLDNNEltwiseNode::executeReference(const std::vector<const uint8_t *>& src
 
             switch (getOpType()) {
                 case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
-                case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+                case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
+                case Mish: case Hsigmoid: case Round:
                     *dst_ptr_f = ref_eltwise_injector->compute_scalar(src_f[0]); break;
                 case Add:               *dst_ptr_f = src_f[0] + src_f[1]; break;
                 case MulAdd:            *dst_ptr_f = src_f[0] * src_f[1] + src_f[2]; break;
@@ -1570,6 +1678,8 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
         case mkldnn::eltwise_hswish:
         case mkldnn::eltwise_mish:
         case mkldnn::eltwise_hsigmoid:
+        case mkldnn::eltwise_round_half_to_even:
+        case mkldnn::eltwise_round_half_away_from_zero:
             ops.append_eltwise(1.0, getAlgorithm(), getAlpha(), getBeta());
             break;
         case mkldnn::depthwise_scale_shift:

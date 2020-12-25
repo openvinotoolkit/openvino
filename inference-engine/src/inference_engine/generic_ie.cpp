@@ -28,6 +28,8 @@ void ngraph::op::GenericIE::addExtension(std::shared_ptr<const ngraph::Function>
 
     for (auto r : func->get_results())
         nodes.emplace_back(r);
+    for (auto s : func->get_sinks())
+        nodes.emplace_back(s);
     for (auto param : func->get_parameters())
         nodes.emplace_back(param);
 
@@ -167,4 +169,18 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
         THROW_IE_EXCEPTION << "IShapeInferExtension wasn't registered for node " << get_friendly_name()
                            << " with type " << type;
     }
+}
+
+bool ngraph::op::GenericIE::visit_attributes(ngraph::AttributeVisitor& visitor) {
+    for (const auto& p : params) {
+        std::string name = p.first;
+        std::string value = p.second;
+        visitor.on_attribute(name, value);
+    }
+    // This is a way to pass type name to transformations::Serialize() without
+    // adding plugin_api dependency on transformation library
+    std::string name = "__generic_ie_type__";
+    std::string value = getType();
+    visitor.on_attribute(name, value);
+    return true;
 }

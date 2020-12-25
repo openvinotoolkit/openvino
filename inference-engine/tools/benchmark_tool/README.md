@@ -141,7 +141,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 
 1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
    ```sh
-   cd <INSTAL_DIR>/deployment_tools/open_model_zoo/tools/downloader
+   cd <INSTALL_DIR>/deployment_tools/open_model_zoo/tools/downloader
    ```
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
@@ -171,7 +171,7 @@ If you set `-exec_graph_path`, the application reports executable graph informat
 Below are fragments of sample output for CPU and FPGA devices: 
 * For CPU:
    ```
-   [Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
+   [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
    Progress: |................................| 100.00%
 
    [Step 9/9] Dumping statistics report
@@ -184,7 +184,7 @@ Below are fragments of sample output for CPU and FPGA devices:
    ```
 * For FPGA:
    ```
-   [Step 10/11] Measuring performance (Start inference asyncronously, 5 inference requests using 1 streams for CPU, limits: 120000 ms duration)
+   [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 1 streams for CPU, limits: 120000 ms duration)
    Progress: |................................| 100%
 
    [Step 11/11] Dumping statistics report

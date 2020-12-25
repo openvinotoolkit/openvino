@@ -50,7 +50,7 @@ public:
 protected:
     virtual CommonDispatchData SetDefault(const space_to_depth_params& params, const optional_params&) const;
     virtual JitConstants GetJitConstants(const space_to_depth_params& params) const;
-    virtual bool Validate(const Params& p, const optional_params& o) const;
+    bool Validate(const Params& p, const optional_params& o) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,

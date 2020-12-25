@@ -4,11 +4,14 @@
 
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
+#include "mkldnn_itt.h"
 
+#include "caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>
 #include <cstdint>
+#include <unordered_map>
 
 #include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
@@ -28,6 +31,7 @@
 #include <nodes/mkldnn_softmax_node.h>
 #include <nodes/mkldnn_tile_node.h>
 #include <nodes/mkldnn_split_node.h>
+#include <nodes/mkldnn_pad_node.h>
 #include <nodes/mkldnn_permute_node.h>
 #include <nodes/mkldnn_memory_node.hpp>
 #include <nodes/mkldnn_rnn.h>
@@ -35,7 +39,6 @@
 #include <nodes/mkldnn_bin_conv_node.h>
 #include <nodes/mkldnn_def_conv_node.h>
 #include <nodes/mkldnn_mvn_node.h>
-#include <nodes/mkldnn_resample_node.h>
 #include <nodes/mkldnn_normalize_node.h>
 #include <nodes/mkldnn_reduce_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
@@ -46,6 +49,7 @@
 
 #include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_debug.h"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -75,6 +79,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "HSwish", Eltwise },
         { "Mish", Eltwise },
         { "HSigmoid", Eltwise },
+        { "Round", Eltwise },
         { "ScaleShift", Eltwise },
         { "PReLU", Eltwise },
         { "Norm", Lrn },
@@ -99,6 +104,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ROIPooling", ROIPooling },
         { "BatchNormalization", BatchNormalization },
         { "Flatten", Flatten },
+        { "Pad", Pad },
         { "Permute", Permute },
         { "Copy", Copy },
         { "LSTMCell", RNNCell },
@@ -112,11 +118,11 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "BinaryConvolution", BinaryConvolution },
         { "DeformableConvolution", DeformableConvolution },
         { "TensorIterator", TensorIterator },
+        { "Loop", TensorIterator },
         { "MemoryInput", MemoryInput},  // for construction from name ctor, arbitrary name is used
         { "Memory", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
         { "MVN", MVN},
-        { "Resample", Resample},
         { "Normalize", Normalize},
         { "ScatterUpdate", ScatterUpdate},
         { "ScatterElementsUpdate", ScatterElementsUpdate},
@@ -147,8 +153,8 @@ Type TypeFromName(const std::string type) {
 
 }  //  namespace MKLDNNPlugin
 
-MKLDNNNode::Factory & MKLDNNNode::factory() {
-    static Factory factoryInstance;
+MKLDNNNode::NodesFactory & MKLDNNNode::factory() {
+    static NodesFactory factoryInstance;
     return factoryInstance;
 }
 
@@ -156,7 +162,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), cnnLayer(layer), engine(eng), name(layer->name), typeStr(layer->type),
-          type(TypeFromName(layer->type)), profilingTask(itt::handle(name)) {
+          type(TypeFromName(layer->type)), profiling(layer->name) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());
@@ -185,22 +191,29 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
                 THROW_IE_EXCEPTION << "Unsupported CPU implementation " << str << " for node " << getName();
         }
     }
-    if (layer->params.find("InputMemoryFormats") != layer->params.end()) {
-        std::istringstream stream(layer->params["InputMemoryFormats"]);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            inputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+
+    auto ngraphNode = layer->getNode();
+    if (ngraphNode != nullptr) {
+        std::string inputMemoryFormats = ngraph::getMLKDNNInputMemoryFormats(ngraphNode);
+        if (!inputMemoryFormats.empty()) {
+            std::istringstream stream(inputMemoryFormats);
+            std::string str;
+            while (getline(stream, str, ',')) {
+                if (str.substr(0, 4) != "cpu:")
+                    continue;
+                inputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+            }
         }
-    }
-    if (layer->params.find("OutputMemoryFormats") != layer->params.end()) {
-        std::istringstream stream(layer->params["OutputMemoryFormats"]);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            if (str.substr(0, 4) != "cpu:")
-                continue;
-            outputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+
+        std::string outputMemoryFormats = ngraph::getMLKDNNOutputMemoryFormats(ngraphNode);
+        if (!outputMemoryFormats.empty()) {
+            std::istringstream stream(outputMemoryFormats);
+            std::string str;
+            while (getline(stream, str, ',')) {
+                if (str.substr(0, 4) != "cpu:")
+                    continue;
+                outputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+            }
         }
     }
 }
@@ -1116,26 +1129,18 @@ void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops) {
     THROW_IE_EXCEPTION << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
-MKLDNNNode* MKLDNNNode::Factory::create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
+MKLDNNNode* MKLDNNNode::NodesFactory::create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+                                             const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
     MKLDNNNode *newNode = nullptr;
 
-    auto builder = builders.find(Generic);
-
-    if (builder != builders.end()) {
-        std::unique_ptr<MKLDNNNode> ol(builder->second(layer, eng, w_cache));
-        if (ol != nullptr && ol->created(extMgr))
-            newNode = ol.release();
-    }
+    std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, Generic, layer, eng, w_cache));
+    if (ol != nullptr && ol->created(extMgr))
+        newNode = ol.release();
 
     if (newNode == nullptr) {
-        builder = builders.find(TypeFromName(layer->type));
-
-        if (builder != builders.end()) {
-            std::unique_ptr<MKLDNNNode> ol(builder->second(layer, eng, w_cache));
-            if (ol != nullptr && ol->created(extMgr))
-                newNode = ol.release();
-        }
+        std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, TypeFromName(layer->type), layer, eng, w_cache));
+        if (ol != nullptr && ol->created(extMgr))
+            newNode = ol.release();
     }
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
@@ -1151,8 +1156,4 @@ MKLDNNNode* MKLDNNNode::Factory::create(const InferenceEngine::CNNLayerPtr& laye
         THROW_IE_EXCEPTION << "Unsupported primitive of type: " << layer->type << " name: " << layer->name;
 
     return newNode;
-}
-
-void MKLDNNNode::Factory::registerNode(Type type, builder_t builder) {
-    builders[type] = builder;
 }

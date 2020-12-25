@@ -288,7 +288,6 @@ bool MKLDNNMemory::IsGroupedFormat(memory::format format) {
 memory::format MKLDNNMemory::GetPlainFormat(memory::dims dims) {
     switch (dims.size()) {
         case 0:
-            return memory::x;
         case 1:
             return memory::x;
         case 2:
@@ -347,27 +346,6 @@ void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
         const int curr_idx = perm[ndims - 1 - d];
 
         blk.strides[0][curr_idx] = dims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, dims[prev_idx]);
-    }
-}
-
-Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
-    switch (dataType) {
-        case memory::f32:
-            return Precision::FP32;
-        case memory::u8:
-            return Precision::U8;
-        case memory::s8:
-            return Precision::I8;
-        case memory::s16:
-            return Precision::I16;
-        case memory::s32:
-            return Precision::I32;
-        case memory::bin:
-            return Precision::BIN;
-        case memory::bf16:
-            return Precision::BF16;
-        default:
-           THROW_IE_EXCEPTION << "Unknown mkldnn data type";
     }
 }
 
@@ -597,6 +575,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims = dims;
             break;
         case memory::tnc:
+        case memory::ncw:
             layout = Layout::CHW;
             order = {0, 1, 2};
             blkDims = dims;
@@ -607,6 +586,13 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims = {static_cast<size_t>(dims[1]),
                        static_cast<size_t>(dims[0]),
                        static_cast<size_t>(dims[2])};
+            break;
+        case memory::nwc:
+            layout = Layout::CHW;
+            order = {0, 2, 1};
+            blkDims = {static_cast<size_t>(dims[0]),
+                       static_cast<size_t>(dims[2]),
+                       static_cast<size_t>(dims[1])};
             break;
         case memory::oihw:
         case memory::nchw:
@@ -1413,7 +1399,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
 
     if (notDefault) {
         for (size_t i = 0; i < strides.size() && i < desc.data.ndims; i++) {
-            desc.data.layout_desc.blocking.strides[0][i] = static_cast<ptrdiff_t>(strides[order[i]]);
+            desc.data.layout_desc.blocking.strides[0][order[i]] = static_cast<ptrdiff_t>(strides[i]);
         }
     }
 }

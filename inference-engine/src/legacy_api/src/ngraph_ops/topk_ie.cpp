@@ -54,3 +54,10 @@ void op::TopKIE::validate_and_infer_types() {
     set_output_type(0, topk->get_output_element_type(0), topk->get_output_partial_shape(0));
     set_output_type(1, topk->get_output_element_type(1), topk->get_output_partial_shape(1));
 }
+
+bool op::TopKIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("axis", m_axis);
+    visitor.on_attribute("mode", m_mode);
+    visitor.on_attribute("sort", m_sort_type);
+    return true;
+}

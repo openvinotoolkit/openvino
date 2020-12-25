@@ -22,6 +22,7 @@
                             <tab type="user" title="Converting BERT from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow"/>
                             <tab type="user" title="Convert TensorFlow* XLNet Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow"/>
                             <tab type="user" title="Converting TensorFlow* Wide and Deep Models from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models"/>
+                            <tab type="user" title="Converting EfficientDet Models from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models"/>
                         </tab>
                         <tab type="usergroup" title="Converting a MXNet* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet">
                             <tab type="user" title="Converting a Style Transfer Model from MXNet" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet"/>
@@ -31,6 +32,7 @@
                             <tab type="user" title="Convert Kaldi* ASpIRE Chain Time Delay Neural Network (TDNN) Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model"/>
                         </tab>
                         <tab type="usergroup" title="Converting Your ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX">
+                            <tab type="user" title="Convert ONNX* Faster R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN"/>
                             <tab type="user" title="Convert ONNX* Mask R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN"/>
                             <tab type="user" title="Converting DLRM ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
                         </tab>
@@ -55,7 +57,7 @@
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_MO_DG_Known_Issues_Limitations"/>
             </tab>
             <!-- Model Downloader -->
-            <tab type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
+            <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
             <!-- Custom Layers Guide -->
             <tab type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
         </tab>    
@@ -87,6 +89,7 @@
                 <tab type="user" title="Broadcast-3" url="@ref openvino_docs_ops_movement_Broadcast_3"/>
                 <tab type="user" title="Bucketize-3" url="@ref openvino_docs_ops_condition_Bucketize_3"/>
                 <tab type="user" title="CTCGreedyDecoder-1" url="@ref openvino_docs_ops_sequence_CTCGreedyDecoder_1"/>
+                <tab type="user" title="CTCGreedyDecoderSeqLen-6" url="@ref openvino_docs_ops_sequence_CTCGreedyDecoderSeqLen_6"/>
                 <tab type="user" title="Ceiling-1" url="@ref openvino_docs_ops_arithmetic_Ceiling_1"/>
                 <tab type="user" title="Clamp-1" url="@ref openvino_docs_ops_activation_Clamp_1"/>
                 <tab type="user" title="Concat-1" url="@ref openvino_docs_ops_movement_Concat_1"/>
@@ -120,6 +123,7 @@
                 <tab type="user" title="GRUSequence-5" url="@ref openvino_docs_ops_sequence_GRUSequence_5"/>
                 <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                 <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
+                <tab type="user" title="GatherElements-6" url="@ref openvino_docs_ops_movement_GatherElements_6"/>
                 <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                 <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
                 <tab type="user" title="GreaterEqual-1" url="@ref openvino_docs_ops_comparison_GreaterEqual_1"/>
@@ -144,6 +148,7 @@
                 <tab type="user" title="LogSoftmax-5" url="@ref openvino_docs_ops_activation_LogSoftmax_5"/>
                 <tab type="user" title="Loop-5" url="@ref openvino_docs_ops_infrastructure_Loop_5"/>
                 <tab type="user" title="MVN-1" url="@ref openvino_docs_ops_normalization_MVN_1"/>
+                <tab type="user" title="MVN-6" url="@ref openvino_docs_ops_normalization_MVN_6"/>
                 <tab type="user" title="MatMul-1" url="@ref openvino_docs_ops_matrix_MatMul_1"/>
                 <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
                 <tab type="user" title="Maximum-1" url="@ref openvino_docs_ops_arithmetic_Maximum_1"/>

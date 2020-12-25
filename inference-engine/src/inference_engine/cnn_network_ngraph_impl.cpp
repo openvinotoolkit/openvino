@@ -27,6 +27,7 @@
 
 // TODO: remove this pass usage
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
@@ -53,7 +54,8 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
+CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph,
+                       const std::vector<IExtensionPtr>& exts) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetwork::CNNNetwork");
 
     if (graph == nullptr) {
@@ -61,7 +63,7 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
     }
 
     // Create CNNNetworkNGraphImpl
-    network = std::make_shared<CNNNetworkNGraphImpl>(graph);
+    network = std::make_shared<CNNNetworkNGraphImpl>(graph, exts);
     actual = network.get();
     if (actual == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
@@ -111,8 +113,10 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph)
-    : _ngraph_function(nGraph) {
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
+    const std::shared_ptr<Function>& nGraph,
+    const std::vector<IExtensionPtr>& exts)
+    : _ngraph_function(nGraph), _ie_extensions(exts) {
     // Restore usual attributes for ICNNNetwork
     auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
@@ -221,9 +225,8 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
     try {
         for (const auto & layer : _ngraph_function->get_ops()) {
             if (layer->get_friendly_name() == layerName) {
-                auto& results = const_cast<::ngraph::ResultVector&>(_ngraph_function->get_results());
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
-                results.push_back(result);
+                _ngraph_function->add_results({result});
 
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
@@ -332,11 +335,14 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     _ngraph_function->validate_nodes_and_infer_types();
 
     {
-        auto specialized_ngraph_function = cloneFunction(true);
-        // Call this transformation because OneHot IE and nGraph have different output precisions
+        auto specialized_ngraph_function = cloneFunction(false);
         {
-            OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertOneHot");
+            OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
             ::ngraph::pass::Manager manager;
+            // resolves dynamism by replacing dynamic operation with static version
+            manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
+            manager.register_pass<::ngraph::pass::ConstantFolding>();
+            // OneHotToLegacy changes output precision
             manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
                     specialized_ngraph_function);
             manager.run_passes(specialized_ngraph_function);
@@ -401,19 +407,16 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        if (getFunction()) {
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::Serialize>(xmlPath, binPath);
-            manager.run_passes(_ngraph_function);
-        } else {
-#ifdef ENABLE_V7_SERIALIZE
-            auto network = std::make_shared<details::CNNNetworkImpl>(*this);
-            return network->serialize(xmlPath, binPath, resp);
-#else
-            return DescriptionBuffer(NOT_IMPLEMENTED, resp)
-                   << "The serialization of legacy IR is not implemented";
-#endif
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (auto extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
         }
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(
+            xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
+            custom_opsets);
+        manager.run_passes(_ngraph_function);
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {

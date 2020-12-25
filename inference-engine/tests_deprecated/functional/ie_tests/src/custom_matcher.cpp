@@ -207,6 +207,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                     }
                 }
 
+                IE_SUPPRESS_DEPRECATED_START
                 if (fetchResult.reset) {
                     auto states = executableApi.QueryState();
                     ASSERT_FALSE(states.empty());
@@ -218,6 +219,7 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                     outputs["reset"] = nullptr;
                     //continue;
                 }
+                IE_SUPPRESS_DEPRECATED_END
 
                 //FAIL()<<"stop after one frame";
 

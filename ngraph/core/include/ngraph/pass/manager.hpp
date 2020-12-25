@@ -38,6 +38,9 @@ public:
     Manager();
     ~Manager();
 
+    //// \brief Construct Manager with shared PassConfig instance
+    explicit Manager(std::shared_ptr<PassConfig> pass_config);
+
     /// \brief Register given transformation class type to execution list
     /// Example below show the basic usage of pass::Manager
     ///
@@ -59,7 +62,7 @@ public:
         {
             push_pass<Validate>();
         }
-        if (!Enable)
+        if (!Enable && !m_pass_config->is_enabled<T>())
         {
             m_pass_config->disable<T>();
         }
@@ -99,12 +102,6 @@ public:
     /// This object allows to disable/enable transformations execution, set callback to particular
     /// transformation. For mo details see PassConfig class.
     std::shared_ptr<PassConfig> get_pass_config() { return m_pass_config; }
-    /// \brief Set external PassConfig object.
-    void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
-    {
-        *m_pass_config = *pass_config;
-    }
-
 protected:
     template <typename T, class... Args>
     std::shared_ptr<T> push_pass(Args&&... args)

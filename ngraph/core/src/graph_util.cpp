@@ -57,6 +57,10 @@ void ngraph::traverse_nodes(const Function* p, std::function<void(std::shared_pt
     {
         nodes.push_back(r);
     }
+    for (auto s : p->get_sinks())
+    {
+        nodes.emplace_back(s);
+    }
 
     for (auto param : p->get_parameters())
     {
@@ -182,8 +186,8 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
             input.replace_source_output(replacement->output(output_order[i]));
         }
     }
-
     replacement->add_node_control_dependents(target);
+    replacement->add_node_control_dependencies(target);
     target->clear_control_dependents();
 }
 
@@ -208,6 +212,7 @@ void ngraph::replace_node(const std::shared_ptr<Node>& target,
         if (replacement_nodes.find(replacement_node) == replacement_nodes.end())
         {
             replacement_node->add_node_control_dependents(target);
+            replacement_node->add_node_control_dependencies(target);
             target->transfer_provenance_tags(replacement_node);
             replacement_nodes.insert(replacement_node);
         }
@@ -419,7 +424,7 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     // clone function operations
     clone_nodes(func.get_ops(), node_map);
 
-    // get cloned function results and parameters
+    // get cloned function results and sinks and parameters
     ResultVector cloned_results;
     for (shared_ptr<Node> node : func.get_results())
     {
@@ -430,6 +435,12 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
         }
         cloned_results.push_back(result);
     }
+    SinkVector cloned_sinks;
+    for (auto node : func.get_sinks())
+    {
+        cloned_sinks.push_back(static_pointer_cast<op::Sink>(node_map.at(node.get())));
+    }
+
     std::vector<std::shared_ptr<op::Parameter>> cloned_params;
     for (auto param : func.get_parameters())
     {
@@ -439,6 +450,7 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     // create and return cloned function
     auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_params);
     result->set_friendly_name(func.get_friendly_name());
+    result->add_sinks(cloned_sinks);
     return result;
 }
 
@@ -852,6 +864,18 @@ bool ngraph::check_for_cycles(const ngraph::Function* func,
                               bool& is_bkwd_cycle)
 {
     for (auto res : func->get_results())
+    {
+        std::deque<std::shared_ptr<Node>> path;
+        // mirror of path stack for faster cycle check
+        std::unordered_set<std::shared_ptr<Node>> path_set;
+        if (check_for_cycles_bkwd(res, path, path_set, cycle_nodes))
+        {
+            is_bkwd_cycle = true;
+            return true;
+        }
+    }
+
+    for (auto res : func->get_sinks())
     {
         std::deque<std::shared_ptr<Node>> path;
         // mirror of path stack for faster cycle check

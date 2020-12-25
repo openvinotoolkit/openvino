@@ -5,6 +5,7 @@
 
 #include <string>
 
+#include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
@@ -33,11 +34,11 @@ public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
     Serialize(const std::string& xmlPath, const std::string& binPath,
-              Version version = Version::IR_V10)
-        : m_xmlPath{xmlPath}, m_binPath{binPath}, m_version{version} {}
+              Version version = Version::IR_V10, std::map<std::string, ngraph::OpSet> custom_opsets = {});
 
 private:
     const std::string m_xmlPath;
     const std::string m_binPath;
     const Version m_version;
+    const std::map<std::string, ngraph::OpSet> m_custom_opsets;
 };

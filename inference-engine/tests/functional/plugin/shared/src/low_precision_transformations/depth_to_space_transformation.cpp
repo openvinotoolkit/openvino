@@ -12,7 +12,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
@@ -27,7 +27,7 @@
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <ngraph/op/depth_to_space.hpp>
 
-#include "ngraph_functions/low_precision_transformations/depth_to_space_function.hpp"
+#include "lpt_ngraph_functions/depth_to_space_function.hpp"
 
 using namespace ngraph::opset1;
 

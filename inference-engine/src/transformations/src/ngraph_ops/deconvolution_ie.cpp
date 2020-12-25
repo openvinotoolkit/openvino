@@ -116,3 +116,12 @@ shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::Output
     }
     throw ngraph::ngraph_error("Unexpected number of arguments");
 }
+
+bool op::DeconvolutionIE::visit_attributes(AttributeVisitor& visitor) {
+        visitor.on_attribute("strides", m_strides);
+        visitor.on_attribute("dilations", m_dilations);
+        visitor.on_attribute("pads_begin", m_pads_begin);
+        visitor.on_attribute("pads_end", m_pads_end);
+        visitor.on_attribute("group", m_group);
+        return true;
+}

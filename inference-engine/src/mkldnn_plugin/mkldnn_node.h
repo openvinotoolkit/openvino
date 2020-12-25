@@ -16,12 +16,14 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
 #include "mkldnn_descriptor.h"
+#include "mkldnn_selective_build.h"
 #include "mkldnn/iml_type_mapper.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_primitive.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
 #include <openvino/itt.hpp>
+#include <ngraph/node.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -53,6 +55,7 @@ enum Type {
     ROIPooling,
     BatchNormalization,
     Flatten,
+    Pad,
     Permute,
     Copy,
     MemoryOutput,
@@ -65,7 +68,6 @@ enum Type {
     TensorIterator,
     Convert,
     MVN,
-    Resample,
     Normalize,
     ScatterUpdate,
     ScatterElementsUpdate,
@@ -133,6 +135,8 @@ static std::string NameFromType(Type type) {
             return "BatchNormalization";
         case Flatten:
             return "Flatten";
+        case Pad:
+            return "Pad";
         case Permute:
             return "Permute";
         case Copy:
@@ -159,8 +163,6 @@ static std::string NameFromType(Type type) {
             return "TensorIterator";
         case Convert:
             return "Convert";
-        case Resample:
-            return "Resample";
         case Normalize:
             return "Normalize";
         case ScatterUpdate:
@@ -257,11 +259,41 @@ private:
 
 class MKLDNNNode : public InferenceEngine::details::no_copy {
 public:
-    class Factory;
-    template<typename To>
-    class Registrar;
+    template<typename T, int N>
+    struct Tag {};
 
-    static Factory & factory();
+    struct PerfCounters {
+        PerfCounters(std::string const& name)
+            : execute(openvino::itt::handle(name))
+            , getSupportedDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 0>>("MKLDNNNode::getSupportedDescriptors"))
+            , initSupportedPrimitiveDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 1>>("MKLDNNNode::initSupportedPrimitiveDescriptors"))
+            , filterSupportedPrimitiveDescriptors(openvino::itt::handle<Tag<MKLDNNNode, 2>>("MKLDNNNode::filterSupportedPrimitiveDescriptors"))
+            , selectOptimalPrimitiveDescriptor(openvino::itt::handle<Tag<MKLDNNNode, 3>>("MKLDNNNode::selectOptimalPrimitiveDescriptor"))
+            , createPrimitive(openvino::itt::handle<Tag<MKLDNNNode, 4>>("MKLDNNNode::createPrimitive"))
+            , initOptimalPrimitiveDescriptor(openvino::itt::handle<Tag<MKLDNNNode, 5>>("MKLDNNNode::initOptimalPrimitiveDescriptor"))
+        {}
+
+        template<typename NodeType>
+        void buildClassCounters(const std::string& type_name) {
+            getSupportedDescriptors = openvino::itt::handle<Tag<NodeType, 0>>(type_name + "::getSupportedDescriptors");
+            initSupportedPrimitiveDescriptors = openvino::itt::handle<Tag<NodeType, 1>>(type_name + "::initSupportedPrimitiveDescriptors");
+            filterSupportedPrimitiveDescriptors = openvino::itt::handle<Tag<NodeType, 2>>(type_name + "::filterSupportedPrimitiveDescriptors");
+            selectOptimalPrimitiveDescriptor = openvino::itt::handle<Tag<NodeType, 3>>(type_name + "::selectOptimalPrimitiveDescriptor");
+            createPrimitive = openvino::itt::handle<Tag<NodeType, 4>>(type_name + "::createPrimitive");
+            initOptimalPrimitiveDescriptor = openvino::itt::handle<Tag<NodeType, 5>>(type_name + "::initOptimalPrimitiveDescriptor");
+        }
+
+        openvino::itt::handle_t execute;
+        openvino::itt::handle_t getSupportedDescriptors;
+        openvino::itt::handle_t initSupportedPrimitiveDescriptors;
+        openvino::itt::handle_t filterSupportedPrimitiveDescriptors;
+        openvino::itt::handle_t selectOptimalPrimitiveDescriptor;
+        openvino::itt::handle_t createPrimitive;
+        openvino::itt::handle_t initOptimalPrimitiveDescriptor;
+    };
+
+    class NodesFactory;
+    static NodesFactory & factory();
 
     ~MKLDNNNode() override = default;
 
@@ -474,6 +506,14 @@ public:
         return desc.outputNumbers();
     }
 
+    const PerfCounters & perfCounters() const {
+        return profiling;
+    }
+
+    PerfCounters & perfCounters() {
+        return profiling;
+    }
+
 protected:
     // TODO: It is necessary only in order to avoid modifications of cnnLayers and original topology
     std::vector<MKLDNNDims> outDims;
@@ -563,7 +603,7 @@ private:
     std::string typeToStr(Type type);
 
     PerfCount perfCounter;
-    openvino::itt::handle_t profilingTask;
+    PerfCounters profiling;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
@@ -587,39 +627,36 @@ private:
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 };
 
-class MKLDNNNode::Factory : InferenceEngine::details::no_copy {
+class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
+                                            MKLDNNNode*(const InferenceEngine::CNNLayerPtr&,
+                                                        const mkldnn::engine &,
+                                                        MKLDNNWeightsSharing::Ptr &)> {
 public:
-    using builder_t = std::function<MKLDNNNode *(const InferenceEngine::CNNLayerPtr& layer,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)>;
+    NodesFactory()
+        : Factory("NodesFactory") {}
 
     MKLDNNNode* create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
-
-    void registerNode(Type type, builder_t builder);
-
-private:
-    using map_t = std::unordered_map<Type, builder_t,
-        std::hash<std::underlying_type<MKLDNNPlugin::Type>::type>>;
-    map_t builders;
 };
 
-template<typename To>
-class MKLDNNNode::Registrar {
-public:
-    explicit Registrar(Type type) {
-        MKLDNNNode::factory().registerNode(type,
-                [type](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                    MKLDNNWeightsSharing::Ptr &w_cache) -> MKLDNNNode* {
-                    MKLDNNNode *node = new To(layer, eng, w_cache);
-                    return node;
-                });
+template<typename MKLDNNNodeType>
+struct MKLDNNNodeImpl : public MKLDNNNodeType {
+    MKLDNNNodeImpl(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNodeType(layer, eng, cache) {
+        MKLDNNNodeType::perfCounters().template buildClassCounters<MKLDNNNodeType>(NameFromType(MKLDNNNodeType::getType()));
     }
 };
 
-#define REG_MKLDNN_CONCAT2(X, Y) X ## Y
-#define REG_MKLDNN_CONCAT(X, Y) REG_MKLDNN_CONCAT2(X, Y)
-#define REG_MKLDNN_PRIM_FOR(__prim, __type) \
-static MKLDNNNode::Registrar<__prim> REG_MKLDNN_CONCAT(_reg_, __LINE__)(__type)
+#define REG_MKLDNN_CONCAT3_(X, Y, Z) X ## Y ## Z
+#define REG_MKLDNN_CONCAT3(X, Y, Z) REG_MKLDNN_CONCAT3_(X, Y, Z)
+
+#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                                 \
+static struct REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__) {                            \
+    REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__)() {                                    \
+        MKLDNNNode::factory()                                                               \
+            .registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>);  \
+    }                                                                                       \
+} REG_MKLDNN_CONCAT3(_reg_, __prim, __LINE__);
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {

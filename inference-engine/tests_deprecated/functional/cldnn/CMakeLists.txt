@@ -6,25 +6,7 @@
 set(TARGET_NAME ClDnnFunctionalTests)
 
 file(GLOB CLDNN_TEST_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/regression_tests/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/io_blob_tests/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/input_tests/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/inference_engine_regression_tests/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/lstm/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/common_single_layer_tests/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/ie_class/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp)
-
-if(USE_CNNNETWORK_LPT)
-    file(GLOB CLDNN_TEST_SOURCES
-        ${CLDNN_TEST_SOURCES}
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/transformations/*.cpp)
-
-    list(APPEND CLDNN_LIBS
-        inference_engine_lp_transformations_legacy)
-endif()
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 list(APPEND TEST_SRC ${CLDNN_TEST_SOURCES})
 

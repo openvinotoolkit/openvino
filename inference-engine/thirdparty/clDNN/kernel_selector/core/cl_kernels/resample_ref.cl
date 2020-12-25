@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -174,7 +174,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     FUSED_OPS;
     OUTPUT_TYPE res = FUSED_OPS_RESULT;
 #else // HAS_FUSED_OPS
-    OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+    OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_CUBIC) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE

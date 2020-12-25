@@ -21,6 +21,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertFP32ToFP16, "ConvertFP32ToFP16", 0);
+
 void pass::ConvertFP32ToFP16::convert_constants_precision()
 {
     auto constant =

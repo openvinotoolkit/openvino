@@ -445,7 +445,7 @@ from/to a `__blobal` pointer since work-group copying could be done in a vector 
      }
    }
    ```
-This kernel can be rewritten to introduce special data binding `__dma_preload` and `__dma_postwrite intrinsics`. This means that instead of one kernel, a group of three kernels should be implemented: `kernelName`, `__dma_preload_kernelName` and `__dma_postwrite_kernelName`.  `__dma_preload_kernelName` for a particular work group `n` is guaranteed to be executed before `n`-th work group itself, while `__dma_postwrite_kernelName` is guarantied to be executed after a corresponding work group. You can define one of those functions that are intended to be used to copy data from-to `__global` and `__local` memory. The syntactics requires exact functional signature match. The example below illustrates how to prepare your kernel for manual-DMA.
+This kernel can be rewritten to introduce special data binding `__dma_preload` and `__dma_postwrite intrinsics`. This means that instead of one kernel, a group of three kernels should be implemented: `kernelName`, `__dma_preload_kernelName` and `__dma_postwrite_kernelName`.  `__dma_preload_kernelName` for a particular work group `n` is guaranteed to be executed before `n`-th work group itself, while `__dma_postwrite_kernelName` is guaranteed to be executed after a corresponding work group. You can define one of those functions that are intended to be used to copy data from-to `__global` and `__local` memory. The syntactics requires exact functional signature match. The example below illustrates how to prepare your kernel for manual-DMA.
    ```cpp
    __kernel void __dma_preload_grn_NCHW(
      __global const half* restrict src,

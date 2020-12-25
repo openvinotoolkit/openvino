@@ -18,6 +18,7 @@
 #include <set>
 
 #include "itt.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/unsqueeze.hpp"
@@ -28,17 +29,15 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 NGRAPH_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
 
-op::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
-    : FusedOp({data, axes})
+op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
+    : Op({data, axes})
 {
     constructor_validate_and_infer_types();
 }
 
-void op::Unsqueeze::pre_validate_and_infer_types()
+void op::v0::Unsqueeze::validate_and_infer_types()
 {
     const auto data = input_value(0);
     auto data_partial_shape = data.get_partial_shape();
@@ -78,25 +77,12 @@ void op::Unsqueeze::pre_validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
 }
 
-OutputVector op::Unsqueeze::decompose_op() const
-{
-    NODE_VALIDATION_CHECK(
-        this,
-        (get_output_partial_shape(0).is_static()),
-        "output shape was not calculated during pre_validate_and_infer_types. Can not decompose.");
-    auto data = input_value(0);
-    auto data_shape = data.get_shape();
-    auto output_shape = get_output_shape(0);
-    AxisVector input_order{ngraph::get_default_order(data_shape.size())};
-    return {make_shared<ngraph::op::Reshape>(data, input_order, output_shape)};
-}
-
-bool ngraph::op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
 {
     return true;
 }
 
-shared_ptr<Node> op::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
     if (new_args.size() != 2)
     {
@@ -149,18 +135,12 @@ namespace unsqueeze
         bool rc = true;
         switch (element_type)
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_unsqueeze, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -170,8 +150,11 @@ namespace unsqueeze
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Unsqueeze::evaluate");
-    return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+    NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate)
+    {
+        return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+    }
+    return false;
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values,

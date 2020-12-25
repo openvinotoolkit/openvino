@@ -8,12 +8,14 @@
 #include <string>
 #include <map>
 
+#include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
 #include "gna_plugin.hpp"
 
 namespace GNAPluginNS {
 
 class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
+ protected:
     std::shared_ptr<GNAPlugin> plg;
     uint32_t inferRequestIdx = -1;
 
@@ -110,6 +112,18 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
             return InferenceEngine::INFER_NOT_STARTED;
         }
         return InferenceEngine::OK;
+    }
+
+    IE_SUPPRESS_DEPRECATED_START
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
+        auto pluginStates = plg->QueryState();
+        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
+        return plg->QueryState();
+    }
+    IE_SUPPRESS_DEPRECATED_END
+
+    InferenceEngine::StatusCode Cancel() override {
+        return InferenceEngine::NOT_IMPLEMENTED;
     }
 };
 }  // namespace GNAPluginNS

@@ -2098,9 +2098,9 @@ void NMSValidator::checkParams(const CNNLayer* layer) {
 
 void NMSValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
     size_t numInputs = inShapes.size();
-    if (numInputs < 2 || numInputs > 5)
+    if (numInputs < 2 || numInputs > 6)
         THROW_IE_EXCEPTION << layer->name
-                           << " NonMaxSuppression can take 2 - 5 inputs, but actually it has: " << numInputs;
+                           << " NonMaxSuppression can take 2 - 6 inputs, but actually it has: " << numInputs;
 
     if (inShapes[0].size() != 3 || inShapes[0][2] != 4)
         THROW_IE_EXCEPTION << layer->name << " 'boxes' should be with shape [num_batches, spatial_dimension, 4]";
@@ -2222,7 +2222,7 @@ void ScatterElementsUpdateValidator::checkShapes(const CNNLayer* layer, const ve
 
 #define REG_LAYER_VALIDATOR_FOR_TYPE(__validator, __type) _validators[#__type] = std::make_shared<__validator>(#__type)
 
-LayerValidators::LayerValidators() {
+LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(ActivationValidator, Activation);
     REG_LAYER_VALIDATOR_FOR_TYPE(ArgMaxValidator, ArgMax);
     REG_LAYER_VALIDATOR_FOR_TYPE(BatchNormalizationValidator, BatchNormalization);

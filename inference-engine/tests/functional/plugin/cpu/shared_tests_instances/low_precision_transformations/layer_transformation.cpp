@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -34,10 +34,10 @@
 #include <legacy/ie_util_internal.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 #include <low_precision/transformer.hpp>
 #include <low_precision/convolution.hpp>

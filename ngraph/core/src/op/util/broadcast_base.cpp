@@ -19,7 +19,6 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/sum.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/partial_shape.hpp"
 
@@ -93,7 +92,7 @@ void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& ar
         return;
     }
     const auto arg_rank_length = arg_shape.rank().get_length();
-    auto start_axis = target_shape.size() - arg_rank_length;
+    const int64_t start_axis = target_shape.size() - arg_rank_length;
     NODE_VALIDATION_CHECK(this,
                           start_axis >= 0,
                           "Broadcast target_shape has smaller rank ",
@@ -358,19 +357,21 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
     return std::make_pair(axes_known, broadcast_axes);
 }
 
-template <element::Type_t ET>
 bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate<ET>");
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::broadcast<T>((arg0->get_data_ptr<ET>()),
-                                     (out->get_data_ptr<ET>()),
-                                     arg0->get_shape(),
-                                     out->get_shape(),
-                                     broadcast_axes);
-    return true;
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes)
+    {
+        runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
+                                      out->get_data_ptr<char>(),
+                                      arg0->get_shape(),
+                                      out->get_shape(),
+                                      broadcast_axes,
+                                      arg0->get_element_type().size());
+        return true;
+    }
+    return false;
 }
 
 namespace
@@ -476,37 +477,11 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
         // broadcast_axes not known deterministically
         return false;
     }
-    bool rc = true;
     Shape in_shape = arg0->get_shape();
     out->set_shape(output_shape);
     out->set_element_type(arg0->get_element_type());
-    switch (arg0->get_element_type())
-    {
-        TYPE_CASE(boolean)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i8)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i32)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i64)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u8)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u32)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u64)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(f16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(f32)(arg0, out, pair_broadcast_axes.second);
-        break;
-    default: rc = false; break;
-    }
-    return rc;
+
+    return evaluate(arg0, out, pair_broadcast_axes.second);
 }
 
 Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const
@@ -527,49 +502,52 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) con
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate");
-
-    Shape target_shape = get_target_shape(inputs[1]);
-
-    PartialShape result_shape;
-    std::pair<bool, AxisSet> pair_broadcast_axes;
-    auto arg_shape = inputs[0]->get_shape();
-
-    if (m_mode.m_type == BroadcastType::NONE)
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate)
     {
-        AxisVector axes_mapping_val;
-        const auto axes_mapping_constant =
-            as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
-        if (axes_mapping_constant)
+        Shape target_shape = get_target_shape(inputs[1]);
+
+        PartialShape result_shape;
+        std::pair<bool, AxisSet> pair_broadcast_axes;
+        auto arg_shape = inputs[0]->get_shape();
+
+        if (m_mode.m_type == BroadcastType::NONE)
         {
-            axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
+            AxisVector axes_mapping_val;
+            const auto axes_mapping_constant =
+                as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
+            if (axes_mapping_constant)
+            {
+                axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
+            }
+            else
+            {
+                // read from HT and save as AxisVector
+                get_axis_vector_from_ht(inputs[2], axes_mapping_val, arg_shape);
+            }
+            pair_broadcast_axes = get_broadcast_axes_none(axes_mapping_val, target_shape.size());
+            validate_target_shape_none(inputs[0]->get_shape(), axes_mapping_val, target_shape);
+            result_shape = target_shape;
+        }
+        else if (m_mode.m_type == BroadcastType::PDPD)
+        {
+            result_shape = get_result_shape_pdpd(arg_shape, target_shape, m_mode);
+            pair_broadcast_axes =
+                get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
+        }
+        else if (m_mode.m_type == BroadcastType::NUMPY)
+        {
+            result_shape = target_shape;
+            validate_target_shape_numpy(arg_shape, target_shape);
+            pair_broadcast_axes =
+                get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
         }
         else
         {
-            // read from HT and save as AxisVector
-            get_axis_vector_from_ht(inputs[2], axes_mapping_val, arg_shape);
+            ngraph_error("Unsupported BroadcastType ");
         }
-        pair_broadcast_axes = get_broadcast_axes_none(axes_mapping_val, target_shape.size());
-        validate_target_shape_none(inputs[0]->get_shape(), axes_mapping_val, target_shape);
-        result_shape = target_shape;
-    }
-    else if (m_mode.m_type == BroadcastType::PDPD)
-    {
-        result_shape = get_result_shape_pdpd(arg_shape, target_shape, m_mode);
-        pair_broadcast_axes =
-            get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
-    }
-    else if (m_mode.m_type == BroadcastType::NUMPY)
-    {
-        result_shape = target_shape;
-        validate_target_shape_numpy(arg_shape, target_shape);
-        pair_broadcast_axes =
-            get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
-    }
-    else
-    {
-        ngraph_error("Unsupported BroadcastType ");
-    }
 
-    return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+        return evaluate_broadcast(
+            inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+    }
+    return false;
 }

@@ -23,7 +23,6 @@
 #include "ngraph/op/convolution.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/slice.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -507,9 +506,9 @@ OutputVector op::v1::GroupConvolutionBackpropData::decompose_op() const
 
     auto groups = filters.get_shape()[0];
     // slice data
-    OutputVector sliced_data = builder::split(data, groups, 1);
+    OutputVector sliced_data = builder::opset1::split(data, groups, 1);
     // slice filters
-    OutputVector sliced_filters = builder::split(filters, groups, 0);
+    OutputVector sliced_filters = builder::opset1::split(filters, groups, 0);
     // We have to squeeze first empty dimension (groups).
     std::transform(
         std::begin(sliced_filters),

@@ -34,7 +34,7 @@ public:
         };
     }
 
-    JitConstants GetJitConstants(const eltwise_params& params) const;
+    JitConstants GetJitConstants(const eltwise_params& params) const override;
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;

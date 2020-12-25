@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
+                                ::testing::Values(5),
                                 // TODO: 0-axis excluded
                                 //  Check (status == ie::StatusCode::OK) failed: Failed to reshape Network:
                                 //  Failed to infer shapes for Split layer (Split_2) with error:
@@ -28,10 +28,11 @@ INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
+                                ::testing::Values(std::vector<size_t>({})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         SplitLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_splitWithUnusedOutputsTest, splitWithUnusedOutputsTest,
+INSTANTIATE_TEST_CASE_P(smoke_splitWithUnusedOutputsTest, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(5),
                                 // TODO: 0-axis excluded
@@ -49,5 +50,5 @@ INSTANTIATE_TEST_CASE_P(smoke_splitWithUnusedOutputsTest, splitWithUnusedOutputs
                                                   std::vector<size_t>({0, 4}),
                                                   std::vector<size_t>({2, 3})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
-                        splitWithUnusedOutputsTest::getTestCaseName);
+                        SplitLayerTest::getTestCaseName);
 }  // namespace

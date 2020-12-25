@@ -37,7 +37,6 @@ private:
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
 #endif
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseResampleAndSimpleOperation(MKLDNNGraph &graph);
     void FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph);
     void FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);
@@ -46,12 +45,14 @@ private:
 #if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
     void DropDoubleReorders(MKLDNNGraph& graph);
     void DropConvertReorder(MKLDNNGraph& graph);
+    void ChangeConvertToReorder(MKLDNNGraph &graph);
 #endif
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
     void FuseScaleShiftAndQuantize(MKLDNNGraph &graph);
     void FuseClampAndQuantize(MKLDNNGraph &graph);
+    void MergePermuteAndReorder(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
     bool IsOneOf(EltwiseOpType alg, std::vector<EltwiseOpType> algs);

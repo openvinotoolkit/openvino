@@ -1,0 +1,38 @@
+<?xml version="1.0" ?>
+<!--This is syntetic model created by hand desined only for white-box unit testing-->
+<net name="add_abc" version="10">
+	<layers>
+		<layer id="0" name="A" type="Parameter" version="opset1">
+			<data element_type="f32" shape="1"/>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="ROIFeatureExtractor_1" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
+			<data distribute_rois_between_levels="1" image_id="0" output_size="14" preserve_rois_order="1" pyramid_scales="4,8,16,32,64" sampling_ratio="2"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Y" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+	</edges>
+</net>

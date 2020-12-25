@@ -4,6 +4,25 @@
 DOCKER_CONTAINER_NAME= "openvino-onnx-ci-container"
 DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
+// workaround for aborting previous builds on PR update
+@NonCPS
+ def stopPreviousRunningBuilds() {
+     def jobname = env.JOB_NAME
+     if (jobname.startsWith("onnx/openvino_ci/PR")){
+         def buildnum = env.BUILD_NUMBER.toInteger()
+         def job = Jenkins.instance.getItemByFullName(jobname)
+         def job_newest = job.builds.first()
+         for (build in job.builds.reverse()[0..<-1]) {
+             if (build.isBuilding()){
+                 echo "Stop task = ${build} because newest #${job_newest} is on the way"
+                 build.doStop();
+                 continue;
+             }
+         }
+     }
+
+ }
+
 def getGitPrInfo(String project) {
     def gitPrInfo = [
         prAuthorEmail : "",
@@ -58,7 +77,14 @@ def gitSubmoduleUpdate(String repository_name) {
     }
 }
 
+def updateModels() {
+    sh """
+        ./ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d ${HOME}/ONNX_CI/data -o
+    """
+}
+
 def buildDockerImage() {
+    updateModels()
     sh """
         docker build --tag=${DOCKER_IMAGE_TAG}  --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
@@ -69,11 +95,11 @@ def buildDockerImage() {
 def runTests() {
     sh """
         docker run --name ${DOCKER_CONTAINER_NAME} \
-        --volume ${HOME}/ONNX_CI/onnx-models-15-Oct/.onnx/model_zoo:/root/.onnx/model_zoo \
-        --volume ${HOME}/ONNX_CI/onnx-models/.onnx/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT \
+        --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
         ${DOCKER_IMAGE_TAG}
     """
 }
+
 
 pipeline {
     agent {
@@ -85,11 +111,12 @@ pipeline {
     }
     options {
         skipDefaultCheckout true
-        timeout(activity: true, time: 10, unit: 'MINUTES')
+        timeout(activity: true, time: 20, unit: 'MINUTES')
     }
     stages {
         stage("Clone repository") {
             steps{
+                stopPreviousRunningBuilds()
                 dir("${WORKDIR}") {
                     checkout scm
                 }
@@ -98,14 +125,14 @@ pipeline {
         }
         stage("Prepare Docker environment") {
             steps{
-                dir("${WORKDIR}") {
+              dir("${WORKDIR}") {
                     buildDockerImage()
                 }
             }
         }
         stage("Run tests") {
             options {
-                  timeout(time: 15, unit: 'MINUTES')
+                  timeout(time: 25, unit: 'MINUTES')
               }
             steps{
                 runTests()

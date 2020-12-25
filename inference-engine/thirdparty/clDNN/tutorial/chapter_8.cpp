@@ -14,16 +14,15 @@
 // limitations under the License.
 */
 
-#include <../api/CPP/cldnn_defs.h>
-#include <../api/CPP/engine.hpp>
-#include <../api/CPP/input_layout.hpp>
-#include <../api/CPP/memory.hpp>
-#include <../api/CPP/data.hpp>
-#include <../api/CPP/topology.hpp>
-#include <../api/CPP/network.hpp>
-#include <../api/CPP/activation.hpp>
-#include <../api/CPP/crop.hpp>
-#include <../api/CPP/resample.hpp>
+#include <../api/engine.hpp>
+#include <../api/input_layout.hpp>
+#include <../api/memory.hpp>
+#include <../api/data.hpp>
+#include <../api/topology.hpp>
+#include <../api/network.hpp>
+#include <../api/activation.hpp>
+#include <../api/crop.hpp>
+#include <../api/resample.hpp>
 #include <iostream>
 #include <chrono>
 
@@ -98,12 +97,12 @@ void chapter_8(engine& engine)
     // Create a topology and add primitives
     topology topology;
     topology.add(input_layout("input", input_prim.get_layout()));
-    topology.add(resample("resample", "input", 2, 4, resample_type::nearest));
-    topology.add(activation("relu", "resample", activation_relu));
+    topology.add(resample("resample", "input", tensor(spatial(2)), 4, resample_type::nearest));
+    topology.add(activation("relu", "resample", activation_func::relu));
     topology.add(crop("crop1", "relu", tensor(batch(1), spatial(2, 2), feature(3)), { tensor(feature(0), spatial(0,0),batch(0)) }));
     topology.add(crop("crop2", "relu", tensor(batch(1), spatial(2, 2), feature(1)), { tensor(feature(3), spatial(0,0),batch(0)) }));
-    topology.add(activation("relu1", "crop1", activation_relu));
-    topology.add(activation("relu2", "crop2", activation_relu));
+    topology.add(activation("relu1", "crop1", activation_func::relu));
+    topology.add(activation("relu2", "crop2", activation_func::relu));
 
     // Build network without optimize data build option
     network network_1(engine, topology);
