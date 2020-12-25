@@ -213,8 +213,6 @@ protected:
 
 private:
     RefMode refMode = RefMode::INTERPRETER;
-    static std::string GetTimestamp();
-    const std::string GetTestName();
 };
 
 }  // namespace LayerTestsUtils

@@ -1,7 +1,12 @@
 # Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 project(InferenceEngine)
+
+if(CMAKE_SOURCE_DIR STREQUAL "${InferenceEngine_SOURCE_DIR}")
+    message(FATAL_ERROR "Cmake source directory must point to <openvino_root>")
+endif()
 
 include(cmake/features.cmake)
 
@@ -19,14 +24,13 @@ function(ie_developer_export_targets)
 endfunction()
 
 function(ie_developer_export)
-    set(all_dev_targets gflags inference_engine_ir_reader inference_engine_ir_v7_reader)
+    set(all_dev_targets gflags ie_libraries)
     foreach(component IN LISTS openvino_export_components)
         export(TARGETS ${${component}} NAMESPACE IE::
             APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
         list(APPEND all_dev_targets ${${component}})
     endforeach()
 
-    # Custom target to build only Inference Engine Developer Package targets
     add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
 endfunction()
 
