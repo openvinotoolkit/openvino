@@ -20,7 +20,8 @@ if (NOT TARGET IE::inference_engine)
                  NO_DEFAULT_PATH)
 endif()
 
-find_package(InferenceEngine REQUIRED)
+find_package(InferenceEngine REQUIRED
+             HINTS "${InferenceEngineDeveloperPackage_DIR}")
 
 if (NOT ENABLE_FUZZING)
     message(STATUS
