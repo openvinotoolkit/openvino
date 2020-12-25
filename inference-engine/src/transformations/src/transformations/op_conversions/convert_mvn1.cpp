@@ -25,9 +25,9 @@ ngraph::pass::ConvertMVN1::ConvertMVN1() {
 
         const auto input = mvn_node->input_value(0);
 
-        // MVN-1 support only 4D input tensors
+        // MVN-1 support only 4D and higher input tensors
         auto input_rank = input.get_partial_shape().rank();
-        if (input_rank.is_static() && input_rank.get_length() == 4) {
+        if (input_rank.is_static() && input_rank.get_length() >= 4) {
             int start_axis;
             if (mvn_node->get_across_channels()) {
                 start_axis = 1;
