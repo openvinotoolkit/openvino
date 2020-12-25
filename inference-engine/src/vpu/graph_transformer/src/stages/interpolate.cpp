@@ -18,7 +18,7 @@ using namespace InferenceEngine;
 
 namespace vpu {
 
-InterpolateCoordTransMode coordinateChoice(std::string coordinateTransformation) {
+InterpolateCoordTransMode coordinateChoice(const std::string &coordinateTransformation) {
     ie::details::CaselessEq<std::string> cmp;
     InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
     if (cmp(coordinateTransformation, g_asymmetric)) {
@@ -35,6 +35,25 @@ InterpolateCoordTransMode coordinateChoice(std::string coordinateTransformation)
         VPU_THROW_FORMAT("Current Interpolate does not support this coordinate transformation mode");
     }
     return coordinateTransformationMode;
+}
+
+InterpolateNearestMode nearestModeChoice(const std::string &near) {
+    ie::details::CaselessEq<std::string> cmp;
+    InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
+    if (cmp(near, g_round_prefer_floor)) {
+        nearestMode = InterpolateNearestMode::RoundPreferFloor;
+    } else if (cmp(near, g_round_prefer_ceil)) {
+        nearestMode = InterpolateNearestMode::RoundPreferCeil;
+    } else if (cmp(near, g_floor_mode)) {
+        nearestMode = InterpolateNearestMode::Floor;
+    } else if (cmp(near, g_ceil_mode)) {
+        nearestMode = InterpolateNearestMode::Ceil;
+    } else if (cmp(near, g_simple)) {
+        nearestMode = InterpolateNearestMode::Simple;
+    } else {
+        VPU_THROW_FORMAT("Current Interpolate does not support this nearest mode");
+    }
+    return nearestMode;
 }
 
 void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
@@ -77,23 +96,10 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 const auto anti = _layer->GetParamAsBool(g_antialias, false);
                 const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
                 const auto near = _layer->GetParamAsString(g_nearest_mode, g_round_prefer_floor);
-                InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-                InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
+                auto coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+                auto nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
-                if (cmp(near, g_round_prefer_floor)) {
-                    nearestMode = InterpolateNearestMode::RoundPreferFloor;
-                } else if (cmp(near, g_round_prefer_ceil)) {
-                    nearestMode = InterpolateNearestMode::RoundPreferCeil;
-                } else if (cmp(near, g_floor_mode)) {
-                    nearestMode = InterpolateNearestMode::Floor;
-                } else if (cmp(near, g_ceil_mode)) {
-                    nearestMode = InterpolateNearestMode::Ceil;
-                } else if (cmp(near, g_simple)) {
-                    nearestMode = InterpolateNearestMode::Simple;
-                } else {
-                    VPU_THROW_FORMAT("Current Interpolate does not support this nearest mode");
-                }
-
+                nearestMode = nearestModeChoice(near);
                 coordinateTransformationMode = coordinateChoice(coordinateTransformation);
 
                 _stageBuilder->addResampleNearestStage(model,
@@ -109,8 +115,8 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 // current "Interp" supports modes "align_corners" and "asymmetric" only
                 // other "Interpolate" modes are translated to the default ones
                 const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
-                InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-                InterpolateMode mode = InterpolateMode::Linear;
+                auto coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
+                auto mode = InterpolateMode::Linear;
 
                 if (cmp(interpolateMode, g_linear_onnx)) {
                     mode = InterpolateMode::LinearOnnx;
