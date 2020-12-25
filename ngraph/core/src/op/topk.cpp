@@ -67,8 +67,8 @@ namespace topk
 #define EXECUTE_EVALUATE_TOPK(a, ...)                                                              \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(exec_topk_eval, _, a),                                          \
-                        rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__));         \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(exec_topk_eval, _, a));                                         \
+        rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                          \
     }                                                                                              \
     break
 
@@ -189,8 +189,8 @@ namespace topk
 #define CASE_GET_K(a, ...)                                                                         \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(topk_get_k, _, a),                                              \
-                        k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__));               \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(topk_get_k, _, a));                                             \
+        k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__);                                \
     }                                                                                              \
     break
 
@@ -255,6 +255,7 @@ op::v1::TopK::TopK(const Output<Node>& data,
 
 bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_TopK_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("mode", m_mode);
     visitor.on_attribute("sort", m_sort);
@@ -263,6 +264,7 @@ bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::TopK::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_TopK_validate_and_infer_types);
     const auto& input_partial_shape = get_input_partial_shape(0);
     const auto input_rank = input_partial_shape.rank();
 
@@ -418,6 +420,7 @@ size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::Constant>& k_consta
 
 shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_TopK_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_v1_topk =
         make_shared<v1::TopK>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort);
@@ -449,9 +452,9 @@ void op::v1::TopK::set_k(size_t k)
         op::Constant::create(element::i64, Shape{}, {k})->output(0));
 }
 
-bool op::v1::TopK::evaluate_topk(const HostTensorVector& outputs,
-                                 const HostTensorVector& inputs) const
+bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    NGRAPH_OP_SCOPE(v1_TopK_evaluate);
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
     size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
@@ -492,12 +495,6 @@ bool op::v1::TopK::evaluate_topk(const HostTensorVector& outputs,
                                get_index_element_type());
 }
 
-bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    NGRAPH_OP_SCOPE(v1_TopK_evaluate, return evaluate_topk(outputs, inputs));
-    return false;
-}
-
 // v3 version starts
 constexpr NodeTypeInfo op::v3::TopK::type_info;
 
@@ -525,6 +522,7 @@ op::v3::TopK::TopK(const Output<Node>& data,
 
 bool ngraph::op::v3::TopK::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_TopK_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("mode", m_mode);
     visitor.on_attribute("sort", m_sort);
@@ -534,6 +532,7 @@ bool ngraph::op::v3::TopK::visit_attributes(AttributeVisitor& visitor)
 
 void op::v3::TopK::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_TopK_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number(),
                           "K input has to be an integer type, which does match the provided one:",
@@ -566,6 +565,7 @@ size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
 
 shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_TopK_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_v3_topk =
         make_shared<v3::TopK>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort);
@@ -577,6 +577,6 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_TopK_evaluate, return op::v1::TopK::evaluate(outputs, inputs));
-    return false;
+    NGRAPH_OP_SCOPE(v3_TopK_evaluate);
+    return op::v1::TopK::evaluate(outputs, inputs);
 }

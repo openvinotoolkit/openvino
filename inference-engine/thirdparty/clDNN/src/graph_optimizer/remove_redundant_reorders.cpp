@@ -24,6 +24,7 @@
 #include <utility>
 
 #include "reshape_inst.h"
+#include "one_hot_inst.h"
 
 using namespace cldnn;
 
@@ -299,8 +300,9 @@ void remove_redundant_reorders::run(program_impl& p) {
         if (input.get_users().size() != 1 || node.get_users().empty())
             continue;
 
-        auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-        if (!same_data_type)
+        bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
+        bool allowed_dt_conversion_fuse = input.is_type<one_hot>();
+        if (!same_data_type && !allowed_dt_conversion_fuse)
             continue;
 
         if (!lo.can_fuse_reorder_to_prev(input, *node.get_users().front(), input.get_output_layout().format, output_layout.format))
