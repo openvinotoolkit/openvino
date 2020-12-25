@@ -39,12 +39,14 @@ op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const s
 
 bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Split_visit_attributes);
     visitor.on_attribute("num_splits", m_num_splits);
     return true;
 }
 
 void op::v1::Split::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Split_validate_and_infer_types);
     const auto data_ps = input_value(0).get_partial_shape();
     const auto axis_ps = input_value(1).get_partial_shape();
     const auto axis_et = input_value(1).get_element_type();
@@ -102,6 +104,7 @@ void op::v1::Split::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Split_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
 }
@@ -149,11 +152,8 @@ namespace split
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Split_evaluate)
-    {
-        const auto& data = inputs[0];
-        const auto& axis = inputs[1];
-        return split::evaluate_split(data, axis, outputs, m_num_splits, this);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_Split_evaluate);
+    const auto& data = inputs[0];
+    const auto& axis = inputs[1];
+    return split::evaluate_split(data, axis, outputs, m_num_splits, this);
 }
