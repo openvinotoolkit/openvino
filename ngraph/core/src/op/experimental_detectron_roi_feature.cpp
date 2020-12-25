@@ -116,3 +116,10 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
 
     set_output_type(0, input_et, out_shape);
 }
+
+shared_ptr<Node> op::v6::ExperimentalDetectronROIFeatureExtractor::clone_with_new_inputs(
+    const OutputVector& new_args) const
+{
+    check_new_args_count(this, new_args);
+    return make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(new_args, m_attrs);
+}
