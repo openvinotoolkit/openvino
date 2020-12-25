@@ -39,7 +39,8 @@ TEST(conditional_compilation, disabled_op_scope)
     const std::string errMsg = "ngraph_op_Scope1 is disabled!";
 
     // Simple scope is enabled
-    NGRAPH_OP_SCOPE(Scope0) { n = 42; }
+    NGRAPH_OP_SCOPE(Scope0);
+    n = 42;
     EXPECT_EQ(n, 42);
 
     // Simple scope is disabled
