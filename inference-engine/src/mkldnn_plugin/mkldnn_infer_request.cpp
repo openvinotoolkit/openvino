@@ -132,19 +132,20 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
     }
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::PushStates(){
+void MKLDNNPlugin::MKLDNNInferRequest::PushStates() {
     for (auto &node : graph->GetNodes()) {
         if (node->getType() == MemoryInput) {
             auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
             auto cur_id = cur_node->getId();
-            for(const auto& state : memoryStates){
-                if(state->GetName() == cur_id){
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->GetState()->cbuffer().as<void*>();
                     auto data_size = state->GetState()->byteSize();
                     auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(cur_state_mem->GetDataType());
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding * elemSize;
-                    
+                    auto padSize = cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding;
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + padSize * elemSize;
+
                     std::memcpy(cur_state_mem_buf, data_ptr, data_size);
                 }
             }
@@ -152,19 +153,20 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushStates(){
     }
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::PullStates(){
+void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
     for (auto &node : graph->GetNodes()) {
         if (node->getType() == MemoryInput) {
             auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
             auto cur_id = cur_node->getId();
-            for(const auto& state : memoryStates){
-                if(state->GetName() == cur_id){
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->GetState()->cbuffer().as<void*>();
                     auto data_size = state->GetState()->byteSize();
                     auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(cur_state_mem->GetDataType());
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding * elemSize;
-                    
+                    auto padSize = cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding;
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + padSize * elemSize;
+
                     std::memcpy(data_ptr, cur_state_mem_buf, data_size);
                 }
             }
@@ -185,13 +187,13 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
 
     PushInputData();
 
-    if (memoryStates.size() != 0){
+    if (memoryStates.size() != 0) {
         PushStates();
     }
-    
+
     graph->Infer(m_curBatch);
 
-    if (memoryStates.size() != 0){
+    if (memoryStates.size() != 0) {
         PullStates();
     }
 

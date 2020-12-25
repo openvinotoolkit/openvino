@@ -15,7 +15,7 @@ namespace MKLDNNPlugin {
 class MKLDNNVariableState : public InferenceEngine::IVariableStateInternal {
 public:
     MKLDNNVariableState(std::string name, MKLDNNMemoryPtr storage) :
-            name(name){
+            name(name) {
         this->storage = make_blob_with_precision(MKLDNNMemoryDesc(storage->GetDescriptor()));
         this->storage->allocate();
         std::memcpy(this->storage->buffer(), storage->GetData(), storage->GetSize());
