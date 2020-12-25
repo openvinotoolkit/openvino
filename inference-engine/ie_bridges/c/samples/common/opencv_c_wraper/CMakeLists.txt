@@ -5,7 +5,6 @@
 project(OpenCV_C_Wraper)
 set(TARGET_NAME opencv_c_wraper)
 
-#set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
