@@ -63,6 +63,7 @@
 #include "ngraph/op/floor.hpp"
 #include "ngraph/op/floor_mod.hpp"
 #include "ngraph/op/gather.hpp"
+#include "ngraph/op/gather_elements.hpp"
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/op/gather_tree.hpp"
 #include "ngraph/op/gelu.hpp"

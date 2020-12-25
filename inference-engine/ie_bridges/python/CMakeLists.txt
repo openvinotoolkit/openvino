@@ -6,7 +6,6 @@ cmake_minimum_required (VERSION 3.13)
 
 # Set the project name
 project (ie_python_api)
-set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 
@@ -30,7 +29,7 @@ if(UNIX)
     set(CMAKE_C_VISIBILITY_PRESET default)
 endif()
 
-include (UseCython)
+include (cmake/UseCython.cmake)
 
 if(PYTHONINTERP_FOUND)
     set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
@@ -56,7 +55,7 @@ set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory (src/openvino/inference_engine)
 
 # Check Cython version
-if("${CYTHON_VERSION}" VERSION_LESS "0.29")
+if(CYTHON_VERSION VERSION_LESS "0.29")
     message(FATAL_ERROR "OpenVINO Python API needs at least Cython version 0.29, found version ${CYTHON_VERSION}")
 else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
