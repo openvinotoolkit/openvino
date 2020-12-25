@@ -16,12 +16,14 @@
 
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
+#include "ngraph/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
 namespace ngraph
@@ -367,12 +369,30 @@ namespace ngraph
             // Does not validate, since inputs aren't set
             std::shared_ptr<Node> create()
             {
-                std::shared_ptr<Node> node(FactoryRegistry<Node>::get().create(m_node_type_info));
+                std::shared_ptr<Node> node(get_ops().create(m_node_type_info));
                 node->visit_attributes(*this);
                 return node;
             }
             AttributeVisitor& get_node_saver() { return m_serializer; }
             AttributeVisitor& get_node_loader() { return *this; }
+            static FactoryRegistry<Node>& get_ops()
+            {
+                static std::shared_ptr<FactoryRegistry<Node>> registry;
+                static std::mutex init_guard;
+                if (!registry)
+                {
+                    std::lock_guard<std::mutex> guard(init_guard);
+                    if (!registry)
+                    {
+                        registry = std::make_shared<FactoryRegistry<Node>>();
+#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry->register_factory<NAMESPACE::NAME>();
+#include "op_version_tbl.hpp"
+#undef NGRAPH_OP
+                    }
+                }
+                return *registry;
+            }
+
         protected:
             Node::type_info_t m_node_type_info;
             SerializeAttributeVisitor m_serializer;
