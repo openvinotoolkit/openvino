@@ -156,7 +156,7 @@ The sections below contain detailed list of changes made to the Inference Engine
 
 ### Deprecated API
 
- **Myriad Plugin API:**
+ **MYRIAD Plugin API:**
 
  * VPU_CONFIG_KEY(IGNORE_IR_STATISTIC)
 
