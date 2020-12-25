@@ -104,8 +104,11 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
 
     auto featmap_shape = get_input_partial_shape(1);
     auto expected_channels = featmap_shape[1];
-    bool correct_channels = std::all_of(
-        channels.begin(), channels.end(), [](auto& d) { return expected_channels == d; });
+    bool correct_channels = std::all_of(channels.begin(),
+                                        channels.end(),
+                                        [&expected_channels](const Dimension& d) {
+                                            return expected_channels == d;
+                                        });
     NODE_VALIDATION_CHECK(this,
                           correct_channels,
                           "The number of channels must be the same for all layers of the pyramid.");
