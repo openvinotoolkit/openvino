@@ -34,7 +34,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::StridedSlice::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
