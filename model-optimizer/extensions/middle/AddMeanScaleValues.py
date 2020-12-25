@@ -64,6 +64,8 @@ class AddMeanScaleValues(MiddleReplacementPattern):
 
         for dst in input_node.out_port(0).get_destinations():
             if dst.node.soft_get('type') != 'ShapeOf':
+                # 'fw_tensor_debug_info' should be kept in data node for the correct
+                # mapping of input names in mapping file
                 tmp = input_node.out_node(0)['fw_tensor_debug_info']
                 dst.get_connection().set_source(preprocessing.out_port(0))
                 input_node.out_node(0)['fw_tensor_debug_info'] = tmp
