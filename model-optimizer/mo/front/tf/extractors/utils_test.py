@@ -199,7 +199,7 @@ class TensorContentParsing(unittest.TestCase):
     def test_str_decode(self):
         pb_tensor = PB({
             'dtype': 7,
-            'string_val': [b'\x1f\x00\x1e\x00\x02\x00\xc3\x9f\x1d\x00\x02']
+            'string_val': [b"\037\000\036\000\002\000\303\237\035\000\002"]
         })
         tf_dtype = pb_tensor.dtype
         shape = int64_array([1])
