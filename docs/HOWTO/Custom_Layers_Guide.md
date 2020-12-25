@@ -371,7 +371,6 @@ python3 $INTEL_OPENVINO_DIR/deployment_tools/tools/benchmark_tool/benchmark_app.
 - [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 - [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
-- [Inference Engine Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
 ## Converting Models:
