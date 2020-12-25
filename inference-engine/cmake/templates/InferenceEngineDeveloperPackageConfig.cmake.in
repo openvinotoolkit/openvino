@@ -1,0 +1,77 @@
+# Copyright (C) 2018-2020 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# TODO: remove after changing [private plugins]
+set(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_MAIN_SOURCE_DIR@") # KMB, HDDL
+set(IE_MAIN_SOURCE_DIR "@IE_MAIN_SOURCE_DIR@") # KMB, HDDL
+
+# Variables to export in plugin's projects
+
+set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
+
+foreach(option IN LISTS ie_options)
+    if(NOT DEFINED "${option}")
+        load_cache("${cache_path}" READ_WITH_PREFIX "" ${option})
+     endif()
+endforeach()
+
+message(STATUS "The following CMake options are exported from Inference Engine Developer package")
+message("")
+foreach(option IN LISTS ie_options)
+    message("    ${option}: ${${option}}")
+endforeach()
+message("")
+
+set(gflags_DIR "@gflags_BINARY_DIR@")
+
+# GNA lib dir
+set(GNA "@GNA@")
+
+# Targets
+
+if(USE_SYSTEM_PUGIXML)
+    find_package(PugiXML REQUIRED)
+    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+endif()
+
+foreach(component @openvino_export_components@)
+    include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
+endforeach()
+
+get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
+set(InferenceEngine_LIBRARIES IE::inference_engine)
+
+#
+# Common cmake includes
+#
+
+# TODO: remove after private plugin change 
+list(APPEND CMAKE_MODULE_PATH "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package" # KMB
+                              "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package/download" # KMB, HDDL
+                              "@IE_MAIN_SOURCE_DIR@/cmake") # HDDL
+
+# Inference Engine Developer Scripts package
+
+find_package(IEDevScripts REQUIRED
+             PATHS "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package"
+             NO_CMAKE_FIND_ROOT_PATH
+             NO_DEFAULT_PATH)
+
+# Don't threat deprecated API warnings as errors in 3rd party apps
+ie_deprecated_no_errors()
+
+# inherit OpenCV from main IE project if enabled
+if (ENABLE_OPENCV)
+    load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
+    find_package(OpenCV)
+endif()
+
+# inherit TBB from main IE project if enabled
+if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+    load_cache("${cache_path}" READ_WITH_PREFIX "" TBB_DIR)
+    find_package(TBB)
+endif()
+
+find_package(Threads REQUIRED)
