@@ -30,8 +30,7 @@ NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronROIFeatureExtractor,
                        6);
 
 op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(
-    const OutputVector& args,
-    const Attributes& attrs)
+    const OutputVector& args, const Attributes& attrs)
     : Op(args)
     , m_attrs(attrs)
 {
@@ -58,8 +57,8 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     auto input_et = get_input_element_type(0);
 
     set_output_size(1);
-    PartialShape out_shape =
-        {Dimension::dynamic(), Dimension::dynamic(), m_attrs.output_size, m_attrs.output_size};
+    PartialShape out_shape = {
+        Dimension::dynamic(), Dimension::dynamic(), m_attrs.output_size, m_attrs.output_size};
 
     if (rois_shape.rank().is_static())
     {
@@ -105,8 +104,8 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
 
     auto featmap_shape = get_input_partial_shape(1);
     auto expected_channels = featmap_shape[1];
-    bool correct_channels =
-        std::all_of(channels.begin(), channels.end(), [](auto& d) {return expected_channels == d;});
+    bool correct_channels = std::all_of(
+        channels.begin(), channels.end(), [](auto& d) {return expected_channels == d;});
     NODE_VALIDATION_CHECK(this,
                           correct_channels,
                           "The number of channels must be the same for all layers of the pyramid.");
