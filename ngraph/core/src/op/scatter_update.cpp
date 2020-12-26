@@ -37,6 +37,7 @@ op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
 
 shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v3::ScatterUpdate>(
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
@@ -55,10 +56,8 @@ namespace scatter_update
 #define GET_INDICES(a, ...)                                                                        \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(get_scatter_update_indices, _, a))                              \
-        {                                                                                          \
-            indices_casted_vector = scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__);  \
-        }                                                                                          \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(get_scatter_update_indices, _, a));                             \
+        indices_casted_vector = scatter_update::get_indices<element::Type_t::a>(__VA_ARGS__);      \
     }                                                                                              \
     break;
 
@@ -114,6 +113,6 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate) { return evaluate_scatter_update(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate);
+    return evaluate_scatter_update(outputs, inputs);
 }

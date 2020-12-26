@@ -111,7 +111,7 @@ pipeline {
     }
     options {
         skipDefaultCheckout true
-        timeout(activity: true, time: 10, unit: 'MINUTES')
+        timeout(activity: true, time: 20, unit: 'MINUTES')
     }
     stages {
         stage("Clone repository") {
@@ -132,7 +132,7 @@ pipeline {
         }
         stage("Run tests") {
             options {
-                  timeout(time: 15, unit: 'MINUTES')
+                  timeout(time: 25, unit: 'MINUTES')
               }
             steps{
                 runTests()
