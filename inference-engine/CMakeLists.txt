@@ -13,10 +13,6 @@ include(cmake/features.cmake)
 # resolving dependencies for the project
 include(cmake/dependencies.cmake)
 
-if (ENABLE_FUZZING)
-    enable_fuzzing()
-endif()
-
 find_package(Threads REQUIRED)
 
 function(ie_developer_export_targets)
