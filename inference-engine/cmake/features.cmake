@@ -81,8 +81,6 @@ ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engin
 
 ie_dependent_option (ENABLE_SPEECH_DEMO "enable speech demo integration" ON "NOT APPLE;NOT ANDROID;X86 OR X86_64" OFF)
 
-ie_option (ENABLE_FUZZING "instrument build for fuzzing" OFF)
-
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
 ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
