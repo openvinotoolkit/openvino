@@ -80,21 +80,23 @@ QueryNetworkResult Engine::QueryNetwork(
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
     }
 
-    if (auto function = network.getFunction()) {
-        auto clonedNetwork = cloneNetwork(network);
-        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
-        
-        auto stageBuilder = std::make_shared<vpu::StageBuilder>();
-        auto frontEnd = std::make_shared<vpu::FrontEnd>(stageBuilder, GetCore());
-        auto supportedLayers = frontEnd->getSupportedLayers();
-
-        res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
-    } else {
-        const auto log = std::make_shared<Logger>(
+    const auto log = std::make_shared<Logger>(
             "GraphCompiler",
             parsedConfigCopy.logLevel(),
             defaultOutput(parsedConfigCopy.compilerLogFilePath()));
 
+    if (auto function = network.getFunction()) {
+        auto clonedNetwork = cloneNetwork(network);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
+
+        auto supportedLayers = getSupportedLayers(network,
+                                                  static_cast<Platform>(parsedConfigCopy.platform()),
+                                                  parsedConfigCopy.compileConfig(),
+                                                  log,
+                                                  GetCore());
+
+        res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
+    } else {
         const auto layerNames = getSupportedLayers(
             network,
             static_cast<Platform>(parsedConfigCopy.platform()),

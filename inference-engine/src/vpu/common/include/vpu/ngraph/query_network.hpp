@@ -11,6 +11,6 @@ namespace vpu {
 
 InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::ICNNNetwork::Ptr& convertedNetwork,
                                                     const std::shared_ptr<const ngraph::Function>& function,
-                                                    const std::string& pluginName, const std::vector<std::string>& supportedLayers);
+                                                    const std::string& pluginName, const std::set<std::string>& supportedLayers);
 
 } // namespace vpu

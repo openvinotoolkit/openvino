@@ -15,9 +15,8 @@ namespace vpu {
 
 InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::ICNNNetwork::Ptr& convertedNetwork,
                                                     const std::shared_ptr<const ngraph::Function>& function,
-                                                    const std::string& pluginName, const std::vector<std::string>& supportedLayers) {
+                                                    const std::string& pluginName, const std::set<std::string>& supportedLayers) {
     InferenceEngine::QueryNetworkResult res;
-
     std::unordered_set<std::string> originalOps;
     for (auto& node : function->get_ops()) {
         originalOps.emplace(node->get_friendly_name());
@@ -44,7 +43,7 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::ICNNN
                 concats.push_back(node);
                 return false;
             } else {
-                return std::find(supportedLayers.begin(), supportedLayers.end(), (*layer)->type) != supportedLayers.end();
+                return supportedLayers.count((*layer)->name) != 0;
             }
     };
 
@@ -68,13 +67,15 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::ICNNN
         }
 
     for (const auto& layerName : supported) {
+        if (supported.empty()) {
+            break;
+        }
         if (InferenceEngine::details::contains(unsupported, layerName)) {
             supported.erase(layerName);
         }
     }
 
     unsupported.clear();
-
     std::function<void(std::shared_ptr<ngraph::Node>)> markParentSplitAsUnsupported = [&markParentSplitAsUnsupported, &supported, &splitNames]
                                                                                         (const std::shared_ptr<ngraph::Node>& split) {
         const auto inputs = split->inputs();

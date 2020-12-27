@@ -152,14 +152,6 @@ ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
     return runCommonPasses(network);
 }
 
-std::vector<std::string> FrontEnd::getSupportedLayers() {
-    std::vector<std::string> supportedLayers{};
-    for (const auto& layer : parsers) {
-        supportedLayers.push_back(layer.first);
-    }
-    return supportedLayers;
-}
-
 ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     // disable transformations for some cases
     const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
