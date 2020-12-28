@@ -33,9 +33,8 @@ namespace ngraph
                 CTCGreedyDecoderSeqLen() = default;
                 /// \brief Constructs a CTCGreedyDecoderSeqLen operation
                 ///
-                /// \param input                Logits on which greedy decoding is performed
-                /// \param seq_len              Sequence lengths
-                /// \param blank_index          Blank index
+                /// \param input                3-D tensor of logits on which greedy decoding is performed
+                /// \param seq_len              1-D tensor of sequence lengths
                 /// \param merge_repeated       Whether to merge repeated labels
                 /// \param classes_index_type   Specifies the output classes_index tensor type
                 /// \param sequence_length_type Specifies the output sequence_length tensor type
@@ -44,7 +43,14 @@ namespace ngraph
                                        const bool merge_repeated = true,
                                        const element::Type& classes_index_type = element::i32,
                                        const element::Type& sequence_length_type = element::i32);
-
+                /// \brief Constructs a CTCGreedyDecoderSeqLen operation
+                ///
+                /// \param input                3-D tensor of logits on which greedy decoding is performed
+                /// \param seq_len              1-D tensor of sequence lengths
+                /// \param blank_index          Scalar or 1-D tensor with 1 element used to mark a blank index
+                /// \param merge_repeated       Whether to merge repeated labels
+                /// \param classes_index_type   Specifies the output classes_index tensor type
+                /// \param sequence_length_type Specifies the output sequence_length tensor type
                 CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                        const Output<Node>& seq_len,
                                        const Output<Node>& blank_index,
