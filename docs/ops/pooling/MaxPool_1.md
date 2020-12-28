@@ -46,7 +46,7 @@
 
 * *rounding_type*
 
-  * **Description**: *rounding_type* is a type of rounding to used to compute output shape.
+  * **Description**: *rounding_type* is a type of rounding to be used to compute output shape.
   * **Range of values**:
     * *ceil*
     * *floor*
