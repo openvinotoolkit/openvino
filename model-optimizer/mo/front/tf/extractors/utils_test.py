@@ -14,10 +14,12 @@
  limitations under the License.
 """
 
+import logging as log
 import unittest
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.extractors.utils import collect_tf_attrs, tf_tensor_content
 from mo.utils.unittest.extractors import PB
 
@@ -193,3 +195,20 @@ class TensorContentParsing(unittest.TestCase):
                [[6, 6], [6, 6], [6, 6], [6, 6], [6, 6]]]
         res = tf_tensor_content(tf_dtype, shape, pb_tensor)
         self.assertTrue(np.all(res == ref))
+
+    def test_str_decode(self):
+        pb_tensor = PB({
+            'dtype': 7,
+            'string_val': [b"\037\000\036\000\002\000\303\237\035\000\002"]
+        })
+        tf_dtype = pb_tensor.dtype
+        shape = int64_array([1])
+        warning_message = 'ERROR:root:Failed to parse a tensor with Unicode characters. Note that Inference Engine ' \
+                          'does not support string literals, so the string constant should be eliminated from the ' \
+                          'graph.'
+        ref_val = np.array([b'\x1f\x00\x1e\x00\x02\x00\xc3\x9f\x1d\x00\x02'])
+        with self.assertLogs(log.getLogger(), level="ERROR") as cm:
+            result = tf_tensor_content(tf_dtype, shape, pb_tensor)
+            self.assertEqual([warning_message], cm.output)
+            self.assertEqual(ref_val, result)
+
