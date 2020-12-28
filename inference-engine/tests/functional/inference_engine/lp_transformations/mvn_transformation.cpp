@@ -100,6 +100,7 @@ public:
 
         std::ostringstream result;
         result <<
+            precision << "_" <<
             toString(testValues.params) << "_" <<
             testValues.inputShape << "_" <<
             testValues.reductionAxes << "_" <<
@@ -112,7 +113,7 @@ public:
 };
 
 const std::vector<ngraph::element::Type> precisions = {
-    //ngraph::element::f32,
+    ngraph::element::f32,
     ngraph::element::f16
 };
 

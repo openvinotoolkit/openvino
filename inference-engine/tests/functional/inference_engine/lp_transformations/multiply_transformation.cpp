@@ -91,7 +91,7 @@ TEST_P(MultiplyTransformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precisions = {
-    //ngraph::element::f32,
+    ngraph::element::f32,
     ngraph::element::f16
 };
 
