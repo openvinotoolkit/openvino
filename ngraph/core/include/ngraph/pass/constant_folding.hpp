@@ -28,7 +28,8 @@ namespace ngraph
         {
         public:
             NGRAPH_RTTI_DECLARATION;
-            ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap());
+            ConstantFolding(
+                const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap());
 
         private:
             void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,

@@ -63,7 +63,6 @@ namespace ngraph
                 return get_ptr<T>();
             }
 
-   
         private:
             AlignedBuffer(const AlignedBuffer&) = delete;
             AlignedBuffer& operator=(const AlignedBuffer&) = delete;
@@ -71,20 +70,19 @@ namespace ngraph
             char* m_allocated_buffer;
             char* m_aligned_buffer;
             size_t m_byte_size;
-    }
-    template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>
-        : public ValueAccessor<void*>
-    {
-    public:
-        AttributeAdapter(std::shared_ptr<runtime::AlignedBuffer>& value);
-        void* get_ptr() override;
-        size_t size() override;
+        } template <>
+        class NGRAPH_API AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>
+            : public ValueAccessor<void*>
+        {
+        public:
+            AttributeAdapter(std::shared_ptr<runtime::AlignedBuffer>& value);
+            void* get_ptr() override;
+            size_t size() override;
 
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>", 0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        std::shared_ptr<runtime::AlignedBuffer>& m_ref;
-    };
-}
+            static constexpr DiscreteTypeInfo type_info{
+                "AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>", 0};
+            const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+        protected:
+            std::shared_ptr<runtime::AlignedBuffer>& m_ref;
+        };
+    }
