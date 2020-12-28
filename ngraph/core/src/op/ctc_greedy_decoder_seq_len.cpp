@@ -109,26 +109,22 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
         }
     }
 
-    if (seq_len_pshape.rank().is_static())
+    if (seq_len_pshape.rank().is_static() && seq_len_pshape[0].is_static())
     {
-        if (seq_len_pshape[0].is_static())
+        if (batch_size != Dimension::dynamic())
         {
-            if (batch_size != Dimension::dynamic())
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      seq_len_pshape[0] == batch_size,
-                                      "The first dimensions of input tensors must match.");
-            }
-            batch_size = seq_len_pshape[0];
+            NODE_VALIDATION_CHECK(this,
+                                  seq_len_pshape[0] == batch_size,
+                                  "The first dimensions of input tensors must match.");
         }
+        batch_size = seq_len_pshape[0];
     }
 
-    if (logits_pshape.rank().is_static() && seq_len_pshape.rank().is_static())
+    if (logits_pshape.rank().is_static() && seq_len_pshape.rank().is_static() &&
+            (logits_pshape[0] == Dimension::dynamic() &&
+            seq_len_pshape[0] == Dimension::dynamic()))
     {
-        if (logits_pshape[0] == Dimension::dynamic() && seq_len_pshape[0] == Dimension::dynamic())
-        {
-            batch_size = seq_len_pshape[0] & logits_pshape[0];
-        }
+        batch_size = seq_len_pshape[0] & logits_pshape[0];
     }
 
     set_output_type(0, m_classes_index_type, PartialShape{batch_size, time_size});
