@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, DISABLED_ReadLogicalAndNetwork) {
+TEST_F(NGraphReaderTests, ReadLogicalAndNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

@@ -185,7 +185,7 @@ namespace ngraph
                              Strides(source_shape.size(), 1));
             }
 
-            /// \brief Class allows to iterate over Tensor with reverted axies part by part.
+            /// \brief Class allows to iterate over Tensor with reverted axes part by part.
             ///
             /// To create ReverseRange use _reverse_ function.
             ///
@@ -213,8 +213,14 @@ namespace ngraph
                 return ReverseRange(source_shape, reversed_axis);
             }
 
+            inline ReverseRange index(const Shape& source_shape)
+            {
+                return reverse(source_shape, {});
+            }
+
         } // namespace impl
         using impl::Direction;
+        using impl::index;
         using impl::reverse;
         using impl::slice;
     } // namespace coordinates
