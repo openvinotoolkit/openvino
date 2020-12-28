@@ -206,9 +206,9 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
                 bDivAValues[i] = 0.f;
             }
         }
-
+        auto aPrecision = a->get_output_element_type(0);
         bDivA = std::make_shared<opset1::Constant>(
-                b->get_output_element_type(0),
+                aPrecision,
                 aBroadcasted ? b->get_output_shape(0) : a->get_output_shape(0),
                 bDivAValues);
     } else {
@@ -221,14 +221,17 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     inputs[1] = bDivA;
 
     std::shared_ptr<opset1::Add> newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
-        std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
+        std::vector<element::Type>{element::f32, element::f32},
+        std::vector<element::Type>{ x->get_output_element_type(0) },
         ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
     copyInfo(addAfterMultiply, newAdd);
 
-    NetworkHelper::setOutDataPrecision(newAdd, addAfterMultiply->get_output_element_type(0));
-
-    auto newMultiply = std::make_shared<DequantizationMultiply>(newAdd, a);
+    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{ multiply->get_output_element_type(0) },
+            ngraph::op::TemporaryReplaceOutputType(newAdd, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(a, element::f32).get());
     copyInfo(multiply, newMultiply);
 
     replace_node(addAfterMultiply, newMultiply);
