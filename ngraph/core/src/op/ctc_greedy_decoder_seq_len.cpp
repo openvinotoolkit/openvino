@@ -121,8 +121,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     }
 
     if (logits_pshape.rank().is_static() && seq_len_pshape.rank().is_static() &&
-            (logits_pshape[0] == Dimension::dynamic() &&
-            seq_len_pshape[0] == Dimension::dynamic()))
+        (logits_pshape[0] == Dimension::dynamic() && seq_len_pshape[0] == Dimension::dynamic()))
     {
         batch_size = seq_len_pshape[0] & logits_pshape[0];
     }
