@@ -20,11 +20,11 @@ import numpy as np
 
 from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
 from extensions.middle.ScaleInput import ScaleInput
+from mo.graph.graph import Graph, Node
 from mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, result, connect, connect_data, \
     valued_const_with_data
-from mo.graph.graph import Graph, Node
 
 nodes = {
     **regular_op_with_shaped_data('parameter', [1, 3, 227, 227],
@@ -281,8 +281,8 @@ class ScaleInputTests(unittest.TestCase):
             *connect('parameter', '0:mul_scale'),
             *connect('scale', '1:mul_scale'),
             *connect('mul_scale', 'result'),
-        ], {'scale': {'shape': [1, 1, 1, 1], 'value': np.array(1/255)},
-            'scale_d': {'shape': [1, 1, 1, 1], 'value': np.array(1/255)}})
+        ], {'scale': {'shape': [1, 1, 1, 1], 'value': np.array(1 / 255)},
+            'scale_d': {'shape': [1, 1, 1, 1], 'value': np.array(1 / 255)}})
 
         graph = build_graph(nodes, connect('parameter', 'result'), nodes_with_edges_only=True, cli=Namespace(scale=255))
         self.set_graph_attrs(graph, ['parameter'])
