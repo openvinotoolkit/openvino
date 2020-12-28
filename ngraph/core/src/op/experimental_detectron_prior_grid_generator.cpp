@@ -124,23 +124,26 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
         return;
     }
 
-    if (priors_shape[0].is_dynamic() || featmap_shape[2].is_dynamic() ||
-        featmap_shape[3].is_dynamic())
+    auto num_priors = priors_shape[0];
+    auto featmap_height = featmap_shape[2];
+    auto featmap_width = featmap_shape[3];
+
+    if (num_priors.is_dynamic() || featmap_height.is_dynamic() || featmap_width.is_dynamic())
     {
         if (!m_attrs.flatten)
         {
-            out_shape[0] = featmap_shape[2];
-            out_shape[1] = featmap_shape[3];
-            out_shape[2] = priors_shape[0];
+            out_shape[0] = featmap_height;
+            out_shape[1] = featmap_width;
+            out_shape[2] = num_priors;
         }
 
         set_output_type(0, input_et, out_shape);
         return;
     }
 
-    const size_t priors_num = static_cast<size_t>(priors_shape[0].get_length());
-    const size_t grid_height = static_cast<size_t>(featmap_shape[2].get_length());
-    const size_t grid_width = static_cast<size_t>(featmap_shape[3].get_length());
+    const size_t priors_num = static_cast<size_t>(num_priors.get_length());
+    const size_t grid_height = static_cast<size_t>(featmap_height.get_length());
+    const size_t grid_width = static_cast<size_t>(featmap_width.get_length());
 
     if (m_attrs.flatten)
     {
