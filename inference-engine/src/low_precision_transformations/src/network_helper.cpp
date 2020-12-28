@@ -927,13 +927,14 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
         std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
     }
 
-    const bool shouldConvert = (newOperation->get_output_element_type(0) != dequantization.multiply->get_output_element_type(0));
+    const element::Type deqPrecision = dequantization.multiply->get_input_node_shared_ptr(1)->get_output_element_type(0);
+    const bool shouldConvert = (newOperation->get_output_element_type(0) != deqPrecision);
 
     auto parent = newOperation;
     if (shouldConvert) {
         const auto convertOutputPrecision = dequantization.convert != nullptr ?
             dequantization.convert->get_output_element_type(0) :
-            dequantization.multiply->get_output_element_type(0);
+            deqPrecision;
         parent = std::make_shared<DequantizationConvert>(parent, convertOutputPrecision);
         ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
@@ -964,11 +965,12 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
                 ", multiply dequantization constant " << multiplyConstant->get_friendly_name() << ":" << multiplyConstant->output(0).get_element_type();
         }
 
-        parent = std::make_shared<DequantizationMultiply>(
-            parent,
-            multiplyConstant->output(0).get_element_type() == parentPrecision ?
-                multiplyConstant :
-                fold<opset1::Convert>(multiplyConstant->output(0), parentPrecision));
+        parent = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+            DequantizationMultiply(parent,
+                multiplyConstant->output(0).get_element_type() == parentPrecision ?
+                    multiplyConstant :
+                    fold<opset1::Convert>(multiplyConstant->output(0), parentPrecision)),
+            dequantization.multiply->get_output_element_type(0));
         ngraph::copy_runtime_info({ newOperation, parent }, parent);
     }
     replace_node(operation, parent);

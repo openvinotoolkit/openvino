@@ -108,7 +108,7 @@ TEST_P(NormalizeL2Transformation, CompareFunctions) {
 }
 
 const std::vector<ngraph::element::Type> precisions = {
-    //ngraph::element::f32,
+    ngraph::element::f32,
     ngraph::element::f16
 };
 

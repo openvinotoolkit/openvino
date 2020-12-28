@@ -46,6 +46,7 @@ public:
 };
 
 typedef std::tuple<
+    ngraph::element::Type,
     ngraph::Shape,
     bool, // additional FakeQuantize After
     std::string, // additional layer before FQ
@@ -54,12 +55,14 @@ typedef std::tuple<
 class AvgPoolTransformation : public LayerTransformation, public testing::WithParamInterface<AvgPoolTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::Shape shape = std::get<0>(GetParam());
-        const bool addFakeQuantize = std::get<1>(GetParam());
-        const std::string additionalLayer = std::get<2>(GetParam());
-        const AvgPoolTransformationTestValues testValues = std::get<3>(GetParam());
-
+        ngraph::element::Type precision;
+        ngraph::Shape shape;
+        bool addFakeQuantize;
+        std::string additionalLayer;
+        AvgPoolTransformationTestValues testValues;
+        std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = GetParam();
         actualFunction = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(
+            precision,
             testValues.actual.inputPrecision,
             shape,
             addFakeQuantize,
@@ -72,6 +75,7 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::AvgPoolFunction::getReference(
+            precision,
             testValues.expected.inputPrecision,
             shape,
             addFakeQuantize,
@@ -82,14 +86,16 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolTransformationParams> obj) {
-        const ngraph::Shape shape = std::get<0>(obj.param);
-        const bool addFakeQuantize = std::get<1>(obj.param);
-        const std::string additionalLayer = std::get<2>(obj.param);
-        const AvgPoolTransformationTestValues testValues = std::get<3>(obj.param);
-
+        ngraph::element::Type precision;
+        ngraph::Shape shape;
+        bool addFakeQuantize;
+        std::string additionalLayer;
+        AvgPoolTransformationTestValues testValues;
+        std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = obj.param;
 
         std::ostringstream result;
         result <<
+            precision << "_" <<
             LayerTransformation::getTestCaseNameByParams(testValues.actual.inputPrecision, shape, testValues.params) << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore << "_" <<
@@ -108,16 +114,19 @@ TEST_P(AvgPoolTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
+};
+
 const std::vector<std::string> additionalLayer = {
     "",
-    // issue #40768
-    // "maxpool"  // any transparent layer
+    "maxpool"  // any transparent layer
 };
 
 const std::vector<bool> addFQ = {
     true,
-    // issue #40768
-    // false
+    false
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -331,6 +340,7 @@ INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     AvgPoolTransformation,
     ::testing::Combine(
+        ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(addFQ),
         ::testing::ValuesIn(additionalLayer),
