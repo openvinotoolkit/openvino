@@ -441,7 +441,7 @@ def port_renumber(graph: Graph):
     for node in graph.get_op_nodes():
         base = 0
         # we need to check operation type, if it is const op, we don't renumber out ports to count them from zero
-        if node.type != 'Const':
+        if node.soft_get('type') != 'Const':
             for u, d in node.get_sorted_inputs():
                 d['in'] = base
                 base += 1
