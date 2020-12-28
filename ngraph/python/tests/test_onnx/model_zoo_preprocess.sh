@@ -72,7 +72,7 @@ function pull_and_postprocess_onnx_model_zoo() {
     mv *.pb test_data_set_0/
 
     # Save SHA of successfully post processed repository
-    git rev-parse HEAD > onnx_sha
+    git rev-parse HEAD > "$MODEL_ZOO_DIR/onnx_sha"
 }
 
 function update_onnx_models() {
@@ -94,7 +94,7 @@ function update_onnx_models() {
     fi
 
     cd "$ONNX_MODELS_DIR"
-    export CURRENT_ONNX_MODELS_SHA=`head -n1 onnx_sha  2> /dev/null 2>&1`
+    export CURRENT_ONNX_MODELS_SHA=`head -n1 "$MODEL_ZOO_DIR/onnx_sha"  2> /dev/null 2>&1`
     if [[ $ONNX_SHA = $CURRENT_ONNX_MODELS_SHA ]] ; then
         echo "ONNX Model Zoo repository is in the right state"
     else
