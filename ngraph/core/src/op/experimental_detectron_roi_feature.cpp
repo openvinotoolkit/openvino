@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <memory>
 #include <utility>
-#include <iostream>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
