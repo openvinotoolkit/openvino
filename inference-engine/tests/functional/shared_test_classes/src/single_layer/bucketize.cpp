@@ -11,11 +11,12 @@ namespace LayerTestsDefinitions {
         InferenceEngine::SizeVector dataShape;
         InferenceEngine::SizeVector bucketsShape;
         bool with_right_bound;
-        InferenceEngine::Precision inPrc;
+        InferenceEngine::Precision inDataPrc;
+        InferenceEngine::Precision inBucketsPrc;
         InferenceEngine::Precision netPrc;
         std::string targetDevice;
 
-        std::tie(dataShape, bucketsShape, with_right_bound, inPrc, netPrc, targetDevice) = obj.param;
+        std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) = obj.param;
 
         std::ostringstream result;
         result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
@@ -24,7 +25,8 @@ namespace LayerTestsDefinitions {
             result << "rightIntervalEdge_";
         else
             result << "leftIntervalEdge_";
-        result << "inPrc=" << inPrc.name() << "_";
+        result << "inDataPrc=" << inDataPrc.name() << "_";
+        result << "inBucketsPrc=" << inBucketsPrc.name() << "_";
         result << "netPrc=" << netPrc.name() << "_";
         result << "trgDev=" << targetDevice;
         return result.str();
@@ -47,17 +49,20 @@ namespace LayerTestsDefinitions {
         InferenceEngine::SizeVector dataShape;
         InferenceEngine::SizeVector bucketsShape;
         bool with_right_bound;
-        InferenceEngine::Precision inPrc;
+        InferenceEngine::Precision inDataPrc;
+        InferenceEngine::Precision inBucketsPrc;
         InferenceEngine::Precision netPrc;
 
-        std::tie(dataShape, bucketsShape, with_right_bound, inPrc, netPrc, targetDevice) = this->GetParam();
+        std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) = this->GetParam();
 
-        auto ngInPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        auto ngInDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inDataPrc);
+        auto ngInBucketsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inBucketsPrc);
         auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
-        auto params = ngraph::builder::makeParams(ngInPrc, {{"a_data", dataShape}, {"b_buckets", bucketsShape}});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(paramOuts[0], paramOuts[1], ngNetPrc, with_right_bound);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize), params, "Bucketize");
+        auto data = std::make_shared<ngraph::op::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
+        data->set_friendly_name("a_data");
+        auto buckets = std::make_shared<ngraph::op::Parameter>(ngInBucketsPrc, ngraph::Shape(bucketsShape));
+        buckets->set_friendly_name("b_buckets");
+        auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(data, buckets, ngNetPrc, with_right_bound);
+        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize), ngraph::ParameterVector{data, buckets}, "Bucketize");
     }
 } // namespace LayerTestsDefinitions

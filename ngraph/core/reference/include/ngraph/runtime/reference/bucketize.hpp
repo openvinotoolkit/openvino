@@ -26,9 +26,9 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T, typename P>
+            template <typename T, typename B, typename P>
             void bucketize(const T* data,
-                           const T* buckets,
+                           const B* buckets,
                            P* out,
                            const Shape& data_shape,
                            const Shape& buckets_shape,
@@ -48,7 +48,7 @@ namespace ngraph
                 for (size_t i = 0; i < data_size; i++)
                 {
                     const T val = data[i];
-                    const T* bound = nullptr;
+                    const B* bound = nullptr;
 
                     bound = with_right_bound
                                 ? std::lower_bound(buckets, buckets + buckets_size, val)

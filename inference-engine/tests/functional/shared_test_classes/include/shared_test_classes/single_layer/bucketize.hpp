@@ -18,7 +18,8 @@ using bucketizeParamsTuple = std::tuple<
     InferenceEngine::SizeVector,    // Data shape
     InferenceEngine::SizeVector,    // Buckets shape
     bool,                           // Right edge of interval
-    InferenceEngine::Precision,     // Input precision
+    InferenceEngine::Precision,     // Data input precision
+    InferenceEngine::Precision,     // Buckets input precision
     InferenceEngine::Precision,     // Output precision
     std::string>;                   // Device name
 
