@@ -69,6 +69,22 @@ void MatMulWithConstantTransformation::SetUp() {
         testValues.fqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    validate();
+}
+
+void MatMulWithConstantTransformation::validate() {
+    ngraph::element::Type precision;
+    std::string targetDevice;
+    MatMulWithConstantTransformationTestValues testValues;
+    std::tie(precision, targetDevice, testValues) = this->GetParam();
+
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 void MatMulWithConstantTransformation::Run() {
