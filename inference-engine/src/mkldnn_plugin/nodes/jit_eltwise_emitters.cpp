@@ -204,14 +204,43 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
     Vmm vmm_src1 = Vmm(in_vec_idxs[1]);
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
+    auto uni_vdiv = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
+        switch (exec_prc_) {
+            case Precision::FP32: {
+                h->uni_vdivps(vmm_dst, vmm_src0, vmm_src1);
+                break;
+            }
+            case Precision::I32: {
+                Vmm vmm_aux0 = Vmm(aux_vec_idxs[0]);
+
+                // The opset doesn't contain vector instruction for integer divide operation
+                // As WA we emulate its behavior via fp divide followed by rounding to zero
+                h->uni_vcvtdq2ps(vmm_dst, vmm_src0);
+                h->uni_vcvtdq2ps(vmm_aux0, vmm_src1);
+                h->uni_vdivps(vmm_dst, vmm_dst, vmm_aux0);
+                h->uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+                h->uni_vcvtps2dq(vmm_dst, vmm_dst);
+                break;
+            }
+            default: assert(!"unsupported precision");
+        }
+    };
+
     if (isa == cpu::sse42) {
         h->uni_vmovups(vmm_dst, vmm_src0);
-        h->uni_vdivps(vmm_dst, vmm_dst, vmm_src1);
+        uni_vdiv(vmm_dst, vmm_dst, vmm_src1);
     } else {
-        h->uni_vdivps(vmm_dst, vmm_src0, vmm_src1);
+        uni_vdiv(vmm_dst, vmm_src0, vmm_src1);
     }
 }
 
+std::set<InferenceEngine::Precision> jit_divide_emitter::get_supported_precisions() {
+    return {Precision::FP32, Precision::I32};
+}
+
+size_t jit_divide_emitter::aux_vecs_count() const {
+    return exec_prc_ == Precision::I32 ? 1 : 0;
+}
 
 /// FLOOR_MOD ///
 jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)

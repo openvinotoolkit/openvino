@@ -81,6 +81,7 @@ public:
                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32);
 
     size_t get_inputs_num() override;
+    static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
     void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
@@ -88,6 +89,7 @@ private:
 
     template <mkldnn::impl::cpu::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+    size_t aux_vecs_count() const override;
 };
 
 
