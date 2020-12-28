@@ -57,6 +57,24 @@ void ConcatTransformation::SetUp() {
         inputShape,
         testValues.fqOnData1,
         testValues.fqOnData2);
+
+    validate();
+}
+
+void ConcatTransformation::validate() {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShapes;
+    std::string targetDevice;
+    ConcatTransformationTestValues testValues;
+    std::tie(precision, inputShapes, targetDevice, testValues) = GetParam();
+
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {

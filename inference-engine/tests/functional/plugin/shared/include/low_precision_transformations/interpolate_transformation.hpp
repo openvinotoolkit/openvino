@@ -49,6 +49,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

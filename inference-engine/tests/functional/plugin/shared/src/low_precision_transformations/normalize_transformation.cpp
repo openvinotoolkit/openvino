@@ -60,6 +60,30 @@ void NormalizeL2Transformation::SetUp() {
         axes,
         fuseMultiply,
         shift);
+
+    validate();
+}
+
+void NormalizeL2Transformation::validate() {
+    ngraph::element::Type precision;
+    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::string targetDevice;
+    std::vector<uint64_t> axes;
+    bool fuseMultiply;
+    bool shift;
+    std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
+
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto normalize = output->get_input_node_shared_ptr(0);
+    const std::string typeName = normalize->get_type_name();
+    ASSERT_EQ("NormalizeIE", typeName);
+
+    const auto inputPrecision = normalize->get_input_element_type(0);
+    const auto expectedPrecision = shift ? ngraph::element::f32 : ngraph::element::u8;
+    ASSERT_EQ(inputPrecision, expectedPrecision);
 }
 
 TEST_P(NormalizeL2Transformation, CompareWithRefImpl) {

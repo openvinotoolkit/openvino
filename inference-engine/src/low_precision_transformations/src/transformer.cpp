@@ -101,28 +101,6 @@ void LowPrecisionTransformations::setQuantizedTensorAlignmentOnWeights(
     }
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::remove(const std::string& operationType) {
-    removeBranchSpecificTransformations(operationType);
-    removeTransformations(operationType);
-    removeCleanupTransformations(operationType);
-    return *this;
-}
-
-LowPrecisionTransformations& LowPrecisionTransformations::removeBranchSpecificTransformations(const std::string& operationType) {
-    branchSpecificTransformations.erase(operationType);
-    return *this;
-}
-
-LowPrecisionTransformations& LowPrecisionTransformations::removeTransformations(const std::string& operationType) {
-    transformations.erase(operationType);
-    return *this;
-}
-
-LowPrecisionTransformations& LowPrecisionTransformations::removeCleanupTransformations(const std::string& operationType) {
-    cleanupTransformations.erase(operationType);
-    return *this;
-}
-
 std::vector<LayerTransformationPtr> LowPrecisionTransformations::find(const std::string& transformationKey) const {
     auto it = branchSpecificTransformations.find(transformationKey);
     std::vector<LayerTransformationPtr> res;

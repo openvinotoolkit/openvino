@@ -30,7 +30,9 @@ public:
 
     class Expected {
     public:
-        ngraph::element::Type precision;
+        ngraph::element::Type inputPrecision;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ngraph::element::Type precisionAfterOperation;
         std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
@@ -73,7 +75,9 @@ public:
 
         referenceFunction = ngraph::builder::subgraph::SplitFunction::getReference(
             testValues.inputShape,
-            testValues.expected.precision,
+            testValues.expected.inputPrecision,
+            testValues.expected.dequantizationBefore,
+            testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter,
             testValues.splitedAxis,
             testValues.numSplits);
@@ -115,6 +119,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
         // ExpectedValues
         {
             ngraph::element::u8,
+            {},
+            ngraph::element::u8,
             {
                 {{ngraph::element::f32}, {128.f}, {3.f}},
                 {{ngraph::element::f32}, {128.f}, {3.f}},
@@ -131,6 +137,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
+            {},
+            ngraph::element::u8,
             {
                 {{ngraph::element::f32}, {128.f}, {3.f}},
                 {{ngraph::element::f32}, {128.f}, {3.f}},
@@ -148,6 +156,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         },
         {
+            ngraph::element::u8,
+            {},
             ngraph::element::u8,
             {
                 {
@@ -180,6 +190,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
+            {},
+            ngraph::element::i8,
             {
                 {
                     {ngraph::element::f32},
@@ -210,6 +222,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {{11.f, 11.f, 11.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         },
         {
+            ngraph::element::u8,
+            {},
             ngraph::element::u8,
             {
                 {
@@ -242,6 +256,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
+            {},
+            ngraph::element::i8,
             {
                 {
                     {ngraph::element::f32},
@@ -272,6 +288,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         },
         {
+            ngraph::element::u8,
+            {},
             ngraph::element::u8,
             {
                 {
@@ -304,6 +322,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
+            {},
+            ngraph::element::i8,
             {
                 {
                     {ngraph::element::f32},
@@ -334,6 +354,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
         },
         {
+            ngraph::element::u8,
+            {},
             ngraph::element::u8,
             {
                 {
@@ -366,6 +388,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
+            {},
+            ngraph::element::i8,
             {
                 {
                     {ngraph::element::f32},
@@ -397,6 +421,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
+            {},
+            ngraph::element::i8,
             {
                 {
                     {ngraph::element::f32},
@@ -422,6 +448,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
             {{11.f, 22.f, 33.f, 44.f}, ngraph::element::f32, {1, 4, 1, 1}}}
         },
         {
+            ngraph::element::f32,
+            {},
             ngraph::element::f32,
             {
                 {

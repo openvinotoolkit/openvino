@@ -290,7 +290,9 @@ void ConcatTransformation::addDequantizationLayers(
                             for (size_t i = 0; i < layerDequantizations.size(); ++i) {
                                 const auto& dequantization = layerDequantizations[i];
 
-                                convertNodes.push_back(dequantization.convert);
+                                if (dequantization.convert != nullptr) {
+                                    convertNodes.push_back(dequantization.convert);
+                                }
 
                                 const ngraph::element::Type precision = dequantization.data.get_element_type();
                                 ngraph::Shape targetShape = dequantization.data.get_shape();

@@ -13,13 +13,19 @@
 #include "lpt_ngraph_functions/fake_quantize_and_two_output_branches_with_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
+class FakeQuantizeAndTwoOutputBranchesWithConvolution {
+public:
+    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights1;
+    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights2;
+};
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues
+    FakeQuantizeAndTwoOutputBranchesWithConvolution
 > FakeQuantizeAndTwoOutputBranchesWithConvolutionParams;
 
 class FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation :
@@ -30,6 +36,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

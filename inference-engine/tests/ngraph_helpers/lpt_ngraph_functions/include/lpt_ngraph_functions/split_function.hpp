@@ -35,6 +35,8 @@ public:
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::Shape& inputShape,
+        const ngraph::element::Type inputPrecision,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,
         const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
         const int64_t splitedAxis,

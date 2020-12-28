@@ -45,6 +45,8 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize1;
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize3;
+    ngraph::element::Type precisionBeforeOp;
+    ngraph::element::Type precisionAfterOp;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOperations;
 };
 
@@ -65,7 +67,6 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
 
 typedef std::tuple <
     ngraph::element::Type,
-    bool,
     ngraph::Shape,
     ConcatTransformationTestValues
 > ConcatTransformationParams;
@@ -74,16 +75,8 @@ class ConcatWithReshapeAtTheEndTransformation : public LayerTransformation, publ
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const bool updatePrecisions = std::get<1>(GetParam());
-        const ngraph::Shape shape = std::get<2>(GetParam());
-        ConcatTransformationTestValues testValues = std::get<3>(GetParam());
-
-        testValues.params.updatePrecisions = updatePrecisions;
-        if (!updatePrecisions) {
-            testValues.result.fakeQuantize1.outputPrecision = testValues.actual.fakeQuantize1.outputPrecision;
-            testValues.result.fakeQuantize2.outputPrecision = testValues.actual.fakeQuantize2.outputPrecision;
-            testValues.result.fakeQuantize3.outputPrecision = testValues.actual.fakeQuantize3.outputPrecision;
-        }
+        const ngraph::Shape shape = std::get<1>(GetParam());
+        ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithReshapeAtTheEndTransformation(
             precision,
@@ -98,30 +91,25 @@ public:
         transform.add<ngraph::pass::low_precision::ReshapeTransformation, ngraph::opset1::Reshape>(testValues.params);
         transform.transform(actualFunction);
 
-        if (!testValues.params.updatePrecisions) {
-            // there is no Convert operation after MaxPool in FP32
-            testValues.result.dequantizationOperations.convert = {};
-        }
-
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithReshapeAtTheEndTransformation(
             precision,
             shape,
             testValues.result.fakeQuantize1,
             testValues.result.fakeQuantize2,
             testValues.result.fakeQuantize3,
+            testValues.result.precisionBeforeOp,
+            testValues.result.precisionAfterOp,
             testValues.result.dequantizationOperations);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
-        const bool updatePrecision = std::get<1>(obj.param);
-        const ngraph::Shape shape = std::get<2>(obj.param);
-        const ConcatTransformationTestValues testValues = std::get<3>(obj.param);
+        const ngraph::Shape shape = std::get<1>(obj.param);
+        const ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
         result <<
             LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_" <<
-            (updatePrecision ? "updatePrecision_" : "notUpdatePrecision_") <<
             testValues.actual << "_" <<
             testValues.result << "_";
         return result.str();
@@ -138,8 +126,6 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
 };
 
-const std::vector<bool> updatePrecisions = { true, false };
-
 const std::vector<ConcatTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8(),
@@ -149,10 +135,28 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
         },
         {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            ngraph::element::u8,
+            ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.01f } }
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+        },
+        {
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+            ngraph::element::f32,
+            ngraph::element::f32,
+            { {}, {}, { 0.01f } }
         }
     },
     {
@@ -178,20 +182,20 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {
                 256ul,
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}, ngraph::element::u8
+                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}
             },
             {
                 256ul,
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f},
-                ngraph::element::u8
+                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}
             },
             {
                 256ul,
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f},
-                ngraph::element::u8
+                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}
             },
+            ngraph::element::u8,
+            ngraph::element::u8,
             { ngraph::element::f32, {}, {{ 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f }} }
         }
     }
@@ -207,7 +211,6 @@ INSTANTIATE_TEST_CASE_P(
     ConcatWithReshapeAtTheEndTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(updatePrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
     ConcatWithReshapeAtTheEndTransformation::getTestCaseName);

@@ -54,17 +54,17 @@ void GroupConvolutionTransformation::SetUp() {
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 
-    validateNGraph();
+    validate();
 }
 
-void GroupConvolutionTransformation::validateNGraph() {
+void GroupConvolutionTransformation::validate() {
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     GroupConvolutionTransformationParam param;
 
     std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
 
-    auto transformed = transformNGraph(params);
+    auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
     EXPECT_EQ(1ul, transformed->get_output_size());
     std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
 

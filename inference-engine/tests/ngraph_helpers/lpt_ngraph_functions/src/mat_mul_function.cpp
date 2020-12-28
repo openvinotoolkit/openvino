@@ -19,6 +19,77 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
+    const ngraph::Shape inputShape,
+    const float low,
+    const float high) {
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
+        input1, precision, 256ul, { 1ul },
+        { low / 4.f }, { high / 4.f }, { low / 4.f }, { high / 4.f });
+    fakeQuantize1->set_friendly_name("fakeQuantize1");
+
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
+        input2, precision, 256ul, { 1ul },
+        { low / 8.f }, { high / 8.f }, { low / 8.f }, { high / 8.f });
+    fakeQuantize2->set_friendly_name("fakeQuantize2");
+
+    const auto matMul = std::make_shared<ngraph::opset1::MatMul>(
+        fakeQuantize1->output(0),
+        fakeQuantize2->output(0),
+        false,
+        false);
+    matMul->set_friendly_name("matMul");
+
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(matMul) },
+        ngraph::ParameterVector{ input1, input2 },
+        "GemmTransformation");
+
+    return function;
+}
+
+std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
+    const ngraph::element::Type precision,
+    const ngraph::Shape inputShape1,
+    const ngraph::Shape inputShape2,
+    const bool transpose1,
+    const bool transpose2) {
+    const auto paramNode = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
+    const std::vector<size_t> constShapes(inputShape1.size(), 1ul);
+    const auto fakeQuantizeOnAcitvations = ngraph::builder::makeFakeQuantize(
+        paramNode, precision, 256ul, constShapes,
+        { 0.f }, { 255.f / 4.f }, { 0.f }, { 255.f / 4.f });
+    fakeQuantizeOnAcitvations->set_friendly_name("fakeQuantizeOnAcitvations");
+
+    auto weightsConst = std::make_shared<ngraph::op::Constant>(
+        precision,
+        inputShape2,
+        std::vector<float>({ 1.f }));
+    const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
+        weightsConst, precision, 256ul, { 1ul, 1ul },
+        { -128.f / 8.f }, { 127.f / 8.f }, { -128.f / 8.f }, { 127.f / 8.f });
+    fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
+
+    const std::shared_ptr<ngraph::opset1::MatMul> fullyConnected = std::make_shared<ngraph::opset1::MatMul>(
+        fakeQuantizeOnAcitvations->output(0),
+        fakeQuantizeOnWeights->output(0),
+        transpose1,
+        transpose2);
+    fullyConnected->set_friendly_name("fullyConnected");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fullyConnected) };
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ paramNode },
+        "FullyConnectedTransformation");
+
+    return function;
+}
+
+
+std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
+    const ngraph::element::Type precision,
     const ngraph::Shape& inputShape1,
     const FakeQuantizeOnData& fqOnData1,
     const ngraph::Shape& inputShape2,

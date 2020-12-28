@@ -16,12 +16,12 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> testValues = {
-    {},
-    { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} },
-    { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
-    { 256ul, ngraph::Shape({}), {12.75f}, {25.5f}, {12.75f}, {25.5f} },
-    { 256ul, ngraph::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }
+std::vector<ReluTestValues> testValues = {
+    { {}, false},
+    { { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} }, false },
+    { { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} }, true },
+    { { 256ul, ngraph::Shape({}), {12.75f}, {25.5f}, {12.75f}, {25.5f} }, true },
+    { { 256ul, ngraph::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }, true }
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ReluTransformation,

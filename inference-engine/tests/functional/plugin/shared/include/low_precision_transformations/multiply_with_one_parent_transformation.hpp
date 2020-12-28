@@ -18,8 +18,8 @@ public:
 };
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
     MultiplyWithOneParentTransformationValues
 > MultiplyWithOneParentTransformationParams;

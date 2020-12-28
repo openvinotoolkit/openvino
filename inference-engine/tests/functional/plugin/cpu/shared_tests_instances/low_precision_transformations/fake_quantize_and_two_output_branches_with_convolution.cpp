@@ -11,16 +11,16 @@ using namespace LayerTestsDefinitions;
 using namespace ngraph::pass::low_precision;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    // InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues> testValues = {
+const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolution> testValues = {
     {
         { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
@@ -32,7 +32,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWit
 INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
+        ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(testValues)),

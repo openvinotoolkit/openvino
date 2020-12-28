@@ -17,6 +17,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "lpt_ngraph_functions/mat_mul_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -43,34 +44,29 @@ void FullyConnectedTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, shapes, targetDevice, params) = this->GetParam();
 
-    InferenceEngine::SizeVector shapeOnActivations;
-    InferenceEngine::SizeVector shapeOnWeights;
-
-    const auto paramNode = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(shapes.inputA));
-    const std::vector<size_t> constShapes(shapes.inputA.size(), 1ul);
-    const auto fakeQuantizeOnAcitvations = ngraph::builder::makeFakeQuantize(
-        paramNode, precision, 256ul, constShapes,
-        { 0.f }, { 255.f / 4.f }, { 0.f }, { 255.f / 4.f });
-    fakeQuantizeOnAcitvations->set_friendly_name("fakeQuantizeOnAcitvations");
-
-    auto weightsConst = std::make_shared<ngraph::op::Constant>(
+    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         precision,
+        shapes.inputA,
         shapes.inputB,
-        std::vector<float>({ 1.f }));
-    const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
-        weightsConst, precision, 256ul, { 1ul, 1ul },
-        { -128.f / 8.f }, { 127.f / 8.f }, { -128.f / 8.f }, { 127.f / 8.f });
-    fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
-
-    const std::shared_ptr<ngraph::opset1::MatMul> fullyConnected = std::make_shared<ngraph::opset1::MatMul>(
-        fakeQuantizeOnAcitvations->output(0),
-        fakeQuantizeOnWeights->output(0),
         shapes.transposeA,
         shapes.transposeB);
-    fullyConnected->set_friendly_name("fullyConnected");
 
-    ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(fullyConnected)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { paramNode }, "FullyConnectedTransformation");
+    validate();
+}
+
+void FullyConnectedTransformation::validate() {
+    ngraph::element::Type precision;
+    MatMulShapes shapes;
+    std::string targetDevice;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    std::tie(precision, shapes, targetDevice, params) = this->GetParam();
+
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {

@@ -43,7 +43,7 @@ protected:
     void Run() override;
 
 private:
-    void validateNGraph();
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

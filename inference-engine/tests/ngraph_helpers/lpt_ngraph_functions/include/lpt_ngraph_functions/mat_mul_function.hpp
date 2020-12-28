@@ -18,6 +18,19 @@ class MatMulFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
+        const ngraph::Shape inputShape,
+        const float low,
+        const float high);
+
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
+        const ngraph::Shape inputShape1,
+        const ngraph::Shape inputShape2,
+        const bool transpose1,
+        const bool transpose2);
+
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
         const ngraph::Shape& inputShape1,
         const FakeQuantizeOnData& fqOnData1,
         const ngraph::Shape& inputShape2,

@@ -32,7 +32,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 }
 
 InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;
     std::string targetDevice;
@@ -49,7 +49,7 @@ InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceE
 }
 
 std::string SqueezeTransformation::getTestCaseName(testing::TestParamInfo<SqueezeTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
     SqueezeTransformationParam squeezeParam;
@@ -65,20 +65,37 @@ std::string SqueezeTransformation::getTestCaseName(testing::TestParamInfo<Squeez
     return result.str();
 }
 void SqueezeTransformation::SetUp() {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     SqueezeTransformationParam squeezeParam;
 
     std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
-    ngraph::element::Type ngraphPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     function = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
-        ngraphPrecision,
+        netPrecision,
         squeezeParam.shape,
         squeezeParam.fakeQuantize,
         squeezeParam.squeezeAxes);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    validate();
+}
+
+void SqueezeTransformation::validate() {
+    ngraph::element::Type netPrecision;
+    std::string targetDevice;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    SqueezeTransformationParam squeezeParam;
+
+    std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
+
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto layer = output->get_input_node_shared_ptr(0);
+    const std::string typeName = layer->get_type_name();
+
+    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(SqueezeTransformation, CompareWithRefImpl) {

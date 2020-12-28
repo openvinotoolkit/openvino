@@ -11,11 +11,18 @@
 
 namespace LayerTestsDefinitions {
 
+typedef std::tuple<
+    ngraph::element::Type,
+    ngraph::Shape,
+    std::string,
+    ngraph::pass::low_precision::LayerTransformation::Params
+> SubtractTransformationParams;
+
 class SubtractTransformation :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+    public testing::WithParamInterface<SubtractTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<SubtractTransformationParams> obj);
 
 protected:
     void SetUp() override;
