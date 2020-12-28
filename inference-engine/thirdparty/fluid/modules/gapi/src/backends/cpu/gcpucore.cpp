@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -342,6 +342,14 @@ GAPI_OCV_KERNEL(GCPUSum, cv::gapi::core::GSum)
     }
 };
 
+GAPI_OCV_KERNEL(GCPUCountNonZero, cv::gapi::core::GCountNonZero)
+{
+    static void run(const cv::Mat& in, int& out)
+    {
+        out = cv::countNonZero(in);
+    }
+};
+
 GAPI_OCV_KERNEL(GCPUAddW, cv::gapi::core::GAddW)
 {
     static void run(const cv::Mat& in1, double alpha, const cv::Mat& in2, double beta, double gamma, int dtype, cv::Mat& out)
@@ -502,14 +510,6 @@ GAPI_OCV_KERNEL(GCPUCrop, cv::gapi::core::GCrop)
     }
 };
 
-GAPI_OCV_KERNEL(GCPUCopy, cv::gapi::core::GCopy)
-{
-    static void run(const cv::Mat& in, cv::Mat& out)
-    {
-        in.copyTo(out);
-    }
-};
-
 GAPI_OCV_KERNEL(GCPUConcatHor, cv::gapi::core::GConcatHor)
 {
     static void run(const cv::Mat& in1, const cv::Mat& in2, cv::Mat& out)
@@ -577,6 +577,63 @@ GAPI_OCV_KERNEL(GCPUWarpAffine, cv::gapi::core::GWarpAffine)
     }
 };
 
+GAPI_OCV_KERNEL(GCPUKMeansND, cv::gapi::core::GKMeansND)
+{
+    static void run(const cv::Mat& data, const int K, const cv::Mat& inBestLabels,
+                    const cv::TermCriteria& criteria, const int attempts,
+                    const cv::KmeansFlags flags,
+                    double& compactness, cv::Mat& outBestLabels, cv::Mat& centers)
+    {
+        if (flags & cv::KMEANS_USE_INITIAL_LABELS)
+        {
+            inBestLabels.copyTo(outBestLabels);
+        }
+        compactness = cv::kmeans(data, K, outBestLabels, criteria, attempts, flags, centers);
+    }
+};
+
+GAPI_OCV_KERNEL(GCPUKMeansNDNoInit, cv::gapi::core::GKMeansNDNoInit)
+{
+    static void run(const cv::Mat& data, const int K, const cv::TermCriteria& criteria,
+                    const int attempts, const cv::KmeansFlags flags,
+                    double& compactness, cv::Mat& outBestLabels, cv::Mat& centers)
+    {
+        compactness = cv::kmeans(data, K, outBestLabels, criteria, attempts, flags, centers);
+    }
+};
+
+GAPI_OCV_KERNEL(GCPUKMeans2D, cv::gapi::core::GKMeans2D)
+{
+    static void run(const std::vector<cv::Point2f>& data, const int K,
+                    const std::vector<int>& inBestLabels, const cv::TermCriteria& criteria,
+                    const int attempts, const cv::KmeansFlags flags,
+                    double& compactness, std::vector<int>& outBestLabels,
+                    std::vector<cv::Point2f>& centers)
+    {
+        if (flags & cv::KMEANS_USE_INITIAL_LABELS)
+        {
+            outBestLabels = inBestLabels;
+        }
+        compactness = cv::kmeans(data, K, outBestLabels, criteria, attempts, flags, centers);
+    }
+};
+
+GAPI_OCV_KERNEL(GCPUKMeans3D, cv::gapi::core::GKMeans3D)
+{
+    static void run(const std::vector<cv::Point3f>& data, const int K,
+                    const std::vector<int>& inBestLabels, const cv::TermCriteria& criteria,
+                    const int attempts, const cv::KmeansFlags flags,
+                    double& compactness, std::vector<int>& outBestLabels,
+                    std::vector<cv::Point3f>& centers)
+    {
+        if (flags & cv::KMEANS_USE_INITIAL_LABELS)
+        {
+            outBestLabels = inBestLabels;
+        }
+        compactness = cv::kmeans(data, K, outBestLabels, criteria, attempts, flags, centers);
+    }
+};
+
 GAPI_OCV_KERNEL(GCPUParseSSDBL, cv::gapi::nn::parsers::GParseSSDBL)
 {
     static void run(const cv::Mat&  in_ssd_result,
@@ -617,7 +674,7 @@ GAPI_OCV_KERNEL(GCPUParseYolo, cv::gapi::nn::parsers::GParseYolo)
     }
 };
 
-GAPI_OCV_KERNEL(GCPUSize, cv::gapi::core::GSize)
+GAPI_OCV_KERNEL(GCPUSize, cv::gapi::streaming::GSize)
 {
     static void run(const cv::Mat& in, cv::Size& out)
     {
@@ -626,7 +683,7 @@ GAPI_OCV_KERNEL(GCPUSize, cv::gapi::core::GSize)
     }
 };
 
-GAPI_OCV_KERNEL(GCPUSizeR, cv::gapi::core::GSizeR)
+GAPI_OCV_KERNEL(GCPUSizeR, cv::gapi::streaming::GSizeR)
 {
     static void run(const cv::Rect& in, cv::Size& out)
     {
@@ -679,6 +736,7 @@ cv::gapi::GKernelPackage cv::gapi::core::cpu::kernels()
          , GCPUAbsDiff
          , GCPUAbsDiffC
          , GCPUSum
+         , GCPUCountNonZero
          , GCPUAddW
          , GCPUNormL1
          , GCPUNormL2
@@ -696,7 +754,6 @@ cv::gapi::GKernelPackage cv::gapi::core::cpu::kernels()
          , GCPURemap
          , GCPUFlip
          , GCPUCrop
-         , GCPUCopy
          , GCPUConcatHor
          , GCPUConcatVert
          , GCPULUT
@@ -705,6 +762,10 @@ cv::gapi::GKernelPackage cv::gapi::core::cpu::kernels()
          , GCPUNormalize
          , GCPUWarpPerspective
          , GCPUWarpAffine
+         , GCPUKMeansND
+         , GCPUKMeansNDNoInit
+         , GCPUKMeans2D
+         , GCPUKMeans3D
          , GCPUParseSSDBL
          , GOCVParseSSD
          , GCPUParseYolo

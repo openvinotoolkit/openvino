@@ -39,6 +39,7 @@ op::v1::OneHot::OneHot(const Output<Node>& indices,
 
 void op::v1::OneHot::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_OneHot_validate_and_infer_types);
     const auto& indices_et = get_input_element_type(0);
     const auto& depth_et = get_input_element_type(1);
     const auto& on_value_et = get_input_element_type(2);
@@ -121,12 +122,14 @@ void op::v1::OneHot::validate_and_infer_types()
 
 bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_OneHot_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_OneHot_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::OneHot>(
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
@@ -159,12 +162,10 @@ namespace detail
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_one_hot_out, _, a))                                    \
-        {                                                                                          \
-            using IT = typename element_type_traits<element::Type_t::a>::value_type;               \
-            using OT = typename element_type_traits<out_t>::value_type;                            \
-            rc = evaluate<IT, OT>(__VA_ARGS__);                                                    \
-        }                                                                                          \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_one_hot_out, _, a));                                   \
+        using IT = typename element_type_traits<element::Type_t::a>::value_type;                   \
+        using OT = typename element_type_traits<out_t>::value_type;                                \
+        rc = evaluate<IT, OT>(__VA_ARGS__);                                                        \
     }                                                                                              \
     break
 
@@ -208,9 +209,6 @@ namespace detail
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
-    NGRAPH_OP_SCOPE(v1_OneHot_evaluate)
-    {
-        return detail::evaluate_onehot(output_values, input_values, get_axis());
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
+    return detail::evaluate_onehot(output_values, input_values, get_axis());
 }

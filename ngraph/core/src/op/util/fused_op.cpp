@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/fused_op.hpp"
+#include "itt.hpp"
 
 #include "ngraph/graph_util.hpp"
 
@@ -34,6 +35,7 @@ op::util::FusedOp::FusedOp(const OutputVector& args)
 
 void op::util::FusedOp::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_FusedOp_validate_and_infer_types);
     pre_validate_and_infer_types();
 
     if (!can_decompose_with_partial_shapes() && is_dynamic())
