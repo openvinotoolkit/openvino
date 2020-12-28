@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/deformable_convolution.hpp"
+#include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -50,6 +51,7 @@ op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
 
 bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_DeformableConvolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -62,6 +64,7 @@ bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::DeformableConvolution::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_DeformableConvolution_validate_and_infer_types);
     const PartialShape& data_batch_shape = get_input_partial_shape(0);
     const PartialShape& deformable_values_shape = get_input_partial_shape(1);
     const PartialShape& filters_shape = get_input_partial_shape(2);
@@ -101,14 +104,14 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
 
     if (m_deformable_group > 1 && deformable_values_shape[1].is_static())
     {
-        NODE_VALIDATION_CHECK(
-            this,
-            deformable_values_shape[1].get_length() % m_deformable_group == 0,
-            "The deformable values input must be evenly divisible by the 'deformable group' value "
-            "along the channels axis. Current input shape: ",
-            deformable_values_shape,
-            ", 'deformable group' attribute value: ",
-            m_deformable_group);
+        NODE_VALIDATION_CHECK(this,
+                              deformable_values_shape[1].get_length() % m_deformable_group == 0,
+                              "The deformable values input must be evenly divisible by the "
+                              "'deformable group' value "
+                              "along the channels axis. Current input shape: ",
+                              deformable_values_shape,
+                              ", 'deformable group' attribute value: ",
+                              m_deformable_group);
     }
 
     element::Type result_et;
@@ -197,6 +200,7 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
 shared_ptr<Node>
     op::v1::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_DeformableConvolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::DeformableConvolution>(new_args.at(0),
                                                   new_args.at(1),
