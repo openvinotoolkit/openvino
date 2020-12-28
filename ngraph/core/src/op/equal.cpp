@@ -77,15 +77,13 @@ op::v1::Equal::Equal(const Output<Node>& arg0,
 
 shared_ptr<Node> op::v1::Equal::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Equal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Equal>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
 bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Equal_evaluate)
-    {
-        return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_Equal_evaluate);
+    return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
