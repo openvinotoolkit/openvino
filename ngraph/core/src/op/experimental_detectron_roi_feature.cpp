@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include <iostream>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -75,7 +76,7 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     }
 
     size_t num_of_inputs = get_input_size();
-    std::vector<Dimension> channels(num_of_inputs);
+    std::vector<Dimension> channels(num_of_inputs - 1);
 
     for (size_t i = 1; i < num_of_inputs; ++i)
     {
@@ -99,15 +100,28 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
                               "Got: ",
                               current_shape[0]);
 
-        channels[i] = current_shape[1];
+        channels[i - 1] = current_shape[1];
     }
 
     auto featmap_shape = get_input_partial_shape(1);
     auto expected_channels = featmap_shape[1];
+
+    bool there_are_dynamic_channels =
+        std::any_of(channels.begin(), channels.end(), [&expected_channels](const Dimension& d) {
+            return d.is_dynamic();
+        });
+
+    if (there_are_dynamic_channels)
+    {
+        set_output_type(0, input_et, out_shape);
+        return;
+    }
+
     bool correct_channels =
-        std::all_of(channels.begin(), channels.end(), [&expected_channels](const Dimension& d) {
+        std::all_of(channels.begin() + 1, channels.end(), [&expected_channels](const Dimension& d) {
             return expected_channels == d;
         });
+
     NODE_VALIDATION_CHECK(this,
                           correct_channels,
                           "The number of channels must be the same for all layers of the pyramid.");
