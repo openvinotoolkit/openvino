@@ -37,11 +37,13 @@ op::Cos::Cos(const Output<Node>& arg)
 
 bool op::Cos::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Cos_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Cos::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Cos_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Cos>(new_args.at(0));
 }
@@ -78,9 +80,6 @@ namespace cosop
 
 bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Cos_evaluate)
-    {
-        return cosop::evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Cos_evaluate);
+    return cosop::evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

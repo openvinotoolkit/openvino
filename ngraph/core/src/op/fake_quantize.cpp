@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <memory>
+#include "itt.hpp"
 
 #include "fake_quantize.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -56,6 +57,7 @@ op::FakeQuantize::FakeQuantize(const Output<Node>& data,
 
 void op::FakeQuantize::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_validate_and_infer_types);
     PartialShape data_pshape = get_input_partial_shape(0);
 
     for (auto i = 1; i <= 4; i++)
@@ -84,6 +86,7 @@ void op::FakeQuantize::validate_and_infer_types()
 
 bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_visit_attributes);
     visitor.on_attribute("levels", m_levels);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
@@ -165,6 +168,7 @@ OutputVector op::FakeQuantize::decompose_op() const
 
 shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<FakeQuantize>(new_args.at(0), // X
                                      new_args.at(1), // input_low

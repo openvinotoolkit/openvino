@@ -62,6 +62,11 @@
 
 #include <mutex>
 #include <direct.h>
+
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
+
 #include <windows.h>
 
 namespace InferenceEngine {

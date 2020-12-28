@@ -32,15 +32,9 @@ namespace ngraph
             {
                 const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
                 const auto result = std::make_shared<default_opset::Softmax>(coerced_data, 1);
-                if (data.get_partial_shape().is_static())
-                {
-                    return ngraph::builder::opset1::reshape(result, data.get_shape());
-                }
-                else
-                {
-                    const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
-                    return std::make_shared<default_opset::Reshape>(result, data_shape, false);
-                }
+                const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
+                const bool special_zero = false;
+                return std::make_shared<default_opset::Reshape>(result, data_shape, special_zero);
             }
         }
 

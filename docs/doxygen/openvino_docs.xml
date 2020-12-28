@@ -39,6 +39,7 @@
                 <tab type="user" title="Linux" url="@ref openvino_docs_get_started_get_started_linux"/>
                 <tab type="user" title="Windows" url="@ref openvino_docs_get_started_get_started_windows"/>
                 <tab type="user" title="macOS" url="@ref openvino_docs_get_started_get_started_macos"/>
+                <tab type="user" title="Raspbian" url="@ref openvino_docs_get_started_get_started_raspbian"/>
                 <tab type="user" title="Get Started with OpenVINO via DL Workbench" url="@ref openvino_docs_get_started_get_started_dl_workbench"/>
                 <tab type="user" title="Legal Information" url="@ref openvino_docs_Legal_Information"/>
             </tab>

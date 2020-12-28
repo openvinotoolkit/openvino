@@ -90,6 +90,31 @@ function(build_docs)
     set(DOXY_LOG_SCRIPT "${DOXYGEN_DIR}/log.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
 
+    # assets dir
+    set(ASSETS_DIR "${DOXYGEN_DIR}/assets")
+    
+    # header and footer
+    set(HEADER_SOURCE "${DOXYGEN_DIR}/header.html.in")
+    set(FOOTER_SOURCE "${DOXYGEN_DIR}/footer.html.in")
+    set(HEADER_BUILD "${DOCS_BUILD_DIR}/header.html")
+    set(FOOTER_BUILD "${DOCS_BUILD_DIR}/footer.html")
+
+    configure_file(${HEADER_SOURCE} ${HEADER_BUILD} @ONLY)
+    configure_file(${FOOTER_SOURCE} ${FOOTER_BUILD} @ONLY)
+
+    file(GLOB_RECURSE doc_source_files
+        LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg"
+        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.svg"
+        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.md"
+        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.png"
+        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.gif"
+        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.jpg"
+        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.svg")
+
     configure_file(${PYTHON_API_IN} ${PYTHON_API_OUT} @ONLY)
 
     set(NGRAPH_CPP_CONFIG_SOURCE "${DOXYGEN_DIR}/ngraph_cpp_api.config")
@@ -122,6 +147,15 @@ function(build_docs)
     set(PY_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_py_api.xml")
     set(PLUGIN_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_plugin_api.xml")
 
+    # out dirs
+    set(OUTPUT_DIRECTORY "${DOCS_BUILD_DIR}/html")
+    set(IE_OUTPUT "${OUTPUT_DIRECTORY}")
+    set(C_OUTPUT "${OUTPUT_DIRECTORY}/ie_c_api")
+    set(PY_OUTPUT "${OUTPUT_DIRECTORY}/ie_python_api")
+    set(PLUGIN_OUTPUT "${OUTPUT_DIRECTORY}/ie_plugin_api")
+    set(NGRAPH_CPP_OUTPUT "${OUTPUT_DIRECTORY}/ngraph_cpp_api")
+    set(NGRAPH_PY_OUTPUT "${OUTPUT_DIRECTORY}/ngraph_python_api")
+
     # Tables of contents
     configure_file(${NGRAPH_CPP_LAYOUT_SOURCE} ${NGRAPH_CPP_LAYOUT_BUILD} @ONLY)
     configure_file(${NGRAPH_PY_LAYOUT_SOURCE} ${NGRAPH_PY_LAYOUT_BUILD} @ONLY)
@@ -146,6 +180,7 @@ function(build_docs)
     # nGraph C++ API
 
     add_custom_target(ngraph_cpp_api
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${NGRAPH_CPP_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${NGRAPH_CPP_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
@@ -153,6 +188,7 @@ function(build_docs)
     # nGraph Python API
 
     add_custom_target(ngraph_py_api
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${NGRAPH_PY_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${NGRAPH_PY_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
@@ -160,6 +196,7 @@ function(build_docs)
     # C API
 
     add_custom_target(c_api
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${C_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${C_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating C API Reference"
@@ -168,6 +205,7 @@ function(build_docs)
     # Python API
 
     add_custom_target(py_api
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${PY_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${PY_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating Python API Reference"
@@ -283,25 +321,16 @@ function(build_docs)
 
     add_custom_target(ie_docs
                       DEPENDS ngraph_cpp_api preprocess_docs
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${IE_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
-
-    add_custom_command(TARGET ie_docs
-                       POST_BUILD
-                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log "${DOCS_BUILD_DIR}/ie_docs.log"
-                                                                        --include_omz $<BOOL:${OMZ_DOCS_DIR}>
-                                                                        --include_wb $<BOOL:${WORKBENCH_DOCS_DIR}>
-                                                                        --include_pot $<BOOL:${POT_DOCS_DIR}>
-                                                                        --include_gst $<BOOL:${GST_DOCS_DIR}>
-                       COMMENT "Parse doxygen log to find errors."
-                       VERBATIM
-                       )
 
     # Plugin API
 
     add_custom_target(plugin_api
                       DEPENDS ngraph_cpp_api ie_docs
+                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${PLUGIN_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generating Plugin API Reference"
@@ -317,6 +346,16 @@ function(build_docs)
     set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
                           ngraph_py_api ngraph_cpp_api
                           PROPERTIES FOLDER docs)
+
+    add_custom_command(TARGET openvino_docs
+                       POST_BUILD
+                       COMMAND ${Python3_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log "${DOCS_BUILD_DIR}/ie_docs.log"
+                                                                        --include_omz $<BOOL:${OMZ_DOCS_DIR}>
+                                                                        --include_wb $<BOOL:${WORKBENCH_DOCS_DIR}>
+                                                                        --include_pot $<BOOL:${POT_DOCS_DIR}>
+                                                                        --include_gst $<BOOL:${GST_DOCS_DIR}>
+                       COMMENT "Parse doxygen log to find errors."
+                       VERBATIM)
 
     # added linkcheker
 
