@@ -34,9 +34,9 @@ std::vector<memory::format_tag> MKLDNNPoolingNode::getAvailableFormatsForDims(co
     else if (dims.ndims() == 3)
         return {memory::format_tag::tnc, memory::format_tag::ntc};
     else if (dims.ndims() == 4)
-        return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc};
+        return {memory::format_tag::nChw8c, memory::format_tag::nChw16c, memory::format_tag::nhwc, memory::format_tag::nchw};
     else if (dims.ndims() == 5)
-        return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc};
+        return {memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c, memory::format_tag::ndhwc, memory::format_tag::ncdhw};
     return {memory::format_tag::any};
 }
 
