@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ie_plugin_config.hpp>
 #include "shared_test_classes/single_layer/interpolate.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -27,7 +28,7 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
     ngraph::op::v4::Interpolate::NearestMode nearestMode;
     double cubeCoef;
-    std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+    std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
@@ -66,7 +67,7 @@ void InterpolateLayerTest::SetUp() {
     ngraph::op::v4::Interpolate::NearestMode nearestMode;
 
     double cubeCoef;
-    std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+    std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

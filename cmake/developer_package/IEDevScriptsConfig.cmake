@@ -204,6 +204,7 @@ endif()
 include(compile_flags/sdl)
 include(compile_flags/os_flags)
 include(compile_flags/sanitizer)
+include(compile_flags/fuzzing)
 include(download/dependency_solver)
 include(cross_compile/cross_compiled_func)
 include(faster_build)
@@ -215,6 +216,10 @@ include(api_validator/api_validator)
 include(vs_version/vs_version)
 include(plugins/plugins)
 include(add_ie_target)
+
+if(ENABLE_FUZZING)
+    enable_fuzzing()
+endif()
 
 # Code style utils
 

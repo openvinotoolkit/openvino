@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/reorg_yolo.hpp"
+#include "itt.hpp"
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
 
 using namespace std;
@@ -38,6 +39,7 @@ op::ReorgYolo::ReorgYolo(const Output<Node>& input, const size_t stride)
 
 void op::ReorgYolo::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_ReorgYolo_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, !m_strides.empty(), "Stride attribute is required.");
 
     auto input_et = get_input_element_type(0);
@@ -75,12 +77,14 @@ void op::ReorgYolo::validate_and_infer_types()
 
 shared_ptr<Node> op::ReorgYolo::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_ReorgYolo_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ReorgYolo>(new_args.at(0), m_strides);
 }
 
 bool op::ReorgYolo::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_ReorgYolo_visit_attributes);
     visitor.on_attribute("stride", m_strides);
     return true;
 }

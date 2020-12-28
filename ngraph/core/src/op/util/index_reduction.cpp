@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <memory>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/index_reduction.hpp"
@@ -54,6 +55,7 @@ void op::util::IndexReduction::set_index_element_type(const element::Type& index
 
 void op::util::IndexReduction::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_IndexReduction_validate_and_infer_types);
     // TODO(amprocte): Should reject if size of reduction axis is zero.
     const PartialShape& arg_shape = get_input_partial_shape(0);
     Rank rank = arg_shape.rank();
@@ -105,6 +107,7 @@ void op::util::IndexReduction::validate_and_infer_types()
 
 bool op::util::IndexReduction::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(util_IndexReduction_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("index_element_type", m_index_element_type);
     return true;
