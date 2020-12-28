@@ -33,13 +33,12 @@ namespace LayerTestsDefinitions {
     InferenceEngine::Blob::Ptr BucketizeLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
         InferenceEngine::Blob::Ptr blobPtr;
         const std::string name = info.name();
-        std::random_device rd{};
         if (name == "a_data") {
             auto data_shape = info.getTensorDesc().getDims();
             auto data_size = std::accumulate(begin(data_shape), end(data_shape), 1, std::multiplies<uint64_t>());
-            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_size * 5, 0, 10, rd());
+            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_size * 5, 0, 10, 7235346);
         } else if (name == "b_buckets") {
-            blobPtr = FuncTestUtils::createAndFillBlobUniqueSequence(info.getTensorDesc(), 0, 10, rd());
+            blobPtr = FuncTestUtils::createAndFillBlobUniqueSequence(info.getTensorDesc(), 0, 10, 8234231);
         }
         return blobPtr;
     }
