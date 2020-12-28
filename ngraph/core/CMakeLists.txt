@@ -20,8 +20,6 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(NGRAPH_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ngraph CACHE INTERNAL "")
-
 add_subdirectory(builder)
 add_subdirectory(reference)
 

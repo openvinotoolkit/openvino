@@ -19,7 +19,7 @@ set(TARGET_NAME "ngraph_builders")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ CACHE INTERNAL "")
+set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

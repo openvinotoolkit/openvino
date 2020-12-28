@@ -14,11 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-# set directory where the custom finders live
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/")
-
-include(git_tags)
-include(var_functions)
+include(cmake/Modules/git_tags.cmake)
 
 NGRAPH_GET_VERSION_LABEL()
 
@@ -31,7 +27,7 @@ string(REPLACE "." ";" NGRAPH_VERSION_PARTS "${NGRAPH_VERSION_SHORT}")
 list(GET NGRAPH_VERSION_PARTS 0 NGRAPH_VERSION_MAJOR)
 list(GET NGRAPH_VERSION_PARTS 1 NGRAPH_VERSION_MINOR)
 list(GET NGRAPH_VERSION_PARTS 2 NGRAPH_VERSION_PATCH)
-configure_file(VERSION.in VERSION)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/VERSION.in VERSION)
 
 message(STATUS "NGRAPH_VERSION ${NGRAPH_VERSION}")
 message(STATUS "NGRAPH_VERSION_SHORT ${NGRAPH_VERSION_SHORT}")
