@@ -37,6 +37,5 @@ namespace ngraph
             void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
                                                     const Output<Node>& replacement);
         };
-
     } // namespace pass
 } // namespace ngraph
