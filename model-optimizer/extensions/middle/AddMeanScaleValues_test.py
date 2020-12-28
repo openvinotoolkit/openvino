@@ -255,27 +255,6 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         self.assertTrue(flag, resp)
         self.check_graph_attrs(graph, graph_ref, ['parameter'])
 
-
-class ScaleInputTests(unittest.TestCase):
-    def check_graph_attrs(self, graph: Graph, graph_ref: Graph, parameter_node_names: list):
-        for node in graph.get_op_nodes():
-            if node.soft_get('name') in parameter_node_names:
-                self.assertTrue(node.soft_get('type') == 'Parameter')
-                out_node = node.out_node(0)
-                out_node_ref = Node(graph_ref, node.id).out_node(0)
-                self.assertTrue(out_node['fw_tensor_debug_info'] == out_node_ref['fw_tensor_debug_info'])
-            else:
-                if 0 in node.out_nodes():
-                    out_node = node.out_node(0)
-                    self.assertFalse('fw_tensor_debug_info' in out_node)
-
-    def set_graph_attrs(self, graph: Graph, parameter_node_names: list):
-        for node in graph.get_op_nodes():
-            if node.soft_get('name') in parameter_node_names:
-                self.assertTrue(node.soft_get('type') == 'Parameter')
-                out_node = node.out_node(0)
-                out_node['fw_tensor_debug_info'] = ['fw_name', 0]
-
     def test_scale_input(self):
         graph_ref = build_graph(nodes, [
             *connect('parameter', '0:mul_scale'),
