@@ -38,12 +38,14 @@ op::v1::LogicalNot::LogicalNot(const Output<Node>& arg)
 
 bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_LogicalNot_visit_attributes);
     return true;
 }
 
 // TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
 void op::v1::LogicalNot::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_LogicalNot_validate_and_infer_types);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
@@ -53,6 +55,7 @@ void op::v1::LogicalNot::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_LogicalNot_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::LogicalNot>(new_args.at(0));
 }
@@ -91,9 +94,6 @@ namespace notop
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_LogicalNot_evaluate)
-    {
-        return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_LogicalNot_evaluate);
+    return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
