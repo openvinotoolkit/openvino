@@ -916,8 +916,8 @@ TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
     Blob::Ptr weights;
     auto network = ie.ReadNetwork(model, weights);
     InferenceEngine::ICNNNetwork::InputShapes newShapes;
-    newShapes["in0"] = {1, 256, 300, 400};
-    newShapes["in1"] = {1000, 256, 7, 7};
+    newShapes["in0"] = {1256, 4};
+    newShapes["in1"] = {1, 256, 7, 7};
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
 

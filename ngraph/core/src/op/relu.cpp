@@ -35,6 +35,7 @@ op::Relu::Relu(const Output<Node>& arg)
 
 shared_ptr<Node> op::Relu::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Relu_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Relu>(new_args.at(0));
 }
@@ -71,14 +72,12 @@ namespace relu
 
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Relu_evaluate)
-    {
-        return relu::evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Relu_evaluate);
+    return relu::evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Relu::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Relu_visit_attributes);
     return true;
 }

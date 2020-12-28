@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
@@ -49,6 +50,7 @@ op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_t
 shared_ptr<Node>
     op::v3::EmbeddingBagOffsetsSum::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_EmbeddingBagOffsetsSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3)
     {
