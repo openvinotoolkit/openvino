@@ -33,7 +33,8 @@ namespace ngraph
                 CTCGreedyDecoderSeqLen() = default;
                 /// \brief Constructs a CTCGreedyDecoderSeqLen operation
                 ///
-                /// \param input                3-D tensor of logits on which greedy decoding is performed
+                /// \param input                3-D tensor of logits on which greedy decoding is
+                /// performed
                 /// \param seq_len              1-D tensor of sequence lengths
                 /// \param merge_repeated       Whether to merge repeated labels
                 /// \param classes_index_type   Specifies the output classes_index tensor type
@@ -45,9 +46,11 @@ namespace ngraph
                                        const element::Type& sequence_length_type = element::i32);
                 /// \brief Constructs a CTCGreedyDecoderSeqLen operation
                 ///
-                /// \param input                3-D tensor of logits on which greedy decoding is performed
+                /// \param input                3-D tensor of logits on which greedy decoding is
+                /// performed
                 /// \param seq_len              1-D tensor of sequence lengths
-                /// \param blank_index          Scalar or 1-D tensor with 1 element used to mark a blank index
+                /// \param blank_index          Scalar or 1-D tensor with 1 element used to mark a
+                /// blank index
                 /// \param merge_repeated       Whether to merge repeated labels
                 /// \param classes_index_type   Specifies the output classes_index tensor type
                 /// \param sequence_length_type Specifies the output sequence_length tensor type
