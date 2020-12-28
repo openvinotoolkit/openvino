@@ -48,4 +48,3 @@ if (NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph_test_util PRIVATE USE_STATIC_IE)
 endif()
 
-install(TARGETS ngraph_test_util DESTINATION ${NGRAPH_INSTALL_LIB})

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -34,10 +34,10 @@
 #include <legacy/ie_util_internal.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 #include <low_precision/transformer.hpp>
 #include <low_precision/convolution.hpp>
@@ -99,15 +99,9 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
 
 std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
-    const ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations) {
+    const ngraph::pass::low_precision::LowPrecisionTransformations& transformations) {
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function);
     auto nGraphFunc = clonedNetwork->getFunction();
-
-    auto transformations = getLowPrecisionTransformationsNGraph(params);
-
-    for (auto& additionalTransformation : additionalTransformations.transformations) {
-        transformations.transformations.emplace(additionalTransformation.first, additionalTransformation.second);
-    }
 
     ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
     transformer.transform(nGraphFunc);

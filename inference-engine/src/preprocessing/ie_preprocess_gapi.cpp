@@ -276,8 +276,8 @@ void validateColorFormats(const G::Desc &in_desc,
     };
 
     // verify inputs/outputs and throw on error
-
-    if (output_color_format == ColorFormat::RAW) {
+    const bool color_conv_required = !((output_color_format == input_color_format) || (input_color_format == ColorFormat::RAW));
+    if (color_conv_required && (output_color_format == ColorFormat::RAW)) {
         THROW_IE_EXCEPTION << "Network's expected color format is unspecified";
     }
 
@@ -288,7 +288,7 @@ void validateColorFormats(const G::Desc &in_desc,
     verify_layout(in_layout, "Input blob");
     verify_layout(out_layout, "Network's blob");
 
-    if (input_color_format == ColorFormat::RAW) {
+    if (!color_conv_required) {
         // verify input and output have the same number of channels
         if (in_desc.d.C != out_desc.d.C) {
             THROW_IE_EXCEPTION << "Input and network expected blobs have different number of "
@@ -757,15 +757,6 @@ PreprocEngine::Update PreprocEngine::needUpdate(const CallDesc &newCallOrig) con
     return Update::NOTHING;
 }
 
-bool PreprocEngine::useGAPI() {
-    static const bool NO_GAPI = [](const char *str) -> bool {
-        std::string var(str ? str : "");
-        return var == "N" || var == "NO" || var == "OFF" || var == "0";
-    } (getenv("USE_GAPI"));
-
-    return !NO_GAPI;
-}
-
 void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst) {
     // Note: src blob is the ROI blob, dst blob is the network's input blob
 
@@ -904,7 +895,7 @@ void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
 }
 
 template<typename BlobTypePtr>
-bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
+void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
     ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
     int batch_size) {
 
@@ -949,6 +940,12 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
                                             out_desc_ie.getDims(),
                                             out_fmt },
                                   algorithm };
+
+    if (algorithm == NO_RESIZE && std::get<0>(thisCall) == std::get<1>(thisCall)) {
+        //if requested output parameters match input blob no need to do anything
+        THROW_IE_EXCEPTION  << "No job to do in the PreProcessing ?";
+    }
+
     const Update update = needUpdate(thisCall);
 
     Opt<cv::GComputation> _lastComputation;
@@ -976,17 +973,12 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
 
     executeGraph(_lastComputation, batched_input_plane_mats, batched_output_plane_mats, batch_size,
         omp_serial, update);
-
-    return true;
 }
 
-bool PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool omp_serial, int batch_size) {
-    if (!useGAPI()) {
-        return false;
-    }
 
-    const auto out_fmt = ColorFormat::BGR;  // FIXME: get expected color format from network
+    const auto out_fmt = (in_fmt == ColorFormat::RAW) ? ColorFormat::RAW : ColorFormat::BGR;  // FIXME: get expected color format from network
 
     // output is always a memory blob
     auto outMemoryBlob = as<MemoryBlob>(outBlob);

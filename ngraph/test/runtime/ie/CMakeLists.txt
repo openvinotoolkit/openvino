@@ -41,8 +41,3 @@ add_dependencies(ie_backend inference_engine)
 target_compile_definitions(ie_backend PRIVATE IE_BACKEND_DLL_EXPORTS)
 target_include_directories(ie_backend PUBLIC ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ie_backend PUBLIC ngraph_backend inference_engine)
-
-install(TARGETS ie_backend
-    LIBRARY DESTINATION "${NGRAPH_INSTALL_LIB}"
-    ARCHIVE DESTINATION "${NGRAPH_INSTALL_LIB}"
-)

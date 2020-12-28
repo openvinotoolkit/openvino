@@ -14,7 +14,7 @@ file(GLOB_RECURSE SRC *.cpp)
 
 # By default it should build a shared plugin
 if((NOT DEFINED BUILD_SHARED_LIBS) OR BUILD_SHARED_LIBS)
-    set(LIBRARY_TYPE SHARED)
+    set(LIBRARY_TYPE MODULE)
 else()
     set(LIBRARY_TYPE STATIC)
 endif()

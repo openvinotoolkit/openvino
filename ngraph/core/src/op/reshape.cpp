@@ -27,7 +27,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace reshapeop
 {
     bool evaluate_reshape(const HostTensorPtr& arg0,
                           const HostTensorPtr& out,
@@ -67,12 +67,14 @@ op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_patt
 
 bool op::v1::Reshape::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Reshape_visit_attributes);
     visitor.on_attribute("special_zero", m_special_zero);
     return true;
 }
 
 void op::v1::Reshape::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Reshape_validate_and_infer_types);
     auto shape_pattern_et = get_input_element_type(1);
     // check data types
     NODE_VALIDATION_CHECK(
@@ -196,10 +198,10 @@ void op::v1::Reshape::validate_and_infer_types()
                     }
                     else
                     {
-                        NODE_VALIDATION_CHECK(
-                            this,
-                            input_elements % output_elements == 0,
-                            "Non-'-1' output dimensions do not evenly divide the input dimensions");
+                        NODE_VALIDATION_CHECK(this,
+                                              input_elements % output_elements == 0,
+                                              "Non-'-1' output dimensions do not evenly divide "
+                                              "the input dimensions");
                         partial_shape[negative_dim] = Dimension(input_elements / output_elements);
                     }
                 }
@@ -223,15 +225,22 @@ void op::v1::Reshape::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Reshape_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
 }
 
-bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
-                               const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Reshape::evaluate");
+#define COMPUTE_OUT_SHAPE_CASE(a, ...)                                                             \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(compute_reshape_out_shape, _, a));                              \
+        reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__);                          \
+    }                                                                                              \
+    break;
 
+bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
+                                       const HostTensorVector& inputs) const
+{
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
     size_t output_rank = inputs[1]->get_shape()[0];
@@ -239,30 +248,14 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
 
     switch (inputs[1]->get_element_type())
     {
-    case element::Type_t::i8:
-        compute_output_shape<element::Type_t::i8>(inputs[1], out_shape_val);
-        break;
-    case element::Type_t::i16:
-        compute_output_shape<element::Type_t::i16>(inputs[1], out_shape_val);
-        break;
-    case element::Type_t::i32:
-        compute_output_shape<element::Type_t::i32>(inputs[1], out_shape_val);
-        break;
-    case element::Type_t::i64:
-        compute_output_shape<element::Type_t::i64>(inputs[1], out_shape_val);
-        break;
-    case element::Type_t::u8:
-        compute_output_shape<element::Type_t::u8>(inputs[1], out_shape_val);
-        break;
-    case element::Type_t::u16:
-        compute_output_shape<element::Type_t::u16>(inputs[1], out_shape_val);
-        break;
-    case element::Type_t::u32:
-        compute_output_shape<element::Type_t::u32>(inputs[1], out_shape_val);
-        break;
-    case element::Type_t::u64:
-        compute_output_shape<element::Type_t::u64>(inputs[1], out_shape_val);
-        break;
+        COMPUTE_OUT_SHAPE_CASE(i8, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i16, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i32, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(i64, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u8, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u16, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u32, inputs[1], out_shape_val);
+        COMPUTE_OUT_SHAPE_CASE(u64, inputs[1], out_shape_val);
     default: throw ngraph_error("shape_pattern element type is not integral data type");
     }
 
@@ -347,7 +340,14 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
         outputs[0]->set_shape(output_shape);
     }
     const AxisVector order = get_default_order(inputs[0]->get_shape());
-    return evaluate_reshape(inputs[0], outputs[0], order);
+    return reshapeop::evaluate_reshape(inputs[0], outputs[0], order);
+}
+
+bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
+                               const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_Reshape_evaluate);
+    return evaluate_reshape(outputs, inputs);
 }
 
 bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

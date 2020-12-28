@@ -4,36 +4,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
-
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-
-typedef std::tuple<
-        std::vector<int64_t>,          // padsBegin
-        std::vector<int64_t>,          // padsEnd
-        float,                         // argPadValue
-        ngraph::helpers::PadMode,      // padMode
-        InferenceEngine::Precision,    // Net precision
-        InferenceEngine::Precision,    // Input precision
-        InferenceEngine::Precision,    // Output precision
-        InferenceEngine::Layout,       // Input layout
-        InferenceEngine::SizeVector,   // Input shapes
-        LayerTestsUtils::TargetDevice  // Target device name
-> padLayerTestParamsSet;
+#include "shared_test_classes/single_layer/pad.hpp"
 
 namespace LayerTestsDefinitions {
 
-class PadLayerTest : public testing::WithParamInterface<padLayerTestParamsSet>,
-                     public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<padLayerTestParamsSet> obj);
-
-protected:
-    void SetUp() override;
-};
+TEST_P(PadLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

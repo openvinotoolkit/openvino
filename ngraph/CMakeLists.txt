@@ -15,11 +15,7 @@
 # ******************************************************************************
 
 # set directory where the custom finders live
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-
-if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
-    message(FATAL_ERROR "In-source builds are not allowed.")
-endif()
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/")
 
 if (CMAKE_BUILD_TYPE)
     set(RELEASE_TYPES Debug Release RelWithDebInfo MinSizeRel)
@@ -415,7 +411,7 @@ if(NGRAPH_DEPRECATED_ENABLE)
     add_definitions(-DNGRAPH_DEPRECATED_ENABLE)
 endif()
 
-add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
+add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 #-----------------------------------------------------------------------------------------------
 # Print Global Options
