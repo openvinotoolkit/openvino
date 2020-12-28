@@ -75,7 +75,7 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
         VERSION ${NGRAPH_VERSION}
         SOVERSION ${NGRAPH_API_VERSION})
 endif()
-target_compile_definitions(ngraph PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
+
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
 endif()
@@ -101,16 +101,10 @@ elseif(APPLE)
 endif()
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}> $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>)
-target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
-                                          ${NGRAPH_INCLUDE_DIR}/op
-                                          ${NGRAPH_INCLUDE_DIR}/op/util
-                                          ${NGRAPH_INCLUDE_DIR}/pass
-                                          ${NGRAPH_INCLUDE_DIR}/pattern
-                                          ${NGRAPH_INCLUDE_DIR}/pattern/op
-                                          ${NGRAPH_INCLUDE_DIR}/runtime
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/src
-                                          )
+target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
+                                         $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>
+                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                          ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 #Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
