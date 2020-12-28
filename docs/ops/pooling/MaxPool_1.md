@@ -6,7 +6,7 @@
 
 **Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/pooling.html)
 
-**Detailed description**: [Reference](http://cs231n.github.io/convolutional-networks/#pool)
+**Detailed description**: [Reference](https://deeplizard.com/learn/video/ZjM_XQa5s6s). Input shape can be either 3D, 4D or 5D. Pooling operation is performed with the respect to input shape from the third dimension to the last dimension.
 
 **Attributes**: *Pooling* attributes are specified in the `data` node, which is a child of the layer node.
 
@@ -46,7 +46,7 @@
 
 * *rounding_type*
 
-  * **Description**: *rounding_type* is a type of rounding to be applied.
+  * **Description**: *rounding_type* is a type of rounding to used to compute output shape.
   * **Range of values**:
     * *ceil*
     * *floor*
@@ -69,6 +69,12 @@
 
 *   **1**: 4D or 5D input tensor. Required.
 
+**Outputs**:
+  * **1**: Input shape can be either (N,C,H), (N,C,H,W) or (N,C,H,W,D). Then the corressponding output shape will be (N,C,H_out), (N,C,H_out,W_out) or (N,C,H_out,W_out,D_out)
+        H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1
+        W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1
+        D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1
+
 **Mathematical Formulation**
 
     \f[
@@ -79,8 +85,60 @@
 
 ```xml
 <layer ... type="MaxPool" ... >
-        <data auto_pad="same_upper" kernel="3,3" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
-        <input> ... </input>
-        <output> ... </output>
+        <data auto_pad="same_upper" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+        <input> 
+          <port id="0">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+          </port>
+        </input>
+        <output>
+        <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+        </port>
+    </output>
+</layer>
+
+<layer ... type="MaxPool" ... >
+        <data auto_pad="explicit" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+        <input> 
+          <port id="0">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+          </port>
+        </input>
+        <output>
+        <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>17</dim>
+            <dim>17</dim>
+        </port>
+    </output>
+</layer>
+
+<layer ... type="MaxPool" ... >
+        <data auto_pad="valid" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+        <input> 
+          <port id="0">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+          </port>
+        </input>
+        <output>
+        <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>16</dim>
+            <dim>16</dim>
+        </port>
+    </output>
 </layer>
 ```
