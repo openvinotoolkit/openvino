@@ -39,7 +39,10 @@ inline std::ostream& operator<<(std::ostream& out, const MultiplyValues& values)
 
 class MultiplyFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(const ngraph::Shape& inputShape, const MultiplyValues& actualValues);
+    static std::shared_ptr<ngraph::Function> get(
+            const element::Type precision,
+            const ngraph::Shape& inputShape,
+            const MultiplyValues& actualValues);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
