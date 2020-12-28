@@ -60,6 +60,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
     const size_t blockSize,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
@@ -69,6 +70,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
     dequantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(d2s, precisionAfterOperation);
 
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "DepthToSpaceTransformation");
     return function;

@@ -65,6 +65,28 @@ void InterpolateTransformation::SetUp() {
     interpAttrs.pads_end = attributes.pads_end;
 
     function = ngraph::builder::subgraph::InterpolateFunction::getOriginal(precision, shapes.first, shapes.second, interpAttrs);
+
+    validate();
+}
+
+void InterpolateTransformation::validate() {
+    ngraph::element::Type precision;
+    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::string targetDevice;
+    interpAttributes attributes;
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    std::tie(precision, shapes, targetDevice, attributes) = this->GetParam();
+
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    if (attributes.mode == "nearest") {
+        ASSERT_EQ("ScaleShiftIE", typeName);
+    } else {
+        ASSERT_EQ("Interp", typeName);
+    }
 }
 
 TEST_P(InterpolateTransformation, CompareWithRefImpl) {
