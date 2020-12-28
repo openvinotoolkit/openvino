@@ -91,9 +91,6 @@ namespace ngraph
             return create(DERIVED_TYPE::type_info);
         }
 
-        /// \brief Get the factory for BASE_TYPE
-        static FactoryRegistry<BASE_TYPE>& get();
-
     protected:
         FactoryMap m_factory_map;
     };

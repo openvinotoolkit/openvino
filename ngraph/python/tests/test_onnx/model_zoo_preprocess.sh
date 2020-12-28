@@ -2,7 +2,7 @@
 set -e
 
 # provide ONNX Model Zoo commit hash ID to update:
-ONNX_SHA=5c9f64f470c825ccbe1bbaa8d460c0463ff6efec
+ONNX_SHA=00d95ba9e5758fd0bc5e6978033fabc4f2a95e61
 
 MODELS_DIR="$HOME/.onnx/model_zoo"
 ENABLE_MSFT=false
@@ -62,24 +62,17 @@ function pull_and_postprocess_onnx_model_zoo() {
     find "$ONNX_MODELS_DIR" -name "*.onnx" | while read filename; do rm "$filename"; done;
 
     printf "Extracting tar.gz archives into %s\n" "$ONNX_MODELS_DIR"
-    find "$ONNX_MODELS_DIR" -name '*.tar.gz' -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && mkdir -p $BASEDIR' \; -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xzf "{}" -C $BASEDIR' \;
+    find "$ONNX_MODELS_DIR" -name '*.tar.gz' -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && rm -rf $BASEDIR && mkdir -p $BASEDIR' \; -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xzf "{}" -C $BASEDIR' \;
 
     echo "Postprocessing of ONNX Model Zoo models:"
-    echo "Fix yolo v4 model"
-    cd "$ONNX_MODELS_DIR/vision/object_detection_segmentation/yolov4/model/yolov4/yolov4/test_data_set"
-
-    mv input0.pb input_0.pb
-    mv input1.pb input_1.pb
-    mv input2.pb input_2.pb
-    mv output0.pb output_0.pb
-    mv output1.pb output_1.pb
-    mv output2.pb output_2.pb
 
     echo "Fix roberta model"
     cd "$ONNX_MODELS_DIR/text/machine_comprehension/roberta/model/roberta-sequence-classification-9/roberta-sequence-classification-9"
     mkdir -p test_data_set_0
     mv *.pb test_data_set_0/
 
+    # Save SHA of successfully post processed repository
+    git rev-parse HEAD > onnx_sha
 }
 
 function update_onnx_models() {
@@ -90,7 +83,7 @@ function update_onnx_models() {
         pull_and_postprocess_onnx_model_zoo
     else
         # Check if ONNX Model Zoo directory consists of proper git repo
-        git_remote_url=`git -C $ONNX_MODELS_DIR config --local remote.origin.url 2> /dev/null 2>&1`
+        export git_remote_url=`git -C $ONNX_MODELS_DIR config --local remote.origin.url 2> /dev/null 2>&1`
         printf "ONNX Model Zoo repository exists: %s\n" "$ONNX_MODELS_DIR"
         if [[ $git_remote_url = "https://github.com/onnx/models.git" ]]; then
             printf "The proper github repository detected: %s\n" "$git_remote_url"
@@ -101,7 +94,7 @@ function update_onnx_models() {
     fi
 
     cd "$ONNX_MODELS_DIR"
-    CURRENT_ONNX_MODELS_SHA=`git rev-parse HEAD`
+    export CURRENT_ONNX_MODELS_SHA=`head -n1 onnx_sha  2> /dev/null 2>&1`
     if [[ $ONNX_SHA = $CURRENT_ONNX_MODELS_SHA ]] ; then
         echo "ONNX Model Zoo repository is in the right state"
     else
