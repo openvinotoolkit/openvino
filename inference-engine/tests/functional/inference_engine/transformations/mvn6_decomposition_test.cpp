@@ -10,7 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/op_conversions/mvn_decomposition.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, MVNDecomposition_No_Variance) {
+TEST(TransformationTests, MVN6Decomposition_No_Variance) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 3, 4 });
@@ -29,7 +29,7 @@ TEST(TransformationTests, MVNDecomposition_No_Variance) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNDecomposition>();
+        manager.register_pass<ngraph::pass::MVN6Decomposition>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -47,7 +47,7 @@ TEST(TransformationTests, MVNDecomposition_No_Variance) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNDecomposition_Inside_Sqrt) {
+TEST(TransformationTests, MVN6Decomposition_Inside_Sqrt) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 3, 4 });
@@ -58,7 +58,7 @@ TEST(TransformationTests, MVNDecomposition_Inside_Sqrt) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNDecomposition>();
+        manager.register_pass<ngraph::pass::MVN6Decomposition>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -85,7 +85,7 @@ TEST(TransformationTests, MVNDecomposition_Inside_Sqrt) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNDecomposition_Outside_Sqrt) {
+TEST(TransformationTests, MVN6Decomposition_Outside_Sqrt) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 3, 4 });
@@ -96,7 +96,7 @@ TEST(TransformationTests, MVNDecomposition_Outside_Sqrt) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::MVNDecomposition>();
+        manager.register_pass<ngraph::pass::MVN6Decomposition>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

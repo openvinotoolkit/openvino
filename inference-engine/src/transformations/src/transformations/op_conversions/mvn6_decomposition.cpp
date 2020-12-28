@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/mvn_decomposition.hpp"
+#include "transformations/op_conversions/mvn6_decomposition.hpp"
 
 #include <memory>
 
@@ -10,10 +10,12 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNDecomposition, "MVNDecomposition", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::MVN6Decomposition, "MVN6Decomposition", 0);
 
-ngraph::pass::MVNDecomposition::MVNDecomposition() {
-    // Decomposes MVN(x, axes) op into sub-graph (x - ReduceMean(x, axes)) / Sqrt(ReduceSum((x - ReduceMean(x, axes)) ^ 2))
+ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
+    // Decomposes MVN(x, axes) op if normalize_variance is false into sub-graph
+    // x - ReduceMean(x, axes), if normalize_variance is true into sub-graph
+    // (x - ReduceMean(x, axes)) / Sqrt(ReduceSum((x - ReduceMean(x, axes)) ^ 2))
     auto mvn = ngraph::pattern::wrap_type<opset6::MVN>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
@@ -64,6 +66,6 @@ ngraph::pass::MVNDecomposition::MVNDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mvn, "MVNDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mvn, "MVN6Decomposition");
     register_matcher(m, callback);
 }

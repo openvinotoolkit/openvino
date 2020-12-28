@@ -31,6 +31,7 @@
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
+#include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 #include "transformations/op_conversions/convert_negative.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
@@ -47,6 +48,7 @@
 #include "transformations/op_conversions/convert_previous_nms_to_nms_5.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
+#include "transformations/op_conversions/mvn6_decomposition.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -76,6 +78,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::HSigmoidFusion>();
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
+    manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6, false>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
@@ -100,6 +103,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::BatchNormV5Decomposition>();
+    decomp->add_matcher<ngraph::pass::MVN6Decomposition, false>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions

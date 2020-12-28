@@ -1,0 +1,52 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
+
+#include <ngraph/rt_info.hpp>
+
+#include <numeric>
+
+#include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMVN1ToMVN6, "ConvertMVN1ToMVN6", 0);
+
+ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
+    auto mvn = pattern::wrap_type<ngraph::op::v0::MVN>();
+
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto mvn_node = std::dynamic_pointer_cast<ngraph::op::v0::MVN>(m.get_match_root());
+        if (!mvn_node) {
+            return false;
+        }
+
+        const auto input = mvn_node->input_value(0);
+
+        // MVN-1 support only 4D and higher input tensors
+        auto input_rank = input.get_partial_shape().rank();
+        if (!input_rank.is_static() || input_rank.get_length() < 4) {
+            return false;
+        }
+
+        int64_t start_axis = 1 + (!mvn_node->get_across_channels());
+        std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
+        std::iota(axes_v.begin(), axes_v.end(), start_axis);
+        auto axes = opset6::Constant::create(ngraph::element::i64, { axes_v.size() }, axes_v);
+        auto mvn6_node = std::make_shared<ngraph::op::v6::MVN>(input,
+            axes,
+            mvn_node->get_normalize_variance(),
+            mvn_node->get_eps(),
+            ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+
+        mvn6_node->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ngraph::copy_runtime_info(mvn_node, { axes, mvn6_node });
+        ngraph::replace_node(m.get_match_root(), mvn6_node);
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(mvn, "ConvertMVN1ToMVN6");
+    register_matcher(m, callback);
+}

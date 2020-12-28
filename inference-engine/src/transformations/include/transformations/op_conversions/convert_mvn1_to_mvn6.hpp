@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -14,13 +11,13 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertMVN1;
+class TRANSFORMATIONS_API ConvertMVN1ToMVN6;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMVN1 : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertMVN1ToMVN6 : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertMVN1();
+    ConvertMVN1ToMVN6();
 };
