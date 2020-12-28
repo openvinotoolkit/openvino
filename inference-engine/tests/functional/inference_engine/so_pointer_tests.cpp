@@ -113,7 +113,7 @@ TEST_F(SymbolLoaderTests, throwCreateNullPtr) {
 }
 
 TEST_F(SymbolLoaderTests, instantiateSymbol) {
-    std::string name = FileUtils::makeSharedLibraryName<char>(getIELibraryPath(),
+    std::string name = FileUtils::makePluginLibraryName<char>(getIELibraryPath(),
         std::string("mock_engine") + IE_BUILD_POSTFIX);
     std::shared_ptr<SharedObjectLoader> sharedLoader(new SharedObjectLoader(name.c_str()));
     SymbolLoader<SharedObjectLoader> loader(sharedLoader);

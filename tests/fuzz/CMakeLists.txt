@@ -2,22 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+project(openvino_fuzzing)
 
-set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
-set(CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package" ${CMAKE_MODULE_PATH})
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+
 if (NOT TARGET IE::inference_engine)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(IEDevScripts REQUIRED
+                 PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+                 NO_CMAKE_FIND_ROOT_PATH
+                 NO_DEFAULT_PATH)
 endif()
 
-include(compile_flags/sanitizer)
-include(fuzzing)
+find_package(InferenceEngine REQUIRED)
 
 if (NOT ENABLE_FUZZING)
     message(STATUS
