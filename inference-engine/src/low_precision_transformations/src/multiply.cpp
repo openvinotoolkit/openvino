@@ -65,7 +65,11 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
             std::vector<ngraph::element::Type>{ multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(fold<opset1::Multiply>(multiplyParentConst, constParent), element::f32).get());
+            ngraph::op::TemporaryReplaceOutputType(
+                fold<opset1::Multiply>(
+                    fold<opset1::Convert>(multiplyParentConst, element::f32),
+                    fold<opset1::Convert>(constParent, element::f32)),
+                element::f32).get());
 
         NetworkHelper::copyInfo(multiplyParent, newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
