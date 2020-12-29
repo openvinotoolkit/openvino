@@ -76,7 +76,9 @@ protected:
         }
 
         std::shared_ptr<ngraph::Node> secondaryInput;
-        if (eltwiseType == ngraph::helpers::EltwiseTypes::DIVIDE ||
+        if (eltwiseType == ngraph::helpers::EltwiseTypes::ERF) {
+            secondaryInput = nullptr;
+        } else if (eltwiseType == ngraph::helpers::EltwiseTypes::DIVIDE ||
             eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD ||
             eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
             std::vector<float> data(ngraph::shape_size(shape_input_secondary));
@@ -357,6 +359,44 @@ const auto params_5D_FP32_Planar_Blocked = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Planar_Blocked)));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_FP32_Planar_Blocked, EltwiseLayerCPUTest, params_5D_FP32_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
+
+std::vector<std::vector<std::vector<size_t>>> inShape_4D = {
+    {{2, 4, 4, 1}},
+    {{2, 17, 5, 4}},
+    {{2, 17, 5, 1}},
+};
+
+std::vector<CPUSpecificParams> erfCpuParams = {
+    CPUSpecificParams({nchw}, {nchw}, {}, {}),
+    CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+    //CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
+    CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
+    //CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
+};
+
+std::vector<ngraph::helpers::EltwiseTypes> erfOpTypesBinInp = {
+    ngraph::helpers::EltwiseTypes::ERF
+};
+
+std::vector<ngraph::helpers::InputLayerType> secondaryInputType = {
+    ngraph::helpers::InputLayerType::CONSTANT
+};
+
+const auto erf_params = ::testing::Combine(
+    ::testing::Combine(
+        ::testing::ValuesIn(inShape_4D),
+        ::testing::ValuesIn(erfOpTypesBinInp),
+        ::testing::ValuesIn(secondaryInputType),
+        ::testing::ValuesIn(opTypes),
+        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config)),
+    ::testing::ValuesIn(filterCPUSpecificParams(erfCpuParams)));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Erf, EltwiseLayerCPUTest, erf_params, EltwiseLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

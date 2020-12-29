@@ -131,7 +131,8 @@ enum EltwiseTypes {
     SQUARED_DIFF,
     POWER,
     FLOOR_MOD,
-    MOD
+    MOD,
+    ERF
 };
 
 enum ComparisonTypes {

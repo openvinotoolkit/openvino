@@ -99,4 +99,26 @@ const auto single_thread_params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
 
 
+std::vector<ngraph::helpers::InputLayerType> secondaryInputTypesErf = {
+        ngraph::helpers::InputLayerType::CONSTANT
+};
+
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesErf = {
+        ngraph::helpers::EltwiseTypes::ERF
+};
+
+const auto multiply_params_erf = ::testing::Combine(
+    ::testing::ValuesIn(inShapes),
+    ::testing::ValuesIn(eltwiseOpTypesErf),
+    ::testing::ValuesIn(secondaryInputTypesErf),
+    ::testing::ValuesIn(opTypes),
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+    ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefsErf, EltwiseLayerTest, multiply_params_erf, EltwiseLayerTest::getTestCaseName);
+
 }  // namespace

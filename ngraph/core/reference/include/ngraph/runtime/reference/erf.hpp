@@ -19,6 +19,8 @@
 #include <cmath>
 #include <cstddef>
 
+#include "ngraph/type/element_type.hpp"
+
 namespace ngraph
 {
     namespace runtime
@@ -31,6 +33,33 @@ namespace ngraph
                 for (size_t i = 0; i < count; i++)
                 {
                     out[i] = std::erf(arg[i]);
+                }
+            }
+
+            template <>
+            void erf<int8_t>(const int8_t* arg, int8_t* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = std::round(std::erf(arg[i]));
+                }
+            }
+
+            template <>
+            void erf<int16_t>(const int16_t* arg, int16_t* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = std::round(std::erf(arg[i]));
+                }
+            }
+
+            template <>
+            void erf<int32_t>(const int32_t* arg, int32_t* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = std::round(std::erf(arg[i]));
                 }
             }
         }
