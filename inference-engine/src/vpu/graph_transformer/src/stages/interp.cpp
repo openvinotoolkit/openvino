@@ -89,17 +89,18 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "Interp stage with name {} must have only 1 output, "
                      "actually provided {}", layer->name, outputs.size());
-    ie::details::CaselessEq<std::string> cmp;
     const auto coord = layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
     const auto interpMode = layer->GetParamAsString(g_mode, g_linear);
+    const auto interpModeIt = interpModeMap.find(interpMode);
+    const auto coordModeIt  = coordTransformModeMap.find(coord);
     InterpolateCoordTransMode coordinateTransMode = InterpolateCoordTransMode::HalfPixel;
     InterpolateMode mode = InterpolateMode::Linear;
 
-    coordinateTransMode = coordTransformModeMap.at(coord);
-
-    if (cmp(interpMode, g_linear_onnx)) {
-        mode = InterpolateMode::LinearOnnx;
-    }
+    VPU_THROW_UNLESS(interpModeIt != interpModeMap.end(), "Interp stage with name {} does not support this interp mode", layer->name);
+    VPU_THROW_UNLESS(interpModeIt->second == InterpolateMode::Linear || interpModeIt->second  == InterpolateMode::LinearOnnx, "Interp stage supports linear and linear_onnx modes");
+    VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interp stage does not support this coordinate transforation mode");
+    coordinateTransMode = coordModeIt->second;
+    mode = interpModeIt->second;
 
     _stageBuilder->addInterpStage(model, layer->name, layer, layer->GetParamAsInt(g_align_corners, 0), mode, coordinateTransMode, inputs[0], outputs[0]);
 }

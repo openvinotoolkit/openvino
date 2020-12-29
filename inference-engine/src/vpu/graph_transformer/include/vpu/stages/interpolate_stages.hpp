@@ -31,6 +31,11 @@ namespace vpu {
     constexpr auto g_factor               = "factor";
     constexpr auto g_type                 = "type";
 
+    const std::map<std::string, InterpolateMode, ie::details::CaselessLess<std::string>> interpModeMap = {
+        {g_linear,       InterpolateMode::Linear},
+        {g_linear_onnx,  InterpolateMode::LinearOnnx},
+    };
+
     const std::map<std::string, InterpolateNearestMode, ie::details::CaselessLess<std::string>> nearestModeMap = {
         {g_round_prefer_floor, InterpolateNearestMode::RoundPreferFloor},
         {g_round_prefer_ceil,  InterpolateNearestMode::RoundPreferCeil},
