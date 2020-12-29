@@ -6,7 +6,7 @@
 
 **Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/pooling.html)
 
-**Detailed description**: [Reference](https://deeplizard.com/learn/video/ZjM_XQa5s6s). Input shape can be either 3D, 4D or 5D. Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value is 0. 
+**Detailed description**: [Reference](https://deeplizard.com/learn/video/ZjM_XQa5s6s). Input shape can be either 3D, 4D or 5D. Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value is 0.  
         `H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`  
         `W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
         `D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`  
