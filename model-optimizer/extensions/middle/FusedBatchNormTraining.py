@@ -29,20 +29,9 @@ from extensions.ops.BatchNormInference import BatchNormInference
 batchNormAttrList = ['data_format', 'data_type', 'eps', 'fix_gamma', 'shape', 'value']
 
 def replaceBatchNormTraining2Inference(batchNormTrainingNode: Node) -> Node:
-    additional_attrs = {}
-    for batchNormAttr in  batchNormAttrList:
-        if batchNormTrainingNode.has(batchNormAttr):
-            additional_attrs[batchNormAttr] = batchNormTrainingNode[batchNormAttr]
-    additional_attrs['name'] = batchNormTrainingNode.name +'/batchnormInference'
-    batchNormInferNode = BatchNormInference(batchNormTrainingNode.graph,
-        additional_attrs).create_node()
-    for port_id,_ in batchNormTrainingNode.in_nodes().items():
-        batchNormTrainingNode.in_port(port_id).get_connection().\
-            set_destination(batchNormInferNode.in_port(port_id))
-    for port_id,_ in  batchNormTrainingNode.out_nodes().items():
 
-        batchNormTrainingNode.out_port(port_id).get_connection().\
-            set_source(batchNormInferNode.out_port(port_id))
+
+
     return batchNormInferNode
 
 
@@ -69,8 +58,21 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        old_node = match['op']
+        bn_train_node = match['op']
+        additional_attrs = {}
+        for batchNormAttr in batchNormAttrList:
+            if bn_train_node.has(batchNormAttr):
+                additional_attrs[batchNormAttr] = bn_train_node[batchNormAttr]
 
+        bn_inference_node = BatchNormInference(bn_train_node.graph,
+                                                additional_attrs).create_node()
+        bn_inference_node.
+        for port_id, _ in batchNormTrainingNode.in_nodes().items():
+            batchNormTrainingNode.in_port(port_id).get_connection(). \
+                set_destination(batchNormInferNode.in_port(port_id))
+        for port_id, _ in batchNormTrainingNode.out_nodes().items():
+            batchNormTrainingNode.out_port(port_id).get_connection(). \
+                set_source(batchNormInferNode.out_port(port_id))
         node = replaceBatchNormTraining2Inference(old_node)
         node.update_node()
         shape = node.in_port(1).data.get_shape()
