@@ -113,30 +113,19 @@ Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_I
 ### <a name="Install-Core-Components"></a>Install the Intel® Distribution of OpenVINO™ toolkit Core Components
 
 1. If you have not downloaded the Intel® Distribution of OpenVINO™ toolkit, [download the latest version](http://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-windows). By default, the file is saved to the `Downloads` directory as `w_openvino_toolkit_p_<version>.exe`.
-
 2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. A window opens to let you choose your installation directory and components. 
    ![](../img/openvino-install-windows-01.png)
    The default installation directory is `C:\Program Files (x86)\Intel\openvino_<version>`, for simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2021`. If you choose a different installation directory, the installer will create the directory for you.
-
    > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.    
-
 3. Click **Next**.
-
 4. You are asked if you want to provide consent to gather information. Choose the option of your choice. Click **Next**.
-
 5. If you are missing external dependencies, you will see a warning screen. Write down the dependencies you are missing. **You need to take no other action at this time**. After installing the Intel® Distribution of OpenVINO™ toolkit core components, install the missing dependencies.
 The screen example below indicates you are missing two dependencies:
-
    ![](../img/openvino-install-windows-02.png)
-
 6. Click **Next**.
-
 7. When the first part of installation is complete, the final screen informs you that the core components have been installed and additional steps still required:
-
    ![](../img/openvino-install-windows-03.png)
-
 8. Click **Finish** to close the installation wizard. A new browser window opens to the next section of the installation guide to set the environment variables. You are in the same document. The new window opens in case you ran the installation without first opening this installation guide. 
-
 9. If the installation indicated you must install dependencies, install them first. If there are no missing dependencies, you can go ahead and <a href="#set-the-environment-variables">set the environment variables</a>.  
 
 ### Set the Environment Variables <a name="set-the-environment-variables"></a>
