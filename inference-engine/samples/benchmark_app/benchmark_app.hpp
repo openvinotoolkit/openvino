@@ -42,11 +42,13 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
                                                 "(including HETERO and MULTI cases).";
 
 /// @brief message for #streams for CPU inference
-static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode "
+static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices "
                                                 "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). "
                                                 "Default value is determined automatically for a device.Please note that although the automatic selection "
                                                 "usually provides a reasonable performance, it still may be non - optimal for some cases, especially for "
-                                                "very small networks. See sample's README for more details.";
+                                                "very small networks. See sample's README for more details. "
+                                                "Also, using nstreams>1 is inherently throughput-oriented option, "
+                                                "while for the best-latency estimations the number of streams should be set to 1.";
 
 /// @brief message for enforcing of BF16 execution where it is possible
 static const char enforce_bf16_message[] = "Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.";

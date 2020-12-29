@@ -87,11 +87,13 @@ Options:
     -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
 
   CPU-specific performance options:
-    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode
+    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
                               (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
                               Default value is determined automatically for a device. 
                               Please note that although the automatic selection usually provides a reasonable performance, 
                               it still may be non-optimal for some cases, especially for very small networks.
+                              Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency 
+                              estimations the number of streams should be set to 1.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
     -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
