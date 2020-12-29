@@ -112,11 +112,8 @@ cd l_openvino_toolkit_p_<version>
 toolkit installed, rename or delete these two directories:
    - `~/inference_engine_samples_build`
    - `~/openvino_models`
-5. Choose your installation option:
-   **Installation Notes:**
-      - Choose an installation option and run the related script as root.
-      - You can use either a GUI installation wizard or command line instructions (CLI).
-      - Screenshots are provided for the GUI, but not for CLI. The following information also applies to CLI and will be helpful to your installation where you will be presented with the same choices and tasks.
+5. Choose your installation option and run the related script as root to use either a GUI installation wizard or command line instructions (CLI).<br>    
+   Screenshots are provided for the GUI, but not for CLI. The following information also applies to CLI and will be helpful to your installation where you will be presented with the same choices and tasks.
    - **Option 1:** GUI Installation Wizard:
 ```sh
 sudo ./install_GUI.sh
@@ -145,7 +142,7 @@ To get a full list of available components for installation, run the `./install.
    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`.
 
 8. **Optional:** You can choose **Customize** to change the installation directory or the components you want to install:
-![](../img/openvino-install-linux-03.png)
+   ![](../img/openvino-install-linux-03.png)
    > **NOTES**: 
    > - If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
    > - The Intel® Media SDK component is always installed in the `/opt/intel/mediasdk` directory regardless of the OpenVINO installation path chosen.

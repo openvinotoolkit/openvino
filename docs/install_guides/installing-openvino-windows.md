@@ -112,7 +112,7 @@ Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_I
 
 ### <a name="Install-Core-Components"></a>Install the Intel® Distribution of OpenVINO™ toolkit Core Components
 
-1. If you have not downloaded the Intel® Distribution of OpenVINO™ toolkit, [download the latest version](http://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-windows). By default, the file is saved to the `Downloads` directory as `w_openvino_toolkit_p_<version>.exe`.
+1. If you have not downloaded the Intel® Distribution of OpenVINO™ toolkit, [download the latest version](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html). By default, the file is saved to the `Downloads` directory as `w_openvino_toolkit_p_<version>.exe`.
 2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. A window opens to let you choose your installation directory and components. 
    ![](../img/openvino-install-windows-01.png)
    The default installation directory is `C:\Program Files (x86)\Intel\openvino_<version>`, for simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2021`. If you choose a different installation directory, the installer will create the directory for you.
