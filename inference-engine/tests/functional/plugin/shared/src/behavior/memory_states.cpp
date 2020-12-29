@@ -266,6 +266,15 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers) {
     auto inferReq = executableNet.CreateInferRequest();
     auto inferReq2 = executableNet.CreateInferRequest();
 
+    for (const auto &input : executableNet.GetInputsInfo()) {
+        const auto &info = input.second;
+        InferenceEngine::Blob::Ptr inBlob;
+        inBlob = make_blob_with_precision(info->getTensorDesc());
+        inBlob->allocate();
+        std::memset(inBlob->buffer(), 0, inBlob->byteSize());
+        inferReq.SetBlob(info->name(), inBlob);
+    }
+
     for (auto&& state : inferReq.QueryState()) {
         state.Reset();
     }
@@ -286,7 +295,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers) {
 
         if (i == 0) {
             for (int j = 0; j < last_state_size; ++j) {
-                EXPECT_NEAR(0.5f, last_state_data[j], 1e-5);
+                EXPECT_NEAR(0.5f, last_state_data[j], 1e-3);
             }
         } else {
             for (int j = 0; j < last_state_size; ++j) {
