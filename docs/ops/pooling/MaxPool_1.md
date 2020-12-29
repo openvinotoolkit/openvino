@@ -70,7 +70,7 @@
 
 **Inputs**:
 
-*   **1**: 4D or 5D input tensor. Required.
+*   **1**: 3D, 4D or 5D input tensor. Required.
 
 **Outputs**:
   * **1**: Input shape can be either [N,C,H], [N,C,H,W] or [N,C,H,W,D]. Then the corresponding output shape will be [N,C,H_out], [N,C,H_out,W_out] or [N,C,H_out,W_out,D_out]
