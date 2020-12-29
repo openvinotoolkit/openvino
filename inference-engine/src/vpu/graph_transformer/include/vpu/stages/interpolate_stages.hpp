@@ -30,4 +30,20 @@ namespace vpu {
     constexpr auto g_nearest              = "nearest";
     constexpr auto g_factor               = "factor";
     constexpr auto g_type                 = "type";
+
+    const std::map<std::string, InterpolateNearestMode, ie::details::CaselessLess<std::string>> nearestModeMap = {
+        {g_round_prefer_floor, InterpolateNearestMode::RoundPreferFloor},
+        {g_round_prefer_ceil,  InterpolateNearestMode::RoundPreferCeil},
+        {g_floor_mode,         InterpolateNearestMode::Floor},
+        {g_ceil_mode,          InterpolateNearestMode::Ceil},
+        {g_simple,             InterpolateNearestMode::Simple},
+    };
+
+    const std::map<std::string, InterpolateCoordTransMode, ie::details::CaselessLess<std::string>> coordTransformModeMap = {
+        {g_asymmetric,           InterpolateCoordTransMode::Asymmetric},
+        {g_half_pixel,           InterpolateCoordTransMode::HalfPixel},
+        {g_pytorch_half_pixel,   InterpolateCoordTransMode::PytorchHalfPixel},
+        {g_tf_half_pixel_for_nn, InterpolateCoordTransMode::TfHalfPixelForNn},
+        {g_align_corners,        InterpolateCoordTransMode::AlignCorners},
+    };
 }  // namespace vpu

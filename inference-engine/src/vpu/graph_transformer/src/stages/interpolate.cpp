@@ -18,44 +18,6 @@ using namespace InferenceEngine;
 
 namespace vpu {
 
-InterpolateCoordTransMode coordinateChoice(const std::string &coordinateTransformation) {
-    ie::details::CaselessEq<std::string> cmp;
-    InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-    if (cmp(coordinateTransformation, g_asymmetric)) {
-        coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
-    } else if (cmp(coordinateTransformation, g_half_pixel)) {
-        coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-    } else if (cmp(coordinateTransformation, g_pytorch_half_pixel)) {
-        coordinateTransformationMode = InterpolateCoordTransMode::PytorchHalfPixel;
-    } else if (cmp(coordinateTransformation, g_tf_half_pixel_for_nn)) {
-        coordinateTransformationMode = InterpolateCoordTransMode::TfHalfPixelForNn;
-    } else if (cmp(coordinateTransformation, g_align_corners)) {
-        coordinateTransformationMode = InterpolateCoordTransMode::AlignCorners;
-    } else {
-        VPU_THROW_FORMAT("Current Interpolate does not support this coordinate transformation mode");
-    }
-    return coordinateTransformationMode;
-}
-
-InterpolateNearestMode nearestModeChoice(const std::string &near) {
-    ie::details::CaselessEq<std::string> cmp;
-    InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
-    if (cmp(near, g_round_prefer_floor)) {
-        nearestMode = InterpolateNearestMode::RoundPreferFloor;
-    } else if (cmp(near, g_round_prefer_ceil)) {
-        nearestMode = InterpolateNearestMode::RoundPreferCeil;
-    } else if (cmp(near, g_floor_mode)) {
-        nearestMode = InterpolateNearestMode::Floor;
-    } else if (cmp(near, g_ceil_mode)) {
-        nearestMode = InterpolateNearestMode::Ceil;
-    } else if (cmp(near, g_simple)) {
-        nearestMode = InterpolateNearestMode::Simple;
-    } else {
-        VPU_THROW_FORMAT("Current Interpolate does not support this nearest mode");
-    }
-    return nearestMode;
-}
-
 void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     VPU_THROW_UNLESS(inputs.size() <= 4 && inputs.size() >= 1,
                      "Interpolate stage with name {} must have no more than 4 inputs and no less than 1 input, actually provided {} inputs",
@@ -99,8 +61,8 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 auto coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
                 auto nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
-                nearestMode = nearestModeChoice(near);
-                coordinateTransformationMode = coordinateChoice(coordinateTransformation);
+                nearestMode = nearestModeMap.at(near);
+                coordinateTransformationMode = coordTransformModeMap.at(coordinateTransformation);
 
                 _stageBuilder->addResampleNearestStage(model,
                                                        _layer->name,
@@ -121,7 +83,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 if (cmp(interpolateMode, g_linear_onnx)) {
                     mode = InterpolateMode::LinearOnnx;
                 }
-                coordinateTransformationMode = coordinateChoice(coordinateTransformation);
+                coordinateTransformationMode = coordTransformModeMap.at(coordinateTransformation);
 
                 _stageBuilder->addInterpStage(model,
                                               _layer->name,

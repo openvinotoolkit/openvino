@@ -95,19 +95,7 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
     InterpolateCoordTransMode coordinateTransMode = InterpolateCoordTransMode::HalfPixel;
     InterpolateMode mode = InterpolateMode::Linear;
 
-    if (cmp(coord, g_asymmetric)) {
-        coordinateTransMode = InterpolateCoordTransMode::Asymmetric;
-    } else if (cmp(coord, g_half_pixel)) {
-        coordinateTransMode = InterpolateCoordTransMode::HalfPixel;
-    } else if (cmp(coord, g_pytorch_half_pixel)) {
-        coordinateTransMode = InterpolateCoordTransMode::PytorchHalfPixel;
-    } else if (cmp(coord, g_tf_half_pixel_for_nn)) {
-        coordinateTransMode = InterpolateCoordTransMode::TfHalfPixelForNn;
-    } else if (cmp(coord, g_align_corners)) {
-        coordinateTransMode = InterpolateCoordTransMode::AlignCorners;
-    } else {
-        VPU_THROW_FORMAT("Current Interp doesn't support this coordinate transformation mode");
-    }
+    coordinateTransMode = coordTransformModeMap.at(coord);
 
     if (cmp(interpMode, g_linear_onnx)) {
         mode = InterpolateMode::LinearOnnx;
