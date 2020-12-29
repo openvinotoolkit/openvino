@@ -85,26 +85,20 @@ QueryNetworkResult Engine::QueryNetwork(
             parsedConfigCopy.logLevel(),
             defaultOutput(parsedConfigCopy.compilerLogFilePath()));
 
-    if (auto function = network.getFunction()) {
-        auto clonedNetwork = cloneNetwork(network);
-        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
-
-        auto supportedLayers = getSupportedLayers(network,
-                                                  static_cast<Platform>(parsedConfigCopy.platform()),
-                                                  parsedConfigCopy.compileConfig(),
-                                                  log,
-                                                  GetCore());
-
-        res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
-    } else {
-        const auto layerNames = getSupportedLayers(
+    const auto supportedLayers = getSupportedLayers(
             network,
             static_cast<Platform>(parsedConfigCopy.platform()),
             parsedConfigCopy.compileConfig(),
             log,
             GetCore());
 
-        for (const auto& layerName : layerNames) {
+    if (auto function = network.getFunction()) {
+        auto clonedNetwork = cloneNetwork(network);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
+
+        res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
+    } else {
+        for (const auto& layerName : supportedLayers) {
             res.supportedLayersMap.insert({ layerName, GetName() });
         }
     }
