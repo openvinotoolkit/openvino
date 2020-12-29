@@ -91,12 +91,14 @@
             <dim>1</dim>
             <dim>3</dim>
             <dim>32</dim>
+            <dim>32</dim>
           </port>
         </input>
         <output>
         <port id="1">
             <dim>1</dim>
             <dim>3</dim>
+            <dim>32</dim>
             <dim>32</dim>
         </port>
     </output>
