@@ -37,6 +37,12 @@ op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatur
     constructor_validate_and_infer_types();
 }
 
+op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(
+    const NodeVector& args, const Attributes& attrs)
+    : ExperimentalDetectronROIFeatureExtractor(as_output_vector(args), attrs)
+{
+}
+
 bool op::v6::ExperimentalDetectronROIFeatureExtractor::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_visit_attributes);

@@ -56,6 +56,13 @@ namespace ngraph
                 /// \param attrs  Operation attributes
                 ExperimentalDetectronROIFeatureExtractor(const OutputVector& args,
                                                          const Attributes& attrs);
+
+                /// \brief Constructs a ExperimentalDetectronROIFeatureExtractor operation.
+                ///
+                /// \param args  Inputs of ExperimentalDetectronROIFeatureExtractor
+                /// \param attrs  Operation attributes
+                ExperimentalDetectronROIFeatureExtractor(const NodeVector& args,
+                                                         const Attributes& attrs);
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
