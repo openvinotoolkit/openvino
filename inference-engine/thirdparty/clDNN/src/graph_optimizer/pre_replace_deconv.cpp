@@ -58,9 +58,11 @@ void pre_replace_deconv::run(program_impl& p) {
             }
 
             // limit optimization to stride = 1
-            bool unit_stride = std::all_of(deconv_prim->stride.spatial.begin(),
-                                           deconv_prim->stride.spatial.end(),
-                                           [](tensor::value_type v) { return v == 1; });
+            // iterators shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
+            bool unit_stride = true;
+            for (size_t i = 0; i < deconv_prim->stride.spatial.size(); ++i) {
+                unit_stride &= (deconv_prim->stride.spatial[i] == 1);
+            }
             if (unit_stride) {
                 primitive_id deconv_id = node->id();
                 auto& input_node = node->get_dependency(0);

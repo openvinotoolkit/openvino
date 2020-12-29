@@ -204,7 +204,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
     pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
 
-    pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
     manager.run_passes(nGraphFunc);
