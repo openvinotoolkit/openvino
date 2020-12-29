@@ -35,6 +35,8 @@ Inference Engine sample applications include the following:
    - [Object Detection for SSD C Sample](../../inference-engine/ie_bridges/c/samples/object_detection_sample_ssd/README.md)
    - [Object Detection for SSD Python* Sample](../../inference-engine/ie_bridges/python/sample/object_detection_sample_ssd/README.md)
  
+> **NOTE**: All samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
+
 ## Media Files Available for Samples
 
 To run the sample applications, you can use images and videos from the media files collection available at https://github.com/intel-iot-devkit/sample-videos.
