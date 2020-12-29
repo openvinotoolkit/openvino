@@ -95,12 +95,12 @@
           </port>
         </input>
         <output>
-        <port id="1">
+          <port id="1">
             <dim>1</dim>
             <dim>3</dim>
             <dim>32</dim>
             <dim>32</dim>
-        </port>
+          </port>
     </output>
 </layer>
 
@@ -115,12 +115,12 @@
           </port>
         </input>
         <output>
-        <port id="1">
+          <port id="1">
             <dim>1</dim>
             <dim>3</dim>
             <dim>17</dim>
             <dim>17</dim>
-        </port>
+          </port>
     </output>
 </layer>
 
@@ -135,12 +135,12 @@
           </port>
         </input>
         <output>
-        <port id="1">
+          <port id="1">
             <dim>1</dim>
             <dim>3</dim>
             <dim>16</dim>
             <dim>16</dim>
-        </port>
+          </port>
     </output>
 </layer>
 ```
