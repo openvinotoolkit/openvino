@@ -112,12 +112,13 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
     InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
     InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
-    if (cmp(coord, g_asymmetric)) {
-        coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
-    }
-    if (cmp(nearest, g_floor_mode)) {
-        nearestMode = InterpolateNearestMode::Floor;
-    }
+    const auto coordModeIt   = coordTransformModeMap.find(coord);
+    const auto nearestModeIt = nearestModeMap.find(nearest);
+
+    VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Resample stage does not support this coordinate transforation mode");
+    VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Resample stage does not support this nearest transforation mode");
+    coordinateTransformationMode = coordModeIt->second;
+    nearestMode = nearestModeIt->second;
 
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
         _stageBuilder->addResampleNearestStage(model,

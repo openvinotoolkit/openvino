@@ -61,8 +61,13 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 auto coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
                 auto nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
-                nearestMode = nearestModeMap.at(near);
-                coordinateTransformationMode = coordTransformModeMap.at(coordinateTransformation);
+                const auto coordModeIt   = coordTransformModeMap.find(coordinateTransformation);
+                const auto nearestModeIt = nearestModeMap.find(near);
+
+                VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interpolate stage does not support this coordinate transforation mode");
+                VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Interpolate stage does not support this nearest transforation mode");
+                coordinateTransformationMode = coordModeIt->second;
+                nearestMode = nearestModeIt->second;
 
                 _stageBuilder->addResampleNearestStage(model,
                                                        _layer->name,
