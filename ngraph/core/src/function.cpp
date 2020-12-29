@@ -405,4 +405,18 @@ void Function::remove_result(const std::shared_ptr<op::Result>& result)
         m_results.end());
 }
 
+void Function::add_parameters(const ParameterVector& params)
+{
+    m_parameters.insert(m_parameters.end(), params.begin(), params.end());
+}
+
+void Function::remove_parameter(const std::shared_ptr<op::Parameter>& param)
+{
+    m_parameters.erase(
+        std::remove_if(m_parameters.begin(),
+                       m_parameters.end(),
+                       [&param](std::shared_ptr<op::v0::Parameter>& r) { return r == param; }),
+        m_parameters.end());
+}
+
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;

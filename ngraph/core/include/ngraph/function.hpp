@@ -170,6 +170,16 @@ namespace ngraph
         /// \param result Result node to delete
         void remove_result(const std::shared_ptr<op::Result>& result);
 
+        /// \brief Add new Parameter nodes to the list. Method doesn't validate graph, it should be
+        /// done manually after all changes.
+        /// \param params new Parameter nodes
+        void add_parameters(const ParameterVector& params);
+
+        /// \brief Delete Parameter node from the list of parameters. Method will not delete node from
+        /// graph.
+        /// \param param Parameter node to delete
+        void remove_parameter(const std::shared_ptr<op::Parameter>& param);
+
     private:
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
