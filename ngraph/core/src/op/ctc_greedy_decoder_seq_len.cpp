@@ -143,7 +143,8 @@ shared_ptr<Node>
 {
     check_new_args_count(this, new_args);
 
-    if (new_args.size() == 2)
+    size_t args_size = new_args.size();
+    if (args_size == 2)
     {
         return make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0),
                                                    new_args.at(1),
@@ -151,7 +152,7 @@ shared_ptr<Node>
                                                    m_classes_index_type,
                                                    m_sequence_length_type);
     }
-    else if (new_args.size() == 3)
+    else if (args_size == 3)
     {
         return make_shared<CTCGreedyDecoderSeqLen>(new_args.at(0),
                                                    new_args.at(1),
