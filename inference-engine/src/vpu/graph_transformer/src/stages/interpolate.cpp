@@ -79,11 +79,15 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                 const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
                 auto coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
                 auto mode = InterpolateMode::Linear;
+                const auto interpolateModeIt = interpModeMap.find(interpolateMode);
+                const auto coordModeIt  = coordTransformModeMap.find(coordinateTransformation);
 
-                if (cmp(interpolateMode, g_linear_onnx)) {
-                    mode = InterpolateMode::LinearOnnx;
-                }
-                coordinateTransformationMode = coordTransformModeMap.at(coordinateTransformation);
+                VPU_THROW_UNLESS(interpolateModeIt != interpModeMap.end(), "Interp stage with name {} does not support this interp mode", _layer->name);
+                VPU_THROW_UNLESS(interpolateModeIt->second == InterpolateMode::Linear || interpolateModeIt->second  == InterpolateMode::LinearOnnx,
+                                 "Interp stage supports linear and linear_onnx modes");
+                VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interp stage does not support this coordinate transforation mode");
+                coordinateTransformationMode = coordModeIt->second;
+                mode = interpolateModeIt->second;
 
                 _stageBuilder->addInterpStage(model,
                                               _layer->name,
