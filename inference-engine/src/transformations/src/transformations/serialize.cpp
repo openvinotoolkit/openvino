@@ -55,18 +55,14 @@ std::string translate_type_name(const std::string& name) {
     return name;
 }
 
-<<<<<<< HEAD
-void ngfunction_2_irv10(
-    pugi::xml_document& doc, std::vector<uint8_t>& bin,
-    ngraph::Function& f,
-    const std::map<std::string, ngraph::OpSet>& custom_opsets);
-class XmlVisitor : public ngraph::AttributeVisitor {
-    pugi::xml_node& m_data;
-=======
+void ngfunction_2_irv10(pugi::xml_document& doc,
+                        std::ostream& bin_file,
+                        const ngraph::Function& f,
+                        const std::map<std::string, ngraph::OpSet>& custom_opsets);
+
 class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     std::ostream& m_bin_data;
->>>>>>> upstream/master
     std::string& m_node_type_name;
 
     template <typename T>
@@ -88,6 +84,108 @@ public:
                     ngraph::ValueAccessor<void>& adapter) override {
         (void)name;
         (void)adapter;
+
+        if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                    <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+            std::vector<std::string> parameter_mapping;
+            std::vector<std::string> result_mapping;
+
+            pugi::xml_node port_map = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
+            if (!port_map) {
+                port_map = m_xml_node.insert_child_before("port_map", m_xml_node.first_child());
+            }
+
+            for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
+                auto result = std::strcmp(node.attribute("type").value(), "Parameter");
+                if (!result) {
+                    parameter_mapping.push_back(node.attribute("id").value());
+                }
+            }
+            for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
+                auto result = std::strcmp(node.attribute("type").value(), "Result");
+                if (!result) {
+                    result_mapping.push_back(node.attribute("id").value());
+                }
+            }
+            std::reverse(parameter_mapping.begin(), parameter_mapping.end());
+            std::reverse(result_mapping.begin(), result_mapping.end());
+
+            for (const auto& input_description : a->get()) {
+                pugi::xml_node input = port_map.append_child("input");
+                input.append_attribute("external_port_id").set_value(input_description->m_input_index);
+                input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
+
+                if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
+                    input.prepend_attribute("axis").set_value(slice_input->m_axis);
+                    if (!slice_input->m_start) {
+                        input.append_attribute("start").set_value(slice_input->m_start);
+                    }
+                    if (slice_input->m_end != -1) {
+                        input.append_attribute("end").set_value(slice_input->m_end);
+                    }
+                    if (slice_input->m_stride != 1) {
+                        input.append_attribute("stride").set_value(slice_input->m_stride);
+                    }
+                    if (slice_input->m_part_size != 1) {
+                        input.append_attribute("part_size").set_value(slice_input->m_part_size);
+                    }
+                } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+                    pugi::xml_node back_edges = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "back_edges") == 0;});
+                    if (!back_edges) {
+                        back_edges = m_xml_node.insert_child_after("back_edges", port_map);
+                    }
+                    pugi::xml_node edge = back_edges.append_child("edge");
+                    edge.append_attribute("from-layer").set_value(result_mapping[merged_input->m_body_value_index].c_str());
+                    edge.append_attribute("to-layer").set_value(parameter_mapping[merged_input->m_body_parameter_index].c_str());
+                }
+            }
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                    <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+            std::vector<std::string> parameter_mapping;
+            std::vector<std::string> result_mapping;
+
+            pugi::xml_node port_map = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
+            if (!port_map) {
+                port_map = m_xml_node.insert_child_before("port_map", m_xml_node.first_child());
+            }
+
+            for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
+                auto result = std::strcmp(node.attribute("type").value(), "Parameter");
+                if (!result) {
+                    parameter_mapping.push_back(node.attribute("id").value());
+                }
+            }
+            for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
+                auto result = std::strcmp(node.attribute("type").value(), "Result");
+                if (!result) {
+                    result_mapping.push_back(node.attribute("id").value());
+                }
+            }
+            std::reverse(parameter_mapping.begin(), parameter_mapping.end());
+            std::reverse(result_mapping.begin(), result_mapping.end());
+
+            for (const auto& output_description : a->get()) {
+                pugi::xml_node output = port_map.append_child("output");
+                output.append_attribute("external_port_id").set_value(parameter_mapping.size() + output_description->m_output_index);
+                output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
+
+                if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
+                    output.prepend_attribute("axis").set_value(concat_output->m_axis);
+                    if (!concat_output->m_start) {
+                        output.append_attribute("start").set_value(concat_output->m_start);
+                    }
+                    if (concat_output->m_end != -1) {
+                        output.append_attribute("end").set_value(concat_output->m_end);
+                    }
+                    if (concat_output->m_stride != 1) {
+                        output.append_attribute("stride").set_value(concat_output->m_stride);
+                    }
+                    if (concat_output->m_part_size != 1) {
+                        output.append_attribute("part_size").set_value(concat_output->m_part_size);
+                    }
+                }
+            }
+        }
     }
 
     void on_adapter(const std::string& name,
@@ -164,11 +262,11 @@ public:
         std::vector<uint8_t> constants;
         std::map<std::string, ngraph::OpSet> m_custom_opsets;
 
-        ngfunction_2_irv10(xml_body, constants, *adapter.get(), m_custom_opsets);
+        ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets);
         xml_body.first_child().remove_attribute("name");
         xml_body.first_child().remove_attribute("version");
         xml_body.first_child().set_name(name.c_str());
-        m_data.append_copy(xml_body.first_child());
+        m_xml_node.append_copy(xml_body.first_child());
     }
 };
 
@@ -428,11 +526,15 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
             layer.append_attribute("version").set_value(
                 get_opset_name(node, custom_opsets).c_str());
         }
+
         // <layers/data>
-        pugi::xml_node data = layer.append_child("data");
+        std::string node_type_name{node->get_type_name()};
+        pugi::xml_node data = layer;
+        if (node_type_name != "TensorIterator") {
+            data = layer.append_child("data");
+        }
 
         // <layers/data> general attributes
-        std::string node_type_name{node->get_type_name()};
         if (exec_graph) {
             visit_exec_graph_node(data, node_type_name, node);
         } else {
@@ -445,7 +547,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
 
         const auto data_attr_size =
             std::distance(data.attributes().begin(), data.attributes().end());
-        if (data_attr_size == 0) {
+        if (data_attr_size == 0 && node_type_name != "TensorIterator") {
             layer.remove_child(data);
         }
 
@@ -465,6 +567,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
                         .set_value(std::to_string(d).c_str());
                 }
             }
+
             if (node_type_name == "TensorIterator") {
                 layer.prepend_move(input);
             }
@@ -487,7 +590,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
                 }
             }
             if (node_type_name == "TensorIterator") {
-                layer.first_child().append_move(output);
+                layer.insert_move_after(output, layer.first_child());
             }
         }
     }
@@ -506,7 +609,6 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
         f.validate_nodes_and_infer_types();
     }
 }
-
 }  // namespace
 
 // ! [function_pass:serialize_cpp]
