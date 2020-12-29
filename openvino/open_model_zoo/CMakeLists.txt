@@ -17,23 +17,17 @@ endif()
 ie_cpack_add_component(omz)
 
 if(UNIX)
-    install(DIRECTORY ${omz_SOURCE_DIR}/
-            DESTINATION deployment_tools/open_model_zoo
-            COMPONENT omz
-            USE_SOURCE_PERMISSIONS
-            PATTERN .* EXCLUDE
-            PATTERN ci EXCLUDE
-            PATTERN *.bat EXCLUDE
-            PATTERN demos/tests EXCLUDE
-            PATTERN tools/downloader/tests EXCLUDE)
+    SET(EXT_EXCLUDE "*.bat")
 elseif(WIN32)
-    install(DIRECTORY ${omz_SOURCE_DIR}/
-            DESTINATION deployment_tools/open_model_zoo
-            COMPONENT omz
-            USE_SOURCE_PERMISSIONS
-            PATTERN ci EXCLUDE
-            PATTERN .* EXCLUDE
-            PATTERN *.sh EXCLUDE
-            PATTERN demos/tests EXCLUDE
-            PATTERN tools/downloader/tests EXCLUDE)
+    SET(EXT_EXCLUDE "*.sh")
 endif()
+
+install(DIRECTORY ${omz_SOURCE_DIR}/
+        DESTINATION deployment_tools/open_model_zoo
+        COMPONENT omz
+        USE_SOURCE_PERMISSIONS
+        PATTERN ci EXCLUDE
+        PATTERN .* EXCLUDE
+        PATTERN ${EXT_EXCLUDE} EXCLUDE
+        PATTERN demos/tests EXCLUDE
+        PATTERN tools/downloader/tests EXCLUDE)

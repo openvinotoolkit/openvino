@@ -27,6 +27,8 @@ Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
 
 ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" OFF)
 
+ie_option (ENABLE_OMZ "fetch Open Model Zoo repository" OFF)
+
 #
 # Process options
 #
