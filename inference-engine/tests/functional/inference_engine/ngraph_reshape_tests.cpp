@@ -921,6 +921,80 @@ TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
 
+TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractorOpset6) {
+    std::string model = R"V0G0N(
+<net name="ExperimentalDetectronROIFeatureExtractor" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="1000,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="1,256,200,336" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="1190" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
+			<data aligned="0" distribute_rois_between_levels="1" output_size="7" preserve_rois_order="1" pyramid_scales="4" sampling_ratio="2"/>
+			<input>
+				<port id="0">
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1000</dim>
+					<dim>256</dim>
+					<dim>7</dim>
+					<dim>7</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="out_0" type="Result" id="3" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+					<dim>256</dim>
+					<dim>7</dim>
+					<dim>7</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in0"] = {1256, 4};
+    newShapes["in1"] = {1, 256, 7, 7};
+    ASSERT_NO_THROW(network.reshape(newShapes));
+}
+
 TEST_F(NGraphReshapeTests, ReshapeEDTopKROIs) {
     std::string model = R"V0G0N(
 <net name="ExperimentalDetectronTopKROIs" version="10">
