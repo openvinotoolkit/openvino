@@ -53,7 +53,7 @@ TEST(type_prop, bucketize_output_type_right_bound)
 
 TEST(type_prop, bucketize_dynamic_input)
 {
-    auto data = make_shared<op::Parameter>(element::f64, PartialShape{4, Dimension::dynamic()});
+    auto data = make_shared<op::Parameter>(element::f16, PartialShape{4, Dimension::dynamic()});
     auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
     auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
 
@@ -64,7 +64,7 @@ TEST(type_prop, bucketize_dynamic_input)
 
 TEST(type_prop, bucketize_dynamic_buckets)
 {
-    auto data = make_shared<op::Parameter>(element::f64, PartialShape{4, Dimension::dynamic()});
+    auto data = make_shared<op::Parameter>(element::f16, PartialShape{4, Dimension::dynamic()});
     auto buckets = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
     auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
 
@@ -125,7 +125,7 @@ TEST(type_prop, bucketize_invalid_output_types)
                                                     ngraph::element::u16,
                                                     ngraph::element::u8,
                                                     ngraph::element::boolean};
-    auto data = make_shared<op::Parameter>(element::f64, PartialShape{4, Dimension::dynamic()});
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension::dynamic()});
     auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
     for (auto output_type : output_types)
     {
@@ -148,8 +148,8 @@ TEST(type_prop, bucketize_invalid_output_types)
 
 TEST(type_prop, bucketize_invalid_buckets_dim)
 {
-    auto data = make_shared<op::Parameter>(element::f64, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5, 5});
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension::dynamic()});
+    auto buckets = make_shared<op::Parameter>(element::f16, Shape{5, 5});
     try
     {
         auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
