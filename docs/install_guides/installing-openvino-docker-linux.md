@@ -59,7 +59,7 @@ RUN apt-get update && \
     curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-core_1.0.2597_amd64.deb" --output "intel-igc-core_1.0.2597_amd64.deb" && \
     curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-opencl_1.0.2597_amd64.deb" --output "intel-igc-opencl_1.0.2597_amd64.deb" && \
     curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-opencl_19.41.14441_amd64.deb" --output "intel-opencl_19.41.14441_amd64.deb" && \
-    curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-ocloc_19.04.12237_amd64.deb" --output "intel-ocloc_19.04.12237_amd64.deb" && \
+    curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-ocloc_19.41.14441_amd64.deb" --output "intel-ocloc_19.04.12237_amd64.deb" && \
     dpkg -i /tmp/opencl/*.deb && \
     ldconfig && \
     rm /tmp/opencl

@@ -106,7 +106,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 
     ![](../img/openvino-install-macos-01.png)
 
-  The default installation directory path depends on the privileges you choose for the installation.
+   The default installation directory path depends on the privileges you choose for the installation.
 
 5. Click **Next** and follow the instructions on your screen.
 
@@ -117,18 +117,17 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 
 8. The **Installation summary** screen shows you the default component set to install:
    ![](../img/openvino-install-macos-03.png)
+   By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
 
-  By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
+   * For root or administrator: `/opt/intel/openvino_<version>/`
+   * For regular users: `/home/<USER>/intel/openvino_<version>/`
 
-* For root or administrator: `/opt/intel/openvino_<version>/`
-* For regular users: `/home/<USER>/intel/openvino_<version>/`
-
-For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`.
-
+   For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`.
 9. If needed, click **Customize** to change the installation directory or the components you want to install:
-    ![](../img/openvino-install-macos-04.png)
-
-    Click **Next** to save the installation options and show the Installation summary screen.
+   ![](../img/openvino-install-macos-04.png)
+   > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
+   
+   Click **Next** to save the installation options and show the Installation summary screen.
 
 10. On the **Installation summary** screen, press **Install** to begin the installation.
 
