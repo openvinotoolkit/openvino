@@ -69,16 +69,23 @@ namespace ngraph
                 {
                     const T* box = rois + roi * 5;
                     int batch_id = box[0];
-                    float start_w = box[1] * spatial_scale;
-                    float start_h = box[2] * spatial_scale;
-                    float end_w = box[3] * spatial_scale;
-                    float end_h = box[4] * spatial_scale;
-                    if (mode == AVG)
+                    float start_w = 0;
+                    float start_h = 0;
+                    float end_w = 0;
+                    float end_h = 0;
+                    if (mode == BILINEAR)
                     {
-                        start_w = std::roundf(start_w);
-                        start_h = std::roundf(start_h);
-                        end_w = std::roundf(end_w) + 1;
-                        end_h = std::roundf(end_h) + 1;
+                        start_w = box[1] * spatial_scale;
+                        start_h = box[2] * spatial_scale;
+                        end_w = box[3] * spatial_scale;
+                        end_h = box[4] * spatial_scale;
+                    }
+                    else if (mode == AVG)
+                    {
+                        start_w = std::roundf(box[1]) * spatial_scale;
+                        start_h = std::roundf(box[2]) * spatial_scale;
+                        end_w = (std::roundf(box[3]) + 1.0f) * spatial_scale;
+                        end_h = (std::roundf(box[4]) + 1.0f) * spatial_scale;
                     }
                     float box_width = end_w - start_w;
                     float box_height = end_h - start_h;
