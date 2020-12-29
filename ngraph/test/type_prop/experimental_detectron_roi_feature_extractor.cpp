@@ -45,6 +45,6 @@ TEST(type_prop, detectron_roi_feature_extractor)
     auto roi = std::make_shared<ExperimentalROI>(
         NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3}, attrs);
 
-    ASSERT_EQ(detection->get_output_element_type(0), element::f32);
-    EXPECT_EQ(detection->get_output_shape(0), (Shape{1000, 256, 14, 14}));
+    ASSERT_EQ(roi->get_output_element_type(0), element::f32);
+    EXPECT_EQ(roi->get_output_shape(0), (Shape{1000, 256, 14, 14}));
 }
