@@ -136,9 +136,12 @@ sudo ./install.sh -s silent.cfg
       * For root or administrator: `/opt/intel/openvino_<version>/`
       * For regular users: `/home/<USER>/intel/openvino_<version>/`
    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`.
-8. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install:
-   ![](../img/openvino-install-linux-03.png)
 
+8. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install:<br>
+   ![](../img/openvino-install-linux-03.png)
+      > **NOTES**: 
+      > - If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
+      > - The Intel® Media SDK component is always installed in the `/opt/intel/mediasdk` directory regardless of the OpenVINO installation path chosen.
 9. A Complete screen indicates that the core components have been installed:
    ![](../img/openvino-install-linux-04.png)
 
