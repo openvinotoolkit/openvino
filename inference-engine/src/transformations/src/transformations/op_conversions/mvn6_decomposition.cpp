@@ -18,10 +18,10 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
     // (x - ReduceMean(x, axes)) / Sqrt(ReduceSum((x - ReduceMean(x, axes)) ^ 2))
     auto mvn = ngraph::pattern::wrap_type<opset6::MVN>();
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [&](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto mvn_node = std::dynamic_pointer_cast<ngraph::opset6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
         auto match_root = m.get_match_root();
+        auto mvn_node = std::dynamic_pointer_cast<ngraph::opset6::MVN>(match_root);
 
         if (mvn_node == nullptr || m_transformation_callback(mvn)) {
             return false;
