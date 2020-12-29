@@ -64,7 +64,14 @@ class AddMeanScaleValues(MiddleReplacementPattern):
 
         for dst in input_node.out_port(0).get_destinations():
             if dst.node.soft_get('type') != 'ShapeOf':
+                # After the insertion of additional operations model optimizer
+                # should keep the link to the input layer. Parameter node in framework
+                # should map to parameter node in IR.
+                # For this reason 'fw_tensor_debug_info' should be kept in data node.
+                fw_name = input_node.out_node(0)['fw_tensor_debug_info']
                 dst.get_connection().set_source(preprocessing.out_port(0))
+                input_node.out_node(0)['fw_tensor_debug_info'] = fw_name
+                del preprocessing.out_node(0)['fw_tensor_debug_info']
 
         input_node.out_port(0).connect(preprocessing.in_port(0))
 
