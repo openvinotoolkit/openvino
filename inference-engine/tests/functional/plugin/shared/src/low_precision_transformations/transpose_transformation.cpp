@@ -55,7 +55,12 @@ void TransposeTransformation::validate() {
     const auto output = transformed->get_output_op(0);
     const auto layer = output->get_input_node_shared_ptr(0);
     const std::string typeName = layer->get_type_name();
-    ASSERT_EQ("Reshape", typeName);
+
+    if (testValues.fqOnData.outputLowValues.size() > 1 || testValues.fqOnData.outputHighValues.size() > 1) {
+        ASSERT_EQ("Reshape", typeName);
+    } else {
+        ASSERT_EQ("ScaleShiftIE", typeName);
+    }
 }
 
 TEST_P(TransposeTransformation, CompareWithRefImpl) {
