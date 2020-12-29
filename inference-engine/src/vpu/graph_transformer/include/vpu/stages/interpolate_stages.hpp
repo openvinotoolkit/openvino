@@ -32,6 +32,7 @@ namespace vpu {
     constexpr auto g_type                 = "type";
 
     const std::map<std::string, InterpolateMode, ie::details::CaselessLess<std::string>> interpModeMap = {
+        {g_nearest,      InterpolateMode::Nearest},
         {g_linear,       InterpolateMode::Linear},
         {g_linear_onnx,  InterpolateMode::LinearOnnx},
     };

@@ -47,18 +47,19 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
         return std::all_of(pad.begin(), pad.end(), [](int i) { return i == 0; });
     };
 
-    ie::details::CaselessEq<std::string> cmp;
     const auto orderIsSupported = input->desc().dimsOrder() == DimsOrder::NCHW || input->desc().dimsOrder() == DimsOrder::NHWC
                                || input->desc().dimsOrder() == DimsOrder::CHW ||  input->desc().dimsOrder() == DimsOrder::HWC;
     VPU_THROW_UNLESS(orderIsSupported, "Current Interpolate supports (N)HWC, (N)CHW data orders only, actual {}", input->desc().dimsOrder());
 
-    const auto modeIsSupported = cmp(interpolateMode, g_nearest) || cmp(interpolateMode, g_linear) || cmp(interpolateMode, g_linear_onnx);
+    const auto modeIsSupported = interpModeMap.find(interpolateMode)->second == InterpolateMode::Nearest ||
+                                 interpModeMap.find(interpolateMode)->second == InterpolateMode::Linear ||
+                                 interpModeMap.find(interpolateMode)->second == InterpolateMode::LinearOnnx;
     VPU_THROW_UNLESS(modeIsSupported, "Current Interpolate supports 'nearest' and 'linear' modes only, actual {}", interpolateMode);
 
     const auto paramIsSupported = ic == oc && in == 1 && on == 1 && isPadZeros(padsBegin) && isPadZeros(padsEnd);
     VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support paddings, batches, and resize by channels");
 
-    if (cmp(interpolateMode, g_nearest)) {
+    if (interpModeMap.find(interpolateMode)->second == InterpolateMode::Nearest) {
         // current "Resample" supports the following "Interpolate" modes only:
         // coordinate_transformation_mode = half_pixel; nearest_mode = round_prefer_ceil;
         // coordinate_transformation_mode = asymmetric; nearest_mode = floor;
@@ -84,7 +85,8 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                                                 -1.0f,
                                                 input,
                                                 output);
-    } else if (cmp(interpolateMode, g_linear) || cmp(interpolateMode, g_linear_onnx)) {
+    } else if (interpModeMap.find(interpolateMode)->second == InterpolateMode::Linear ||
+               interpModeMap.find(interpolateMode)->second == InterpolateMode::LinearOnnx) {
         // current "Interp" supports modes "align_corners" and "asymmetric" only
         // other "Interpolate" modes are translated to the default ones
         const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
@@ -101,7 +103,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
         _stageBuilder->addInterpStage(model,
                                         _layer->name,
                                         _layer,
-                                        cmp(coordinateTransformation, g_align_corners),
+                                        coordTransformModeMap.find(coordinateTransformation)->second == InterpolateCoordTransMode::AlignCorners,
                                         mode,
                                         coordinateTransformationMode,
                                         input,
