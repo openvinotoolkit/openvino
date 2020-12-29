@@ -136,7 +136,7 @@ std::vector<std::vector<InferenceEngine::Precision>> inputPrecisions = {
 
 std::vector<std::vector<EltwiseTypes>> eltwiseOps = {
         { EltwiseTypes::ADD, EltwiseTypes::MULTIPLY, EltwiseTypes::SUBTRACT },
-        { EltwiseTypes::DIVIDE, EltwiseTypes::POWER, EltwiseTypes::ADD },
+        { EltwiseTypes::DIVIDE, EltwiseTypes::SQUARED_DIFF, EltwiseTypes::ADD },
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_EltwiseChain, EltwiseChainTest,
