@@ -93,15 +93,13 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
     const auto interpMode = layer->GetParamAsString(g_mode, g_linear);
     const auto interpModeIt = interpModeMap.find(interpMode);
     const auto coordModeIt  = coordTransformModeMap.find(coord);
-    InterpolateCoordTransMode coordinateTransMode = InterpolateCoordTransMode::HalfPixel;
-    InterpolateMode mode = InterpolateMode::Linear;
 
     VPU_THROW_UNLESS(interpModeIt != interpModeMap.end(), "Interp stage with name {} does not support this interp mode", layer->name);
     VPU_THROW_UNLESS(interpModeIt->second == InterpolateMode::Linear || interpModeIt->second  == InterpolateMode::LinearOnnx,
                      "Interp stage supports linear and linear_onnx modes");
     VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interp stage does not support this coordinate transforation mode");
-    coordinateTransMode = coordModeIt->second;
-    mode = interpModeIt->second;
+    auto coordinateTransMode = coordModeIt->second;
+    auto mode = interpModeIt->second;
 
     _stageBuilder->addInterpStage(model, layer->name, layer, layer->GetParamAsInt(g_align_corners, 0), mode, coordinateTransMode, inputs[0], outputs[0]);
 }

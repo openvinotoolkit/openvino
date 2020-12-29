@@ -66,16 +66,14 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
         const auto anti = _layer->GetParamAsBool(g_antialias, false);
         const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
         const auto near = _layer->GetParamAsString(g_nearest_mode, g_round_prefer_floor);
-        auto coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-        auto nearestMode = InterpolateNearestMode::RoundPreferCeil;
 
         const auto coordModeIt   = coordTransformModeMap.find(coordinateTransformation);
         const auto nearestModeIt = nearestModeMap.find(near);
 
         VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interpolate stage does not support this coordinate transforation mode");
         VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Interpolate stage does not support this nearest transforation mode");
-        coordinateTransformationMode = coordModeIt->second;
-        nearestMode = nearestModeIt->second;
+        auto coordinateTransformationMode = coordModeIt->second;
+        auto nearestMode = nearestModeIt->second;
 
         _stageBuilder->addResampleNearestStage(model,
                                                 _layer->name,
@@ -90,8 +88,6 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
         // current "Interp" supports modes "align_corners" and "asymmetric" only
         // other "Interpolate" modes are translated to the default ones
         const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
-        auto coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-        auto mode = InterpolateMode::Linear;
         const auto interpolateModeIt = interpModeMap.find(interpolateMode);
         const auto coordModeIt  = coordTransformModeMap.find(coordinateTransformation);
 
@@ -99,8 +95,8 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
         VPU_THROW_UNLESS(interpolateModeIt->second == InterpolateMode::Linear || interpolateModeIt->second  == InterpolateMode::LinearOnnx,
                             "Interp stage supports linear and linear_onnx modes");
         VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interp stage does not support this coordinate transforation mode");
-        coordinateTransformationMode = coordModeIt->second;
-        mode = interpolateModeIt->second;
+        auto coordinateTransformationMode = coordModeIt->second;
+        auto mode = interpolateModeIt->second;
 
         _stageBuilder->addInterpStage(model,
                                         _layer->name,
