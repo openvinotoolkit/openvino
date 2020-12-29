@@ -24,20 +24,19 @@ namespace ngraph
 {
     namespace pass
     {
-        class ConstantFolding;
-        bool revalidate_and_ensure_static(std::shared_ptr<ngraph::Node> n);
-    }
-}
+        bool revalidate_and_ensure_static(std::shared_ptr<Node> n);
 
-class NGRAPH_API ngraph::pass::ConstantFolding : public ngraph::pass::GraphRewrite
-{
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap());
+        class NGRAPH_API ConstantFolding : public GraphRewrite
+        {
+        public:
+            NGRAPH_RTTI_DECLARATION;
+            ConstantFolding(const BuildNodeExecutorMap& cfmap = BuildNodeExecutorMap());
 
-private:
-    void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
-                                            const Output<Node>& replacement);
+        private:
+            void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
+                                                    const Output<Node>& replacement);
 
-    ngraph::BuildNodeExecutorMap m_cfmap;
-};
+            BuildNodeExecutorMap m_cfmap;
+        };
+    } // namespace pass
+} // namespace ngraph
