@@ -205,4 +205,25 @@ auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
     return paramsVector;
 }
 
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
+    std::vector<CPUSpecificParams> resCPUParams;
+    const int selectedTypeIndex = 3;
+
+    for (auto param : CPUParams) {
+        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
+
+        if (selectedTypeStr.find("jit") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("sse42") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("avx2") != std::string::npos && !InferenceEngine::with_cpu_x86_avx2())
+            continue;
+        if (selectedTypeStr.find("avx512") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512f())
+            continue;
+
+        resCPUParams.push_back(param);
+    }
+
+    return resCPUParams;
+}
 } // namespace CPUTestUtils
