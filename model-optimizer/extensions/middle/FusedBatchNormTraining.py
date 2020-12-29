@@ -28,12 +28,6 @@ from extensions.ops.BatchNormInference import BatchNormInference
 
 batchNormAttrList = ['data_format', 'data_type', 'eps', 'fix_gamma', 'shape', 'value']
 
-def replaceBatchNormTraining2Inference(batchNormTrainingNode: Node) -> Node:
-
-
-
-    return batchNormInferNode
-
 
 class FusedBatchNormTraining(MiddleReplacementPattern):
     """
@@ -64,17 +58,17 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
             if bn_train_node.has(batchNormAttr):
                 additional_attrs[batchNormAttr] = bn_train_node[batchNormAttr]
 
-        bn_inference_node = BatchNormInference(bn_train_node.graph,
-                                                additional_attrs).create_node()
-        bn_inference_node.
-        for port_id, _ in batchNormTrainingNode.in_nodes().items():
-            batchNormTrainingNode.in_port(port_id).get_connection(). \
-                set_destination(batchNormInferNode.in_port(port_id))
-        for port_id, _ in batchNormTrainingNode.out_nodes().items():
-            batchNormTrainingNode.out_port(port_id).get_connection(). \
-                set_source(batchNormInferNode.out_port(port_id))
-        node = replaceBatchNormTraining2Inference(old_node)
-        node.update_node()
+        additional_attrs['name'] = bn_train_node.name + '/batchNormInference'
+        node = BatchNormInference(bn_train_node.graph, additional_attrs).create_node()
+
+        for port_id, _ in bn_train_node.in_nodes().items():
+            bn_train_node.in_port(port_id).get_connection(). \
+                set_destination(node.in_port(port_id))
+
+        for port_id, _ in bn_train_node.out_nodes().items():
+            bn_train_node.out_port(port_id).get_connection(). \
+                set_source(node.out_port(port_id))
+
         shape = node.in_port(1).data.get_shape()
         assert shape is not None, 'The shape of scale input of the BatchNorm node {} is not defined'.format(node.name)
 
