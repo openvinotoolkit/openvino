@@ -26,7 +26,25 @@ from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
 from extensions.ops.BatchNormInference import BatchNormInference
 
-batchNormAttrList = ['data_format', 'data_type', 'eps', 'fix_gamma']
+batchNormAttrList = ['data_format', 'data_type', 'eps', 'fix_gamma', 'shape', 'value']
+
+def replaceBatchNormTraining2Inference(batchNormTrainingNode: Node) -> Node:
+    additional_attrs = {}
+    for batchNormAttr in  batchNormAttrList:
+        if batchNormTrainingNode.has(batchNormAttr):
+            additional_attrs[batchNormAttr] = batchNormTrainingNode[batchNormAttr]
+    additional_attrs['name'] = batchNormTrainingNode.name +'/batchnormInference'
+    batchNormInferNode = BatchNormInference(batchNormTrainingNode.graph,
+        additional_attrs).create_node()
+    for port_id,_ in batchNormTrainingNode.in_nodes().items():
+        batchNormTrainingNode.in_port(port_id).get_connection().\
+            set_destination(batchNormInferNode.in_port(port_id))
+    for port_id,_ in  batchNormTrainingNode.out_nodes().items():
+
+        batchNormTrainingNode.out_port(port_id).get_connection().\
+            set_source(batchNormInferNode.out_port(port_id))
+    return batchNormInferNode
+
 
 class FusedBatchNormTraining(MiddleReplacementPattern):
     """
@@ -52,8 +70,9 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         old_node = match['op']
-        node = castBatchNormTraining2Inference(old_node)
-        old_node.replace_node(node)
+
+        node = replaceBatchNormTraining2Inference(old_node)
+        node.update_node()
         shape = node.in_port(1).data.get_shape()
         assert shape is not None, 'The shape of scale input of the BatchNorm node {} is not defined'.format(node.name)
 
@@ -82,14 +101,3 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
                                        'override_output_shape': True}).create_node()
         reshape_back.in_port(1).connect(original_shape.out_port(0))
         mvn.out_port(0).get_connection().insert_node(reshape_back)
-
-        @staticmethod
-        def castBatchNormTraining2Inference(batchNormTrainingNode: Node) -> Node:
-            additional_attrs = {}
-            for batchNormAttr in  batchNormAttrList:
-                if batchNormTrainingNode.has(batchNormAttr):
-                    additional_attrs[batchNormAttr] = batchNormTrainingNode[batchNormAttr]
-            additional_attrs['name'] = batchNormTrainingNode.name
-            batchNormInferNode = BatchNormInference(batchNormTrainingNode.graph, 
-                additional_attrs).create_node()
-            return batchNormInferNode
