@@ -25,6 +25,10 @@ public:
         return false;
     }
 
+    // This is the interface extension designed to provide inp and output tensor descriptors without the CNNLayer.
+    // In that case the Convert node is instantiated with default CNNLayer and inp/out tensor descriptors are set via this method.
+    // This is useful if the Convert node is added to the graph as an auxiliary operation at the MKLDNNGraph
+    // initialization stage.
     void setDescs(const InferenceEngine::TensorDesc& input, const InferenceEngine::TensorDesc& output) {
         this->input.reset(new InferenceEngine::TensorDesc(input));
         this->output.reset(new InferenceEngine::TensorDesc(output));
@@ -32,6 +36,7 @@ public:
 
     std::shared_ptr<const InferenceEngine::TensorDesc> getInput() const { return input; }
     std::shared_ptr<const InferenceEngine::TensorDesc> getOutput() const { return output; }
+
 private:
     std::shared_ptr<InferenceEngine::TensorDesc> input;
     std::shared_ptr<InferenceEngine::TensorDesc> output;

@@ -17,6 +17,8 @@ MKLDNNConvertNode::MKLDNNConvertNode(const InferenceEngine::CNNLayerPtr& layer, 
         MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNConvertNode::getSupportedDescriptors() {
+    // if tensor descriptors are set via setDescs method we need to update the inDims/outDims data
+    // from correspond tensor descriptors.
     if (outDims.empty() && output && output->getLayout() != InferenceEngine::Layout::ANY)
         outDims.push_back(MKLDNNDims(output->getDims()));
     if (inDims.empty() && input && input->getLayout() != InferenceEngine::Layout::ANY)
@@ -42,12 +44,14 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
 
     config.dynBatchSupport = false;
 
+    // if input and output pointers are not null, then the inp/output tensor descriptors were set using setDescs method, so
+    // they should be used as the actual descriptors.
     if (input && input->getLayout() != InferenceEngine::Layout::ANY && output && output->getLayout() != InferenceEngine::Layout::ANY) {
         dataIn.desc = *input;
         config.inConfs.push_back(dataIn);
 
-        const auto& BlockingDesc = config.inConfs[0].desc.getBlockingDesc(); // inp/out layouts must be the same
-        dataConfigOut.desc = TensorDesc(output->getPrecision(), input->getDims(), BlockingDesc);
+        const auto& blockingDesc = config.inConfs[0].desc.getBlockingDesc(); // inp/out layouts must be the same
+        dataConfigOut.desc = TensorDesc(output->getPrecision(), input->getDims(), blockingDesc);
         config.outConfs.push_back(dataConfigOut);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
     } else if (layer->insData.size() == 1 && layer->outData.size() == 1) {
@@ -56,26 +60,20 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
             THROW_ERROR << "Input data is empty";
         }
 
-        const SizeVector& ins_dims = insData->getTensorDesc().getDims();
+        const SizeVector& insDims = insData->getTensorDesc().getDims();
         auto insPrecision = insData->getTensorDesc().getPrecision();
-        const SizeVector& out_dims = layer->outData[0]->getTensorDesc().getDims();
+        const SizeVector& outputDims = layer->outData[0]->getTensorDesc().getDims();
         auto outPrecision = layer->outData[0]->getTensorDesc().getPrecision();
 
         config.inConfs.push_back(dataIn);
         config.outConfs.push_back(dataConfigOut);
 
-        auto commonCreators = TensorDescCreator::getCommonCreators();
+        auto creators = TensorDescCreator::getCommonCreators();
+        auto range = TensorDescCreator::makeFilteredRange(creators, insDims.size());
 
-        if (ins_dims.size() > 1) {
-            for (auto item : TensorDescCreator::getCommonCreators()) {
-                config.inConfs[0].desc = item.second->createDesc(insPrecision, ins_dims);
-                config.outConfs[0].desc = item.second->createDesc(outPrecision, out_dims);
-
-                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
-            }
-        } else {
-            config.inConfs[0].desc = commonCreators[TensorDescCreatorTypes::plain]->createDesc(insPrecision, ins_dims);
-            config.outConfs[0].desc = commonCreators[TensorDescCreatorTypes::plain]->createDesc(outPrecision, out_dims);
+        for (auto itr = range.first; itr != range.second; ++itr) {
+            config.inConfs[0].desc = itr->second->createDesc(insPrecision, insDims);
+            config.outConfs[0].desc = itr->second->createDesc(outPrecision, outputDims);
 
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
         }

@@ -52,8 +52,39 @@ InferenceEngine::TensorDesc ChannelBlockedCreator::createDesc(const InferenceEng
 }
 
 std::map<TensorDescCreatorTypes, TensorDescCreator::CreatorConstPtr> TensorDescCreator::getCommonCreators() {
-    return { { TensorDescCreatorTypes::plain, CreatorConstPtr(new PlainFormatCreator) },
-             { TensorDescCreatorTypes::perChannel, CreatorConstPtr(new PerChannelCreator) },
-             { TensorDescCreatorTypes::channelBlocked8, CreatorConstPtr(new ChannelBlockedCreator(8)) },
-             { TensorDescCreatorTypes::channelBlocked16, CreatorConstPtr(new ChannelBlockedCreator(16)) } };
+    return { { TensorDescCreatorTypes::nspc, CreatorConstPtr(new PerChannelCreator) },
+             { TensorDescCreatorTypes::nCsp8c, CreatorConstPtr(new ChannelBlockedCreator(8)) },
+             { TensorDescCreatorTypes::nCsp16c, CreatorConstPtr(new ChannelBlockedCreator(16)) },
+             { TensorDescCreatorTypes::ncsp, CreatorConstPtr(new PlainFormatCreator) } };
+}
+
+std::pair<CreatorsMapFilterIterator, CreatorsMapFilterIterator>
+TensorDescCreator::makeFilteredRange(TensorDescCreator::CreatorsMap &map, unsigned int rank) {
+    auto rankFilter = [rank](const CreatorsMap::value_type& item) {
+        if (item.second->getMinimalRank() > rank) {
+            return false;
+        }
+        return true;
+    };
+
+    auto first = CreatorsMapFilterIterator(std::move(rankFilter), map.begin(), map.end());
+    auto last = first.end();
+    return std::make_pair(first, last);
+}
+
+std::pair<CreatorsMapFilterIterator, CreatorsMapFilterIterator>
+TensorDescCreator::makeFilteredRange(TensorDescCreator::CreatorsMap &map, unsigned int rank, std::set<TensorDescCreatorTypes> supportedTypes) {
+    auto rankTypesFilter = [rank, supportedTypes](const CreatorsMap::value_type& item) {
+        if (!supportedTypes.count(item.first)) {
+            return false;
+        }
+        if (item.second->getMinimalRank() > rank) {
+            return false;
+        }
+        return true;
+    };
+
+    auto first = CreatorsMapFilterIterator(std::move(rankTypesFilter), map.begin(), map.end());
+    auto last = first.end();
+    return std::make_pair(first, last);
 }
