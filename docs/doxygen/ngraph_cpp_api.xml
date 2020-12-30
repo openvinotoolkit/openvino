@@ -5,7 +5,7 @@
     <tab type="mainpage" title="OpenVINO Home" url="../index.html"/>
     <tab type="user" title="Get Started" url="../index.html"/>
     <tab type="user" title="Documentation" url="../documentation.html"/>
-    <tab type="user" title="Examples" url="../examples.html"/>
+    <tab type="user" title="Resources" url="../resources.html"/>
     <tab type="usergroup" title="API References" url="../api_references.html">
       <!-- OpenVX -->
       <tab type="user" title="OpenVX Developer Guide" url="https://khronos.org/openvx"/>
