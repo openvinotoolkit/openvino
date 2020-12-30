@@ -281,13 +281,13 @@ def driver(argv: argparse.Namespace):
     return ret_res
 
 
-def main(cli_parser: argparse.ArgumentParser, framework: str, args=None):
+def main(cli_parser: argparse.ArgumentParser, framework: str):
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
         init_logger('ERROR', False)
 
-        argv = cli_parser.parse_args(args)
+        argv = cli_parser.parse_args()
         if framework:
             argv.framework = framework
 
