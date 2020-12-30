@@ -117,19 +117,19 @@ namespace ngraph
                                 if (mode == AVG)
                                 {
                                     size_t bin_start_w = std::min(
-                                        static_cast<size_t>(start_w + floorf(pw * bin_width)),
+                                        static_cast<size_t>(floorf(start_w + pw * bin_width)),
                                         width - 1);
                                     size_t bin_start_h = std::min(
-                                        static_cast<size_t>(start_h + floorf(ph * bin_height)),
+                                        static_cast<size_t>(floorf(start_h + ph * bin_height)),
                                         height - 1);
                                     size_t current_bin_width =
-                                        std::min(static_cast<size_t>(start_w +
-                                                                     ceilf((pw + 1) * bin_width)),
+                                        std::min(static_cast<size_t>(
+                                                     ceilf(start_w + (pw + 1) * bin_width)),
                                                  width) -
                                         bin_start_w;
                                     size_t current_bin_height =
-                                        std::min(static_cast<size_t>(start_h +
-                                                                     ceilf((ph + 1) * bin_height)),
+                                        std::min(static_cast<size_t>(
+                                                     ceilf(start_h + (ph + 1) * bin_height)),
                                                  height) -
                                         bin_start_h;
                                     T sum = 0;
