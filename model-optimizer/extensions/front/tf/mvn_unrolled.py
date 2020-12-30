@@ -56,7 +56,8 @@ class MVNUnrolled(FrontReplacementSubgraph):
     def replace_sub_graph(graph: Graph, match: dict):
         mvn = MVN(graph, dict(
             name=match['truediv'].name + '/MVN_',
-            required_reduction_indices=[1, 2] if graph.graph['layout'] == 'NHWC' else [2, 3]
+            eps_mode='outside_sqrt',
+            normalize_variance=1
         ))
         mvn.attrs['old_infer'] = mvn.attrs['infer']
         mvn.attrs['infer'] = __class__.infer
@@ -76,12 +77,10 @@ class MVNUnrolled(FrontReplacementSubgraph):
             log.warning('Reduction indices for mean and variance for MVN node {} are not constants'.format(node.name))
             return
 
-        if not (all(node.in_node(1).value == node.required_reduction_indices) and
-                    all(node.in_node(2).value == node.required_reduction_indices)):
-            log.warning('Reduction indices for mean {} and variance {} do not match required ones {}'.format(
+        if not (all(node.in_node(1).value == node.in_node(2).value)):
+            log.warning('Reduction indices for mean {} and variance {} do not match'.format(
                 node.in_node(1).value,
-                node.in_node(2).value,
-                node.required_reduction_indices
+                node.in_node(2).value
             ))
             return
         
@@ -95,6 +94,6 @@ class MVNUnrolled(FrontReplacementSubgraph):
 
         node['eps'] = node.in_node(4).value
 
-        for i in range(1, 5):
+        for i in range(2, 5):
             node.graph.remove_edge(node.in_node(i).id, node.id)
         node.old_infer(node)
