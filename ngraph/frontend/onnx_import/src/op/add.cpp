@@ -47,9 +47,10 @@ namespace ngraph
                             rhs_node = std::make_shared<default_opset::Broadcast>(
                                 rhs_node, std::make_shared<default_opset::ShapeOf>(lhs_node));
                         }
+                        return {std::make_shared<default_opset::Add>(
+                            lhs_node, rhs_node, ngraph::op::AutoBroadcastSpec::NONE)};
                     }
-                    return {std::make_shared<default_opset::Add>(
-                        lhs_node, rhs_node, ngraph::op::AutoBroadcastSpec::NONE)};
+                    return {std::make_shared<default_opset::Add>(lhs_node, rhs_node)};
                 }
 
             } // namespace set_1
