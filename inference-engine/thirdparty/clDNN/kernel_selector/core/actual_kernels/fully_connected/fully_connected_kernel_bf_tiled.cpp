@@ -270,11 +270,15 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 
 KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
+
+    size_t output_b = fc_params.output.Batch().v;
+    if (fc_params.output.GetLayout() == DataLayout::bfyx)
+        output_b *= fc_params.output.Feature().v;
     
     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    if (fc_params.output.Batch().v > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
+    if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
-    else if (fc_params.output.Batch().v > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
+    else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
         estimated_time = FORCE_PRIORITY_4;
 
     return estimated_time;
@@ -345,9 +349,6 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                                                 const optional_params &options,
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
-    size_t output_b = fc_params.output.Batch().v;
-    if (fc_params.output.GetLayout() == DataLayout::bfyx)
-        output_b *= fc_params.output.Feature().v;
 
     if (autoTuneIndex >= 0 && autoTuneIndex < (int)auto_tune_params.size()
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
