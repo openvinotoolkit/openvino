@@ -62,7 +62,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
     const auto paramIsSupported = ic == oc && in == 1 && on == 1 && isPadZeros(padsBegin) && isPadZeros(padsEnd);
     VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support paddings, batches, and resize by channels");
 
-    if (interpModeMap.find(interpolateMode)->second == InterpolateMode::Nearest) {
+    if (interpolateModeIt->second == InterpolateMode::Nearest) {
         // current "Resample" supports the following "Interpolate" modes only:
         // coordinate_transformation_mode = half_pixel; nearest_mode = round_prefer_ceil;
         // coordinate_transformation_mode = asymmetric; nearest_mode = floor;
@@ -87,12 +87,11 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                                                 -1.0f,
                                                 input,
                                                 output);
-    } else if (interpModeMap.find(interpolateMode)->second == InterpolateMode::Linear ||
-               interpModeMap.find(interpolateMode)->second == InterpolateMode::LinearOnnx) {
+    } else if (interpolateModeIt->second == InterpolateMode::Linear ||
+               interpolateModeIt->second == InterpolateMode::LinearOnnx) {
         // current "Interp" supports modes "align_corners" and "asymmetric" only
         // other "Interpolate" modes are translated to the default ones
         const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
-        const auto interpolateModeIt = interpModeMap.find(interpolateMode);
         const auto coordModeIt  = coordTransformModeMap.find(coordinateTransformation);
         VPU_THROW_UNLESS(interpolateModeIt != interpModeMap.end(), "Interp stage with name {} does not support this interp mode", _layer->name);
         VPU_THROW_UNLESS(interpolateModeIt->second == InterpolateMode::Linear || interpolateModeIt->second  == InterpolateMode::LinearOnnx,
@@ -104,7 +103,7 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
         _stageBuilder->addInterpStage(model,
                                         _layer->name,
                                         _layer,
-                                        coordTransformModeMap.find(coordinateTransformation)->second == InterpolateCoordTransMode::AlignCorners,
+                                        coordModeIt->second == InterpolateCoordTransMode::AlignCorners,
                                         mode,
                                         coordinateTransformationMode,
                                         input,
