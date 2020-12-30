@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include "ngraph/coordinate_index.hpp"
+#include "ngraph/coordinate_transform.hpp"
+
 namespace ngraph
 {
     namespace runtime
@@ -31,18 +34,6 @@ namespace ngraph
                                  const Shape& out_shape,
                                  int64_t axis)
             {
-                /*
-                 K, N, M - let it be depth, row and column sizes of a 3D tensor
-                 k, n, m - corresponding indices
-                 M*(N*k + n) + m
-                 M*N*k + M*n + m   <-- index after flattening of a 3D array
-
-                 P, K, N, M - p, k, n, m
-                 M*(N*(K*p + k) + n) + m
-                 M*N*K*p + M*N*k + M*n + m   <-- index after flattening of a 4D array
-                */
-
-                // in 1D case results can be achieved without additional calculations
                 if (axis < 0)
                 {
                     axis += data_shape.size();
@@ -53,6 +44,7 @@ namespace ngraph
                         "axis for GatherElements exceeds allowed range [0, data_rank)"};
                 }
 
+                // in 1D case results can be achieved without additional calculations
                 if (data_shape.size() == 1)
                 {
                     for (int64_t i = 0; i < indices_shape[0]; i++)
@@ -67,21 +59,65 @@ namespace ngraph
                     return;
                 }
 
-                int64_t axis_mul = 1; // axis_mul = M*N*K in 3D case if axis = 0
-                for (int64_t i = axis + 1; i < data_shape.size(); i++)
-                {
-                    axis_mul *= data_shape[i];
-                }
+                /*
+                 assume data and indices are 6D and axis = 2
+                 size of indices(N0,N1,N2,N3,N4,N5)
+                 size of data (N0,N1,N2',N3,N4,N5)
 
-                int64_t data_idx;
-                for (int64_t i = 0; i < ngraph::shape_size(indices_shape); i++)
+                 the offset for indices will be
+                 N5*N4*N3*N2*N1*n0 + N5*N4*N3*N2*n1 + N5*N4*N3*n2 + N5*N4*n3 + N5*n4 + n5
+                 and for data
+                 N5*N4*N3*N2'*N1*n0 + N5*N4*N3*N2'*n1 + N5*N4*N3*n2' + N5*N4*n3 + N5*n4 + n5
+                 all values (except n2') are fixed or gradually increase
+                 most of offset calculations are shared. We can rewrite offset for data as follows
+
+                 N5*N4*N3*N2'*(N1*n0 + n1) + N5*N4*N3*n2' + (N5*N4*n3 + N5*n4 + n5)
+                 N5*N4*N3*N2' - data_coeff
+                 (N1*n0 + n1) - outer_sum
+                 (N5*N4*n3 + N5*n4 + n5) - inner_sum
+                */
+
+                size_t outer_sum = 0, inner_sum = 0;
+
+                // in 6D case with axis = 2
+                // N5*N4*N3
+                size_t max_inner_sum = ngraph::shape_size(
+                    std::vector<size_t>(indices_shape.begin() + axis + 1, indices_shape.end()));
+                // in 6D case with axis = 2
+                // N5*N4*N3*N2'
+                size_t data_coeff = ngraph::shape_size(
+                    std::vector<size_t>(data_shape.begin() + axis, data_shape.end()));
+                // in 6D case with axis = 2
+                // N5*N4*N3*N2
+                size_t outer_threshold_inc = ngraph::shape_size(
+                    std::vector<size_t>(indices_shape.begin() + axis, indices_shape.end()));
+                size_t outer_threshold = outer_threshold_inc;
+
+                size_t count = ngraph::shape_size(indices_shape);
+                int64_t data_count = ngraph::shape_size(data_shape);
+                int64_t data_idx; // signed since indices is int32 or int64
+                for (size_t i = 0; i < count;)
                 {
-                    data_idx = i - axis_mul * (((i / axis_mul) % data_shape[axis]) - indices[i]);
-                    if (data_idx > ngraph::shape_size(data_shape))
+                    data_idx = data_coeff * outer_sum + max_inner_sum * indices[i] + inner_sum;
+
+                    if (data_idx < 0 || data_idx > data_count)
                     {
                         throw std::domain_error{"indices values of GatherElement exceed data size"};
                     }
                     out[i] = data[data_idx];
+
+                    i++;
+                    if (i == outer_threshold)
+                    {
+                        outer_sum++;
+                        outer_threshold += outer_threshold_inc;
+                    }
+
+                    inner_sum++;
+                    if (inner_sum == max_inner_sum)
+                    {
+                        inner_sum = 0;
+                    }
                 }
             }
         } // namespace reference
