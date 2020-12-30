@@ -20,7 +20,7 @@ from extensions.ops.mvn import MVN
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
@@ -29,7 +29,7 @@ from extensions.ops.BatchNormInference import BatchNormInference
 batchNormAttrList = ['data_format', 'data_type', 'eps', 'fix_gamma', 'shape', 'value']
 
 
-class FusedBatchNormTraining(MiddleReplacementPattern):
+class FusedBatchNormTraining(FrontReplacementPattern):
     """
     Transformation looks for the BatchNorm layers in training mode and does the following:
     1. Fuses batch dimension with one of the spatial dimensions of the input to BatchNorm because batch normalization is
@@ -38,21 +38,16 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
     3. Reshape MVN output back to the original one.
     """
     enabled = True
-    replacement_id = "Fused_Batch_Norm_is_training_true"
-    force_shape_inference = True
-    force_clean_up = True
+    # replacement_id = "Fused_Batch_Norm_is_training_true"
     # transformation works for the NHWC layout because transformation inserts Reshape to fuse N and H dimensions
     graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
 
-    def pattern(self):
-        return dict(
-            nodes=[
-                ('op', dict(kind='op', op=lambda op: op in ['batchNormTraining']))],
-            edges=[]
-        )
+    def find_and_replace_pattern(self, graph: Graph):
+        for bn_train_node in graph.get_op_nodes(op='BatchNormTraining'):
+            FusedBatchNormTraining.__replace_batch_norm_training_node(bn_train_node, graph)
 
-    def replace_pattern(self, graph: Graph, match: dict):
-        bn_train_node = match['op']
+    @staticmethod
+    def __replace_batch_norm_training_node(bn_train_node: Node, graph: Graph):
         additional_attrs = {}
         for batchNormAttr in batchNormAttrList:
             if bn_train_node.has(batchNormAttr):
