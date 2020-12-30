@@ -3,6 +3,7 @@
 //
 
 #include "cpu_test_utils.hpp"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 
 namespace CPUTestUtils {
 
@@ -155,10 +156,12 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     CPUInfo cpuInfo;
 
     if (!inFmts.empty()) {
-        cpuInfo.insert({"InputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(inFmts))});
+        cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
+                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts)))});
     }
     if (!outFmts.empty()) {
-        cpuInfo.insert({"OutputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(outFmts))});
+        cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
+                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts)))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});

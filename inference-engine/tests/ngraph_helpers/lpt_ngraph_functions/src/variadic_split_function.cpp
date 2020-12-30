@@ -70,17 +70,21 @@ std::shared_ptr<ngraph::Function> VariadicSplitFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> VariadicSplitFunction::getReference(
     const ngraph::Shape& inputShape,
+    const ngraph::element::Type inputPrecision,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
     const int64_t splitedAxis,
     const std::vector<size_t>& splitLengths) {
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionAfterOperation,
+        inputPrecision,
         ngraph::Shape(inputShape));
+
+    const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
     const auto constantAxis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
     const auto constantLengths = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ splitLengths.size() }, splitLengths);
-    const std::shared_ptr<Node> variadicSplit = std::make_shared<ngraph::opset1::VariadicSplit>(input, constantAxis, constantLengths);
+    const auto variadicSplit = std::make_shared<ngraph::opset1::VariadicSplit>(deqBefore, constantAxis, constantLengths);
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < splitLengths.size(); ++i) {
