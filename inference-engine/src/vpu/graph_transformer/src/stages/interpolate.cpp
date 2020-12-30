@@ -51,9 +51,12 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                                || input->desc().dimsOrder() == DimsOrder::CHW ||  input->desc().dimsOrder() == DimsOrder::HWC;
     VPU_THROW_UNLESS(orderIsSupported, "Current Interpolate supports (N)HWC, (N)CHW data orders only, actual {}", input->desc().dimsOrder());
 
-    const auto modeIsSupported = interpModeMap.find(interpolateMode)->second == InterpolateMode::Nearest ||
-                                 interpModeMap.find(interpolateMode)->second == InterpolateMode::Linear ||
-                                 interpModeMap.find(interpolateMode)->second == InterpolateMode::LinearOnnx;
+    const auto interpolateModeIt = interpModeMap.find(interpolateMode);
+    VPU_THROW_UNLESS(interpolateModeIt != interpModeMap.end(),
+                     "Current Interpolate supports 'nearest' and 'linear' modes only, actual {}", interpolateMode);
+    const auto modeIsSupported = interpolateModeIt->second == InterpolateMode::Nearest ||
+                                 interpolateModeIt->second == InterpolateMode::Linear  ||
+                                 interpolateModeIt->second == InterpolateMode::LinearOnnx;
     VPU_THROW_UNLESS(modeIsSupported, "Current Interpolate supports 'nearest' and 'linear' modes only, actual {}", interpolateMode);
 
     const auto paramIsSupported = ic == oc && in == 1 && on == 1 && isPadZeros(padsBegin) && isPadZeros(padsEnd);
@@ -70,7 +73,6 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
 
         const auto coordModeIt   = coordTransformModeMap.find(coordinateTransformation);
         const auto nearestModeIt = nearestModeMap.find(near);
-
         VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interpolate stage does not support this coordinate transforation mode");
         VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Interpolate stage does not support this nearest transforation mode");
         auto coordinateTransformationMode = coordModeIt->second;
@@ -92,7 +94,6 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
         const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
         const auto interpolateModeIt = interpModeMap.find(interpolateMode);
         const auto coordModeIt  = coordTransformModeMap.find(coordinateTransformation);
-
         VPU_THROW_UNLESS(interpolateModeIt != interpModeMap.end(), "Interp stage with name {} does not support this interp mode", _layer->name);
         VPU_THROW_UNLESS(interpolateModeIt->second == InterpolateMode::Linear || interpolateModeIt->second  == InterpolateMode::LinearOnnx,
                             "Interp stage supports linear and linear_onnx modes");

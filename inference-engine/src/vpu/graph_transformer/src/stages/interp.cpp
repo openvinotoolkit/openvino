@@ -93,7 +93,6 @@ void FrontEnd::parseInterp(const Model& model, const ie::CNNLayerPtr& layer, con
     const auto interpMode = layer->GetParamAsString(g_mode, g_linear);
     const auto interpModeIt = interpModeMap.find(interpMode);
     const auto coordModeIt  = coordTransformModeMap.find(coord);
-
     VPU_THROW_UNLESS(interpModeIt != interpModeMap.end(), "Interp stage with name {} does not support this interp mode", layer->name);
     VPU_THROW_UNLESS(interpModeIt->second == InterpolateMode::Linear || interpModeIt->second  == InterpolateMode::LinearOnnx,
                      "Interp stage supports linear and linear_onnx modes");

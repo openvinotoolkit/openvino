@@ -112,7 +112,6 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
 
     const auto coordModeIt   = coordTransformModeMap.find(coord);
     const auto nearestModeIt = nearestModeMap.find(nearest);
-
     VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Resample stage does not support this coordinate transforation mode");
     VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Resample stage does not support this nearest transforation mode");
     auto coordinateTransformationMode = coordModeIt->second;
