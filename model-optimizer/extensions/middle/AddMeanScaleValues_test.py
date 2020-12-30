@@ -284,3 +284,22 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
         self.check_graph_attrs(graph, graph_ref, ['parameter'])
+
+    def test_debug_info_absence(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', '0:mul_scale'),
+            *connect('scale', '1:mul_scale'),
+            *connect('mul_scale', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values=[[np.array([1., 2., 3.]), np.array([1., 2., 3.])]])
+        graph = build_graph(nodes, [*connect('parameter', 'result')],
+                            nodes_with_edges_only=True, cli=argv)
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+        self.check_graph_attrs(graph, graph_ref, [])
