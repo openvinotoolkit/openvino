@@ -433,7 +433,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_negative_test)
     test_case.add_expected_output<int32_t>(vector<int32_t>{4, 8, 3,
                                                            7, 2, 3});
     // clang-format on
-try
+    try
     {
         test_case.run();
         // Should have thrown, so fail if it didn't
