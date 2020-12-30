@@ -50,6 +50,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 40960
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 29577
-        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)"
+        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
+        //TODO: Issue: 46416WS
+        R"(.*VariableStateTest.inferreq_smoke_VariableState_2infers*)"
     };
 }
