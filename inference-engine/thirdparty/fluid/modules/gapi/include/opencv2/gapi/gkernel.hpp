@@ -26,8 +26,16 @@
 
 namespace cv {
 
-using GShapes = std::vector<GShape>;
-using GKinds = std::vector<cv::detail::OpaqueKind>;
+struct GTypeInfo
+{
+    GShape                 shape;
+    cv::detail::OpaqueKind kind;
+};
+
+using GShapes    = std::vector<GShape>;
+using GKinds     = std::vector<cv::detail::OpaqueKind>;
+using GCtors     = std::vector<detail::HostCtor>;
+using GTypesInfo = std::vector<GTypeInfo>;
 
 // GKernel describes kernel API to the system
 // FIXME: add attributes of a kernel, (e.g. number and types
@@ -41,6 +49,7 @@ struct GAPI_EXPORTS GKernel
     M           outMeta;    // generic adaptor to API::outMeta(...)
     GShapes     outShapes;  // types (shapes) kernel's outputs
     GKinds      inKinds;    // kinds of kernel's inputs (fixme: below)
+    GCtors      outCtors;   // captured constructors for template output types
 };
 // TODO: It's questionable if inKinds should really be here. Instead,
 // this information could come from meta.
@@ -60,30 +69,31 @@ namespace detail
     // yield() is used in graph construction time as a generic method to obtain
     // lazy "return value" of G-API operations
     //
-    namespace
+    template<typename T> struct Yield;
+    template<> struct Yield<cv::GMat>
     {
-        template<typename T> struct Yield;
-        template<> struct Yield<cv::GMat>
-        {
-            static inline cv::GMat yield(cv::GCall &call, int i) { return call.yield(i); }
-        };
-        template<> struct Yield<cv::GMatP>
-        {
-            static inline cv::GMatP yield(cv::GCall &call, int i) { return call.yieldP(i); }
-        };
-        template<> struct Yield<cv::GScalar>
-        {
-            static inline cv::GScalar yield(cv::GCall &call, int i) { return call.yieldScalar(i); }
-        };
-        template<typename U> struct Yield<cv::GArray<U> >
-        {
-            static inline cv::GArray<U> yield(cv::GCall &call, int i) { return call.yieldArray<U>(i); }
-        };
-        template<typename U> struct Yield<cv::GOpaque<U> >
-        {
-            static inline cv::GOpaque<U> yield(cv::GCall &call, int i) { return call.yieldOpaque<U>(i); }
-        };
-    } // anonymous namespace
+        static inline cv::GMat yield(cv::GCall &call, int i) { return call.yield(i); }
+    };
+    template<> struct Yield<cv::GMatP>
+    {
+        static inline cv::GMatP yield(cv::GCall &call, int i) { return call.yieldP(i); }
+    };
+    template<> struct Yield<cv::GScalar>
+    {
+        static inline cv::GScalar yield(cv::GCall &call, int i) { return call.yieldScalar(i); }
+    };
+    template<typename U> struct Yield<cv::GArray<U> >
+    {
+        static inline cv::GArray<U> yield(cv::GCall &call, int i) { return call.yieldArray<U>(i); }
+    };
+    template<typename U> struct Yield<cv::GOpaque<U> >
+    {
+        static inline cv::GOpaque<U> yield(cv::GCall &call, int i) { return call.yieldOpaque<U>(i); }
+    };
+    template<> struct Yield<GFrame>
+    {
+        static inline cv::GFrame yield(cv::GCall &call, int i) { return call.yieldFrame(i); }
+    };
 
     ////////////////////////////////////////////////////////////////////////////
     // Helper classes which brings outputMeta() marshalling to kernel
@@ -95,11 +105,12 @@ namespace detail
     template<typename T> struct MetaType;
     template<> struct MetaType<cv::GMat>    { using type = GMatDesc; };
     template<> struct MetaType<cv::GMatP>   { using type = GMatDesc; };
-    template<> struct MetaType<cv::GFrame>  { using type = GMatDesc; };
+    template<> struct MetaType<cv::GFrame>  { using type = GFrameDesc; };
     template<> struct MetaType<cv::GScalar> { using type = GScalarDesc; };
     template<typename U> struct MetaType<cv::GArray<U> >  { using type = GArrayDesc; };
     template<typename U> struct MetaType<cv::GOpaque<U> > { using type = GOpaqueDesc; };
     template<typename T> struct MetaType    { using type = T; }; // opaque args passed as-is
+    // FIXME: Move it to type traits?
 
     // 2. Hacky test based on MetaType to check if we operate on G-* type or not
     template<typename T> using is_nongapi_type = std::is_same<T, typename MetaType<T>::type>;
@@ -214,7 +225,8 @@ public:
                               , K::tag()
                               , &K::getOutMeta
                               , {detail::GTypeTraits<R>::shape...}
-                              , {detail::GTypeTraits<Args>::op_kind...}});
+                              , {detail::GTypeTraits<Args>::op_kind...}
+                              , {detail::GObtainCtor<R>::get()...}});
         call.pass(args...); // TODO: std::forward() here?
         return yield(call, typename detail::MkSeq<sizeof...(R)>::type());
     }
@@ -231,15 +243,14 @@ public:
     using InArgs  = std::tuple<Args...>;
     using OutArgs = std::tuple<R>;
 
-    static_assert(!cv::detail::contains<GFrame, OutArgs>::value, "Values of GFrame type can't be used as operation outputs");
-
     static R on(Args... args)
     {
         cv::GCall call(GKernel{ K::id()
                               , K::tag()
                               , &K::getOutMeta
                               , {detail::GTypeTraits<R>::shape}
-                              , {detail::GTypeTraits<Args>::op_kind...}});
+                              , {detail::GTypeTraits<Args>::op_kind...}
+                              , {detail::GObtainCtor<R>::get()}});
         call.pass(args...);
         return detail::Yield<R>::yield(call, 0);
     }
@@ -459,11 +470,6 @@ namespace gapi {
 
     protected:
         /// @private
-        // Check if package contains ANY implementation of a kernel API
-        // by API textual id.
-        bool includesAPI(const std::string &id) const;
-
-        /// @private
         // Remove ALL implementations of the given API (identified by ID)
         void removeAPI(const std::string &id);
 
@@ -564,6 +570,9 @@ namespace gapi {
         {
             return includesAPI(KAPI::id());
         }
+
+        /// @private
+        bool includesAPI(const std::string &id) const;
 
         // FIXME: The below comment is wrong, and who needs this function?
         /**

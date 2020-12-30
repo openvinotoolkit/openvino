@@ -70,6 +70,7 @@ op::v1::MaxPool::MaxPool(const Output<Node>& arg,
 
 bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_MaxPool_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -81,6 +82,7 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::MaxPool::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
     if (0 == m_strides.size())
     {
         m_strides = Strides(m_kernel.size(), 1);
@@ -135,6 +137,7 @@ void op::v1::MaxPool::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_MaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::MaxPool>(
         new_args.at(0), m_strides, m_pads_begin, m_pads_end, m_kernel, m_rounding_type, m_auto_pad);
@@ -229,6 +232,6 @@ bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs,
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate) { return evaluate_maxpool(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v1_MaxPool_evaluate);
+    return evaluate_maxpool(outputs, inputs);
 }
