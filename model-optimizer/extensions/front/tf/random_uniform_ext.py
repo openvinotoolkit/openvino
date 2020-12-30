@@ -17,7 +17,7 @@
 from mo.front.common.partial_infer.random_uniform import tf_random_uniform_infer
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.concat import Concat
-from extensions.ops.RandomUniformOp import RandomUniformOp
+from extensions.ops.RandomUniform import RandomUniform
 
 class RandomUniformExtractor(FrontExtractorOp):
     op = 'RandomUniform'
@@ -25,5 +25,5 @@ class RandomUniformExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        RandomUniformOp.update_node_stat(node)
+        RandomUniform.update_node_stat(node)
         return cls.enabled

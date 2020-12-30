@@ -684,7 +684,7 @@ extensions/ops/proposal_onnx.py
 extensions/ops/proposal_python_example.py
 extensions/ops/psroipooling.py
 extensions/ops/quantize_linear.py
-extensions/ops/RandomUniformOp.py
+extensions/ops/RandomUniform.py
 extensions/ops/range.py
 extensions/ops/rank.py
 extensions/ops/ReduceOps.py

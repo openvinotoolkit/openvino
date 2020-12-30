@@ -17,8 +17,8 @@ from mo.graph.graph import Graph
 from mo.ops.op import Op
 from mo.front.common.partial_infer.random_uniform import tf_random_uniform_infer
 
-class RandomUniformOp(Op):
-    op = 'RandomUniformOp'
+class RandomUniform(Op):
+    op = 'RandomUniform'
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
