@@ -27,7 +27,7 @@ class RandomUniformReplacer(MiddleReplacementPattern):
     """
     Replaces RandomUniform operation with Broadcast of ones in sub-graph:
 
-    ShapeOf ---> RandomUniformOp ---> Mul
+    ShapeOf ---> RandomUniform ---> Mul
 
     """
 
@@ -39,7 +39,7 @@ class RandomUniformReplacer(MiddleReplacementPattern):
             nodes=[
                 ('shape', dict(op='ShapeOf')),
                 ('shape_data', dict()),
-                ('random_uniform', dict(op='RandomUniformOp')),
+                ('random_uniform', dict(op='RandomUniform')),
                 ('random_uniform_data', dict()),
                 ('mul', dict(op='Mul')),
                 ('mul_const', dict(op='Const')),

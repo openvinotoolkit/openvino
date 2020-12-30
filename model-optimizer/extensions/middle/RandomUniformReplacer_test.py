@@ -24,7 +24,7 @@ from mo.utils.unittest.graph import build_graph
 nodes_attributes = {
     'shape': {'kind': 'op', 'op': 'ShapeOf'},
     'shape_data': {'kind': 'data'},
-    'random_uniform': {'kind': 'op', 'op': 'RandomUniformOp'},
+    'random_uniform': {'kind': 'op', 'op': 'RandomUniform'},
     'random_uniform_data': {'kind': 'data'},
     'mul': {'kind': 'op', 'op': 'Mul'},
     'mul_const': {'kind': 'op', 'op': 'Const'},
