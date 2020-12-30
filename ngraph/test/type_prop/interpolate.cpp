@@ -29,7 +29,7 @@ using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
 TEST(type_prop, interpolate_v4)
 {
     auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
+    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
@@ -109,7 +109,7 @@ TEST(type_prop, interpolate_v4_partial)
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
 
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
+    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
@@ -139,7 +139,7 @@ TEST(type_prop, interpolate_v4_partial_static_rank)
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
 
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
+    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
@@ -165,7 +165,7 @@ TEST(type_prop, interpolate_v4_partial_static_rank2)
     auto out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 5, 10};
 
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 15, 30});
+    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
@@ -191,7 +191,7 @@ TEST(type_prop, interpolate_v4_partial_static_rank3)
     auto out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1};
 
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 1, 1});
+    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{1, 1});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {1.0f / 3.0f, 1.0f / 3.0f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
