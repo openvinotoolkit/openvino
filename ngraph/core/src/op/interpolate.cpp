@@ -233,8 +233,9 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     element::Type sizes_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          sizes_et == element::i32 || sizes_et == element::i64,
-                          "Sizes element type must be i32 or i64");
+                          sizes_et == element::i32 || sizes_et == element::i64 ||
+                              sizes_et == element::u32 || sizes_et == element::u64,
+                          "Sizes element type must be i32, i64, u32 or u64");
 
     element::Type scales_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
@@ -242,10 +243,14 @@ void op::v4::Interpolate::validate_and_infer_types()
                               scales_et == element::bf16,
                           "Scales element type must be f32, f16 or bf16");
 
-    element::Type axes_et = get_input_element_type(3);
-    NODE_VALIDATION_CHECK(this,
-                          axes_et == element::i64 || axes_et == element::i32,
-                          "Axes element type must be i32 or i64");
+    if (input_values().size() == 4)
+    {
+        element::Type axes_et = get_input_element_type(3);
+        NODE_VALIDATION_CHECK(this,
+                              axes_et == element::i64 || axes_et == element::i32 ||
+                                  sizes_et == element::u32 || sizes_et == element::u64,
+                              "Axes element type must be i32, i64, u32 or u64");
+    }
 
     PartialShape input_shape = PartialShape(get_input_partial_shape(0));
 
