@@ -89,6 +89,51 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
     }
 }
 
+void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size) {
+    if (size != 0)
+        IE_ASSERT(size <= output.GetDescriptor().get_size());
+    if (input.GetDesc() == output.GetDesc()) {
+        auto srcPtr = static_cast<uint8_t*>(input.GetPtr());
+        auto dstPtr = static_cast<uint8_t*>(output.GetPtr());
+
+        auto copySize = size == 0 ? output.GetSize() : size;
+        cpu_memcpy(dstPtr, srcPtr, copySize);
+    } else {
+        std::unique_ptr<mkldnn::reorder> pReorder;
+        std::shared_ptr<memory> srcMemoryPtr;
+
+        try {
+            pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(input.GetPrimitive(), output.GetPrimitive()));
+            srcMemoryPtr = input.prim;
+        }
+        catch (const mkldnn::error& err) {
+            if (mkldnn_unimplemented == err.status && output.GetDataType() != input.GetDataType()) {
+                //we probably could not make the reorder because there is no one supporting this precision conversion
+                //lets try to convert data first using cpu_convert
+                std::vector<uint8_t> tmpBuff(input.GetSize());
+                auto data = static_cast<const uint8_t *>(input.GetPtr());
+
+                cpu_convert(data, tmpBuff.data(), MKLDNNExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
+                            MKLDNNExtensionUtils::DataTypeToIEPrecision(output.GetDataType()), input.GetElementsCount());
+
+                MKLDNNMemory tmpMem(output.eng);
+                tmpMem.Create(input.GetDims(), input.GetDataType(), input.GetFormat(), data);
+
+                pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
+                srcMemoryPtr = tmpMem.prim;
+            } else {
+                throw;
+            }
+        }
+        if (pReorder) {
+            mkldnn::stream loc_stream(this->eng, stream::flags::default_order);
+            pReorder->execute(loc_stream, *srcMemoryPtr, *this->prim);
+        } else {
+            THROW_IE_EXCEPTION << "Could not make mkldnn reorder.";
+        }
+    }
+}
+
 // TODO: It should be done via wrap into Memory;
 void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format, const void* data, size_t size, bool ftz) const {
     IE_ASSERT(!one_of(format, memory::format_tag::undef, memory::format_tag::any));
@@ -104,72 +149,28 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
         // We cannot support strides for i/o blobs because it affects performance.
         dataPtr += itemSize * prim->get_desc().data.offset0;
         cpu_memcpy(dataPtr, data, size);
-
-        if (ftz
-            && dataType == memory::data_type::f32
-            && prim->get_desc().data.format_kind != dnnl_format_kind_wino
-            && GetDataType() != memory::data_type::bf16) {
-            // Internal blobs haven't strides yet.
-            auto *memData = static_cast<float *>(GetData());
-            memData += prim->get_desc().data.offset0;
-            setSubnormalsToZero(memData, GetSize() / sizeof(float));
-        }
     } else {
         auto memData = this->GetDescriptor().data;
-        memory::dims dims(memData.dims, memData.dims + memData.ndims);
+        std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
 
         MKLDNNMemory src(this->eng);
         src.Create(dims, dataType, format, data);
 
-        this->SetData(src, ftz);
+        reorderData(src, *this);
+    }
+    if (ftz
+        && dataType == memory::data_type::f32
+        && prim->get_desc().data.format_kind != dnnl_format_kind_wino
+        && GetDataType() != memory::data_type::bf16) {
+        // Internal blobs haven't strides yet.
+        auto *memData = static_cast<float *>(GetData());
+        memData += prim->get_desc().data.offset0;
+        setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
 }
 
 void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const {
-    if (size != 0)
-        IE_ASSERT(size <= GetDescriptor().get_size());
-
-    // TODO: Optimization. Reorder perfect is not good enough, so in triviale cases we
-    //       prefer use simple copy.
-    if (src.GetDesc() == this->GetDesc()) {
-        auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
-        auto dstPtr = static_cast<uint8_t*>(this->GetPtr());
-        auto copySize = size == 0 ? this->GetSize() : size;
-        cpu_memcpy(dstPtr, srcPtr, copySize);
-    } else {
-        std::unique_ptr<mkldnn::reorder> pReorder;
-        std::shared_ptr<memory> srcMemoryPtr;
-
-        try {
-            pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), this->GetPrimitive()));
-            srcMemoryPtr = src.prim;
-        }
-        catch (const mkldnn::error &err) {
-            if (mkldnn_unimplemented == err.status && this->GetDataType() != src.GetDataType()) {
-                //we probably could not make the reorder because there is no one supporting this precision conversion
-                //lets try to convert data first using cpu_convert
-                std::vector<uint8_t> tmpBuff(src.GetSize());
-                auto data = static_cast<const uint8_t *>(src.GetPtr());
-
-                cpu_convert(data, tmpBuff.data(), MKLDNNExtensionUtils::DataTypeToIEPrecision(src.GetDataType()),
-                            MKLDNNExtensionUtils::DataTypeToIEPrecision(this->GetDataType()), src.GetElementsCount());
-
-                MKLDNNMemory tmpMem(this->eng);
-                tmpMem.Create(src.GetDims(), src.GetDataType(), src.GetFormat(), data);
-
-                pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), this->GetPrimitive()));
-                srcMemoryPtr = tmpMem.prim;
-            } else {
-                throw;
-            }
-        }
-        if (pReorder) {
-            mkldnn::stream loc_stream(this->eng, stream::flags::default_order);
-            pReorder->execute(loc_stream, *srcMemoryPtr, *this->prim);
-        } else {
-            THROW_IE_EXCEPTION << "Could not make mkldnn reorder.";
-        }
-    }
+    reorderData(src, *this, size);
 
     if (ftz
         && src.GetDataType() == memory::data_type::f32
