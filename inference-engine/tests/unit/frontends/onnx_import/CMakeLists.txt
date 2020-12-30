@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+if (NOT NGRAPH_USE_PROTOBUF_LITE)
     set(TARGET_NAME onnxImporterUnitTests)
 
     addIeTargetTest(
