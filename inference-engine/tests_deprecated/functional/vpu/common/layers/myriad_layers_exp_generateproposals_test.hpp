@@ -140,7 +140,11 @@ static void genInputs(InferenceEngine::BlobMap inputMap,
     inputIMinfo[1] = PrecisionUtils::f32tof16( (float) imgW );
 }
 
+#ifdef __APPLE__
+TEST_P(myriadLayersTestsExpGenerateProposals_smoke, DISABLED_ExpGenerateProposals) {
+#else
 TEST_P(myriadLayersTestsExpGenerateProposals_smoke, ExpGenerateProposals) {
+#endif
     tensor_test_params scoresDims = std::get<0>(GetParam());
     std::vector<int> im_info = std::get<1>(GetParam());
     GenerateProposalsParam opParams = std::get<2>(GetParam());
