@@ -89,6 +89,6 @@ TEST(type_prop, detectron_roi_feature_extractor_dynamic)
             NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3}, attrs);
 
         ASSERT_EQ(roi->get_output_element_type(0), element::f32);
-        ASSERT_TRUE(grid_gen->get_output_partial_shape(0).same_scheme(ref_out_shape));
+        ASSERT_TRUE(roi->get_output_partial_shape(0).same_scheme(ref_out_shape));
     }
 }

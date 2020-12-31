@@ -1077,7 +1077,7 @@ TEST(CNNNGraphImplTests, AddOutputToExperimentalOpOpset6) {
     CNNNetwork network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
     network.addOutput("exp");
     auto outputs = network.getOutputsInfo();
-    ASSERT_NE(outputs.find("exp"), outputs.end());
+    ASSERT_NE(outputs.find("exp.0"), outputs.end());
 }
 
 TEST(CNNNGraphImplTests, AddOutputToExperimentalOp) {
@@ -1222,7 +1222,7 @@ TEST(CNNNGraphImplTests, AddOutputToExperimentalOp) {
     CNNNetwork network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
     network.addOutput("exp");
     auto outputs = network.getOutputsInfo();
-    ASSERT_NE(outputs.find("exp"), outputs.end());
+    ASSERT_NE(outputs.find("exp.0"), outputs.end());
 }
 
 TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
