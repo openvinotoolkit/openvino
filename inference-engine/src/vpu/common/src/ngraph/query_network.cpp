@@ -33,38 +33,38 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::ICNNN
 
     const auto isLayerSupported = [&supportedLayers, &splitNames, &concatNames, &concats, &splits]
                                   (InferenceEngine::details::CNNNetworkIterator& layer) -> bool {
-            auto node = (*layer)->getNode();
-            if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
-                splitNames.emplace(node->get_friendly_name());
-                splits.push_back(node);
-                return false;
-            } else if (std::dynamic_pointer_cast<const ::ngraph::opset3::Concat>(node) != nullptr) {
-                concatNames.emplace(node->get_friendly_name());
-                concats.push_back(node);
-                return false;
-            } else {
-                return supportedLayers.count((*layer)->name) != 0;
-            }
+        auto node = (*layer)->getNode();
+        if (std::dynamic_pointer_cast<const ::ngraph::opset3::Split>(node) != nullptr) {
+            splitNames.emplace(node->get_friendly_name());
+            splits.push_back(node);
+            return false;
+        } else if (std::dynamic_pointer_cast<const ::ngraph::opset3::Concat>(node) != nullptr) {
+            concatNames.emplace(node->get_friendly_name());
+            concats.push_back(node);
+            return false;
+        } else {
+            return supportedLayers.count((*layer)->name) != 0;
+        }
     };
 
     for (InferenceEngine::details::CNNNetworkIterator itLayer{convertedNetwork.get()};
-             itLayer != InferenceEngine::details::CNNNetworkIterator();
-             itLayer++) {
-            const auto fusedNode = (*itLayer)->getNode();
-            if (fusedNode == nullptr) {
-                continue;
-            }
+            itLayer != InferenceEngine::details::CNNNetworkIterator();
+            itLayer++) {
+        const auto fusedNode = (*itLayer)->getNode();
+        if (fusedNode == nullptr) {
+            continue;
+        }
 
-            for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
-                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                    if (isLayerSupported(itLayer)) {
-                        supported.emplace(fusedLayerName);
-                    } else {
-                        unsupported.emplace(fusedLayerName);
-                    }
+        for (auto& fusedLayerName : ngraph::getFusedNamesVector(fusedNode)) {
+            if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
+                if (isLayerSupported(itLayer)) {
+                    supported.emplace(fusedLayerName);
+                } else {
+                    unsupported.emplace(fusedLayerName);
                 }
             }
         }
+    }
 
     for (const auto& layerName : supported) {
         if (supported.empty()) {
