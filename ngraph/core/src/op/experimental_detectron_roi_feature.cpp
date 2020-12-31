@@ -64,10 +64,10 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     auto rois_shape = get_input_partial_shape(0);
     auto input_et = get_input_element_type(0);
 
-    set_output_size(1);
     PartialShape out_shape = {
         Dimension::dynamic(), Dimension::dynamic(), m_attrs.output_size, m_attrs.output_size};
 
+    PartialShape out_rois_shape = {Dimension::dynamic(), 4};
     if (rois_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(
@@ -80,6 +80,7 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
                               rois_shape[1]);
 
         out_shape[0] = rois_shape[0];
+        out_rois_shape[0] = rois_shape[0];
     }
 
     size_t num_of_inputs = get_input_size();
@@ -136,6 +137,7 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     out_shape[1] = expected_channels;
 
     set_output_type(0, input_et, out_shape);
+    set_output_type(1, input_et, out_rois_shape);
 }
 
 shared_ptr<Node> op::v6::ExperimentalDetectronROIFeatureExtractor::clone_with_new_inputs(
