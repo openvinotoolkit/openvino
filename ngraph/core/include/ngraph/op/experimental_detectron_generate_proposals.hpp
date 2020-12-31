@@ -40,7 +40,7 @@ namespace ngraph
                     // specifies NMS threshold
                     float nms_threshold;
                     int64_t post_nms_count;
-                    int pre_nms_count;
+                    int64_t pre_nms_count;
                 };
 
                 ExperimentalDetectronGenerateProposalsSingleImage() = default;
@@ -68,7 +68,6 @@ namespace ngraph
             private:
                 Attributes m_attrs;
             };
-        } // namespace v6
-        using v6::ExperimentalDetectronTopKROIs;
-    } // namespace op
-} // namespace ngraph
+        }
+    }
+}
