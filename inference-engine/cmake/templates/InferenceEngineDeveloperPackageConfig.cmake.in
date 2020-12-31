@@ -47,11 +47,6 @@ set(InferenceEngine_LIBRARIES IE::inference_engine)
 # Common cmake includes
 #
 
-# TODO: remove after private plugin change 
-list(APPEND CMAKE_MODULE_PATH "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package" # KMB
-                              "@OpenVINO_MAIN_SOURCE_DIR@/cmake/developer_package/download" # KMB, HDDL
-                              "@IE_MAIN_SOURCE_DIR@/cmake") # HDDL
-
 # Inference Engine Developer Scripts package
 
 find_package(IEDevScripts REQUIRED

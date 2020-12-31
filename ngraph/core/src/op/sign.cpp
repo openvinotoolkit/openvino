@@ -34,11 +34,13 @@ op::Sign::Sign(const Output<Node>& arg)
 
 bool ngraph::op::v0::Sign::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Sign_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Sign::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Sign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sign>(new_args.at(0));
 }
@@ -75,9 +77,6 @@ namespace signop
 
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Sign_evaluate)
-    {
-        return signop::evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Sign_evaluate);
+    return signop::evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

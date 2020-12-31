@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <cmath>
+#include "itt.hpp"
 
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/add.hpp"
@@ -41,6 +42,7 @@ op::Gelu::Gelu(const Output<Node>& data)
 
 bool ngraph::op::v0::Gelu::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Gelu_visit_attributes);
     return true;
 }
 
@@ -67,6 +69,7 @@ OutputVector op::Gelu::decompose_op() const
 
 shared_ptr<Node> op::Gelu::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Gelu_clone_with_new_inputs);
     if (new_args.size() != 1)
     {
         throw ngraph_error("Incorrect number of new arguments");
