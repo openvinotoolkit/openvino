@@ -286,7 +286,6 @@ void op::v4::Interpolate::validate_and_infer_types()
         }
     }
 
-    set_output_type(0, get_input_element_type(0), output_shape);
     if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
     {
         if (auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr()))
