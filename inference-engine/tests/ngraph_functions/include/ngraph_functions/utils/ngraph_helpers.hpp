@@ -187,6 +187,7 @@ enum class TensorIteratorBody {
     RNN,
     GRU,
     LSTM,
+    SingleEltwise
     // CNN todo: implement
 };
 

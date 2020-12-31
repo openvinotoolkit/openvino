@@ -244,7 +244,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         {
             ngraph::pass::Manager manager = ngraph::pass::Manager();
             manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            //TODO: implement switch mechanism
+            //manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
         }

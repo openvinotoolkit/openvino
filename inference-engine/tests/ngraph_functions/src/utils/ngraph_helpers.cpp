@@ -758,6 +758,9 @@ std::ostream& operator<<(std::ostream & os, TensorIteratorBody type) {
         case TensorIteratorBody::GRU:
             os << "GRU";
             break;
+        case TensorIteratorBody::SingleEltwise:
+            os << "SingleEltwise";
+            break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }

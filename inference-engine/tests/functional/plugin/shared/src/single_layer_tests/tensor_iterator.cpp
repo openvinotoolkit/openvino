@@ -228,6 +228,30 @@ namespace LayerTestsDefinitions {
                 function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
+            case ngraph::helpers::TensorIteratorBody::SingleEltwise: {
+                sequence_axis = 0;
+                inputShapes = { {2,4}, {1,4} };
+                auto outer_params = ngraph::builder::makeParams(ngPrc, { inputShapes[0], inputShapes[1] });
+
+                // 1. Create TensorIterator body.
+                inputShapes[0][sequence_axis] = 1; // sliced dimension
+                auto body_params = ngraph::builder::makeParams(ngPrc, { inputShapes[0], inputShapes[1] });
+                auto add = std::make_shared<ngraph::opset5::Add>(body_params[0], body_params[1]);
+                ngraph::OutputVector out_vector = { body_params[0] };
+                ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
+                auto body = std::make_shared<ngraph::Function>(results, body_params, "SingleEltwise");
+                tensor_iterator->set_function(body);
+
+                // 2. Set PortMap
+                tensor_iterator->set_sliced_input(body_params[0], outer_params[0], 0, 1, 1, -1, sequence_axis);
+                tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);
+
+                tensor_iterator->get_concatenated_slices(results[0], 0, 1, 1, -1, sequence_axis);
+
+                // 3. Outer function
+                function = std::make_shared<ngraph::Function>(ngraph::OutputVector{ tensor_iterator->output(0) }, outer_params);
+                break;
+            }
         }
         if (should_decompose) {
             ngraph::pass::Manager m;

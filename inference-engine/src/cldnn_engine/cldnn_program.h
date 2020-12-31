@@ -31,6 +31,7 @@
 #include <api/eltwise.hpp>
 #include <api/concatenation.hpp>
 #include <api/detection_output.hpp>
+#include <api/tensor_iterator.hpp>
 
 namespace CLDNNPlugin {
 template<typename LayerTypePtr>
@@ -85,7 +86,7 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::ICNNNetwork &network, std::shared_ptr<const cldnn::engine> engine, const Config& config);
+    Program(InferenceEngine::ICNNNetwork &network, std::shared_ptr<const cldnn::engine> engine, const Config& config, bool build_program = true);
     std::shared_ptr<cldnn::program> getCompiledProgram(int program_id = 0);
 
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
@@ -230,6 +231,7 @@ public:
         EmbeddingBagOffsetsSum,
         EmbeddingSegmentsSum,
         ExtractImagePatches,
+        TensorIterator,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -242,6 +244,8 @@ private:
     Config m_config;
 
     std::shared_ptr<cldnn::program> BuildProgram(InferenceEngine::ICNNNetwork &network);
+    cldnn::topology BuildTopology(InferenceEngine::ICNNNetwork &network);
+    void processOutputs(InferenceEngine::ICNNNetwork & network, cldnn::topology& topology);
 
     void InitProfileInfo(const std::string& layerName,
                          const std::string& layerType,
@@ -395,6 +399,7 @@ private:
     void CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateExtractImagePatchesPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateTensorIteratorPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
 };
 
 }  // namespace CLDNNPlugin

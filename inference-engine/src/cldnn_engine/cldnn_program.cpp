@@ -66,6 +66,7 @@
 #include <api/cum_sum.hpp>
 #include <api/embedding_bag.hpp>
 #include <api/extract_image_patches.hpp>
+#include <api/tensor_iterator.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -97,171 +98,171 @@ using namespace InferenceEngine::details;
 
 namespace {
 
-std::vector<CNNLayerPtr> BFSSort(const ICNNNetwork& network) {
-    std::vector<CNNLayerPtr> ordered;
-    std::unordered_set<std::string> used;
+    std::vector<CNNLayerPtr> BFSSort(const ICNNNetwork& network) {
+        std::vector<CNNLayerPtr> ordered;
+        std::unordered_set<std::string> used;
 
-    OutputsDataMap outputs;
-    network.getOutputsInfo(outputs);
+        OutputsDataMap outputs;
+        network.getOutputsInfo(outputs);
 
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
+        InputsDataMap inputs;
+        network.getInputsInfo(inputs);
 
-    auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
-        std::vector<CNNLayerPtr> consumers;
-        for (const auto & output : node->outData) {
-            for (const auto &consumer : getInputTo(output)) {
-                consumers.push_back(consumer.second);
-            }
-        }
-        return consumers;
-    };
-    auto bfs = [&used, &ordered, &get_consumers](const CNNLayerPtr& start_node, bool traverse_via_outputs = false) {
-        if (!start_node) return;
-        std::deque<CNNLayerPtr> q;
-        q.push_front(start_node);
-        while (!q.empty()) {
-            auto node = q.front();
-            q.pop_front();
-            if (used.insert(node->name).second) {
-                ordered.push_back(node);
-            }
-
-            // Traverse via inputs
-            for (const auto & input : node->insData) {
-                auto locked_input = input.lock();
-                if (!locked_input) {
-                    THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
+        auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
+            std::vector<CNNLayerPtr> consumers;
+            for (const auto & output : node->outData) {
+                for (const auto &consumer : getInputTo(output)) {
+                    consumers.push_back(consumer.second);
                 }
-                if (auto next_node = getCreatorLayer(locked_input).lock()) {
-                    if (!used.count(next_node->name)) {
-                        // Check that all consumers were used
-                        bool all_consumers_used(true);
-                        for (const auto & consumer : get_consumers(next_node)) {
-                            if (!used.count(consumer->name)) all_consumers_used = false;
+            }
+            return consumers;
+        };
+        auto bfs = [&used, &ordered, &get_consumers](const CNNLayerPtr& start_node, bool traverse_via_outputs = false) {
+            if (!start_node) return;
+            std::deque<CNNLayerPtr> q;
+            q.push_front(start_node);
+            while (!q.empty()) {
+                auto node = q.front();
+                q.pop_front();
+                if (used.insert(node->name).second) {
+                    ordered.push_back(node);
+                }
+
+                // Traverse via inputs
+                for (const auto & input : node->insData) {
+                    auto locked_input = input.lock();
+                    if (!locked_input) {
+                        THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
+                    }
+                    if (auto next_node = getCreatorLayer(locked_input).lock()) {
+                        if (!used.count(next_node->name)) {
+                            // Check that all consumers were used
+                            bool all_consumers_used(true);
+                            for (const auto & consumer : get_consumers(next_node)) {
+                                if (!used.count(consumer->name)) all_consumers_used = false;
+                            }
+                            if (all_consumers_used) {
+                                q.push_front(next_node);
+                            }
                         }
-                        if (all_consumers_used) {
-                            q.push_front(next_node);
+                    }
+                }
+
+                // Traverse via outputs
+                if (traverse_via_outputs) {
+                    for (const auto &consumer : get_consumers(node)) {
+                        if (!used.count(consumer->name)) {
+                            q.push_front(consumer);
                         }
                     }
                 }
             }
+        };
 
-            // Traverse via outputs
-            if (traverse_via_outputs) {
-                for (const auto &consumer : get_consumers(node)) {
-                    if (!used.count(consumer->name)) {
-                        q.push_front(consumer);
-                    }
+        // First we run bfs starting from outputs that provides deterministic graph traverse
+        for (const auto & output : outputs) {
+            if (!used.count(output.first)) {
+                bfs(getCreatorLayer(output.second).lock());
+            }
+        }
+
+        // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
+        for (const auto & input : inputs) {
+            const auto data_ptr = input.second->getInputData();
+            for (const auto & consumer : getInputTo(data_ptr))
+                if (!used.count(consumer.first)) {
+                    bfs(consumer.second, true);
+                }
+        }
+
+        std::reverse(ordered.begin(), ordered.end());
+        return ordered;
+    }
+
+    template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
+    void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
+        const typename PrecisionTrait<PREC_FROM>::value_type* src, size_t nelem) {
+        using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
+
+        for (size_t i = 0; i < nelem; i++) {
+            dst[i] = static_cast<dst_type>(src[i]);
+        }
+    }
+
+    template <>
+    void convertArrayPrecision<Precision::FP16, Precision::FP32>(float* dst, const short* src, size_t nelem) {
+        InferenceEngine::PrecisionUtils::f16tof32Arrays(dst, src, nelem, 1.0f, 0.0f);
+    }
+
+    template <>
+    void convertArrayPrecision<Precision::FP32, Precision::FP16>(short* dst, const float* src, size_t nelem) {
+        InferenceEngine::PrecisionUtils::f32tof16Arrays(dst, src, nelem, 1.0f, 0.0f);
+    }
+
+    template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
+    Blob::Ptr convertBlobPrecision(const Blob::Ptr& blob) {
+        using from_d_type = typename PrecisionTrait<PREC_FROM>::value_type;
+        using to_d_type = typename PrecisionTrait<PREC_TO>::value_type;
+
+        auto tensor_desc = blob->getTensorDesc();
+            Blob::Ptr new_blob = make_shared_blob<to_d_type>(TensorDesc {PREC_TO, tensor_desc.getDims(), tensor_desc.getLayout()});
+        new_blob->allocate();
+        auto target = new_blob->buffer().as<to_d_type*>();
+        auto source = blob->buffer().as<from_d_type*>();
+        convertArrayPrecision<PREC_FROM, PREC_TO>(target, source, blob->size());
+        return new_blob;
+    }
+
+    template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
+    void convertLayerPrecision(const CNNLayerPtr& layer, bool isOutput = false) {
+        if (layer->type == "TensorIterator" && dynamic_cast<TensorIterator*>(layer.get()) != nullptr) {
+            return;
+        }
+
+        using LayerType = CLDNNPlugin::Program::LayerType;
+
+        if (!isOutput) {
+            for (auto &out_data : layer->outData) {
+                if (PREC_FROM == out_data->getPrecision())
+                    out_data->setPrecision(PREC_TO);
+            }
+        }
+
+        for (auto &in_data : layer->insData) {
+            auto data = in_data.lock();
+            if (PREC_FROM == data->getPrecision())
+                data->setPrecision(PREC_TO);
+
+            auto prev_layer = getCreatorLayer(data).lock();
+
+            if (CLDNNPlugin::Program::LayerTypeFromStr(prev_layer->type) == LayerType::ConstantBlob &&
+                CLDNNPlugin::Program::LayerTypeFromStr(layer->type) != LayerType::Quantize) {
+                convertLayerPrecision<Precision::FP32, Precision::FP16>(prev_layer, false);
+            }
+        }
+
+        if (layer->precision == PREC_FROM)
+            layer->precision = PREC_TO;
+
+        auto wLayer = dynamic_cast<InferenceEngine::WeightableLayer *>(layer.get());
+        if (wLayer) {
+            if (wLayer->_weights && wLayer->_weights->getTensorDesc().getPrecision() == PREC_FROM) {
+                wLayer->_weights = convertBlobPrecision<PREC_FROM, PREC_TO>(wLayer->_weights);
+            }
+            if (wLayer->_biases && wLayer->_biases->getTensorDesc().getPrecision() == PREC_FROM) {
+                wLayer->_biases = convertBlobPrecision<PREC_FROM, PREC_TO>(wLayer->_biases);
+            }
+        }
+
+        for (auto &blob : layer->blobs) {
+            auto &data = blob.second;
+            if (nullptr != data) {
+                if (data->getTensorDesc().getPrecision() == PREC_FROM) {
+                    data = convertBlobPrecision<PREC_FROM, PREC_TO>(data);
                 }
             }
         }
-    };
-
-    // First we run bfs starting from outputs that provides deterministic graph traverse
-    for (const auto & output : outputs) {
-        if (!used.count(output.first)) {
-            bfs(getCreatorLayer(output.second).lock());
-        }
     }
-
-    // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
-    for (const auto & input : inputs) {
-        const auto data_ptr = input.second->getInputData();
-        for (const auto & consumer : getInputTo(data_ptr))
-        if (!used.count(consumer.first)) {
-            bfs(consumer.second, true);
-        }
-    }
-
-    std::reverse(ordered.begin(), ordered.end());
-    return ordered;
-}
-
-template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
-void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
-                           const typename PrecisionTrait<PREC_FROM>::value_type* src, size_t nelem) {
-    using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
-
-    for (size_t i = 0; i < nelem; i++) {
-        dst[i] = static_cast<dst_type>(src[i]);
-    }
-}
-
-template <>
-void convertArrayPrecision<Precision::FP16, Precision::FP32>(float* dst, const short* src, size_t nelem) {
-    InferenceEngine::PrecisionUtils::f16tof32Arrays(dst, src, nelem, 1.0f, 0.0f);
-}
-
-template <>
-void convertArrayPrecision<Precision::FP32, Precision::FP16>(short* dst, const float* src, size_t nelem) {
-    InferenceEngine::PrecisionUtils::f32tof16Arrays(dst, src, nelem, 1.0f, 0.0f);
-}
-
-template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
-Blob::Ptr convertBlobPrecision(const Blob::Ptr& blob) {
-    using from_d_type = typename PrecisionTrait<PREC_FROM>::value_type;
-    using to_d_type = typename PrecisionTrait<PREC_TO>::value_type;
-
-    auto tensor_desc = blob->getTensorDesc();
-    Blob::Ptr new_blob = make_shared_blob<to_d_type>(TensorDesc {PREC_TO, tensor_desc.getDims(), tensor_desc.getLayout()});
-    new_blob->allocate();
-    auto target = new_blob->buffer().as<to_d_type*>();
-    auto source = blob->buffer().as<from_d_type*>();
-    convertArrayPrecision<PREC_FROM, PREC_TO>(target, source, blob->size());
-    return new_blob;
-}
-
-template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
-void convertLayerPrecision(const CNNLayerPtr& layer, bool isOutput = false) {
-    if (layer->type == "TensorIterator" && dynamic_cast<TensorIterator*>(layer.get()) != nullptr) {
-        return;
-    }
-
-    using LayerType = CLDNNPlugin::Program::LayerType;
-
-    if (!isOutput) {
-        for (auto &out_data : layer->outData) {
-            if (PREC_FROM == out_data->getPrecision())
-                out_data->setPrecision(PREC_TO);
-        }
-    }
-
-    for (auto &in_data : layer->insData) {
-        auto data = in_data.lock();
-        if (PREC_FROM == data->getPrecision())
-            data->setPrecision(PREC_TO);
-
-        auto prev_layer = getCreatorLayer(data).lock();
-
-        if (CLDNNPlugin::Program::LayerTypeFromStr(prev_layer->type) == LayerType::ConstantBlob &&
-            CLDNNPlugin::Program::LayerTypeFromStr(layer->type) != LayerType::Quantize) {
-            convertLayerPrecision<Precision::FP32, Precision::FP16>(prev_layer, false);
-        }
-    }
-
-    if (layer->precision == PREC_FROM)
-        layer->precision = PREC_TO;
-
-    auto wLayer = dynamic_cast<InferenceEngine::WeightableLayer *>(layer.get());
-    if (wLayer) {
-        if (wLayer->_weights && wLayer->_weights->getTensorDesc().getPrecision() == PREC_FROM) {
-            wLayer->_weights = convertBlobPrecision<PREC_FROM, PREC_TO>(wLayer->_weights);
-        }
-        if (wLayer->_biases && wLayer->_biases->getTensorDesc().getPrecision() == PREC_FROM) {
-            wLayer->_biases = convertBlobPrecision<PREC_FROM, PREC_TO>(wLayer->_biases);
-        }
-    }
-
-    for (auto &blob : layer->blobs) {
-        auto &data = blob.second;
-        if (nullptr != data) {
-            if (data->getTensorDesc().getPrecision() == PREC_FROM) {
-                data = convertBlobPrecision<PREC_FROM, PREC_TO>(data);
-            }
-        }
-    }
-}
 
 }  // namespace
 
@@ -385,7 +386,7 @@ bool Program::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network) const {
     return check_result;
 }
 
-Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config)
+Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config, bool build_program)
     : m_config(config)
     , m_defaultFormat(cldnn::format::bfyx)
     , m_engine(engine)
@@ -486,20 +487,22 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
 
     m_max_batch = config.max_dynamic_batch;
 
-    if (config.max_dynamic_batch > 1) {
-        for (int b = m_bv_sz - 1; b >= 0; b--) {
-            inputLayouts.clear();
-            outputDims.clear();
-            primitiveIDs.clear();
-            blobMemCache.clear();
+    if (build_program) {
+        if (config.max_dynamic_batch > 1) {
+            for (int b = m_bv_sz - 1; b >= 0; b--) {
+                inputLayouts.clear();
+                outputDims.clear();
+                primitiveIDs.clear();
+                blobMemCache.clear();
 
-            changeInputBatch(1U << static_cast<unsigned>(b));
-            m_programs.insert(m_programs.begin(), BuildProgram(network));
+                changeInputBatch(1U << static_cast<unsigned>(b));
+                m_programs.insert(m_programs.begin(), BuildProgram(network));
+                m_engine->release_pending_memory(0);
+            }
+        } else {
+            m_programs.emplace_back(BuildProgram(network));
             m_engine->release_pending_memory(0);
         }
-    } else {
-        m_programs.emplace_back(BuildProgram(network));
-        m_engine->release_pending_memory(0);
     }
 }
 
@@ -575,6 +578,22 @@ void Program::InitFormat(InferenceEngine::ICNNNetwork &network) {
     m_defaultFormat = FormatFromLayout(InferenceEngine::Layout::NCHW);
 }
 
+void Program::processOutputs(InferenceEngine::ICNNNetwork &network, cldnn::topology &topology) {
+    InferenceEngine::OutputsDataMap networkOutputs;
+    network.getOutputsInfo(networkOutputs);
+    p_currentOutputs = networkOutputs;
+    // 3. Handle output reordering
+    for (auto output : networkOutputs) {
+        // always reorder and let clDNN remove unneeded reorders
+        AddOutputPrimitive(topology, output.first, output.second);
+    }
+
+    // 4. ???
+    // 5. profit
+    p_currentOutputs.clear();
+}
+
+
 std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwork &network) {
     cldnn::build_options options;
     if (!m_config.graph_dumps_dir.empty()) {
@@ -582,7 +601,11 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwo
     }
     options.set_option(cldnn::build_option::optimize_data(true));
     options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
+    cldnn::topology topology = BuildTopology(network);
 
+    return std::make_shared<cldnn::program>(*m_engine, topology, options);
+}
+cldnn::topology Program::BuildTopology(InferenceEngine::ICNNNetwork &network) {
     cldnn::topology topology;
 
     // 1. create inputs
@@ -659,17 +682,8 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwo
         push_if(GetNextLayers(currLayer));
     }
 
-    // 3. Handle output reordering
-    for (auto output : networkOutputs) {
-        // always reorder and let clDNN remove unneeded reorders
-        AddOutputPrimitive(topology, output.first, output.second);
-    }
-
-    // 4. ???
-    // 5. profit
-    p_currentOutputs.clear();
-
-    return std::make_shared<cldnn::program>(*m_engine, topology, options);
+    processOutputs(network, topology);
+    return topology;
 }
 
 Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
@@ -803,6 +817,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum },
         { "EmbeddingSegmentsSum", EmbeddingSegmentsSum },
         { "ExtractImagePatches" , ExtractImagePatches },
+        { "TensorIterator", TensorIterator },
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -966,7 +981,7 @@ cldnn::primitive_id Program::CreatePrimitiveFromBlob(cldnn::topology& topology,
         }
     } else {
         std::memcpy(&buf[0], &data[0], bufSize);
-    }
+        }
     topology.add(cldnn::data(primID, mem));
     blobMemCache[data] = primID;
     return primID;
@@ -1504,6 +1519,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case EmbeddingSegmentsSum: CreateEmbeddingSegmentsSumPrimitive(topology, layer);
             break;
         case ExtractImagePatches: CreateExtractImagePatchesPrimitive(topology, layer);
+            break;
+        case TensorIterator: CreateTensorIteratorPrimitive(topology, layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -3429,20 +3446,20 @@ inline cldnn::resample::resample_axis InterpolateAxisFromIEAxis(int axis, unsign
     }
 
     switch (cldnn_axis) {
-        case 0:
-            return cldnn::resample::resample_axis::along_b;
-        case 1:
-            return cldnn::resample::resample_axis::along_f;
-        case 2:
-            return cldnn::resample::resample_axis::along_x;
-        case 3:
-            return cldnn::resample::resample_axis::along_y;
-        case 4:
-            return cldnn::resample::resample_axis::along_z;
-        case 5:
-            return cldnn::resample::resample_axis::along_w;
-        default:
-            break;
+    case 0:
+        return cldnn::resample::resample_axis::along_b;
+    case 1:
+        return cldnn::resample::resample_axis::along_f;
+    case 2:
+        return cldnn::resample::resample_axis::along_x;
+    case 3:
+        return cldnn::resample::resample_axis::along_y;
+    case 4:
+        return cldnn::resample::resample_axis::along_z;
+    case 5:
+        return cldnn::resample::resample_axis::along_w;
+    default:
+        break;
     }
     THROW_CLDNN_EXCEPTION("Unsupported Interpolate axis: " << axis);
 }
@@ -3513,7 +3530,7 @@ void Program::CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEng
                     axes.push_back(InterpolateAxisFromIEAxis(static_cast<int32_t>(data[i]), insData0dims.size()));
             } else {
                 THROW_IE_EXCEPTION << layer->name
-                                   << " Incorrect axes input precision";
+                    << " Incorrect axes input precision";
             }
         }
     } else {
@@ -3537,14 +3554,14 @@ void Program::CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEng
             THROW_CLDNN_EXCEPTION("mode 'linear_onnx' supports only axes with size 2 or equal to input rank");
         bool correctAxes =
             ((axes[0] == cldnn::resample::resample_axis::along_b) &&
-             (axes[1] == cldnn::resample::resample_axis::along_f)) ||
-            ((axes[0] == cldnn::resample::resample_axis::along_y) &&
-             (axes[1] == cldnn::resample::resample_axis::along_x));
+            (axes[1] == cldnn::resample::resample_axis::along_f)) ||
+                ((axes[0] == cldnn::resample::resample_axis::along_y) &&
+            (axes[1] == cldnn::resample::resample_axis::along_x));
         if (axes.size() == 4 && insData0dims.size() == 4) {
             correctAxes = axes[0] == cldnn::resample::resample_axis::along_b &&
-                          axes[1] == cldnn::resample::resample_axis::along_f &&
-                          axes[2] == cldnn::resample::resample_axis::along_y &&
-                          axes[3] == cldnn::resample::resample_axis::along_x;
+                axes[1] == cldnn::resample::resample_axis::along_f &&
+                axes[2] == cldnn::resample::resample_axis::along_y &&
+                axes[3] == cldnn::resample::resample_axis::along_x;
         }
         if (!correctAxes)
             THROW_CLDNN_EXCEPTION(
@@ -4043,6 +4060,120 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(layer);
     cldnn::primitive_id constPrimID = CreatePrimitiveFromBlob(topology, initialconstPrimID, constBlob, constLayout);
     AddPrimitiveToProfiler(initialconstPrimID, layer, constPrimID);
+}
+
+std::tuple<std::vector<cldnn::tensor_iterator::input_mapping>,
+    std::vector<cldnn::tensor_iterator::backedge_mapping>,
+    std::vector<cldnn::primitive_id> > RewriteTIRoutingRules(InferenceEngine::TensorIterator* tiLayer, CNNNetworkImplPtr net) {
+    std::vector<cldnn::tensor_iterator::input_mapping> inputs;
+    std::vector<cldnn::tensor_iterator::backedge_mapping> backedges;
+    std::vector<cldnn::primitive_id> outputs;
+
+    for (const auto& input : tiLayer->input_port_map) {
+        assert(getInputTo(tiLayer->body.inputs[input.to]).size() == 1);
+        std::string s = layer_type_name_ID(getInputTo(tiLayer->body.inputs.at(input.from)).begin()->second);
+        inputs.push_back(cldnn::tensor_iterator::input_mapping(input.from, s, input.axis));
+    }
+
+    for (const auto& backedge : tiLayer->back_edges) {
+        auto data = tiLayer->body.outputs[backedge.from];
+        auto ouputLayer = getCreatorLayer(data);
+
+        std::string layerName = layer_type_name_ID(ouputLayer.lock());
+        backedges.push_back(cldnn::tensor_iterator::backedge_mapping(layerName, backedge.to));
+    }
+
+    assert(tiLayer->output_port_map.size() == 1);
+    std::string s = layer_type_name_ID(getCreatorLayer(tiLayer->body.outputs.at(tiLayer->output_port_map.at(0).to)).lock());
+    outputs.push_back(s);
+    return { inputs, backedges, outputs };
+}
+
+void CLDNNPlugin::Program::CreateTensorIteratorPrimitive(cldnn::topology & topology, InferenceEngine::CNNLayerPtr & layer) {
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto tiLayer = as<InferenceEngine::TensorIterator*>(layer);
+    assert(tiLayer->body.inputs.size() > 0);
+
+    //tiLayer's body can have "const_blob" provided as a last input
+    if (tiLayer->body.inputs.back()->getPrecision() == Precision::UNSPECIFIED)
+        ValidateLayer(layer, tiLayer->body.inputs.size() - 1);
+    else
+        ValidateLayer(layer, tiLayer->body.inputs.size());
+
+    CNNNetworkImplPtr net = std::make_shared<CNNNetworkImpl>();
+    std::map<std::string, bool> doesDataExist;
+
+    Precision precision = tiLayer->precision;
+    //rewrite body's inputs
+    for (auto input : tiLayer->body.inputs) {
+        //let's handle "const_blob" later
+        if (input->getPrecision() == Precision::UNSPECIFIED) {
+            for (auto missing : getInputTo(input)) {
+                auto creator = getCreatorLayer(missing.second->insData.at(0).lock());
+                net->addLayer(missing.second);
+            }
+            continue;
+        }
+
+        // inserting addtional layer to make internal body compatibile with existing network processing system
+        // [data:input] -> [(new)input_layer] -> [(new)data_ptr] -> [data:input's old getInputTO]
+
+        // [(new)input_layer]
+        LayerParams input_layer_params;
+        input_layer_params.name = input->getName();
+        input_layer_params.precision = precision;
+        input_layer_params.type = "Input";
+        CNNLayerPtr input_layer = std::make_shared<CNNLayer>(input_layer_params);
+        // [(new)data_ptr]
+        DataPtr data_ptr = std::make_shared<Data>("_new_" + input->getName(), precision, input->getLayout());
+        data_ptr->setDims(input->getDims());
+        // rewriring
+        
+        getCreatorLayer(data_ptr) = input_layer;
+        getInputTo(data_ptr) = getInputTo(input);
+        data_ptr->setPrecision(precision);
+        getInputTo(input) = { { input_layer_params.name, input_layer } };
+        input_layer->outData.push_back(data_ptr);
+        for (auto child : getInputTo(data_ptr)) {
+            for (auto& in_ptr : child.second->insData) {
+                if (in_ptr.lock()->getName() == input->getName())
+                    in_ptr = data_ptr;
+            }
+        }
+        // adding new nodes to net
+        net->addLayer(input_layer);
+        net->addData(data_ptr->getName().c_str(), data_ptr);
+        InputInfo::Ptr ii = std::make_shared<InputInfo>();
+        ii->setInputData(input);
+        ii->setPrecision(precision);
+        net->setInputInfo(ii);
+    }
+
+    // rewrite body's layers
+    auto internalLayers = NetPass::TIBodySortTopologically(tiLayer->body);
+    for (auto internalLayer : internalLayers) {
+        net->addLayer(internalLayer);
+    }
+
+    for (auto output : tiLayer->body.outputs) {
+        output->setPrecision(precision);
+    }
+
+    CNNNetwork n(net);
+    NetPass::UnrollRNN_if(n, [](const RNNCellBase &rnn) -> bool {return true; });
+    Program prog(n, m_engine, m_config, false);
+
+    cldnn::topology internal_topology = prog.BuildTopology(n);
+
+    auto routingRules = RewriteTIRoutingRules(tiLayer, net);
+
+    auto tiPrim = cldnn::tensor_iterator(layer_type_name_ID(layer), inputPrimitives, internal_topology, std::get<0>(routingRules),
+        std::get<2>(routingRules),
+        std::get<1>(routingRules)); //TODO: setup padding
+
+    topology.add(tiPrim);
+    AddPrimitiveToProfiler(tiPrim, layer);
+    std::cout << "TensorIterator primitive added to topology!!!" << std::endl;
 }
 
 void Program::CreateConvolutionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -4777,27 +4908,27 @@ void Program::CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::
             THROW_IE_EXCEPTION << layer->name << " Incorrect Reduce axis value: " << rawAxes[a];
         if (reduceDimNumber == 6) {
             switch (rawAxes[a]) {
-                case 0: axes.push_back(cldnn::reduce::along_b); break;
-                case 1: axes.push_back(cldnn::reduce::along_f); break;
-                case 2: axes.push_back(cldnn::reduce::along_w); break;
-                case 3: axes.push_back(cldnn::reduce::along_z); break;
-                case 4: axes.push_back(cldnn::reduce::along_y); break;
-                case 5: axes.push_back(cldnn::reduce::along_x); break;
+            case 0: axes.push_back(cldnn::reduce::along_b); break;
+            case 1: axes.push_back(cldnn::reduce::along_f); break;
+            case 2: axes.push_back(cldnn::reduce::along_w); break;
+            case 3: axes.push_back(cldnn::reduce::along_z); break;
+            case 4: axes.push_back(cldnn::reduce::along_y); break;
+            case 5: axes.push_back(cldnn::reduce::along_x); break;
             }
         } else if (reduceDimNumber == 5) {
             switch (rawAxes[a]) {
-                case 0: axes.push_back(cldnn::reduce::along_b); break;
-                case 1: axes.push_back(cldnn::reduce::along_f); break;
-                case 2: axes.push_back(cldnn::reduce::along_z); break;
-                case 3: axes.push_back(cldnn::reduce::along_y); break;
-                case 4: axes.push_back(cldnn::reduce::along_x); break;
+            case 0: axes.push_back(cldnn::reduce::along_b); break;
+            case 1: axes.push_back(cldnn::reduce::along_f); break;
+            case 2: axes.push_back(cldnn::reduce::along_z); break;
+            case 3: axes.push_back(cldnn::reduce::along_y); break;
+            case 4: axes.push_back(cldnn::reduce::along_x); break;
             }
         } else {
             switch (rawAxes[a]) {
-                case 0: axes.push_back(cldnn::reduce::along_b); break;
-                case 1: axes.push_back(cldnn::reduce::along_f); break;
-                case 2: axes.push_back(cldnn::reduce::along_y); break;
-                case 3: axes.push_back(cldnn::reduce::along_x); break;
+            case 0: axes.push_back(cldnn::reduce::along_b); break;
+            case 1: axes.push_back(cldnn::reduce::along_f); break;
+            case 2: axes.push_back(cldnn::reduce::along_y); break;
+            case 3: axes.push_back(cldnn::reduce::along_x); break;
             }
         }
     }
@@ -4824,11 +4955,11 @@ void Program::CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::
 
     std::string reduceLayerName = layer_type_name_ID(layer);
     auto reducePrim = cldnn::reduce(
-            reduceLayerName,
-            inputPrimitives[0],
-            mode,
-            axes,
-            static_cast<int32_t>(reduce->keep_dims));
+        reduceLayerName,
+        inputPrimitives[0],
+        mode,
+        axes,
+        static_cast<int32_t>(reduce->keep_dims));
 
     topology.add(reducePrim);
 
