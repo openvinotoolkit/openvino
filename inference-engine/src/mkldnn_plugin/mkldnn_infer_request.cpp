@@ -16,6 +16,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn_memory_state.h"
 #include "nodes/mkldnn_memory_node.hpp"
+#include "nodes/common/cpu_memcpy.h"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
@@ -146,7 +147,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushStates() {
                     auto padSize = cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding;
                     auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + padSize * elemSize;
 
-                    std::memcpy(cur_state_mem_buf, data_ptr, data_size);
+                    cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
                 }
             }
         }
@@ -167,7 +168,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
                     auto padSize = cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding;
                     auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + padSize * elemSize;
 
-                    std::memcpy(data_ptr, cur_state_mem_buf, data_size);
+                    cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
                 }
             }
         }
