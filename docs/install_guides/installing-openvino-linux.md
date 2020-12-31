@@ -78,13 +78,12 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 2. <a href="#install-external-dependencies">Install External software dependencies</a>
 3. <a href="#set-the-environment-variables">Set the OpenVINO™ Environment Variables: Optional Update to .bashrc</a>.
 4. <a href="#configure-model-optimizer">Configure the Model Optimizer </a>
-5. <a href="#run-the-demos">Run the Verification Scripts to Verify Installation and Compile Samples</a>
-6. <a href="#additional-GPU-steps">Steps for Intel® Processor Graphics (GPU)</a>
-7. <a href="#additional-NCS-steps">Steps for Intel® Neural Compute Stick 2</a>
-8. <a href="#install-VPU">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPU</a><br>
+5. <a href="#additional-GPU-steps">Steps for Intel® Processor Graphics (GPU)</a>
+6. <a href="#additional-NCS-steps">Steps for Intel® Neural Compute Stick 2</a>
+7. <a href="#install-VPU">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPU</a><br>
 After installing your Intel® Movidius™ VPU, you will return to this guide to complete OpenVINO™ installation.
-9. <a href="#run-a-sample">Run a Sample Application</a>
-10. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit.</a>
+8. <a href="#get-started">Get Started with Code Samples and Demo Applications</a>
+9. <a href="#uninstall">Steps to uninstall the Intel® Distribution of OpenVINO™ Toolkit.</a>
 
 ## <a name="install-openvino"></a>Install the Intel® Distribution of OpenVINO™ Toolkit Core Components
 
@@ -268,50 +267,14 @@ cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisit
    ```
 The Model Optimizer is configured for one or more frameworks.
 
-You are ready to compile the samples by <a href="#run-the-demos">running the verification scripts</a>.
+You have completed all required installation, configuration and build steps in this guide to use your CPU to work with your trained models. 
 
-## <a name="run-the-demos"></a>Run the Verification Scripts to Verify Installation
-
-> **IMPORTANT**: This section is required. In addition to confirming your installation was successful, demo scripts perform other steps, such as setting up your computer to use the Inference Engine samples.
-
-To verify the installation and compile two samples, use the steps below to run the verification applications provided with the product on the CPU.
-
-> **NOTE:** To run the demo applications on Intel® Processor Graphics or Intel® Neural Compute Stick 2 devices, make sure you first completed the additional <a href="#additional-GPU-steps">Steps for Intel® Processor Graphics (GPU)</a> or <a href="#additional-NCS-steps">Steps for Intel® Neural Compute Stick 2</a>.
-
-1. Go to the **Inference Engine demo** directory:
-```sh
-cd /opt/intel/openvino_2021/deployment_tools/demo
-```
-
-2. Run the **Image Classification verification script**:
-```sh
-./demo_squeezenet_download_convert_run.sh
-```
-   This verification script downloads a SqueezeNet model, uses the Model Optimizer to convert the model to the .bin and .xml Intermediate Representation (IR) files. The Inference Engine requires this model conversion so it can use the IR as input and achieve optimum performance on Intel hardware.<br>
-   This verification script builds the [Image Classification Sample Async](../../inference-engine/samples/classification_sample_async/README.md) application and run it with the `car.png` image located in the demo directory. When the verification script completes, you will have the label and confidence for the top-10 categories:
-   ![](../img/image_classification_script_output_lnx.png)
-
-3. Run the **Inference Pipeline verification script**:
-```sh
-./demo_security_barrier_camera.sh
-```
-   This script downloads three pre-trained model IRs, builds the [Security Barrier Camera Demo](@ref omz_demos_security_barrier_camera_demo_README) application, and runs it with the downloaded models and the `car_1.bmp` image from the `demo` directory to show an inference pipeline. The verification script uses vehicle recognition in which vehicle attributes build on each other to narrow in on a specific attribute.<br>
-   First, an object is identified as a vehicle. This identification is used as input to the next model, which identifies specific vehicle attributes, including the license plate. Finally, the attributes identified as the license plate are used as input to the third model, which recognizes specific characters in the license plate.<br>
-   When the verification script completes, you will see an image that displays the resulting frame with detections rendered as bounding boxes, and text:
-   ![](../img/inference_pipeline_script_lnx.png)
-
-4. Close the image viewer window to complete the verification script.
-
-
-To learn about the verification scripts, see the `README.txt` file in `/opt/intel/openvino_2021/deployment_tools/demo`.
-
-For a description of the Intel Distribution of OpenVINO™ pre-trained object detection and object recognition models, see [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index).
-
-You have completed all required installation, configuration and build steps in this guide to use your CPU to work with your trained models.
-To use other hardware, see;
+To enable inference on other hardware, see:
 - <a href="#additional-GPU-steps">Steps for Intel® Processor Graphics (GPU)</a>
 - <a href="#additional-NCS-steps">Steps for Intel® Neural Compute Stick 2</a>
 - <a href="#install-VPU">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs</a><br>
+
+Or proceed to the <a href="#get-started">Get Started</a> to get started with running code samples and demo applications.
 
 ## <a name="additional-GPU-steps"></a>Steps for Intel® Processor Graphics (GPU)
 
@@ -340,6 +303,9 @@ Add OpenCL user to video group
 
 4. **Optional** Install header files to allow compiling a new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
+You've completed all required configuration steps to perform inference on processor graphics. 
+Proceed to the <a href="#get-started">Get Started</a> to get started with running code samples and demo applications.
+
 ## <a name="additional-NCS-steps"></a>Steps for Intel® Neural Compute Stick 2
 
 These steps are only required if you want to perform inference on Intel® Movidius™ NCS powered by the Intel® Movidius™ Myriad™ 2 VPU or Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU. See also the [Get Started page for Intel® Neural Compute Stick 2:](https://software.intel.com/en-us/neural-compute-stick/get-started)
@@ -364,6 +330,9 @@ sudo usermod -a -G users "$(whoami)"
    ```
 > **NOTE**: You may need to reboot your machine for this to take effect.
 
+You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
+Proceed to the <a href="#get-started">Get Started</a> to get started with running code samples and demo applications.
+
 ## <a name="install-VPU"></a>Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
 To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Configuration Guide](installing-openvino-linux-ivad-vpu.md).
@@ -387,55 +356,14 @@ cd /opt/intel/openvino_2021/deployment_tools/demo
 ./demo_security_barrier_camera.sh -d HDDL
 ```
 
-## <a name="run-a-sample"></a>Run a Sample Application
+You've completed all required configuration steps to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
+Proceed to the <a href="#get-started">Get Started</a> to get started with running code samples and demo applications.
 
-> **IMPORTANT**: This section requires that you have [Run the Verification Scripts to Verify Installation](#run-the-demos). This script builds the Image Classification sample application and downloads and converts the required Caffe* Squeezenet model to an IR. 
+## <a name="get-started"></a>Get Started
 
-In this section you will run the Image Classification sample application, with the Caffe* Squeezenet1.1 model on three types of Intel® hardware: CPU, GPU and VPUs. 
-
-Image Classification sample application binary file was automatically built and the FP16 model IR files are created when you [Ran the Image Classification Verification Script](#run-the-image-classification-verification-script). 
-
-The Image Classification sample application binary file located in the `/home/<user>/inference_engine_samples_build/intel64/Release` directory. 
-The Caffe* Squeezenet model IR files (`.bin` and `.xml`) are located in the `/home/<user>/openvino_models/ir/public/squeezenet1.1/FP16/` directory.
-
-> **NOTE**: If you installed the Intel® Distribution of OpenVINO™ to the non-default install directory, replace `/opt/intel` with the directory in which you installed the software.
-                                     
-To run the sample application:
-
-1. Set up environment variables:
-```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
-```
-2. Go to the samples build directory:
-```sh
-cd ~/inference_engine_samples_build/intel64/Release
-```
-3. Run the sample executable with specifying the `car.png` file from the `demo` directory as an input image, the IR of your FP16 model and a plugin for a hardware device to perform inference on.
-> **NOTE**: Running the sample application on hardware other than CPU requires performing [additional hardware configuration steps](#optional-steps).
-
-   - **For CPU**:    
-   ```sh
-   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d CPU
-   ```
-
-   - **For GPU**:
-   ```sh
-   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d GPU
-   ```
-
-   - **For MYRIAD**:
-   > **NOTE**: Running inference on Intel® Neural Compute Stick 2 with the MYRIAD plugin requires performing [additional hardware configuration steps](#additional-NCS-steps).
-   ```sh
-   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d MYRIAD
-   ```
-
-   - **For HDDL**:
-   > **NOTE**: Running inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs with the HDDL plugin requires performing [additional hardware configuration steps](installing-openvino-linux-ivad-vpu.md)
-   ```sh
-   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d HDDL
-   ```
-
-For information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
+Now you are ready to get started. To continue, see the following pages:
+* [OpenVINO™ Toolkit Overview](../index.md)
+* [Get Started Guide for Linux](get_started/get_started_linux.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 Choose one of the options provided below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system.
