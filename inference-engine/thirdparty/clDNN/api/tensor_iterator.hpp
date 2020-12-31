@@ -67,10 +67,8 @@ struct tensor_iterator : public primitive_base<tensor_iterator> {
         std::vector<backedge_mapping> backedge_mapping = {},
         const padding& output_padding = padding())
             : primitive_base(id, inputs, output_padding),
-               body(body),
-        ports_desc(input_mapping, outputs, backedge_mapping) {
-        /*output_data_type = data_types::f16;*/
-    };
+              body(body),
+              ports_desc(input_mapping, outputs, backedge_mapping) {};
 
     topology body;
 
