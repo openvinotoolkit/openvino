@@ -27,7 +27,8 @@ from mo.front.tf.extractors.utils import tf_dtype_extractor
 from mo.ops.op import PermuteAttrs
 
 
-def extend_body_graph(body_graph: Graph, body_graph_proto, body_parameter_names, body_results, prefix_name='body/'):
+def extend_body_graph(body_graph: Graph, body_graph_proto: dict,
+                      body_parameter_names: list, body_results: list, prefix_name: str):
     for pb_node in body_graph_proto['node_def']:
         # create an NX node
         id = prefix_name + body_graph.unique_id(pb_node.name)
@@ -44,7 +45,7 @@ def extend_body_graph(body_graph: Graph, body_graph_proto, body_parameter_names,
                 'out': src_port,
                 'in': dst_port,
                 'name': src_id,
-                'fw_tensor_debug_info': [(src_id, src_id)],
+                'fw_tensor_debug_info': [(src_id, src_port)],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']
@@ -64,7 +65,12 @@ def extend_body_graph(body_graph: Graph, body_graph_proto, body_parameter_names,
 
 
 class WhileExtractor(FrontExtractorOp):
-    op = 'StatelessWhile'
+    """
+    The While operation is a variation of the while_loop primitive from TensorFlow 2 Python API.
+    While can have stateful operations in the body and condition graphs that does not influence on inference so
+    the logic for handling While and StatelessWhile (see below) is the same.
+    """
+    op = 'While'
     enabled = True
 
     @classmethod
@@ -77,7 +83,7 @@ class WhileExtractor(FrontExtractorOp):
         body_graph_name = loop_node.pb.attr['body'].func.name
         cond_graph_name = loop_node.pb.attr['cond'].func.name
         assert 'library' in main_graph.graph, 'The graph does not contain a library that is required ' \
-                                                     'by node with name "{}".'.format(loop_name)
+                                              'by node with name "{}".'.format(loop_name)
         library_graph = main_graph.graph['library']
 
         assert body_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
@@ -91,10 +97,13 @@ class WhileExtractor(FrontExtractorOp):
         cond_graph_proto = library_graph[cond_graph_name]
 
         body_graph = Graph()
-        # fill the body graph except library since the library is enough to have in the main graph
+        # fill the body graph
         for attr_key in main_graph.graph.keys():
             if attr_key != 'library':
                 body_graph.graph[attr_key] = copy.deepcopy(main_graph.graph[attr_key])
+            else:
+                # it is sufficient to have a link to the library
+                body_graph.graph['library'] = main_graph.graph['library']
         loop_node['body'] = body_graph
 
         # create Parameter nodes for the body graph
@@ -166,4 +175,18 @@ class WhileExtractor(FrontExtractorOp):
 
         # run function to parse body nodes attributes similar to the main graph
         extract_node_attrs(body_graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+        return cls.enabled
+
+
+class StatelessWhileExtractor(FrontExtractorOp):
+    """
+    The StatelessWhile operation is a variation of the while_loop primitive from TensorFlow 2 Python API.
+    StatelessWhile does not have stateful operations in the body and condition graphs.
+    """
+    op = 'StatelessWhile'
+    enabled = True
+
+    @classmethod
+    def extract(cls, loop_node):
+        WhileExtractor.extract(loop_node)
         return cls.enabled
