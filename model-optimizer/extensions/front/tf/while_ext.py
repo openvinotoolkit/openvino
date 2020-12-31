@@ -27,18 +27,30 @@ from mo.front.tf.extractors.utils import tf_dtype_extractor
 from mo.ops.op import PermuteAttrs
 
 
-def extend_body_graph(body_graph: Graph, body_graph_proto: dict,
-                      body_parameter_names: list, body_results: list, prefix_name: str):
-    for pb_node in body_graph_proto['node_def']:
+def update_body_graph(body_graph: Graph, subgraph_proto: dict,
+                      body_parameter_names: list, body_results: list):
+    """
+    Updates the loop body graph with a sub-graph (for body or condition functions)
+    :param body_graph: a loop body graph to be updated
+    :param subgraph_proto: a sub-graph in a protobuf format to be added into the loop body graph
+    :param body_parameter_names: a (unchanged) list of parameters in the loop body graph
+    :param body_results: a list of Result nodes that is extended with a list from a sub-graph
+    """
+    # create a map from a node name in original model to a name in a loop body graph assuming
+    # that names in the original model are unique
+    # initially, the map contains names for parameters that are common for the body and condition graphs
+    map_original_name = {name: name for name in body_parameter_names}
+    # walk through all nodes (non-parameter and non-result nodes) and add into the loop body graph
+    for pb_node in subgraph_proto['node_def']:
         # create an NX node
-        id = prefix_name + body_graph.unique_id(pb_node.name)
+        id = body_graph.unique_id(pb_node.name)
+        map_original_name[pb_node.name] = id
         body_graph.add_node(id, pb=pb_node, kind='op')
 
         # add incoming edges based on data_nodes_map
         for dst_port, inp in enumerate(pb_node.input):
-            src_id = inp.split(":")[0]
-            if src_id not in body_parameter_names:
-                src_id = prefix_name + src_id
+            orig_src_id = inp.split(":")[0]
+            src_id = map_original_name[orig_src_id]
             src_port = 0 if len(inp.split(":")) == 1 else int(inp.split(":")[-1])
             assert (body_graph.has_node(src_id))
             edge_attrs = {
@@ -52,13 +64,12 @@ def extend_body_graph(body_graph: Graph, body_graph_proto: dict,
             }
             body_graph.add_edge(src_id, id, **edge_attrs)
 
-    # create Result nodes in the body graph
-    for output in body_graph_proto['output_arg']:
-        src_id = body_graph_proto['ret'][output.name].split(":")[0]
-        if src_id not in body_parameter_names:
-            src_id = prefix_name + src_id
-        src_port = 0 if len(body_graph_proto['ret'][output.name].split(":")) == 1\
-            else int(body_graph_proto['ret'][output.name].split(":")[-1])
+    # create Result nodes in the loop body graph
+    for output in subgraph_proto['output_arg']:
+        orig_src_id = subgraph_proto['ret'][output.name].split(":")[0]
+        src_id = map_original_name[orig_src_id]
+        src_port = 0 if len(subgraph_proto['ret'][output.name].split(":")) == 1\
+            else int(subgraph_proto['ret'][output.name].split(":")[-1])
         assert body_graph.has_node(src_id), 'The body graph does not contain output with name "{}"'.format(
             src_id)
         body_results.append(Node(body_graph, add_opoutput(body_graph, src_id, src_port, False)))
@@ -110,7 +121,8 @@ class WhileExtractor(FrontExtractorOp):
         body_parameters = []
         body_parameter_names = []
         for idx, pb_node in enumerate(body_graph_proto['input_arg']):
-            body_graph.add_node(pb_node.name, name=pb_node.name, kind='op', op='Parameter', pb=None, shape=None)
+            param_id = body_graph.unique_id(pb_node.name)
+            body_graph.add_node(param_id, name=param_id, kind='op', op='Parameter', pb=None, shape=None)
             parameter_node = Node(body_graph, pb_node.name)
             Parameter.update_node_stat(parameter_node,
                                        {'data_type': tf_dtype_extractor(pb_node.type),
@@ -119,12 +131,12 @@ class WhileExtractor(FrontExtractorOp):
             body_parameters.append(parameter_node)
             body_parameter_names.append(pb_node.name)
 
-        # extend the body graph with nodes from the body function
+        # update the loop body graph with the body function graph
         body_results = []
-        extend_body_graph(body_graph, body_graph_proto, body_parameter_names, body_results, prefix_name='body/')
+        update_body_graph(body_graph, body_graph_proto, body_parameter_names, body_results)
 
-        # extend the body graph with nodes from the condition function
-        extend_body_graph(body_graph, cond_graph_proto, body_parameter_names, body_results, prefix_name='cond/')
+        # update the loop body graph with the condition function graph
+        update_body_graph(body_graph, cond_graph_proto, body_parameter_names, body_results)
 
         # add 'internal_layer_id' attribute which is a must have attribute for the loop body node
         for idx, body_node in enumerate(body_graph.get_op_nodes()):
