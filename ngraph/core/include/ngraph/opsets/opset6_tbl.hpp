@@ -174,5 +174,7 @@ NGRAPH_OP(RNNSequence, ngraph::op::v5)
 NGRAPH_OP(Round, ngraph::op::v5)
 
 // New operations added in opset6
+NGRAPH_OP(ExperimentalDetectronGenerateProposalsSingleImage, ngraph::op::v6)
+NGRAPH_OP(ExperimentalDetectronTopKROIs, ngraph::op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
 NGRAPH_OP(GatherElements, ngraph::op::v6)

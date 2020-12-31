@@ -24,7 +24,7 @@ using namespace std;
 using namespace ngraph;
 using DetectronTopKROIs = op::v6::ExperimentalDetectronTopKROIs;
 
-NGRAPH_RTTI_DEFINITION(DetectronTopKROIs, "ExperimentalDetectronTopKROIs", 6);
+NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronTopKROIs, "ExperimentalDetectronTopKROIs", 6);
 
 DetectronTopKROIs::ExperimentalDetectronTopKROIs(const Output<Node>& input_rois,
                                                  const Output<Node>& rois_probs,
