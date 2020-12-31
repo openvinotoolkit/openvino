@@ -27,12 +27,12 @@ NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage
                        "ExperimentalDetectronGenerateProposalsSingleImage",
                        6);
 
-op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
-    const Output<Node>& im_info,
-    const Output<Node>& anchors,
-    const Output<Node>& deltas,
-    const Output<Node>& scores,
-    const Attributes& attrs)
+op::v6::ExperimentalDetectronGenerateProposalsSingleImage::
+    ExperimentalDetectronGenerateProposalsSingleImage(const Output<Node>& im_info,
+                                                      const Output<Node>& anchors,
+                                                      const Output<Node>& deltas,
+                                                      const Output<Node>& scores,
+                                                      const Attributes& attrs)
     : Op({im_info, anchors, deltas, scores})
     , m_attrs(attrs)
 {
