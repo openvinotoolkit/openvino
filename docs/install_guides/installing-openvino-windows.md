@@ -324,7 +324,7 @@ Your `PATH` environment variable is updated.
 
 Now you are ready to get started. To continue, see the following pages:
 * [OpenVINO™ Toolkit Overview](../index.md)
-* [Get Started Guide for Windows](get_started/get_started_windows.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
+* [Get Started Guide for Windows](../get_started/get_started_windows.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:

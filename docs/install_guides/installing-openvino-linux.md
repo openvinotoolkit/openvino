@@ -363,7 +363,7 @@ Proceed to the <a href="#get-started">Get Started</a> to get started with runnin
 
 Now you are ready to get started. To continue, see the following pages:
 * [OpenVINO™ Toolkit Overview](../index.md)
-* [Get Started Guide for Linux](get_started/get_started_linux.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
+* [Get Started Guide for Linux](../get_started/get_started_linux.md) to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 Choose one of the options provided below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system.
