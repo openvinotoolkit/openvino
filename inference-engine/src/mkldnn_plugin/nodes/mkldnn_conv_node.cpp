@@ -313,7 +313,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         Layout layout = convLayer->input()->getLayout();
 
         if (layout == NCHW || layout == NHWC) {
-            if (IC == 3 || IC == 1) {
+            if (IC == 1 && groupOC == 1) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
+                createDescriptor({in_candidate}, {out_candidate});
+            } else if (IC == 3 || IC == 1) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
                                                 layout == NCHW ? memory::format_tag::nchw : memory::format_tag::nhwc);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nChw16c);
@@ -335,9 +339,13 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                     layout == NCHW ? memory::format_tag::nchw : memory::format_tag::nhwc);
             createDescriptor({in_candidate}, {out_candidate});
         } else if (layout == NCDHW || layout == NDHWC) {
-            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
-                    layout == NCDHW ? memory::format_tag::ncdhw : memory::format_tag::ndhwc);
-            if (IC == 3 || IC == 1) {
+            if (IC == 1 && groupOC == 1) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
+                createDescriptor({in_candidate}, {out_candidate});
+            } else if (IC == 3 || IC == 1) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
+                                                layout == NCDHW ? memory::format_tag::ncdhw : memory::format_tag::ndhwc);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw16c);
                 createDescriptor({in_candidate}, {out_candidate});
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nCdhw8c);

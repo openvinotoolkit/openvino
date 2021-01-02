@@ -1654,30 +1654,37 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.push_back({config, implDetail, dataFormat});
     };
 
+    auto channels = getParentEdgeAt(DATA_ID)->getDims().ndims() > 1 ? getParentEdgeAt(DATA_ID)->getDims()[1] : 1;
     if (mode != InterpolateMode::linear) {
         // blk and by_channel JIT kernel on sse42 or above machine
         if (mayiuse(cpu::x64::sse41)) {
             if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 4) {
                 if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(memory::format_tag::nhwc, jit_avx512);
-                    pushDesc(memory::format_tag::nChw16c, jit_avx512);
+                    if (channels != 1)
+                        pushDesc(memory::format_tag::nChw16c, jit_avx512);
                 } else if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(memory::format_tag::nhwc, jit_avx2);
-                    pushDesc(memory::format_tag::nChw8c, jit_avx2);
+                    if (channels != 1)
+                        pushDesc(memory::format_tag::nChw8c, jit_avx2);
                 } else {
                     pushDesc(memory::format_tag::nhwc, jit_sse42);
-                    pushDesc(memory::format_tag::nChw8c, jit_sse42);
+                    if (channels != 1)
+                        pushDesc(memory::format_tag::nChw8c, jit_sse42);
                 }
             } else if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 5 && mode == InterpolateMode::nearest) {
                 if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(memory::format_tag::ndhwc, jit_avx512);
-                    pushDesc(memory::format_tag::nCdhw16c, jit_avx512);
+                    if (channels != 1)
+                        pushDesc(memory::format_tag::nCdhw16c, jit_avx512);
                 } else if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(memory::format_tag::ndhwc, jit_avx2);
-                    pushDesc(memory::format_tag::nCdhw8c, jit_avx2);
+                    if (channels != 1)
+                        pushDesc(memory::format_tag::nCdhw8c, jit_avx2);
                 } else {
                     pushDesc(memory::format_tag::ndhwc, jit_sse42);
-                    pushDesc(memory::format_tag::nCdhw8c, jit_sse42);
+                    if (channels != 1)
+                        pushDesc(memory::format_tag::nCdhw8c, jit_sse42);
                 }
             }
         }
