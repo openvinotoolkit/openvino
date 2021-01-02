@@ -134,14 +134,17 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
     }
 }
 
-void MKLDNNMemory::SetData(const MKLDNNMemory& src, bool ftz) const {
+void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const {
+    if (size != 0)
+        IE_ASSERT(size <= GetDescriptor().get_size());
+
     // TODO: Optimization. Reorder perfect is not good enough, so in triviale cases we
     //       prefer use simple copy.
     if (src.GetDesc() == this->GetDesc()) {
         auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
         auto dstPtr = static_cast<uint8_t*>(this->GetPtr());
-        auto size = this->GetSize();
-        cpu_memcpy(dstPtr, srcPtr, size);
+        auto copySize = size == 0 ? this->GetSize() : size;
+        cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
         mkldnn::reorder reorderPrim(src.GetPrimitive(), GetPrimitive());
         mkldnn::stream loc_stream(eng, stream::flags::default_order);

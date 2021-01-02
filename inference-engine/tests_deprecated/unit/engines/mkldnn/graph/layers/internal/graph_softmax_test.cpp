@@ -390,7 +390,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchSoftMaxTests, DISABLED_TestsDynBatchSoftMax) {}
+TEST_P(MKLDNNGraphDynBatchSoftMaxTests, TestsDynBatchSoftMax) {}
 
 
 INSTANTIATE_TEST_CASE_P(

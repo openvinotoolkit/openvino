@@ -40,6 +40,7 @@
 #include <nodes/mkldnn_scatter_update_node.h>
 #include <nodes/mkldnn_interpolate_node.h>
 #include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
 
 #include "nodes/common/cpu_memcpy.h"
@@ -1081,15 +1082,26 @@ int MKLDNNNode::getMaxBatch() {
 
 void MKLDNNNode::setDynamicBatchLim(int lim) {
     dynBatchLim = lim;
-    // default behaviour is to set only output tensor with new batch values.
-    // Assume that batched data is placed at port 0.
-    // TODO [oneDNN] : dyn batch is not ported
-//    auto output_edges = getChildEdgesAtPort(0);
-//    if (output_edges.empty())
-//        return;
-//
-//    auto mem = output_edges[0]->getMemoryPtr();
-//    mem->GetDescriptor();
+
+    auto setDynamicBatch = [this](int argType, int newBatch) {
+        auto param = primArgs.find(argType);
+        if (param != primArgs.end()) {
+            auto oldMem = param->second;
+            mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+            newMemDesc.data.dims[0] = newBatch;
+            newMemDesc.data.padded_dims[0] = newBatch;
+            mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+            primArgs.at(argType) = newMem;
+        }
+    };
+
+    if (!primArgs.empty()) {
+        int newBatch = batchToProcess();
+        setDynamicBatch(DNNL_ARG_SRC, newBatch);
+        setDynamicBatch(DNNL_ARG_DST, newBatch);
+        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
+        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
+    }
 }
 
 bool MKLDNNNode::isFusedWith(Type fusedNodeType) const {

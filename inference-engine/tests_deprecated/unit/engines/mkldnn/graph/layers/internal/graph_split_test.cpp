@@ -366,7 +366,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchSplitTests, DISABLED_TestsDynBatchSplit) {}
+TEST_P(MKLDNNGraphDynBatchSplitTests, TestsDynBatchSplit) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchSplit, MKLDNNGraphDynBatchSplitTests,

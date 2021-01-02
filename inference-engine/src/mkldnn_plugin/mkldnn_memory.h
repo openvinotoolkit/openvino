@@ -158,7 +158,7 @@ public:
 
     // Like a plain format
     void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format, const void* data, size_t size, bool ftz = true) const;
-    void SetData(const MKLDNNMemory& memory, bool ftz = true) const;
+    void SetData(const MKLDNNMemory& memory, size_t size = 0, bool ftz = true) const;
     void FillZero();
 
     static mkldnn::memory::format_tag GetPlainFormat(mkldnn::memory::dims dims);

@@ -300,7 +300,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchBatchNormTests, DISABLED_TestsDynBatchBatchNorm) {}
+TEST_P(MKLDNNGraphDynBatchBatchNormTests, TestsDynBatchBatchNorm) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchBatchNorm, MKLDNNGraphDynBatchBatchNormTests,
@@ -308,5 +308,5 @@ INSTANTIATE_TEST_CASE_P(
                 // TODO: rewrite to ngraph to have reshape functionality
                 // batchnorm4D_test_params{{1, 32, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::jit},
                 // batchnorm4D_test_params{{1, 32, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                batchnorm4D_test_params{{3, 3, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::jit},
+                // batchnorm4D_test_params{{3, 3, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::jit},
                 batchnorm4D_test_params{{3, 3, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));

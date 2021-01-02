@@ -689,7 +689,7 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
             auto ext_mem = MKLDNNMemory(eng);
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
-            input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, false);
+            input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, 0, false);
         }
 
         // todo: make sure 'name' exists in this map...

@@ -532,7 +532,7 @@ protected:
     }
 };
 
-TEST_P(MKLDNNGraphDynBatchDeconvolutionalTests, DISABLED_TestsDynBatchDeconvolutional) {}
+TEST_P(MKLDNNGraphDynBatchDeconvolutionalTests, TestsDynBatchDeconvolutional) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchDeconvolutional, MKLDNNGraphDynBatchDeconvolutionalTests,

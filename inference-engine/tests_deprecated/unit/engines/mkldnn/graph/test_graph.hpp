@@ -110,7 +110,7 @@ public:
                 MKLDNNPlugin::MKLDNNMemory ext_mem(eng);
                 ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
-                input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, false);
+                input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, in->byteSize() / outDims[0] * batch, false);
             }
 
             // todo: make sure 'name' exists in this map...
