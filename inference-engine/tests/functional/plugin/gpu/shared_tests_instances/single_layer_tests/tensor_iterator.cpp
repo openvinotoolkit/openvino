@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
     INSTANTIATE_TEST_CASE_P(smoke_TensorIteratorCommon, TensorIteratorTest,
         ::testing::Combine(
-            ::testing::ValuesIn({ false }), // should decompose
+            ::testing::ValuesIn({ true, false }), // should decompose
             ::testing::ValuesIn(std::vector<size_t>{4}), // seq lengths
             ::testing::ValuesIn(std::vector<size_t> {1}), // batch - not used/not suppoted yet
             ::testing::ValuesIn(std::vector<size_t> {0}), // hidden size - not used
