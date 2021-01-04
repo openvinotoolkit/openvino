@@ -85,103 +85,86 @@ public:
         (void)name;
         (void)adapter;
 
-        if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                    <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+        if (m_xml_node.child("body")) {
+            // parameters and results from body are required for port_map attributes serialization
             std::vector<std::string> parameter_mapping;
             std::vector<std::string> result_mapping;
 
-            pugi::xml_node port_map = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
-            if (!port_map) {
-                port_map = m_xml_node.insert_child_before("port_map", m_xml_node.first_child());
-            }
-
             for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
-                auto result = std::strcmp(node.attribute("type").value(), "Parameter");
-                if (!result) {
-                    parameter_mapping.push_back(node.attribute("id").value());
-                }
-            }
-            for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
+                auto param = std::strcmp(node.attribute("type").value(), "Parameter");
                 auto result = std::strcmp(node.attribute("type").value(), "Result");
-                if (!result) {
+                if (!param) {
+                    parameter_mapping.push_back(node.attribute("id").value());
+                } else if (!result) {
                     result_mapping.push_back(node.attribute("id").value());
                 }
             }
+            // parameters/reults for serialized body function are provided in reversed order
             std::reverse(parameter_mapping.begin(), parameter_mapping.end());
             std::reverse(result_mapping.begin(), result_mapping.end());
 
-            for (const auto& input_description : a->get()) {
-                pugi::xml_node input = port_map.append_child("input");
-                input.append_attribute("external_port_id").set_value(input_description->m_input_index);
-                input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
-
-                if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
-                    input.prepend_attribute("axis").set_value(slice_input->m_axis);
-                    if (!slice_input->m_start) {
-                        input.append_attribute("start").set_value(slice_input->m_start);
-                    }
-                    if (slice_input->m_end != -1) {
-                        input.append_attribute("end").set_value(slice_input->m_end);
-                    }
-                    if (slice_input->m_stride != 1) {
-                        input.append_attribute("stride").set_value(slice_input->m_stride);
-                    }
-                    if (slice_input->m_part_size != 1) {
-                        input.append_attribute("part_size").set_value(slice_input->m_part_size);
-                    }
-                } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
-                    pugi::xml_node back_edges = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "back_edges") == 0;});
-                    if (!back_edges) {
-                        back_edges = m_xml_node.insert_child_after("back_edges", port_map);
-                    }
-                    pugi::xml_node edge = back_edges.append_child("edge");
-                    edge.append_attribute("from-layer").set_value(result_mapping[merged_input->m_body_value_index].c_str());
-                    edge.append_attribute("to-layer").set_value(parameter_mapping[merged_input->m_body_parameter_index].c_str());
+            if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                        <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+                pugi::xml_node port_map = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
+                if (!port_map) {
+                    port_map = m_xml_node.insert_child_before("port_map", m_xml_node.first_child());
                 }
-            }
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                    <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-            std::vector<std::string> parameter_mapping;
-            std::vector<std::string> result_mapping;
 
-            pugi::xml_node port_map = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
-            if (!port_map) {
-                port_map = m_xml_node.insert_child_before("port_map", m_xml_node.first_child());
-            }
+                for (const auto& input_description : a->get()) {
+                    pugi::xml_node input = port_map.append_child("input");
+                    input.append_attribute("external_port_id").set_value(input_description->m_input_index);
+                    input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
-            for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
-                auto result = std::strcmp(node.attribute("type").value(), "Parameter");
-                if (!result) {
-                    parameter_mapping.push_back(node.attribute("id").value());
+                    if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
+                        input.prepend_attribute("axis").set_value(slice_input->m_axis);
+                        if (slice_input->m_start) {
+                            input.append_attribute("start").set_value(slice_input->m_start);
+                        }
+                        if (slice_input->m_end != -1) {
+                            input.append_attribute("end").set_value(slice_input->m_end);
+                        }
+                        if (slice_input->m_stride != 1) {
+                            input.append_attribute("stride").set_value(slice_input->m_stride);
+                        }
+                        if (slice_input->m_part_size != 1) {
+                            input.append_attribute("part_size").set_value(slice_input->m_part_size);
+                        }
+                    } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+                        pugi::xml_node back_edges = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "back_edges") == 0;});
+                        if (!back_edges) {
+                            back_edges = m_xml_node.insert_child_after("back_edges", port_map);
+                        }
+                        pugi::xml_node edge = back_edges.append_child("edge");
+                        edge.append_attribute("from-layer").set_value(result_mapping[merged_input->m_body_value_index].c_str());
+                        edge.append_attribute("to-layer").set_value(parameter_mapping[merged_input->m_body_parameter_index].c_str());
+                    }
                 }
-            }
-            for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
-                auto result = std::strcmp(node.attribute("type").value(), "Result");
-                if (!result) {
-                    result_mapping.push_back(node.attribute("id").value());
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                        <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+                pugi::xml_node port_map = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
+                if (!port_map) {
+                    port_map = m_xml_node.insert_child_before("port_map", m_xml_node.first_child());
                 }
-            }
-            std::reverse(parameter_mapping.begin(), parameter_mapping.end());
-            std::reverse(result_mapping.begin(), result_mapping.end());
 
-            for (const auto& output_description : a->get()) {
-                pugi::xml_node output = port_map.append_child("output");
-                output.append_attribute("external_port_id").set_value(parameter_mapping.size() + output_description->m_output_index);
-                output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
+                for (const auto& output_description : a->get()) {
+                    pugi::xml_node output = port_map.append_child("output");
+                    output.append_attribute("external_port_id").set_value(parameter_mapping.size() + output_description->m_output_index);
+                    output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
 
-                if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
-                    output.prepend_attribute("axis").set_value(concat_output->m_axis);
-                    if (!concat_output->m_start) {
-                        output.append_attribute("start").set_value(concat_output->m_start);
-                    }
-                    if (concat_output->m_end != -1) {
-                        output.append_attribute("end").set_value(concat_output->m_end);
-                    }
-                    if (concat_output->m_stride != 1) {
-                        output.append_attribute("stride").set_value(concat_output->m_stride);
-                    }
-                    if (concat_output->m_part_size != 1) {
-                        output.append_attribute("part_size").set_value(concat_output->m_part_size);
+                    if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
+                        output.prepend_attribute("axis").set_value(concat_output->m_axis);
+                        if (concat_output->m_start) {
+                            output.append_attribute("start").set_value(concat_output->m_start);
+                        }
+                        if (concat_output->m_end != -1) {
+                            output.append_attribute("end").set_value(concat_output->m_end);
+                        }
+                        if (concat_output->m_stride != 1) {
+                            output.append_attribute("stride").set_value(concat_output->m_stride);
+                        }
+                        if (concat_output->m_part_size != 1) {
+                            output.append_attribute("part_size").set_value(concat_output->m_part_size);
+                        }
                     }
                 }
             }
