@@ -13,14 +13,13 @@ namespace {
     INSTANTIATE_TEST_CASE_P(smoke_TensorIteratorCommon, TensorIteratorTest,
         ::testing::Combine(
             ::testing::ValuesIn({ false }), // should decompose
-            ::testing::ValuesIn(std::vector<size_t>{2}), // seq lengths zero clip
-            ::testing::ValuesIn(std::vector<size_t> {20}), // seq lengths clip non zero
-            ::testing::ValuesIn(std::vector<size_t> {1, 10}), // hidden size
-            ::testing::ValuesIn(std::vector<size_t> {0, 1}), // seq axis
-            ::testing::ValuesIn(std::vector<float> {0.f}), // clip
+            ::testing::ValuesIn(std::vector<size_t>{4}), // seq lengths
+            ::testing::ValuesIn(std::vector<size_t> {1}), // batch - not used/not suppoted yet
+            ::testing::ValuesIn(std::vector<size_t> {0}), // hidden size - not used
+            ::testing::ValuesIn(std::vector<size_t> {0}), // seq axis
+            ::testing::ValuesIn(std::vector<float> {0.f}), // clip - not used
             ::testing::ValuesIn(std::vector<ngraph::helpers::TensorIteratorBody> {ngraph::helpers::TensorIteratorBody::SingleEltwise }), // body type
-            ::testing::ValuesIn(std::vector<ngraph::op::RecurrentSequenceDirection>{ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                                                                    ngraph::op::RecurrentSequenceDirection::REVERSE }), // direction
+            ::testing::ValuesIn(std::vector<ngraph::op::RecurrentSequenceDirection>{ngraph::op::RecurrentSequenceDirection::FORWARD}), // direction - not used
             ::testing::ValuesIn(std::vector<InferenceEngine::Precision> {InferenceEngine::Precision::FP32,
                                                                          InferenceEngine::Precision::FP16 }), // precision
             ::testing::Values(CommonTestUtils::DEVICE_GPU)),

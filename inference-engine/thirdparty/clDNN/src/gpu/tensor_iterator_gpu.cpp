@@ -86,7 +86,7 @@ struct tensor_iterator_gpu : typed_primitive_impl<tensor_iterator> {
     }
 
     static void copy_entire_buffer(primitive_id instance_id, memory_impl* from, memory_impl* to, size_t destination_offset = 0) {
-        copy_memory(instance_id, from, to, from->size() / get_datatype_size(from), 0, destination_offset);
+        copy_memory(instance_id, from, to, from->get_layout().get_linear_size(), 0, destination_offset);
     }
 
     // memory pools

@@ -229,8 +229,7 @@ namespace LayerTestsDefinitions {
                 break;
             }
             case ngraph::helpers::TensorIteratorBody::SingleEltwise: {
-                sequence_axis = 0;
-                inputShapes = { {2,4}, {1,4} };
+                inputShapes = { { input_size, seq_lenghts}, {1, seq_lenghts} };
                 auto outer_params = ngraph::builder::makeParams(ngPrc, { inputShapes[0], inputShapes[1] });
 
                 // 1. Create TensorIterator body.

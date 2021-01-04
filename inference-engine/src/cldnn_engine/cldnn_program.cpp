@@ -4173,7 +4173,6 @@ void CLDNNPlugin::Program::CreateTensorIteratorPrimitive(cldnn::topology & topol
 
     topology.add(tiPrim);
     AddPrimitiveToProfiler(tiPrim, layer);
-    std::cout << "TensorIterator primitive added to topology!!!" << std::endl;
 }
 
 void Program::CreateConvolutionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
