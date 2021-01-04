@@ -315,37 +315,46 @@ namespace ngraph
                   model,
                   std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())))
         {
-            std::vector<std::shared_ptr<ngraph::Node>> subgraph_root_nodes;
-            const auto& outputs = as_result_vector(get_ng_outputs());
-            for (auto& out : outputs)
+            // find all nodes on edge parent graph-subgraph
+            // (it means input of node from parent graph, output from subgraph)
+            for (const auto& node_proto : proto.node())
             {
-                subgraph_root_nodes.push_back(out);
-            }
-            const auto& params = get_ng_parameters();
-            for (auto& param : params)
-            {
-                subgraph_root_nodes.push_back(param);
-            }
-            const auto subgraph_nodes = topological_sort(subgraph_root_nodes);
-
-            const auto& parent_graph_parameters = parent_graph.get_ng_parameters();
-            for (const auto& node : subgraph_nodes)
-            {
-                if (op::is_parameter(node))
+                int input_index = 0;
+                for (const auto& in_name : node_proto.input())
                 {
-                    const auto sub_it = std::find(m_parameters.begin(), m_parameters.end(), node);
-                    // not present as subgraph parameter
-                    if (sub_it == m_parameters.end())
+                    if (m_cache->node_scope(in_name) == NodeScope::ParentGraph)
                     {
-                        const auto parent_it = std::find(
-                            parent_graph_parameters.begin(), parent_graph_parameters.end(), node);
-                        if (parent_it != m_parameters.end())
+                        const auto& from_parent_node = m_cache->get_node(in_name);
+                        // constants are skipped
+                        if (!ngraph::is_type<ngraph::op::Constant>(
+                                from_parent_node.get_node_shared_ptr()))
                         {
-                            m_parameters.push_back(*parent_it);
+                            for (const auto& out_name : node_proto.output())
+                            {
+                                if (m_cache->node_scope(out_name) == NodeScope::SubGraph)
+                                {
+                                    auto out_node_to_replace_input = m_cache->get_node(out_name);
+                                    auto new_param = std::make_shared<ngraph::op::Parameter>(
+                                        from_parent_node.get_element_type(),
+                                        from_parent_node.get_partial_shape());
+                                    // replace input from parent scope with parameter
+                                    out_node_to_replace_input.get_node()
+                                        ->input(input_index)
+                                        .replace_source_output(new_param);
+                                    m_parameters.push_back(new_param);
+                                    m_outputs_from_parent.push_back(from_parent_node);
+                                }
+                            }
                         }
                     }
+                    ++input_index;
                 }
             }
+        }
+
+        const std::vector<Output<ngraph::Node>> Subgraph::get_outputs_from_parent() const
+        {
+            return m_outputs_from_parent;
         }
 
     } // namespace onnx_import

@@ -54,8 +54,6 @@ namespace ngraph
             class NGRAPH_API BinaryElementwiseArithmetic : public Op
             {
             protected:
-                NGRAPH_RTTI_DECLARATION;
-
                 BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob);
 
                 /// \brief Constructs a binary elementwise arithmetic operation.
@@ -67,6 +65,8 @@ namespace ngraph
                                             const AutoBroadcastSpec& autob);
 
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 void validate_and_infer_types() override;
 
                 const AutoBroadcastSpec& get_autob() const override { return m_autob; }

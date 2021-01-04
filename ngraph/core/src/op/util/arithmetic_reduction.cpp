@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/arithmetic_reduction.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -69,6 +70,7 @@ void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_
 
 void op::util::ArithmeticReduction::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0);
     const auto input_rank = input_shape.rank();
 
