@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
@@ -54,11 +55,13 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
 
 void op::util::BinaryElementwiseArithmetic::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_validate_and_infer_types);
     validate_and_infer_elementwise_arithmetic(m_autob);
 }
 
 bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
 }
