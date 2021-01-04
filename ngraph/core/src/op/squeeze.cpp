@@ -113,6 +113,7 @@ void op::Squeeze::pre_validate_and_infer_types()
 
 bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_visit_attributes);
     return true;
 }
 
@@ -132,6 +133,7 @@ OutputVector op::Squeeze::decompose_op() const
 
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");
@@ -158,18 +160,12 @@ namespace squeeze
         bool rc = true;
         switch (element_type)
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -179,7 +175,7 @@ namespace squeeze
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Squeeze::evaluate");
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate);
     return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
 }
 
