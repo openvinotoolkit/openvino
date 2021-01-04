@@ -41,7 +41,7 @@ public:
     }
 
     void Cancel() {
-        cancelation_requested = true;
+        cancelation_requested.store(true);
     }
 
     void setConfig(const Config &cfg);
@@ -130,11 +130,11 @@ public:
 
 protected:
     bool IsCancellationRequested() const {
-        return cancelation_requested;
+        return cancelation_requested.load();
     }
 
     void ResetCancellationRequest() {
-        cancelation_requested = false;
+        cancelation_requested.store(false);
     }
 
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
@@ -199,7 +199,7 @@ private:
         size_t outIdx;
     };
 
-    bool cancelation_requested;
+    std::atomic<bool> cancelation_requested;
 };
 
 }  // namespace MKLDNNPlugin

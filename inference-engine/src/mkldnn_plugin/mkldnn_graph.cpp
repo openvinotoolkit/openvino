@@ -765,10 +765,19 @@ void MKLDNNGraph::Infer(int batch) {
         THROW_IE_EXCEPTION << "Wrong state. Topology is not ready.";
     }
 
+    struct CancelationGuard {
+        CancelationGuard(std::atomic<bool>& cancelation_requested)  :
+         _cancelation_requested(cancelation_requested) {
+        }
+        ~CancelationGuard() {
+            _cancelation_requested.store(false);
+        }
+        std::atomic<bool>& _cancelation_requested;
+    } cancelationGuard(cancelation_requested);
+
     mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
     for (int i = 0; i < graphNodes.size(); i++) {
         if (IsCancellationRequested()) {
-            ResetCancellationRequest();
             THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::INFER_CANCELLED;
         }
 
