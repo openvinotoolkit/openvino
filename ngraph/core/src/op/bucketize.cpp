@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "bucketize.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -34,6 +35,7 @@ op::v3::Bucketize::Bucketize(const Output<Node>& data,
 
 bool op::v3::Bucketize::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_Bucketize_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("with_right_bound", m_with_right_bound);
     return true;
@@ -41,6 +43,7 @@ bool op::v3::Bucketize::visit_attributes(AttributeVisitor& visitor)
 
 void op::v3::Bucketize::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_Bucketize_validate_and_infer_types);
     const PartialShape& data_pshape = get_input_partial_shape(0);
     const PartialShape& buckets_pshape = get_input_partial_shape(1);
 
@@ -65,6 +68,7 @@ void op::v3::Bucketize::validate_and_infer_types()
 
 shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const
 {
+    NGRAPH_OP_SCOPE(v3_Bucketize_clone_with_new_inputs);
     check_new_args_count(this, inputs);
 
     return make_shared<v3::Bucketize>(

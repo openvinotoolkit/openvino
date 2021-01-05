@@ -7,11 +7,9 @@
 #include <string>
 #include <ngraph/variant.hpp>
 #include "ie_system_conf.h"
-#include "functional_test_utils/layer_test_utils.hpp"
-
-#include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include <exec_graph_info.hpp>
+#include "ie_system_conf.h"
 
 namespace CPUTestUtils {
     typedef enum {
@@ -29,10 +27,10 @@ namespace CPUTestUtils {
     } cpu_memory_format_t;
 
     using CPUSpecificParams =  std::tuple<
-        std::vector<cpu_memory_format_t>, //input memomry format
-        std::vector<cpu_memory_format_t>, //output memory format
-        std::vector<std::string>, //priority
-        std::string // selected primitive type
+        std::vector<cpu_memory_format_t>, // input memomry format
+        std::vector<cpu_memory_format_t>, // output memory format
+        std::vector<std::string>,         // priority
+        std::string                       // selected primitive type
     >;
 
 class CPUTestsBase {

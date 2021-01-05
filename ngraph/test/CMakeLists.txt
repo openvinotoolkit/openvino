@@ -49,6 +49,9 @@ set(SRC
     build_graph.cpp
     builder_autobroadcast.cpp
     check.cpp
+    conditional_compilation/ngraph_cc_collect.cpp
+    conditional_compilation/ngraph_cc_off.cpp
+    conditional_compilation/ngraph_cc_on.cpp
     constant.cpp
     constant_folding.cpp
     control_dependencies.cpp
@@ -100,6 +103,7 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
+    type_prop/abs.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -117,6 +121,7 @@ set(SRC
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
+    type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
@@ -127,6 +132,7 @@ set(SRC
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
     type_prop/gather.cpp
+    type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
     type_prop/grn.cpp
@@ -197,32 +203,6 @@ set(SRC
     util.cpp
 )
 
-# This code generates one source file per header file under ngraph/src where the source file
-# has just a single #include statement. This checks that each header in the source tree is
-# complete and self-contained so it can be included without requiring any other includes.
-set(DIRECTORIES_IGNORED runtime frontend)
-set(NGRAPH_MAIN_SRC_DIR "${CMAKE_SOURCE_DIR}/src/ngraph")
-file(GLOB_RECURSE LIST_RECURSE
-    "${NGRAPH_MAIN_SRC_DIR}/builder/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/codegen/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/descriptor/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/distributed/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/op/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/pass/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/state*.hpp")
-file(GLOB LIST
-    "${NGRAPH_MAIN_SRC_DIR}/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp")
-set(NGRAPH_HEADER_LIST ${LIST_RECURSE} ${LIST})
-list(APPEND NGRAPH_HEADER_LIST ${LIST})
-foreach(HEADER ${NGRAPH_HEADER_LIST})
-    file(RELATIVE_PATH OUT_PATH ${NGRAPH_MAIN_SRC_DIR} ${HEADER})
-    string(REGEX REPLACE "hpp$" "cpp" OUT_PATH ${OUT_PATH})
-    set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/include_test/${OUT_PATH}")
-    configure_file("header_standalone.in.cpp" ${OUT_FILE})
-    list(APPEND SRC ${OUT_FILE})
-endforeach()
-
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
@@ -280,6 +260,7 @@ set(MULTI_TEST_SRC
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/cum_sum.in.cpp
+    backend/detection_output.in.cpp
     backend/divide.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
@@ -405,6 +386,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
+                                        openvino::conditional_compilation 
+                                        openvino::itt 
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend
