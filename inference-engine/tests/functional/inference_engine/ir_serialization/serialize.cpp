@@ -81,14 +81,14 @@ INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
                         std::make_tuple("experimental_detectron_roi_feature_extractor.xml", 0, nullptr),
                         std::make_tuple("experimental_detectron_detection_output.xml", 0, nullptr),
                         std::make_tuple("nms5.xml", 0, nullptr),
-                        std::make_tuple("ti_negative_stride.xml", 3149864, [](InferenceEngine::Blob::Ptr& weights) {
+                        std::make_tuple("ti_negative_stride.xml", 3149864, +[](InferenceEngine::Blob::Ptr& weights) {
                                                         auto *data = weights->buffer().as<int64_t *>();
                                                         data[0] = 1;
                                                         data[1] = 512;
                                                         data[393730] = 1;
                                                         data[393731] = 1;
                                                         data[393732] = 256;}),
-                        std::make_tuple("ti_resnet.xml", 8396840, [](InferenceEngine::Blob::Ptr& weights) {
+                        std::make_tuple("ti_resnet.xml", 8396840, +[](InferenceEngine::Blob::Ptr& weights) {
                                                         auto *data = weights->buffer().as<int64_t *>();
                                                         data[0] = 1;
                                                         data[1] = 512;
