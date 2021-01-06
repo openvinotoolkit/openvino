@@ -57,9 +57,10 @@ public:
                 arg.get_program());
         fc_optional_params.allowInputReordering = true;
 
-        fc_params.output = fc_params.output.FlattenFeatureAndSpatials();
-
         const auto primitive = arg.get_primitive();
+
+        if (primitive->input_size != 3)
+            fc_params.output = fc_params.output.FlattenFeatureAndSpatials();
 
         if (arg.get_output_layout().data_type == data_types::i8 ||
             arg.get_output_layout().data_type == data_types::u8) {
