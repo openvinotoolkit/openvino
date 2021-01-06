@@ -422,7 +422,7 @@ public:
         // append IR library path for default IE plugins
         FileUtils::FilePath pluginPath;
         {
-            pluginPath = FileUtils::makeSharedLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
+            pluginPath = FileUtils::makePluginLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
 
             FileUtils::FilePath absFilePath = FileUtils::makePath(getInferenceEngineLibraryPath(), pluginPath);
             if (FileUtils::fileExist(absFilePath)) pluginPath = absFilePath;

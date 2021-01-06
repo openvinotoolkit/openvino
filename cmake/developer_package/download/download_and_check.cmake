@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include (FindWget)
+find_package(Wget QUIET)
 
 function (DownloadAndCheck from to fatal result sha256)
   set(status_res "ON")
@@ -18,15 +18,15 @@ function (DownloadAndCheck from to fatal result sha256)
       message(STATUS "Downloading from ${from} to ${to} ...")
       find_program(aria2c "aria2c")
       if (${aria2c} STREQUAL "aria2c-NOTFOUND")
-        if (NOT ${WGET_FOUND})
+        if (NOT WGET_FOUND)
           Download(${from} ${to} ${fatal} ${result} output ${sha256})
           list(GET output 0 status_code)
         else()
           foreach(index RANGE 5)
-            message(STATUS "${WGET_EXECUTABLE} --no-cache --no-check-certificate 
+            message(STATUS "${WGET_EXECUTABLE} --no-cache --no-check-certificate
               --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${from}")
-            execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache" "--no-check-certificate" 
-              "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5" 
+            execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache" "--no-check-certificate"
+              "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5"
               "${from}" "-O" "${to}"
               TIMEOUT 2000
               RESULT_VARIABLE status_code)

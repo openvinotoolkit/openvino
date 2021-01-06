@@ -46,6 +46,7 @@ op::Asin::Asin(const Output<Node>& arg)
 
 shared_ptr<Node> op::Asin::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Asin_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Asin>(new_args.at(0));
 }
@@ -82,10 +83,6 @@ namespace asinop
 
 bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    bool rc = false;
-    NGRAPH_OP_SCOPE(v0_Asin_evaluate)
-    {
-        rc = asinop::evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return rc;
+    NGRAPH_OP_SCOPE(v0_Asin_evaluate);
+    return asinop::evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

@@ -45,6 +45,7 @@ op::Acos::Acos(const Output<Node>& arg)
 
 shared_ptr<Node> op::Acos::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Acos_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Acos>(new_args.at(0));
 }
@@ -81,10 +82,6 @@ namespace acosop
 
 bool op::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    bool rc = false;
-    NGRAPH_OP_SCOPE(v0_Acos_evaluate)
-    {
-        rc = acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return rc;
+    NGRAPH_OP_SCOPE(v0_Acos_evaluate);
+    return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

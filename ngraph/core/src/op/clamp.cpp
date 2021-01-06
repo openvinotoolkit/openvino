@@ -86,12 +86,9 @@ namespace clamp
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Clamp_evaluate)
-    {
-        return clamp::evaluate_clamp(
-            inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Clamp_evaluate);
+    return clamp::evaluate_clamp(
+        inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
 }
 
 NGRAPH_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
@@ -230,6 +227,7 @@ OutputVector op::Clamp::decompose_op() const
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Clamp_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 1,
                           "Expected 1 element in new_args for the Clamp op but got ",
@@ -240,6 +238,7 @@ shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) 
 
 bool op::Clamp::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Clamp_visit_attributes);
     visitor.on_attribute("min", m_min);
     visitor.on_attribute("max", m_max);
     return true;
