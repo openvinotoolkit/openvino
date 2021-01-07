@@ -48,6 +48,8 @@ ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
 ie_option (ENABLE_ALTERNATIVE_TEMP "in case of dependency conflict, to avoid modification in master, use local copy of dependency" ON)
 
+ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "CMAKE_CXX_COMPILER_ID MATCHES ^(Apple)?Clang$; NOT WIN32" OFF)
+
 #
 # Check features
 #

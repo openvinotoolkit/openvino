@@ -473,18 +473,4 @@ std::map<std::string, std::string> &LayerTestsCommon::GetConfiguration() {
     return configuration;
 }
 
-std::string LayerTestsCommon::GetTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    auto epoch = now.time_since_epoch();
-    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
-    return std::to_string(ns.count());
-}
-
-const std::string LayerTestsCommon::GetTestName() {
-    std::string test_name =
-            ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::replace_if(test_name.begin(), test_name.end(),
-                    [](char c) { return !std::isalnum(c); }, '_');
-    return test_name;
-}
 }  // namespace LayerTestsUtils

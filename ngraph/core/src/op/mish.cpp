@@ -35,17 +35,20 @@ op::v4::Mish::Mish(const Output<Node>& arg)
 
 bool op::v4::Mish::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_Mish_visit_attributes);
     return true;
 }
 
 void op::v4::Mish::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_Mish_validate_and_infer_types);
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_Mish_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Mish>(new_args.at(0));
 }
@@ -77,9 +80,6 @@ namespace mish
 
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_Mish_evaluate)
-    {
-        return mish::evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v4_Mish_evaluate);
+    return mish::evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

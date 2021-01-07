@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/roi_pooling.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -36,6 +37,7 @@ op::ROIPooling::ROIPooling(const Output<Node>& input,
 
 void op::ROIPooling::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_ROIPooling_validate_and_infer_types);
     auto feat_maps_et = get_input_element_type(0);
     auto coords_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(
@@ -139,6 +141,7 @@ void op::ROIPooling::validate_and_infer_types()
 
 shared_ptr<Node> op::ROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_ROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ROIPooling>(
         new_args.at(0), new_args.at(1), m_output_size, m_spatial_scale, m_method);
@@ -146,6 +149,7 @@ shared_ptr<Node> op::ROIPooling::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::ROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_ROIPooling_visit_attributes);
     visitor.on_attribute("output_size", m_output_size);
     visitor.on_attribute("pooled_h", m_output_size[0]);
     visitor.on_attribute("pooled_w", m_output_size[1]);
