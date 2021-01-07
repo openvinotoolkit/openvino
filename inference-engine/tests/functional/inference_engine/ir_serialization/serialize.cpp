@@ -14,7 +14,6 @@
 #define IR_SERIALIZATION_MODELS_PATH ""
 #endif
 
-constexpr std::size_t maxFileNameLength = 140;
 typedef std::tuple<std::string, size_t, std::function<void (InferenceEngine::Blob::Ptr &)>> SerializationParams;
 
 class SerializationTest: public CommonTestUtils::TestsCommon,
@@ -29,7 +28,7 @@ public:
     void SetUp() override {
         m_model_path = IR_SERIALIZATION_MODELS_PATH + std::get<0>(GetParam());
 
-        const std::string test_name =  GetTestName().substr(0, maxFileNameLength) + "_" + GetTimestamp();
+        const std::string test_name =  GetTestName() + "_" + GetTimestamp();
         m_out_xml_path = test_name + ".xml";
         m_out_bin_path = test_name + ".bin";
 

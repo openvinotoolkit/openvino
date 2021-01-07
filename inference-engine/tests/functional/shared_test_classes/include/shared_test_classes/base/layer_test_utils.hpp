@@ -31,6 +31,8 @@
 
 namespace LayerTestsUtils {
 
+constexpr std::size_t maxFileNameLength = 140;
+
 class Summary;
 
 class SummaryDestroyer {
