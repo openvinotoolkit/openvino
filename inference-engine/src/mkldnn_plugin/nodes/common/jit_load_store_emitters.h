@@ -11,24 +11,9 @@
 
 namespace MKLDNNPlugin {
 struct load_emitter_context : public emitter_context {
-    void set_offset_byte(int offset_byte) {
-        offset_byte_ = offset_byte;
-    }
-    void set_load_num(int load_num) {
-        load_num_ = load_num;
-    }
-    void set_src_prc(InferenceEngine::Precision src_prc) {
-        src_prc_ = src_prc;
-    }
-    void set_dst_prc(InferenceEngine::Precision dst_prc) {
-        dst_prc_ = dst_prc;
-    }
-    void set_fill(bool is_fill) {
-        is_fill_ = is_fill;
-    }
-    void set_fill_value(std::string fill_value) {
-        fill_value_ = fill_value;
-    }
+    load_emitter_context() : offset_byte_(0), load_num_(8), src_prc_(InferenceEngine::Precision::FP32),
+    dst_prc_(InferenceEngine::Precision::FP32), is_fill_(false), fill_value_("zero") {}
+
     int offset_byte_;
     int load_num_;
     InferenceEngine::Precision src_prc_;
@@ -38,18 +23,9 @@ struct load_emitter_context : public emitter_context {
 };
 
 struct store_emitter_context : public emitter_context {
-    void set_offset_byte(int offset_byte) {
-        offset_byte_ = offset_byte;
-    }
-    void set_store_num(int store_num) {
-        store_num_ = store_num;
-    }
-    void set_src_prc(InferenceEngine::Precision src_prc) {
-        src_prc_ = src_prc;
-    }
-    void set_dst_prc(InferenceEngine::Precision dst_prc) {
-        dst_prc_ = dst_prc;
-    }
+    store_emitter_context() : offset_byte_(0), store_num_(8), src_prc_(InferenceEngine::Precision::FP32),
+    dst_prc_(InferenceEngine::Precision::FP32) {}
+
     int offset_byte_;
     int store_num_;
     InferenceEngine::Precision src_prc_;
@@ -72,6 +48,8 @@ public:
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) override;
+
+    size_t get_inputs_num() override;
 
 private:
     template <mkldnn::impl::cpu::cpu_isa_t isa>
@@ -119,6 +97,12 @@ public:
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) override;
 
+    size_t get_inputs_num() override;
+
+    std::shared_ptr<jit_emu_vcvtneps2bf16> get_emu_vcvtneps2bf16() const {
+        return emu_vcvtneps2bf16;
+    }
+
 private:
     template <mkldnn::impl::cpu::cpu_isa_t isa>
     void emit_isa(const int in_vec_idx, InferenceEngine::Precision src_prc,
@@ -134,9 +118,10 @@ private:
     void store_dword_to_word_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int64_t offset, bool is_bf16, bool is_signed, int store_size) const;
 
     size_t aux_gprs_count() const override;
+    size_t aux_vecs_count() const override;
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
     int v_len_elt;  // 4/8/16
+    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 };
 
 } // namespace MKLDNNPlugin

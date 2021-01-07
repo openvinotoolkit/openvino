@@ -24,7 +24,13 @@ jit_load_emitter::jit_load_emitter(jit_generator *host, cpu_isa_t host_isa, cons
     v_len_elt = get_vec_length() / exec_prc.size();
 }
 
-// emit_table() before all calls of emit()
+size_t jit_load_emitter::get_inputs_num() { return 1; }
+
+// 0 for table address, 1(0 after preamble) for temp reg for mask load
+size_t jit_load_emitter::aux_gprs_count() const {
+    return 2;
+}
+
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) {
@@ -97,11 +103,11 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, size_t offset_byte,
     if (src_prc != dst_prc) {
         switch (dst_prc) {
             case Precision::FP32:
-                if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
+                if ((src_prc != Precision::FP32) && (src_prc != Precision::BF16))
                     h->uni_vcvtdq2ps(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 break;
             case Precision::I32:
-                if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
+                if ((src_prc == Precision::FP32) || (src_prc == Precision::BF16))
                     h->uni_vcvtps2dq(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 break;
             default:
@@ -140,8 +146,8 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int64
     assert(offset >= INT_MIN && offset <= INT_MAX);
 
     // At most 16 bytes can fit inside the Xmm register
-    assert(IMPLICATION(load_size > 16, is_ymm));
-    assert(IMPLICATION(load_size > 32, is_zmm));
+    assert(IMPLICATION(is_xmm, load_size <= 16));
+    assert(IMPLICATION(is_ymm, load_size <= 32));
 
     auto xmm = Xbyak::Xmm(vmm.getIdx());
     auto ymm = Xbyak::Ymm(vmm.getIdx());
@@ -153,16 +159,16 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int64
     };
 
     if (is_zmm && (load_size != 64) && mayiuse(cpu::avx512_core)) {
-        h->mov(Reg64(aux_gpr_idxs[1]), (1 << load_size) - 1);
-        h->kmovq(k_mask, Reg64(aux_gpr_idxs[1]));
+        h->mov(Reg64(aux_gpr_idxs[0]), (1 << load_size) - 1);
+        h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
         h->vmovdqu8(zmm | k_mask | T_z, addr(0));
     } else {
         if (load_size == 64) {
-            h->vmovdqu(zmm, addr(0));
+            h->uni_vmovdqu(zmm, addr(0));
         } else if (load_size == 32) {
-            h->vmovdqu(ymm, addr(0));
+            h->uni_vmovdqu(ymm, addr(0));
         } else if (load_size == 16) {
-            h->vmovdqu(xmm, addr(0));
+            h->uni_vmovdqu(xmm, addr(0));
         } else {
             int start_bytes = 0;
             int bytes_to_load = load_size;
@@ -253,7 +259,11 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int64
     if (is_fill) {
         uint8 imm = 1;
         imm = ~((imm << (load_size / 4)) - imm);  // shift load_num bit
-        h->vblendps(vmm, vmm, table_val(fill_value), imm);
+        if (is_xmm) {
+            h->blendps(vmm, table_val(fill_value), imm);
+        } else {
+            h->vblendps(vmm, vmm, table_val(fill_value), imm);
+        }
     }
 }
 
@@ -325,8 +335,8 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
         // tails process
         if (is_zmm) {
             int mask = (1 << load_size) - 1;
-            h->mov(Reg32(aux_gpr_idxs[1]), mask);
-            h->kmovw(k_mask, Reg32(aux_gpr_idxs[1]));
+            h->mov(Reg32(aux_gpr_idxs[0]), mask);
+            h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
             if (is_signed)
                 h->uni_vpmovsxbd(vmm | k_mask | T_z, ptr[reg + offset]);
             else
@@ -344,7 +354,11 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
     if (is_fill) {
         uint8 imm = 1;
         imm = ~((imm << load_size) - imm);  // shift load_num bit
-        h->vblendps(vmm, vmm, table_val(fill_value), imm);
+        if (is_xmm) {
+            h->blendps(vmm, table_val(fill_value), imm);
+        } else {
+            h->vblendps(vmm, vmm, table_val(fill_value), imm);
+        }
     }
 }
 
@@ -380,7 +394,7 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
     // Ensure extended double words fit inside Zmm (32/2(num) * 32 <= 512)
     assert(load_size >= 0 && load_size <= 32);
     // For Ymm register, load capacity is halved (16/2(num) * 32 <= 128)
-    assert(IMPLICATION(is_xmm, load_size <= 16));
+    assert(IMPLICATION(is_ymm, load_size <= 16));
     // For Xmm register, load capacity is halved again (8/2(num) * 32 <= 128)
     assert(IMPLICATION(is_xmm, load_size <= 8));
 
@@ -429,8 +443,8 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
     } else {
         if (is_zmm) {
             int mask = (1 << (load_size / 2)) - 1;
-            h->mov(Reg32(aux_gpr_idxs[1]), mask);
-            h->kmovw(k_mask, Reg32(aux_gpr_idxs[1]));
+            h->mov(Reg32(aux_gpr_idxs[0]), mask);
+            h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
             if (is_bf16) {
                 h->uni_vpmovzxwd(vmm | k_mask | T_z, ptr[reg + offset]);
                 h->uni_vpslld(vmm, vmm, 16);
@@ -458,13 +472,12 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
     if (is_fill) {
         uint8 imm = 1;
         imm = ~((imm << (load_size / 2)) - imm);  // shift load_num bit
-        h->vblendps(vmm, vmm, table_val(fill_value), imm);
+        if (is_xmm) {
+            h->blendps(vmm, table_val(fill_value), imm);
+        } else {
+            h->vblendps(vmm, vmm, table_val(fill_value), imm);
+        }
     }
-}
-
-// 0 for table address, 1 for temp reg for mask
-size_t jit_load_emitter::aux_gprs_count() const {
-    return 2;
 }
 
 /// STORE ///
@@ -473,14 +486,20 @@ jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa, co
     v_len_elt = get_vec_length() / exec_prc.size();
     if (!mayiuse(cpu::avx512_core_bf16) && mayiuse(cpu::avx512_core)) {
         emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(host, host_isa, nullptr));
-        emu_vcvtneps2bf16->emit_table();
     }
 }
 
-// to generate mask
+// 0 for temp reg for mask store
 size_t jit_store_emitter::aux_gprs_count() const {
     return 1;
 }
+
+// zero value, zeroed and passed from caller from performance standpoint(zeroed one time and not need preserve and restore status)
+size_t jit_store_emitter::aux_vecs_count() const {
+    return 1;
+}
+
+size_t jit_store_emitter::get_inputs_num() { return 1; }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
@@ -522,11 +541,11 @@ template <mkldnn::impl::cpu::cpu_isa_t isa>
         if (src_prc != dst_prc) {
             switch (src_prc) {
                 case Precision::FP32:
-                    if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
+                    if ((dst_prc != Precision::FP32) && (dst_prc != Precision::BF16))
                         h->uni_vcvtps2dq(Vmm(in_vec_idx), Vmm(in_vec_idx));
                     break;
                 case Precision::I32:
-                    if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
+                    if ((dst_prc == Precision::FP32) || (dst_prc == Precision::BF16))
                         h->uni_vcvtdq2ps(Vmm(in_vec_idx), Vmm(in_vec_idx));
                     break;
                 default:
@@ -599,8 +618,8 @@ template <typename Vmm>
         assert(offset >= INT_MIN && offset <= INT_MAX);
 
         // At most 16 bytes can fit inside the Xmm register
-        assert(IMPLICATION(store_size > 16, is_ymm));
-        assert(IMPLICATION(store_size > 32, is_zmm));
+        assert(IMPLICATION(is_xmm, store_size <= 16));
+        assert(IMPLICATION(is_ymm, store_size <= 32));
 
         assert(mayiuse(cpu::sse42)
                 && "routine is not supported for the current isa");
@@ -619,27 +638,27 @@ template <typename Vmm>
             h->vmovdqu8(addr(0), zmm | k_mask);
         } else {
             if (store_size == 64) {
-                h->vmovups(addr(0), zmm);
+                h->uni_vmovdqu(addr(0), zmm);
                 return;
             } else if (store_size == 32) {
-                h->vmovups(addr(0), ymm);
+                h->uni_vmovdqu(addr(0), ymm);
                 return;
             } else if (store_size == 16) {
-                h->vmovups(addr(0), xmm);
+                h->uni_vmovdqu(addr(0), xmm);
                 return;
             } else {
                 int start_bytes = 0;
                 int bytes_to_store = store_size;
 
                 if (store_size > 32) {
-                    h->vmovdqu(addr(0), ymm); // store lower bits from zmm
+                    h->uni_vmovdqu(addr(0), ymm); // store lower bits from zmm
                     start_bytes += 32;
                     bytes_to_store -= 32;
                     h->vextractf64x4(ymm, zmm, 1); // load upper bits from zmm into ymm
                 }
 
                 if (bytes_to_store > 16) {
-                    h->vmovdqu(addr(start_bytes), xmm); // store lower bits from ymm
+                    h->uni_vmovdqu(addr(start_bytes), xmm); // store lower bits from ymm
                     start_bytes += 16;
                     bytes_to_store -= 16;
                     h->vextractf128(xmm, ymm, 1); // load upper bits from ymm into xmm
@@ -724,9 +743,9 @@ template <typename Vmm>
         assert(offset >= INT_MIN && offset <= INT_MAX);
 
         // At most 4 dwords can fit inside the Xmm register
-        assert(IMPLICATION(store_num > 4, is_ymm));
+        assert(IMPLICATION(is_xmm, store_num <= 4));
         // At most 8 dwords can fit inside the Ymm register
-        assert(IMPLICATION(store_num > 8, is_zmm));
+        assert(IMPLICATION(is_ymm, store_num <= 8));
 
         assert(mayiuse(cpu::sse42)
                 && "routine is not supported for the current isa");
@@ -739,28 +758,44 @@ template <typename Vmm>
             return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
         };
 
-        if (is_signed)
-            h->uni_vpackssdw(vmm, vmm, vmm);
-        else
-            h->uni_vpackusdw(vmm, vmm, vmm);
-        // gather 2/4(cross lane) 64 bits into lower vmm to store
-        // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
-        // [y_7 y_6 y_5 y_4 y_3 y_2 y_1 y_0] |--> [y_4 y_4 y_6 y_4 y_0 y_0 y_2 y_0] |--> [y_2 y_0 y_2 y_0 y_6 y_4 y_2 y_0]
-        if (is_ymm) {
-            h->vpermq(ymm, ymm, 0x08);  // 00001000
-        } else if (is_zmm) {
-            h->vpermq(zmm, zmm, 0x08);
-            h->vshufi64x2(zmm, zmm, zmm, 0x08);
+        if (is_zmm) {
+            if (store_num == 16) { // v_len_elt(16)
+                if (is_signed) {
+                    h->vpmovsdb(addr(0), vmm);
+                } else {
+                    h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
+                    h->vpmovusdb(addr(0), vmm);
+                }
+            } else {
+                int mask = (1 << store_num) - 1;
+                h->mov(Reg32(aux_gpr_idxs[0]), mask);
+                h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+                if (is_signed) {
+                    h->vpmovsdb(addr(0), vmm | k_mask);
+                } else {
+                    h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
+                    h->vpmovusdb(addr(0), vmm | k_mask);
+                }
+            }
+        } else {
+            // db only available on avx512, need dw+wb to emulate
+            if (is_signed)
+                h->uni_vpackssdw(vmm, vmm, vmm);
+            else
+                h->uni_vpackusdw(vmm, vmm, vmm);
+            // gather 2(cross lane) 64 bits into lower vmm to store
+            // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
+            if (is_ymm) {
+                h->vpermq(ymm, ymm, 0x08);  // 00001000
+            }
+
+            if (is_signed)
+                h->uni_vpacksswb(vmm, vmm, vmm);
+            else
+                h->uni_vpackuswb(vmm, vmm, vmm);
+
+            store_bytes(vmm, reg, offset, store_num);
         }
-
-        if (is_signed)
-            h->uni_vpacksswb(vmm, vmm, vmm);
-        else
-            h->uni_vpackuswb(vmm, vmm, vmm);
-
-        if (is_zmm) h->vpermq(ymm, ymm, 0x08);
-
-        store_bytes(vmm, reg, offset, store_num);
     }
 
 /**
@@ -786,9 +821,9 @@ template <typename Vmm>
         assert(offset >= INT_MIN && offset <= INT_MAX);
 
         // At most 4 dwords can fit inside the Xmm register
-        assert(IMPLICATION(store_num > 4, is_ymm));
+        assert(IMPLICATION(is_xmm, store_num <= 4));
         // At most 8 dwords can fit inside the Ymm register
-        assert(IMPLICATION(store_num > 8, is_zmm));
+        assert(IMPLICATION(is_ymm, store_num <= 8));
 
         assert(mayiuse(cpu::sse42)
                 && "routine is not supported for the current isa");
@@ -797,33 +832,53 @@ template <typename Vmm>
         auto ymm = Xbyak::Ymm(vmm.getIdx());
         auto zmm = Xbyak::Zmm(vmm.getIdx());
 
-        const auto addr = [&](int bytes_offset) {
-            return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
-        };
-
         if (is_bf16) {
             if (mayiuse(cpu::avx512_core_bf16)) {
                 h->vcvtneps2bf16(ymm, zmm);
             } else {
-                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(vmm.getIdx())});
+                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
+            }
+            if (store_num == 16) {
+                h->vmovdqu16(ptr[reg + offset], ymm);
+            } else {
+                store_bytes(ymm, reg, offset, store_num * 2);
             }
         } else {
-            if (is_signed)
-                h->uni_vpackssdw(vmm, vmm, vmm);
-            else
-                h->uni_vpackusdw(vmm, vmm, vmm);
-            // gather 2/4(cross lane) 64 bits into lower vmm to store
-            // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
-            // [y_7 y_6 y_5 y_4 y_3 y_2 y_1 y_0] |--> [y_4 y_4 y_6 y_4 y_0 y_0 y_2 y_0] |--> [y_2 y_0 y_2 y_0 y_6 y_4 y_2 y_0]
-            if (is_ymm) {
-                h->vpermq(ymm, ymm, 0x08);  // 00001000
-            } else if (is_zmm) {
-                h->vpermq(zmm, zmm, 0x08);
-                h->vshufi64x2(zmm, zmm, zmm, 0x08);
+            if (is_zmm) {
+                if (store_num == 16) {  // v_len_elt
+                    if (is_signed) {
+                        h->vpmovsdw(ptr[reg + offset], vmm);  // singed int32 saturate to signed int16.
+                    } else {
+                        h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);        // if singed bit is 1, set value as 0.
+                        h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
+                    }
+                } else {
+                    int mask = (1 << store_num) - 1;
+                    h->mov(Reg32(aux_gpr_idxs[0]), mask);
+                    h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+                    if (is_signed) {
+                        h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
+                    } else {
+                        h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);
+                        h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
+                    }
+                }
+            } else {
+                // direct mov_dw available only on avx512, emulate with pack_dw + permute + pure store
+                if (is_signed)
+                    h->uni_vpackssdw(vmm, vmm, vmm);
+                else
+                    h->uni_vpackusdw(vmm, vmm, vmm);
+                // gather 2/4(cross lane) 64 bits into lower vmm to store
+                // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
+                // [  128  |  128  ] |--> [ 128   |  128  ]
+                if (is_ymm) {
+                    h->vpermq(ymm, ymm, 0x08);  // 00001000
+                }
+
+                store_bytes(vmm, reg, offset, store_num * 2);
             }
         }
-
-        store_bytes(vmm, reg, offset, store_num * 2);
     }
 
 } // namespace MKLDNNPlugin

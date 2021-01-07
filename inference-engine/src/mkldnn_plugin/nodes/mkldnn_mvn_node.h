@@ -17,8 +17,8 @@ struct jit_mvn_config_params {
     bool planar_layout;
     bool across_channels;
     bool normalize_variance;
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
     int src_data_size;
     int dst_data_size;
 };
