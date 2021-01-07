@@ -198,9 +198,18 @@ std::string get_opset_name(
 
     // return the oldest opset name where node type is present
     for (int idx = 0; idx < opsets.size(); idx++) {
-        if (opsets[idx].get().contains_op_type(n)) {
-            return "opset" + std::to_string(idx + 1);
+        if (!opsets[idx].get().contains_op_type(n)) {
+            continue;
         }
+
+        if (n->get_type_name() == std::string("ShuffleChannels") &&
+            idx + 1 == 1) {
+          // ShuffleChannels should not be present in opset1,
+          // it was introduced in opset3, so during serialization
+          // it should be saved as opset3's op
+          continue;
+        }
+        return "opset" + std::to_string(idx + 1);
     }
 
     for (const auto& custom_opset : custom_opsets) {
