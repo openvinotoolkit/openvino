@@ -63,6 +63,13 @@ NGRAPH_TEST(onnx_editor, single_input_type_substitution)
 
     EXPECT_EQ(float_inputs_count, 0);
     EXPECT_EQ(integer_inputs_count, 3);
+
+    const auto input_a = std::find_if(std::begin(graph_inputs), std::end(graph_inputs), [](const std::shared_ptr<op::Parameter> i) {
+        return i->get_friendly_name() == "A";
+    });
+
+    ASSERT_NE(input_a, std::end(graph_inputs));
+    EXPECT_EQ(input_a->get()->get_element_type(), element::i64);
 }
 
 NGRAPH_TEST(onnx_editor, all_inputs_type_substitution)
