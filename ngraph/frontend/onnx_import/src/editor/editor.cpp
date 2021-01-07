@@ -56,15 +56,12 @@ namespace
 
     void modify_input_type(ValueInfoProto& onnx_input, element::Type_t elem_type)
     {
-        const std::string malformed_input_error_msg =
-            "The input is malformed, cannot change the data type. Input name: " + onnx_input.name();
-
         if (!onnx_input.has_type())
         {
             throw ngraph_error(
                 "The input is malformed - it doesn't contain the 'type' field. Cannot change the "
                 "data type. Input name: " +
-                    onnx_input.name(););
+                onnx_input.name());
         }
 
         auto* type_proto = onnx_input.mutable_type();
@@ -73,7 +70,7 @@ namespace
             throw ngraph_error(
                 "The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
                 "change the data type. Input name: " +
-                    onnx_input.name(););
+                onnx_input.name());
         }
 
         auto* tensor_type = type_proto->mutable_tensor_type();
@@ -116,9 +113,9 @@ void onnx_import::ONNXModelEditor::set_input_types(
         }
         else
         {
-            throw ngraph_error(
-                "Could not set a custom element type for input: " + input_desc.first +
-                ". Such input was not found in the original ONNX model.");
+            throw ngraph_error("Could not set a custom element type for input: " +
+                               input_desc.first +
+                               ". Such input was not found in the original ONNX model.");
         }
     }
 }
