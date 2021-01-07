@@ -38,8 +38,7 @@ namespace
     InputTypePred element_type_is(const element::Type et)
     {
         return [et](const std::shared_ptr<ngraph::Node> input) {
-            return std::dynamic_pointer_cast<onnx_import::default_opset::Parameter>(input)
-                       ->get_element_type() == et;
+            return input->get_element_type() == et;
         };
     }
 } // namespace
