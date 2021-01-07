@@ -33,20 +33,7 @@ namespace ngraph
                 OutputVector shape(const Node& node)
                 {
                     const auto data = node.get_ng_inputs().at(0);
-                    const auto data_shape = data.get_partial_shape();
-
-                    if (data_shape.is_static())
-                    {
-                        const auto static_data_shape = data_shape.to_shape();
-
-                        return {default_opset::Constant::create(ngraph::element::i64,
-                                                                Shape{static_data_shape.size()},
-                                                                static_data_shape)};
-                    }
-                    else
-                    {
-                        return {std::make_shared<default_opset::ShapeOf>(data)};
-                    }
+                    return {std::make_shared<default_opset::ShapeOf>(data)};
                 }
 
             } // namespace set_1
