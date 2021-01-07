@@ -1142,7 +1142,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2)
          0.01439711, 0.70979614, 0.16515835, 0.06798343, 0.2957175,  0.17468555, 0.34994439,
          0.11166912, 0.03615172, 0.07108136, 0.08527994, 0.44775794, 0.35972905});
 
-    test_case.run(4);
+    test_case.run(3);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step)
