@@ -61,30 +61,31 @@ namespace
 
         if (!onnx_input.has_type())
         {
-            throw ngraph_error(malformed_input_error_msg);
+            throw ngraph_error(
+                "The input is malformed - it doesn't contain the 'type' field. Cannot change the "
+                "data type. Input name: " +
+                    onnx_input.name(););
+        }
+
+        auto* type_proto = onnx_input.mutable_type();
+        if (!type_proto->has_tensor_type())
+        {
+            throw ngraph_error(
+                "The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                "change the data type. Input name: " +
+                    onnx_input.name(););
+        }
+
+        auto* tensor_type = type_proto->mutable_tensor_type();
+        if (NG_2_ONNX_TYPES.count(elem_type) == 0)
+        {
+            throw ngraph_error("The input type for input '" + onnx_input.name() +
+                               "' cannot be set to: " + element::Type(elem_type).get_type_name() +
+                               ". This type is not allowed in ONNX.");
         }
         else
         {
-            auto* type_proto = onnx_input.mutable_type();
-            if (!type_proto->has_tensor_type())
-            {
-                throw ngraph_error(malformed_input_error_msg);
-            }
-            else
-            {
-                auto* tensor_type = type_proto->mutable_tensor_type();
-                if (NG_2_ONNX_TYPES.count(elem_type) == 0)
-                {
-                    throw ngraph_error("The input type for input '" + onnx_input.name() +
-                                       "' cannot be set to: " +
-                                       element::Type(elem_type).get_type_name() +
-                                       ". This type is not allowed in ONNX.");
-                }
-                else
-                {
-                    tensor_type->set_elem_type(NG_2_ONNX_TYPES.at(elem_type));
-                }
-            }
+            tensor_type->set_elem_type(NG_2_ONNX_TYPES.at(elem_type));
         }
     }
 } // namespace
@@ -115,9 +116,9 @@ void onnx_import::ONNXModelEditor::set_input_types(
         }
         else
         {
-            throw ngraph_error("Could not set a custom element type for input: " +
-                               input_desc.first +
-                               ". Such input was not found in the original ONNX model.");
+            throw ngraph_error(
+                "Could not set a custom element type for input: " + input_desc.first +
+                ". Such input was not found in the original ONNX model.");
         }
     }
 }
