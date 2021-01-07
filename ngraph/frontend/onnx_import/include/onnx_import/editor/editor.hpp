@@ -28,7 +28,7 @@ namespace ONNX_NAMESPACE
     // forward declaration to avoid the necessity of include paths setting in components
     // that don't directly depend on the ONNX library
     class ModelProto;
-}
+} // namespace ONNX_NAMESPACE
 
 namespace ngraph
 {
@@ -68,7 +68,8 @@ namespace ngraph
 
             // This declaration lets the import_onnx_model function access the modified model
             // without the need of exposing it to the public API of this class.
-            friend std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor&);
+            friend ONNX_IMPORTER_API std::shared_ptr<Function>
+                import_onnx_model(const ONNXModelEditor&);
         };
     } // namespace onnx_import
 } // namespace ngraph
