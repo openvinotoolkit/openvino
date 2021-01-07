@@ -250,9 +250,11 @@ bool ReshapeTransformation::canBeTransformed(
             return false;
         }
     } else {
-        for (size_t i = 0; i < 2ul; ++i) {
-            if (inputShape[i] != outputShape[i]) {
-                return false;
+        if (ngraph::shape_size(subtractShape) > 1 || ngraph::shape_size(multiplyShape) > 1) {
+            for (size_t i = 0; i < 2ul; ++i) {
+                if (inputShape[i] != outputShape[i]) {
+                    return false;
+                }
             }
         }
 
