@@ -982,7 +982,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max)
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    test_case.add_input<float>(Shape{1, 1, 4, 4},
+                               {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
 
     test_case.run();
@@ -1000,8 +1001,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_mean)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_mean.prototxt"));
 
-    
-
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
     test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
@@ -1017,7 +1016,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_min)
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    test_case.add_input<float>(Shape{1, 1, 4, 4},
+                               {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {1.0f});
 
     test_case.run();
@@ -1029,7 +1029,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_prod)
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_prod.prototxt"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
-    
+
     test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {1.0f});
 
@@ -1040,7 +1040,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum.prototxt"));
-    
+
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
