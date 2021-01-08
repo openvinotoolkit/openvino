@@ -168,7 +168,7 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "NegativeLogLikelihoodLoss")
 xfail_issue_45177 = xfail_test(reason="RuntimeError: axes has zero dimension which is not allowed")
-xfail_issue_45180 = xfail_test(reason="E   Unsupported dynamic op: ReduceSum")
+xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
