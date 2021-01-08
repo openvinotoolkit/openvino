@@ -95,11 +95,11 @@ namespace ngraph
     {
         static auto enum_names =
             EnumNames<op::BroadcastType>("op::BroadcastType",
-                                         {{"NONE", op::BroadcastType::NONE},
-                                          {"NUMPY", op::BroadcastType::NUMPY},
-                                          {"EXPLICIT", op::BroadcastType::EXPLICIT},
-                                          {"PDPD", op::BroadcastType::PDPD},
-                                          {"BIDIRECTIONAL", op::BroadcastType::BIDIRECTIONAL}});
+                                         {{"none", op::BroadcastType::NONE},
+                                          {"numpy", op::BroadcastType::NUMPY},
+                                          {"explicit", op::BroadcastType::EXPLICIT},
+                                          {"pdpd", op::BroadcastType::PDPD},
+                                          {"bidirectional", op::BroadcastType::BIDIRECTIONAL}});
         return enum_names;
     }
 
@@ -163,10 +163,10 @@ namespace ngraph
     op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string& type) const
     {
         static const std::map<std::string, AutoBroadcastType> allowed_values = {
-            {"NONE", AutoBroadcastType::NONE},
-            {"NUMPY", AutoBroadcastType::NUMPY},
-            {"PDPD", AutoBroadcastType::PDPD},
-            {"EXPLICIT", AutoBroadcastType::EXPLICIT}};
+            {"none", AutoBroadcastType::NONE},
+            {"numpy", AutoBroadcastType::NUMPY},
+            {"pdpd", AutoBroadcastType::PDPD},
+            {"explicit", AutoBroadcastType::EXPLICIT}};
 
         NGRAPH_CHECK(allowed_values.count(type) > 0, "Invalid 'type' value passed in.");
 
