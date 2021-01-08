@@ -75,17 +75,7 @@ namespace ngraph
                     }
                     else
                     {
-                        if (input_rank.is_static())
-                        {
-                            auto all_axes = onnx_import::common::get_monotonic_range<int64_t>(
-                                input_rank.get_length());
-                            return default_opset::Constant::create(
-                                element::i64, Shape{all_axes.size()}, all_axes);
-                        }
-                        else
-                        {
-                            return get_dynamic_all_axes_range(node);
-                        }
+                        return get_dynamic_all_axes_range(node);
                     }
                 }
 
@@ -98,15 +88,7 @@ namespace ngraph
 
                     if (reduction_axes.empty())
                     {
-                        if (input_rank.is_static())
-                        {
-                            reduction_axes = onnx_import::common::get_monotonic_range<int64_t>(
-                                input_rank.get_length());
-                        }
-                        else
-                        {
-                            return get_dynamic_all_axes_range(node);
-                        }
+                        return get_dynamic_all_axes_range(node);
                     }
 
                     if (input_rank.is_static())

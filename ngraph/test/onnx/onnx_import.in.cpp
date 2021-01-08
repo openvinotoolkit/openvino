@@ -930,17 +930,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_log_sum.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}})
-            .get_vector()};
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{2.77258872f}}}}).get_vector();
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {2.77258872f});
     test_case.run();
 }
 
@@ -949,17 +942,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_log_sum_exp.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}})
-            .get_vector()};
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{3.77258872f}}}}).get_vector();
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {3.77258872f});
     test_case.run();
 }
 
@@ -968,17 +954,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_l1)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_l1.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}})
-            .get_vector()};
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
 
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
@@ -987,17 +967,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_l2)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_l2.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}})
-            .get_vector()};
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{4}}}}).get_vector();
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {4.0f});
 
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
@@ -1006,17 +980,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_max)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_max.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
-            .get_vector()};
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
 
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
@@ -1032,17 +1000,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_mean)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_mean.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}})
-            .get_vector()};
+    
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(Shape{}, expected_output);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{}, {1.0f});
+
     test_case.run();
 }
 
@@ -1051,17 +1015,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_min)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_min.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
-            .get_vector()};
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {1.0f});
 
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
@@ -1070,17 +1028,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_prod)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_prod.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}})
-            .get_vector()};
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {1.0f});
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{1}}}}).get_vector();
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
@@ -1088,18 +1040,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum.prototxt"));
-
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}})
-            .get_vector()};
-
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
+    
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
     test_case.run();
 }
 
@@ -1135,17 +1079,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_square.prototxt"));
 
-    // input data shape (1, 1, 4, 4)
-    Inputs inputs{
-        test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}})
-            .get_vector()};
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
 
-    // output data shape (1,)
-    auto expected_output = test::NDArray<float, 4>({{{{16}}}}).get_vector();
+    test_case.add_input<float>(Shape{1, 1, 4, 4}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
 
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(inputs);
-    test_case.add_expected_output(expected_output);
     test_case.run();
 }
 
@@ -1266,7 +1204,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>({1.0f,
                                 1.0f,
                                 1.0f,
@@ -1321,7 +1259,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_with_noop)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_with_noop.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>({1.f,
                                 1.0f,
                                 1.0f,
@@ -1364,7 +1302,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_without_noop)
     auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_empty_without_noop.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>({1.f,
                                 1.0f,
                                 1.0f,
