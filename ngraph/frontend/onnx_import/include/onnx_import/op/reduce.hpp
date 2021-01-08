@@ -31,7 +31,7 @@ namespace ngraph
                 ///
                 /// \par Overview
                 ///     The output tensor has the same rank as the input if Node attribute keepdims
-                ///     equals 1. If keepdims equals 0, then the output tensor have the reduced
+                ///     equals 1. If keepdims equals 0, then the output tensor has the reduced
                 ///     dimension pruned.
                 ///
                 /// \param[in]  node  The ONNX node representing operation.
