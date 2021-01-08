@@ -31,10 +31,10 @@ namespace ngraph
     NGRAPH_API EnumNames<op::PadMode>& EnumNames<op::PadMode>::get()
     {
         static auto enum_names = EnumNames<op::PadMode>("op::PadMode",
-                                                        {{"CONSTANT", op::PadMode::CONSTANT},
-                                                         {"EDGE", op::PadMode::EDGE},
-                                                         {"REFLECT", op::PadMode::REFLECT},
-                                                         {"SYMMETRIC", op::PadMode::SYMMETRIC}});
+                                                        {{"constant", op::PadMode::CONSTANT},
+                                                         {"edge", op::PadMode::EDGE},
+                                                         {"reflect", op::PadMode::REFLECT},
+                                                         {"symmetric", op::PadMode::SYMMETRIC}});
         return enum_names;
     }
 
