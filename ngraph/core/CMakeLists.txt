@@ -58,7 +58,7 @@ set_target_properties(ngraph PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON)
 
-target_link_libraries(ngraph PRIVATE openvino::itt ngraph::builder ngraph::reference)
+target_link_libraries(ngraph PRIVATE openvino::conditional_compilation openvino::itt ngraph::builder ngraph::reference)
 
 find_package(Graphviz QUIET)
 if (GRAPHVIZ_FOUND)

@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <functional>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
@@ -129,6 +130,7 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
 
 bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_LSTMCell_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -142,6 +144,7 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 
 void op::v0::LSTMCell::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_LSTMCell_validate_and_infer_types);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -158,7 +161,8 @@ void op::v0::LSTMCell::validate_and_infer_types()
     auto merged_hidden_size = Dimension::dynamic();
     auto result_et = element::dynamic;
 
-    // Copy all inputs without peephole (7th input) and initial_cell_state (2nd input) information
+    // Copy all inputs without peephole (7th input) and initial_cell_state (2nd input)
+    // information
     // for further validation
     for (size_t i = 0; i < get_input_size() - 1; i++)
     {
@@ -206,7 +210,8 @@ void op::v0::LSTMCell::validate_and_infer_types()
             element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(5)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not match.");
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not "
+        "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
     NODE_VALIDATION_CHECK(
@@ -305,6 +310,7 @@ Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const
 
 shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 5)
     {
@@ -441,11 +447,13 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
 
 bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_LSTMCell_visit_attributes);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 void op::v4::LSTMCell::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_LSTMCell_validate_and_infer_types);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -482,7 +490,8 @@ void op::v4::LSTMCell::validate_and_infer_types()
             element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(5)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not match.");
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not "
+        "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
     NODE_VALIDATION_CHECK(
@@ -562,6 +571,7 @@ Output<Node> op::v4::LSTMCell::get_default_bias_input() const
 
 shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 5)
     {
