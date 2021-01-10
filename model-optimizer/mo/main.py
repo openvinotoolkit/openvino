@@ -21,6 +21,7 @@ import os
 import sys
 import traceback
 from collections import OrderedDict
+import telemetry.telemetry as tm
 
 import numpy as np
 
@@ -94,6 +95,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
 
 def prepare_ir(argv: argparse.Namespace):
+    t = tm.Telemetry(tid='UA-186253784-1', app_name='Model Optimizer', app_version='unknown version')
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
@@ -113,6 +115,7 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
+    t.send_event('model_conversion', 'session', 'start')
 
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
@@ -216,18 +219,23 @@ def prepare_ir(argv: argparse.Namespace):
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
     if is_tf:
+        t.send_event('model_conversion', 'framework', 'tf')
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_caffe:
+        t.send_event('model_conversion', 'framework', 'caffe')
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_mxnet:
+        t.send_event('model_conversion', 'framework', 'mxnet')
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_kaldi:
+        t.send_event('model_conversion', 'framework', 'kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_onnx:
+        t.send_event('model_conversion', 'framework', 'onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     graph = unified_pipeline(argv)
@@ -268,6 +276,7 @@ def driver(argv: argparse.Namespace):
 
     elapsed_time = datetime.datetime.now() - start_time
     print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+    tm.Telemetry().send_event('model_conversion', 'conversion', 'duration', int(elapsed_time.total_seconds()))
 
     try:
         import resource
@@ -297,6 +306,8 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         ret_code = driver(argv)
         if ov_update_message:
             print(ov_update_message)
+        tm.Telemetry().send_event('model_conversion', 'conversion_result', 'success')
+        tm.Telemetry().send_event('model_conversion', 'session', 'end')
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
@@ -320,4 +331,6 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
+        tm.Telemetry().send_event('model_conversion', 'conversion_result', 'fail')
+    tm.Telemetry().send_event('model_conversion', 'session', 'end')
     return 1
