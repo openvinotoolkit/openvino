@@ -66,6 +66,14 @@ namespace ngraph
             class Span
             {
             public:
+                using difference_type = std::ptrdiff_t;
+                using value_type = Element;
+                using pointer = Element*;
+                using reference = Element&;
+                using iterator_category = std::random_access_iterator_tag;
+
+                using size_type = std::size_t;
+
                 static_assert(std::is_object<Element>::value,
                               "Element must be an object type (not a reference type or void)");
                 static_assert(details::is_complete<Element>::value,
@@ -80,9 +88,6 @@ namespace ngraph
                     , m_size{size}
                 {
                 }
-
-                using value_type = Element;
-                using size_type = std::size_t;
 
                 constexpr Element* begin() const noexcept { return m_data; }
                 constexpr Element* end() const noexcept { return m_data + m_size; }
@@ -147,6 +152,12 @@ namespace ngraph
             constexpr auto span(Element* data, std::size_t size) -> Span<Element>
             {
                 return {data, size};
+            }
+
+            template <typename Element, size_t N>
+            constexpr auto span(Element (&s)[N]) -> Span<Element>
+            {
+                return {s, N};
             }
 
         } // namespace reference
