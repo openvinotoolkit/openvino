@@ -1162,6 +1162,7 @@ IE_CPU.nonmaxsuppression_suppress_by_IOU
 IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores
 IE_CPU.nonmaxsuppression_two_batches
 IE_CPU.nonmaxsuppression_two_classes
+IE_CPU.nonmaxsuppression_with_score_threshold
 
 # Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
 IE_CPU.roi_pooling_1x1_bilinear
