@@ -61,10 +61,10 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_dinemic_bi)
     Shape out_shape2{3};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
     auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
-    auto BI = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});//op::Constant::create(element::i32, Shape{}, {1});
+    auto BI = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
     try {
-        auto G =
-                make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, BI, false, element::i64, element::i64);
+        auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(
+                P, I, BI, false, element::i64, element::i64);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     }

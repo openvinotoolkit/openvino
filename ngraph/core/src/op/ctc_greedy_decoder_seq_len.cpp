@@ -88,12 +88,12 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
                               "Expected static shape for the 'blank_index' input.");
 
         Shape blank_index_shape = blank_index_partial_shape.to_shape();
-        NODE_VALIDATION_CHECK(
-            this,
-            blank_index_partial_shape.is_dynamic() || ngraph::is_scalar(blank_index_shape) ||
-                (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),
-            "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
-            blank_index_partial_shape);
+        NODE_VALIDATION_CHECK(this,
+                              blank_index_partial_shape.is_dynamic() ||
+                                  ngraph::is_scalar(blank_index_shape) ||
+                                  (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),
+                              "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
+                              blank_index_partial_shape);
     }
 
     // validate input shapes and compute output shape
