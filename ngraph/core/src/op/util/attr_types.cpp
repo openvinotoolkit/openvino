@@ -166,7 +166,7 @@ namespace ngraph
         std::transform(lowercase_type.begin(),
                        lowercase_type.end(),
                        lowercase_type.begin(),
-                       [](char c){ return std::tolower(c); });
+                       [](char c) { return std::tolower(c); });
 
         static const std::map<std::string, AutoBroadcastType> allowed_values = {
             {"none", AutoBroadcastType::NONE},
