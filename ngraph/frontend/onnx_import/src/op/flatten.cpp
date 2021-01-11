@@ -16,10 +16,10 @@
 
 #include <cinttypes>
 
-#include "flatten.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/op/flatten.hpp"
 
 namespace ngraph
 {

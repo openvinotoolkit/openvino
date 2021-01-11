@@ -20,7 +20,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
     IE_TRANSFORMATION_SCOPE(UnrollTensorIterator_run_on_function);
     for (const auto& op : f->get_ops()) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(op);
-        if (!ti || m_transformation_callback(ti)) {
+        if (!ti || transformation_callback(ti)) {
             continue;
         }
 

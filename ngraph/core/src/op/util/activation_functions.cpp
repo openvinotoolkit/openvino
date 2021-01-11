@@ -19,12 +19,12 @@
 #include <memory>
 #include <unordered_map>
 
-#include "activation_functions.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/sigmoid.hpp"
 #include "ngraph/op/tanh.hpp"
+#include "ngraph/op/util/activation_functions.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -17,8 +17,8 @@
 #include <numeric>
 
 #include "itt.hpp"
-#include "matmul.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/matmul.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 

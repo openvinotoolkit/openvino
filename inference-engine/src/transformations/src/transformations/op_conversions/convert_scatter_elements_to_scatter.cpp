@@ -211,6 +211,8 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, "ConvertScatterElementsToScatter");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 

@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "elementwise_args.hpp"
-#include "binary_elementwise_arithmetic.hpp"
+#include "ngraph/op/util/elementwise_args.hpp"
+#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
 using namespace ngraph;
 

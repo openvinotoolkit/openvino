@@ -92,7 +92,7 @@ else()
             UPDATE_COMMAND ""
             PATCH_COMMAND ""
             CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${EXTERNAL_PROJECTS_ROOT}/protobuf --disable-shared
-            BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${NGRAPH_CXX_STANDARD} -fPIC"
+            BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${CMAKE_CXX_STANDARD} -fPIC"
             TMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/tmp"
             STAMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/stamp"
             DOWNLOAD_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/download"
