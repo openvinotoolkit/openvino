@@ -30,6 +30,7 @@ namespace ngraph
     class ValueAccessor;
     class VisitorAdapter;
     class Node;
+    class Function;
 
     /// \brief Visits the attributes of a node, primarily for serialization-like tasks.
     ///
@@ -115,6 +116,12 @@ namespace ngraph
                                 ValueAccessor<std::vector<std::string>>& adapter);
         /// \brief Hook for adapters that need visitor access
         virtual void on_adapter(const std::string& name, VisitorAdapter& adapter);
+
+        /// \brief Provides API to handle nGraph Function attribute type, accessed as ValueAccessor
+        /// \param name attribute name
+        /// \param adapter reference to a Function ValueAccessor<VAT>
+        virtual void on_adapter(const std::string& name,
+                                ValueAccessor<std::shared_ptr<Function>>& adapter);
 
         /// The generic visitor. There must be a definition of AttributeAdapter<T> that can convert
         /// to a ValueAccessor<U> for one of the on_adpater methods.

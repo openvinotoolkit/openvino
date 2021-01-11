@@ -30,6 +30,7 @@ constexpr NodeTypeInfo op::Sigmoid::type_info;
 
 shared_ptr<Node> op::Sigmoid::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Sigmoid_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sigmoid>(new_args.at(0));
 }
@@ -72,9 +73,6 @@ namespace sigmoid
 
 bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate)
-    {
-        return sigmoid::evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate);
+    return sigmoid::evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

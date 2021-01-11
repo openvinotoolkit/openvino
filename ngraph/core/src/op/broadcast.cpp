@@ -161,6 +161,7 @@ bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs,
 
 void op::v3::Broadcast::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_Broadcast_validate_and_infer_types);
     if (m_mode.m_type == BroadcastType::NONE)
     {
         NODE_VALIDATION_CHECK(this,
@@ -204,6 +205,7 @@ void op::v3::Broadcast::validate_and_infer_types()
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2)
     {
@@ -221,6 +223,7 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_Broadcast_visit_attributes);
     visitor.on_attribute("mode", m_mode);
     return true;
 }
@@ -228,8 +231,8 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v3_Broadcast_evaluate) { return broadcast_evaluate(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v3_Broadcast_evaluate);
+    return broadcast_evaluate(outputs, inputs);
 }
 
 namespace
@@ -275,6 +278,7 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
 
 void op::v1::Broadcast::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Broadcast_validate_and_infer_types);
     // m_type is deduced and not always explicitly stated, for cases where broadcast
     // has 2 inputs its always NUMPY mode
     if (m_broadcast_spec.m_type == AutoBroadcastType::NONE && get_input_size() < 3)
@@ -304,6 +308,7 @@ void op::v1::Broadcast::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Broadcast>(
         new_args.at(0), new_args.at(1), new_args.at(2), m_broadcast_spec);
@@ -311,6 +316,7 @@ shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Broadcast_visit_attributes);
     visitor.on_attribute("mode", m_broadcast_spec);
     return true;
 }
@@ -318,9 +324,6 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate)
-    {
-        return op::util::BroadcastBase::evaluate(outputs, inputs);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate);
+    return op::util::BroadcastBase::evaluate(outputs, inputs);
 }

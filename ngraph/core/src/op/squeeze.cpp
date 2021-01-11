@@ -113,6 +113,7 @@ void op::Squeeze::pre_validate_and_infer_types()
 
 bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_visit_attributes);
     return true;
 }
 
@@ -132,6 +133,7 @@ OutputVector op::Squeeze::decompose_op() const
 
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");
@@ -173,11 +175,8 @@ namespace squeeze
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate)
-    {
-        return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate);
+    return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
 }
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

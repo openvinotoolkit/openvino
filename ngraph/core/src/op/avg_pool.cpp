@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/avg_pool.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/validation_util.hpp"
@@ -65,6 +66,7 @@ op::v1::AvgPool::AvgPool(const Output<Node>& arg,
 
 bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_AvgPool_visit_attributes);
     visitor.on_attribute("kernel", m_kernel);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -77,6 +79,7 @@ bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::AvgPool::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_AvgPool_validate_and_infer_types);
     if (0 == m_strides.size())
     {
         m_strides = Strides(m_kernel.size(), 1);
@@ -214,6 +217,7 @@ void op::v1::AvgPool::set_rounding_type(op::RoundingType rounding_type)
 
 shared_ptr<Node> op::v1::AvgPool::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_AvgPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::AvgPool>(new_args.at(0),
                                     m_strides,
