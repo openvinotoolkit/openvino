@@ -101,6 +101,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Reshape", Reshape },
         { "Tile", Tile },
         { "SimplerNMS", SimplerNMS },
+        { "ROIAlign", ROIAlign },
         { "ROIPooling", ROIPooling },
         { "BatchNormalization", BatchNormalization },
         { "Flatten", Flatten },
