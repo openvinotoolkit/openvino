@@ -16,7 +16,7 @@
 
 #include "ngraph/visibility.hpp"
 
-#ifdef BACKEND_DLL_EXPORTS // defined if we are building the backed library
+#ifdef ngraph_backend_EXPORTS // defined if we are building the ngraph_backend as shared library
 #define BACKEND_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #define BACKEND_API NGRAPH_HELPER_DLL_IMPORT

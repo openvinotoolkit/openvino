@@ -15,9 +15,9 @@
 //*****************************************************************************
 #include <memory>
 
-#include "cast.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/cast.hpp"
 #include "onnx_import/utils/common.hpp"
 
 namespace ngraph

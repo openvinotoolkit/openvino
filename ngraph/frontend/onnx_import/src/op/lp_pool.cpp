@@ -18,13 +18,13 @@
 #include <cstdint>
 #include <memory>
 
-#include "lp_pool.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/util.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/op/lp_pool.hpp"
 #include "onnx_import/utils/common.hpp"
 
 namespace ngraph
