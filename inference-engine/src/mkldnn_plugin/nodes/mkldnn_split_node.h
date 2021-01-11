@@ -44,6 +44,8 @@ private:
         size_t srcDataStride;
         size_t countStrides;
     } optimizedParams;
+
+    size_t INPUTS_NUM = 2;
 };
 
 }  // namespace MKLDNNPlugin

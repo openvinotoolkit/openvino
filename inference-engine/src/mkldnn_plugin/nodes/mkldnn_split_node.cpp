@@ -59,10 +59,8 @@ static TensorDesc makeChannelBlockedTensorDesc(const Precision& precision, const
 
 bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
-                ngraph::op::v1::Split::type_info,
-                ngraph::op::v1::VariadicSplit::type_info)) {
-            errorMessage = "Node is not an instance of the Split operation.";
+        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v1::Split::type_info, ngraph::op::v1::VariadicSplit::type_info)) {
+            errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
         auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
@@ -89,6 +87,15 @@ MKLDNNSplitNode::MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const 
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
+
+    if (ngraph::as_type_ptr<const ngraph::op::v1::Split>(op)) {
+        algorithm = SplitDefault;
+        INPUTS_NUM = 2;
+    } else if (ngraph::as_type_ptr<const ngraph::op::v1::VariadicSplit>(op)) {
+        algorithm = SplitVariadic;
+        INPUTS_NUM = 3;
+    }
+
     auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto axis = axisOp->cast_vector<int64_t>()[0];
     if (axis < 0) {
@@ -147,13 +154,12 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     if (axis < 1) {
         dynBatchSupport = false;
     }
-    auto makePdInfo = [dynBatchSupport, &axisPrecision, &splitLengthsPrecision, &splitLengthsDims](
-                                TensorDescFactory getTensorDesc, const Precision& precision,  const MKLDNNDims& srcDims,
-                                const std::vector<MKLDNNDims>& outDims, impl_desc_type type) -> PrimitiveDescInfo {
+    auto makePdInfo = [dynBatchSupport, &axisPrecision](TensorDescFactory getTensorDesc, const Precision& precision,  const MKLDNNDims& srcDims,
+                                        const std::vector<MKLDNNDims>& outDims, impl_desc_type type, const size_t inputs_num) -> PrimitiveDescInfo {
         InferenceEngine::LayerConfig config;
 
         config.dynBatchSupport = dynBatchSupport;
-        config.inConfs.resize(2);
+        config.inConfs.resize(inputs_num);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
         config.inConfs[0].desc = getTensorDesc(precision, srcDims.ToSizeVector());
@@ -161,12 +167,9 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].constant = true;
         config.inConfs[1].desc.setDims({1});
         config.inConfs[1].desc.setPrecision(axisPrecision);
-        if (!splitLengthsDims.empty()) {
-            config.inConfs.resize(3);
-            config.inConfs[2].inPlace = -1;
+        if (inputs_num == 3) {
+            config.inConfs[2].desc = TensorDesc(axisPrecision, SizeVector{outDims.size()}, TensorDesc::getLayoutByDims(SizeVector{outDims.size()}));
             config.inConfs[2].constant = true;
-            config.inConfs[2].desc.setDims(splitLengthsDims);
-            config.inConfs[2].desc.setPrecision(splitLengthsPrecision);
         }
         config.outConfs.resize(outDims.size());
 
@@ -184,10 +187,10 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     };
 
     //Set plain format
-    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref));
+    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref, INPUTS_NUM));
 
     //Set per channel format.
-    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref));
+    supportedPrimitiveDescriptors.push_back(makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref, INPUTS_NUM));
 
     //Support channel blocked format
     std::vector<size_t> blockedPdIndexes;
@@ -208,7 +211,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
                 using std::placeholders::_1;
                 using std::placeholders::_2;
                 supportedPrimitiveDescriptors.push_back(makePdInfo(std::bind(&makeChannelBlockedTensorDesc, _1, _2, sizeS),
-                                                                   inpPrecision, srcDims, outDims, impl_desc_type::ref));
+                                                                   inpPrecision, srcDims, outDims, impl_desc_type::ref, INPUTS_NUM));
                 blockedPdIndexes.push_back(supportedPrimitiveDescriptors.size() - 1);
             }
         }
@@ -257,8 +260,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
     // Special nspc -> ncsp case when splitting channels
     if (axis == 1 && (dstFirstDims.ndims() == 4 || dstFirstDims.ndims() == 5)) {
-        auto plain = makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref);
-        auto perChannel = makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref);
+        auto plain = makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref, INPUTS_NUM);
+        auto perChannel = makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref, INPUTS_NUM);
 
         plain.getConfig().inConfs[0].desc = perChannel.getConfig().inConfs[0].desc;
 
@@ -377,7 +380,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     if (config.outConfs.size() != outDims.size())
         THROW_ERROR << "has invalid config";
     size_t offset = 0;
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
+    for (size_t i = 0; i < outDims.size(); i++) {
         config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
                                                               config.outConfs[i].desc.getDims(), {
                                                                       config.outConfs[i].desc.getBlockingDesc().getBlockDims(),

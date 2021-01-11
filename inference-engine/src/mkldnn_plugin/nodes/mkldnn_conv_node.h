@@ -44,6 +44,16 @@ public:
     std::vector<float> weightsZeroPoints;
     std::vector<int32_t> outputCompensation;
 
+    void setStride(const std::vector<ptrdiff_t> &_stride) { stride = _stride; }
+    void setDilation(const std::vector<ptrdiff_t> &_dilation) { dilation = _dilation; }
+    void setPaddingL(const std::vector<ptrdiff_t> &_paddingL) { paddingL = _paddingL; }
+    void setPaddingR(const std::vector<ptrdiff_t> &_paddingR) { paddingR = _paddingR; }
+
+    std::vector<ptrdiff_t> getStride() { return stride; }
+    std::vector<ptrdiff_t> getDilation() { return dilation; }
+    std::vector<ptrdiff_t> getPaddingL() { return paddingL; }
+    std::vector<ptrdiff_t> getPaddingR() { return paddingR; }
+
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 

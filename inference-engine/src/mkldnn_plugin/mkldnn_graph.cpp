@@ -217,13 +217,10 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     std::map<std::shared_ptr<ngraph::Node>, MKLDNNNodePtr> op2node;
     std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
 
-    auto getParentPort = [](const std::shared_ptr<ngraph::Node> op, const std::shared_ptr<ngraph::Node> parentOp) -> int {
-        // TODO [NM]: do we have a better way how to determine parent port?
-        for (size_t port = 0; port < parentOp->get_output_size(); port++) {
-            auto outputs = parentOp->get_output_target_inputs(port);
-            for (auto& output : outputs) {
-                if (op == output.get_node()->shared_from_this())
-                    return static_cast<int>(port);
+    auto getParentPort = [](const std::shared_ptr<ngraph::Node> op, const std::shared_ptr<ngraph::Node> parentOp, const size_t port) -> int {
+        for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
+            if (op->input(port).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
+                return static_cast<int>(parentPort);
             }
         }
 
@@ -265,7 +262,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
             auto parentNode = op2node[parentOp];
 
-            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentPort(op, parentOp), static_cast<int>(port)));
+            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentPort(op, parentOp, port), static_cast<int>(port)));
             node->addEdge(edge);
             graphEdges.push_back(edge);
         }

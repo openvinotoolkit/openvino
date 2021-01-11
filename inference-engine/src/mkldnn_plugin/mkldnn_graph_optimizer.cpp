@@ -55,6 +55,7 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
 // TODO [NM]: transformation should be implemented w/o using of CNNLayer
 //    MergeTwoEqualScaleShifts(graph);
 //    graph.RemoveDroppedNodes();
+    Reshape1DConvolution(graph);
 
     FuseConvolutionAndBias(graph);
     graph.RemoveDroppedNodes();
@@ -140,12 +141,75 @@ void MKLDNNGraphOptimizer::ApplyImplSpecificGraphOptimizations(MKLDNNGraph &grap
     graph.RemoveDroppedEdges();
 }
 
+void MKLDNNGraphOptimizer::Reshape1DConvolution(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableNode = [](MKLDNNNodePtr node) {
+        return node->getType() == Convolution &&
+               node->getParentEdgesAtPort(0)[0]->getDims().ndims() == 3;
+    };
+
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto node = graphNodes[i];
+
+        if (!isSutableNode(node)) {
+            continue;
+        }
+
+        auto convNode = std::dynamic_pointer_cast<MKLDNNConvolutionNode>(node);
+        auto newStrides =  convNode->getStride();
+        auto newDilation = convNode->getDilation();
+        auto newPaddingL = convNode->getPaddingL();
+        auto newPaddingR = convNode->getPaddingR();
+        newStrides.insert(newStrides.begin(), 1);
+        newDilation.insert(newDilation.begin(), 1);
+        newPaddingL.insert(newPaddingL.begin(), 0);
+        newPaddingR.insert(newPaddingR.begin(), 0);
+        convNode->setStride(newStrides);
+        convNode->setDilation(newDilation);
+        convNode->setPaddingL(newPaddingL);
+        convNode->setPaddingR(newPaddingR);
+
+        const auto convName = node->getName();
+        auto inDimsData = node->getParentEdgesAtPort(0)[0]->getDims().ToSizeVector();
+        auto newDimsData = inDimsData;
+        newDimsData.insert(newDimsData.begin() + 2, 1);
+        const auto reshapeData = std::make_shared<MKLDNNReshapeNode>(inDimsData, newDimsData, node->getOriginalInputPrecisionAtPort(0),
+                                                                     convName + "/data_reshape", graph.getEngine(), graph.weightsCache);
+
+        auto inDimsWeight = node->getParentEdgesAtPort(1)[0]->getDims().ToSizeVector();
+        auto newDimsWeight = inDimsWeight;
+        newDimsWeight.insert(newDimsWeight.begin() + newDimsWeight.size() - 1, 1);
+        const auto reshapeWeight = std::make_shared<MKLDNNReshapeNode>(inDimsWeight, newDimsWeight, node->getOriginalInputPrecisionAtPort(1),
+                                                                       convName + "/weight_reshape", graph.getEngine(), graph.weightsCache);
+
+        graph.InsertNode(node->getParentEdgesAtPort(0)[0], reshapeData);
+        graph.InsertNode(node->getParentEdgesAtPort(1)[0], reshapeWeight);
+        node->inDims[0] = MKLDNNDims(newDimsData);
+        node->inDims[1] = MKLDNNDims(newDimsWeight);
+
+        auto outDims = node->getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
+        auto newOutDims = outDims;
+        newOutDims.insert(newOutDims.begin() + newOutDims.size() - 1, 1);
+        node->outDims[0] = MKLDNNDims(newOutDims);
+
+        auto childs = node->childEdges;
+        for (size_t i = 0; i < childs.size(); i++) {
+            const auto reshapeOutput = std::make_shared<MKLDNNReshapeNode>(newOutDims, outDims, node->getOriginalOutputPrecisionAtPort(0),
+                                                                           convName + "/out_" + std::to_string(i) + "_reshape", graph.getEngine(),
+                                                                           graph.weightsCache);
+            graph.InsertNode(childs[i].lock(), reshapeOutput);
+        }
+    }
+}
+
 void MKLDNNGraphOptimizer::FuseConvolutionAndBias(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
         return node->getType() == Convolution &&
                node->getChildEdges().size() == 1 &&
+               node->getParentEdges().size() == 2 &&
                node->getFusedWith().empty();
     };
 

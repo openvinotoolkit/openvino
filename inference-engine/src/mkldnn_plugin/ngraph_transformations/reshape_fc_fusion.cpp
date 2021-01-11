@@ -33,22 +33,40 @@ MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
             return false;
         }
 
+        ngraph::NodeVector new_ops;
+        auto weightInput = fc->input(1).get_source_output();
+        ngraph::Shape newWeightsShape;
+        const auto outShape = fc->get_shape();
+        if (shape_in.size() == 3) {
+            newWeightsShape = ngraph::Shape({outShape[2], shape_in[2]});
+        } else {
+            newWeightsShape.push_back(outShape[1]);
+            for (int i = 1; i < shape_in.size(); i++)
+                newWeightsShape.push_back(shape_in[i]);
+        }
+
+        if (newWeightsShape != weightInput.get_shape()) {
+            auto newShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{newWeightsShape.size()}, newWeightsShape);
+            weightInput = std::make_shared<ngraph::opset1::Reshape>(weightInput, newShape, true);
+            new_ops.push_back(weightInput.get_node_shared_ptr());
+        }
+
         std::shared_ptr<ngraph::Node> new_fc;
         if (fc->get_input_size() == 2) {
             new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape->input_value(0),
-                                                                        fc->input_value(1),
-                                                                        fc->get_shape(),
+                                                                        weightInput,
+                                                                        outShape,
                                                                         fc->output(0).get_element_type());
         } else if (fc->get_input_size() == 3) {
             new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape->input_value(0),
-                                                                        fc->input_value(1),
+                                                                        weightInput,
                                                                         fc->input_value(2),
-                                                                        fc->get_shape(),
+                                                                        outShape,
                                                                         fc->output(0).get_element_type());
         }
-
+        new_ops.push_back(new_fc);
         new_fc->set_friendly_name(fc->get_friendly_name());
-        ngraph::copy_runtime_info({reshape, fc}, new_fc);
+        ngraph::copy_runtime_info({reshape, fc}, new_ops);
         ngraph::replace_node(fc, new_fc);
         return true;
     };

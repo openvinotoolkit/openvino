@@ -133,6 +133,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
     std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
             {ngraph::element::i64,     ngraph::element::i32},

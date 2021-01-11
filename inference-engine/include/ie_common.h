@@ -488,7 +488,7 @@ struct NullStream {
     auto res = actual->function(&resp);                                                                     \
     if (res != OK) IE_EXCEPTION_SWITCH(res, ExceptionType,                                                  \
             InferenceEngine::details::ThrowNow<ExceptionType>{}                                             \
-                <<= std::stringstream{} << IE_LOCATION)
+                <<= std::stringstream{} << IE_LOCATION << resp.msg)
 
 /**
  * @private
