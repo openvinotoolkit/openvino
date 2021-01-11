@@ -244,6 +244,32 @@ public:
         CALL_STATUS_FNC(serialize, xmlPath, binPath);
     }
 
+    /**
+     * @brief Methods maps framework tensor name to OpenVINO name
+     *
+     * @param orig_name Framework tensor name
+     *
+     * @return OpenVINO name
+     */
+    std::string getOVNameForTensor(const std::string& orig_name) const {
+        std::string ov_name;
+        CALL_STATUS_FNC(getOVNameForTensor, ov_name, orig_name);
+        return ov_name;
+    }
+
+    /**
+     * @brief Methods maps framework operator name to OpenVINO name
+     *
+     * @param orig_name Framework operation name
+     *
+     * @return OpenVINO name
+     */
+    std::string getOVNameForOperation(const std::string& orig_name) const {
+        std::string ov_name;
+        CALL_STATUS_FNC(getOVNameForOperation, ov_name, orig_name);
+        return ov_name;
+    }
+
 protected:
     /**
      * @brief Network extra interface, might be nullptr

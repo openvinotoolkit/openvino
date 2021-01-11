@@ -171,6 +171,38 @@ public:
         noexcept = 0;
 
     /**
+     * @brief Methods maps framework tensor name to OpenVINO name
+     *
+     * @param ov_name OpenVINO name
+     * @param orig_name Framework tensor name
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     *
+     * @return Status code of the operation
+     */
+    virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+        (void) ov_name;
+        (void) orig_name;
+        (void) resp;
+        return NOT_IMPLEMENTED;
+    }
+
+    /**
+     * @brief Methods maps framework operation name to OpenVINO name
+     *
+     * @param ov_name OpenVINO name
+     * @param orig_name Framework operation name
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     *
+     * @return Status code of the operation
+     */
+    virtual StatusCode getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+        (void) ov_name;
+        (void) orig_name;
+        (void) resp;
+        return NOT_IMPLEMENTED;
+    }
+
+    /**
      * @brief A virtual destructor.
      */
     virtual ~ICNNNetwork();

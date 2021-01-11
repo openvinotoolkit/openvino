@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
@@ -38,6 +39,9 @@ namespace ngraph
         public:
             Tensor(const element::Type& element_type,
                    const PartialShape& pshape,
+                   std::vector<std::string> name);
+            Tensor(const element::Type& element_type,
+                   const PartialShape& pshape,
                    const std::string& name);
             Tensor(const element::Type& element_type,
                    const PartialShape& pshape,
@@ -45,7 +49,10 @@ namespace ngraph
                    size_t node_output_number);
 
             const std::string& get_name() const;
+            const std::vector<std::string>& get_names() const;
+            void set_names(const std::vector<std::string>& name);
             void set_name(const std::string& name);
+            void add_name(const std::string& name);
             void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
             void set_element_type(const element::Type& elemenet_type);
             void set_partial_shape(const PartialShape& partial_shape);
@@ -67,7 +74,7 @@ namespace ngraph
             Node* m_node{nullptr};
             size_t m_node_output_number{0};
 
-            std::string m_name;
+            std::vector<std::string> m_names;
         };
 
         NGRAPH_API

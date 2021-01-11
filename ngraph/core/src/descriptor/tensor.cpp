@@ -22,11 +22,18 @@ using namespace std;
 
 descriptor::Tensor::Tensor(const element::Type& element_type,
                            const PartialShape& pshape,
-                           const std::string& name)
+                           std::vector<std::string> names)
     : m_element_type(element_type)
     , m_shape(pshape.is_static() ? pshape.to_shape() : Shape{})
     , m_partial_shape(pshape)
-    , m_name(name)
+    , m_names(std::move(names))
+{
+}
+
+descriptor::Tensor::Tensor(const element::Type& element_type,
+                           const PartialShape& pshape,
+                           const std::string& name)
+    : Tensor(element_type, pshape, std::vector<std::string>{name})
 {
 }
 
@@ -42,9 +49,20 @@ descriptor::Tensor::Tensor(const element::Type& element_type,
 {
 }
 
+void descriptor::Tensor::add_name(const string& name)
+{
+    m_names.emplace_back(name);
+}
+
 void descriptor::Tensor::set_name(const string& name)
 {
-    m_name = name;
+    m_names.clear();
+    m_names.emplace_back(name);
+}
+
+void descriptor::Tensor::set_names(const std::vector<std::string>& names)
+{
+    m_names = names;
 }
 
 void descriptor::Tensor::set_tensor_type(const element::Type& element_type,
@@ -92,7 +110,14 @@ size_t descriptor::Tensor::size() const
 
 const std::string& descriptor::Tensor::get_name() const
 {
-    return m_name;
+    if (m_names.size() != 1)
+        throw ngraph_error("Tensor contains several names! Please use get_names() instead.");
+    return m_names[0];
+}
+
+const std::vector<std::string>& descriptor::Tensor::get_names() const
+{
+    return m_names;
 }
 
 ostream& operator<<(ostream& out, const descriptor::Tensor& tensor)
