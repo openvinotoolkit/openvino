@@ -1465,7 +1465,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"FakeQuantize"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+                                            const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "FakeQuantize", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::QuantizeLayer>(attrs);
         res->params = params;
@@ -1473,7 +1473,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"ConvolutionIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Convolution", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::ConvolutionLayer>(attrs);
         res->params = params;
@@ -1503,6 +1503,46 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
             }
         }
+        return res;
+    });
+
+    addSpecificCreator({"DeformableConvolution"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                     const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "DeformableConvolution", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::DeformableConvolutionLayer>(attrs);
+
+        res->params = params;
+
+        auto shape = node->get_input_shape(2);
+        std::string value;
+
+        res->params["output"] = Builder::asString(shape[0]);
+
+        for (size_t i = 2; i < shape.size(); i++) {
+            if (!value.empty()) value += ",";
+            value += Builder::asString(shape[i]);
+        }
+        res->params["kernel"] = value;
+
+        if (res->params["auto_pad"] == "explicit") {
+            res->params.erase("auto_pad");
+        }
+
+        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+
+        return res;
+    });
+
+    addSpecificCreator({"DeformablePSROIPooling"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                                                      const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "PSROIPooling", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        res->params["no_trans"] = node->get_input_size() == 2 ? "1" : "0";
+        // temporary workaround due to incorrect usage of group_size in the nGraph operation for the DeformablePSROIPooling
+        res->params["pooled_height"] = params.at("group_size");
+        res->params["pooled_width"] = params.at("group_size");
         return res;
     });
 
@@ -1548,13 +1588,10 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         };
         const static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformableConvolution>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformablePSROIPooling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Ceiling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::FullyConnected>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::MaxPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
