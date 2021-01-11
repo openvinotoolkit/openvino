@@ -33,7 +33,7 @@ list(REMOVE_ITEM PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/quant_conv.hpp
     )
 
-set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "")
+set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -57,22 +57,19 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph::builder)
-target_link_libraries(onnx_importer PUBLIC ngraph)
+target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph::builder
+                                    PUBLIC ngraph)
 
 set_target_properties(onnx_importer PROPERTIES
                       CXX_VISIBILITY_PRESET hidden
                       C_VISIBILITY_PRESET hidden
-                      VISIBILITY_INLINES_HIDDEN ON
-                      POSITION_INDEPENDENT_CODE ON)
+                      VISIBILITY_INLINES_HIDDEN ON)
+
 set(ONNX_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
                                                        $<INSTALL_INTERFACE:${ONNX_INSTALL_INCLUDE}>)
-target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH}/ngraph
+target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH}
         ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-target_include_directories(onnx_importer PRIVATE ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/core
-                                                 ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/op
-                                                 ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/utils)
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
@@ -80,13 +77,11 @@ if(NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(onnx_importer PRIVATE NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
+if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     target_compile_options(onnx_importer PRIVATE -Wno-undef -Wno-reserved-id-macro -Wno-switch-enum
             -Wno-invalid-offsetof -Wno-shorten-64-to-32 -Wno-unused-macros -Wno-missing-variable-declarations
             -Wno-unused-private-field -Wno-shadow -Wno-deprecated PUBLIC -Wno-undefined-func-template)
 endif()
-
-target_compile_definitions(onnx_importer PRIVATE ONNX_IMPORTER_DLL_EXPORTS)
 
 install(TARGETS onnx_importer EXPORT ngraphTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph

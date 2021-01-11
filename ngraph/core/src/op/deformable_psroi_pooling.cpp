@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "deformable_psroi_pooling.hpp"
+#include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "itt.hpp"
 
 using namespace std;
