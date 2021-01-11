@@ -17,12 +17,12 @@
 #include <string>
 #include <vector>
 
-#include "gru.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/gru.hpp"
 #include "onnx_import/utils/recurrent.hpp"
 
 namespace ngraph

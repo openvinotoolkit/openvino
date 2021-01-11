@@ -17,7 +17,7 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
-#include "conv_integer.hpp"
+#include "onnx_import/op/conv_integer.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset0.hpp"

@@ -18,12 +18,12 @@
 #include <memory>
 #include <vector>
 
-#include "conv.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/op/conv.hpp"
 #include "onnx_import/utils/convpool.hpp"
 #include "onnx_import/utils/reshape.hpp"
 

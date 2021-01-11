@@ -28,7 +28,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
-        if (!matmul || m_transformation_callback(matmul)) {
+        if (!matmul || transformation_callback(matmul)) {
             return false;
         }
 

@@ -16,7 +16,7 @@
 
 #include <cstdlib>
 
-#include "provenance.hpp"
+#include "ngraph/provenance.hpp"
 
 namespace ngraph
 {

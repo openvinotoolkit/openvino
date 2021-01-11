@@ -17,8 +17,8 @@
 #include <memory>
 #include <vector>
 
-#include "elu.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/elu.hpp"
 
 namespace ngraph
 {

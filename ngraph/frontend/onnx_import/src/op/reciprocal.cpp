@@ -19,7 +19,8 @@
 
 #include "ngraph/op/constant.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "reciprocal.hpp"
+#include "onnx_import/op/reciprocal.hpp"
+
 namespace ngraph
 {
     namespace onnx_import

@@ -17,7 +17,6 @@
 #include <cstddef>
 #include <memory>
 
-#include "instance_norm.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
@@ -29,6 +28,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/op/instance_norm.hpp"
 #include "onnx_import/utils/common.hpp"
 
 namespace ngraph

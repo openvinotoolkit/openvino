@@ -20,7 +20,7 @@
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
-#include "unsqueeze.hpp"
+#include "onnx_import/op/unsqueeze.hpp"
 
 namespace ngraph
 {

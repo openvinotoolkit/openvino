@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/specialize_function.hpp"
-#include <pass/constant_folding.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include "itt.hpp"
 #include "ngraph/op/assign.hpp"
 #include "ngraph/op/constant.hpp"

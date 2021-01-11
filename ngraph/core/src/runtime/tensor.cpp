@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "tensor.hpp"
+#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/type/element_type.hpp"

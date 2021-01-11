@@ -24,8 +24,8 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/topk.hpp"
 #include "onnx_import/utils/reshape.hpp"
-#include "topk.hpp"
 
 namespace
 {

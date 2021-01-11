@@ -17,9 +17,9 @@
 #include <cstring>
 #include <memory>
 
-#include "host_tensor.hpp"
 #include "ngraph/chrome_trace.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/util.hpp"
 
 using namespace ngraph;

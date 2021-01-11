@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "constant_folding.hpp"
-#include <ngraph/rt_info.hpp>
+#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/rt_info.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -15,9 +15,9 @@
 //*****************************************************************************
 
 #include "ngraph/op/assign.hpp"
-#include <ops.hpp>
 #include "itt.hpp"
 #include "ngraph/op/read_value.hpp"
+#include "ngraph/ops.hpp"
 
 using namespace std;
 using namespace ngraph;

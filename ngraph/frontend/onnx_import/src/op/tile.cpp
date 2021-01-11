@@ -18,7 +18,7 @@
 
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "tile.hpp"
+#include "onnx_import/op/tile.hpp"
 
 namespace ngraph
 {

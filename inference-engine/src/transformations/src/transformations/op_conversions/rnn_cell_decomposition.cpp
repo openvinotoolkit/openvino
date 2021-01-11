@@ -18,7 +18,7 @@ ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset4::RNNCell> (m.get_match_root());
-        if (!rnn_cell || m_transformation_callback(rnn_cell)) {
+        if (!rnn_cell || transformation_callback(rnn_cell)) {
             return false;
         }
         const Output<Node>& X = rnn_cell->input_value(0);

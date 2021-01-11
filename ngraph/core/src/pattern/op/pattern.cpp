@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <regex>
 
-#include "pattern.hpp"
+#include "ngraph/pattern/op/pattern.hpp"
 
 namespace ngraph
 {

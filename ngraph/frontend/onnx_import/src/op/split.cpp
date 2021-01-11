@@ -19,7 +19,7 @@
 
 #include "ngraph/builder/split.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "split.hpp"
+#include "onnx_import/op/split.hpp"
 
 namespace ngraph
 {

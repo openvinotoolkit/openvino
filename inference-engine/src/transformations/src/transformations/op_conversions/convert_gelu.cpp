@@ -18,7 +18,7 @@ ngraph::pass::ConvertGELU::ConvertGELU() {
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto gelu = std::dynamic_pointer_cast<ngraph::opset2::Gelu>(m.get_match_root());
-        if (!gelu || m_transformation_callback(gelu))
+        if (!gelu || transformation_callback(gelu))
             return false;
         auto input = gelu->input_value(0);
         auto input_type = input.get_element_type();

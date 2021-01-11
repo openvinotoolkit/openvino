@@ -19,9 +19,9 @@
 #include <memory>
 
 #include "ngraph/node.hpp"
+#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
-#include "tensor.hpp"
 
 namespace ngraph
 {

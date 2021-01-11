@@ -21,9 +21,9 @@
 #include <numeric>
 #include "itt.hpp"
 
-#include "depth_to_space.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
 
 #include "ngraph/runtime/opt_kernel/reshape.hpp"

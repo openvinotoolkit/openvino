@@ -106,9 +106,15 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
-if(NOT DEFINED CMAKE_BUILD_TYPE)
+if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
+else()
+    set(RELEASE_TYPES "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+    list(FIND RELEASE_TYPES ${CMAKE_BUILD_TYPE} INDEX_FOUND)
+    if (INDEX_FOUND EQUAL -1)
+        message(FATAL_ERROR "CMAKE_BUILD_TYPE must be one of Debug, Release, RelWithDebInfo, or MinSizeRel")
+    endif()
 endif()
 
 # allow to override default OUTPUT_ROOT root

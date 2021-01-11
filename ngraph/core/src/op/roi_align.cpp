@@ -14,12 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "roi_align.hpp"
+#include "ngraph/op/roi_align.hpp"
 #include "itt.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/roi_align.hpp"
-#include "util.hpp" // for host_tensor_2_vector
+#include "ngraph/util.hpp" // for host_tensor_2_vector
 
 using namespace std;
 using namespace ngraph;

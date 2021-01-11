@@ -20,7 +20,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/selu.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "selu.hpp"
+#include "onnx_import/op/selu.hpp"
 
 namespace ngraph
 {

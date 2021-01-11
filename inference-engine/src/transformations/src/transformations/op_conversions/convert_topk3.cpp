@@ -60,5 +60,7 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopK3");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

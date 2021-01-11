@@ -17,8 +17,8 @@
 #include <onnx/defs/function.h>
 #include <onnx/defs/schema.h>
 
-#include "model.hpp"
-#include "transform.hpp"
+#include "onnx_import/core/model.hpp"
+#include "onnx_import/core/transform.hpp"
 
 #include "ngraph/file_util.hpp"
 #include "onnx_import/ops_bridge.hpp"

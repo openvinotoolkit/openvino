@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "cosh.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/cosh.hpp"
 
 namespace ngraph
 {

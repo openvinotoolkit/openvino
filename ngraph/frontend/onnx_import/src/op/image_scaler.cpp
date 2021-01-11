@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "image_scaler.hpp"
+#include "onnx_import/op/image_scaler.hpp"
 #include "onnx_import/default_opset.hpp"
 
 namespace ngraph

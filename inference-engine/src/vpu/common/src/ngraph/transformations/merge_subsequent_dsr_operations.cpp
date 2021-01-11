@@ -31,7 +31,9 @@ MergeSubsequentDSROperations::MergeSubsequentDSROperations() : ngraph::pass::Gra
         ngraph::pattern::has_class<ngraph::vpu::op::DynamicShapeResolver>());
 
     const auto& matcher = std::make_shared<ngraph::pattern::Matcher>(label, "MergeSubsequentDSROperations");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     add_matcher(matcher, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace vpu

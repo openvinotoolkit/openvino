@@ -21,7 +21,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "operator_set.hpp"
+#include "onnx_import/core/operator_set.hpp"
 
 namespace ngraph
 {

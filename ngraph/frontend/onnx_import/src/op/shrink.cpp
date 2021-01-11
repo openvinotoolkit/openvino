@@ -18,7 +18,7 @@
 
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
-#include "shrink.hpp"
+#include "onnx_import/op/shrink.hpp"
 
 namespace ngraph
 {

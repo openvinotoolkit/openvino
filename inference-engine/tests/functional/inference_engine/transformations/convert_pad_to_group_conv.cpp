@@ -38,7 +38,9 @@ TEST(TransformationTests, ConvertPadToConv) {
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPadToGroupConvolution>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.set_callback(transformations_callback);
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -77,7 +79,9 @@ TEST(TransformationTests, ConvertPadToConvNeg1) {
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
+    NGRAPH_SUPPRESS_DEPRECATED_START
     manager.set_callback(transformations_callback);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));
@@ -105,7 +109,9 @@ TEST(TransformationTests, ConvertPadToConvNeg2) {
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
+    NGRAPH_SUPPRESS_DEPRECATED_START
     manager.set_callback(transformations_callback);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));
@@ -133,7 +139,9 @@ TEST(TransformationTests, ConvertPadToConvNeg3) {
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
+    NGRAPH_SUPPRESS_DEPRECATED_START
     manager.set_callback(transformations_callback);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));
@@ -162,7 +170,9 @@ TEST(TransformationTests, ConvertPadToConvNeg4) {
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
+    NGRAPH_SUPPRESS_DEPRECATED_START
     manager.set_callback(transformations_callback);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));

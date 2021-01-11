@@ -21,7 +21,7 @@
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "reverse_sequence.hpp"
+#include "onnx_import/op/reverse_sequence.hpp"
 
 namespace ngraph
 {

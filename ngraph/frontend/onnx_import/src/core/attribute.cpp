@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "attribute.hpp"
-#include "graph.hpp"
-#include "model.hpp"
+#include "onnx_import/core/attribute.hpp"
+#include "onnx_import/core/graph.hpp"
+#include "onnx_import/core/model.hpp"
 
 namespace ngraph
 {

@@ -18,7 +18,7 @@
 
 #include "ngraph/opsets/opset3.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "scatter_elements.hpp"
+#include "onnx_import/op/scatter_elements.hpp"
 
 namespace ngraph
 {

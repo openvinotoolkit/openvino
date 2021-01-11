@@ -16,7 +16,7 @@
 
 #include "ngraph/visibility.hpp"
 
-#ifdef IE_BACKEND_DLL_EXPORTS // defined if we are building the IE_BACKEND
+#ifdef ie_backend_EXPORTS // defined if we are building the ie_backend as shared library
 #define IE_BACKEND_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #define IE_BACKEND_API NGRAPH_HELPER_DLL_IMPORT

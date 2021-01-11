@@ -140,7 +140,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         }
         auto data_shape = data.get_shape();
 
-        if (m_transformation_callback(batch_to_space) && (data_shape.size() == 4 || data_shape.size() == 5)) {
+        if (transformation_callback(batch_to_space) && (data_shape.size() == 4 || data_shape.size() == 5)) {
             return false;
         }
         auto block = batch_to_space->input_value(1);

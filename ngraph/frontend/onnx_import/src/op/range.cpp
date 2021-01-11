@@ -17,7 +17,7 @@
 #include <memory>
 
 #include "onnx_import/default_opset.hpp"
-#include "round.hpp"
+#include "onnx_import/op/round.hpp"
 
 namespace ngraph
 {

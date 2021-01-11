@@ -22,7 +22,7 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     auto any_lstm = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_supported_lstm_cell);
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
-        if (!lstm_cell || m_transformation_callback(lstm_cell)) {
+        if (!lstm_cell || transformation_callback(lstm_cell)) {
             return false;
         }
         const Output<Node>& X = lstm_cell->input_value(0);

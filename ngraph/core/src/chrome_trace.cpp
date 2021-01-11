@@ -19,7 +19,7 @@
 #include <sstream>
 #include <string>
 
-#include "chrome_trace.hpp"
+#include "ngraph/chrome_trace.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 

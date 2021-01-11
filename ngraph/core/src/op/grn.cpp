@@ -17,7 +17,6 @@
 #include <iterator>
 #include "itt.hpp"
 
-#include "grn.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
@@ -26,6 +25,7 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/grn.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;

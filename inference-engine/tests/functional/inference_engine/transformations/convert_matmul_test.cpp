@@ -235,7 +235,9 @@ TEST(TransformationTests, ConvertMatMulTest7) {
             return false;
         };
 
+        NGRAPH_SUPPRESS_DEPRECATED_START
         m.set_callback(callback);
+        NGRAPH_SUPPRESS_DEPRECATED_END
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

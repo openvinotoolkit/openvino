@@ -18,7 +18,7 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
     auto gru_cell = ngraph::pattern::wrap_type<opset4::GRUCell>();
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto gru_cell = std::dynamic_pointer_cast<ngraph::opset4::GRUCell> (m.get_match_root());
-        if (!gru_cell || m_transformation_callback(gru_cell)) {
+        if (!gru_cell || transformation_callback(gru_cell)) {
             return false;
         }
 

@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "norm.hpp"
+#include "ngraph/builder/norm.hpp"
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"

@@ -24,7 +24,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "reshape.hpp"
+#include "onnx_import/utils/reshape.hpp"
 
 namespace ngraph
 {

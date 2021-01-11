@@ -18,8 +18,8 @@
 
 #include <cmath>
 #include <cstddef>
-#include <op/util/attr_types.hpp>
-#include <shape.hpp>
+#include <ngraph/op/util/attr_types.hpp>
+#include <ngraph/shape.hpp>
 
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 

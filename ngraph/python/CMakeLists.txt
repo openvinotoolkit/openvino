@@ -19,8 +19,8 @@ cmake_minimum_required (VERSION 3.13)
 project (pyngraph)
 
 if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage)
-    find_package(ngraph REQUIRED)    
+    find_package(InferenceEngineDeveloperPackage QUIET)
+    find_package(ngraph REQUIRED)
 endif()
 
 if(ngraph_FOUND)

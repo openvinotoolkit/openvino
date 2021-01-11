@@ -210,10 +210,13 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (ENABLE_MKL_DNN)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
+    list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
 endif()
+
 if (ENABLE_CLDNN)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
+    list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
@@ -381,6 +384,10 @@ target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
+
+if(UNIT_TESTS_DEPENDENCIES)
+    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
+endif()
 
 if(NGRAPH_ADDRESS_SANITIZER)
     add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)

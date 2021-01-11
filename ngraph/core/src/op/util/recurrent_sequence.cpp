@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "recurrent_sequence.hpp"
+#include "ngraph/op/util/recurrent_sequence.hpp"
 
 using namespace std;
 using namespace ngraph;

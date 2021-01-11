@@ -26,8 +26,8 @@
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/op/quantize_linear.hpp"
 #include "onnx_import/utils/reshape.hpp"
-#include "quantize_linear.hpp"
 
 namespace ngraph
 {

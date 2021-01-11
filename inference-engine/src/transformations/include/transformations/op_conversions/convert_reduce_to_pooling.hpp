@@ -86,7 +86,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
     return [&](ngraph::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
 
-        if (!reduce || m_transformation_callback(reduce)) {
+        if (!reduce || transformation_callback(reduce)) {
             return false;
         }
 

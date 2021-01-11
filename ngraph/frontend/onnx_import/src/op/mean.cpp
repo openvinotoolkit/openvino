@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "mean.hpp"
+#include "onnx_import/op/mean.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/utils/variadic.hpp"
 

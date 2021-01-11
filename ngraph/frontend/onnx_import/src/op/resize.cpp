@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "resize.hpp"
+#include "onnx_import/op/resize.hpp"
 #include <map>
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/default_opset.hpp"
