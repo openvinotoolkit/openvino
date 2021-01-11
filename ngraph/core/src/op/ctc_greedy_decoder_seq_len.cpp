@@ -59,12 +59,6 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     const bool logits_is_static_rank = logits_pshape.rank().is_static();
     const bool seq_len_is_static_rank = seq_len_pshape.rank().is_static();
 
-    // output dynamic rank tensor if all inputs are of dynamic rank
-    if (!logits_is_static_rank && !seq_len_is_static_rank)
-    {
-        set_output_type(0, input_et, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
-    }
-
     // check ranks of input tensors
     if (logits_is_static_rank)
     {
@@ -88,14 +82,18 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
                               "The blank index type is expected to be an integer type. Got: ",
                               blank_index_type);
 
-        const auto& blank_index_shape = get_input_partial_shape(2);
-        Shape blank_index_type_shape = blank_index_shape.to_shape();
+        const auto& blank_index_partial_shape = get_input_partial_shape(2);
+        NODE_VALIDATION_CHECK(this,
+                              blank_index_partial_shape.is_static(),
+                              "Expected static shape for the 'blank_index' input.");
+
+        Shape blank_index_shape = blank_index_partial_shape.to_shape();
         NODE_VALIDATION_CHECK(
             this,
-            blank_index_shape.is_dynamic() || ngraph::is_scalar(blank_index_type_shape) ||
-                (is_vector(blank_index_type_shape) && (blank_index_type_shape[0] == 1)),
+            blank_index_partial_shape.is_dynamic() || ngraph::is_scalar(blank_index_shape) ||
+                (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),
             "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
-            blank_index_type);
+            blank_index_partial_shape);
     }
 
     // validate input shapes and compute output shape
@@ -125,8 +123,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
         batch_size = seq_len_pshape[0];
     }
 
-    if (logits_is_static_rank && seq_len_is_static_rank &&
-        (logits_pshape[0] == Dimension::dynamic() && seq_len_pshape[0] == Dimension::dynamic()))
+    if (logits_is_static_rank && seq_len_is_static_rank)
     {
         batch_size = seq_len_pshape[0] & logits_pshape[0];
     }
