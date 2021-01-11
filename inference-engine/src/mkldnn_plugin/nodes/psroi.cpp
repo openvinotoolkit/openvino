@@ -102,10 +102,10 @@ public:
                 roi_width  = roi_end_w - roi_start_w;
                 roi_height = roi_end_h - roi_start_h;
             } else if (mode_ == "average") {
-                roi_start_w = round(bottom_rois[1] * spatial_scale_);
-                roi_start_h = round(bottom_rois[2] * spatial_scale_);
-                roi_end_w   = round(bottom_rois[3] * spatial_scale_) + 1.0f;
-                roi_end_h   = round(bottom_rois[4] * spatial_scale_) + 1.0f;
+                roi_start_w = static_cast<float>(round(bottom_rois[1])) * spatial_scale_;
+                roi_start_h = static_cast<float>(round(bottom_rois[2])) * spatial_scale_;
+                roi_end_w   = static_cast<float>(round(bottom_rois[3]) + 1.0f) * spatial_scale_;
+                roi_end_h   = static_cast<float>(round(bottom_rois[4]) + 1.0f) * spatial_scale_;
                 // Force too small ROIs to be 1x1
                 roi_width  = std::max<float>(roi_end_w - roi_start_w, 0.1f);  // avoid 0
                 roi_height = std::max<float>(roi_end_h - roi_start_h, 0.1f);
