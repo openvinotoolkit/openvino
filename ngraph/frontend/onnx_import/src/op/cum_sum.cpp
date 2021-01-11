@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "cum_sum.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/cum_sum.hpp"
 
 namespace ngraph
 {

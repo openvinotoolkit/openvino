@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "bucketize.hpp"
+#include "ngraph/op/bucketize.hpp"
 #include "itt.hpp"
 
 using namespace ngraph;
