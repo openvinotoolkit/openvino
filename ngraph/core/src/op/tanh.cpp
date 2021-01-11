@@ -36,11 +36,13 @@ op::Tanh::Tanh(const Output<Node>& arg)
 
 bool ngraph::op::v0::Tanh::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Tanh_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Tanh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Tanh>(new_args.at(0));
 }
@@ -76,9 +78,6 @@ namespace tanhop
 
 bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_Tanh_evaluate)
-    {
-        return tanhop::evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_Tanh_evaluate);
+    return tanhop::evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

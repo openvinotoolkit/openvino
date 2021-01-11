@@ -38,6 +38,7 @@ op::PriorBox::PriorBox(const Output<Node>& layer_shape,
 
 void op::PriorBox::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_PriorBox_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
@@ -85,6 +86,7 @@ void op::PriorBox::validate_and_infer_types()
 
 shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_PriorBox_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
 }
@@ -136,6 +138,7 @@ std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float
 
 bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_PriorBox_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("max_size", m_attrs.max_size);
     visitor.on_attribute("aspect_ratio", m_attrs.aspect_ratio);
@@ -192,9 +195,6 @@ namespace prior_box
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v0_PriorBox_evaluate)
-    {
-        return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v0_PriorBox_evaluate);
+    return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
