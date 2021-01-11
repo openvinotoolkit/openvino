@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/log.hpp"
@@ -645,6 +646,18 @@ bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
+}
+
+bool op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const
+{
+    evaluate(outputs, {});
+    get_output_tensor(0).set_lower_value(outputs[0]);
+    get_output_tensor(0).set_upper_value(outputs[0]);
+    return true;
+}
+bool op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const
+{
+    return evaluate_lower(outputs);
 }
 
 //

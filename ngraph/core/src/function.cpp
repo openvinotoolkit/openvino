@@ -42,7 +42,17 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    validate_nodes_and_infer_types();
+    for (auto& node : get_ordered_ops())
+    {
+        if (op::is_parameter(node))
+        {
+            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
+            if (it == m_parameters.end())
+            {
+                throw ngraph_error("Function references undeclared parameter");
+            }
+        }
+    }
 }
 
 Function::Function(const OutputVector& results,
@@ -54,7 +64,18 @@ Function::Function(const OutputVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    validate_nodes_and_infer_types();
+    for (auto& node : get_ordered_ops())
+    {
+        // If we find a parameter make sure it is in the list of parameters of the function
+        if (op::is_parameter(node))
+        {
+            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
+            if (it == m_parameters.end())
+            {
+                throw ngraph_error("Function references undeclared parameter");
+            }
+        }
+    }
 }
 
 Function::Function(const NodeVector& results,
@@ -66,7 +87,18 @@ Function::Function(const NodeVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    validate_nodes_and_infer_types();
+    for (auto& node : get_ordered_ops())
+    {
+        // If we find a parameter make sure it is in the list of parameters of the function
+        if (op::is_parameter(node))
+        {
+            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
+            if (it == m_parameters.end())
+            {
+                throw ngraph_error("Function references undeclared parameter");
+            }
+        }
+    }
 }
 
 Function::Function(const std::shared_ptr<Node>& result,
@@ -87,7 +119,18 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    validate_nodes_and_infer_types();
+    for (auto& node : get_ordered_ops())
+    {
+        // If we find a parameter make sure it is in the list of parameters of the function
+        if (op::is_parameter(node))
+        {
+            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
+            if (it == m_parameters.end())
+            {
+                throw ngraph_error("Function references undeclared parameter");
+            }
+        }
+    }
 }
 
 Function::Function(const OutputVector& results,

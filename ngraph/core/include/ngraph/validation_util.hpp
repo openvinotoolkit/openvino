@@ -226,6 +226,26 @@ namespace ngraph
                                    std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
                                    const OutputVector& outputs);
 
+    bool could_propagate(const Output<Node>& output, NodeVector& order);
+    HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper);
+    NGRAPH_API std::pair<HostTensorPtr, HostTensorPtr>
+        evaluate_both_bounds(const Output<Node>& output);
+    NGRAPH_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
+    NGRAPH_API HostTensorPtr evaluate_lower_bound(const Output<Node>& output);
+    NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<Node>& output);
+
+    bool default_bound_evaluator(const Node* node,
+                                 const HostTensorVector& output_values,
+                                 bool is_upper);
+    NGRAPH_API bool default_upper_bound_evaluator(const Node* node,
+                                                  const HostTensorVector& output_values);
+    NGRAPH_API bool default_lower_bound_evaluator(const Node* node,
+                                                  const HostTensorVector& output_values);
+    bool interval_bound_evaluator(const Node* node,
+                                  const HostTensorVector& lower_output_values,
+                                  const HostTensorVector& upper_output_values);
+    NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
+
     namespace opset1
     {
         ///

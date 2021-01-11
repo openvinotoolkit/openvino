@@ -27,6 +27,11 @@ namespace ngraph
 {
     class Node;
 
+    namespace runtime
+    {
+        class HostTensor;
+    }
+    using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
     namespace descriptor
     {
         /// \brief Compile-time descriptor of a first-class value that is a tensor.
@@ -49,10 +54,19 @@ namespace ngraph
             void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
             void set_element_type(const element::Type& elemenet_type);
             void set_partial_shape(const PartialShape& partial_shape);
+            void set_lower_value(const HostTensorPtr& value);
+            void set_upper_value(const HostTensorPtr& value);
+            void invalidate_values();
 
             const element::Type& get_element_type() const { return m_element_type; }
             const Shape& get_shape() const;
             const PartialShape& get_partial_shape() const { return m_partial_shape; }
+            HostTensorPtr get_lower_value() const { return m_lower_value; }
+            HostTensorPtr get_upper_value() const { return m_upper_value; }
+            bool has_and_set_bound() const
+            {
+                return m_upper_value != nullptr && m_upper_value == m_lower_value;
+            }
             size_t size() const;
 
         protected:
@@ -65,6 +79,7 @@ namespace ngraph
             Shape m_shape;
             PartialShape m_partial_shape;
             Node* m_node{nullptr};
+            HostTensorPtr m_lower_value, m_upper_value;
             size_t m_node_output_number{0};
 
             std::string m_name;

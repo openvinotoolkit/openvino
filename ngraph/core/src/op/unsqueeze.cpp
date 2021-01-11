@@ -157,6 +157,20 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
     return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }
 
+bool op::v0::Unsqueeze::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
+}
+
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values,
                                       const OutputVector& inputs_values)
 {

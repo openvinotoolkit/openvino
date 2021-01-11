@@ -63,6 +63,8 @@ namespace ngraph
                 void set_axis(int64_t axis) { m_axis = axis; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& output_values) const override;
+                bool evaluate_upper(const HostTensorVector& output_values) const override;
 
             protected:
                 /// \ brief m_axis stores default value for all iterations

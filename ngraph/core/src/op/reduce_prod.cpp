@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/reduce_prod.hpp"
+#include <ngraph/op/constant.hpp>
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -86,4 +88,26 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v1_ReduceProd_evaluate);
     return reduce_prod::evaluate_product(
         inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+}
+
+bool op::v1::ReduceProd::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+        return false;
+    HostTensorPtr lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(0));
+    if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::ReduceProd::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+        return false;
+    HostTensorPtr lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(0));
+    if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }

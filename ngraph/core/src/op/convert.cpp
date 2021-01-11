@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <memory>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/convert.hpp"
@@ -122,4 +123,14 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
 {
     NGRAPH_OP_SCOPE(v0_Convert_evaluate);
     return convert::evaluate_convert(input_values[0], output_values[0]);
+}
+
+bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const
+{
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) const
+{
+    return default_upper_bound_evaluator(this, output_values);
 }
