@@ -16,11 +16,11 @@
 
 #include <unordered_map>
 
-#include "convpool.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/utils/convpool.hpp"
 
 namespace ngraph
 {

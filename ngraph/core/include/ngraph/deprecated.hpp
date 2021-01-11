@@ -19,26 +19,21 @@
 //
 // The NGRAPH_DEPRECATED macro can be used to deprecate a function declaration. For example:
 //
-//     void frobnicate() NGRAPH_DEPRECATED("replace with groxify");
+//     NGRAPH_DEPRECATED("replace with groxify");
+//     void frobnicate()
 //
-// If nGraph was built with `-DNGRAPH_DEPRECATED_ENABLE=ON`, the macro will expand to a
-// deprecation attribute supported by the compiler, so any use of `frobnicate` will produce a
-// compiler warning. Otherwise, `NGRAPH_DEPRECATED` has no effect.
+// The macro will expand to a deprecation attribute supported by the compiler,
+// so any use of `frobnicate` will produce a compiler warning.
 //
-#ifdef NGRAPH_DEPRECATED_ENABLE
+
 #if defined(_WIN32)
 #define NGRAPH_DEPRECATED(msg) __declspec(deprecated(msg))
-#elif defined __INTEL_COMPILER
+#elif defined(__INTEL_COMPILER)
 #define NGRAPH_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #elif defined(__GNUC__)
 #define NGRAPH_DEPRECATED(msg) __attribute__((deprecated((msg))))
 #else
 #define NGRAPH_DEPRECATED(msg)
-#endif
-#define NGRAPH_DEPRECATED_DOC /// \deprecated
-#else
-#define NGRAPH_DEPRECATED(msg)
-#define NGRAPH_DEPRECATED_DOC
 #endif
 
 // Suppress warning "-Wdeprecated-declarations" / C4996

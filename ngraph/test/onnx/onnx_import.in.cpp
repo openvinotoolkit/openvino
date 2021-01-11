@@ -1122,21 +1122,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_resize10_import_only)
-{
-    const auto resize_fn = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize_opset10.prototxt"));
-
-    // Input data shape (1, 2, 3, 4)
-    // Scales input constant values {4, 3, 2, 1}
-
-    Shape expected_output_shape{4, 6, 6, 4};
-    EXPECT_EQ(resize_fn->get_output_size(), 1);
-    EXPECT_EQ(resize_fn->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<op::v0::Interpolate>(resize_fn), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(resize_fn), 1);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input)
 {
     // this model contains a Constant node with an empty underlying tensor
