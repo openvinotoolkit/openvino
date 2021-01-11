@@ -36,7 +36,9 @@ EliminateShapeOfAfterDSR::EliminateShapeOfAfterDSR() : GraphRewrite() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(shapeOfPattern, "EliminateShapeOfAfterDSR");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 } // namespace vpu

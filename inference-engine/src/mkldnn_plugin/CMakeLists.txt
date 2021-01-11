@@ -31,6 +31,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_rnn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_align_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_softmax_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
@@ -113,6 +114,7 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.cpp
         ${LAYERS}
         ${OS_SPECIFIC_SRC}
@@ -124,6 +126,7 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.h

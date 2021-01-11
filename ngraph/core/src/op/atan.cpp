@@ -45,6 +45,7 @@ op::Atan::Atan(const Output<Node>& arg)
 
 shared_ptr<Node> op::Atan::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Atan_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Atan>(new_args.at(0));
 }
@@ -66,20 +67,13 @@ namespace atanop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_atan, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_atan, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_atan, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_atan, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_atan, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_atan, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_atan, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -88,6 +82,6 @@ namespace atanop
 
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Atan::evaluate");
+    NGRAPH_OP_SCOPE(v0_Atan_evaluate);
     return atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

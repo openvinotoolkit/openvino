@@ -38,7 +38,7 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
 
     result << CPUTestsBase::getTestCaseName(cpuParams);
 
-    result << "axis=" << axis;
+    result << "_axis=" << axis;
 
     return result.str();
 }
