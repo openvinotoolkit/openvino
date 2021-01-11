@@ -9,9 +9,9 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastElementwiseFusion, "BroadcastElementwiseFusion", 0);
 
-bool is_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
-                            const ngraph::PartialShape & input_shape,
-                            const ngraph::PartialShape & broadcast_shape) {
+bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
+                             const ngraph::PartialShape & input_shape,
+                             const ngraph::PartialShape & broadcast_shape) {
     auto b = std::dynamic_pointer_cast<ngraph::op::util::BinaryElementwiseArithmetic>(eltwise.get_node_shared_ptr());
     if (!b || b->get_autob() == ngraph::op::AutoBroadcastSpec::NONE) {
         return false;
@@ -65,8 +65,8 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
         const auto & m_broadcast_input = pattern_value.at(broadcast_input);
         auto & m_broadcast = pattern_value.at(broadcast);
 
-        if (!is_eliminate_broadcast(m_eltwise, m_eltwise_input.get_partial_shape(),
-                                    m_broadcast.get_partial_shape())) {
+        if (!can_eliminate_broadcast(m_eltwise, m_eltwise_input.get_partial_shape(),
+                                     m_broadcast.get_partial_shape())) {
             return false;
         }
 
