@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "itt.hpp"
+
 #include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 
 using namespace std;
@@ -50,24 +52,27 @@ op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input
 
 void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_validate_and_infer_types);
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_len_pshape = get_input_partial_shape(1);
     auto input_et = get_input_element_type(0);
+    const bool logits_is_static_rank = logits_pshape.rank().is_static();
+    const bool seq_len_is_static_rank = seq_len_pshape.rank().is_static();
 
     // output dynamic rank tensor if all inputs are of dynamic rank
-    if (logits_pshape.rank().is_dynamic() && seq_len_pshape.rank().is_dynamic())
+    if (!logits_is_static_rank && !seq_len_is_static_rank)
     {
         set_output_type(0, input_et, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
     }
 
     // check ranks of input tensors
-    if (logits_pshape.rank().is_static())
+    if (logits_is_static_rank)
     {
         NODE_VALIDATION_CHECK(this,
                               logits_pshape.rank().get_length() == 3,
                               "The rank of logits tensor must be equal to 3.");
     }
-    if (seq_len_pshape.rank().is_static())
+    if (seq_len_is_static_rank)
     {
         NODE_VALIDATION_CHECK(this,
                               seq_len_pshape.rank().get_length() == 1,
@@ -97,7 +102,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     ngraph::Dimension batch_size = Dimension::dynamic();
     ngraph::Dimension time_size = Dimension::dynamic();
 
-    if (logits_pshape.rank().is_static())
+    if (logits_is_static_rank)
     {
         if (logits_pshape[0].is_static())
         {
@@ -109,7 +114,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
         }
     }
 
-    if (seq_len_pshape.rank().is_static() && seq_len_pshape[0].is_static())
+    if (seq_len_is_static_rank && seq_len_pshape[0].is_static())
     {
         if (batch_size != Dimension::dynamic())
         {
@@ -120,7 +125,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
         batch_size = seq_len_pshape[0];
     }
 
-    if (logits_pshape.rank().is_static() && seq_len_pshape.rank().is_static() &&
+    if (logits_is_static_rank && seq_len_is_static_rank &&
         (logits_pshape[0] == Dimension::dynamic() && seq_len_pshape[0] == Dimension::dynamic()))
     {
         batch_size = seq_len_pshape[0] & logits_pshape[0];
@@ -132,6 +137,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
 
 bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_visit_attributes);
     visitor.on_attribute("merge_repeated", m_merge_repeated);
     visitor.on_attribute("classes_index_type", m_classes_index_type);
     visitor.on_attribute("sequence_length_type", m_sequence_length_type);
@@ -141,6 +147,7 @@ bool op::v6::CTCGreedyDecoderSeqLen::visit_attributes(AttributeVisitor& visitor)
 shared_ptr<Node>
     op::v6::CTCGreedyDecoderSeqLen::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     size_t args_size = new_args.size();
