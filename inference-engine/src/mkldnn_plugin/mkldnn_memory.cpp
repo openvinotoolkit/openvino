@@ -682,14 +682,6 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     const size_t inner_ndims = blk_desc.inner_nblks;
     const size_t total_ndims = outer_ndims + inner_ndims;
 
-    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
-    std::vector<size_t> outer_order(outer_ndims);
-    std::iota(outer_order.begin(), outer_order.end(), 0);
-    std::sort(outer_order.begin(), outer_order.end(),
-              [&blk_desc] (size_t ind_l, size_t ind_r) {
-        return blk_desc.strides[ind_l] > blk_desc.strides[ind_r];
-    });
-
     // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
     std::vector<size_t> inner_strides(inner_ndims, 1);
     for (size_t i = 1; i < blk_desc.inner_nblks; i++) {
@@ -701,6 +693,19 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     for (int i = 0; i < inner_ndims; i++) {
         total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
     }
+    std::vector<size_t> outer_block_dims(std::begin(dims), std::begin(dims) + outer_ndims);
+    for (size_t i = 0; i < outer_block_dims.size(); i++) {
+        outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
+    }
+
+    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
+    std::vector<size_t> outer_order(outer_ndims);
+    std::iota(outer_order.begin(), outer_order.end(), 0);
+    std::sort(outer_order.begin(), outer_order.end(),
+              [&blk_desc, &outer_block_dims] (size_t ind_l, size_t ind_r) {
+        return (blk_desc.strides[ind_l] > blk_desc.strides[ind_r]) ||
+               (blk_desc.strides[ind_l] == blk_desc.strides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
+    });
 
     // IE blocked order
     // [new_outer_order] U [inner_idxs]
@@ -721,7 +726,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     std::copy(blk_desc.inner_blks, blk_desc.inner_blks + blk_desc.inner_nblks,
               ie_blk_dims.end() - blk_desc.inner_nblks);
     std::transform(outer_order.begin(), outer_order.end(), ie_blk_dims.begin(),
-                   [&] (size_t i) { return div_up(dims[i], total_block_per_dim[i]); });
+                   [&] (size_t i) { return outer_block_dims[i]; });
 
     // IE offset padded to data. Same as for oneDNN
     SizeVector ie_blk_offset_to_data {desc.data.padded_offsets, desc.data.padded_offsets + desc.data.ndims};

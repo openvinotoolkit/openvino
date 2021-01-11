@@ -43,8 +43,10 @@ MKLDNNPlugin::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
             }
         }
 
-        if (num_of_tile_dims < 2)
-            return false;
+        if (num_of_tile_dims == 0) {
+            ngraph::replace_node(tile, {last_node});
+            return true;
+        }
 
         // Will generate sequence of Tile operations if num_of_tile_dims != 1
         // because IE Tile operations supports only one axis to be tiled.
