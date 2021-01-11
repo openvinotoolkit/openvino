@@ -23,6 +23,9 @@
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
 #include <openvino/itt.hpp>
+#include <cpp_interfaces/exception2status.hpp>
+#include "utils/ngraph_utils.hpp"
+#include <ngraph/ops.hpp>
 #include <ngraph/node.hpp>
 
 namespace MKLDNNPlugin {
@@ -30,6 +33,7 @@ namespace MKLDNNPlugin {
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
+// TODO [NM]: move into separate header
 enum Type {
     Unknown,
     Generic,
@@ -43,7 +47,7 @@ enum Type {
     Lrn,
     Pooling,
     FullyConnected,
-    SoftMax,
+    Softmax,
     Split,
     Concatenation,
     Eltwise,
@@ -88,7 +92,69 @@ enum Type {
     ReduceProd,
     ReduceSum,
     ReduceSumSquare,
+    Reference,
     Roll
+};
+
+enum Algorithm {
+    Undefined,
+
+    // Pooling algorithms
+    PoolingMax,
+    PoolingAvg,
+
+    // Convolution algorithms
+    ConvolutionCommon,
+    ConvolutionGrouped,
+
+    // Convolution algorithms
+    DeconvolutionCommon,
+    DeconvolutionGrouped,
+
+    // Elementwise algorithms
+    EltwiseAdd,
+    EltwiseMultiply,
+    EltwiseSubtract,
+    EltwiseDivide,
+    EltwiseFloorMod,
+    EltwiseMod,
+    EltwiseMaximum,
+    EltwiseMinimum,
+    EltwiseSquaredDifference,
+    EltwisePowerDynamic,
+    EltwisePowerStatic,
+    EltwiseMulAdd,
+    EltwiseEqual,
+    EltwiseNotEqual,
+    EltwiseGreater,
+    EltwiseGreaterEqual,
+    EltwiseLess,
+    EltwiseLessEqual,
+    EltwiseLogicalAnd,
+    EltwiseLogicalOr,
+    EltwiseLogicalXor,
+    EltwiseLogicalNot,
+    EltwiseRelu,
+    EltwiseGelu,
+    EltwiseElu,
+    EltwiseTanh,
+    EltwiseSigmoid,
+    EltwiseSquare, // TODO [NM]: looks like unused - remove
+    EltwiseAbs,
+    EltwiseSqrt,
+    EltwiseLinear, // TODO [NM]: looks like unused - remove
+    EltwiseBoundedRelu, // TODO [NM]: looks like unused - remove
+    EltwiseSoftRelu, // TODO [NM]: looks like unused - remove
+    EltwiseRelu6, // TODO [NM]: looks like unused - remove
+    EltwiseExp,
+    EltwiseClamp,
+    EltwiseSwish,
+    EltwisePrelu,
+    EltwiseMish,
+    EltwiseHswish,
+    EltwiseHsigmoid,
+    EltwiseRoundHalfToEven,
+    EltwiseRoundHalfAwayFromZero
 };
 
 Type TypeFromName(const std::string type);
@@ -117,8 +183,8 @@ static std::string NameFromType(Type type) {
             return "FullyConnected";
         case Gemm:
             return "Gemm";
-        case SoftMax:
-            return "SoftMax";
+        case Softmax:
+            return "Softmax";
         case Split:
             return "Split";
         case Concatenation:
@@ -343,8 +409,15 @@ public:
 
     bool isFusedWith(Type type) const;
 
-    void fuseWith(const MKLDNNNodePtr &fuse) {
-        fusedWith.push_back(fuse);
+    void fuseWith(const MKLDNNNodePtr &fusingNode) {
+        fusedWith.push_back(fusingNode);
+
+        for (int i = 0; i< inDims.size(); i++) {
+            if (fusingNode->getParentEdgesAtPort(i)[0]->getParent().get() == this) {
+                setFusingPort(i);
+                break;
+            }
+        }
     }
 
     void clearFusedWith() {
@@ -355,7 +428,7 @@ public:
         mergedWith.push_back(merge);
     }
 
-    void addOriginalLayer(const InferenceEngine::CNNLayerPtr &layer);
+    void addOriginalLayer(const std::string& layerName);
 
     const std::vector <MKLDNNNodePtr> &getMergeWith() {
         return mergedWith;
@@ -363,6 +436,14 @@ public:
 
     const std::vector <MKLDNNNodePtr> &getFusedWith() {
         return fusedWith;
+    }
+
+    int getFusingPort() const {
+        return fusingPort;
+    }
+
+    void setFusingPort(int fusingPort) {
+        this->fusingPort = fusingPort;
     }
 
     const std::string getName() const {
@@ -377,9 +458,9 @@ public:
         return type;
     }
 
-    const InferenceEngine::CNNLayerPtr &getCnnLayer() const {
-        return cnnLayer;
-    }
+//    const InferenceEngine::CNNLayerPtr &getCnnLayer() const {
+//        return cnnLayer;
+//    }
 
     const std::vector<PrimitiveDescInfo>& getSupportedPrimitiveDescriptors() const {
         return supportedPrimitiveDescriptors;
@@ -493,15 +574,6 @@ public:
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    static void invertVectorCopyUtoI(const InferenceEngine::PropertyVector<unsigned int>& src, std::vector<ptrdiff_t>& dst) {
-        dst.clear();
-        for (int i = 1; i <= src.size(); i++) {
-            dst.push_back(static_cast<ptrdiff_t>(src[src.size() - i]));
-        }
-    }
-
-    std::vector<MKLDNNDims> inDims;
-
     int getExecIndex() const {
         return execIndex;
     }
@@ -532,9 +604,26 @@ public:
      */
     virtual InferenceEngine::Precision getRuntimePrecision() const;
 
+    const std::vector<InferenceEngine::Precision>& getOriginalInputPrecisions() const {
+        return originalInputPrecisions;
+    }
+    const std::vector<InferenceEngine::Precision>& getOriginalOutputPrecisions() const {
+        return originalOutputPrecisions;
+    }
+
+    size_t getOriginalInputsNumber() const {
+        return originalInputsNumber;
+    }
+
+    std::string getOriginalName() const {
+        return originalName;
+    }
+
+    Algorithm getAlgorithm() const {
+        return algorithm;
+    }
+
 protected:
-    // TODO: It is necessary only in order to avoid modifications of cnnLayers and original topology
-    std::vector<MKLDNNDims> outDims;
     void setType(Type type) {
         this->type = type;
     }
@@ -559,6 +648,9 @@ protected:
             GetPrimitiveMemoryFormatFunc;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
+    std::vector<MKLDNNDims> inDims;
+    std::vector<MKLDNNDims> outDims;
+
     std::vector <MKLDNNNodePtr> fusedWith;
     std::vector <MKLDNNNodePtr> mergedWith;
     std::vector <impl_desc_type> implPriorities;
@@ -567,7 +659,8 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache);
+    MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache);
+    MKLDNNNode(const std::string& type, const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
@@ -589,6 +682,8 @@ protected:
     InferenceEngine::Blob::Ptr ext_scales;
     MKLDNNWeightsSharing::Ptr weightCache;
 
+    Algorithm algorithm;
+
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
     friend class MKLDNNGraphOptimizer;
@@ -604,7 +699,7 @@ protected:
     virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims& dims) const;
     int batchToProcess();
 
-    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, bool weights, bool is_grouped = false);
+//    InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, bool weights, bool is_grouped = false);
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
 
@@ -624,7 +719,13 @@ private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
 
-    InferenceEngine::CNNLayerPtr cnnLayer;
+    std::string originalName;
+    size_t originalInputsNumber;
+    std::vector<InferenceEngine::Precision> originalInputPrecisions;
+    std::vector<InferenceEngine::Precision> originalOutputPrecisions;
+
+    int fusingPort;
+
     mkldnn::engine engine;
 
     std::string name;
@@ -660,21 +761,21 @@ private:
 };
 
 class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
-                                            MKLDNNNode*(const InferenceEngine::CNNLayerPtr&,
+                                            MKLDNNNode*(const std::shared_ptr<ngraph::Node>& op,
                                                         const mkldnn::engine &,
                                                         MKLDNNWeightsSharing::Ptr &)> {
 public:
     NodesFactory()
         : Factory("NodesFactory") {}
 
-    MKLDNNNode* create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+    MKLDNNNode* create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
 };
 
 template<typename MKLDNNNodeType>
 struct MKLDNNNodeImpl : public MKLDNNNodeType {
-    MKLDNNNodeImpl(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNodeType(layer, eng, cache) {
+    MKLDNNNodeImpl(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNodeType(op, eng, cache) {
         MKLDNNNodeType::perfCounters().template buildClassCounters<MKLDNNNodeType>(NameFromType(MKLDNNNodeType::getType()));
     }
 };

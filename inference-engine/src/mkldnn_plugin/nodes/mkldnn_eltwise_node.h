@@ -15,55 +15,6 @@ namespace MKLDNNPlugin {
 
 #define MAX_ELTWISE_INPUTS 7
 
-enum EltwiseOpType {
-    Add = 0,
-    Multiply,
-    Subtract,
-    Divide,
-    FloorMod,
-    Mod,
-    Maximum,
-    Minimum,
-    SquaredDifference,
-    PowerDynamic,
-    PowerStatic,
-    MulAdd,
-
-    Equal,
-    NotEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
-
-    LogicalAnd,
-    LogicalOr,
-    LogicalXor,
-    LogicalNot,
-
-    Relu,
-    Gelu,
-    Elu,
-    Tanh,
-    Logistic,
-    Square,
-    Abs,
-    Sqrt,
-    Linear,
-    BoundedRelu,
-    SoftRelu,
-    Relu6,
-    Exp,
-    Clamp,
-    Swish,
-    Prelu,
-    Mish,
-    Hswish,
-    Hsigmoid,
-    Round,
-    Erf
-};
-
 struct jit_eltwise_params {
     size_t inputs_number;
     size_t input_size;
@@ -108,7 +59,7 @@ struct jit_uni_eltwise_kernel {
 
 class MKLDNNEltwiseNode : public MKLDNNNode {
 public:
-    MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNEltwiseNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -120,14 +71,12 @@ public:
     bool created() const override;
     bool canBeInPlace() const override;
 
-    bool isSum();
     bool isWithBroadcast();
 
     bool canFuse(const MKLDNNNodePtr& node) const;
 
     size_t getOpInputsNum() const;
-    EltwiseOpType getOpType() const { return eltwiseOp; }
-    mkldnn::algorithm getAlgorithm() const { return eltwiseAlgorithm; }
+    mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
@@ -137,10 +86,7 @@ public:
     InferenceEngine::Precision getRuntimePrecision() const override;
 
 private:
-    void init() override;
-
-    EltwiseOpType eltwiseOp = Add;
-    mkldnn::algorithm eltwiseAlgorithm = mkldnn::algorithm::undef;
+    mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
     std::shared_ptr<jit_uni_eltwise_kernel> eltwise_kernel = nullptr;
     jit_eltwise_params jep = {};
@@ -174,8 +120,7 @@ private:
     void offset_out_calc(std::vector<size_t>& offset, std::vector<size_t>& dims);
     void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);
 
-    static InferenceEngine::details::caseless_map<std::string,
-        std::function<void(InferenceEngine::GenericLayer*, EltwiseOpType&, mkldnn::algorithm&, float&, float&)>> initializers;
+    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
 };
 
 }  // namespace MKLDNNPlugin

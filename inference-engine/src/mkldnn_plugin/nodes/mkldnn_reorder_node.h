@@ -14,7 +14,10 @@ namespace MKLDNNPlugin {
 
 class MKLDNNReorderNode : public MKLDNNNode {
 public:
-    MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    // TODO [NM]: do we need ngraph::Node based ctor at all?
+    MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+
     ~MKLDNNReorderNode() override = default;
 
     void getSupportedDescriptors() override;

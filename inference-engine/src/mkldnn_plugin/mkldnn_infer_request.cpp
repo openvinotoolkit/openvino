@@ -48,16 +48,17 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     if (execNetwork->_numRequests > 1 || execNetwork->QueryState().size() == 0) {
         for (auto &node : graph->GetNodes()) {
             if (node->getType() == MemoryInput) {
-                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-                auto state_store = memoryNode->getStore();
-                auto state_name = memoryNode->getId();
-
-                // Remove suffix with pair ID. Internal information.
-                auto suffix_idx = state_name.find("/id=");
-                if (suffix_idx != std::string::npos)
-                    state_name = state_name.substr(0, suffix_idx);
-
-                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
+                THROW_IE_EXCEPTION << "[NM] Not implemented";
+//                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+//                auto state_store = memoryNode->getStore();
+//                auto state_name = memoryNode->getId();
+//
+//                // Remove suffix with pair ID. Internal information.
+//                auto suffix_idx = state_name.find("/id=");
+//                if (suffix_idx != std::string::npos)
+//                    state_name = state_name.substr(0, suffix_idx);
+//
+//                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
            }
         }
     } else {
@@ -143,41 +144,45 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::PushStates() {
-    for (auto &node : graph->GetNodes()) {
-        if (node->getType() == MemoryInput) {
-            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-            auto cur_id = cur_node->getId();
-            for (const auto& state : memoryStates) {
-                if (state->GetName() == cur_id) {
-                    auto cur_state_mem = cur_node->getStore();
-                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
-                    auto data_size = state->GetState()->byteSize();
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
-
-                    cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
-                }
-            }
-        }
-    }
+    THROW_IE_EXCEPTION << "Not implemented";
+    // TODO [NM]: disabled until MKLDNNMemoryInputNode is not migrated on ngraph
+//    for (auto &node : graph->GetNodes()) {
+//        if (node->getType() == MemoryInput) {
+//            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+//            auto cur_id = cur_node->getId();
+//            for (const auto& state : memoryStates) {
+//                if (state->GetName() == cur_id) {
+//                    auto cur_state_mem = cur_node->getStore();
+//                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
+//                    auto data_size = state->GetState()->byteSize();
+//                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+//
+//                    cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
+//                }
+//            }
+//        }
+//    }
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
-    for (auto &node : graph->GetNodes()) {
-        if (node->getType() == MemoryInput) {
-            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-            auto cur_id = cur_node->getId();
-            for (const auto& state : memoryStates) {
-                if (state->GetName() == cur_id) {
-                    auto cur_state_mem = cur_node->getStore();
-                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
-                    auto data_size = state->GetState()->byteSize();
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
-
-                    cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
-                }
-            }
-        }
-    }
+    THROW_IE_EXCEPTION << "Not implemented";
+    // TODO [NM]: disabled until MKLDNNMemoryInputNode is not migrated on ngraph
+//    for (auto &node : graph->GetNodes()) {
+//        if (node->getType() == MemoryInput) {
+//            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+//            auto cur_id = cur_node->getId();
+//            for (const auto& state : memoryStates) {
+//                if (state->GetName() == cur_id) {
+//                    auto cur_state_mem = cur_node->getStore();
+//                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
+//                    auto data_size = state->GetState()->byteSize();
+//                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+//
+//                    cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
+//                }
+//            }
+//        }
+//    }
 }
 
 
@@ -274,7 +279,8 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             return data;
         }
 
-        InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
+        InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();//blobs[name]->getTensorDesc();
+        InferenceEngine::Precision originPrecision = blobs[name]->getTensorDesc().getPrecision();
 
         // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
         // in situation if we push output blobs as inputs for next network (in Hetero plugin)
@@ -285,7 +291,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
         _outputs[name] = make_blob_with_precision(desc);
         _outputs[name]->allocate();
-        if (desc.getPrecision() == InferenceEngine::Precision::FP32 && !graph->getProperty().batchLimit) {
+        if (desc.getPrecision() == originPrecision && !graph->getProperty().batchLimit) {
             externalPtr[name] = _outputs[name]->buffer();
         }
         data = _outputs[name];
@@ -398,8 +404,8 @@ static inline void changeEdgePtr(const MKLDNNPlugin::MKLDNNEdgePtr &edge, void *
 
 void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
     for (auto& it : externalPtr) {
-        auto input = graph->inputNodes.find(it.first);
-        if (input != graph->inputNodes.end()) {
+        auto input = graph->inputNodesMap.find(it.first);
+        if (input != graph->inputNodesMap.end()) {
             if (input->second->getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle() == it.second)
                 continue;
             // Input cannot be in-place with other primitives
@@ -432,9 +438,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
         }
 
         MKLDNNNodePtr output;
-        for (auto& out : graph->outputNodes) {
-            if (out->getName() == "out_" + it.first) {
-                output = out;
+        for (auto& out : graph->outputNodesMap) {
+            if (out.first == it.first) {
+                output = out.second;
                 break;
             }
         }

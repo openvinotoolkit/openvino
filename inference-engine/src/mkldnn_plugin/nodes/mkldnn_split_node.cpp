@@ -4,8 +4,6 @@
 
 #include "mkldnn_split_node.h"
 #include "common/cpu_memcpy.h"
-#include "common/tensor_desc_creator.h"
-#include <legacy/ie_layers.h>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -21,19 +19,20 @@ MKLDNNSplitNode::MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, cons
         MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNSplitNode::getSupportedDescriptors() {
-    auto splitLayer = dynamic_cast<SplitLayer*>(getCnnLayer().get());
-
-    if (splitLayer == nullptr)
-        THROW_ERROR << "can not convert from CNN layer.";
-
-    if (getParentEdges().size() != 1)
-        THROW_ERROR << "has incorrect number of input nodes.";
-    if (getChildEdges().empty())
-        THROW_ERROR << "has incorrect number of output nodes.";
-
-    axis = splitLayer->_axis;
-    if (axis >= getParentEdgeAt(0)->getDims().ndims())
-        THROW_ERROR << "has invalid value of axis parameter.";
+    THROW_IE_EXCEPTION << "[NM] Not implemented";
+//    auto splitLayer = dynamic_cast<SplitLayer*>(getCnnLayer().get());
+//
+//    if (splitLayer == nullptr)
+//        THROW_ERROR << "can not convert from CNN layer.";
+//
+//    if (getParentEdges().size() != 1)
+//        THROW_ERROR << "has incorrect number of input nodes.";
+//    if (getChildEdges().empty())
+//        THROW_ERROR << "has incorrect number of output nodes.";
+//
+//    axis = splitLayer->_axis;
+//    if (axis >= getParentEdgeAt(0)->getDims().ndims())
+//        THROW_ERROR << "has invalid value of axis parameter.";
 }
 
 void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
@@ -270,66 +269,67 @@ bool MKLDNNSplitNode::isOptimized() {
 }
 
 void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
-    if (!isOptimized()) {
-        MKLDNNNode::initOptimalPrimitiveDescriptor();
-        return;
-    }
-
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        THROW_ERROR << "Preferable primitive descriptor is not set.";
-    auto config = selected_pd->getConfig();
-    if (isInitConfig(config))
-        return;
-
-    for (size_t i = 0; i < config.inConfs.size(); i++) {
-        if (config.inConfs[i].desc.getLayout() == InferenceEngine::Layout::ANY ||
-            !isUninitTensorDesc(config.inConfs[i].desc))
-            continue;
-
-        int num = getParentEdgeAt(i)->getOutputNum();
-        if (getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()) {
-            if (num >= 0) {
-                if (isUninitTensorDesc(getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].desc) &&
-                        getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].inPlace >= 0)
-                    getParentEdgeAt(i)->getParent()->initOptimalPrimitiveDescriptor();
-                if (!isUninitTensorDesc(getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].desc) &&
-                    MKLDNNExtensionUtils::initTensorsAreEqual(
-                            getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].desc,
-                            config.inConfs[i].desc)) {
-                    config.inConfs[i].desc = getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].desc;
-                    continue;
-                }
-            }
-        }
-        config.inConfs[i].desc = InferenceEngine::TensorDesc(config.inConfs[i].desc.getPrecision(),
-                                                              config.inConfs[i].desc.getDims(), {
-                                                                      config.inConfs[i].desc.getBlockingDesc().getBlockDims(),
-                                                                      config.inConfs[i].desc.getBlockingDesc().getOrder()
-                                                              });
-    }
-    const auto& cnnLayer = getCnnLayer();
-    if (!cnnLayer)
-        THROW_ERROR << "cannot be created without CNNLayer!";
-    if (config.outConfs.size() != outDims.size())
-        THROW_ERROR << "has invalid config";
-    size_t offset = 0;
-    for (size_t i = 0; i < cnnLayer->outData.size(); i++) {
-        config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
-                                                              config.outConfs[i].desc.getDims(), {
-                                                                      config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
-                                                                      config.outConfs[i].desc.getBlockingDesc().getOrder(),
-                                                                      config.inConfs[0].desc.getBlockingDesc().getOffsetPadding() + offset,
-                                                                      config.inConfs[0].desc.getBlockingDesc().getOffsetPaddingToData(),
-                                                                      config.inConfs[0].desc.getBlockingDesc().getStrides()
-                                                              });
-        size_t axisSize = 1;
-        for (size_t j = axis; j < config.outConfs[i].desc.getBlockingDesc().getBlockDims().size(); j++) {
-            axisSize *= config.outConfs[i].desc.getBlockingDesc().getBlockDims()[j];
-        }
-        offset += axisSize;
-    }
-    initDescriptor(config);
+    THROW_IE_EXCEPTION << "[NM] Not implemented";
+//    if (!isOptimized()) {
+//        MKLDNNNode::initOptimalPrimitiveDescriptor();
+//        return;
+//    }
+//
+//    auto selected_pd = getSelectedPrimitiveDescriptor();
+//    if (selected_pd == nullptr)
+//        THROW_ERROR << "Preferable primitive descriptor is not set.";
+//    auto config = selected_pd->getConfig();
+//    if (isInitConfig(config))
+//        return;
+//
+//    for (size_t i = 0; i < config.inConfs.size(); i++) {
+//        if (config.inConfs[i].desc.getLayout() == InferenceEngine::Layout::ANY ||
+//            !isUninitTensorDesc(config.inConfs[i].desc))
+//            continue;
+//
+//        int num = getParentEdgeAt(i)->getOutputNum();
+//        if (getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()) {
+//            if (num >= 0) {
+//                if (isUninitTensorDesc(getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].desc) &&
+//                        getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].inPlace >= 0)
+//                    getParentEdgeAt(i)->getParent()->initOptimalPrimitiveDescriptor();
+//                if (!isUninitTensorDesc(getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].desc) &&
+//                    MKLDNNExtensionUtils::initTensorsAreEqual(
+//                            getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].desc,
+//                            config.inConfs[i].desc)) {
+//                    config.inConfs[i].desc = getParentEdgeAt(i)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num].desc;
+//                    continue;
+//                }
+//            }
+//        }
+//        config.inConfs[i].desc = InferenceEngine::TensorDesc(config.inConfs[i].desc.getPrecision(),
+//                                                              config.inConfs[i].desc.getDims(), {
+//                                                                      config.inConfs[i].desc.getBlockingDesc().getBlockDims(),
+//                                                                      config.inConfs[i].desc.getBlockingDesc().getOrder()
+//                                                              });
+//    }
+//    const auto& cnnLayer = getCnnLayer();
+//    if (!cnnLayer)
+//        THROW_ERROR << "cannot be created without CNNLayer!";
+//    if (config.outConfs.size() != outDims.size())
+//        THROW_ERROR << "has invalid config";
+//    size_t offset = 0;
+//    for (size_t i = 0; i < cnnLayer->outData.size(); i++) {
+//        config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
+//                                                              config.outConfs[i].desc.getDims(), {
+//                                                                      config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
+//                                                                      config.outConfs[i].desc.getBlockingDesc().getOrder(),
+//                                                                      config.inConfs[0].desc.getBlockingDesc().getOffsetPadding() + offset,
+//                                                                      config.inConfs[0].desc.getBlockingDesc().getOffsetPaddingToData(),
+//                                                                      config.inConfs[0].desc.getBlockingDesc().getStrides()
+//                                                              });
+//        size_t axisSize = 1;
+//        for (size_t j = axis; j < config.outConfs[i].desc.getBlockingDesc().getBlockDims().size(); j++) {
+//            axisSize *= config.outConfs[i].desc.getBlockingDesc().getBlockDims()[j];
+//        }
+//        offset += axisSize;
+//    }
+//    initDescriptor(config);
 }
 
 void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {

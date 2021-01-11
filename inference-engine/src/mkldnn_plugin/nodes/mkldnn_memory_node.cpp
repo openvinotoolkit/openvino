@@ -14,8 +14,8 @@ using namespace InferenceEngine;
 
 std::mutex MKLDNNMemoryNodeVirtualEdge::holderMutex;
 
-MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) , MKLDNNMemoryNode(layer) {
+MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) , MKLDNNMemoryNode(op) {
     if (created()) {
         holder = MKLDNNMemoryNodeVirtualEdge::registerOutput(this);
     }
@@ -50,8 +50,8 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
     inputMemoryNode->storeState(srcMemory);
 }
 
-MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNInputNode(layer, eng, cache), MKLDNNMemoryNode(layer), dataStore(new MKLDNNMemory{eng}) {
+MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNInputNode(op, eng, cache), MKLDNNMemoryNode(layer), dataStore(new MKLDNNMemory{eng}) {
     if (created()) {
         holder = MKLDNNMemoryNodeVirtualEdge::registerInput(this);
     }

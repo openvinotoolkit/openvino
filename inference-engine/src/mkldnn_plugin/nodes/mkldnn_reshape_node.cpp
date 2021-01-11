@@ -3,7 +3,6 @@
 //
 
 #include "mkldnn_reshape_node.h"
-#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -12,8 +11,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNReshapeNode::MKLDNNReshapeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {}
 
 void MKLDNNReshapeNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
@@ -26,9 +25,9 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+    InferenceEngine::Precision precision = getOriginalInputPrecisions()[0];
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
+    precision = getOriginalOutputPrecisions()[0];
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     // Current reshape implementation is simple memory reinterpret,

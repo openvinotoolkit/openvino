@@ -4,7 +4,6 @@
 
 #include "mkldnn_eltwise_node.h"
 
-#include <legacy/ie_layers.h>
 #include <ie_parallel.hpp>
 
 #include <mkldnn_types.h>
@@ -21,6 +20,9 @@
 #include "emitters/jit_mkldnn_emitters.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
 #include <mkldnn_selective_build.h>
+#include "utils/general_utils.h"
+
+#include "ngraph/ngraph.hpp"
 
 #include <string>
 #include <vector>
@@ -360,54 +362,52 @@ private:
     };
 
     std::set<Precision> get_supported_precisions(MKLDNNNode& node) {
-        auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
-
         std::set<Precision> precisions;
 
-        OV_SWITCH(MKLDNNPlugin, SupportedPrecisions, precisions, eltwiseNode.getOpType(),
-        OV_CASE(Relu, jit_mkldnn_aux_emitter),
-        OV_CASE(Gelu, jit_mkldnn_aux_emitter),
-        OV_CASE(Elu, jit_mkldnn_aux_emitter),
-        OV_CASE(Tanh, jit_mkldnn_aux_emitter),
-        OV_CASE(Logistic, jit_mkldnn_aux_emitter),
-        OV_CASE(Square, jit_mkldnn_aux_emitter),
-        OV_CASE(Abs, jit_mkldnn_aux_emitter),
-        OV_CASE(Sqrt, jit_mkldnn_aux_emitter),
-        OV_CASE(Linear, jit_mkldnn_aux_emitter),
-        OV_CASE(BoundedRelu, jit_mkldnn_aux_emitter),
-        OV_CASE(SoftRelu, jit_mkldnn_aux_emitter),
-        OV_CASE(Relu6, jit_mkldnn_aux_emitter),
-        OV_CASE(Exp, jit_mkldnn_aux_emitter),
-        OV_CASE(Clamp, jit_mkldnn_aux_emitter),
-        OV_CASE(Swish, jit_mkldnn_aux_emitter),
-        OV_CASE(Hswish, jit_mkldnn_aux_emitter),
-        OV_CASE(Mish, jit_mkldnn_aux_emitter),
-        OV_CASE(Hsigmoid, jit_mkldnn_aux_emitter),
-        OV_CASE(Round, jit_mkldnn_aux_emitter),
-        OV_CASE(Add, jit_add_emitter),
-        OV_CASE(MulAdd, jit_mul_add_emitter),
-        OV_CASE(Subtract, jit_subtract_emitter),
-        OV_CASE(Multiply, jit_multiply_emitter),
-        OV_CASE(Divide, jit_divide_emitter),
-        OV_CASE(FloorMod, jit_floor_mod_emitter),
-        OV_CASE(Mod, jit_mod_emitter),
-        OV_CASE(Maximum, jit_maximum_emitter),
-        OV_CASE(Minimum, jit_minimum_emitter),
-        OV_CASE(SquaredDifference, jit_squared_difference_emitter),
-        OV_CASE(PowerDynamic, jit_power_dynamic_emitter),
-        OV_CASE(Equal, jit_equal_emitter),
-        OV_CASE(NotEqual, jit_not_equal_emitter),
-        OV_CASE(Greater, jit_greater_emitter),
-        OV_CASE(GreaterEqual, jit_greater_equal_emitter),
-        OV_CASE(Less, jit_less_emitter),
-        OV_CASE(LessEqual, jit_less_equal_emitter),
-        OV_CASE(LogicalAnd, jit_logical_and_emitter),
-        OV_CASE(LogicalOr, jit_logical_or_emitter),
-        OV_CASE(LogicalXor, jit_logical_xor_emitter),
-        OV_CASE(LogicalNot, jit_logical_not_emitter),
-        OV_CASE(PowerStatic, jit_power_static_emitter),
-        OV_CASE(Prelu, jit_prelu_emitter),
-        OV_CASE(Erf, jit_erf_emitter));
+        OV_SWITCH(MKLDNNPlugin, SupportedPrecisions, precisions, node.getAlgorithm(),
+        OV_CASE(EltwiseRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseGelu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseElu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseTanh, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSigmoid, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSquare, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseAbs, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSqrt, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseLinear, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseBoundedRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSoftRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseRelu6, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseExp, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseClamp, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSwish, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseHswish, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseMish, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseHsigmoid, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseRoundHalfToEven, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseRoundHalfAwayFromZero, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseAdd, jit_add_emitter),
+        OV_CASE(EltwiseMulAdd, jit_mul_add_emitter),
+        OV_CASE(EltwiseSubtract, jit_subtract_emitter),
+        OV_CASE(EltwiseMultiply, jit_multiply_emitter),
+        OV_CASE(EltwiseDivide, jit_divide_emitter),
+        OV_CASE(EltwiseFloorMod, jit_floor_mod_emitter),
+        OV_CASE(EltwiseMod, jit_mod_emitter),
+        OV_CASE(EltwiseMaximum, jit_maximum_emitter),
+        OV_CASE(EltwiseMinimum, jit_minimum_emitter),
+        OV_CASE(EltwiseSquaredDifference, jit_squared_difference_emitter),
+        OV_CASE(EltwisePowerDynamic, jit_power_dynamic_emitter),
+        OV_CASE(EltwiseEqual, jit_equal_emitter),
+        OV_CASE(EltwiseNotEqual, jit_not_equal_emitter),
+        OV_CASE(EltwiseGreater, jit_greater_emitter),
+        OV_CASE(EltwiseGreaterEqual, jit_greater_equal_emitter),
+        OV_CASE(EltwiseLess, jit_less_emitter),
+        OV_CASE(EltwiseLessEqual, jit_less_equal_emitter),
+        OV_CASE(EltwiseLogicalAnd, jit_logical_and_emitter),
+        OV_CASE(EltwiseLogicalOr, jit_logical_or_emitter),
+        OV_CASE(EltwiseLogicalXor, jit_logical_xor_emitter),
+        OV_CASE(EltwiseLogicalNot, jit_logical_not_emitter),
+        OV_CASE(EltwisePowerStatic, jit_power_static_emitter),
+        OV_CASE(EltwisePrelu, jit_prelu_emitter));
 
         if (precisions.empty())
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -426,50 +426,50 @@ private:
             exec_prec
         };
 
-        OV_SWITCH(MKLDNNPlugin, EltwiseEmitter, ctx, eltwiseNode.getOpType(),
-        OV_CASE(Relu, jit_mkldnn_aux_emitter),
-        OV_CASE(Gelu, jit_mkldnn_aux_emitter),
-        OV_CASE(Elu, jit_mkldnn_aux_emitter),
-        OV_CASE(Tanh, jit_mkldnn_aux_emitter),
-        OV_CASE(Logistic, jit_mkldnn_aux_emitter),
-        OV_CASE(Square, jit_mkldnn_aux_emitter),
-        OV_CASE(Abs, jit_mkldnn_aux_emitter),
-        OV_CASE(Sqrt, jit_mkldnn_aux_emitter),
-        OV_CASE(Linear, jit_mkldnn_aux_emitter),
-        OV_CASE(BoundedRelu, jit_mkldnn_aux_emitter),
-        OV_CASE(SoftRelu, jit_mkldnn_aux_emitter),
-        OV_CASE(Relu6, jit_mkldnn_aux_emitter),
-        OV_CASE(Exp, jit_mkldnn_aux_emitter),
-        OV_CASE(Clamp, jit_mkldnn_aux_emitter),
-        OV_CASE(Swish, jit_mkldnn_aux_emitter),
-        OV_CASE(Hswish, jit_mkldnn_aux_emitter),
-        OV_CASE(Mish, jit_mkldnn_aux_emitter),
-        OV_CASE(Hsigmoid, jit_mkldnn_aux_emitter),
-        OV_CASE(Round, jit_mkldnn_aux_emitter),
-        OV_CASE(Add, jit_add_emitter),
-        OV_CASE(MulAdd, jit_mul_add_emitter),
-        OV_CASE(Subtract, jit_subtract_emitter),
-        OV_CASE(Multiply, jit_multiply_emitter),
-        OV_CASE(Divide, jit_divide_emitter),
-        OV_CASE(FloorMod, jit_floor_mod_emitter),
-        OV_CASE(Mod, jit_mod_emitter),
-        OV_CASE(Maximum, jit_maximum_emitter),
-        OV_CASE(Minimum, jit_minimum_emitter),
-        OV_CASE(SquaredDifference, jit_squared_difference_emitter),
-        OV_CASE(PowerDynamic, jit_power_dynamic_emitter),
-        OV_CASE(Equal, jit_equal_emitter),
-        OV_CASE(NotEqual, jit_not_equal_emitter),
-        OV_CASE(Greater, jit_greater_emitter),
-        OV_CASE(GreaterEqual, jit_greater_equal_emitter),
-        OV_CASE(Less, jit_less_emitter),
-        OV_CASE(LessEqual, jit_less_equal_emitter),
-        OV_CASE(LogicalAnd, jit_logical_and_emitter),
-        OV_CASE(LogicalOr, jit_logical_or_emitter),
-        OV_CASE(LogicalXor, jit_logical_xor_emitter),
-        OV_CASE(LogicalNot, jit_logical_not_emitter),
-        OV_CASE(PowerStatic, jit_power_static_emitter),
-        OV_CASE(Prelu, jit_prelu_emitter),
-        OV_CASE(Erf, jit_erf_emitter));
+        OV_SWITCH(MKLDNNPlugin, EltwiseEmitter, ctx, eltwiseNode.getAlgorithm(),
+        OV_CASE(EltwiseRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseGelu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseElu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseTanh, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSigmoid, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSquare, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseAbs, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSqrt, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseLinear, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseBoundedRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSoftRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseRelu6, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseExp, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseClamp, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseSwish, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseHswish, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseMish, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseHsigmoid, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseRoundHalfToEven, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseRoundHalfAwayFromZero, jit_mkldnn_aux_emitter),
+        OV_CASE(EltwiseAdd, jit_add_emitter),
+        OV_CASE(EltwiseMulAdd, jit_mul_add_emitter),
+        OV_CASE(EltwiseSubtract, jit_subtract_emitter),
+        OV_CASE(EltwiseMultiply, jit_multiply_emitter),
+        OV_CASE(EltwiseDivide, jit_divide_emitter),
+        OV_CASE(EltwiseFloorMod, jit_floor_mod_emitter),
+        OV_CASE(EltwiseMod, jit_mod_emitter),
+        OV_CASE(EltwiseMaximum, jit_maximum_emitter),
+        OV_CASE(EltwiseMinimum, jit_minimum_emitter),
+        OV_CASE(EltwiseSquaredDifference, jit_squared_difference_emitter),
+        OV_CASE(EltwisePowerDynamic, jit_power_dynamic_emitter),
+        OV_CASE(EltwiseEqual, jit_equal_emitter),
+        OV_CASE(EltwiseNotEqual, jit_not_equal_emitter),
+        OV_CASE(EltwiseGreater, jit_greater_emitter),
+        OV_CASE(EltwiseGreaterEqual, jit_greater_equal_emitter),
+        OV_CASE(EltwiseLess, jit_less_emitter),
+        OV_CASE(EltwiseLessEqual, jit_less_equal_emitter),
+        OV_CASE(EltwiseLogicalAnd, jit_logical_and_emitter),
+        OV_CASE(EltwiseLogicalOr, jit_logical_or_emitter),
+        OV_CASE(EltwiseLogicalXor, jit_logical_xor_emitter),
+        OV_CASE(EltwiseLogicalNot, jit_logical_not_emitter),
+        OV_CASE(EltwisePowerStatic, jit_power_static_emitter),
+        OV_CASE(EltwisePrelu, jit_prelu_emitter));
 
         if (!ctx.emitter)
             IE_THROW() << "Unsupported operation type for Eltwise emitter";
@@ -915,104 +915,75 @@ MKLDNNEltwiseNode::initializers = {
         }},
 };
 
-void MKLDNNEltwiseNode::init() {
-    InferenceEngine::details::CaselessEq<std::string> comparator;
-    auto layerType = getCnnLayer().get()->type;
-
-    auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
-    if (eltwiseLayer) {
-        if (!eltwiseLayer->coeff.empty())
-            IE_THROW() << "Eltwise node with name `" << getName() << "` doesn't support input coefficients.";
-
-        switch (eltwiseLayer->_operation) {
-            case EltwiseLayer::Sum: eltwiseOp = Add; break;
-            case EltwiseLayer::Prod: eltwiseOp = Multiply; break;
-            case EltwiseLayer::Max: eltwiseOp = Maximum; break;
-            case EltwiseLayer::Sub: eltwiseOp = Subtract; break;
-            case EltwiseLayer::Min: eltwiseOp = Minimum; break;
-            case EltwiseLayer::Div: eltwiseOp = Divide; break;
-            case EltwiseLayer::Squared_diff: eltwiseOp = SquaredDifference; break;
-            case EltwiseLayer::Floor_mod: eltwiseOp = FloorMod; break;
-            case EltwiseLayer::Pow: eltwiseOp = PowerDynamic; break;
-            case EltwiseLayer::Equal: eltwiseOp = Equal; break;
-            case EltwiseLayer::Not_equal: eltwiseOp = NotEqual; break;
-            case EltwiseLayer::Greater: eltwiseOp = Greater; break;
-            case EltwiseLayer::Greater_equal: eltwiseOp = GreaterEqual; break;
-            case EltwiseLayer::Less: eltwiseOp = Less; break;
-            case EltwiseLayer::Less_equal: eltwiseOp = LessEqual; break;
-            case EltwiseLayer::Logical_AND: eltwiseOp = LogicalAnd; break;
-            case EltwiseLayer::Logical_OR: eltwiseOp = LogicalOr; break;
-            case EltwiseLayer::Logical_XOR: eltwiseOp = LogicalXor; break;
-            default: IE_THROW() << "Unsupported algorithm for Eltwise node with name `" << getName() << "`.";
-        }
-    } else if (comparator(layerType, "mod")) {
-        eltwiseOp = Mod;
-    } else if (comparator(layerType, "power")) {
-        eltwiseOp = PowerStatic;
-
-        auto *powerLayer = dynamic_cast<InferenceEngine::PowerLayer *>(getCnnLayer().get());
-        if (powerLayer == nullptr)
-            IE_THROW() << "Cannot convert power layer.";
-
-        alpha = powerLayer->power;
-        beta = powerLayer->scale;
-        gamma = powerLayer->offset;
-    } else if (comparator(layerType, "scaleshift")) {
-        if (getCnnLayer().get()->blobs.size() == 2) {
-            eltwiseOp = MulAdd;
-            eltwiseAlgorithm = mkldnn::algorithm::depthwise_scale_shift;
+            node.alpha = alphaConstOp->cast_vector<float>()[0];
         } else {
-            eltwiseOp = Multiply;
+            node.alpha = 1.0f;
         }
-    } else if (comparator(layerType, "prelu")) {
-        eltwiseOp = Prelu;
-        eltwiseAlgorithm = mkldnn::algorithm::depthwise_prelu;
-    } else if (comparator(layerType, "activation") && initializers.find(getCnnLayer().get()->GetParamAsString("type")) != initializers.end()) {
-        initializers[getCnnLayer().get()->GetParamAsString("type")](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
-    } else if (comparator(layerType, "relu") ||
-               comparator(layerType, "gelu") ||
-               comparator(layerType, "elu") ||
-               comparator(layerType, "sigmoid") ||
-               comparator(layerType, "logistic") ||
-               comparator(layerType, "tanh") ||
-               comparator(layerType, "relu6") ||
-               comparator(layerType, "exp") ||
-               comparator(layerType, "not") ||
-               comparator(layerType, "clamp") ||
-               comparator(layerType, "swish") ||
-               comparator(layerType, "hswish") ||
-               comparator(layerType, "mish") ||
-               comparator(layerType, "hsigmoid") ||
-               comparator(layerType, "round") ||
-               comparator(layerType, "softplus")) {
-        initializers[layerType](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
-    } else if (comparator(layerType, "erf")) {
-        eltwiseOp = Erf;
+        node.algorithm = EltwiseSwish;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_swish;
+    }},
+    {ngraph::op::v4::HSwish::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseHswish;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_hswish;
+    }},
+    {ngraph::op::v4::Mish::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseMish;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_mish;
+    }},
+    {ngraph::op::v5::HSigmoid::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwiseHsigmoid;
+        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_hsigmoid;
+    }},
+    {ngraph::op::v5::Round::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        auto roundOp = getNgraphOpAs<ngraph::op::v5::Round>(op);
+
+        switch (roundOp->get_mode()) {
+            case ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN:
+                node.algorithm = EltwiseRoundHalfToEven;
+                node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_round_half_to_even;
+                break;
+            case ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
+                node.algorithm = EltwiseRoundHalfAwayFromZero;
+                node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_round_half_away_from_zero;
+                break;
+        }
+    }},
+    {ngraph::op::v0::PRelu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+        node.algorithm = EltwisePrelu;
+    }},
+    // TODO [NM]: we need to introduce custom MulAdd operation
+//    {ngraph::op::v0::MulAdd::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
+//        node.algorithm = EltwiseMish;
+//        node.mkldnnAlgorithm = mkldnn::algorithm::eltwise_mish;
+//    }},
+};
+
+MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {
+    if (initializers.find(op->get_type_info()) != initializers.end()) {
+        initializers[op->get_type_info()](op, *this);
     } else {
-        IE_THROW() << "Unsupported algorithm for Eltwise node with name `" << getName() << "`.";
+        IE_THROW(NotImplemented)
+            << "CPU Eltwise node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
     }
 }
 
 size_t MKLDNNEltwiseNode::getOpInputsNum() const {
-    switch (getOpType()) {
-        case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt: case PowerStatic:
-        case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
-        case Mish: case Hsigmoid: case Round:
-        case LogicalNot:
-        case Erf:
+    switch (getAlgorithm()) {
+        case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseSquare: case EltwiseAbs: case EltwiseSqrt:
+        case EltwisePowerStatic: case EltwiseLinear: case EltwiseBoundedRelu: case EltwiseSoftRelu: case EltwiseRelu6: case EltwiseExp: case EltwiseClamp:
+        case EltwiseSwish: case EltwiseHswish: case EltwiseMish: case EltwiseHsigmoid: case EltwiseRoundHalfToEven: case EltwiseRoundHalfAwayFromZero:
+        case EltwiseLogicalNot:
             return 1;
-        case Add: case Subtract: case Multiply: case Divide: case FloorMod: case Mod: case Maximum: case Minimum: case SquaredDifference:
-        case PowerDynamic: case Equal: case NotEqual: case Greater: case GreaterEqual: case Less: case LessEqual: case LogicalAnd:
-        case LogicalOr: case LogicalXor: case Prelu:
+        case EltwiseAdd: case EltwiseSubtract: case EltwiseMultiply: case EltwiseDivide: case EltwiseFloorMod: case EltwiseMod: case EltwiseMaximum:
+        case EltwiseMinimum: case EltwiseSquaredDifference: case EltwisePowerDynamic: case EltwiseEqual: case EltwiseNotEqual: case EltwiseGreater:
+        case EltwiseGreaterEqual: case EltwiseLess:  case EltwiseLessEqual: case EltwiseLogicalAnd: case EltwiseLogicalOr: case EltwiseLogicalXor:
+        case EltwisePrelu:
             return 2;
-        case MulAdd:
+        case EltwiseMulAdd:
             return 3;
         default: IE_THROW() << "Unsupported operation for Eltwise node with name `" << getName() << "`.";
     }
-}
-
-bool MKLDNNEltwiseNode::isSum() {
-    return eltwiseOp == Add;
 }
 
 bool MKLDNNEltwiseNode::isWithBroadcast() {
@@ -1065,14 +1036,14 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                            << " (actual = " << getParentEdges().size() << ")";
 
     std::vector<InferenceEngine::Precision> inputPrecisions;
-    for (int i = 0; i < getCnnLayer()->insData.size(); i++) {
-        inputPrecisions.push_back(getCnnLayer()->insData[i].lock()->getPrecision());
+    for (const auto &i : getOriginalInputPrecisions()) {
+        inputPrecisions.push_back(i);
     }
 
     for (auto& fusedNode : fusedWith) {
         if (fusedNode->getType() == Eltwise) {
-            for (int i = 1; i < fusedNode->getCnnLayer()->insData.size(); i++) {
-                inputPrecisions.push_back(fusedNode->getCnnLayer()->insData[i].lock()->getPrecision());
+            for (int i = 1; i < fusedNode->getOriginalInputPrecisions().size(); i++) {
+                inputPrecisions.push_back(fusedNode->getOriginalInputPrecisions()[i]);
             }
         }
     }
@@ -1080,12 +1051,9 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     if (inputPrecisions.size() != getParentEdges().size())
         IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input precisions configuration.";
 
-    InferenceEngine::Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+    InferenceEngine::Precision outputPrecision = getOriginalOutputPrecisions()[0];
     if (!fusedWith.empty()) {
-        auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
-        if (lastFusedLayer) {
-            outputPrecision = lastFusedLayer->outData[0]->getPrecision();
-        }
+        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisions()[0];
     }
 
     if (!mayiuse(avx512_core)) {
@@ -1119,9 +1087,9 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     // TODO: delete after new LPT (ngraph based) is merged
     // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)
-    if (eltwiseOp == MulAdd && (inputPrecisions[0] == Precision::U8 || inputPrecisions[0] == Precision::I8)) {
-        auto poolingLayer = dynamic_cast<PoolingLayer*>(getParentEdgesAtPort(0)[0]->getParent()->getCnnLayer().get());
-        if (poolingLayer && poolingLayer->_type == PoolingLayer::AVG) {
+    if (getAlgorithm() == EltwiseMulAdd && (inputPrecisions[0] == Precision::U8 || inputPrecisions[0] == Precision::I8)) {
+        auto parentNode = getParentEdgesAtPort(0)[0]->getParent();
+        if (getParentEdgesAtPort(0)[0]->getParent()->getAlgorithm() == PoolingAvg) {
             inputPrecisions[0] = Precision::FP32;
         }
     }
@@ -1179,7 +1147,6 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             InferenceEngine::DataConfig dataConfig;
             dataConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
             dataConfig.constant = false;
-
 
             dataConfig.desc = createMemoryDesc(getParentEdgeAt(i), inputPrecisions[i], offset);
 
@@ -1616,8 +1583,8 @@ void MKLDNNEltwiseNode::executeReference(const std::vector<const uint8_t *>& src
     size_t inputNum = src_ptrs.size();
 
     std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
-    if (eltwiseAlgorithm != mkldnn::algorithm::undef) {
-        ref_eltwise_injector = std::make_shared<ref_eltwise_scalar_fwd_t>(static_cast<mkldnn_alg_kind_t>(eltwiseAlgorithm), alpha, beta, 1.f);
+    if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
+        ref_eltwise_injector = std::make_shared<ref_eltwise_scalar_fwd_t>(static_cast<mkldnn_alg_kind_t>(getMKLDNNAlgorithm()), alpha, beta, 1.f);
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -1652,34 +1619,34 @@ void MKLDNNEltwiseNode::executeReference(const std::vector<const uint8_t *>& src
             }
             float* dst_ptr_f = reinterpret_cast<float *>(dst_ptr + index_out);
 
-            switch (getOpType()) {
-                case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
-                case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish:
-                case Mish: case Hsigmoid: case Round:
+            switch (getAlgorithm()) {
+                case EltwiseRelu: case EltwiseGelu: case EltwiseElu: case EltwiseTanh: case EltwiseSigmoid: case EltwiseSquare: case EltwiseAbs:
+                case EltwiseSqrt: case EltwiseLinear: case EltwiseBoundedRelu: case EltwiseSoftRelu: case EltwiseRelu6: case EltwiseExp: case EltwiseClamp:
+                case EltwiseSwish: case EltwiseHswish: case EltwiseMish: case EltwiseHsigmoid: case EltwiseRoundHalfToEven: case EltwiseRoundHalfAwayFromZero:
                     *dst_ptr_f = ref_eltwise_injector->compute_scalar(src_f[0]); break;
-                case Add:               *dst_ptr_f = src_f[0] + src_f[1]; break;
-                case MulAdd:            *dst_ptr_f = src_f[0] * src_f[1] + src_f[2]; break;
-                case Subtract:          *dst_ptr_f = src_f[0] - src_f[1]; break;
-                case Multiply:          *dst_ptr_f = src_f[0] * src_f[1]; break;
-                case Divide:            *dst_ptr_f = src_f[0] / src_f[1]; break;
-                case FloorMod:          *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1]; break;
-                case Mod:               *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1]; break;
-                case Maximum:           *dst_ptr_f = std::max(src_f[0], src_f[1]); break;
-                case Minimum:           *dst_ptr_f = std::min(src_f[0], src_f[1]); break;
-                case SquaredDifference: *dst_ptr_f = powf((src_f[0] - src_f[1]), 2.f); break;
-                case PowerDynamic:      *dst_ptr_f = powf(src_f[0], src_f[1]); break;
-                case Equal:             *dst_ptr_f = src_f[0] == src_f[1]; break;
-                case NotEqual:          *dst_ptr_f = src_f[0] != src_f[1]; break;
-                case Greater:           *dst_ptr_f = src_f[0] > src_f[1]; break;
-                case GreaterEqual:      *dst_ptr_f = src_f[0] >= src_f[1]; break;
-                case Less:              *dst_ptr_f = src_f[0] < src_f[1]; break;
-                case LessEqual:         *dst_ptr_f = src_f[0] <= src_f[1]; break;
-                case LogicalAnd:        *dst_ptr_f = src_f[0] && src_f[1]; break;
-                case LogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
-                case LogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
-                case LogicalNot:        *dst_ptr_f = !src_f[0]; break;
-                case PowerStatic:       *dst_ptr_f = powf(beta * src_f[0] + gamma, alpha); break;
-                case Prelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
+                case EltwiseAdd:               *dst_ptr_f = src_f[0] + src_f[1]; break;
+                case EltwiseMulAdd:            *dst_ptr_f = src_f[0] * src_f[1] + src_f[2]; break;
+                case EltwiseSubtract:          *dst_ptr_f = src_f[0] - src_f[1]; break;
+                case EltwiseMultiply:          *dst_ptr_f = src_f[0] * src_f[1]; break;
+                case EltwiseDivide:            *dst_ptr_f = src_f[0] / src_f[1]; break;
+                case EltwiseFloorMod:          *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1]; break;
+                case EltwiseMod:               *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1]; break;
+                case EltwiseMaximum:           *dst_ptr_f = std::max(src_f[0], src_f[1]); break;
+                case EltwiseMinimum:           *dst_ptr_f = std::min(src_f[0], src_f[1]); break;
+                case EltwiseSquaredDifference: *dst_ptr_f = powf((src_f[0] - src_f[1]), 2.f); break;
+                case EltwisePowerDynamic:      *dst_ptr_f = powf(src_f[0], src_f[1]); break;
+                case EltwiseEqual:             *dst_ptr_f = src_f[0] == src_f[1]; break;
+                case EltwiseNotEqual:          *dst_ptr_f = src_f[0] != src_f[1]; break;
+                case EltwiseGreater:           *dst_ptr_f = src_f[0] > src_f[1]; break;
+                case EltwiseGreaterEqual:      *dst_ptr_f = src_f[0] >= src_f[1]; break;
+                case EltwiseLess:              *dst_ptr_f = src_f[0] < src_f[1]; break;
+                case EltwiseLessEqual:         *dst_ptr_f = src_f[0] <= src_f[1]; break;
+                case EltwiseLogicalAnd:        *dst_ptr_f = src_f[0] && src_f[1]; break;
+                case EltwiseLogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
+                case EltwiseLogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
+                case EltwiseLogicalNot:        *dst_ptr_f = !src_f[0]; break;
+                case EltwisePowerStatic:       *dst_ptr_f = powf(beta * src_f[0] + gamma, alpha); break;
+                case EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
                 default: IE_THROW() << "Unsupported operation type for Eltwise node with name `" << getName() << "`";
             }
         }
@@ -1738,7 +1705,7 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
 }
 
 void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
-    switch (getAlgorithm()) {
+    switch (getMKLDNNAlgorithm()) {
         case mkldnn::algorithm::eltwise_relu:
         case mkldnn::algorithm::eltwise_tanh:
         case mkldnn::algorithm::eltwise_elu:
@@ -1759,57 +1726,49 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
         case mkldnn::algorithm::eltwise_hsigmoid:
         case mkldnn::algorithm::eltwise_round_half_to_even:
         case mkldnn::algorithm::eltwise_round_half_away_from_zero:
-            ops.append_eltwise(1.0, getAlgorithm(), getAlpha(), getBeta());
+            ops.append_eltwise(1.0, getMKLDNNAlgorithm(), getAlpha(), getBeta());
             break;
         case mkldnn::algorithm::depthwise_scale_shift:
         case mkldnn::algorithm::depthwise_prelu:
-            if (scales.empty() && shifts.empty()) {
-                size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].size() > 1 ? 1 : 0]);
-                size_t bufferSizeAligned = rnd_up(bufferSize, 16);
-
-                Blob::Ptr scalesBlob = getCnnLayer()->blobs["weights"];
-                if (scalesBlob == nullptr)
-                    IE_THROW() << "Cannot get weights blob in Eltwise node with name `" << getName() << "`";
-                scales.resize(bufferSizeAligned, 0);
-                const float *scalesBufferPtr = scalesBlob->buffer().as<float *>();
-                for (int i = 0; i < bufferSize; i++) {
-                    scales[i] = scalesBufferPtr[scalesBlob->size() == 1 ? 0 : i];
-                }
-
-                Blob::Ptr shiftsBlob = getCnnLayer()->blobs["biases"];
-                if (shiftsBlob != nullptr) {
-                    shifts.resize(bufferSizeAligned, 0);
-                    const float *shiftsBufferPtr = shiftsBlob->buffer().as<float *>();
-                    for (int i = 0; i < bufferSize; i++) {
-                        shifts[i] = shiftsBufferPtr[shiftsBlob->size() == 1 ? 0 : i];
-                    }
-                }
-            }
-
-            ops.append_depthwise(getAlgorithm(), &scales[0], shifts.empty() ? nullptr : &shifts[0]);
+            IE_THROW() << "[NM] Not implemented";
+//            if (scales.empty() && shifts.empty()) {
+//                size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].size() > 1 ? 1 : 0]);
+//                size_t bufferSizeAligned = rnd_up(bufferSize, 16);
+//
+//                Blob::Ptr scalesBlob = getCnnLayer()->blobs["weights"];
+//                if (scalesBlob == nullptr)
+//                    IE_THROW() << "Cannot get weights blob in Eltwise node with name `" << getName() << "`";
+//                scales.resize(bufferSizeAligned, 0);
+//                const float *scalesBufferPtr = scalesBlob->buffer().as<float *>();
+//                for (int i = 0; i < bufferSize; i++) {
+//                    scales[i] = scalesBufferPtr[scalesBlob->size() == 1 ? 0 : i];
+//                }
+//
+//                Blob::Ptr shiftsBlob = getCnnLayer()->blobs["biases"];
+//                if (shiftsBlob != nullptr) {
+//                    shifts.resize(bufferSizeAligned, 0);
+//                    const float *shiftsBufferPtr = shiftsBlob->buffer().as<float *>();
+//                    for (int i = 0; i < bufferSize; i++) {
+//                        shifts[i] = shiftsBufferPtr[shiftsBlob->size() == 1 ? 0 : i];
+//                    }
+//                }
+//            }
+//
+//            ops.append_depthwise(getAlgorithm(), &scales[0], shifts.empty() ? nullptr : &shifts[0]);
             break;
         default: IE_THROW() << "Appending Eltwise node with name `" << getName() << "` as post operation is not supported";
     }
 }
 
 bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
-    auto isOneOf = [](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    auto isSuitableNode = [](const MKLDNNEltwiseNode* node) {
+    auto isSuitableNode = [this](const MKLDNNEltwiseNode* node) {
         // [WA] Since execution precision change from I32 to FP32 for Divide operation may lead to incorrect results
         // we disable its fusing otherwise there is no guarantee it will be executed it I32
         // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
         // (all should be handled via explicit convert operations)
-        if (node->getOpType() == Divide) {
-            for (int i = 0; i < node->getCnnLayer()->insData.size(); i++) {
-                if (node->getCnnLayer()->insData[i].lock()->getPrecision() == Precision::I32) {
+        if (node->getAlgorithm() == EltwiseDivide) {
+            for (const auto &originalInputPrecision : getOriginalInputPrecisions()) {
+                if (originalInputPrecision == Precision::I32) {
                     return false;
                 }
             }
@@ -1831,21 +1790,17 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
 
     if (node->getType() == Eltwise) {
-        auto eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
-        if (eltwiseNode->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
-            if (!isSuitableNode(this)) {
-                return false;
-            }
-
+        if (node->getFusingPort() != 0) {
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
-            if (isOneOf(eltwiseNode->getOpType(), {Subtract, Divide, FloorMod, Mod, PowerDynamic, Greater, GreaterEqual, Less, LessEqual})) {
+            if (one_of(node->getAlgorithm(), EltwiseSubtract, EltwiseDivide, EltwiseFloorMod, EltwiseMod, EltwisePowerDynamic, EltwiseGreater,
+                                             EltwiseGreaterEqual, EltwiseLess, EltwiseLessEqual)) {
                 return false;
             }
 
             // Limitation: inputs precision definition inside Eltwise node assumes fusing is applied for 0-th port,
             // otherwise we need identical precision on all inputs of fused node
-            for (int i = 1; i < eltwiseNode->getCnnLayer()->insData.size(); i++) {
-                if (eltwiseNode->getCnnLayer()->insData[0].lock()->getPrecision() != eltwiseNode->getCnnLayer()->insData[i].lock()->getPrecision()) {
+            for (int i = 1; i < getOriginalInputPrecisions().size(); i++) {
+                if (getOriginalInputPrecisions()[0] != getOriginalInputPrecisions()[i]) {
                     return false;
                 }
             }

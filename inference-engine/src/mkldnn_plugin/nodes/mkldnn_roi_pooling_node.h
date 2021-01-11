@@ -65,7 +65,7 @@ struct jit_uni_roi_pooling_kernel {
 
 class MKLDNNROIPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNROIPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNROIPoolingNode() override = default;
 
     void getSupportedDescriptors() override;

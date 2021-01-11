@@ -16,7 +16,7 @@ class MKLDNNEltwiseNode;
 
 class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -36,17 +36,10 @@ public:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
-        return static_cast<size_t>(baseInputsNumber);
-    }
-
-    int getBaseIntputsNumber() {
-        return baseInputsNumber;
+        return static_cast<size_t>(getOriginalInputsNumber());
     }
 
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-
-    const mkldnn::memory& getWeights() const;
-    const mkldnn::memory& getBias() const;
 
     bool canBeExecutedInInt8();
 
@@ -57,11 +50,9 @@ public:
     std::vector<int32_t> outputCompensation;
 
 protected:
-    void addScaleToPrimitiveAttr(mkldnn::primitive_attr attr) const;
-    InferenceEngine::Precision fusedEltwisePrecision(MKLDNNEltwiseNode *eltwiseNode, int findex);
+    InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
 private:
-    mkldnn::memory::data_type precisionToDataType(InferenceEngine::Precision prec);
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
 
     bool withBiases;
@@ -70,6 +61,7 @@ private:
     bool isDW;
     bool isMerged;
     bool isGrouped;
+    bool isPrimitivesPriorityDefined;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
@@ -77,18 +69,18 @@ private:
     InferenceEngine::SizeVector weightDims;
     InferenceEngine::SizeVector biasesDims;
 
-    ptrdiff_t dw_conv_oc;
-    ptrdiff_t dw_conv_ih;
-    ptrdiff_t dw_conv_iw;
-    std::vector<ptrdiff_t> dw_conv_kernel;
-    std::vector<ptrdiff_t> dw_conv_strides;
-    mkldnn::memory::data_type dw_conv_in_dt;
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-
-    InferenceEngine::Blob::Ptr wScale, oScale;
+// TODO: fusing with Convolution is not ported yet
+//    ptrdiff_t dw_conv_oc;
+//    ptrdiff_t dw_conv_ih;
+//    ptrdiff_t dw_conv_iw;
+//    std::vector<ptrdiff_t> dw_conv_kernel;
+//    std::vector<ptrdiff_t> dw_conv_strides;
+//    mkldnn::memory::data_type dw_conv_in_dt;
 
     size_t groupNum;
-    int baseInputsNumber;
+    size_t IC;
+    size_t groupIC;
+    size_t groupOC;
 
     InferenceEngine::Precision eltwisePrecision;
 };

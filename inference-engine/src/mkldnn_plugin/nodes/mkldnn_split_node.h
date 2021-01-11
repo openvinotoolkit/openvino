@@ -12,7 +12,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNSplitNode : public MKLDNNNode {
 public:
-    MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNSplitNode() override = default;
 
     void getSupportedDescriptors() override;

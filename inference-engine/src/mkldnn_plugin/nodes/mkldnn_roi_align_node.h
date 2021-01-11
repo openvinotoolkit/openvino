@@ -20,7 +20,7 @@ enum ROIAlignOpType {
 
 class MKLDNNROIAlignNode : public MKLDNNNode {
 public:
-    MKLDNNROIAlignNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNROIAlignNode() override = default;
 
     void getSupportedDescriptors() override;

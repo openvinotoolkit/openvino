@@ -250,7 +250,7 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         InferenceEngine::IExecutableNetworkInternal::Ptr exeNetwork1;
         ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, {}));
 
-        size_t modified_outputs_size = getGraph(exeNetwork1).GetOutputNodes().size();
+        size_t modified_outputs_size = getGraph(exeNetwork1).GetOutputNodesMap().size();
 
         InferenceEngine::CNNNetwork network2;
         ASSERT_NO_THROW(network2 = core.ReadNetwork(model, weights_ptr));
@@ -259,7 +259,7 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         InferenceEngine::IExecutableNetworkInternal::Ptr exeNetwork2;
         ASSERT_NO_THROW(exeNetwork2 = score_engine->LoadNetwork(network2, {}));
 
-        size_t original_outputs_size = getGraph(exeNetwork2).GetOutputNodes().size();
+        size_t original_outputs_size = getGraph(exeNetwork2).GetOutputNodesMap().size();
 
         ASSERT_NE(modified_outputs_size, original_outputs_size);
         ASSERT_EQ(1, original_outputs_size);

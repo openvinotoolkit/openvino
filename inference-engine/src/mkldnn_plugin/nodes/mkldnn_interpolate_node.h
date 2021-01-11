@@ -85,7 +85,7 @@ struct jit_uni_interpolate_kernel {
 
 class MKLDNNInterpolateNode : public MKLDNNNode {
 public:
-    MKLDNNInterpolateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNInterpolateNode() override = default;
 
     void getSupportedDescriptors() override;
