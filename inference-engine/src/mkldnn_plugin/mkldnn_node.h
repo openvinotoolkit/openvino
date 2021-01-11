@@ -584,6 +584,10 @@ public:
         originalInputPrecisions.push_back(precision);
     }
 
+    void addOriginalOutputPrecision(InferenceEngine::Precision precision) {
+        originalOutputPrecisions.push_back(precision);
+    }
+
     size_t getOriginalInputsNumber() const {
         return originalInputPrecisions.size();
     }
@@ -666,7 +670,7 @@ protected:
     InferenceEngine::Blob::Ptr ext_scales;
     MKLDNNWeightsSharing::Ptr weightCache;
 
-    Algorithm algorithm;
+    Algorithm algorithm = Algorithm::Undefined;
 
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;

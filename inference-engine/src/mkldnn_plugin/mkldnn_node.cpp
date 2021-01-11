@@ -138,7 +138,6 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
 //        { "Softmax", SoftMax },
 //        { "SoftMax", SoftMax },
         { "Split", Split },
-//        { "Slice", Split },
         { "VariadicSplit", Split },
         { "Concat", Concatenation },
         { "ConvolutionBackpropData", Deconvolution },
@@ -1339,7 +1338,15 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             if (i == fusingPort)
                 continue;
-            if (!isPerTensorOrPerChannelBroadcastable(dataShape, getParentEdgeAt(i)->getDims().ToSizeVector()))
+            auto weightShape = getParentEdgeAt(i)->getDims().ToSizeVector();
+            // WA: waiting fix from ngraph
+            // [1,32,46,46], [32] but should be [1,32,46,46], [1, 32, 1, 1]
+            if (getAlgorithm() == EltwisePrelu && weightShape.size() == 1 && weightShape.back() != 1) {
+                auto newWeightShape = std::vector<size_t>(dataShape.size(), 1);
+                newWeightShape[1] = weightShape[0];
+                weightShape = newWeightShape;
+            }
+            if (!isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
                 return false;
         }
         return true;

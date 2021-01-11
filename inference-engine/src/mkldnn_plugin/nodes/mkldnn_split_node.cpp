@@ -297,7 +297,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     if (config.outConfs.size() != outDims.size())
         THROW_ERROR << "has invalid config";
     size_t offset = 0;
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
+    for (size_t i = 0; i < outDims.size(); i++) {
         config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
                                                               config.outConfs[i].desc.getDims(), {
                                                                       config.outConfs[i].desc.getBlockingDesc().getBlockDims(),

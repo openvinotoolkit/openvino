@@ -250,7 +250,7 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngin
         InferenceEngine::SizeVector normalizedOutDims = {outDims[0] * outDims[1], outDims[2]};
         inDesc = InferenceEngine::TensorDesc(inDesc.getPrecision(), normalizedInDims, TensorDesc::getLayoutByDims(normalizedInDims));
         outDesc = InferenceEngine::TensorDesc(outDesc.getPrecision(), normalizedOutDims, TensorDesc::getLayoutByDims(normalizedOutDims));
-   }
+    }
 
     MKLDNNMemoryDesc in_candidate(inDesc);
     MKLDNNMemoryDesc out_candidate(outDesc);

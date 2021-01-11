@@ -121,7 +121,6 @@ namespace fullyConnected {
 const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
                 auto bias = builder::makeConstant(ngPrc, Shape({inpNode->get_input_shape(1).back()}), std::vector<float>{}, true);
-                std::cout << bias->get_shape() << std::endl;
                 return std::make_shared<opset1::Add>(inpNode, bias);
             }, "fusingBiasFC"}}), {"Add"}};
 

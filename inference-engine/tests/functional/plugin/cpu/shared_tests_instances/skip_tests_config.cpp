@@ -129,9 +129,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TEST: Node type name: "SoftMax" has not been found.
         R"(.*SoftMaxLayerCPUTest.*)",
-
-        // Primitive descriptor was not found
-        R"(.*QuantConvBackpropDataLayerTest.*)",
         /* ******************************************************** END TEMPORARILY DISABLED TESTS ******************************************************** */
     };
 
