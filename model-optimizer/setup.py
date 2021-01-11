@@ -1,4 +1,18 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+
+"""
+ Copyright (C) 2018-2020 Intel Corporation
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 """
 Use this script to create a wheel with Model Optimizer code:
 
@@ -11,6 +25,7 @@ import os
 import re
 from setuptools import setup, find_packages
 from setuptools.command.install import install
+from setuptools.command.build_py import build_py
 
 package_name = 'mo'
 
@@ -51,6 +66,16 @@ class InstallCmd(install):
             f.write('sys.modules["mo"] = mo')
 
 
+class BuildCmd(build_py):
+    def find_package_modules(self, package, package_dir):
+        modules = super().find_package_modules(package, package_dir)
+        return [
+            (pkg, module, filename)
+            for (pkg, module, filename) in modules
+            if not filename.endswith('_test.py')
+        ]
+
+
 packages = find_packages()
 packages = [package_name + '.' + p for p in packages]
 
@@ -62,7 +87,9 @@ setup(name='openvino-mo',
       py_modules=py_modules,
       cmdclass={
           'install': InstallCmd,
+          'build_py': BuildCmd,
       },
       install_requires=deps,
       include_package_data=True,
+      data_files=[('', requirements_txt)]
 )
