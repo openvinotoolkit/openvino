@@ -654,8 +654,8 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{1, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{1, 3});
     auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
