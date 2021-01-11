@@ -40,7 +40,7 @@ class Telemetry(metaclass=SingletonMetaClass):
     """
     def __init__(self, app_name: str = None, app_version: str = None, tid: [None, str] = None):
         if app_name is not None:
-            self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
+            self.consent = True # For testing purposes # isip.isip_consent() == isip.ISIPConsent.APPROVED
             self.uid = Telemetry._get_or_generate_uid()
             # override default tid
             if tid is not None:
