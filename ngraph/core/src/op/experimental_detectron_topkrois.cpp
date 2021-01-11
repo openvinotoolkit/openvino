@@ -46,7 +46,8 @@ shared_ptr<Node>
 {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<DetectronTopKROIs>(new_args.at(0), new_args.at(1), m_max_rois);
+    return make_shared<op::v6::ExperimentalDetectronTopKROIs>(
+        new_args.at(0), new_args.at(1), m_max_rois);
 }
 
 void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types()
