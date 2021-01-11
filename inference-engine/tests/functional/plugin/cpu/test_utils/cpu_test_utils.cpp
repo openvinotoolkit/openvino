@@ -30,6 +30,7 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
 } while (0)
     CASE(undef);
     CASE(a);
+    CASE(ab);
     CASE(abcd);
     CASE(acdb);
     CASE(aBcd8b);
