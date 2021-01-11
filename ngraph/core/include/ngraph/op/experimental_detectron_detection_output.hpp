@@ -46,9 +46,9 @@ namespace ngraph
                     // specifies maximal delta of logarithms for width and height
                     float max_delta_log_wh;
                     // specifies number of detected classes
-                    int num_classes;
+                    int64_t num_classes;
                     // specifies maximal number of detections per class
-                    int post_nms_count;
+                    int64_t post_nms_count;
                     // specifies maximual number of detections per image
                     size_t max_detections_per_image;
                     // a flag specifies whether to delete background classes or not
