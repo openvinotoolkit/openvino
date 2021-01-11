@@ -623,17 +623,11 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
-        std::make_shared<LayerCreator<ngraph::op::v1::DeformableConvolution>>("DeformableConvolution"),
-        std::make_shared<LayerCreator<ngraph::op::v1::DeformablePSROIPooling>>("DeformablePSROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
-        std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolution>>("GroupConvolution"),
-        std::make_shared<LayerCreator<ngraph::op::v1::GroupConvolutionBackpropData>>("GroupConvolutionBackpropData"),
         std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
         std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
         std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
         std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
-        std::make_shared<LayerCreator<ngraph::op::v1::MaxPool>>("MaxPool"),
-        std::make_shared<LayerCreator<ngraph::op::v1::NonMaxSuppression>>("NonMaxSuppression"),
         std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
@@ -1105,148 +1099,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ReorgYolo>::cr
     return std::make_shared<ngraph::op::ReorgYolo>(inputs[0], ngraph::Strides {stride});
 }
 
-// GroupConvolution layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GroupConvolution>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::PadType pad_type = ngraph::op::PadType::EXPLICIT;
-    std::string auto_pad = GetStrAttr(dn, "auto_pad", "");
-    if (auto_pad == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (auto_pad == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (auto_pad == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto dilations = ngraph::Strides(getParameters<size_t>(dn, "dilations"));
-    auto pads_begin = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_begin", {}));
-    auto pads_end = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_end", {}));
-
-    return std::make_shared<ngraph::op::v1::GroupConvolution>(inputs[0], inputs[1], strides, pads_begin, pads_end,
-                                                              dilations, pad_type);
-}
-
-// DeformableConvolution layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::DeformableConvolution>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    size_t group = GetUIntAttr(dn, "group");
-    size_t deformable_group = GetUIntAttr(dn, "deformable_group");
-
-    ngraph::op::PadType pad_type = ngraph::op::PadType::EXPLICIT;
-    std::string auto_pad = GetStrAttr(dn, "auto_pad", "");
-    if (auto_pad == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (auto_pad == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (auto_pad == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto dilations = ngraph::Strides(getParameters<size_t>(dn, "dilations"));
-    auto pads_begin = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_begin"));
-    auto pads_end = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_end"));
-
-    return std::make_shared<ngraph::op::v1::DeformableConvolution>(inputs[0], inputs[1], inputs[2], strides, pads_begin,
-                pads_end, dilations, pad_type, group, deformable_group);
-}
-
-// GroupConvolutionBackpropData layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GroupConvolutionBackpropData>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    ngraph::op::PadType pad_type = ngraph::op::PadType::EXPLICIT;
-    std::string auto_pad = GetStrAttr(dn, "auto_pad", "");
-    if (auto_pad == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (auto_pad == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (auto_pad == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto dilations = ngraph::Strides(getParameters<size_t>(dn, "dilations"));
-    auto pads_begin = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_begin", {}));
-    auto pads_end = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "pads_end", {}));
-    auto output_padding = ngraph::CoordinateDiff(getParameters<std::ptrdiff_t>(dn, "output_padding", {}));
-
-    if (inputs.size() != 3 && inputs.size() != 2) {
-        THROW_IE_EXCEPTION << layerParsePrms.type << " layer " << layerParsePrms.name << " has incorrect number of input ports!";
-    }
-
-    if (inputs.size() == 3) {
-        return std::make_shared<ngraph::op::v1::GroupConvolutionBackpropData>(inputs[0], inputs[1], inputs[2], strides, pads_begin, pads_end,
-                                                                              dilations, pad_type, output_padding);
-    } else {
-        return std::make_shared<ngraph::op::v1::GroupConvolutionBackpropData>(inputs[0], inputs[1], strides, pads_begin, pads_end,
-                                                                              dilations, pad_type, output_padding);
-    }
-}
-
-// MaxPool layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::MaxPool>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto strides = ngraph::Strides(getParameters<size_t>(dn, "strides"));
-    auto kernel = ngraph::Shape(getParameters<size_t>(dn, "kernel"));
-    auto pads_begin = ngraph::Shape(getParameters<std::size_t>(dn, "pads_begin"));
-    auto pads_end = ngraph::Shape(getParameters<std::size_t>(dn, "pads_end"));
-    auto pad_type = ngraph::op::PadType::EXPLICIT;
-
-    auto pad_type_str = GetStrAttr(dn, "auto_pad", "");
-    if (pad_type_str == "same_lower") {
-        pad_type = ngraph::op::PadType::SAME_LOWER;
-    } else if (pad_type_str == "same_upper") {
-        pad_type = ngraph::op::PadType::SAME_UPPER;
-    } else if (pad_type_str == "valid") {
-        pad_type = ngraph::op::PadType::VALID;
-    }
-
-    ngraph::op::RoundingType rounding_type;
-    auto str_rounding_type = GetStrAttr(dn, "rounding_type", "floor");
-    if (str_rounding_type == "floor") {
-        rounding_type = ngraph::op::RoundingType::FLOOR;
-    } else if (str_rounding_type == "ceil") {
-        rounding_type = ngraph::op::RoundingType::CEIL;
-    } else {
-        THROW_IE_EXCEPTION << "Unsuppored rounding type: " << str_rounding_type;
-    }
-
-    return std::make_shared<ngraph::op::v1::MaxPool>(inputs[0], strides, pads_begin, pads_end, kernel, rounding_type,
-                                                     pad_type);
-}
-
 // PSROIPooling layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PSROIPooling>::createLayer(
@@ -1268,42 +1120,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PSROIPooling>:
     return std::make_shared<ngraph::op::PSROIPooling>(inputs[0], inputs[1],
                                                       output_dim, group_size, spatial_scale, spatial_bins_x,
                                                       spatial_bins_y, mode);
-}
-
-// DeformablePSROIPooling layer
-
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::DeformablePSROIPooling>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto output_dim = GetIntAttr(dn, "output_dim");
-    auto group_size = GetIntAttr(dn, "group_size", 1);
-    auto spatial_bins_x = GetIntAttr(dn, "spatial_bins_x", 1);
-    auto spatial_bins_y = GetIntAttr(dn, "spatial_bins_y", 1);
-    auto spatial_scale = GetFloatAttr(dn, "spatial_scale");
-    auto mode = GetStrAttr(dn, "mode", "bilinear_deformable");
-    auto trans_std = GetFloatAttr(dn, "trans_std", 1.0);
-    auto part_size = GetIntAttr(dn, "part_size", 1);
-
-    if (inputs.size() == 3) {
-        return std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],
-                                                                        inputs[1],
-                                                                        inputs[2], output_dim,
-                                                                        spatial_scale, group_size, mode, spatial_bins_x,
-                                                                        spatial_bins_y, trans_std, part_size);
-    } else if (inputs.size() == 2) {
-        return std::make_shared<ngraph::op::v1::DeformablePSROIPooling>(inputs[0],
-                                                                        inputs[1], output_dim,
-                                                                        spatial_scale, group_size, mode, spatial_bins_x,
-                                                                        spatial_bins_y, trans_std, part_size);
-    } else {
-        THROW_IE_EXCEPTION << "Wrong number of inputs for " << getType() << " layer with name: " << layerParsePrms.name;
-    }
 }
 
 // LogicalAnd layer
@@ -1340,38 +1156,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::LogicalNot
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 1);
     return std::make_shared<ngraph::op::v1::LogicalNot>(inputs[0]);
-}
-
-// NonMaxSuppression layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::NonMaxSuppression>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto box_encoding_string = GetStrAttr(dn, "box_encoding");
-    ngraph::op::v1::NonMaxSuppression::BoxEncodingType box_enc_type;
-    if (box_encoding_string == "corner") {
-        box_enc_type = ngraph::op::v1::NonMaxSuppression::BoxEncodingType::CORNER;
-    } else if (box_encoding_string == "center") {
-        box_enc_type = ngraph::op::v1::NonMaxSuppression::BoxEncodingType::CENTER;
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported box encoding type " << box_encoding_string << " for " << getType() <<
-        " layer with name: " << layerParsePrms.name;
-    }
-
-    auto sort_flag = GetBoolAttr(dn, "sort_result_descending");
-
-    std::vector<ngraph::Output<ngraph::Node>> new_inputs{inputs.begin(), inputs.end()};
-    if (new_inputs.size() == 2)
-        new_inputs.push_back(ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}));
-    for (size_t ind = new_inputs.size(); ind < 5; ++ind)
-        new_inputs.push_back(ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f}));
-    return std::make_shared<ngraph::op::v1::NonMaxSuppression>(new_inputs[0], new_inputs[1], new_inputs[2], new_inputs[3], new_inputs[4],
-            box_enc_type, sort_flag);
 }
 
 }  // namespace InferenceEngine
