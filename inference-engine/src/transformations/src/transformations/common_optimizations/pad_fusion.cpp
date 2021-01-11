@@ -20,11 +20,9 @@ template <typename T>
 static bool can_be_fused(const std::shared_ptr<opset5::Pad>& pad, const std::shared_ptr<T>& node,
                          const std::shared_ptr<opset5::Constant>& pad_value_const,
                          const std::shared_ptr<opset5::Constant>& pads_begin, const std::shared_ptr<opset5::Constant>& pads_end) {
-    if (!pad)
+    if (!pad || pad->get_pad_mode() != op::PadMode::CONSTANT)
         return false;
     if (!node)
-        return false;
-    if (pad->get_pad_mode() != op::PadMode::CONSTANT)
         return false;
 
     if (!pad_value_const)
