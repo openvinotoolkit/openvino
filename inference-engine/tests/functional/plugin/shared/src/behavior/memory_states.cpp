@@ -3,6 +3,7 @@
 //
 
 
+#include <base/behavior_test_utils.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include "behavior/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -30,6 +31,8 @@ InferenceEngine::ExecutableNetwork VariableStateTest::PrepareNetwork() {
 }
 
 TEST_P(VariableStateTest, smoke_VariableState_QueryState) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
 
@@ -45,6 +48,8 @@ TEST_P(VariableStateTest, smoke_VariableState_QueryState) {
 }
 
 TEST_P(VariableStateTest, smoke_VariableState_SetState) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
     const float new_state_val = 13.0f;
@@ -78,6 +83,8 @@ TEST_P(VariableStateTest, smoke_VariableState_SetState) {
 }
 
 TEST_P(VariableStateTest, smoke_VariableState_Reset) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
     const float new_state_val = 13.0f;
@@ -122,6 +129,8 @@ TEST_P(VariableStateTest, smoke_VariableState_Reset) {
 }
 
 TEST_P(VariableStateTest, inferreq_smoke_VariableState_QueryState) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
@@ -136,6 +145,8 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_QueryState) {
 }
 
 TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
@@ -168,6 +179,8 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
 }
 
 TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
@@ -211,6 +224,8 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
 }
 
 TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
     auto inferReq2 = executableNet.CreateInferRequest();
@@ -262,6 +277,8 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
 }
 
 TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
     auto inferReq2 = executableNet.CreateInferRequest();

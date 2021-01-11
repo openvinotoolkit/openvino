@@ -51,7 +51,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 29577
         R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
-        //TODO: Issue: 46416WS
-        R"(.*VariableStateTest.inferreq_smoke_VariableState_2infers*)"
+        //TODO: Issue: 46416
+        R"(.*VariableStateTest.inferreq_smoke_VariableState_2infers*.*)"
     };
 }
