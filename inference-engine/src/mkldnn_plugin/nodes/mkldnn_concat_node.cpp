@@ -9,7 +9,6 @@
 #include <vector>
 #include <mkldnn_extension_utils.h>
 
-#include <legacy/ie_layers.h>
 #include "mkldnn.hpp"
 #include "mkldnn/iml_type_mapper.h"
 #include "mkldnn_dims.h"
@@ -27,287 +26,291 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNConcatNode::MKLDNNConcatNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+MKLDNNConcatNode::MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) {}
 
 void MKLDNNConcatNode::getSupportedDescriptors() {
-    auto * conLayer = dynamic_cast<ConcatLayer*>(getCnnLayer().get());
-
-    if (conLayer == nullptr)
-        IE_THROW() << "Cannot convert concat layer.";
-
-    axis = conLayer->_axis;
-
-    if (getParentEdges().empty())
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
-    if (getChildEdges().empty())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
-    auto& firstParentDims = getParentEdgeAt(0)->getDims();
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        auto& dims = getParentEdgeAt(i)->getDims();
-        bool incorrectDims = false;
-        for (size_t j = 0; j < firstParentDims.ndims(); j++) {
-            if (j == axis)
-                continue;
-            if (dims.ndims() != firstParentDims.ndims() || firstParentDims[j] != dims[j]) {
-                incorrectDims = true;
-                break;
-            }
-        }
-        if (incorrectDims || firstParentDims.ndims() == 0) {
-            IE_THROW() << "Incorrect input dimensions for concat node " << getName();
-        }
-    }
+    IE_THROW() << "Not implemented";
+// TODO [NM]: reimplement w/o using CNNLayer
+//    auto * conLayer = dynamic_cast<ConcatLayer*>(getCnnLayer().get());
+//
+//    if (conLayer == nullptr)
+//        IE_THROW() << "Cannot convert concat layer.";
+//
+//    axis = conLayer->_axis;
+//
+//    if (getParentEdges().empty())
+//        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+//    if (getChildEdges().empty())
+//        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+//    auto& firstParentDims = getParentEdgeAt(0)->getDims();
+//    for (size_t i = 1; i < getParentEdges().size(); i++) {
+//        auto& dims = getParentEdgeAt(i)->getDims();
+//        bool incorrectDims = false;
+//        for (size_t j = 0; j < firstParentDims.ndims(); j++) {
+//            if (j == axis)
+//                continue;
+//            if (dims.ndims() != firstParentDims.ndims() || firstParentDims[j] != dims[j]) {
+//                incorrectDims = true;
+//                break;
+//            }
+//        }
+//        if (incorrectDims || firstParentDims.ndims() == 0) {
+//            IE_THROW() << "Incorrect input dimensions for concat node " << getName();
+//        }
+//    }
 }
 
 void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
-
-    inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
-    bool isMixedPrecision = false;
-    for (int i = 1; i < getCnnLayer()->insData.size(); i++) {
-        if (getCnnLayer()->insData[0].lock()->getPrecision() != getCnnLayer()->insData[i].lock()->getPrecision()) {
-            isMixedPrecision = true;
-            break;
-        }
-    }
-
-    // MKLDNN doesn't support different precision on inputs so fallback on FP32 in such case
-    if (isMixedPrecision)
-        inputPrecision = Precision::FP32;
-
-    // Concat node supports int8 implementations only for NHWC and NDHWC layouts
-    if (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) {
-        int ndims = getChildEdgeAt(0)->getDims().ndims();
-        if (ndims != 2 && ndims != 4 && ndims != 5)
-            inputPrecision = Precision::FP32;
-    }
-
-    // MKLDNN supports only equal precisions for inputs and output
-    outputPrecision = inputPrecision;
-
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
-
-    MKLDNNDims dstDims = getChildEdgeAt(0)->getDims();
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = true;
-
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto parentEdge = getParentEdgeAt(i);
-
-        InferenceEngine::DataConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? parentEdge->getDims().ndims() == 2 ? memory::format_tag::nc :
-                                                                                          parentEdge->getDims().ndims() == 4 ? memory::format_tag::nhwc :
-                                                                                                                               memory::format_tag::ndhwc
-                                                                                        : memory::format_tag::any;
-
-        dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(parentEdge->getDims(), inputDataType, fmt));
-        config.inConfs.push_back(dataConfig);
-    }
-
-    auto dims = getChildEdgeAt(0)->getDims();
-
-    config.outConfs.resize(1);
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
-    if ((!isMixedPrecision && outputPrecision != Precision::U8 && outputPrecision != Precision::I8) || axis != 1) {
-        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? dims.ndims() == 2 ? memory::format_tag::nc :
-                                                                                          dims.ndims() == 4 ? memory::format_tag::nhwc :
-                                                                                                              memory::format_tag::ndhwc
-                                                                                        : MKLDNNMemory::GetPlainFormat(dims);
-
-        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(dims, outputDataType, fmt));
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, fmt);
-
-        if (inputPrecision != Precision::U8 && inputPrecision != Precision::I8) {
-            if (dims.ndims() == 4) {
-                if (dims[1] % 8 == 0) {
-                    config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                            MKLDNNMemoryDesc(dims, outputDataType, memory::format_tag::nChw8c));
-                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, memory::format_tag::nChw8c);
-
-                    if (dims[1] % 16 == 0) {
-                        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nChw16c));
-                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nChw16c);
-                    }
-                }
-            } else if (dims.ndims() == 5) {
-                if (dims[1] % 8 == 0) {
-                    config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nCdhw8c));
-                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nCdhw8c);
-
-                    if (dims[1] % 16 == 0) {
-                        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nCdhw16c));
-                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nCdhw16c);
-                    }
-                }
-            }
-        }
-    }
-
-    if (axis != 1)
-        return;
-
-    auto numOfDim = static_cast<size_t>(dstDims.ndims());
-
-    SizeVector order(numOfDim);
-    SizeVector offsets(numOfDim, 0lu);
-    size_t offset = (std::numeric_limits<size_t>::max)();
-    for (size_t i = 0; i < numOfDim; i++) {
-        order[i] = i;
-    }
-
-    if (outputPrecision == Precision::I8 || outputPrecision == Precision::U8) {
-        if (numOfDim == 4) {
-            // Here we assume NHWC layout (channels are the last)
-
-            order = {0, 2, 3, 1};
-            offsets = {0, 0, 0, 0};
-
-            SizeVector blkDims = dstDims.ToSizeVector();
-            blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[1] };
-
-            SizeVector strides(numOfDim);
-            strides.resize(numOfDim);
-            // C is the last in NHWC, so all strides are max()
-            for (size_t i = 0; i < numOfDim; i++) {
-                strides[i] = (std::numeric_limits<size_t>::max)();
-            }
-
-            config.outConfs[0].desc = TensorDesc(outputPrecision,
-                                                 dstDims.ToSizeVector(),
-                                                 { blkDims, order, offset, offsets, strides });
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
-                auto parentEdge = getParentEdgeAt(i);
-
-                SizeVector blkDims = parentEdge->getDims().ToSizeVector();
-                blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[1] };
-
-                config.inConfs[i].inPlace = -1;     // Change to 0 here if inplace concat is supported for NHWC in mkldnn
-
-                config.inConfs[i].desc = TensorDesc(inputPrecision, parentEdge->getDims().ToSizeVector(),
-                                                    {blkDims, order, offset, offsets, strides});
-            }
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nhwc);
-
-            return;
-        } else if (numOfDim == 5) {
-            // Here we assume NDHWC layout (channels are the last)
-
-            order = {0, 2, 3, 4, 1};
-            offsets = {0, 0, 0, 0, 0};
-
-            SizeVector blkDims = dstDims.ToSizeVector();
-            blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[4], blkDims[1] };
-
-            SizeVector strides(numOfDim);
-            strides.resize(numOfDim);
-            // C is the last in NDHWC, so all strides are max()
-            for (size_t i = 0; i < numOfDim; i++) {
-                strides[i] = (std::numeric_limits<size_t>::max)();
-            }
-
-            config.outConfs[0].desc = TensorDesc(outputPrecision,
-                                                 dstDims.ToSizeVector(),
-                                                 { blkDims, order, offset, offsets, strides });
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
-                auto parentEdge = getParentEdgeAt(i);
-
-                SizeVector blkDims = parentEdge->getDims().ToSizeVector();
-                blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[4], blkDims[1] };
-
-                config.inConfs[i].inPlace = -1;     // Change to 0 here if inplace concat is supported for NDHWC in mkldnn
-
-                config.inConfs[i].desc = TensorDesc(inputPrecision, parentEdge->getDims().ToSizeVector(),
-                                                    {blkDims, order, offset, offsets, strides});
-            }
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::ndhwc);
-
-            return;
-        }
-    }
-
-    SizeVector strides(numOfDim);
-    strides[numOfDim - 1] = 1;
-    for (size_t i = 2; i <= numOfDim; i++) {
-        if (numOfDim - i < axis) {
-            strides[numOfDim - i] = (std::numeric_limits<size_t>::max)();
-        } else {
-            strides[numOfDim - i] = strides[numOfDim - i + 1] * dstDims[numOfDim - i + 1];
-        }
-    }
-
-    config.outConfs[0].desc = TensorDesc(
-            MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType),
-            dstDims.ToSizeVector(),
-            {dstDims.ToSizeVector(), order, offset, offsets, strides});
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto parentEdge = getParentEdgeAt(i);
-        config.inConfs[i].inPlace = 0;
-        config.inConfs[i].desc = TensorDesc(MKLDNNExtensionUtils::DataTypeToIEPrecision(inputDataType), parentEdge->getDims().ToSizeVector(),
-                                            {parentEdge->getDims().ToSizeVector(), order, offset, offsets, strides});
-    }
-
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemory::Convert(config.outConfs[0].desc.getLayout()));
-
-    if (numOfDim == 4lu || numOfDim == 5lu) {
-        size_t blkDimsLen = numOfDim + 1;
-        order.resize(blkDimsLen);
-        for (size_t i = 0; i < numOfDim; i++) {
-            order[i] = i;
-        }
-        order[numOfDim] = 1lu;
-        offsets = SizeVector(blkDimsLen, 0lu);
-
-        // nChw8c, nChw16c, nCdhw8c, nCdhw16c
-        for (size_t sizeS : {8lu, 16lu}) {
-            SizeVector blkDims = dstDims.ToSizeVector();
-            if (blkDims[1] % sizeS)
-                continue;
-            blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1lu : 0lu);
-            blkDims.push_back(sizeS);
-
-            strides.resize(blkDimsLen);
-            strides[blkDimsLen - 1] = 1;
-            for (size_t i = 2lu; i <= blkDimsLen; i++) {
-                if (blkDimsLen - i < axis) {
-                    strides[blkDimsLen - i] = (std::numeric_limits<size_t>::max)();
-                } else {
-                    strides[blkDimsLen - i] = strides[blkDimsLen - i + 1] * blkDims[blkDimsLen - i + 1];
-                }
-            }
-            config.outConfs[0].desc = TensorDesc(
-                    MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType),
-                    dstDims.ToSizeVector(), {blkDims, order, offset, offsets, strides});
-
-            bool canInplace = true;
-            for (size_t i = 0lu; canInplace && i < getParentEdges().size(); i++) {
-                auto parentEdge = getParentEdgeAt(i);
-                blkDims = parentEdge->getDims().ToSizeVector();
-                if (blkDims[1] % sizeS)
-                    canInplace = false;
-
-                blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1lu : 0lu);
-                blkDims.push_back(sizeS);
-                config.inConfs[i].desc =  TensorDesc(MKLDNNExtensionUtils::DataTypeToIEPrecision(inputDataType), parentEdge->getDims().ToSizeVector(),
-                                                     {blkDims, order, offset, offsets, strides});
-            }
-            if (canInplace) {
-                auto dstFormat = numOfDim == 4lu ? sizeS == 8lu ? mkldnn::memory::format_tag::nChw8c : mkldnn::memory::format_tag::nChw16c
-                                                 : sizeS == 8lu ? mkldnn::memory::format_tag::nCdhw8c : mkldnn::memory::format_tag::nCdhw16c;
-                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, dstFormat);
-            }
-        }
-    }
+    IE_THROW() << "Not implemented";
+    // TODO [NM]: reimplement w/o using CNNLayer
+//    if (!supportedPrimitiveDescriptors.empty())
+//        return;
+//
+//    inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+//    bool isMixedPrecision = false;
+//    for (int i = 1; i < getCnnLayer()->insData.size(); i++) {
+//        if (getCnnLayer()->insData[0].lock()->getPrecision() != getCnnLayer()->insData[i].lock()->getPrecision()) {
+//            isMixedPrecision = true;
+//            break;
+//        }
+//    }
+//
+//    // MKLDNN doesn't support different precision on inputs so fallback on FP32 in such case
+//    if (isMixedPrecision)
+//        inputPrecision = Precision::FP32;
+//
+//    // Concat node supports int8 implementations only for NHWC and NDHWC layouts
+//    if (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) {
+//        int ndims = getChildEdgeAt(0)->getDims().ndims();
+//        if (ndims != 2 && ndims != 4 && ndims != 5)
+//            inputPrecision = Precision::FP32;
+//    }
+//
+//    // MKLDNN supports only equal precisions for inputs and output
+//    outputPrecision = inputPrecision;
+//
+//    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
+//    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
+//
+//    MKLDNNDims dstDims = getChildEdgeAt(0)->getDims();
+//    InferenceEngine::LayerConfig config;
+//    config.dynBatchSupport = true;
+//
+//    for (size_t i = 0; i < getParentEdges().size(); i++) {
+//        auto parentEdge = getParentEdgeAt(i);
+//
+//        InferenceEngine::DataConfig dataConfig;
+//        dataConfig.inPlace = -1;
+//        dataConfig.constant = false;
+//        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? parentEdge->getDims().ndims() == 2 ? memory::format_tag::nc :
+//                                                                                          parentEdge->getDims().ndims() == 4 ? memory::format_tag::nhwc :
+//                                                                                                                               memory::format_tag::ndhwc
+//                                                                                        : memory::format_tag::any;
+//
+//        dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(parentEdge->getDims(), inputDataType, fmt));
+//        config.inConfs.push_back(dataConfig);
+//    }
+//
+//    auto dims = getChildEdgeAt(0)->getDims();
+//
+//    config.outConfs.resize(1);
+//    config.outConfs[0].inPlace = -1;
+//    config.outConfs[0].constant = false;
+//    if ((!isMixedPrecision && outputPrecision != Precision::U8 && outputPrecision != Precision::I8) || axis != 1) {
+//        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? dims.ndims() == 2 ? memory::format_tag::nc :
+//                                                                                          dims.ndims() == 4 ? memory::format_tag::nhwc :
+//                                                                                                              memory::format_tag::ndhwc
+//                                                                                        : MKLDNNMemory::GetPlainFormat(dims);
+//
+//        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(dims, outputDataType, fmt));
+//        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, fmt);
+//
+//        if (inputPrecision != Precision::U8 && inputPrecision != Precision::I8) {
+//            if (dims.ndims() == 4) {
+//                if (dims[1] % 8 == 0) {
+//                    config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
+//                            MKLDNNMemoryDesc(dims, outputDataType, memory::format_tag::nChw8c));
+//                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, memory::format_tag::nChw8c);
+//
+//                    if (dims[1] % 16 == 0) {
+//                        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
+//                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nChw16c));
+//                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nChw16c);
+//                    }
+//                }
+//            } else if (dims.ndims() == 5) {
+//                if (dims[1] % 8 == 0) {
+//                    config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
+//                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nCdhw8c));
+//                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nCdhw8c);
+//
+//                    if (dims[1] % 16 == 0) {
+//                        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
+//                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nCdhw16c));
+//                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nCdhw16c);
+//                    }
+//                }
+//            }
+//        }
+//    }
+//
+//    if (axis != 1)
+//        return;
+//
+//    auto numOfDim = static_cast<size_t>(dstDims.ndims());
+//
+//    SizeVector order(numOfDim);
+//    SizeVector offsets(numOfDim, 0lu);
+//    size_t offset = (std::numeric_limits<size_t>::max)();
+//    for (size_t i = 0; i < numOfDim; i++) {
+//        order[i] = i;
+//    }
+//
+//    if (outputPrecision == Precision::I8 || outputPrecision == Precision::U8) {
+//        if (numOfDim == 4) {
+//            // Here we assume NHWC layout (channels are the last)
+//
+//            order = {0, 2, 3, 1};
+//            offsets = {0, 0, 0, 0};
+//
+//            SizeVector blkDims = dstDims.ToSizeVector();
+//            blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[1] };
+//
+//            SizeVector strides(numOfDim);
+//            strides.resize(numOfDim);
+//            // C is the last in NHWC, so all strides are max()
+//            for (size_t i = 0; i < numOfDim; i++) {
+//                strides[i] = (std::numeric_limits<size_t>::max)();
+//            }
+//
+//            config.outConfs[0].desc = TensorDesc(outputPrecision,
+//                                                 dstDims.ToSizeVector(),
+//                                                 { blkDims, order, offset, offsets, strides });
+//            for (size_t i = 0; i < getParentEdges().size(); i++) {
+//                auto parentEdge = getParentEdgeAt(i);
+//
+//                SizeVector blkDims = parentEdge->getDims().ToSizeVector();
+//                blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[1] };
+//
+//                config.inConfs[i].inPlace = -1;     // Change to 0 here if inplace concat is supported for NHWC in mkldnn
+//
+//                config.inConfs[i].desc = TensorDesc(inputPrecision, parentEdge->getDims().ToSizeVector(),
+//                                                    {blkDims, order, offset, offsets, strides});
+//            }
+//
+//            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nhwc);
+//
+//            return;
+//        } else if (numOfDim == 5) {
+//            // Here we assume NDHWC layout (channels are the last)
+//
+//            order = {0, 2, 3, 4, 1};
+//            offsets = {0, 0, 0, 0, 0};
+//
+//            SizeVector blkDims = dstDims.ToSizeVector();
+//            blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[4], blkDims[1] };
+//
+//            SizeVector strides(numOfDim);
+//            strides.resize(numOfDim);
+//            // C is the last in NDHWC, so all strides are max()
+//            for (size_t i = 0; i < numOfDim; i++) {
+//                strides[i] = (std::numeric_limits<size_t>::max)();
+//            }
+//
+//            config.outConfs[0].desc = TensorDesc(outputPrecision,
+//                                                 dstDims.ToSizeVector(),
+//                                                 { blkDims, order, offset, offsets, strides });
+//            for (size_t i = 0; i < getParentEdges().size(); i++) {
+//                auto parentEdge = getParentEdgeAt(i);
+//
+//                SizeVector blkDims = parentEdge->getDims().ToSizeVector();
+//                blkDims = { blkDims[0], blkDims[2], blkDims[3], blkDims[4], blkDims[1] };
+//
+//                config.inConfs[i].inPlace = -1;     // Change to 0 here if inplace concat is supported for NDHWC in mkldnn
+//
+//                config.inConfs[i].desc = TensorDesc(inputPrecision, parentEdge->getDims().ToSizeVector(),
+//                                                    {blkDims, order, offset, offsets, strides});
+//            }
+//
+//            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::ndhwc);
+//
+//            return;
+//        }
+//    }
+//
+//    SizeVector strides(numOfDim);
+//    strides[numOfDim - 1] = 1;
+//    for (size_t i = 2; i <= numOfDim; i++) {
+//        if (numOfDim - i < axis) {
+//            strides[numOfDim - i] = (std::numeric_limits<size_t>::max)();
+//        } else {
+//            strides[numOfDim - i] = strides[numOfDim - i + 1] * dstDims[numOfDim - i + 1];
+//        }
+//    }
+//
+//    config.outConfs[0].desc = TensorDesc(
+//            MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType),
+//            dstDims.ToSizeVector(),
+//            {dstDims.ToSizeVector(), order, offset, offsets, strides});
+//    for (size_t i = 0; i < getParentEdges().size(); i++) {
+//        auto parentEdge = getParentEdgeAt(i);
+//        config.inConfs[i].inPlace = 0;
+//        config.inConfs[i].desc = TensorDesc(MKLDNNExtensionUtils::DataTypeToIEPrecision(inputDataType), parentEdge->getDims().ToSizeVector(),
+//                                            {parentEdge->getDims().ToSizeVector(), order, offset, offsets, strides});
+//    }
+//
+//    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemory::Convert(config.outConfs[0].desc.getLayout()));
+//
+//    if (numOfDim == 4lu || numOfDim == 5lu) {
+//        size_t blkDimsLen = numOfDim + 1;
+//        order.resize(blkDimsLen);
+//        for (size_t i = 0; i < numOfDim; i++) {
+//            order[i] = i;
+//        }
+//        order[numOfDim] = 1lu;
+//        offsets = SizeVector(blkDimsLen, 0lu);
+//
+//        // nChw8c, nChw16c, nCdhw8c, nCdhw16c
+//        for (size_t sizeS : {8lu, 16lu}) {
+//            SizeVector blkDims = dstDims.ToSizeVector();
+//            if (blkDims[1] % sizeS)
+//                continue;
+//            blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1lu : 0lu);
+//            blkDims.push_back(sizeS);
+//
+//            strides.resize(blkDimsLen);
+//            strides[blkDimsLen - 1] = 1;
+//            for (size_t i = 2lu; i <= blkDimsLen; i++) {
+//                if (blkDimsLen - i < axis) {
+//                    strides[blkDimsLen - i] = (std::numeric_limits<size_t>::max)();
+//                } else {
+//                    strides[blkDimsLen - i] = strides[blkDimsLen - i + 1] * blkDims[blkDimsLen - i + 1];
+//                }
+//            }
+//            config.outConfs[0].desc = TensorDesc(
+//                    MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType),
+//                    dstDims.ToSizeVector(), {blkDims, order, offset, offsets, strides});
+//
+//            bool canInplace = true;
+//            for (size_t i = 0lu; canInplace && i < getParentEdges().size(); i++) {
+//                auto parentEdge = getParentEdgeAt(i);
+//                blkDims = parentEdge->getDims().ToSizeVector();
+//                if (blkDims[1] % sizeS)
+//                    canInplace = false;
+//
+//                blkDims[1] = blkDims[1] / sizeS + (blkDims[1] % sizeS ? 1lu : 0lu);
+//                blkDims.push_back(sizeS);
+//                config.inConfs[i].desc =  TensorDesc(MKLDNNExtensionUtils::DataTypeToIEPrecision(inputDataType), parentEdge->getDims().ToSizeVector(),
+//                                                     {blkDims, order, offset, offsets, strides});
+//            }
+//            if (canInplace) {
+//                auto dstFormat = numOfDim == 4lu ? sizeS == 8lu ? mkldnn::memory::format_tag::nChw8c : mkldnn::memory::format_tag::nChw16c
+//                                                 : sizeS == 8lu ? mkldnn::memory::format_tag::nCdhw8c : mkldnn::memory::format_tag::nCdhw16c;
+//                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, dstFormat);
+//            }
+//        }
+//    }
 }
 
 void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {

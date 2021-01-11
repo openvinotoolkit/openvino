@@ -26,11 +26,9 @@
 #include <nodes/mkldnn_reorder_node.h>
 #include <nodes/mkldnn_convert_node.h>
 
-#include <legacy/graph_tools.hpp>
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
-#include <legacy/net_pass.h>
-#include <legacy/details/ie_cnn_network_tools.h>
+#include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 
 #include "precision_utils.h"
@@ -38,6 +36,12 @@
 
 #include "utils/blob_dump.h"
 #include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
+
+#include <ngraph/node.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/variant.hpp>
+#include <ngraph/ops.hpp>
 
 /*****************************************************
  * Debug capability
@@ -71,31 +75,7 @@ typedef std::vector<edge_cluster_t> edge_clusters_t;
 mkldnn::engine MKLDNNGraph::eng(mkldnn::engine::kind::cpu, 0);
 
 template<typename NET>
-void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
-    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::ApplyUnrollPasses");
-
-    NetPass::CombineRNNSeq(net);
-    bool ti_proc_ok = NetPass::UnrollRNN_if(net, [] (const RNNCellBase &rnn) -> bool {
-        if (rnn.clip != 0.0f)
-            return true;
-        if ((rnn.cellType == RNNCellBase::GRU || rnn.cellType == RNNCellBase::GRU_LBR) &&
-            rnn.activations != std::vector<std::string> {"sigmoid", "tanh"})
-            return true;
-        if (rnn.cellType == RNNCellBase::LSTM &&
-            rnn.activations != std::vector<std::string> {"sigmoid", "tanh", "tanh"})
-            return true;
-        return false;
-    });
-    if (!ti_proc_ok)
-        IE_THROW() << "Plugin doesn't support Tensor Iterator in pure form. "
-                              "None TI optimization pattern has been applied successfully";
-}
-
-template void MKLDNNGraph::ApplyUnrollPasses(TensorIterator::Body&);
-template void MKLDNNGraph::ApplyUnrollPasses(CNNNetwork&);
-
-template<typename NET>
-void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
+void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
         MKLDNNWeightsSharing::Ptr &w_cache) {
     OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "CreateGraph");
 
@@ -109,224 +89,242 @@ void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr&
     status = Ready;
 }
 
-template void MKLDNNGraph::CreateGraph(const TensorIterator::Body&,
-        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
+//template void MKLDNNGraph::CreateGraph(const TensorIterator::Body&,
+//        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
+//template void MKLDNNGraph::CreateGraph(CNNNetwork&,
+//        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 
-void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr) {
-    this->_name = "subgraph";
-    this->reuse_io_tensors = false;
-
-    // Map data object onto producer layer(node)
-    std::unordered_map<Data*, std::pair<MKLDNNNodePtr, int>> data2node;
-
-    // nodes which has no consumers (output or just unused). But doesn't marked as graph output.
-    // Will be stored as fake output separately.
-    std::unordered_set<DataPtr> unused_data;
-
-    // Step 1. Replicate input nodes
-    for (const auto &input : subgraph.inputs) {
-        if (input->getPrecision() == Precision::UNSPECIFIED) continue;  // const node holder
-
-        auto creator = getCreatorLayer(input).lock();
-        if (creator == nullptr) {
-            creator.reset(new CNNLayer({input->getName(), "Input", input->getTensorDesc().getPrecision()}));
-            creator->outData.push_back(input);
-        }
-
-        const MKLDNNNodePtr node(MKLDNNNode::factory().create(creator, getEngine(), extMgr, weightsCache));
-        data2node[input.get()] = {node, 0};
-
-        graphNodes.push_back(node);
-        inputNodes[input->getName()] = node;
-
-        if (getInputTo(input).empty()) {
-            unused_data.insert(input);
-        }
-    }
-
-    // Step 2. Replicate all internal nodes.
-    for (const auto layer : NetPass::TIBodySortTopologically(subgraph)) {
-        const MKLDNNNodePtr node {MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache)};
-        graphNodes.push_back(node);
-
-        for (int port = 0; port < layer->insData.size(); port++) {
-            auto data = layer->insData[port].lock();
-
-            auto port_info = data2node[data.get()];
-            auto parent_node = port_info.first;
-            auto parent_port_idx = port_info.second;
-
-            MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, parent_port_idx, port));
-            node->addEdge(edge);
-            graphEdges.push_back(edge);
-        }
-        int out_port_idx = 0;
-        for (auto &out_data : layer->outData) {
-            data2node[out_data.get()] = {node, out_port_idx++};
-            if (getInputTo(out_data).empty()) {
-                unused_data.insert(out_data);
-            }
-        }
-    }
-
-    // Step 3. Add output nodes and output stubs for unused data objects.
-    for (const auto &output : subgraph.outputs) {
-        auto port_info = data2node[output.get()];
-        auto parent_node = port_info.first;
-        auto parent_port_idx = port_info.second;
-
-        CNNLayerPtr layer(new CNNLayer({"out_" + output->getName(), "Output", output->getTensorDesc().getPrecision()}));
-        layer->insData.push_back(output);
-
-        const MKLDNNNodePtr node {MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache)};
-
-        MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, parent_port_idx, 0));
-        node->addEdge(edge);
-        graphEdges.push_back(edge);
-        graphNodes.push_back(node);
-        outputNodes.push_back(node);
-
-        unused_data.erase(output);
-    }
-
-    // Add stub output node for unused data
-    for (auto to_stub_data : unused_data) {
-        auto port_info = data2node[to_stub_data.get()];
-        auto parent_node = port_info.first;
-        auto parent_port_idx = port_info.second;
-
-        CNNLayerPtr layer(new CNNLayer({"stub_" + to_stub_data->getName(), "Output", to_stub_data->getTensorDesc().getPrecision()}));
-        layer->insData.push_back(to_stub_data);
-
-        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
-
-        MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, parent_port_idx, 0));
-        node->addEdge(edge);
-        graphEdges.push_back(edge);
-        graphNodes.push_back(node);
-    }
-}
+//void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr) {
+//    this->_name = "subgraph";
+//    this->reuse_io_tensors = false;
+//
+//    // Map data object onto producer layer(node)
+//    std::unordered_map<Data*, std::pair<MKLDNNNodePtr, int>> data2node;
+//
+//    // nodes which has no consumers (output or just unused). But doesn't marked as graph output.
+//    // Will be stored as fake output separately.
+//    std::unordered_set<DataPtr> unused_data;
+//
+//    // Step 1. Replicate input nodes
+//    for (const auto &input : subgraph.inputs) {
+//        if (input->getPrecision() == Precision::UNSPECIFIED) continue;  // const node holder
+//
+//        auto creator = getCreatorLayer(input).lock();
+//        if (creator == nullptr) {
+//            creator.reset(new CNNLayer({input->getName(), "Input", input->getTensorDesc().getPrecision()}));
+//            creator->outData.push_back(input);
+//        }
+//
+//        const MKLDNNNodePtr node(MKLDNNNode::factory().create(creator, getEngine(), extMgr, weightsCache));
+//        data2node[input.get()] = {node, 0};
+//
+//        graphNodes.push_back(node);
+//        inputNodesMap[input->getName()] = node;
+//
+//        if (getInputTo(input).empty()) {
+//            unused_data.insert(input);
+//        }
+//    }
+//
+//    // Step 2. Replicate all internal nodes.
+//    for (const auto layer : NetPass::TIBodySortTopologically(subgraph)) {
+//        const MKLDNNNodePtr node {MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache)};
+//        graphNodes.push_back(node);
+//
+//        for (int port = 0; port < layer->insData.size(); port++) {
+//            auto data = layer->insData[port].lock();
+//
+//            auto port_info = data2node[data.get()];
+//            auto parent_node = port_info.first;
+//            auto parent_port_idx = port_info.second;
+//
+//            MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, parent_port_idx, port));
+//            node->addEdge(edge);
+//            graphEdges.push_back(edge);
+//        }
+//        int out_port_idx = 0;
+//        for (auto &out_data : layer->outData) {
+//            data2node[out_data.get()] = {node, out_port_idx++};
+//            if (getInputTo(out_data).empty()) {
+//                unused_data.insert(out_data);
+//            }
+//        }
+//    }
+//
+//    // Step 3. Add output nodes and output stubs for unused data objects.
+//    for (const auto &output : subgraph.outputs) {
+//        auto port_info = data2node[output.get()];
+//        auto parent_node = port_info.first;
+//        auto parent_port_idx = port_info.second;
+//
+//        CNNLayerPtr layer(new CNNLayer({"out_" + output->getName(), "Output", output->getTensorDesc().getPrecision()}));
+//        layer->insData.push_back(output);
+//
+//        const MKLDNNNodePtr node {MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache)};
+//
+//        MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, parent_port_idx, 0));
+//        node->addEdge(edge);
+//        graphEdges.push_back(edge);
+//        graphNodes.push_back(node);
+//        outputNodesMap.push_back(node);
+//
+//        unused_data.erase(output);
+//    }
+//
+//    // Add stub output node for unused data
+//    for (auto to_stub_data : unused_data) {
+//        auto port_info = data2node[to_stub_data.get()];
+//        auto parent_node = port_info.first;
+//        auto parent_port_idx = port_info.second;
+//
+//        CNNLayerPtr layer(new CNNLayer({"stub_" + to_stub_data->getName(), "Output", to_stub_data->getTensorDesc().getPrecision()}));
+//        layer->insData.push_back(to_stub_data);
+//
+//        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
+//
+//        MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, parent_port_idx, 0));
+//        node->addEdge(edge);
+//        graphEdges.push_back(edge);
+//        graphNodes.push_back(node);
+//    }
+//}
 
 void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
-    InputsDataMap inputs = network.getInputsInfo();
+    InputsDataMap inputsInfo = network.getInputsInfo();
+    OutputsDataMap outputsInfo = network.getOutputsInfo();
 
-    this->_name = network.getName();
-
-    // The input layer precision has to be equal to the InputData precision
-    std::map<std::string, Precision> changedPrecision;
-    for (const auto& input : inputs) {
-        auto inputLayer = getCreatorLayer(input.second->getInputData()).lock();
-        if (inputLayer) {
-            inputLayer->precision = inputLayer->outData[0]->getTensorDesc().getPrecision();
-        }
+    std::shared_ptr<const ngraph::Function> func = network.getFunction();
+    if (!func) {
+        IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
 
-    std::unordered_map<CNNLayerPtr, MKLDNNNodePtr> layer2node;
-    std::unordered_set<DataPtr> unused_data;  // nodes which has no consumers (output or just unused)
+    auto orderedOps = func->get_ordered_ops();
 
-    auto _parent_port = [] (const DataPtr &data) -> int {
-        auto parent = getCreatorLayer(data).lock();
-        for (int i = 0; parent->outData.size(); i++)
-            if (data == parent->outData[i])
-                return i;
+
+//    // The input layer precision has to be equal to the InputData precision
+//    std::map<std::string, Precision> changedPrecision;
+//    for (const auto& input : inputs) {
+//        auto inputLayer = getCreatorLayer(input.second->getInputData()).lock();
+//        if (inputLayer) {
+//            inputLayer->precision = inputLayer->outData[0]->getTensorDesc().getPrecision();
+//        }
+//    }
+//
+//  // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ngraph::Node
+//    std::unordered_map<ngraph::Node, MKLDNNNodePtr> op2node;
+    std::map<std::shared_ptr<ngraph::Node>, MKLDNNNodePtr> op2node;
+    std::unordered_set<DataPtr> unused_data;  // nodes which has no consumers (output or just unused)
+//
+    auto getParentPort = [](const std::shared_ptr<ngraph::Node> op, const std::shared_ptr<ngraph::Node> parentOp) -> int {
+        // TODO [NM]: do we have a better way how to determine parent port?
+        for (size_t port = 0; port < parentOp->get_output_size(); port++) {
+            auto outputs = parentOp->get_output_target_inputs(port);
+            for (auto& output : outputs) {
+                if (op == output.get_node()->shared_from_this())
+                    return static_cast<int>(port);
+            }
+        }
+
         return -1;
     };
 
     // Replicate All Nodes in topological order
-    for (const auto layer : CNNNetSortTopologically(network)) {
-        CNNLayerPtr _layer = layer;
-        if (layer->type == "Memory" && layer->GetParamAsString("index") == "1") {
-            auto memoryId = layer->GetParamAsString("id");
-            Precision portPrecision = layer->outData[0]->getTensorDesc().getPrecision();
-            _layer.reset(new CNNLayer({layer->name + "/id=" + memoryId, "MemoryInput", portPrecision}));
-            _layer->params = layer->params;
-            _layer->outData = layer->outData;
-        }
+    for (const auto& op : orderedOps) {
+//        CNNLayerPtr _layer = layer;
+//        if (layer->type == "Memory" && layer->GetParamAsString("index") == "1") {
+//            auto memoryId = layer->GetParamAsString("id");
+//            Precision portPrecision = layer->outData[0]->getTensorDesc().getPrecision();
+//            _layer.reset(new CNNLayer({layer->name + "/id=" + memoryId, "MemoryInput", portPrecision}));
+//            _layer->params = layer->params;
+//            _layer->outData = layer->outData;
+//        }
 
-        const MKLDNNNodePtr node(MKLDNNNode::factory().create(_layer, getEngine(), extMgr, weightsCache));
+        const MKLDNNNodePtr node(MKLDNNNode::factory().create(op, getEngine(), extMgr, weightsCache));
         graphNodes.push_back(node);
-        layer2node[layer] = node;
 
-        if (layer->params.count("originalLayersNames")) {
-            node->originalLayers = layer->params["originalLayersNames"];
+        if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
+            if (inputsInfo.count(node->getName()) != 0) {
+                inputNodesMap[node->getName()] = node;
+            }
         }
 
-        for (int port = 0; port < layer->insData.size(); port++) {
-            auto data = layer->insData[port].lock();
-            auto parent_layer = getCreatorLayer(data).lock();
-            if (!parent_layer) continue;  // no parent means that it is input data node (or memory/const layer)
+        if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
+            auto prev = op->get_input_node_shared_ptr(0);
+            std::string inputID;
+            inputID = prev->get_friendly_name();
+            if (prev->get_output_size() > 1) {
+                inputID += "." + std::to_string(op->get_input_source_output(0).get_index());
+            }
 
-            auto parent_node = layer2node[parent_layer];
+            if (outputsInfo.count(inputID) != 0) {
+                outputNodesMap[inputID] = node;
+            }
+        }
 
-            MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(data), port));
+        op2node[op] = node;
+
+        const auto& rtInfo = op->get_rt_info();
+        if (rtInfo.count("originalLayersNames")) {
+            node->originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
+        }
+
+        for (size_t port = 0; port < op->get_input_size(); port++) {
+            auto parentOp = op->get_input_node_shared_ptr(port);
+
+//            auto data = layer->insData[port].lock();
+//            auto parent_layer = getCreatorLayer(data).lock();
+//            if (!parent_layer) continue;  // no parent means that it is input data node (or memory/const layer)
+
+            auto parentNode = op2node[parentOp];
+
+            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentPort(op, parentOp), static_cast<int>(port)));
             node->addEdge(edge);
             graphEdges.push_back(edge);
         }
-        for (auto &out_data : layer->outData) {
-            if (getInputTo(out_data).empty()) {
-                unused_data.insert(out_data);
-            }
-        }
+
+//        for (auto &out_data : layer->outData) {
+//            if (getInputTo(out_data).empty()) {
+//                unused_data.insert(out_data);
+//            }
+//        }
     }
-
-    OutputsDataMap outputs = network.getOutputsInfo();
-    for (const auto &output : outputs) {
-        const auto data = output.second;
-
-        auto parent_layer = getCreatorLayer(data).lock();
-        auto parent_node = layer2node[parent_layer];
-
-        CNNLayerPtr layer(new CNNLayer({"out_" + output.first, "Output", data->getTensorDesc().getPrecision()}));
-        layer->insData.push_back(data);
-
-        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
-
-        MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(data), 0));
-        node->addEdge(edge);
-        graphEdges.push_back(edge);
-
-        graphNodes.push_back(node);
-        outputNodes.push_back(node);
-
-        unused_data.erase(data);
-    }
-
-    // Add stub output node for unused data
-    for (auto to_stub_data : unused_data) {
-        auto parent_layer = getCreatorLayer(to_stub_data).lock();
-        auto parent_node = layer2node[parent_layer];
-
-        CNNLayerPtr layer(new CNNLayer({"stub_" + parent_layer->name, "Output", to_stub_data->getTensorDesc().getPrecision()}));
-        layer->insData.push_back(to_stub_data);
-
-        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
-
-        MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(to_stub_data), 0));
-        node->addEdge(edge);
-        graphEdges.push_back(edge);
-        graphNodes.push_back(node);
-    }
-
-    // Replicate input nodes
-    for (const auto& input : inputs) {
-        auto inputLayer = getCreatorLayer(input.second->getInputData()).lock();
-        inputNodes[input.first] = layer2node[inputLayer];
-
-        // Loading mean images
-        MKLDNNDims outDims;
-        if (!inputNodes[input.first]->getChildEdgeAt(0)->getDims().ndims())
-            outDims = MKLDNNDims(InferenceEngine::SizeVector(1, 1));
-        else
-            outDims = MKLDNNDims(inputNodes[input.first]->getChildEdgeAt(0)->getDims());
-        if (inputs.find(input.first) != inputs.end()) {
-            InputInfo::Ptr ii = inputs[input.first];
-            if (ii && ii->getPreProcess().getNumberOfChannels()) {
-                _meanImages[input.first].Load(outDims, ii);
-            }
-        }
-    }
+//
+//    // Add stub output node for unused data
+//    for (auto to_stub_data : unused_data) {
+//        auto parent_layer = getCreatorLayer(to_stub_data).lock();
+//        auto parent_node = layer2node[parent_layer];
+//
+//        CNNLayerPtr layer(new CNNLayer({"stub_" + parent_layer->name, "Output", to_stub_data->getTensorDesc().getPrecision()}));
+//        layer->insData.push_back(to_stub_data);
+//
+//        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
+//
+//        MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(to_stub_data), 0));
+//        node->addEdge(edge);
+//        graphEdges.push_back(edge);
+//        graphNodes.push_back(node);
+//    }
+//
+//    // Replicate input nodes
+//    for (const auto& input : inputs) {
+//        auto inputLayer = getCreatorLayer(input.second->getInputData()).lock();
+//        inputNodesMap[input.first] = layer2node[inputLayer];
+//
+//        // Loading mean images
+//        MKLDNNDims outDims;
+//        if (!inputNodesMap[input.first]->getChildEdgeAt(0)->getDims().ndims())
+//            outDims = MKLDNNDims(InferenceEngine::SizeVector(1, 1));
+//        else
+//            outDims = MKLDNNDims(inputNodesMap[input.first]->getChildEdgeAt(0)->getDims());
+//        if (inputs.find(input.first) != inputs.end()) {
+//            InputInfo::Ptr ii = inputs[input.first];
+//            if (ii && ii->getPreProcess().getNumberOfChannels()) {
+//                _meanImages[input.first].Load(outDims, ii);
+//            }
+//        }
+//    }
 }
 
 void MKLDNNGraph::InitGraph() {
@@ -352,9 +350,9 @@ void MKLDNNGraph::InitGraph() {
     CreatePrimitives();
 
     SetOriginalLayerNames();
-
-    if (!config.dumpToDot.empty())
-        dumpToDotFile(config.dumpToDot + "_init.dot");
+//
+//    if (!config.dumpToDot.empty())
+//        dumpToDotFile(config.dumpToDot + "_init.dot");
 
 #ifndef DUMP_INTERNAL_BLOBS
     for (auto &graphNode : graphNodes) {
@@ -385,24 +383,23 @@ void MKLDNNGraph::InitGraph() {
 
 void MKLDNNGraph::SetOriginalLayerNames() {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::SetOriginalLayerNames");
-
     // Do it before cleanup. Because it will lose original layers information
     for (auto &graphNode : graphNodes) {
         auto nodeType = graphNode->getType();
         if (nodeType == Reorder || nodeType == Output) continue;
 
         if (graphNode->getOriginalLayers().empty()) {
-            graphNode->addOriginalLayer(graphNode->getCnnLayer());
+            graphNode->addOriginalLayer(graphNode->getOriginalName());
         }
 
-        if (graphNode->getFusedWith().size() || graphNode->getMergeWith().size()) {
+        if (!graphNode->getFusedWith().empty() || !graphNode->getMergeWith().empty()) {
             // Original layer names
             std::vector<MKLDNNNodePtr> internal = graphNode->getFusedWith();
             auto &merged = graphNode->getMergeWith();
             internal.insert(internal.end(), merged.begin(), merged.end());
 
             for (auto &sub_node : internal) {
-                graphNode->addOriginalLayer(sub_node->getCnnLayer());
+                graphNode->addOriginalLayer(sub_node->getOriginalName());
             }
         }
     }
@@ -517,7 +514,7 @@ void MKLDNNGraph::InitEdges() {
 
     std::unordered_set<std::string> uniqueLayerNames;
     for (auto node : graphNodes) {
-        uniqueLayerNames.insert(node->getCnnLayer()->name);
+        uniqueLayerNames.insert(node->getName());
     }
 
     for (auto i = 0; i < numberOfEdges; i++) {
@@ -528,21 +525,22 @@ void MKLDNNGraph::InitEdges() {
             // Check if there is a reorder that supports the type conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
                 !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
-                //If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
-                std::string convertName = edge->getParent()->getName() + "_" +
-                                          edge->getInputDesc().getPrecision().name() + "_" + edge->getOutputDesc().getPrecision().name();
-
-                CNNLayerPtr convert(new CNNLayer(LayerParams{convertName, "Convert", edge->getInputDesc().getPrecision()}));
-                auto convertNode = std::make_shared<MKLDNNConvertNode>(convert, this->getEngine(), this->weightsCache);
-                convertNode->setDescs(edge->getInputDesc(), edge->getOutputDesc());
-                InsertNode(edge, convertNode, true);
-
-                //Check if reorder is still needed
-                if (convertNode->getChildEdgeAt(0)->needReorder()) {
-                    edge = convertNode->getChildEdgeAt(0);
-                } else {
-                    insertReorder = false;
-                }
+                IE_THROW() << "[NM] Not implemented";
+//                //If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
+//                std::string convertName = edge->getParent()->getName() + "_" +
+//                                          edge->getInputDesc().getPrecision().name() + "_" + edge->getOutputDesc().getPrecision().name();
+//
+//                CNNLayerPtr convert(new CNNLayer(LayerParams{convertName, "Convert", edge->getInputDesc().getPrecision()}));
+//                auto convertNode = std::make_shared<MKLDNNConvertNode>(convert, this->getEngine(), this->weightsCache);
+//                convertNode->setDescs(edge->getInputDesc(), edge->getOutputDesc());
+//                InsertNode(edge, convertNode, true);
+//
+//                //Check if reorder is still needed
+//                if (convertNode->getChildEdgeAt(0)->needReorder()) {
+//                    edge = convertNode->getChildEdgeAt(0);
+//                } else {
+//                    insertReorder = false;
+//                }
             }
 
             if (insertReorder) {
@@ -758,8 +756,8 @@ void MKLDNNGraph::CreatePrimitives() {
 void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in) {
     if (!IsReady()) IE_THROW()<< "Wrong state. Topology not ready.";
 
-    auto input = inputNodes.find(name);
-    if (input != inputNodes.end()) {
+    auto input = inputNodesMap.find(name);
+    if (input != inputNodesMap.end()) {
         MKLDNNDims outDims = input->second->getChildEdgeAt(0)->getDims();
 
         const void *ext_data_ptr = in->cbuffer();
@@ -791,11 +789,14 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
-    for (MKLDNNNodePtr &node : outputNodes) {
+    for (auto &outputMap : outputNodesMap) {
+        auto name = outputMap.first;
+        auto node = outputMap.second;
         // remove out_ from node name
-        std::string name = node->getName().substr(4);
+//        std::string name = node->getName().substr(4);
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
         if (out.find(name) == out.end()) {
+            // TODO [NM]: Do we really need this path?
             // TODO: Create blob from MemoryDesc
             Blob::Ptr outBlob = make_shared_blob<float>({Precision::FP32, node->getParentEdgeAt(0)->getDims().ToSizeVector(),
                                                          TensorDesc::getLayoutByDims(node->getParentEdgeAt(0)->getDims().ToSizeVector())},
@@ -981,7 +982,7 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
         getPerfMapFor(perfMap, graphNodes[i]);
     }
 
-    if (!config.dumpToDot.empty()) dumpToDotFile(config.dumpToDot + "_perf.dot");
+//    if (!config.dumpToDot.empty()) dumpToDotFile(config.dumpToDot + "_perf.dot");
 }
 
 void MKLDNNGraph::setConfig(const Config &cfg) {
@@ -997,18 +998,18 @@ Config MKLDNNGraph::getProperty() const {
 }
 
 void MKLDNNGraph::getInputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : inputNodes) {
-        MKLDNNInputNode* node = dynamic_cast<MKLDNNInputNode*>(it.second.get());
-        if (!node || node->isConstant())
-            continue;
-        resp[it.first] = node->getChildEdgeAt(0)->getBlob();
+    for (auto &it : inputNodesMap) {
+// TODO [NM]: Do we still need this?
+//        MKLDNNInputNode* node = dynamic_cast<MKLDNNInputNode*>(it.second.get());
+//        if (!node || node->isConstant())
+//            continue;
+        resp[it.first] = it.second->getChildEdgeAt(0)->getBlob();
     }
 }
 
 void MKLDNNGraph::getOutputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : outputNodes) {
-        std::string name = it->getName().substr(4);
-        resp[name] = it->getParentEdgeAt(0)->getBlob();
+    for (auto &it : outputNodesMap) {
+        resp[it.first] = it.second->getParentEdgeAt(0)->getBlob();
     }
 }
 
@@ -1164,10 +1165,7 @@ void MKLDNNGraph::RemoveDroppedEdges() {
 
 MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
                                 bool isOptimized, InferenceEngine::Blob::Ptr scales) {
-    CNNLayerPtr layer(new CNNLayer({layerName,
-                                    "Reorder",
-                                    inDesc.getPrecision()}));
-    MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, getEngine(), weightsCache));
+    MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layerName, getEngine(), weightsCache));
     auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
     if (reorderPtr == nullptr) {
         IE_THROW() << "MKLDNNGraph::InsertReorder: Cannot cast to MKLDNNReorderNode";
@@ -1186,15 +1184,6 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
     }
 
     return newReorder;
-}
-
-void MKLDNNGraph::dumpToDotFile(std::string file) const {
-    std::ofstream dot;
-    dot.open(file);
-    if (!dot.is_open()) IE_THROW() << "CPU Plugin cannot create dot file " << file << ".";
-
-    dump_graph_as_dot(*this, dot);
-    dot.close();
 }
 
 void MKLDNNGraph::do_before(const std::string &dir, const MKLDNNNodePtr &node) {

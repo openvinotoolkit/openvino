@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNConvertNode : public MKLDNNNode {
 public:
-    MKLDNNConvertNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNConvertNode() override = default;
 
     void getSupportedDescriptors() override;

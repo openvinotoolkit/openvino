@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNBatchNormalizationNode : public MKLDNNNode {
 public:
-    MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+    MKLDNNBatchNormalizationNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
             MKLDNNWeightsSharing::Ptr &cache);
 
     ~MKLDNNBatchNormalizationNode() override = default;
@@ -26,8 +26,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
 
-    bool fusedWithScale() const {return fusedWith.size() == 1 && fusedWith[0]->getType() == Eltwise
-                                        && fusedWith[0]->getCnnLayer()->type == "ScaleShift";}
+    bool fusedWithScale() const;
 
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;

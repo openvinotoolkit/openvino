@@ -74,7 +74,7 @@ struct jit_uni_bin_conv_kernel {
 
 class MKLDNNBinaryConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNBinaryConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;

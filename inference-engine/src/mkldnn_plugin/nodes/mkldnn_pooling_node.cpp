@@ -7,22 +7,58 @@
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_conv_node.h"
 #include "mkldnn_concat_node.h"
-#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <legacy/ie_layers_internal.hpp>
 #include <utils/general_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPoolingNode::MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+MKLDNNPoolingNode::MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) {
+    auto maxPoolOp = ngraph::as_type_ptr<ngraph::op::v1::MaxPool>(op);
+    auto avgPoolOp = ngraph::as_type_ptr<ngraph::op::v1::AvgPool>(op);
+    if (maxPoolOp) {
+        algorithm = PoolingMax;
+        exclude_pad = false;
+
+        for (int i = 0; i < maxPoolOp->get_strides().size(); i++) {
+            stride.push_back(static_cast<ptrdiff_t>(maxPoolOp->get_strides()[i]));
+        }
+        for (int i = 0; i < maxPoolOp->get_kernel().size(); i++) {
+            kernel.push_back(static_cast<ptrdiff_t>(maxPoolOp->get_kernel()[i]));
+        }
+        for (int i = 0; i < maxPoolOp->get_pads_begin().size(); i++) {
+            data_pad_begin.push_back(static_cast<ptrdiff_t>(maxPoolOp->get_pads_begin()[i]));
+        }
+        for (int i = 0; i < maxPoolOp->get_pads_end().size(); i++) {
+            data_pad_end.push_back(static_cast<ptrdiff_t>(maxPoolOp->get_pads_end()[i]));
+        }
+    } else if (avgPoolOp) {
+        algorithm = PoolingAvg;
+        exclude_pad = avgPoolOp->get_exclude_pad();
+
+        for (int i = 0; i < avgPoolOp->get_strides().size(); i++) {
+            stride.push_back(static_cast<ptrdiff_t>(avgPoolOp->get_strides()[i]));
+        }
+        for (int i = 0; i < avgPoolOp->get_kernel().size(); i++) {
+            kernel.push_back(static_cast<ptrdiff_t>(avgPoolOp->get_kernel()[i]));
+        }
+        for (int i = 0; i < avgPoolOp->get_pads_begin().size(); i++) {
+            data_pad_begin.push_back(static_cast<ptrdiff_t>(avgPoolOp->get_pads_begin()[i]));
+        }
+        for (int i = 0; i < avgPoolOp->get_pads_end().size(); i++) {
+            data_pad_end.push_back(static_cast<ptrdiff_t>(avgPoolOp->get_pads_end()[i]));
+        }
+    } else {
+        IE_THROW(NotImplemented)
+                << "CPU Pooling node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+    }
+}
 
 std::vector<memory::format_tag> MKLDNNPoolingNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
     if (dims.ndims() == 0)
@@ -44,49 +80,26 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
-    auto * poolingLayer = dynamic_cast<PoolingLayer*>(getCnnLayer().get());
-    if (poolingLayer == nullptr)
-        IE_THROW() << "Cannot convert pooling layer.";
-
     if (getParentEdges().size() != 1)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
-    type = poolingLayer->_type;
-    exclude_pad = poolingLayer->_exclude_pad;
+    inputPrecision = getOriginalInputPrecisions()[0];
+    outputPrecision = getOriginalOutputPrecisions()[0];
 
-    inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
-    outputPrecision = getCnnLayer()->outData[0]->getPrecision();
-    // Dirty WA to support stat based quantization approach
-    if (this->getCnnLayer()->precision != Precision::I8
-        && inputPrecision != Precision::BF16) {
-        if (type == PoolingLayer::MAX) {
-            // MKLDNN supports only equal precisions for input and output
-            outputPrecision = inputPrecision;
-        } else if (type == PoolingLayer::AVG) {
-            outputPrecision = Precision::FP32;
-        }
-    }
-    if (inputPrecision == Precision::BF16) {
+    // MKLDNN supports only equal precisions for input and output
+    if (one_of(inputPrecision, Precision::FP32, Precision::BF16)) {
         outputPrecision = inputPrecision;
     }
 
     if (!fusedWith.empty()) {
-        auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
-        if (lastFusedLayer) {
-            outputPrecision = lastFusedLayer->outData[0]->getPrecision();
-        }
+        outputPrecision = fusedWith.back()->getOriginalOutputPrecisions()[0];
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
 
-    invertVectorCopyUtoI(poolingLayer->_stride, stride);
-    invertVectorCopyUtoI(poolingLayer->_kernel, kernel);
-    auto allPads = getPaddings(*poolingLayer);
-    invertVectorCopyUtoI(allPads.begin, data_pad_begin);
-    invertVectorCopyUtoI(allPads.end, data_pad_end);
     effective_pad_begin = data_pad_begin;
     effective_pad_end.resize(data_pad_end.size());
 
@@ -152,8 +165,8 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
     MKLDNNMemoryDesc in_candidate(inputDesc[0]);
     MKLDNNMemoryDesc out_candidate(outputDesc[0]);
 
-    algorithm alg;
-    if (type == PoolingLayer::PoolType::AVG) {
+    mkldnn::algorithm alg;
+    if (algorithm == PoolingAvg) {
         bool not_zero_l = false;
         for (auto lr : data_pad_begin) {
             if (lr) {
@@ -169,15 +182,13 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
             }
         }
         if (!exclude_pad && (not_zero_l || not_zero_r))
-            alg = algorithm::pooling_avg_include_padding;
+            alg = mkldnn::algorithm::pooling_avg_include_padding;
         else
-            alg = algorithm::pooling_avg_exclude_padding;
-    } else if (type == PoolingLayer::PoolType::MAX) {
-        alg = algorithm::pooling_max;
+            alg = mkldnn::algorithm::pooling_avg_exclude_padding;
+    } else if (algorithm == PoolingMax) {
+        alg = mkldnn::algorithm::pooling_max;
     } else {
-        // TODO: Handle rest of the possible: STOCH, ROI, SPACIAL_PYRAMID
         IE_THROW() << "Unsupported pooling type";
-    }
 
     auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
         return memory::dims(orig_dims.begin(), orig_dims.end());
@@ -190,7 +201,7 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
                                       convert(effective_pad_begin),
                                       convert(effective_pad_end)));
 
-    if (alg == algorithm::pooling_avg_include_padding) {
+    if (alg == mkldnn::algorithm::pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
         // with tacking into account original pads. So we need to restore
         // original values for end paddings.

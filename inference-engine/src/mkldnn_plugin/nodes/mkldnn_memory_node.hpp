@@ -18,10 +18,10 @@ class MKLDNNMemoryNode {
     std::string _id;
  public:
     explicit MKLDNNMemoryNode(std::string id) : _id(id) {}
-    explicit MKLDNNMemoryNode(InferenceEngine::CNNLayerPtr lp) {
-        if (lp->params.find("id") != lp->params.end()) {
-            _id = lp->GetParamAsString("id");
-        }
+    explicit MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op) {
+//        if (lp->params.find("id") != lp->params.end()) {
+//            _id = lp->GetParamAsString("id");
+//        }
     }
     virtual ~MKLDNNMemoryNode() = default;
     std::string getId() {
@@ -61,7 +61,7 @@ class MKLDNNMemoryNodeVirtualEdge {
 
 class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
  public:
-    MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNMemoryOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMemoryOutputNode() override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -85,7 +85,7 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
 
 class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
 public:
-    MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMemoryInputNode() override;
 
     bool created() const override {

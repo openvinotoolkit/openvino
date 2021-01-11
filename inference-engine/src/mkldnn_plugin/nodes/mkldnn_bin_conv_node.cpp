@@ -8,12 +8,10 @@
 #include "mkldnn_eltwise_node.h"
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_conv_node.h"
-#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise_injector.hpp"
@@ -873,9 +871,9 @@ private:
     }
 };
 
-MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
+MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
                                                          const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {
+        : MKLDNNNode(op, eng, cache) {
     if (mayiuse(x64::avx512_common)) {
         implType = impl_desc_type::jit_avx512;
     } else if (mayiuse(x64::avx2)) {
@@ -888,63 +886,65 @@ MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const InferenceEngine::
 }
 
 void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
-    auto* binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(getCnnLayer().get());
-    if (binConvLayer == nullptr)
-        IE_THROW() << "Cannot convert convolution layer.";
-
-    std::string errorPrefix = "BinaryConvolution layer with name '" + getName() + "' ";
-
-    withBinarization = isFusedWith(Quantize);
-    withSum = false;
-    int expectedInputEdgesNum = 2;
-    for (int i = 0; i < fusedWith.size(); i++) {
-        auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
-        if (eltwiseNode && eltwiseNode->isSum()) {
-            withSum = true;
-            expectedInputEdgesNum++;
-        }
-    }
-
-    group = binConvLayer->_group;
-    if (group != 1) {
-        IE_THROW() << errorPrefix << "doesn't support parameter group != 1";
-    }
-
-    if (getParentEdges().size() != expectedInputEdgesNum)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges";
-
-    if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges";
-
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
-    }
-
-    if (getParentEdgeAt(1)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
-    }
-
-    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
-    }
-
-    if ((getParentEdgeAt(0)->getDims().ndims() < 4) || (getParentEdgeAt(0)->getDims().ndims() > 5)) {
-        IE_THROW() << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
-    }
-
-    pad_value = binConvLayer->_pad_value;
-
-    invertVectorCopyUtoI(binConvLayer->_stride, stride);
-    for (int i = 1; i <= binConvLayer->_dilation.size(); i++) {
-        dilation.push_back(static_cast<int>(binConvLayer->_dilation[binConvLayer->_dilation.size() - i]) - 1);
-    }
-
-    auto allPads = getPaddings(*binConvLayer);
-    invertVectorCopyUtoI(allPads.begin, paddingL);
-    invertVectorCopyUtoI(allPads.end, paddingR);
+    // TODO [NM]: reimplement w/o using CNNLayer
+    IE_THROW() << "Not implemented";
+//    if (!descs.empty())
+//        return;
+//
+//    auto* binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(getCnnLayer().get());
+//    if (binConvLayer == nullptr)
+//        IE_THROW() << "Cannot convert convolution layer.";
+//
+//    std::string errorPrefix = "BinaryConvolution layer with name '" + getName() + "' ";
+//
+//    withBinarization = isFusedWith(Quantize);
+//    withSum = false;
+//    int expectedInputEdgesNum = 2;
+//    for (int i = 0; i < fusedWith.size(); i++) {
+//        auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+//        if (eltwiseNode && eltwiseNode->isSum()) {
+//            withSum = true;
+//            expectedInputEdgesNum++;
+//        }
+//    }
+//
+//    group = binConvLayer->_group;
+//    if (group != 1) {
+//        IE_THROW() << errorPrefix << "doesn't support parameter group != 1";
+//    }
+//
+//    if (getParentEdges().size() != expectedInputEdgesNum)
+//        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+//
+//    if (getChildEdges().empty())
+//        IE_THROW() << errorPrefix << "has incorrect number of output edges";
+//
+//    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
+//        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+//    }
+//
+//    if (getParentEdgeAt(1)->getDims().ndims() != 4) {
+//        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+//    }
+//
+//    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
+//        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+//    }
+//
+//    if ((getParentEdgeAt(0)->getDims().ndims() < 4) || (getParentEdgeAt(0)->getDims().ndims() > 5)) {
+//        IE_THROW() << "Convolution layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
+//    }
+//
+//    pad_value = binConvLayer->_pad_value;
+//
+//    invertVectorCopyUtoI(binConvLayer->_stride, stride);
+//    for (int i = 1; i <= binConvLayer->_dilation.size(); i++) {
+//        dilation.push_back(static_cast<int>(binConvLayer->_dilation[binConvLayer->_dilation.size() - i]) - 1);
+//    }
+//
+//    auto allPads = getPaddings(*binConvLayer);
+//    invertVectorCopyUtoI(allPads.begin, paddingL);
+//    invertVectorCopyUtoI(allPads.end, paddingR);
 }
 
 void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
@@ -1077,15 +1077,6 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
 }
 
 bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
-    auto isOneOf = [](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
-        for (auto a : algs) {
-            if (alg == a) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     if (implType == impl_desc_type::ref)
         return false;
 
@@ -1099,23 +1090,18 @@ bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
             IE_THROW() << "Cannot get quantize node " << node->getName();
         return quantizeNode->isBinarization();
     } else if (node->getType() == Eltwise) {
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
-        if (eltwiseNode == nullptr)
-            IE_THROW() << "Cannot get eltwise node " << node->getName();
-
         // Only one Add operation can be fused since it is implemented via output blob reuse
-        if (eltwiseNode->isSum()) {
+        if (node->getAlgorithm() == EltwiseAdd) {
             for (auto& fusedNode : fusedWith) {
-                auto* fusedEltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(fusedNode.get());
-                if (fusedEltwiseNode->isSum()) {
+                if (fusedNode->getType() == Eltwise && fusedNode->getAlgorithm() == EltwiseAdd) {
                     return false;
                 }
             }
         }
 
-        return eltwiseNode->isSum() ||
-               isOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp,
-                                                  Tanh, Swish, Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt});
+        return one_of(node->getAlgorithm(), EltwiseAdd, EltwiseMulAdd, EltwisePrelu, EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseBoundedRelu,
+                                            EltwiseClamp, EltwiseTanh, EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
+                                            EltwiseRoundHalfAwayFromZero, EltwiseLinear, EltwiseAbs, EltwiseSquare, EltwiseSqrt);
     }
 
     return false;
@@ -1127,7 +1113,7 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            if (eltwiseNode->isSum())
+            if (eltwiseNode->getAlgorithm() == EltwiseAdd)
                 ops.append_sum(1.0);
             else
                 eltwiseNode->appendPostOps(ops);

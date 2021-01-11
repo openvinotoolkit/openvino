@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNSoftMaxNode : public MKLDNNNode {
 public:
-    MKLDNNSoftMaxNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNSoftMaxNode() override = default;
 
     void initOptimalPrimitiveDescriptor() override;
@@ -25,7 +25,7 @@ public:
     bool created() const override;
 
 private:
-    int axis = 0;
+    size_t axis = 0;
 };
 
 }  // namespace MKLDNNPlugin

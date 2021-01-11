@@ -87,8 +87,8 @@ public:
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in, int batch) {
         if (!IsReady()) IE_THROW()<< "Wrong state. Topology not ready.";
 
-        auto input = inputNodes.find(name);
-        if (input != inputNodes.end()) {
+        auto input = inputNodesMap.find(name);
+        if (input != inputNodesMap.end()) {
             MKLDNNPlugin::MKLDNNDims outDims;
             if(input->second->getChildEdgeAt(0)->getDims().ndims() == 0 )
                 outDims = MKLDNNPlugin::MKLDNNDims(InferenceEngine::SizeVector(1,1));

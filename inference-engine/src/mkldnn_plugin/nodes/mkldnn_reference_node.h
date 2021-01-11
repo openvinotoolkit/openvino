@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
+//#include <ie_common.h>
 #include <mkldnn_node.h>
-#include <string>
+//#include <string>
 
 namespace MKLDNNPlugin {
 
-class MKLDNNTileNode : public MKLDNNNode {
+class MKLDNNReferenceNode : public MKLDNNNode {
 public:
-    MKLDNNTileNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNTileNode() override = default;
+    MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    ~MKLDNNReferenceNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -22,8 +22,7 @@ public:
     bool created() const override;
 
 private:
-    int axis = 0;
-    int tiles = 0;
+    const std::shared_ptr<ngraph::Node> ngraphOp;
 };
 
 }  // namespace MKLDNNPlugin

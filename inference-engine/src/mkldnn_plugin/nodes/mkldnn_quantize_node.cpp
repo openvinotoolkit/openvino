@@ -4,7 +4,6 @@
 
 #include "mkldnn_quantize_node.h"
 
-#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <math.h>
@@ -817,274 +816,274 @@ private:
     }
 };
 
-MKLDNNQuantizeNode::MKLDNNQuantizeNode(CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+MKLDNNQuantizeNode::MKLDNNQuantizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {}
 
 void MKLDNNQuantizeNode::init() {
-    auto* quantizeLayer = dynamic_cast<QuantizeLayer*>(getCnnLayer().get());
-    if (quantizeLayer == nullptr)
-        IE_THROW() << "Cannot convert Quantize layer " << getName();
-
-    levels = quantizeLayer->levels;
-    if (levels <= 1)
-        IE_THROW() << "Quantize layer " << getName() << " supports only parameter levels > 1";
-
-    if (getParentEdges().size() != 5)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
-    if (getChildEdges().empty())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
-
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (getParentEdgesAtPort(i).size() != 1)
-            IE_THROW() << "Quantize layer " << getName() << " has unsupported number of parent edges at port " << i;
-    }
-
-    auto initAxisIdx = [&](size_t edgeIdx) {
-        auto edge = getParentEdgesAtPort(edgeIdx)[0];
-
-        size_t axisIdx = 0;
-        int numberOfNonUnit = 0;
-        if (edge->getDims().ndims() > 0) {
-            if (edge->getDims()[0] > 1) {
-                numberOfNonUnit++;
-            }
-        }
-
-        for (int i = 1; i < edge->getDims().ndims(); i++) {
-            if (edge->getDims()[i] > 1) {
-                axisIdx = i;
-                numberOfNonUnit++;
-            }
-        }
-        if (numberOfNonUnit > 1) {
-            IE_THROW() << "Quantize layer " << getName() << " supports only per-tensor and per-channel quantizations";
-        }
-
-        return axisIdx;
-    };
-
-    axis = getParentEdgesAtPort(0)[0]->getDims().ndims() == 1 ? 0 : 1;
-
-    std::set<size_t> quantizationParamsAxisesIdxs;
-    std::set<size_t> quantizationParamsAxisesSizes;
-
-    auto inputLowAxis = initAxisIdx(1);
-    isInputLowBroadcasted = getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis] == 1;
-    if (!isInputLowBroadcasted) {
-        quantizationParamsAxisesIdxs.insert(inputLowAxis);
-        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis]);
-    }
-
-    auto inputHighAxis = initAxisIdx(2);
-    isInputHighBroadcasted = getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis] == 1;
-    if (!isInputHighBroadcasted) {
-        quantizationParamsAxisesIdxs.insert(inputHighAxis);
-        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis]);
-    }
-
-    auto outputLowAxis = initAxisIdx(3);
-    isOutputLowBroadcasted = getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis] == 1;
-    if (!isOutputLowBroadcasted) {
-        quantizationParamsAxisesIdxs.insert(outputLowAxis);
-        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis]);
-    }
-
-    auto outputHighAxis = initAxisIdx(4);
-    isOutputHighBroadcasted = getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis] == 1;
-    if (!isOutputHighBroadcasted) {
-        quantizationParamsAxisesIdxs.insert(outputHighAxis);
-        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis]);
-    }
-
-    if (quantizationParamsAxisesIdxs.size() > 1 || quantizationParamsAxisesSizes.size() > 1)
-        IE_THROW() << "Unsupported input sizes for Quantize layer with name " << getName();
-
-    if (quantizationParamsAxisesIdxs.size() == 1) {
-        axis = *quantizationParamsAxisesIdxs.begin();
-    }
-
-    auto inputLowAxisSize = getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis];
-    auto inputHighAxisSize = getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis];
-    auto outputLowAxisSize = getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis];
-    auto outputHighAxisSize = getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis];
-
-    size_t axisRealSize = static_cast<size_t>(getParentEdgesAtPort(0)[0]->getDims()[axis]);
-    size_t axisPaddedSize = static_cast<size_t>(rnd_up(getParentEdgesAtPort(0)[0]->getDims()[axis], 16));
-
-    if (quantizationParamsAxisesSizes.size() == 1) {
-        if (*quantizationParamsAxisesSizes.begin() != axisRealSize)
-            IE_THROW() << "Unsupported input sizes for Quantize layer with name " << getName();
-    }
-
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant())
-            IE_THROW() << "Quantize layer with name " << getName() << " has non const input on " << i << " port";
-        auto prec = getCnnLayer()->insData[i].lock()->getPrecision();
-        if (prec != Precision::FP32)
-            IE_THROW() << "Quantize layer with name " << getName() << " has unsupported precision " << prec << " on " << i << " port";
-    }
-
-    auto inputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
-    auto inputLowData = inputLowBlob->buffer().as<float*>();
-
-    auto inputHighBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(2)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
-    auto inputHighData = inputHighBlob->buffer().as<float*>();
-
-    auto outputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(3)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
-    auto outputLowData = outputLowBlob->buffer().as<float*>();
-
-    auto outputHighBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(4)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
-    auto outputHighData = outputHighBlob->buffer().as<float*>();
-
-    bool binarization = levels == 2;
-
-    if (binarization) {
-        for (int i = 0; i < outputLowAxisSize; i++) {
-            if (outputLowData[i] != 1.f && outputLowData[i] != 0.f) {
-                binarization = false;
-                break;
-            }
-        }
-
-        for (int i = 0; i < outputHighAxisSize; i++) {
-            if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
-                binarization = false;
-                break;
-            }
-        }
-
-        for (ptrdiff_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
-            if (inputLowData[isInputLowBroadcasted ? 0 : i] != inputHighData[isInputHighBroadcasted ? 0 : i]) {
-                binarization = false;
-                break;
-            }
-        }
-    }
-
-    if (binarization) {
-        quantizeOpType = QuantizeOpType::Binarization;
-
-        binarizationThresholds.resize(axisPaddedSize);
-        binarizationOutputMask.resize(axisPaddedSize);
-
-        for (int i = 0; i < axisRealSize; i++) {
-            binarizationThresholds[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
-            binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
-        }
-    } else {
-        auto allElementsAreEqual = [&](const float* data, size_t size) {
-            if (size == 0)
-                return true;
-
-            auto first = data[0];
-            for (int i = 1; i < size; i++) {
-                if (data[i] != first)
-                    return false;
-            }
-
-            return true;
-        };
-
-        if (allElementsAreEqual(inputLowData, inputLowAxisSize)) {
-            inputLowAxisSize = 1;
-            isInputLowBroadcasted = true;
-        }
-
-        if (allElementsAreEqual(inputHighData, inputHighAxisSize)) {
-            inputHighAxisSize = 1;
-            isInputHighBroadcasted = true;
-        }
-
-        if (allElementsAreEqual(outputLowData, outputLowAxisSize)) {
-            outputLowAxisSize = 1;
-            isOutputLowBroadcasted = true;
-        }
-
-        if (allElementsAreEqual(outputHighData, outputHighAxisSize)) {
-            outputHighAxisSize = 1;
-            isOutputHighBroadcasted = true;
-        }
-
-        cropLow.resize(inputLowAxisSize);
-        cropHigh.resize(inputHighAxisSize);
-        inputScale.resize(std::max(inputLowAxisSize, inputHighAxisSize));
-        inputShift.resize(std::max(inputLowAxisSize, inputHighAxisSize));
-        outputScale.resize(std::max(outputLowAxisSize, outputHighAxisSize));
-        outputShift.resize(outputLowAxisSize);
-
-        bool quantizationOnly = true;
-
-        for (int i = 0; i < cropLow.size(); i++) {
-            float il = inputLowData[isInputLowBroadcasted ? 0 : i];
-
-            cropLow[i] = il;
-        }
-
-        for (int i = 0; i < cropHigh.size(); i++) {
-            float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
-
-            cropHigh[i] = ih;
-        }
-
-        for (int i = 0; i < inputScale.size(); i++) {
-            float il = inputLowData[isInputLowBroadcasted ? 0 : i];
-            float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
-
-#if defined(VALIDATE_QUANTIZATION_RANGES)
-            if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
-                IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
-                                   << "inputLow = " << il << ", inputHigh = " << ih;
-            }
-#endif
-
-            inputScale[i] = (levels - 1) / (ih - il);
-            inputShift[i] = -il * (levels - 1) / (ih - il);
-        }
-
-        for (int i = 0; i < outputScale.size(); i++) {
-            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
-            float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
-
-#if defined(VALIDATE_QUANTIZATION_RANGES)
-            if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
-                IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
-                                   << "outputLow = " << ol << ", outputHigh = " << oh;
-            }
-#endif
-
-            outputScale[i] = (oh - ol) / (levels - 1);
-
-            if (outputScale[i] != 1.f)
-                quantizationOnly = false;
-        }
-
-        for (int i = 0; i < outputShift.size(); i++) {
-            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
-
-            outputShift[i] = ol;
-
-            if (outputShift[i] != 0.f)
-                quantizationOnly = false;
-        }
-
-        quantizeOpType = quantizationOnly ? QuantizeOpType::Quantization : QuantizeOpType::FakeQuantization;
-    }
-
-    if (binarization) {
-        inputPrecision = Precision::FP32;
-        outputPrecision = Precision::BIN;
-    } else {
-        inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
-        outputPrecision = getCnnLayer()->outData[0]->getPrecision();
-
-        if (inputPrecision != Precision::FP32 && inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
-            inputPrecision = Precision::FP32;
-
-        if (outputPrecision != Precision::FP32 && outputPrecision != Precision::U8 && outputPrecision != Precision::I8)
-            outputPrecision = Precision::FP32;
-    }
+    IE_THROW() << "[NM] Not implemented";
+//    auto* quantizeLayer = dynamic_cast<QuantizeLayer*>(getCnnLayer().get());
+//    if (quantizeLayer == nullptr)
+//        IE_THROW() << "Cannot convert Quantize layer " << getName();
+//
+//    levels = quantizeLayer->levels;
+//    if (levels <= 1)
+//        IE_THROW() << "Quantize layer " << getName() << " supports only parameter levels > 1";
+//
+//    if (getParentEdges().size() != 5)
+//        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+//    if (getChildEdges().empty())
+//        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+//
+//    for (size_t i = 0; i < getParentEdges().size(); i++) {
+//        if (getParentEdgesAtPort(i).size() != 1)
+//            IE_THROW() << "Quantize layer " << getName() << " has unsupported number of parent edges at port " << i;
+//    }
+//
+//    auto initAxisIdx = [&](size_t edgeIdx) {
+//        auto edge = getParentEdgesAtPort(edgeIdx)[0];
+//
+//        size_t axisIdx = 0;
+//        int numberOfNonUnit = 0;
+//        if (edge->getDims().ndims() > 0) {
+//            if (edge->getDims()[0] > 1) {
+//                numberOfNonUnit++;
+//            }
+//        }
+//
+//        for (int i = 1; i < edge->getDims().ndims(); i++) {
+//            if (edge->getDims()[i] > 1) {
+//                axisIdx = i;
+//                numberOfNonUnit++;
+//            }
+//        }
+//        if (numberOfNonUnit > 1) {
+//            IE_THROW() << "Quantize layer " << getName() << " supports only per-tensor and per-channel quantizations";
+//        }
+//
+//        return axisIdx;
+//    };
+//
+//    axis = getParentEdgesAtPort(0)[0]->getDims().ndims() == 1 ? 0 : 1;
+//
+//    std::set<size_t> quantizationParamsAxisesIdxs;
+//    std::set<size_t> quantizationParamsAxisesSizes;
+//
+//    auto inputLowAxis = initAxisIdx(1);
+//    isInputLowBroadcasted = getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis] == 1;
+//    if (!isInputLowBroadcasted) {
+//        quantizationParamsAxisesIdxs.insert(inputLowAxis);
+//        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis]);
+//    }
+//
+//    auto inputHighAxis = initAxisIdx(2);
+//    isInputHighBroadcasted = getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis] == 1;
+//    if (!isInputHighBroadcasted) {
+//        quantizationParamsAxisesIdxs.insert(inputHighAxis);
+//        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis]);
+//    }
+//
+//    auto outputLowAxis = initAxisIdx(3);
+//    isOutputLowBroadcasted = getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis] == 1;
+//    if (!isOutputLowBroadcasted) {
+//        quantizationParamsAxisesIdxs.insert(outputLowAxis);
+//        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis]);
+//    }
+//
+//    auto outputHighAxis = initAxisIdx(4);
+//    isOutputHighBroadcasted = getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis] == 1;
+//    if (!isOutputHighBroadcasted) {
+//        quantizationParamsAxisesIdxs.insert(outputHighAxis);
+//        quantizationParamsAxisesSizes.insert(getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis]);
+//    }
+//
+//    if (quantizationParamsAxisesIdxs.size() > 1 || quantizationParamsAxisesSizes.size() > 1)
+//        IE_THROW() << "Unsupported input sizes for Quantize layer with name " << getName();
+//
+//    if (quantizationParamsAxisesIdxs.size() == 1) {
+//        axis = *quantizationParamsAxisesIdxs.begin();
+//    }
+//
+//    auto inputLowAxisSize = getParentEdgesAtPort(1)[0]->getDims()[inputLowAxis];
+//    auto inputHighAxisSize = getParentEdgesAtPort(2)[0]->getDims()[inputHighAxis];
+//    auto outputLowAxisSize = getParentEdgesAtPort(3)[0]->getDims()[outputLowAxis];
+//    auto outputHighAxisSize = getParentEdgesAtPort(4)[0]->getDims()[outputHighAxis];
+//
+//    size_t axisRealSize = static_cast<size_t>(getParentEdgesAtPort(0)[0]->getDims()[axis]);
+//    size_t axisPaddedSize = static_cast<size_t>(rnd_up(getParentEdgesAtPort(0)[0]->getDims()[axis], 16));
+//
+//    if (quantizationParamsAxisesSizes.size() == 1) {
+//        if (*quantizationParamsAxisesSizes.begin() != axisRealSize)
+//            IE_THROW() << "Unsupported input sizes for Quantize layer with name " << getName();
+//    }
+//
+//    for (size_t i = 1; i < getParentEdges().size(); i++) {
+//        if (!getParentEdgesAtPort(i)[0]->getParent()->isConstant())
+//            IE_THROW() << "Quantize layer with name " << getName() << " has non const input on " << i << " port";
+//        auto prec = getCnnLayer()->insData[i].lock()->getPrecision();
+//        if (prec != Precision::FP32)
+//            IE_THROW() << "Quantize layer with name " << getName() << " has unsupported precision " << prec << " on " << i << " port";
+//    }
+//
+//    auto inputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
+//    auto inputLowData = inputLowBlob->buffer().as<float*>();
+//
+//    auto inputHighBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(2)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
+//    auto inputHighData = inputHighBlob->buffer().as<float*>();
+//
+//    auto outputLowBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(3)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
+//    auto outputLowData = outputLowBlob->buffer().as<float*>();
+//
+//    auto outputHighBlob = dynamic_cast<TBlob<float>*>(getParentEdgesAtPort(4)[0]->getParent()->getCnnLayer()->blobs["custom"].get());
+//    auto outputHighData = outputHighBlob->buffer().as<float*>();
+//
+//    bool binarization = levels == 2;
+//
+//    if (binarization) {
+//        for (int i = 0; i < outputLowAxisSize; i++) {
+//            if (outputLowData[i] != 1.f && outputLowData[i] != 0.f) {
+//                binarization = false;
+//                break;
+//            }
+//        }
+//
+//        for (int i = 0; i < outputHighAxisSize; i++) {
+//            if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
+//                binarization = false;
+//                break;
+//            }
+//        }
+//
+//        for (ptrdiff_t i = 0; i < std::max(inputLowAxisSize, inputHighAxisSize); i++) {
+//            if (inputLowData[isInputLowBroadcasted ? 0 : i] != inputHighData[isInputHighBroadcasted ? 0 : i]) {
+//                binarization = false;
+//                break;
+//            }
+//        }
+//    }
+//
+//    if (binarization) {
+//        quantizeOpType = QuantizeOpType::Binarization;
+//
+//        binarizationThresholds.resize(axisPaddedSize);
+//        binarizationOutputMask.resize(axisPaddedSize);
+//
+//        for (int i = 0; i < axisRealSize; i++) {
+//            binarizationThresholds[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
+//            binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
+//        }
+//    } else {
+//        auto allElementsAreEqual = [&](const float* data, size_t size) {
+//            if (size == 0)
+//                return true;
+//
+//            auto first = data[0];
+//            for (int i = 1; i < size; i++) {
+//                if (data[i] != first)
+//                    return false;
+//            }
+//
+//            return true;
+//        };
+//
+//        if (allElementsAreEqual(inputLowData, inputLowAxisSize)) {
+//            inputLowAxisSize = 1;
+//            isInputLowBroadcasted = true;
+//        }
+//
+//        if (allElementsAreEqual(inputHighData, inputHighAxisSize)) {
+//            inputHighAxisSize = 1;
+//            isInputHighBroadcasted = true;
+//        }
+//
+//        if (allElementsAreEqual(outputLowData, outputLowAxisSize)) {
+//            outputLowAxisSize = 1;
+//            isOutputLowBroadcasted = true;
+//        }
+//
+//        if (allElementsAreEqual(outputHighData, outputHighAxisSize)) {
+//            outputHighAxisSize = 1;
+//            isOutputHighBroadcasted = true;
+//        }
+//
+//        cropLow.resize(inputLowAxisSize);
+//        cropHigh.resize(inputHighAxisSize);
+//        inputScale.resize(std::max(inputLowAxisSize, inputHighAxisSize));
+//        inputShift.resize(std::max(inputLowAxisSize, inputHighAxisSize));
+//        outputScale.resize(std::max(outputLowAxisSize, outputHighAxisSize));
+//        outputShift.resize(outputLowAxisSize);
+//
+//        bool quantizationOnly = true;
+//
+//        for (int i = 0; i < cropLow.size(); i++) {
+//            float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+//
+//            cropLow[i] = il;
+//        }
+//
+//        for (int i = 0; i < cropHigh.size(); i++) {
+//            float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+//
+//            cropHigh[i] = ih;
+//        }
+//
+//        for (int i = 0; i < inputScale.size(); i++) {
+//            float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+//            float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+//
+//#if defined(VALIDATE_QUANTIZATION_RANGES)
+//            if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
+//                IE_THROW() << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
+//                                   << "inputLow = " << il << ", inputHigh = " << ih;
+//            }
+//#endif
+//
+//            inputScale[i] = (levels - 1) / (ih - il);
+//            inputShift[i] = -il * (levels - 1) / (ih - il);
+//        }
+//
+//        for (int i = 0; i < outputScale.size(); i++) {
+//            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+//            float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+//
+//#if defined(VALIDATE_QUANTIZATION_RANGES)
+//            if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
+//                IE_THROW() << "Quantize layer with name '" << getName() << "' has wrong output quantize ranges: "
+//                                   << "outputLow = " << ol << ", outputHigh = " << oh;
+//            }
+//#endif
+//
+//            outputScale[i] = (oh - ol) / (levels - 1);
+//
+//            if (outputScale[i] != 1.f)
+//                quantizationOnly = false;
+//        }
+//
+//        for (int i = 0; i < outputShift.size(); i++) {
+//            float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+//
+//            outputShift[i] = ol;
+//
+//            if (outputShift[i] != 0.f)
+//                quantizationOnly = false;
+//        }
+//
+//        quantizeOpType = quantizationOnly ? QuantizeOpType::Quantization : QuantizeOpType::FakeQuantization;
+//    }
+//
+//    if (binarization) {
+//        inputPrecision = Precision::FP32;
+//        outputPrecision = Precision::BIN;
+//    } else {
+//        inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+//        outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+//
+//        if (inputPrecision != Precision::FP32 && inputPrecision != Precision::U8 && inputPrecision != Precision::I8)
+//            inputPrecision = Precision::FP32;
+//
+//        if (outputPrecision != Precision::FP32 && outputPrecision != Precision::U8 && outputPrecision != Precision::I8)
+//            outputPrecision = Precision::FP32;
+//    }
 }
-
 
 std::vector<mkldnn::memory::format_tag> MKLDNNQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network

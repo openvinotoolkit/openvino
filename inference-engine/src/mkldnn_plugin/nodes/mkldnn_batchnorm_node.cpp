@@ -10,9 +10,9 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNBatchNormalizationNode::MKLDNNBatchNormalizationNode(const InferenceEngine::CNNLayerPtr& layer,
+MKLDNNBatchNormalizationNode::MKLDNNBatchNormalizationNode(const std::shared_ptr<ngraph::Node>& op,
                                                            const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {
+        : MKLDNNNode(op, eng, cache) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return GetVarianceDesc(primitive_desc_it);
     });
@@ -27,82 +27,90 @@ MKLDNNBatchNormalizationNode::MKLDNNBatchNormalizationNode(const InferenceEngine
     });
 }
 
+bool MKLDNNBatchNormalizationNode::fusedWithScale() const {
+    return false;
+    IE_THROW() << "Not implemented";
+    // TODO [NM]: reimplement w/o using CNNLayer
+//    return fusedWith.size() == 1 && fusedWith[0]->getType() == Eltwise
+//                                        && fusedWith[0]->getCnnLayer()->type == "ScaleShift";
+}
+
 void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-    auto * bnLayer = dynamic_cast<BatchNormalizationLayer*>(getCnnLayer().get());
-    if (bnLayer == nullptr)
-        IE_THROW() << "Cannot convert batch normalization layer.";
-    if (bnLayer->_weights == nullptr || bnLayer->_biases == nullptr) {
-        IE_THROW() << "Weights/biases are empty for layer: " << bnLayer->name
-                           << " used in MKLDNN node: " << getName() << "\n"
-                           << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
-                           << " to load them from .bin part of the IR";
-    }
-
-    if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
-    if (!getChildEdges().size())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
-
-    eps = bnLayer->epsilon;
-
-    size_t variancesSize = MKLDNNDims(bnLayer->_weights->getTensorDesc().getDims()).size();
-    size_t meansSize = MKLDNNDims(bnLayer->_biases->getTensorDesc().getDims()).size();
-
-    if (variancesSize != meansSize && variancesSize != 1)
-        IE_THROW() << "Incorrect weights and biases sizes!";
-
-    internalBlobs.push_back(createInternalBlob(bnLayer->_weights->getTensorDesc().getDims(), true));
-    internalBlobs.push_back(createInternalBlob(bnLayer->_biases->getTensorDesc().getDims(), false));
-
-    auto parentOutDims = getParentEdgeAt(0)->getDims();
-
-    if (fusedWith.size() > 1)
-        IE_THROW() << "BatchNorm fusion is possible with only one layer!";
-
-    for (const auto &node : fusedWith) {
-        auto * scshLayer = dynamic_cast<ScaleShiftLayer*>(node->getCnnLayer().get());
-        if (scshLayer == nullptr)
-            IE_THROW() << "Cannot cast to the ScaleShift layer to fuse with BatchNorm.";
-
-        size_t C = static_cast<size_t>(getChildEdgeAt(0)->getDims()[1]);
-        SizeVector mkldnn_weights = {2, C};
-        TensorDesc desc(scshLayer->_weights->getTensorDesc().getPrecision(), mkldnn_weights, InferenceEngine::NC);
-        InferenceEngine::TBlob<float>::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
-        internalBlob->allocate();
-        float * data = internalBlob->buffer();
-        if (data == nullptr)
-            IE_THROW() << "Cannot get memory!";
-
-        InferenceEngine::Blob::Ptr blb = scshLayer->_weights;
-        if (blb == nullptr)
-            IE_THROW() << "Cannot get weights blob for node " << getName() << ".";
-
-        size_t weightsByteSize = blb->byteSize();
-        cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
-        data += blb->size();
-        blb = scshLayer->_biases;
-
-        if (blb == nullptr) {
-            memset(data, 0, weightsByteSize);
-        } else {
-            if (weightsByteSize != blb->byteSize())
-                IE_THROW() << "ScaleShift has incorrect weights!";
-            cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
-        }
-        internalBlobs.push_back(internalBlob);
-    }
-
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
-    for (auto format : getAvailableFormatsForDims(parentOutDims)) {
-        MKLDNNMemoryDesc in_candidate(parentOutDims, inputDataType, format);
-        createDescriptor({in_candidate}, {});
-    }
+//    if (!descs.empty())
+//        return;
+//    auto * bnLayer = dynamic_cast<BatchNormalizationLayer*>(getCnnLayer().get());
+//    if (bnLayer == nullptr)
+//        IE_THROW() << "Cannot convert batch normalization layer.";
+//    if (bnLayer->_weights == nullptr || bnLayer->_biases == nullptr) {
+//        IE_THROW() << "Weights/biases are empty for layer: " << bnLayer->name
+//                           << " used in MKLDNN node: " << getName() << "\n"
+//                           << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
+//                           << " to load them from .bin part of the IR";
+//    }
+//
+//    if (getParentEdges().size() != 1)
+//        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+//    if (!getChildEdges().size())
+//        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+//
+//    eps = bnLayer->epsilon;
+//
+//    size_t variancesSize = MKLDNNDims(bnLayer->_weights->getTensorDesc().getDims()).size();
+//    size_t meansSize = MKLDNNDims(bnLayer->_biases->getTensorDesc().getDims()).size();
+//
+//    if (variancesSize != meansSize && variancesSize != 1)
+//        IE_THROW() << "Incorrect weights and biases sizes!";
+//
+//    internalBlobs.push_back(createInternalBlob(bnLayer->_weights->getTensorDesc().getDims(), true));
+//    internalBlobs.push_back(createInternalBlob(bnLayer->_biases->getTensorDesc().getDims(), false));
+//
+//    auto parentOutDims = getParentEdgeAt(0)->getDims();
+//
+//    if (fusedWith.size() > 1)
+//        IE_THROW() << "BatchNorm fusion is possible with only one layer!";
+//
+//    for (const auto &node : fusedWith) {
+//        auto * scshLayer = dynamic_cast<ScaleShiftLayer*>(node->getCnnLayer().get());
+//        if (scshLayer == nullptr)
+//            IE_THROW() << "Cannot cast to the ScaleShift layer to fuse with BatchNorm.";
+//
+//        size_t C = static_cast<size_t>(getChildEdgeAt(0)->getDims()[1]);
+//        SizeVector mkldnn_weights = {2, C};
+//        TensorDesc desc(scshLayer->_weights->getTensorDesc().getPrecision(), mkldnn_weights, InferenceEngine::NC);
+//        InferenceEngine::TBlob<float>::Ptr internalBlob = InferenceEngine::make_shared_blob<float>(desc);
+//        internalBlob->allocate();
+//        float * data = internalBlob->buffer();
+//        if (data == nullptr)
+//            IE_THROW() << "Cannot get memory!";
+//
+//        InferenceEngine::Blob::Ptr blb = scshLayer->_weights;
+//        if (blb == nullptr)
+//            IE_THROW() << "Cannot get weights blob for node " << getName() << ".";
+//
+//        size_t weightsByteSize = blb->byteSize();
+//        cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
+//        data += blb->size();
+//        blb = scshLayer->_biases;
+//
+//        if (blb == nullptr) {
+//            memset(data, 0, weightsByteSize);
+//        } else {
+//            if (weightsByteSize != blb->byteSize())
+//                IE_THROW() << "ScaleShift has incorrect weights!";
+//            cpu_memcpy_s(data, internalBlob->byteSize(), blb->buffer(), weightsByteSize);
+//        }
+//        internalBlobs.push_back(internalBlob);
+//    }
+//
+//    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+//    if (precision != InferenceEngine::Precision::FP32)
+//        precision = InferenceEngine::Precision::FP32;
+//    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+//
+//    for (auto format : getAvailableFormatsForDims(parentOutDims)) {
+//        MKLDNNMemoryDesc in_candidate(parentOutDims, inputDataType, format);
+//        createDescriptor({in_candidate}, {});
+//    }
 }
 
 static MKLDNNMemoryDesc get_bn_mdesc_by_index(const mkldnn::primitive_desc_iterator &primitive_desc, int idx) {

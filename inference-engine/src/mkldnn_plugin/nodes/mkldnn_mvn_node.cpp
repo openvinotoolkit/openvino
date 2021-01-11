@@ -605,8 +605,8 @@ private:
 };
 //////////////////////////////////////////////////////////////////////////////////
 
-MKLDNNMVNNode::MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache), epsMode_(insideSqrt) {}
+MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache), epsMode_(insideSqrt) {}
 
 void MKLDNNMVNNode::getSupportedDescriptors() {
     if (!descs.empty())
