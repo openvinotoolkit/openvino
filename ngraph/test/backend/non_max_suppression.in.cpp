@@ -619,8 +619,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_with_score_threshold)
                                      0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
                                      0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
-    std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
+    std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
     const int64_t max_output_boxes_per_class_data = 2;
     const float iou_threshold_data = 0.5f;
