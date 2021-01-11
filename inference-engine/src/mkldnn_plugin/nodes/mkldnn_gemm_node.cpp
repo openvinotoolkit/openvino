@@ -3,7 +3,6 @@
 //
 
 #include "mkldnn_gemm_node.h"
-#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <memory>
@@ -18,15 +17,21 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNGemmNode::MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+MKLDNNGemmNode::MKLDNNGemmNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {
+    auto matMulOp = ngraph::as_type_ptr<ngraph::op::v0::MatMul>(op);
+    if (matMulOp) {
+        alpha = 1;
+        beta = 1;
+        transposeA = matMulOp->get_transpose_a();
+        transposeB = matMulOp->get_transpose_b();
+    } else {
+        IE_THROW(NotImplemented)
+                << "CPU Gemm node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+    }
+}
 
 void MKLDNNGemmNode::getSupportedDescriptors() {
-    auto* gemmLayer = dynamic_cast<GemmLayer*>(getCnnLayer().get());
-
-    if (gemmLayer == nullptr)
-        IE_THROW() << "Cannot convert gemm layer.";
-
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
@@ -35,11 +40,6 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
     auto inDims0 = getParentEdgeAt(0)->getDims();
     auto inDims1 = getParentEdgeAt(1)->getDims();
     auto outDims = getChildEdgeAt(0)->getDims();
-
-    alpha = gemmLayer->alpha;
-    beta = gemmLayer->beta;
-    transposeA = gemmLayer->transpose_a;
-    transposeB = gemmLayer->transpose_b;
 
     if ((inDims0.ndims() < 2 || inDims0.ndims() > 4) ||
         (inDims1.ndims() < 2 || inDims1.ndims() > 4))
@@ -120,8 +120,8 @@ void MKLDNNGemmNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto inPrec0 = getCnnLayer()->insData[0].lock()->getPrecision();
-    auto inPrec1 = getCnnLayer()->insData[1].lock()->getPrecision();
+    auto inPrec0 = getOriginalInputPrecisions()[0];
+    auto inPrec1 = getOriginalInputPrecisions()[1];
     if ((inPrec0 != Precision::U8 && inPrec0 != Precision::I8) || inPrec1 != Precision::I8 || isThreeInputs) {
         if (inPrec0 == Precision::BF16 || inPrec1 == Precision::BF16) {
             inPrec0 = Precision::BF16;

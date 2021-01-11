@@ -70,7 +70,7 @@ struct jit_uni_quantize_kernel {
 
 class MKLDNNQuantizeNode : public MKLDNNNode {
 public:
-    MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNQuantizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNQuantizeNode() override = default;
 
     void initSupportedPrimitiveDescriptors() override;

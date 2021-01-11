@@ -75,7 +75,7 @@ struct jit_uni_normalize_kernel {
 
 class MKLDNNNormalizeNode : public MKLDNNNode {
 public:
-    MKLDNNNormalizeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNNormalizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNNormalizeNode() override = default;
 
     void getSupportedDescriptors() override;

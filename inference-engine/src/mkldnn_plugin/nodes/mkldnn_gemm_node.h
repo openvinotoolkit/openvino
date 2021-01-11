@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNGemmNode : public MKLDNNNode {
 public:
-    MKLDNNGemmNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNGemmNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNGemmNode() override = default;
 
     void getSupportedDescriptors() override;

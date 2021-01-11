@@ -741,63 +741,65 @@ private:
     }
 };
 
-MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
+MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op,
                                                                  const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+        : MKLDNNNode(op, eng, cache) {}
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
-    auto * defConvLayer = dynamic_cast<DeformableConvolutionLayer*>(getCnnLayer().get());
-    if (defConvLayer == nullptr)
-        IE_THROW() << "Cannot convert deformable convolution layer.";
-
-    std::string errorPrefix = "DeformableConvolution layer with name '" + getName() + "' ";
-
-    if (getParentEdges().size() != 3)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges";
-    if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges";
-
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
-    }
-
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
-    }
-
-    if (getParentEdgeAt(1)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
-    }
-
-    if (getParentEdgeAt(2)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
-    }
-
-    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
-    }
-
-    bool isMerged = (!getMergeWith().empty());
-    bool isGrouped = defConvLayer->_group != 1;
-    if (isMerged && isGrouped)
-        IE_THROW() << errorPrefix << "cannot be initialized: group splitted mode are used together with direct group specification.";
-
-    group = defConvLayer->_group;
-    if (isMerged) {
-        group = getMergeWith().size() + 1;
-    }
-
-    invertVectorCopyUtoI(defConvLayer->_stride, stride);
-    deformable_group = defConvLayer->_deformable_group;
-    for (int i = 1; i <= defConvLayer->_dilation.size(); i++) {
-        dilation.push_back(static_cast<int>(defConvLayer->_dilation[defConvLayer->_dilation.size() - i] - 1));
-    }
-
-    auto allPads = getPaddings(*defConvLayer);
-    invertVectorCopyUtoI(allPads.begin, paddingL);
+    IE_THROW() << "Not implemented";
+    // TODO [NM]: reimplement w/o using CNNLayer
+//    if (!descs.empty())
+//        return;
+//
+//    auto * defConvLayer = dynamic_cast<DeformableConvolutionLayer*>(getCnnLayer().get());
+//    if (defConvLayer == nullptr)
+//        IE_THROW() << "Cannot convert deformable convolution layer.";
+//
+//    std::string errorPrefix = "DeformableConvolution layer with name '" + getName() + "' ";
+//
+//    if (getParentEdges().size() != 3)
+//        IE_THROW() << errorPrefix << "has incorrect number of input edges";
+//    if (getChildEdges().empty())
+//        IE_THROW() << errorPrefix << "has incorrect number of output edges";
+//
+//    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
+//        IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
+//    }
+//
+//    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
+//        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+//    }
+//
+//    if (getParentEdgeAt(1)->getDims().ndims() != 4) {
+//        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+//    }
+//
+//    if (getParentEdgeAt(2)->getDims().ndims() != 4) {
+//        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
+//    }
+//
+//    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
+//        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+//    }
+//
+//    bool isMerged = (!getMergeWith().empty());
+//    bool isGrouped = defConvLayer->_group != 1;
+//    if (isMerged && isGrouped)
+//        IE_THROW() << errorPrefix << "cannot be initialized: group splitted mode are used together with direct group specification.";
+//
+//    group = defConvLayer->_group;
+//    if (isMerged) {
+//        group = getMergeWith().size() + 1;
+//    }
+//
+//    invertVectorCopyUtoI(defConvLayer->_stride, stride);
+//    deformable_group = defConvLayer->_deformable_group;
+//    for (int i = 1; i <= defConvLayer->_dilation.size(); i++) {
+//        dilation.push_back(static_cast<int>(defConvLayer->_dilation[defConvLayer->_dilation.size() - i] - 1));
+//    }
+//
+//    auto allPads = getPaddings(*defConvLayer);
+//    invertVectorCopyUtoI(allPads.begin, paddingL);
 }
 
 void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {

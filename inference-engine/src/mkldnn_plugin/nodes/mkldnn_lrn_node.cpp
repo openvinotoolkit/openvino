@@ -12,38 +12,38 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNLrnNode::MKLDNNLrnNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+MKLDNNLrnNode::MKLDNNLrnNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {}
 
 void MKLDNNLrnNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    auto * lrnLayer = dynamic_cast<NormLayer*>(getCnnLayer().get());
-
-    if (lrnLayer == nullptr)
-        IE_THROW() << "Cannot convert lrn layer.";
-
-    if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
-    if (getChildEdges().empty())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
-
-    isAcrossMaps = lrnLayer->_isAcrossMaps;
-    alpha = lrnLayer->_alpha;
-    beta = lrnLayer->_beta;
-    size = lrnLayer->_size;
-    k = lrnLayer->_k;
-
-    auto parentDims = getParentEdgeAt(0)->getDims();
-
-    for (auto format : getAvailableFormatsForDims(parentDims)) {
-        MKLDNNMemoryDesc in_candidate(parentDims, inputDataType, format);
-        createDescriptor({in_candidate}, {});
-    }
+//    if (!descs.empty())
+//        return;
+//    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+//    if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
+//        precision = InferenceEngine::Precision::FP32;
+//    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+//    auto * lrnLayer = dynamic_cast<NormLayer*>(getCnnLayer().get());
+//
+//    if (lrnLayer == nullptr)
+//        IE_THROW() << "Cannot convert lrn layer.";
+//
+//    if (getParentEdges().size() != 1)
+//        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+//    if (getChildEdges().empty())
+//        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+//
+//    isAcrossMaps = lrnLayer->_isAcrossMaps;
+//    alpha = lrnLayer->_alpha;
+//    beta = lrnLayer->_beta;
+//    size = lrnLayer->_size;
+//    k = lrnLayer->_k;
+//
+//    auto parentDims = getParentEdgeAt(0)->getDims();
+//
+//    for (auto format : getAvailableFormatsForDims(parentDims)) {
+//        MKLDNNMemoryDesc in_candidate(parentDims, inputDataType, format);
+//        createDescriptor({in_candidate}, {});
+//    }
 }
 
 void MKLDNNLrnNode::createPrimitive() {

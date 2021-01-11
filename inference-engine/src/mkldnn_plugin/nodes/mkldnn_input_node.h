@@ -12,7 +12,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNInputNode : public MKLDNNNode {
 public:
-    MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNInputNode() override = default;
 
     void getSupportedDescriptors() override;

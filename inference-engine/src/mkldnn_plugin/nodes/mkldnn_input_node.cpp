@@ -3,28 +3,50 @@
 //
 
 #include "mkldnn_input_node.h"
-#include "../mkldnn_extension_utils.h"
+#include "mkldnn_extension_utils.h"
 #include <string>
 #include <tuple>
 #include <algorithm>
+#include <utils/general_utils.h>
+#include <ngraph/ops.hpp>
+#include <ie_ngraph_utils.hpp>
+#include <blob_factory.hpp>
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/cpu_convert.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
-using namespace InferenceEngine::details;
+using namespace InferenceEngine;
+using namespace details;
+using namespace ngraph::op;
 
-MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {
+MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) {
+    if (!one_of(op->get_type_info(), v0::Parameter::type_info, v0::Constant::type_info, v0::Result::type_info))
+        IE_THROW() << "CPU Input node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+
     constant = ConstantType::NoConst;
-    if (layer && CaselessEq<std::string>()(layer->type, "const")) {
+    constBlob = nullptr;
+
+    auto constOp = ngraph::as_type_ptr<ngraph::op::Constant>(op);
+    if (constOp) {
         constant = ConstantType::Const;
-        if (layer->blobs.size() != 1 || getType() != Input || !layer->blobs.begin()->second)
-            IE_THROW() << "Incorrect const input " << getName();
-        constBlob = layer->blobs.begin()->second;
-    } else {
-        constBlob = nullptr;
+
+        auto dataPrecision = convertPrecision(op->get_element_type());
+
+        size_t shapeSize = ngraph::shape_size(op->get_shape());
+        constexpr size_t byte_size{8};
+        if (dataPrecision == Precision::BIN) {
+            shapeSize = (shapeSize + (byte_size - 1)) / byte_size;
+        }
+
+        TensorDesc td(dataPrecision, {shapeSize}, Layout::C);
+
+        auto blob = make_blob_with_precision(td, const_cast<void*>(constOp->get_data_ptr()));
+        blob->allocate();
+
+        constBlob = blob;
     }
 }
 
@@ -46,28 +68,30 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::LayerConfig config;
+    LayerConfig config;
     config.dynBatchSupport = true;
     if (getType() == Input || getType() == MemoryInput) {
-        precision = getCnnLayer()->outData[0]->getPrecision();
-        if (precision == InferenceEngine::Precision::U16 || isMeanImage) {
-            precision = InferenceEngine::Precision::FP32;
+        precision = getOriginalOutputPrecisions()[0];
+        if (precision == Precision::U16 || isMeanImage) {
+            precision = Precision::FP32;
         }
-        InferenceEngine::DataConfig dataConfig;
+        DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->outData[0]->getTensorDesc());
+        auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+        auto mem_tdesc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
         dataConfig.desc = mem_tdesc;
         config.outConfs.push_back(dataConfig);
     } else if (getType() == Output) {
-        precision = getCnnLayer()->insData[0].lock()->getPrecision();
-        if (precision == InferenceEngine::Precision::U16) precision = InferenceEngine::Precision::FP32;
-        InferenceEngine::DataConfig dataConfig;
+        precision = getOriginalInputPrecisions()[0];
+        if (precision == Precision::U16) precision = Precision::FP32;
+        DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->insData[0].lock()->getTensorDesc());
+        auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+        auto mem_tdesc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType);
         dataConfig.desc = mem_tdesc;
         config.inConfs.push_back(dataConfig);
     }
@@ -98,13 +122,13 @@ bool MKLDNNInputNode::created() const {
 }
 
 namespace {
-    bool isDefaultOrder(const InferenceEngine::SizeVector &order) {
+    bool isDefaultOrder(const SizeVector &order) {
         return std::is_sorted(order.begin(), order.end(),
                                 [](size_t a, size_t b) { return a + 1 == b; });
     }
 
-    std::tuple<bool, size_t> isDefaultStrides(const InferenceEngine::SizeVector &strides,
-                                              const InferenceEngine::SizeVector &dims) {
+    std::tuple<bool, size_t> isDefaultStrides(const SizeVector &strides,
+                                              const SizeVector &dims) {
         if (strides.size() != dims.size())
             return std::make_tuple(false, 0);
 
@@ -119,7 +143,7 @@ namespace {
         return std::make_tuple(true, dim);
     }
 
-    bool isCompatibleTensors(const InferenceEngine::TensorDesc &lhs, const InferenceEngine::TensorDesc &rhs,
+    bool isCompatibleTensors(const TensorDesc &lhs, const TensorDesc &rhs,
                              bool isNeedPrecValid = true) {
         auto const &lhsBlockingDesc = lhs.getBlockingDesc();
         auto const &rhsBlockingDesc = rhs.getBlockingDesc();
@@ -150,8 +174,8 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
         int8_t *dstData = dstBlob->buffer();
 
         cpu_memcpy_s(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
-    } else if (constBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN ||
-               dstBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN) {
+    } else if (constBlob->getTensorDesc().getPrecision() == Precision::BIN ||
+               dstBlob->getTensorDesc().getPrecision() == Precision::BIN) {
         size_t dstSize = dstBlob->size() / 8;
         if (constBlob->size() != dstSize) {
             IE_THROW() << "Incorrect blob sizes for node " << getName();

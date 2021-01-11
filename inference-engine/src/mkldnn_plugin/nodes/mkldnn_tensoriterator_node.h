@@ -45,7 +45,7 @@ protected:
 
 class MKLDNNTensorIteratorNode : public MKLDNNNode {
 public:
-    MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNTensorIteratorNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNTensorIteratorNode() override = default;
 
     void initSupportedPrimitiveDescriptors() override;
