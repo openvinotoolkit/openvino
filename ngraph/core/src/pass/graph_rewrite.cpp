@@ -17,16 +17,16 @@
 #include <algorithm>
 #include <deque>
 #include <iostream>
-#include <pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
 
-#include "graph_rewrite.hpp"
 #include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
 
 using namespace std;
 using namespace ngraph;

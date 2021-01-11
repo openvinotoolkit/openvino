@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_policy(SET CMP0054 NEW)
-
 find_package(Git REQUIRED)
 
 set(MODELS_LST "")
