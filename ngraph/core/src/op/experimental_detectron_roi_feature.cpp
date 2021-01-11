@@ -89,10 +89,10 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     size_t i = 1;
     for (auto& channel : channels)
     {
-        auto current_shape = get_input_partial_shape(i);
+        auto current_shape = get_input_partial_shape(i++);
         auto current_rank = current_shape.rank();
 
-        if (current_rank.is_dynamic())
+        if (current_rank.is_dynamic() || current_shape[1].is_dynamic())
         {
             set_output_type(0, input_et, out_shape);
             return;
@@ -110,12 +110,6 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
                               current_shape[0]);
 
         channel = current_shape[1];
-        if (channel.is_dynamic())
-        {
-            set_output_type(0, input_et, out_shape);
-            return;
-        }
-        i++;
     }
 
     auto featmap_shape = get_input_partial_shape(1);
