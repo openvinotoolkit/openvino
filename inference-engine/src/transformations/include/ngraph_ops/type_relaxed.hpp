@@ -183,7 +183,9 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         }
     }
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     BaseOp::validate_and_infer_types();
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     // Restore original input data types
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {

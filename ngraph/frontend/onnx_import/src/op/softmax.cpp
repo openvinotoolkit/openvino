@@ -19,7 +19,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "softmax.hpp"
+#include "onnx_import/op/softmax.hpp"
 
 namespace ngraph
 {

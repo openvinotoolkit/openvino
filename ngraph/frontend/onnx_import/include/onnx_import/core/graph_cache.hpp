@@ -21,6 +21,7 @@
 #include <string>
 
 #include "ngraph/node.hpp"
+
 namespace ngraph
 {
     namespace onnx_import

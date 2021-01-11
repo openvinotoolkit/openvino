@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "builder/split.hpp"
+#include "ngraph/builder/split.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
