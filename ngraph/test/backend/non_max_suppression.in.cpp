@@ -621,7 +621,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
 
     std::vector<float> scores_data = {0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f};
 
-    std::vector<int64_t> max_output_boxes_per_class_data = {3};
+    std::vector<int64_t> max_output_boxes_per_class_data = {1};
     std::vector<float> iou_threshold_data = {0.4f};
     std::vector<float> score_threshold_data = {0.2f};
     const auto box_encoding = op::v5::NonMaxSuppression::BoxEncodingType::CORNER;
@@ -685,10 +685,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
     auto selected_scores_value = read_vector<float>(selected_scores);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
-    std::vector<float> expected_selected_scores = {
-        0.0f, 0.0f, 0.95f, 0.0f, 0.0f, 0.9f, 0.0f, 0.0f, 0.3f};
-    std::vector<int64_t> expected_valid_outputs = {3};
+    std::vector<int64_t> expected_selected_indices = {0, 0, 3};
+    std::vector<float> expected_selected_scores = {0.0f, 0.0f, 0.95f};
+    std::vector<int64_t> expected_valid_outputs = {1};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
     EXPECT_EQ(expected_selected_scores, selected_scores_value);
