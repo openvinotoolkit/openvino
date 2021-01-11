@@ -45,7 +45,7 @@ TEST(TransformationTests, PadFusionAvgPool) {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
         auto avg_pool = std::make_shared<opset5::AvgPool>(data, Strides{1, 1},
                                                           Shape{1, 1}, Shape{3, 3}, Shape{4, 4},
-                                                          true, op::RoundingType::FLOOR);
+                                                          false, op::RoundingType::FLOOR);
         f_ref = std::make_shared<Function>(NodeVector{avg_pool}, ParameterVector{data});
     }
 

@@ -89,8 +89,9 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
         std::tie(new_pads_begin, new_pads_end) = new_pad_values(pads_begin, pads_end, avg_pool);
         auto new_avg_pool = std::make_shared<opset5::AvgPool>(data, avg_pool->get_strides(),
                                                               new_pads_begin, new_pads_end,
-                                                              avg_pool->get_kernel(), avg_pool->get_exclude_pad(),
-                                                              avg_pool->get_rounding_type());
+                                                              avg_pool->get_kernel(), false,
+                                                              avg_pool->get_rounding_type(),
+                                                              op::PadType::EXPLICIT);
         new_avg_pool->set_friendly_name(avg_pool->get_friendly_name());
 
         copy_runtime_info(avg_pool, new_avg_pool);
@@ -129,7 +130,7 @@ pass::PadFusionMaxPool::PadFusionMaxPool() {
         auto new_max_pool = std::make_shared<opset5::MaxPool>(data, max_pool->get_strides(),
                                                               new_pads_begin, new_pads_end,
                                                               max_pool->get_kernel(), max_pool->get_rounding_type(),
-                                                              max_pool->get_auto_pad());
+                                                              op::PadType::EXPLICIT);
         new_max_pool->set_friendly_name(max_pool->get_friendly_name());
 
         copy_runtime_info(max_pool, new_max_pool);
@@ -189,7 +190,7 @@ pass::PadFusionConvolution::PadFusionConvolution() {
         std::tie(new_pads_begin, new_pads_end) = new_pad_values(pads_begin, pads_end, conv);
         auto new_conv = std::make_shared<opset5::Convolution>(data, filter, conv->get_strides(),
                                                               new_pads_begin, new_pads_end,
-                                                              conv->get_dilations(), conv->get_auto_pad());
+                                                              conv->get_dilations(), op::PadType::EXPLICIT);
         new_conv->set_friendly_name(conv->get_friendly_name());
 
         copy_runtime_info(conv, new_conv);
