@@ -615,15 +615,15 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
 
 NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_without_constants)
 {
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+    std::vector<float> boxes_data = {0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.1f,   1.0f, 1.1f,
+                                     0.0f, -0.1f, 1.0f, 0.9f,  0.0f, 10.0f,  1.0f, 11.0f,
+                                     0.0f, 10.1f, 1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f};
 
-    std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
+    std::vector<float> scores_data = {0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f};
 
     std::vector<int64_t> max_output_boxes_per_class_data = {3};
-    std::vector<float> iou_threshold_data = {0.5f};
-    std::vector<float> score_threshold_data = {0.4f};
+    std::vector<float> iou_threshold_data = {0.4f};
+    std::vector<float> score_threshold_data = {0.2f};
     const auto box_encoding = op::v5::NonMaxSuppression::BoxEncodingType::CORNER;
     const auto boxes_shape = Shape{1, 6, 4};
     const auto scores_shape = Shape{1, 1, 6};
@@ -654,8 +654,8 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{2, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{2, 3});
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
     auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
@@ -685,9 +685,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
     auto selected_scores_value = read_vector<float>(selected_scores);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
-    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9};
-    std::vector<int64_t> expected_valid_outputs = {2};
+    std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
+    std::vector<float> expected_selected_scores = {0, 0, 0.95, 0, 0, 0.9, 0, 0, 0.3};
+    std::vector<int64_t> expected_valid_outputs = {3};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
     EXPECT_EQ(expected_selected_scores, selected_scores_value);
