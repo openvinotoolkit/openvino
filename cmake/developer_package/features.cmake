@@ -11,6 +11,12 @@ ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT C
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
+if(UNIX)
+    ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
+else()
+    ie_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" OFF)
+endif()
+
 # FIXME: ARM cross-compiler generates several "false positive" warnings regarding __builtin_memcpy buffer overflow
 ie_dependent_option (TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON "X86 OR X86_64" OFF)
 
