@@ -69,4 +69,6 @@ class LoadFinish(Loader):
         for op, cnt in op_cnt.items():
             sender.send_event('model_info', 'op_instances', op, cnt)
 
+        sender.send_event('model_info', 'joined_ops_types_used', ','.join(sorted(list(op_cnt.keys()))))
+
         graph.check_empty_graph('loading from framework')
