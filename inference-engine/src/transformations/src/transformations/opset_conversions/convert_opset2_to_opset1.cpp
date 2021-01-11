@@ -6,7 +6,7 @@
 
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
-#include "transformations/itt.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -16,6 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet2ToOpSet1, "ConvertOpSet2ToOpSet1", 0);
 
 bool ngraph::pass::ConvertOpSet2ToOpSet1::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    IE_TRANSFORMATION_SCOPE(ConvertOpSet2ToOpSet1_run_on_function);
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConvertSpaceToBatch>();

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 
 #include <memory>
@@ -55,6 +56,7 @@ bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector
 }
 
 ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
+    IE_TRANSFORMATION_SCOPE(ConvertBroadcast3);
     auto broadcast = pattern::wrap_type<opset3::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {

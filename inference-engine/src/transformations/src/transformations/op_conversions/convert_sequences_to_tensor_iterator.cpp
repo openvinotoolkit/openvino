@@ -1,6 +1,7 @@
 // Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "itt.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 
@@ -84,6 +85,7 @@ namespace {
 } // namespace
 
 ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
+    IE_TRANSFORMATION_SCOPE(ConvertRNNSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::RNNSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
@@ -242,6 +244,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
 }
 
 ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
+    IE_TRANSFORMATION_SCOPE(ConvertGRUSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::GRUSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
@@ -400,6 +403,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
 }
 
 ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
+    IE_TRANSFORMATION_SCOPE(ConvertLSTMSequenceToTensorIterator);
     // X, H, C, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::LSTMSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                      pattern::any_input(pattern::has_static_shape()),

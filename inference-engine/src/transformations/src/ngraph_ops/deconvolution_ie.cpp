@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include <ngraph/ops.hpp>
+#include "itt.hpp"
 
 #include "ngraph_ops/deconvolution_ie.hpp"
 
@@ -64,6 +65,7 @@ op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
 }
 
 void op::DeconvolutionIE::validate_and_infer_types() {
+    IE_OP_SCOPE(DeconvolutionIE_validate_and_infer_types);
     // To calculate output shape we use opset1::GroupConvolutionBackPropData
     // but before we need to reshape weights from I(G*O)YX to GIOYX
     auto weights = input_value(1);
@@ -90,6 +92,7 @@ void op::DeconvolutionIE::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+    IE_OP_SCOPE(DeconvolutionIE_clone_with_new_inputs);
     if (new_args.size() == 2) {
         return make_shared<DeconvolutionIE>(new_args.at(0),
                                             new_args.at(1),
@@ -118,6 +121,7 @@ shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::Output
 }
 
 bool op::DeconvolutionIE::visit_attributes(AttributeVisitor& visitor) {
+    IE_OP_SCOPE(DeconvolutionIE_visit_attributes);
         visitor.on_attribute("strides", m_strides);
         visitor.on_attribute("dilations", m_dilations);
         visitor.on_attribute("pads_begin", m_pads_begin);

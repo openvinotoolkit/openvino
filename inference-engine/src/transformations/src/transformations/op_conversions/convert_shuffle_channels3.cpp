@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 
 #include <memory>
@@ -16,6 +17,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleChannels3", 0);
 
 void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
+    IE_TRANSFORMATION_SCOPE(ConvertShuffleChannels3_convert_shuffle_channels3);
     auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input);
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <memory>
@@ -16,6 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LSTMCellDecomposition, "LSTMCellDecomposition", 0);
 
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
+    IE_TRANSFORMATION_SCOPE(LSTMCellDecomposition);
     auto is_supported_lstm_cell = [](const std::shared_ptr<Node>& n) {
         return pattern::has_class<ngraph::opset1::LSTMCell>()(n) || pattern::has_class<ngraph::opset4::LSTMCell>()(n);
     };

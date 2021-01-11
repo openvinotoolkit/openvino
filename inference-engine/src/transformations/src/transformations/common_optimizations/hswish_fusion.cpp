@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -16,6 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusion, "HSwishFusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithReluDiv, "HSwishFusionWithReluDiv", 0);
 
 ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
+    IE_TRANSFORMATION_SCOPE(HSwishFusionWithReluDiv);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -67,6 +69,7 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithReluMul, "HSwishFusionWithReluMul", 0);
 
 ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
+    IE_TRANSFORMATION_SCOPE(HSwishFusionWithReluMul);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -118,6 +121,7 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithoutRelu, "HSwishFusionWithoutRelu", 0);
 
 ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
+    IE_TRANSFORMATION_SCOPE(HSwishFusionWithoutRelu);
     // Replaces a sub-graph x * (min(max(x + 3, 0), 6) / 6) with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -173,6 +177,7 @@ ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithClamp, "HSwishFusionWithClamp", 0);
 
 ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
+    IE_TRANSFORMATION_SCOPE(HSwishFusionWithClamp);
     // Replaces a sub-graph x * (Clamp(x + 3, 0, 6) * const(1/6)) with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();

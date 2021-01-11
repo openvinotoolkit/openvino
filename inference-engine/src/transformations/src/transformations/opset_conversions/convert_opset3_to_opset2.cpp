@@ -9,7 +9,7 @@
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
 #include "transformations/op_conversions/softplus_decomposition.hpp"
-#include "transformations/itt.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -19,6 +19,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet3ToOpSet2, "ConvertOpSet3ToOpSet2", 0);
 
 bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    IE_TRANSFORMATION_SCOPE(ConvertOpSet3ToOpSet2_run_on_function);
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConvertBroadcast3>();

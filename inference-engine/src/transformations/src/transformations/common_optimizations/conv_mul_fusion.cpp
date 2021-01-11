@@ -3,6 +3,7 @@
 //
 
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -18,6 +19,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvolutionMultiplyFusion, "ConvolutionMultiplyFusion", 0);
 
 ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
+    IE_TRANSFORMATION_SCOPE(ConvolutionMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input(pattern::has_static_dim(0) /* has OIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::Convolution>({input, weights}, pattern::consumers_count(1));
@@ -81,6 +83,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupConvolutionMultiplyFusion, "GroupConvolutionMultiplyFusion", 0);
 
 ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
+    IE_TRANSFORMATION_SCOPE(ngraph_GroupConvolutionMultiplyFusion_GroupConvolutionMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input();//pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::GroupConvolution>({input, weights}, pattern::consumers_count(1));

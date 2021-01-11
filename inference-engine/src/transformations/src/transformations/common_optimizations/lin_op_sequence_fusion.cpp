@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 
 #include <memory>
@@ -31,6 +32,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::LinOpSequenceFusion, "LinOpSequenceFusion",
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddMultiplyFusion, "AddMultiplyFusion", 0);
 
 ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
+    IE_TRANSFORMATION_SCOPE(AddMultiplyFusion);
     // Create Add->Multiply pattern where Add has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_add_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -77,6 +79,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddAddFusion, "AddAddFusion", 0);
 
 ngraph::pass::AddAddFusion::AddAddFusion() {
+    IE_TRANSFORMATION_SCOPE(AddAddFusion);
     // Create Add->Add pattern where first Add has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_add1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -111,6 +114,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyMultiplyFusion, "MultiplyMultiplyFusion", 0);
 
 ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
+    IE_TRANSFORMATION_SCOPE(MultiplyMultiplyFusion);
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_mul1_constant = ngraph::pattern::wrap_type<opset3::Constant>();

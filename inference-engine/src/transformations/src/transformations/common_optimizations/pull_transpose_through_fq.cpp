@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PullTransposeThroughFQUp, "PullTransposeThroughFQUp", 0);
 
 ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
+    IE_TRANSFORMATION_SCOPE(PullTransposeThroughFQUp);
     auto m_fq = pattern::wrap_type<opset1::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank()),

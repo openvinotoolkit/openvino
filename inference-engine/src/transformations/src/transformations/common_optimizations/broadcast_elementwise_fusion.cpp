@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
@@ -44,6 +45,7 @@ bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngra
 }
 
 ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
+    IE_TRANSFORMATION_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
     auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()});
     auto eltwise_input = pattern::any_input();

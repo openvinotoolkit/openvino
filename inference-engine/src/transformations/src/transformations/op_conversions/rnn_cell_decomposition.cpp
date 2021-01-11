@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 
 #include <memory>
@@ -15,6 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RNNCellDecomposition, "RNNCellDecomposition", 0);
 
 ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
+    IE_TRANSFORMATION_SCOPE(RNNCellDecomposition);
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset4::RNNCell> (m.get_match_root());

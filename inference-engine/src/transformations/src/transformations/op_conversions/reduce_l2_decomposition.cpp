@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 
 #include <memory>
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReduceL2Decomposition, "ReduceL2Decomposition", 0);
 
 ngraph::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
+    IE_TRANSFORMATION_SCOPE(ReduceL2Decomposition);
     // decomposes ReduceL2 operations into sqrt(ReduceSum(x * x))
     auto reduce_l2 = ngraph::pattern::wrap_type<opset4::ReduceL2>();
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 
 #include <memory>
@@ -15,6 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToGroupConvolution, "ConvertPadToGroupConvolution", 0);
 
 ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
+    IE_TRANSFORMATION_SCOPE(ConvertPadToGroupConvolution);
     auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {

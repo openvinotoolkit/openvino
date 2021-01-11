@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 
 #include <memory>
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LogSoftmaxDecomposition, "LogSoftmaxDecomposition", 0);
 
 ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
+    IE_TRANSFORMATION_SCOPE(LogSoftmaxDecomposition);
     // Decomposes LogSoftmax(x, axis) op into sub-graph x - log(reduce_sum(exp(x), axis))
     auto log_softmax = ngraph::pattern::wrap_type<opset5::LogSoftmax>();
 

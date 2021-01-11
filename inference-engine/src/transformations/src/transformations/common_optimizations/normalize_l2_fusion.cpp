@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -17,6 +18,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2Fusion, "NormalizeL2Fusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithMax, "NormalizeL2FusionWithMax", 0);
 
 ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
+    IE_TRANSFORMATION_SCOPE(NormalizeL2FusionWithMax);
     auto input = ngraph::pattern::any_input();
 
     auto exp = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -70,6 +72,7 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithAdd, "NormalizeL2FusionWithAdd", 0);
 
 ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
+    IE_TRANSFORMATION_SCOPE(NormalizeL2FusionWithAdd);
     auto input = ngraph::pattern::any_input();
 
     auto exp = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();

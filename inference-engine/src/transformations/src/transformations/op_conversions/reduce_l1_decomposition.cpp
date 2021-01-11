@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 
 #include <memory>
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReduceL1Decomposition, "ReduceL1Decomposition", 0);
 
 ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
+    IE_TRANSFORMATION_SCOPE(ReduceL1Decomposition);
     // decomposes ReduceL1 operations into ReduceSum(abs(x))
     auto reduce_l1 = ngraph::pattern::wrap_type<opset4::ReduceL1>();
 

@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include <openvino/cc/selective_build.h>
 #include <openvino/itt.hpp>
 
 namespace ngraph {
@@ -28,8 +29,26 @@ namespace pass {
 namespace itt {
 namespace domains {
     OV_ITT_DOMAIN(IETransform);
-    OV_ITT_DOMAIN(nGraphPass_LT);
 }   // namespace domains
 }   // namespace itt
 }   // namespace pass
 }   // namespace ngraph
+
+OV_CC_DOMAINS(ngraph_pass);
+OV_CC_DOMAINS(ie_op);
+
+#if defined(SELECTIVE_BUILD_ANALYZER)
+#define IE_TRANSFORMATION_SCOPE(region) OV_SCOPE(ngraph_pass, region)
+#define IE_OP_SCOPE(region) OV_SCOPE(ie_op, region)
+#elif defined(SELECTIVE_BUILD)
+#define TRANSFORMATION_SCOPE_(scope, region)                                                   \
+    if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(scope, _, region)) == 0)                             \
+    throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(scope, _, region))) +     \
+                               " is disabled!")
+
+#define IE_TRANSFORMATION_SCOPE(region) TRANSFORMATION_SCOPE_(ngraph_pass, region)
+#define IE_OP_SCOPE(region) TRANSFORMATION_SCOPE_(ie_op, region)
+#else
+#define IE_TRANSFORMATION_SCOPE(region)
+#define IE_OP_SCOPE(region)
+#endif

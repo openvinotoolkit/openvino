@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShapeOf3, "ConvertShapeOf3", 0);
 
 void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
+    IE_TRANSFORMATION_SCOPE(ConvertShapeOf3_convert_shapeof3);
     auto input = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input);
 

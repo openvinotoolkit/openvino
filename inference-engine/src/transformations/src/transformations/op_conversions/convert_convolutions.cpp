@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_convolutions.hpp"
 
 #include <memory>
@@ -49,6 +50,7 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
 
 ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
+    IE_TRANSFORMATION_SCOPE(ConvertGroupConvolution);
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -95,6 +97,7 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
 
 ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
+    IE_TRANSFORMATION_SCOPE(ConvertDeconvolution);
     auto conv = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -127,6 +130,7 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
 
 ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
+    IE_TRANSFORMATION_SCOPE(ConvertGroupDeconvolution);
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {

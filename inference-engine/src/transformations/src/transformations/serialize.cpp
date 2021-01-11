@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -484,6 +485,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
 // ! [function_pass:serialize_cpp]
 // serialize.cpp
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    IE_TRANSFORMATION_SCOPE(Serialize_run_on_function);
     // prepare data
     pugi::xml_document xml_doc;
     std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);

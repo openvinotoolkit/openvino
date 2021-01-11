@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include <transformations/smart_reshape/reshape_to_1D.hpp>
 
 #include <ngraph/ngraph.hpp>
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeTo1D, "ReshapeTo1D", 0);
 
 ngraph::pass::ReshapeTo1D::ReshapeTo1D() {
+    IE_TRANSFORMATION_SCOPE(ReshapeTo1D);
     auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>({pattern::any_input(), ngraph::pattern::wrap_type<opset5::Constant>()},
              [](const Output<Node> & output) { return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() == 1; });
 

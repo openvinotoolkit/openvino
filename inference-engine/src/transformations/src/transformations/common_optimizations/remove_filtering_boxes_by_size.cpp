@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include <memory>
 #include <vector>
 
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveFilteringBoxesBySize, "RemoveFilteringBoxesBySize", 0);
 
 void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() {
+    IE_TRANSFORMATION_SCOPE(RemoveFilteringBoxesBySize_remove_filtering_boxes_by_size);
     // variadic split
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1000, 4});
     auto sizes = opset3::Constant::create(element::i64, Shape{4}, std::vector<int64_t >({1, 1, 1, 1}));

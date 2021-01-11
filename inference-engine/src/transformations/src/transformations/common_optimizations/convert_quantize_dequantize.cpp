@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/utils/utils.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -57,6 +58,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertQuantizeDequantize, "ConvertQuantizeDequantize", 0);
 
 ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
+    IE_TRANSFORMATION_SCOPE(ConvertQuantizeDequantize);
     auto data_pattern = ngraph::pattern::any_input();
     auto input_low_pattern = ngraph::pattern::any_input();
     auto input_high_pattern = ngraph::pattern::any_input();
