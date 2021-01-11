@@ -25,10 +25,9 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronTopKROIs, "ExperimentalDetectronTopKROIs", 6);
 
-op::v6::ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(
-    const Output<Node>& input_rois,
-    const Output<Node>& rois_probs,
-    size_t max_rois)
+op::v6::ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const Output<Node>& input_rois,
+                                                                     const Output<Node>& rois_probs,
+                                                                     size_t max_rois)
     : Op({input_rois, rois_probs})
     , m_max_rois(max_rois)
 {
