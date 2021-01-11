@@ -152,16 +152,6 @@ if (GEMM STREQUAL "MKL")
     log_rpath_from_dir(MKL "${MKL}/lib")
 endif()
 
-if (THREADING STREQUAL "TBB")
-    set(MKLDNN_THR MKLDNN_THR_TBB)
-elseif (THREADING STREQUAL "TBB_AUTO")
-    set(MKLDNN_THR MKLDNN_THR_TBB_AUTO)
-elseif (THREADING STREQUAL "OMP")
-    set(MKLDNN_THR MKLDNN_THR_OMP)
-else()
-    set(MKLDNN_THR MKLDNN_THR_SEQ)
-endif()
-
 # create plugin
 
 ie_add_plugin(NAME ${TARGET_NAME}
@@ -170,8 +160,6 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS})
 
 set_ie_threading_interface_for(${TARGET_NAME})
-
-target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
                                              inference_engine_transformations inference_engine_lp_transformations openvino::conditional_compilation)
@@ -215,7 +203,6 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inferenc
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 target_compile_definitions(${TARGET_NAME}_obj
-        PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
         PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 )
 

@@ -87,7 +87,7 @@ if(ENABLE_MKL_DNN)
     set(DNNL_LIBRARY_TYPE STATIC CACHE BOOL "" FORCE)
     set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(DNNL_CPU_RUNTIME "TBB" CACHE BOOL "" FORCE)
+    set(DNNL_CPU_RUNTIME "${THREADING}" CACHE BOOL "" FORCE)
     set(DNNL_BLAS_VENDOR "NONE" CACHE BOOL "" FORCE)
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
     if (ANDROID)
