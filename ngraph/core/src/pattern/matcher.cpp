@@ -17,12 +17,12 @@
 #include <algorithm>
 #include <regex>
 
-#include "matcher.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph
 {
