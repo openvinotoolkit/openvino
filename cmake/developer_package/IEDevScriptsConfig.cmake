@@ -181,7 +181,8 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
+# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
 # LTO
 

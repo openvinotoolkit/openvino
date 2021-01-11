@@ -205,6 +205,7 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(-fsigned-char)
 endif()
 
+# Honor visibility properties for all target types
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
