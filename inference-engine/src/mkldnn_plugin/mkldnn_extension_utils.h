@@ -79,6 +79,8 @@ public:
     static bool initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2);
     static std::string getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc);
     static InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions);
+    static bool isDenseTensor(const InferenceEngine::TensorDesc &desc);
+    static bool isDefaultTensor(const InferenceEngine::TensorDesc &desc);
 };
 
 }  // namespace MKLDNNPlugin
