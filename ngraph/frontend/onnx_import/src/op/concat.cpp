@@ -16,11 +16,11 @@
 
 #include <cstdint>
 
-#include "concat.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/op/concat.hpp"
 
 namespace ngraph
 {
