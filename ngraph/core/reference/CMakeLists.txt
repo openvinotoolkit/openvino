@@ -19,7 +19,7 @@ set(TARGET_NAME "ngraph_reference")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(REF_IMPL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ CACHE INTERNAL "")
+set(REF_IMPL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -30,6 +30,11 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+set_target_properties(${TARGET_NAME} PROPERTIES
+                      CXX_VISIBILITY_PRESET hidden
+                      C_VISIBILITY_PRESET hidden
+                      VISIBILITY_INLINES_HIDDEN ON)
+
 if(COMMAND ie_faster_build)
     ie_faster_build(${TARGET_NAME}
         UNITY
@@ -38,13 +43,10 @@ if(COMMAND ie_faster_build)
 endif()
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR})
-target_include_directories(${TARGET_NAME} PRIVATE ${NGRAPH_INCLUDE_PATH}
-                                                  ${REF_IMPL_INCLUDE_DIR}/ngraph)
+target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::reference ALIAS ${TARGET_NAME})
 
 # developer package
-
 openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::reference)
