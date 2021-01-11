@@ -34,8 +34,6 @@ namespace ngraph
                                  const Shape& out_shape,
                                  int64_t axis)
             {
-                size_t data_count = ngraph::shape_size(data_shape);
-
                 if (axis < 0)
                 {
                     axis += data_shape.size();
@@ -132,7 +130,8 @@ namespace ngraph
                     outer_sum_inc *= data_shape[i];
                 max_outer_sum *= outer_sum_inc;
 
-                for (size_t outer_sum = 0, i = 0; outer_sum < max_outer_sum; outer_sum += outer_sum_inc)
+                for (size_t outer_sum = 0, i = 0; outer_sum < max_outer_sum;
+                     outer_sum += outer_sum_inc)
                     for (size_t k = 0; k < indices_shape[axis]; k++)
                         for (size_t inner_sum = 0; inner_sum < max_inner_sum; inner_sum++)
                         {
