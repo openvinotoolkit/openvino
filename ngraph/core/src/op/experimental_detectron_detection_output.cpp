@@ -42,6 +42,7 @@ op::v6::ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutp
 
 bool op::v6::ExperimentalDetectronDetectionOutput::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronDetectionOutput_visit_attributes);
     visitor.on_attribute("score_threshold", m_attrs.score_threshold);
     visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
     visitor.on_attribute("max_delta_log_wh", m_attrs.max_delta_log_wh);
@@ -55,6 +56,7 @@ bool op::v6::ExperimentalDetectronDetectionOutput::visit_attributes(AttributeVis
 
 void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronDetectionOutput_validate_and_infer_types);
     size_t rois_num = m_attrs.max_detections_per_image;
     auto input_et = get_input_element_type(0);
 
@@ -132,8 +134,8 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
 shared_ptr<Node> op::v6::ExperimentalDetectronDetectionOutput::clone_with_new_inputs(
     const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronDetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-
     return make_shared<op::v6::ExperimentalDetectronDetectionOutput>(
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_attrs);
 }
