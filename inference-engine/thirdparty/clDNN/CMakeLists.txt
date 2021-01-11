@@ -28,12 +28,13 @@ include(IntelHelpers)
 
 # Available configuration types:
 # Two standard configurations.
-set(CMAKE_CONFIGURATION_TYPES
-    "Debug"
-    "Release"
-    "RelWithDebInfo"
-  )
-set(CMAKE_CONFIGURATION_TYPES ${CMAKE_CONFIGURATION_TYPES} CACHE INTERNAL "Available build configurations.")
+if(NOT DEFINED CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_CONFIGURATION_TYPES
+        "Debug"
+        "Release"
+        "RelWithDebInfo"
+      )
+endif()
 
 # ======================================================================================================
 # ======================================================================================================
