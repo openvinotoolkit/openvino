@@ -32,7 +32,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-NGRAPH_RTTI_DEFINITION(op::PRelu, "PReLU", 0);
+NGRAPH_RTTI_DEFINITION(op::PRelu, "PRelu", 0);
 
 op::PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope)
     : FusedOp({data, slope})

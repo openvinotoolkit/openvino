@@ -230,6 +230,7 @@ std::string get_opset_name(
 std::string translate_type_name(std::string name) {
     const std::unordered_map<std::string, std::string> translator = {
         {"Constant", "Const"},
+        {"PRelu", "PReLU"},
         {"Relu", "ReLU"},
         {"Softmax", "SoftMax"}};
     if (translator.count(name) > 0) {
