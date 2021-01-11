@@ -18,8 +18,10 @@ import logging as log
 import os
 import re
 
+from distutils.version import LooseVersion
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
+from mo.utils.versions_checker import get_environment_setup
 
 try:
     import tensorflow.compat.v1 as tf_v1
@@ -226,6 +228,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
         if model_dir:
             # saved model directory
             try:
+                env_setup = get_environment_setup()
                 # enable eager execution temporarily while TensorFlow 2 model is being loaded
                 tf_v1.enable_eager_execution()
                 # code to extract GraphDef for TF 2.0 SavedModel format
@@ -233,7 +236,15 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 imported = tf.saved_model.load(model_dir, saved_model_tags) # pylint: disable=E1120
                 # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
                 concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
-                frozen_func = convert_variables_to_constants_v2(concrete_func, lower_control_flow=False) # pylint: disable=E1123
+                # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
+                # and a model with Embedding operation cannot properly converted to IR without this function parameter
+                if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.2.0"):
+                    frozen_func = convert_variables_to_constants_v2(concrete_func,
+                                                                    lower_control_flow=False,
+                                                                    aggressive_inlining=True)  # pylint: disable=E1123
+                else:
+                    frozen_func = convert_variables_to_constants_v2(concrete_func,
+                                                                    lower_control_flow=False)  # pylint: disable=E1123
                 graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
                 # disable eager execution since next steps are executed with a graph in non-eager mode
                 tf_v1.disable_eager_execution()
