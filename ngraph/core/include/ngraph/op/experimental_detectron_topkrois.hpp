@@ -54,7 +54,6 @@ namespace ngraph
             private:
                 size_t m_max_rois;
             };
-        } // namespace v6
-        using v6::ExperimentalDetectronTopKROIs;
-    } // namespace op
-} // namespace ngraph
+        }
+    }
+}
