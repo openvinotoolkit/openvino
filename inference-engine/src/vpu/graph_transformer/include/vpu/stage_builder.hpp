@@ -327,6 +327,8 @@ public:
             const std::string& name,
             const ie::CNNLayerPtr& layer,
             bool align_corners,
+            InterpolateMode mode,
+            InterpolateCoordTransMode coordinateTransformationMode,
             const Data& input,
             const Data& output);
 
