@@ -15,6 +15,7 @@
 """
 import numpy as np
 
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -48,7 +49,8 @@ class CumSum(Op):
         }, attrs)
 
     def supported_attrs(self):
-        return ["exclusive", "reverse"]
+        return [('exclusive', lambda node: get_boolean_attr(node, 'exclusive')),
+                ('reverse', lambda node: get_boolean_attr(node, 'reverse'))]
 
     @staticmethod
     def infer(node: Node):

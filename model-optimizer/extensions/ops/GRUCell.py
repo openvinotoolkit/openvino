@@ -14,6 +14,7 @@
  limitations under the License.
 """
 from mo.front.common.partial_infer.utils import mark_input_bins
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -56,7 +57,7 @@ class GRUCell(Op):
             'activation_alpha',
             'activation_beta',
             'clip',
-            'linear_before_reset',
+            ('linear_before_reset', lambda node: get_boolean_attr(node, 'linear_before_reset')),
         ]
 
     def backend_attrs(self):

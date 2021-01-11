@@ -16,9 +16,11 @@
 
 
 import math
+
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
@@ -116,11 +118,14 @@ class Interpolate(Op):
         self.attributes_for_opsets = {
             'opset1': [
                 ('axes', lambda node: ','.join(map(str, node.axes))),
-                'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end',
+                ('antialias', lambda node: get_boolean_attr(node, 'antialias')),
+                ('align_corners', lambda node: get_boolean_attr(node, 'align_corners')),
+                'mode', 'pads_begin', 'pads_end',
             ],
             'opset4': [
-                'mode', 'antialias', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
+                'mode', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
                 'shape_calculation_mode',
+                ('antialias', lambda node: get_boolean_attr(node, 'antialias')),
                 ('pads_begin', lambda node: pad_attribute_to_str(node, 'pads_begin')),
                 ('pads_end', lambda node: pad_attribute_to_str(node, 'pads_end')),
             ]

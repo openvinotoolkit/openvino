@@ -20,7 +20,7 @@ from mo.front.common.layout import get_width_dim, get_height_dim
 from mo.front.extractor import attr_getter
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-
+from mo.front.extractor import get_boolean_attr
 
 class PriorBoxClusteredOp(Op):
     op = 'PriorBoxClustered'
@@ -56,7 +56,7 @@ class PriorBoxClusteredOp(Op):
     def backend_attrs(self):
         return [
             'flip',
-            'clip',
+            ('clip', lambda node: get_boolean_attr(node, 'clip')),
             'img_size',
             'img_h',
             'img_w',

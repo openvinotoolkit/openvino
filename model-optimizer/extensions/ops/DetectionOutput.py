@@ -16,6 +16,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
@@ -43,11 +44,11 @@ class DetectionOutput(Op):
     def supported_attrs(self):
         return [
             'background_label_id',
-            'clip_after_nms',
-            'clip_before_nms',
+            ('clip_after_nms', lambda node: get_boolean_attr(node, 'clip_after_nms')),
+            ('clip_before_nms', lambda node: get_boolean_attr(node, 'clip_before_nms')),
             'code_type',
             'confidence_threshold',
-            'decrease_label_id',
+            ('decrease_label_id', lambda node: get_boolean_attr(node, 'decrease_label_id')),
             'eta',
             'height',
             'height_scale',
@@ -58,7 +59,7 @@ class DetectionOutput(Op):
             'label_map_file',
             'name_size_file',
             'nms_threshold',
-            'normalized',
+            ('normalized', lambda node: get_boolean_attr(node, 'normalized')),
             'num_classes',
             'num_test_image',
             'output_directory',
@@ -69,9 +70,9 @@ class DetectionOutput(Op):
             'prob',
             'resize_mode',
             'save_file',
-            'share_location',
+            ('share_location', lambda node: get_boolean_attr(node, 'share_location')),
             'top_k',
-            'variance_encoded_in_target',
+            ('variance_encoded_in_target', lambda node: get_boolean_attr(node, 'variance_encoded_in_target')),
             'visualize',
             'visualize_threshold',
             'width',

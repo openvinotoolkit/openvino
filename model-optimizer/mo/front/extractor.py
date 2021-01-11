@@ -131,6 +131,16 @@ def attr_getter(node: Node, name: str):
     return None
 
 
+def get_boolean_attr(node: Node, attr: str):
+    if node[attr] in ['true', 'false']:
+        return node[attr]
+    elif node[attr] in [0, 1]:
+        return str(bool(node[attr])).lower()
+    else:
+        raise Error('Wrong value {} for boolean attribute {} in node {}'.format(
+            node[attr], attr, node.soft_get('name')))
+
+
 def kernel_getter(node: Node, dim: int):
     if node.kind == 'op' and node.op in ['Conv2D', 'DepthwiseConv2dNative', 'Deconv2D']:
         if node.has('kernel_spatial'):

@@ -18,6 +18,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import attr_getter
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
+from mo.front.extractor import get_boolean_attr
 
 
 class ProposalOp(Op):
@@ -61,9 +62,9 @@ class ProposalOp(Op):
             'framework',
             'box_coordinate_scale',
             'box_size_scale',
-            'normalize',
-            'clip_after_nms',
-            'clip_before_nms',
+            ('normalize', lambda node: get_boolean_attr(node, 'normalize')),
+            ('clip_after_nms', lambda node: get_boolean_attr(node, 'clip_after_nms')),
+            ('clip_before_nms', lambda node: get_boolean_attr(node, 'clip_before_nms')),
         ]
 
     @staticmethod

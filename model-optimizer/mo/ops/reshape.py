@@ -15,6 +15,7 @@
 """
 import numpy as np
 
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -40,7 +41,7 @@ class Reshape(Op):
         }, attrs)
 
     def supported_attrs(self):
-        return ['special_zero']
+        return [('special_zero', lambda node: get_boolean_attr(node, 'special_zero'))]
 
     @staticmethod
     def infer(node: Node):

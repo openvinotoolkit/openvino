@@ -106,7 +106,7 @@ class ReduceOp(Op):
 
     def supported_attrs(self):
         return [
-            ('keep_dims', lambda node: str(node.keep_dims)),
+            ('keep_dims', lambda node: str(node.keep_dims).lower()),
         ]
 
 

@@ -15,6 +15,7 @@
 """
 
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -38,7 +39,7 @@ class CTCGreedyDecoderOp(Op):
 
     def supported_attrs(self):
         return [
-            'ctc_merge_repeated'
+            ('ctc_merge_repeated', lambda node: get_boolean_attr(node, 'ctc_merge_repeated'))
         ]
 
     @staticmethod

@@ -18,7 +18,7 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim, shape_for_layout
-from mo.front.extractor import attr_getter
+from mo.front.extractor import attr_getter, get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -56,7 +56,7 @@ class RegionYoloOp(Op):
             'num',
             'axis',
             'end_axis',
-            'do_softmax',
+            ('do_softmax', lambda node: get_boolean_attr(node, 'do_softmax')),
             ('anchors', lambda node: attr_getter(node, 'anchors')),
             ('mask', lambda node: attr_getter(node, 'mask'))
         ]

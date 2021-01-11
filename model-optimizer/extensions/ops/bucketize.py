@@ -19,7 +19,7 @@ import numpy as np
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
-
+from mo.front.extractor import get_boolean_attr
 
 class Bucketize(Op):
     op = 'Bucketize'
@@ -42,10 +42,10 @@ class Bucketize(Op):
     def backend_attrs(self):
         version = self.get_opset()
         if version == "extension":
-            return ['with_right_bound']
+            return [('with_right_bound', lambda node: get_boolean_attr(node, 'with_right_bound'))]
         else:
             return [
-                'with_right_bound',
+                ('with_right_bound', lambda node: get_boolean_attr(node, 'with_right_bound')),
                 ('output_type', lambda node: np_data_type_to_destination_type(node.output_type)),
             ]
 

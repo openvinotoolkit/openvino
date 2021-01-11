@@ -17,6 +17,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -39,7 +40,9 @@ class CTCLoss(Op):
         super().__init__(graph, mandatory_props, attrs)
 
     def backend_attrs(self):
-        return ['preprocess_collapse_repeated', 'ctc_merge_repeated', 'unique']
+        return [('preprocess_collapse_repeated', lambda node: get_boolean_attr(node, 'preprocess_collapse_repeated')),
+                ('ctc_merge_repeated', lambda node: get_boolean_attr(node, 'ctc_merge_repeated')),
+                ('unique', lambda node: get_boolean_attr(node, 'unique'))]
 
     @staticmethod
     def type_infer(node):

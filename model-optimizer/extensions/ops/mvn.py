@@ -13,9 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.layout import get_features_dim
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -44,7 +45,9 @@ class MVN(Op):
         return ['eps', 'across_channels', 'normalize_variance', 'axes']
 
     def backend_attrs(self):
-        return ['eps', 'across_channels', 'normalize_variance']
+        return ['eps',
+                ('across_channels', lambda node: get_boolean_attr(node, 'across_channels')),
+                ('normalize_variance', lambda node: get_boolean_attr(node, 'normalize_variance'))]
 
     @staticmethod
     def infer(node: None):
