@@ -115,7 +115,7 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     auto expected_channels = featmap_shape[1];
 
     bool there_are_dynamic_channels =
-        std::any_of(channels.begin(), channels.end(), [&expected_channels](const Dimension& d) {
+        std::any_of(channels.begin(), channels.end(), [](const Dimension& d) {
             return d.is_dynamic();
         });
 
