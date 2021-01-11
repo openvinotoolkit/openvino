@@ -265,9 +265,9 @@ namespace strided_slice
                                 const AxisSet& ellipsis_mask,
                                 const HostTensorPtr& out)
     {
-        std::vector<int64_t> begin_const = read_vector<int64_t>(begin);
-        std::vector<int64_t> end_const = read_vector<int64_t>(end);
-        std::vector<int64_t> stride_const = read_vector<int64_t>(stride);
+        std::vector<int64_t> begin_const = host_tensor_2_vector<int64_t>(begin);
+        std::vector<int64_t> end_const = host_tensor_2_vector<int64_t>(end);
+        std::vector<int64_t> stride_const = host_tensor_2_vector<int64_t>(stride);
         SlicePlan slice_plan = make_slice_plan(in->get_shape(),
                                                begin_const,
                                                end_const,
