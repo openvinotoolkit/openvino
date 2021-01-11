@@ -35,6 +35,7 @@
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
+#include <ngraph/runtime/reference/gather_elements.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
 #include <ngraph/runtime/reference/gelu.hpp>
@@ -1577,6 +1578,45 @@ namespace
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
                                                   ngraph::op::AutoBroadcastSpec::NUMPY);
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::GatherElements>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        Shape params_shape = inputs[0]->get_shape();
+        Shape indices_shape = inputs[1]->get_shape();
+
+        outputs[0]->set_shape(indices_shape);
+
+        if (inputs[1]->get_element_type() == element::i64)
+        {
+            runtime::reference::gather_elements<T, int64_t>(inputs[0]->get_data_ptr<ET>(),
+                                                            inputs[1]->get_data_ptr<int64_t>(),
+                                                            outputs[0]->get_data_ptr<ET>(),
+                                                            inputs[0]->get_shape(),
+                                                            inputs[1]->get_shape(),
+                                                            outputs[0]->get_shape(),
+                                                            op->get_axis());
+        }
+        else if (inputs[1]->get_element_type() == element::i32)
+        {
+            runtime::reference::gather_elements<T, int32_t>(inputs[0]->get_data_ptr<ET>(),
+                                                            inputs[1]->get_data_ptr<int32_t>(),
+                                                            outputs[0]->get_data_ptr<ET>(),
+                                                            inputs[0]->get_shape(),
+                                                            inputs[1]->get_shape(),
+                                                            outputs[0]->get_shape(),
+                                                            op->get_axis());
+        }
+        else
+        {
+            throw ngraph_error("Unexpected indices type");
+        }
+
         return true;
     }
 

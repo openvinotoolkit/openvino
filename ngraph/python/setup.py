@@ -45,6 +45,7 @@ packages = [
     "ngraph.opset3",
     "ngraph.opset4",
     "ngraph.opset5",
+    "ngraph.opset6",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",
