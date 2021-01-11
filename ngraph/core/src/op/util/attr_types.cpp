@@ -162,15 +162,21 @@ namespace ngraph
 
     op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string& type) const
     {
+        auto lowercase_type = type;
+        std::transform(lowercase_type.begin(),
+                       lowercase_type.end(),
+                       lowercase_type.begin(),
+                       [](char c){ return std::tolower(c); });
+
         static const std::map<std::string, AutoBroadcastType> allowed_values = {
             {"none", AutoBroadcastType::NONE},
             {"numpy", AutoBroadcastType::NUMPY},
             {"pdpd", AutoBroadcastType::PDPD},
             {"explicit", AutoBroadcastType::EXPLICIT}};
 
-        NGRAPH_CHECK(allowed_values.count(type) > 0, "Invalid 'type' value passed in.");
+        NGRAPH_CHECK(allowed_values.count(lowercase_type) > 0, "Invalid 'type' value passed in.");
 
-        return allowed_values.at(type);
+        return allowed_values.at(lowercase_type);
     }
 
     bool AttributeAdapter<op::AutoBroadcastSpec>::visit_attributes(AttributeVisitor& visitor)
