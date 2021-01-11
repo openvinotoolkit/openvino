@@ -14,19 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-# set directory where the custom finders live
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/")
-
-if (CMAKE_BUILD_TYPE)
-    set(RELEASE_TYPES Debug Release RelWithDebInfo MinSizeRel)
-    list(FIND RELEASE_TYPES ${CMAKE_BUILD_TYPE} INDEX_FOUND)
-    if (${INDEX_FOUND} EQUAL -1)
-        message(FATAL_ERROR "CMAKE_BUILD_TYPE must be one of Debug, Release, RelWithDebInfo, or MinSizeRel")
-    endif()
-endif()
-
-include(git_tags)
-include(var_functions)
+include(cmake/Modules/git_tags.cmake)
 
 NGRAPH_GET_VERSION_LABEL()
 
@@ -39,7 +27,7 @@ string(REPLACE "." ";" NGRAPH_VERSION_PARTS "${NGRAPH_VERSION_SHORT}")
 list(GET NGRAPH_VERSION_PARTS 0 NGRAPH_VERSION_MAJOR)
 list(GET NGRAPH_VERSION_PARTS 1 NGRAPH_VERSION_MINOR)
 list(GET NGRAPH_VERSION_PARTS 2 NGRAPH_VERSION_PATCH)
-configure_file(VERSION.in VERSION)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/VERSION.in VERSION)
 
 message(STATUS "NGRAPH_VERSION ${NGRAPH_VERSION}")
 message(STATUS "NGRAPH_VERSION_SHORT ${NGRAPH_VERSION_SHORT}")
@@ -56,10 +44,6 @@ if (APPLE)
 endif()
 
 project (ngraph)
-
-if (UNIX AND NOT APPLE)
-    set(LINUX TRUE)
-endif()
 
 # APPLE: Set CMAKE_OSX_SYSROOT if not set already.
 if (APPLE)
@@ -102,64 +86,34 @@ if (APPLE)
     endif()
 endif()
 
-option(NGRAPH_UNIT_TEST_ENABLE "Control the building of unit tests" TRUE)
-option(NGRAPH_TEST_UTIL_ENABLE "Control the building of test utility" TRUE)
-option(NGRAPH_INTERPRETER_ENABLE "Control the building of the INTERPRETER backend" TRUE)
-option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" FALSE)
-option(NGRAPH_DEPRECATED_ENABLE "Enable compiler deprecation pragmas for deprecated APIs (recommended only for development use)" TRUE)
-option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" FALSE)
-option(NGRAPH_CODE_COVERAGE_ENABLE "Enable code coverage data collection" FALSE)
-option(NGRAPH_LIB_VERSIONING_ENABLE "Enable shared library versioning" FALSE)
-option(NGRAPH_PYTHON_BUILD_ENABLE "Enable build nGraph python package wheel" FALSE)
-option(NGRAPH_DYNAMIC_COMPONENTS_ENABLE "Enable dynamic loading of components" TRUE)
-option(NGRAPH_EXPORT_TARGETS_ENABLE "Enable exporting nGraph cmake export targets" TRUE)
-option(NGRAPH_WARNINGS_AS_ERRORS "Make all nGraph compile-time warnings into errors" FALSE)
-option(NGRAPH_ADDRESS_SANITIZER_ENABLE "Compiles and links with Address Sanitizer" FALSE)
-option(NGRAPH_THREAD_SANITIZER_ENABLE "Compiles and links with Thread Sanitizer" FALSE)
-option(NGRAPH_UB_SANITIZER_ENABLE "Compiles and links with Undefined Behavior Sanitizer" FALSE)
-option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" FALSE)
+option(NGRAPH_UNIT_TEST_ENABLE "Control the building of unit tests" ON)
+option(NGRAPH_TEST_UTIL_ENABLE "Control the building of test utility" ON)
+option(NGRAPH_INTERPRETER_ENABLE "Control the building of the INTERPRETER backend" ON)
+option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
+option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" OFF)
+option(NGRAPH_LIB_VERSIONING_ENABLE "Enable shared library versioning" OFF)
+option(NGRAPH_PYTHON_BUILD_ENABLE "Enable build nGraph python package wheel" OFF)
+option(NGRAPH_DYNAMIC_COMPONENTS_ENABLE "Enable dynamic loading of components" ON)
+option(NGRAPH_EXPORT_TARGETS_ENABLE "Enable exporting nGraph cmake export targets" ON)
+option(NGRAPH_WARNINGS_AS_ERRORS "Make all nGraph compile-time warnings into errors" OFF)
+option(NGRAPH_ADDRESS_SANITIZER_ENABLE "Compiles and links with Address Sanitizer" OFF)
+option(NGRAPH_THREAD_SANITIZER_ENABLE "Compiles and links with Thread Sanitizer" OFF)
+option(NGRAPH_UB_SANITIZER_ENABLE "Compiles and links with Undefined Behavior Sanitizer" OFF)
+option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" OFF)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" FALSE)
+    option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" OFF)
 endif()
 
 if (NGRAPH_UNIT_TEST_ENABLE)
     if (NOT NGRAPH_TEST_UTIL_ENABLE)
         message(WARNING "Unit test needs test util: Turning NGRAPH_TEST_UTIL_ENABLE ON!")
-        set(NGRAPH_TEST_UTIL_ENABLE TRUE)
+        set(NGRAPH_TEST_UTIL_ENABLE ON)
     endif()
 endif()
 
-macro (NORMALIZE_BOOL VAL)
-    if (${VAL})
-        set(${VAL} ON)
-    else()
-        set(${VAL} OFF)
-    endif()
-endmacro()
-
-NORMALIZE_BOOL(NGRAPH_UNIT_TEST_ENABLE)
-NORMALIZE_BOOL(NGRAPH_TEST_UTIL_ENABLE)
-NORMALIZE_BOOL(NGRAPH_INTERPRETER_ENABLE)
-NORMALIZE_BOOL(NGRAPH_DEBUG_ENABLE)
-NORMALIZE_BOOL(NGRAPH_DEPRECATED_ENABLE)
-NORMALIZE_BOOL(NGRAPH_ONNX_IMPORT_ENABLE)
-NORMALIZE_BOOL(NGRAPH_CODE_COVERAGE_ENABLE)
-NORMALIZE_BOOL(NGRAPH_LIB_VERSIONING_ENABLE)
-NORMALIZE_BOOL(NGRAPH_PYTHON_BUILD_ENABLE)
-
-NORMALIZE_BOOL(NGRAPH_DYNAMIC_COMPONENTS_ENABLE)
-NORMALIZE_BOOL(NGRAPH_EXPORT_TARGETS_ENABLE)
-NORMALIZE_BOOL(NGRAPH_WARNINGS_AS_ERRORS)
-NORMALIZE_BOOL(NGRAPH_ADDRESS_SANITIZER_ENABLE)
-NORMALIZE_BOOL(NGRAPH_THREAD_SANITIZER_ENABLE)
-NORMALIZE_BOOL(NGRAPH_UB_SANITIZER_ENABLE)
-NORMALIZE_BOOL(NGRAPH_USE_PROTOBUF_LITE)
-
 message(STATUS "NGRAPH_ADDRESS_SANITIZER_ENABLE:      ${NGRAPH_ADDRESS_SANITIZER_ENABLE}")
-message(STATUS "NGRAPH_CODE_COVERAGE_ENABLE:          ${NGRAPH_CODE_COVERAGE_ENABLE}")
 message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
-message(STATUS "NGRAPH_DEPRECATED_ENABLE:             ${NGRAPH_DEPRECATED_ENABLE}")
 message(STATUS "NGRAPH_DYNAMIC_COMPONENTS_ENABLE:     ${NGRAPH_DYNAMIC_COMPONENTS_ENABLE}")
 message(STATUS "NGRAPH_EXPORT_TARGETS_ENABLE:         ${NGRAPH_EXPORT_TARGETS_ENABLE}")
 message(STATUS "NGRAPH_INTERPRETER_ENABLE:            ${NGRAPH_INTERPRETER_ENABLE}")
@@ -173,17 +127,6 @@ message(STATUS "NGRAPH_UB_SANITIZER_ENABLE:           ${NGRAPH_UB_SANITIZER_ENAB
 message(STATUS "NGRAPH_USE_PROTOBUF_LITE:             ${NGRAPH_USE_PROTOBUF_LITE}")
 message(STATUS "NGRAPH_UNIT_TEST_ENABLE:              ${NGRAPH_UNIT_TEST_ENABLE}")
 message(STATUS "NGRAPH_WARNINGS_AS_ERRORS:            ${NGRAPH_WARNINGS_AS_ERRORS}")
-
-set(NGRAPH_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD ${NGRAPH_CXX_STANDARD})
-message(STATUS "NGRAPH_CXX_STANDARD:                  ${NGRAPH_CXX_STANDARD}")
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-# Create compilation database compile_commands.json
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Setup CMAKE_ARGS to be forwarded to External Projects
 set(NGRAPH_FORWARD_CMAKE_ARGS
@@ -246,6 +189,7 @@ set(NGRAPH_INSTALL_LIB "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_LIBDIR}")
 set(NGRAPH_INSTALL_INCLUDE "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_INCLUDEDIR}")
 set(NGRAPH_INSTALL_DOC "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_DOCDIR}")
 set(NGRAPH_INSTALL_BIN "${NGRAPH_COMPONENT_PREFIX}${CMAKE_INSTALL_BINDIR}")
+
 if (LINUX)
     if (DEFINED NGRAPH_RPATH)
         set(CMAKE_BUILD_RPATH "$ORIGIN:${NGRAPH_RPATH}")
@@ -259,8 +203,6 @@ endif()
 #-----------------------------------------------------------------------------------------------
 # Compile Flags to pass to external projects...
 #-----------------------------------------------------------------------------------------------
-
-include(cmake/sdl.cmake)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if (DEFINED NGRAPH_USE_CXX_ABI)
@@ -283,48 +225,21 @@ string(REPLACE ";" " " CMAKE_ORIGINAL_CXX_FLAGS "${NGRAPH_COMMON_CXX_FLAGS}")
 # Compile Flags for nGraph...
 #-----------------------------------------------------------------------------------------------
 
-# Prevent Eigen from using any LGPL3 code
-set(CMAKE_CXX_FLAGS "${CMAKE_ORIGINAL_CXX_FLAGS} -DEIGEN_MPL2_ONLY -DTBB_USE_THREADING_TOOLS")
-
 if (WIN32)
     string(REPLACE "/W3" "/W0" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endif()
 
 # Compiler-specific logic...
-if (WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /MP")
-
-    if (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
-        # C4251 needs to have dll-interface to be used by clients of class
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")
-        # C4275 non dll-interface class used as base for dll-interface class
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4275")
-    endif()
-else()
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g")
-    set(CMAKE_CXX_FLAGS_DEBUG  "-O0 -g")
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_VISIBILITY_PRESET default)
     set(CMAKE_C_VISIBILITY_PRESET default)
     set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF)
-    endif()
+endif()
 
-if (NOT WIN32 AND ${NGRAPH_WARNINGS_AS_ERRORS})
+if (NOT WIN32 AND NGRAPH_WARNINGS_AS_ERRORS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 endif()
 
-if (NGRAPH_CODE_COVERAGE_ENABLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
-endif()
-
-if (DEFINED NGRAPH_TUNE_ARCH)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mtune=${NGRAPH_TUNE_ARCH}")
-endif()
-
-if (NGRAPH_USE_GOLD)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
-endif()
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS")
@@ -343,24 +258,28 @@ if(NGRAPH_ADDRESS_SANITIZER_ENABLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ADDRESS_SANITIZER_FLAGS}")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ADDRESS_SANITIZER_FLAGS}")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ADDRESS_SANITIZER_FLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ADDRESS_SANITIZER_FLAGS}")
 endif()
 
 if(NGRAPH_THREAD_SANITIZER_ENABLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=thread")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=thread")
 endif()
 
 if(NGRAPH_UB_SANITIZER_ENABLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=float-divide-by-zero -fsanitize=undefined -fsanitize=float-cast-overflow -fPIE -pie")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=float-divide-by-zero -fsanitize=undefined -fsanitize=float-cast-overflow -fPIE -pie")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=float-divide-by-zero -fsanitize=undefined -fsanitize=float-cast-overflow -fPIE -pie")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=float-divide-by-zero -fsanitize=undefined -fsanitize=float-cast-overflow -fPIE -pie")
 endif()
 
 if(NGRAPH_ADDRESS_SANITIZER_ENABLE OR NGRAPH_THREAD_SANITIZER_ENABLE OR NGRAPH_UB_SANITIZER_ENABLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fno-omit-frame-pointer")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g -fno-omit-frame-pointer")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -g -fno-omit-frame-pointer")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -g -fno-omit-frame-pointer")
 endif()
 
 # Since UNIX support Bash we can use a Bash script to do the clang-format functions
@@ -402,13 +321,6 @@ if(NGRAPH_DEBUG_ENABLE)
     add_definitions(-DNGRAPH_DEBUG_ENABLE)
 endif()
 
-#-----------------------------------------------------------------------------------------------
-# enable or disable deprecation warnings for old APIs
-#-----------------------------------------------------------------------------------------------
-if(NGRAPH_DEPRECATED_ENABLE)
-    add_definitions(-DNGRAPH_DEPRECATED_ENABLE)
-endif()
-
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 #-----------------------------------------------------------------------------------------------
@@ -423,27 +335,7 @@ message(STATUS "CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
 # External projects install directory
 #-----------------------------------------------------------------------------------------------
 
-if (NOT NGRAPH_BUILD_DIR)
-    set(NGRAPH_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/ngraph)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${NGRAPH_BUILD_DIR})
-    if(WIN32)
-        set(NGRAPH_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR})
-        set(NGRAPH_LIBRARY_INSTALL_SRC_DIRECTORY ${NGRAPH_BUILD_DIR}/\${CMAKE_INSTALL_CONFIG_NAME})
-        set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${NGRAPH_BUILD_DIR})
-        set(NGRAPH_ARCHIVE_OUTPUT_DIRECTORY ${NGRAPH_BUILD_DIR}/${CMAKE_CFG_INTDIR})
-        set(NGRAPH_ARCHIVE_INSTALL_SRC_DIRECTORY ${NGRAPH_BUILD_DIR}/\${CMAKE_INSTALL_CONFIG_NAME})
-        set(CMAKE_PDB_OUTPUT_DIRECTORY ${NGRAPH_BUILD_DIR})
-        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${NGRAPH_BUILD_DIR})
-    else()
-        set(NGRAPH_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-        set(NGRAPH_LIBRARY_INSTALL_SRC_DIRECTORY ${NGRAPH_BUILD_DIR})
-    endif()
-endif()
-
 # Build destination directory for nGraph binaries and tools.
-set(NGRAPH_BUILD_BIN ${CMAKE_CURRENT_BINARY_DIR}/bin)
-
-set(EXTERNAL_INSTALL_DIR ${CMAKE_BINARY_DIR}/external)
 
 if(NOT DEFINED EXTERNAL_PROJECTS_ROOT)
     set(EXTERNAL_PROJECTS_ROOT ${CMAKE_CURRENT_BINARY_DIR})

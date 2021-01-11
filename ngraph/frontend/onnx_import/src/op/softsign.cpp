@@ -19,7 +19,7 @@
 
 #include "ngraph/shape.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "softsign.hpp"
+#include "onnx_import/op/softsign.hpp"
 
 namespace ngraph
 {
