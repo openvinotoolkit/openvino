@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "broadcast_base.hpp"
+#include "ngraph/op/util/broadcast_base.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"

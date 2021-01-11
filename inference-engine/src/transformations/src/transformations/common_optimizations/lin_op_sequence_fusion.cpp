@@ -44,7 +44,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
         auto add = label_to_output[m_add].get_node_shared_ptr();
 
-        if (m_transformation_callback(mul)) {
+        if (transformation_callback(mul)) {
             return false;
         }
 

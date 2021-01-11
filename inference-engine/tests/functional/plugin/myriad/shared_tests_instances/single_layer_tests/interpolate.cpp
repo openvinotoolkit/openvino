@@ -20,12 +20,26 @@ const std::vector<std::vector<size_t>> inShapes = {
         {1, 8, 38, 38},
         {1, 8, 36, 36},
         {1, 8, 35, 35},
+        {1, 8, 6, 6},
+
+        {1, 8, 3, 3},
+        {1, 8, 4, 4},
+        {1, 8, 16, 16},
+        {1, 8, 31, 31},
+        {1, 8, 26, 26},
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
         {1, 8, 38 * 2, 38 * 2},
         {1, 8, 70, 70},  // * 1.94
         {1, 8, 46, 46},  // * 1.3
+        {1, 8, 9, 9},
+
+        {1, 8, 6, 6},
+        {1, 8, 3, 3},
+        {1, 8, 36, 36},
+        {1, 8, 72, 72},
+        {1, 8, 30, 30},
 };
 
 const std::vector<std::vector<size_t>> inShapes2x = {
@@ -39,6 +53,7 @@ const std::vector<std::vector<size_t>> targetShapes2x = {
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
         ngraph::op::v4::Interpolate::InterpolateMode::linear,
+        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {

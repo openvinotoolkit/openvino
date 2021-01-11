@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "constant.hpp"
+#include "onnx_import/op/constant.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "onnx_import/core/tensor.hpp"

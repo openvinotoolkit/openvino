@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "onnx_import/default_opset.hpp"
-#include "thresholded_relu.hpp"
+#include "onnx_import/op/thresholded_relu.hpp"
 
 namespace ngraph
 {
