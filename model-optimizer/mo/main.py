@@ -319,9 +319,11 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
                 log.error(el, extra={'analysis_info': True})
         log.error(err)
         log.debug(traceback.format_exc())
+        tm.Telemetry().send_event('model_conversion', 'conversion_result', 'fail')
     except FrameworkError as err:
         log.error(err, extra={'framework_error': True})
         log.debug(traceback.format_exc())
+        tm.Telemetry().send_event('model_conversion', 'conversion_result', 'fail')
     except Exception as err:
         log.error("-------------------------------------------------")
         log.error("----------------- INTERNAL ERROR ----------------")

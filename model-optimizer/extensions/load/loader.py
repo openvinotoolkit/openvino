@@ -13,9 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from collections import defaultdict
 
 from mo.graph.graph import Graph
 from mo.utils import class_registration
+import telemetry.telemetry as tm
 
 
 class Loader(object):
@@ -60,4 +62,11 @@ class LoadFinish(Loader):
         return []
 
     def load(self, graph: Graph):
+        op_cnt = defaultdict(int)
+        for node in graph.get_op_nodes():
+            op_cnt[node.op] += 1
+        sender = tm.Telemetry()
+        for op, cnt in op_cnt.items():
+            sender.send_event('model_info', 'op_instances', op, cnt)
+
         graph.check_empty_graph('loading from framework')
