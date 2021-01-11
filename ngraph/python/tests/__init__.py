@@ -207,7 +207,6 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
                                       "NonMaxSuppressionIE operation.")
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
-xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
 
 

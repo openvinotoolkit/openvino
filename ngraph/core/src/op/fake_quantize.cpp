@@ -17,13 +17,13 @@
 #include <memory>
 #include "itt.hpp"
 
-#include "fake_quantize.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/op/maximum.hpp"

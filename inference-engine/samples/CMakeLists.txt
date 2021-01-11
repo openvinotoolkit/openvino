@@ -4,15 +4,10 @@
 
 cmake_minimum_required (VERSION 3.10)
 
+# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+cmake_policy(SET CMP0025 NEW)
+
 project(Samples)
-
-if(POLICY CMP0054)
-    cmake_policy(SET CMP0054 NEW)
-endif()
-
-if(POLICY CMP0063)
-    cmake_policy(SET CMP0063 NEW)
-endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
@@ -21,7 +16,7 @@ endif()
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-if (NOT(BIN_FOLDER))
+if (NOT BIN_FOLDER)
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
     if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
         set(ARCH intel64)
