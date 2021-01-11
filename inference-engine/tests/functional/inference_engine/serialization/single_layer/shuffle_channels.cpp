@@ -35,7 +35,7 @@ const auto shuffleChannelsParamsNegativeAxis4D = ::testing::Combine(
         ::testing::ValuesIn(groups)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannelsSerialization, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 shuffleChannelsParams4D,
                 ::testing::ValuesIn(netPrecisions),
