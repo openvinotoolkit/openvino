@@ -53,7 +53,7 @@ def metadata_from_manifest(manifest: Path):
         'commit_sha': repo_trigger['revision'],
         'commit_date': repo_trigger['commit_time'],
         'repo_url': repo_trigger['url'],
-        'target_branch': repo_trigger['target_branch'],
+        'target_branch': repo_trigger['branch'],
         'version': manifest['components'][PRODUCT_NAME]['version']
     }
 

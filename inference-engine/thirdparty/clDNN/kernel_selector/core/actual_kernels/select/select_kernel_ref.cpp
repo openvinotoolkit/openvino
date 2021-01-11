@@ -39,6 +39,8 @@ ParamsKey SelectKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::byxf);
 
     k.EnableBatching();
+    k.EnableTensorPitches();
+    k.EnableTensorOffset();
     k.EnableDifferentTypes();
 
     return k;
