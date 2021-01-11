@@ -41,6 +41,7 @@ op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridG
 
 bool op::v6::ExperimentalDetectronPriorGridGenerator::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronPriorGridGenerator_visit_attributes);
     visitor.on_attribute("flatten", m_attrs.flatten);
     visitor.on_attribute("h", m_attrs.h);
     visitor.on_attribute("w", m_attrs.w);
@@ -52,8 +53,8 @@ bool op::v6::ExperimentalDetectronPriorGridGenerator::visit_attributes(Attribute
 shared_ptr<Node> op::v6::ExperimentalDetectronPriorGridGenerator::clone_with_new_inputs(
     const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronPriorGridGenerator_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-
     return make_shared<op::v6::ExperimentalDetectronPriorGridGenerator>(
         new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
@@ -105,6 +106,7 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate()
 
 void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronPriorGridGenerator_validate_and_infer_types);
     auto priors_shape = get_input_partial_shape(priors_port);
     auto featmap_shape = get_input_partial_shape(featmap_port);
     auto input_et = get_input_element_type(0);
