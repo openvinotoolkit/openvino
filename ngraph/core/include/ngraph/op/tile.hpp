@@ -47,6 +47,10 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                bool evaluate_tile(const HostTensorVector& outputs,
+                                   const HostTensorVector& inputs) const;
             };
         }
     }

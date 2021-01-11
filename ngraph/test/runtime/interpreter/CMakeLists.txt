@@ -40,9 +40,5 @@ if (NGRAPH_INTERPRETER_ENABLE)
             SOVERSION ${NGRAPH_API_VERSION})
     endif()
     target_link_libraries(interpreter_backend PUBLIC ngraph_backend)
-    install(TARGETS interpreter_backend
-        LIBRARY DESTINATION "${NGRAPH_INSTALL_LIB}"
-        ARCHIVE DESTINATION "${NGRAPH_INSTALL_LIB}"
-        RUNTIME DESTINATION "${NGRAPH_INSTALL_LIB}"
-    )
+
 endif()

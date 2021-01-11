@@ -72,19 +72,95 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_2d_input)
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
-    test_case.add_input<int32_t>({0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
-                                  0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
-                                  0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2});
+
+    // clang-format off
+    test_case.add_input<float>({1.0f, 1.1f,
+                                2.0f, 2.1f,
+                                3.0f, 3.1f});
+
+    test_case.add_input<int32_t>({0, 1, 1, 2,
+                                  0, 1, 1, 2,
+                                  0, 1, 1, 2,
+
+                                  0, 1, 1, 2,
+                                  0, 1, 1, 2,
+                                  0, 1, 1, 2,
+
+
+                                  0, 1, 1, 2,
+                                  0, 1, 1, 2,
+                                  0, 1, 1, 2,
+
+                                  0, 1, 1, 2,
+                                  0, 1, 1, 2,
+                                  0, 1, 1, 2});
     test_case.add_expected_output<float>(
         out_shape,
-        {1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f,
-         3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f,
-         2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f,
-         2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f,
-         1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f,
-         3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f,
-         2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f});
+        { 1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f,
+
+          1.0f, 1.1f,
+          2.0f, 2.1f,
+          2.0f, 2.1f,
+          3.0f, 3.1f});
+    // clang-format on
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -100,14 +176,50 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_axis_0_2d_input)
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
+    // clang-format off
+    test_case.add_input<float>({1.0f, 1.1f,
+                                2.0f, 2.1f,
+                                3.0f, 3.1f});
     test_case.add_input<int32_t>(
-        {0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2});
+        {0, 1, 1, 2,
+         0, 1, 1, 2,
+         0, 1, 1, 2,
+
+         0, 1, 1, 2,
+         0, 1, 1, 2,
+         0, 1, 1, 2});
     test_case.add_expected_output<float>(
-        out_shape, {1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f,
-                    2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f,
-                    1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f,
-                    2.0f, 2.1f, 3.0f, 3.1f, 1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f});
+        out_shape, {1.0f, 1.1f,
+                    2.0f, 2.1f,
+                    2.0f, 2.1f,
+                    3.0f, 3.1f,
+
+                    1.0f, 1.1f,
+                    2.0f, 2.1f,
+                    2.0f, 2.1f,
+                    3.0f, 3.1f,
+
+                    1.0f, 1.1f,
+                    2.0f, 2.1f,
+                    2.0f, 2.1f,
+                    3.0f, 3.1f,
+
+
+                    1.0f, 1.1f,
+                    2.0f, 2.1f,
+                    2.0f, 2.1f,
+                    3.0f, 3.1f,
+
+                    1.0f, 1.1f,
+                    2.0f, 2.1f,
+                    2.0f, 2.1f,
+                    3.0f, 3.1f,
+
+                    1.0f, 1.1f,
+                    2.0f, 2.1f,
+                    2.0f, 2.1f,
+                    3.0f, 3.1f});
+    // clang-format on
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -123,10 +235,20 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_0_2d_input)
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
+    // clang-format off
+    test_case.add_input<float>({1.0f, 1.1f,
+                                2.0f, 2.1f,
+                                3.0f, 3.1f});
+    // clang-format on
     test_case.add_input<int32_t>({0, 1, 1, 2});
+    // clang-format off
     test_case.add_expected_output<float>(out_shape,
-                                         {1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f});
+                                         {1.0f, 1.1f,
+                                          2.0f, 2.1f,
+
+                                          2.0f, 2.1f,
+                                          3.0f, 3.1f});
+    // clang-format on
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -142,10 +264,24 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_axis_0_2d_i
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
+
+    // clang-format off
+    test_case.add_input<float>({1.0f, 1.1f,
+                                2.0f, 2.1f,
+                                3.0f, 3.1f});
+    // clang-format on
+
     test_case.add_input<int32_t>({0, -2, 1, 2});
+
+    // clang-format off
     test_case.add_expected_output<float>(out_shape,
-                                         {1.0f, 1.1f, 2.0f, 2.1f, 2.0f, 2.1f, 3.0f, 3.1f});
+                                         {1.0f, 1.1f,
+                                          2.0f, 2.1f,
+
+                                          2.0f, 2.1f,
+                                          3.0f, 3.1f});
+    // clang-format on
+
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -197,9 +333,19 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_1_2d_input)
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<float>({1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f});
+
+    // clang-format off
+    test_case.add_input<float>({1.0f, 1.1f, 1.2f,
+                                2.0f, 2.1f, 2.2f,
+                                3.0f, 3.1f, 3.2f});
+    // clang-format on
     test_case.add_input<int32_t>({0, 2});
-    test_case.add_expected_output<float>(out_shape, {1.0f, 1.2f, 2.0f, 2.2f, 3.0f, 3.2f});
+
+    // clang-format off
+    test_case.add_expected_output<float>(out_shape, {1.0f, 1.2f,
+                                                     2.0f, 2.2f,
+                                                     3.0f, 3.2f});
+    // clang-format on
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
@@ -215,14 +361,40 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_2_4d_input)
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<float>({1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f,
-                                1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f,
-                                1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f,
-                                1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f});
+    // clang-format off
+    test_case.add_input<float>({  1.0f,   1.1f,   1.2f,
+                                  2.0f,   2.1f,   2.2f,
+                                  3.0f,   3.1f,   3.2f,
+
+                                 11.0f,  11.1f,  11.2f,
+                                 12.0f,  12.1f,  12.2f,
+                                 13.0f,  13.1f,  13.2f,
+
+
+                                101.0f, 101.1f, 101.2f,
+                                102.0f, 102.1f, 102.2f,
+                                103.0f, 103.1f, 103.2f,
+
+                                111.0f, 111.1f, 111.2f,
+                                112.0f, 112.1f, 112.2f,
+                                113.0f, 113.1f, 113.2f});
+    // clang-format on
     test_case.add_input<int32_t>({0, 2});
+    // clang-format off
     test_case.add_expected_output<float>(
-        out_shape, {1.0f, 1.1f, 1.2f, 3.0f, 3.1f, 3.2f, 1.0f, 1.1f, 1.2f, 3.0f, 3.1f, 3.2f,
-                    1.0f, 1.1f, 1.2f, 3.0f, 3.1f, 3.2f, 1.0f, 1.1f, 1.2f, 3.0f, 3.1f, 3.2f});
+        out_shape, {  1.0f,   1.1f,   1.2f,
+                      3.0f,   3.1f,   3.2f,
+
+                     11.0f,  11.1f,  11.2f,
+                     13.0f,  13.1f,  13.2f,
+
+
+                    101.0f, 101.1f, 101.2f,
+                    103.0f, 103.1f, 103.2f,
+
+                    111.0f, 111.1f, 111.2f,
+                    113.0f, 113.1f, 113.2f});
+    // clang-format on
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
