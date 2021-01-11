@@ -56,7 +56,7 @@ class ONNXMaskRCNNTransformation(FrontReplacementFromConfigFileGeneral):
 def insert_do(graph: Graph, replacement_descriptions: dict):
     do_outputs = replacement_descriptions['do_outputs']
     prior_boxes_node = Node(graph, 'ROIFeatureExtractor_2')
-    num_classes = 81
+    num_classes = 81 + 1 # THIS IS AN INTENTIONALLY INCORRECT CHANGE TO FAIL ONE MODEL CONVERSION IN PRE-COMMIT
     box_regressions_input_node = Node(graph, replacement_descriptions['box_regressions_input_node'])
     box_regressions_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 4 * num_classes]),
                                                             dict(name='box_regressions'), box_regressions_input_node)
