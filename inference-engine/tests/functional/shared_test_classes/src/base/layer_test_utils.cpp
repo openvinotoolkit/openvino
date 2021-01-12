@@ -270,6 +270,10 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
             Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
                     reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, ngraph::bfloat16(threshold));
             break;
+        case InferenceEngine::Precision::FP16:
+            Compare(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
+                    reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, ngraph::float16(threshold));
+            break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
     }

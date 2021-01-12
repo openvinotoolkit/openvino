@@ -299,4 +299,9 @@ static ie_abs(const T &val) {
 static ngraph::bfloat16 ie_abs(const ngraph::bfloat16& val) {
     return ngraph::bfloat16::from_bits(val.to_bits() ^ 0x8000);
 }
+
+static ngraph::float16 ie_abs(const ngraph::float16& val) {
+    return ngraph::float16::from_bits(val.to_bits() ^ 0x8000);
+}
+
 }  // namespace CommonTestUtils
