@@ -9,11 +9,47 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
+
+InterpolateTransformation::InterpolateTransformation(const Params& params) : LayerTransformation(params) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    this->register_matcher(
+        std::make_shared<ngraph::pattern::Matcher>(
+            make_op_pattern<opset1::Interpolate>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }),
+            "InterpolateTransformation"),
+        callback);
+
+    this->register_matcher(
+        std::make_shared<ngraph::pattern::Matcher>(
+            make_op_pattern<opset4::Interpolate>({
+                make_op_label<opset1::Multiply>(),
+                make_op_label<opset1::Constant>(),
+                make_op_label<opset1::Constant>(),
+                make_op_label<opset1::Constant>() }),
+            "InterpolateTransformation"),
+        callback);
+
+    this->register_matcher(
+        std::make_shared<ngraph::pattern::Matcher>(
+            make_op_pattern<opset4::Interpolate>({
+                make_op_label<opset1::Multiply>(),
+                make_op_label<opset1::Constant>(),
+                make_op_label<opset1::Constant>() }),
+            "InterpolateTransformation"),
+        callback);
+}
 
 void InterpolateTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
     addPattern(

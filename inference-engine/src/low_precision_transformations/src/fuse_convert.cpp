@@ -8,12 +8,34 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
+
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
+
+FuseConvertTransformation::FuseConvertTransformation(const Params& params) : LayerTransformation(params) {
+    auto multiply = pattern::wrap_type<opset1::Multiply>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
+    auto subtract = pattern::wrap_type<opset1::Subtract>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
+    auto add = pattern::wrap_type<opset1::Add>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(
+        std::make_shared<pattern::op::Or>(OutputVector{ multiply, subtract,  add }),
+        "FuseConvertTransformation");
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (!op || m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    this->register_matcher(matcher, callback);
+}
 
 void FuseConvertTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     addPattern(

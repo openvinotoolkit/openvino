@@ -12,7 +12,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API DepthToSpaceTransformation : public TransparentBaseTransformation {
 public:
-    DepthToSpaceTransformation(const Params& params) : TransparentBaseTransformation(params) {}
+    DepthToSpaceTransformation(const Params& params = Params());
     ~DepthToSpaceTransformation() override {}
     bool transform(TransformationContext &context, ngraph::pattern::Matcher &m) const override;
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

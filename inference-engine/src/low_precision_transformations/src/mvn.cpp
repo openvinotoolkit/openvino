@@ -38,6 +38,21 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 
 } // namespace mvn
 
+MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = make_op_pattern<ngraph::op::MVN>({ make_op_label<ngraph::opset1::Multiply>() });
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MVNTransformation");
+    this->register_matcher(m, callback);
+}
+
 bool MVNTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     if (!LayerTransformation::canBeTransformed(context, operation)) {
         return false;

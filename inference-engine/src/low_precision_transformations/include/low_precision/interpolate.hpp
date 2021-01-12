@@ -12,7 +12,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API InterpolateTransformation : public LayerTransformation {
 public:
-    InterpolateTransformation(const Params& params) : LayerTransformation(params) {}
+    InterpolateTransformation(const Params& params = Params());
     ~InterpolateTransformation() override {}
     bool transform(TransformationContext &context, ngraph::pattern::Matcher &m) const override;
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

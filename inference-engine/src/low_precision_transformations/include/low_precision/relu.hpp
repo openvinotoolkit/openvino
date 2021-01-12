@@ -14,7 +14,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API ReluTransformation : public LayerTransformation {
 public:
-    ReluTransformation(const Params& params) : LayerTransformation(params) {}
+    ReluTransformation(const Params& params = Params());
     ~ReluTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;

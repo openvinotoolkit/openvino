@@ -13,7 +13,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API MatMulTransformation : public LayerTransformation {
 public:
-    MatMulTransformation(const Params& params) : LayerTransformation(params) {}
+    MatMulTransformation(const Params& params = Params());
     ~MatMulTransformation() override {}
     bool transform(TransformationContext &context, ngraph::pattern::Matcher &m) const override;
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;

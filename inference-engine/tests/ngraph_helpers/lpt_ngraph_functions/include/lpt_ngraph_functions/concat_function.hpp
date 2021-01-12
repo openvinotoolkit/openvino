@@ -113,6 +113,7 @@ public:
         const FakeQuantizeOnDataWithConstant& fakeQuantize2,
         const DequantizationOperations::Convert& convert2,
         const DequantizationOperations& dequantization2,
+        const std::vector<std::shared_ptr<Variant>>& concatAttributes,
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter,
         const std::int64_t& axis);

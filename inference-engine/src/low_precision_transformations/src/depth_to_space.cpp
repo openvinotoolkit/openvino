@@ -4,16 +4,27 @@
 
 #include "low_precision/depth_to_space.hpp"
 
-#include <algorithm>
 #include <memory>
-#include <string>
-#include <vector>
-
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
+
+DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : TransparentBaseTransformation(params) {
+    auto matcher = make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::opset1::Multiply>() });
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "DepthToSpaceTransformation");
+    this->register_matcher(m, callback);
+}
 
 void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
     addPattern(

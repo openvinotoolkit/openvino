@@ -13,7 +13,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformation {
 public:
-    MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {}
+    MultiplyTransformation(const Params& params = Params());
     ~MultiplyTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;

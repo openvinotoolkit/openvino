@@ -22,7 +22,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
-    ConcatTransformation(const Params& params) : LayerTransformation(params) {}
+    ConcatTransformation(const Params& params = Params());
     ~ConcatTransformation() override {};
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;

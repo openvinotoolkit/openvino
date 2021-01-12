@@ -15,6 +15,21 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+PReluTransformation::PReluTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = make_op_pattern<ngraph::opset1::NormalizeL2>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::Constant>() });
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "PReluTransformation");
+    this->register_matcher(m, callback);
+}
+
 void PReluTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     addPattern(
         pass,

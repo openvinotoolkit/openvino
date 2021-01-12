@@ -12,7 +12,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API MVNTransformation : public LayerTransformation {
 public:
-    MVNTransformation(const Params& params) : LayerTransformation(params) {}
+    MVNTransformation(const Params& params = Params());
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext &context, ngraph::pattern::Matcher &m) const override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;

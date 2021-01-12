@@ -72,6 +72,10 @@ public:
 
     static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch);
 
+    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::vector<std::shared_ptr<Node>>& targets);
+
+    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target);
+
     static void copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target);
 
     static void cleanRunTimeInfo(const std::shared_ptr<Node>& layer);
@@ -111,7 +115,8 @@ public:
         std::shared_ptr<opset1::FakeQuantize> fq,
         element::Type precision,
         float min,
-        float max);
+        float max,
+        const bool replace = true);
 
     static FakeQuantizeDequantization makeDequantization(
         const float dequantizationMul,
@@ -119,7 +124,8 @@ public:
         const ngraph::element::Type originalPrecision,
         const ngraph::Shape dataNodeOutputShape,
         element::Type precision,
-        const element::Type deqPrecision = element::f32);
+        const element::Type deqPrecision = element::f32,
+        std::shared_ptr<ngraph::Node> input = nullptr);
 
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -185,6 +191,8 @@ public:
     static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node);
 
     static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
+
+    static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
@@ -265,6 +273,19 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
     }
     return node;
 }
+
+template <typename T>
+std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const std::shared_ptr<Node>& inputNode) {
+    auto& rt = inputNode->get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    if (it == rt.end()) {
+        return nullptr;
+    }
+
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    assert(attribute != nullptr);
+    return attribute;
+};
 
 }  // namespace low_precision
 }  // namespace pass

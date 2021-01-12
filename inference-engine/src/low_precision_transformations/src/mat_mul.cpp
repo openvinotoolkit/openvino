@@ -9,12 +9,36 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
+
+MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = ngraph::pattern::wrap_type<opset1::MatMul>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    //this->register_matcher(std::make_shared<ngraph::pattern::Matcher>(
+    //    make_op_pattern<opset1::MatMul>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::Multiply>() }),
+    //    "MatMulTransformation"), callback);
+
+    //this->register_matcher(std::make_shared<ngraph::pattern::Matcher>(
+    //    make_op_pattern<opset1::MatMul>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::FakeQuantize>() }),
+    //    "MatMulTransformation"), callback);
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MatMulTransformation");
+    this->register_matcher(m, callback);
+}
 
 bool MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(m.get_match_root());

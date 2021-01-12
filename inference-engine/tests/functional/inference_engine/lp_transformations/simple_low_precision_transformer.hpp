@@ -29,22 +29,31 @@ public:
     bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
 
     template <class T, class Operation>
-    ngraph::pass::low_precision::LayerTransformationPtr add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
-        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
-        const std::string typeName = ngraph::pass::low_precision::LowPrecisionTransformations::getType<Operation>();
+    void add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+        //// const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        //const std::string typeName = ngraph::pass::low_precision::LowPrecisionTransformations::getType<Operation>();
 
-        const auto it = transformations.find(typeName);
-        if (it != transformations.end()) {
-            transformations.erase(it);
-        }
+        //const auto it = transformations.find(typeName);
+        //if (it != transformations.end()) {
+        //    transformations.erase(it);
+        //}
 
-        auto transformation = std::make_shared<T>(params);
-        transformations.emplace(typeName, transformation);
-        return transformation;
+        //auto transformation = std::make_shared<T>(params);
+        //transformations.emplace(typeName, transformation);
+        //return transformation;
+
+        lowPrecisionManager->register_pass<T>(params);
+    }
+
+    template <class T>
+    void register_pass() {
+        lowPrecisionManager->register_pass<T>();
     }
 
     void transform(std::shared_ptr<ngraph::Function>& function);
 
 private:
+    ngraph::pass::low_precision::TransformationContext context;
+    std::shared_ptr<ngraph::pass::Manager> lowPrecisionManager;
     std::map<std::string, ngraph::pass::low_precision::LayerTransformationPtr> transformations;
 };

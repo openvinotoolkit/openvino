@@ -14,7 +14,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API SubtractMultiplyToMultiplyAddTransformation : public LayerTransformation {
 public:
-    SubtractMultiplyToMultiplyAddTransformation(const Params& params) : LayerTransformation(params) {}
+    SubtractMultiplyToMultiplyAddTransformation(const Params& params = Params());
     ~SubtractMultiplyToMultiplyAddTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
