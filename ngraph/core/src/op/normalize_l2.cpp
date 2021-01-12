@@ -33,6 +33,13 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 
+op::NormalizeL2::NormalizeL2()
+    : FusedOp()
+    , m_eps()
+    , m_eps_mode()
+{
+}
+
 op::NormalizeL2::NormalizeL2(const Output<Node>& data,
                              const Output<Node>& axes,
                              float eps,
