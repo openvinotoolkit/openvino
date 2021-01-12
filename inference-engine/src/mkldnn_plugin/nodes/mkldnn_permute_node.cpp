@@ -179,13 +179,16 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nchw});
 
         auto srcDims = getParentEdgeAt(0)->getDims();
-        if (srcDims[1] % 8 == 0) {
+        auto dstDims = getChildEdgeAt(0)->getDims();
+        if (srcDims[1] % 8 == 0 && dstDims[1] % 8 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw8c);
+            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw8c);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nChw8c});
         }
 
-        if (srcDims[1] % 16 == 0) {
+        if (srcDims[1] % 16 == 0 && dstDims[1] % 16 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw16c);
+            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw16c);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nChw16c});
         }
 
@@ -200,13 +203,16 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::ncdhw});
 
         auto srcDims = getParentEdgeAt(0)->getDims();
-        if (srcDims[1] % 8 == 0) {
+        auto dstDims = getChildEdgeAt(0)->getDims();
+        if (srcDims[1] % 8 == 0 && dstDims[1] % 8 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw8c);
+            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw8c);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nCdhw8c});
         }
 
-        if (srcDims[1] % 16 == 0) {
+        if (srcDims[1] % 16 == 0 && dstDims[1] % 16 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw16c);
+            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw16c);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nCdhw16c});
         }
 
@@ -877,7 +883,8 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
-    if (prec == Precision::FP32) {
+    auto layout = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getLayout();
+    if (layout != BLOCKED && prec == Precision::FP32) {
         for (const auto &impl : OptimizedCases) {
             if (impl.first == order && impl.second.isValidParams(batchToProcess(), srcMemPtr, dstMemPtr)) {
                 impl.second.execute(batchToProcess(), srcMemPtr, dstMemPtr);

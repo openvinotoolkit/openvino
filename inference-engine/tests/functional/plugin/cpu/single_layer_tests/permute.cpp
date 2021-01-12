@@ -88,20 +88,39 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::vector<size_t>> inputShapes4D = {
-    {2, 32, 10, 20}
+        {16, 32, 48, 64}
+};
+
+const std::vector<std::vector<size_t>> inputShapes4DByChannels = {
+        {2, 8, 5, 4}
 };
 
 const std::vector<std::vector<size_t>> inputOrder4D = {
         std::vector<size_t>{0, 1, 2, 3},
+        std::vector<size_t>{0, 1, 3, 2},
         std::vector<size_t>{0, 2, 3, 1},
         std::vector<size_t>{0, 2, 1, 3},
         std::vector<size_t>{1, 0, 2, 3},
+        std::vector<size_t>{1, 2, 0, 3},
+        std::vector<size_t>{3, 0, 1, 2},
+        std::vector<size_t>{},
+};
+
+const std::vector<std::vector<size_t>> inputOrder4DByChannels = {
+        std::vector<size_t>{0, 1, 2, 3},
+        std::vector<size_t>{0, 2, 1, 3},
+        std::vector<size_t>{1, 0, 2, 3},
+        std::vector<size_t>{1, 2, 0, 3},
         std::vector<size_t>{},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
-        CPUSpecificParams({nChw16c}, {}, {}, {}),
-        CPUSpecificParams({nchw}, {}, {}, {}),
+        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nchw}, {nchw}, {}, {}),
+};
+
+std::vector<CPUSpecificParams> cpuParams_4D_ByChannels = {
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
 };
 
 const auto params4D = ::testing::Combine(
@@ -114,24 +133,44 @@ const auto params4D = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_Permute4D_CPU, PermuteLayerCPUTest, params4D, PermuteLayerCPUTest::getTestCaseName);
 
+const auto params4DByChannels = ::testing::Combine(
+        ::testing::ValuesIn(inputOrder4DByChannels),
+        ::testing::Values(Precision::I8),
+        ::testing::ValuesIn(inputShapes4DByChannels),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_ByChannels)));
+
+INSTANTIATE_TEST_CASE_P(smoke_Permute4DByChannels_CPU, PermuteLayerCPUTest, params4DByChannels, PermuteLayerCPUTest::getTestCaseName);
+
 const std::vector<std::vector<size_t>> inputShapes5D = {
-        {2, 32, 5, 10, 20}
+        {16, 32, 16, 32, 16}
+};
+
+const std::vector<std::vector<size_t>> inputShapes5DByChannels = {
+        {2, 12, 5, 10, 6}
 };
 
 const std::vector<std::vector<size_t>> inputOrder5D = {
         std::vector<size_t>{0, 1, 2, 3, 4},
         std::vector<size_t>{0, 4, 2, 3, 1},
         std::vector<size_t>{0, 4, 2, 1, 3},
+        std::vector<size_t>{0, 2, 1, 3, 4},
         std::vector<size_t>{0, 2, 4, 3, 1},
         std::vector<size_t>{0, 3, 2, 4, 1},
         std::vector<size_t>{0, 3, 1, 4, 2},
         std::vector<size_t>{1, 0, 2, 3, 4},
+        std::vector<size_t>{1, 4, 0, 2, 3},
         std::vector<size_t>{},
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
-        CPUSpecificParams({nCdhw16c}, {}, {}, {}),
-        CPUSpecificParams({ncdhw}, {}, {}, {}),
+        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
+};
+
+std::vector<CPUSpecificParams> cpuParams_5D_ByChannels = {
+        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
 };
 
 const auto params5D = ::testing::Combine(
@@ -143,6 +182,16 @@ const auto params5D = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
 
 INSTANTIATE_TEST_CASE_P(smoke_Permute5D_CPU, PermuteLayerCPUTest, params5D, PermuteLayerCPUTest::getTestCaseName);
+
+const auto params5DByChannels = ::testing::Combine(
+        ::testing::ValuesIn(inputOrder5D),
+        ::testing::Values(Precision::I8),
+        ::testing::ValuesIn(inputShapes5DByChannels),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_ByChannels)));
+
+INSTANTIATE_TEST_CASE_P(smoke_Permute5DByChannels_CPU, PermuteLayerCPUTest, params5DByChannels, PermuteLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
