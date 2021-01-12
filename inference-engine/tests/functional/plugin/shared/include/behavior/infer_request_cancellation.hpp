@@ -127,13 +127,7 @@ TEST_P(CancellationTests, canCancelInferRequest) {
     }
 
     InferenceEngine::StatusCode cancelStatus = req.Cancel();
-    InferenceEngine::StatusCode inferStatus = InferenceEngine::StatusCode::OK;
-
-    try {
-        infer.get();
-    } catch (InferenceEngine::details::InferenceEngineException& ex) {
-        inferStatus = ex.getStatus();
-    }
+    InferenceEngine::StatusCode inferStatus = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
 
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         if (cancelStatus == InferenceEngine::StatusCode::OK) {

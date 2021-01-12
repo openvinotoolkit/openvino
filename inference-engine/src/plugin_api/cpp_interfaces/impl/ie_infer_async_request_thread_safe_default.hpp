@@ -136,7 +136,16 @@ public:
         }
 
         if (std::future_status::ready == status) {
-            future.get();
+            try {
+                future.get();
+            } catch(const std::exception& e) {
+                const details::InferenceEngineException* ie_ex =
+                    dynamic_cast<const details::InferenceEngineException*>(&e);
+
+                if (ie_ex != nullptr && ie_ex->hasStatus()) {
+                    return ie_ex->getStatus();
+                }
+            }
             return StatusCode::OK;
         } else {
             return StatusCode::RESULT_NOT_READY;
