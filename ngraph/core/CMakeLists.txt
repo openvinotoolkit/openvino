@@ -51,11 +51,6 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
-set_target_properties(ngraph PROPERTIES
-                      CXX_VISIBILITY_PRESET hidden
-                      C_VISIBILITY_PRESET hidden
-                      VISIBILITY_INLINES_HIDDEN ON)
-
 target_link_libraries(ngraph PRIVATE openvino::conditional_compilation openvino::itt ngraph::builder ngraph::reference)
 
 if(NGRAPH_ADDRESS_SANITIZER)
