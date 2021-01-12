@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <net name="Resnet" version="10">
     <layers>
         <layer id="0" name="data1" type="Parameter" version="opset1">

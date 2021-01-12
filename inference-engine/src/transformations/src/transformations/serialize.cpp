@@ -64,6 +64,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     std::ostream& m_bin_data;
     std::string& m_node_type_name;
+    const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
 
     template <typename T>
     std::string create_atribute_list(
@@ -74,34 +75,39 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 public:
     XmlSerializer(pugi::xml_node& data,
                   std::ostream& bin_data,
-                  std::string& node_type_name)
+                  std::string& node_type_name,
+                  const std::map<std::string, ngraph::OpSet>& custom_opsets)
         : m_xml_node(data)
         , m_bin_data(bin_data)
-        , m_node_type_name(node_type_name) {
+        , m_node_type_name(node_type_name)
+        , m_custom_opsets(custom_opsets) {
+    }
+
+    void map_type_from_body(const pugi::xml_node& xml_node,
+        const std::string map_type, std::vector<std::string>& output) {
+        if (!map_type.compare("Result") || !map_type.compare("Parameter")) {
+            for (pugi::xml_node node : xml_node.child("body").child("layers")) {
+                auto param = std::strcmp(node.attribute("type").value(), map_type.c_str());
+                if (!param) {
+                    output.push_back(node.attribute("id").value());
+                }
+            }
+        }
+        // parameters/results for serialized body function are provided in reversed order
+        std::reverse(output.begin(), output.end());
     }
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
         (void)name;
-        (void)adapter;
 
         if (m_xml_node.child("body")) {
             // parameters and results from body are required for port_map attributes serialization
             std::vector<std::string> parameter_mapping;
             std::vector<std::string> result_mapping;
 
-            for (pugi::xml_node node : m_xml_node.child("body").child("layers")) {
-                auto param = std::strcmp(node.attribute("type").value(), "Parameter");
-                auto result = std::strcmp(node.attribute("type").value(), "Result");
-                if (!param) {
-                    parameter_mapping.push_back(node.attribute("id").value());
-                } else if (!result) {
-                    result_mapping.push_back(node.attribute("id").value());
-                }
-            }
-            // parameters/reults for serialized body function are provided in reversed order
-            std::reverse(parameter_mapping.begin(), parameter_mapping.end());
-            std::reverse(result_mapping.begin(), result_mapping.end());
+            map_type_from_body(m_xml_node, "Parameter", parameter_mapping);
+            map_type_from_body(m_xml_node, "Result", result_mapping);
 
             if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                         <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
@@ -242,13 +248,14 @@ public:
         const std::string& name,
         ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
         pugi::xml_document xml_body;
-        std::vector<uint8_t> constants;
-        std::map<std::string, ngraph::OpSet> m_custom_opsets;
 
         ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets);
-        xml_body.first_child().remove_attribute("name");
-        xml_body.first_child().remove_attribute("version");
-        xml_body.first_child().set_name(name.c_str());
+
+        if (!name.compare("body")) {
+            xml_body.first_child().remove_attribute("name");
+            xml_body.first_child().remove_attribute("version");
+            xml_body.first_child().set_name(name.c_str());
+        }
         m_xml_node.append_copy(xml_body.first_child());
     }
 };
@@ -521,16 +528,16 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
         if (exec_graph) {
             visit_exec_graph_node(data, node_type_name, node);
         } else {
-            XmlSerializer visitor(data, bin_file, node_type_name);
+            XmlSerializer visitor(data, bin_file, node_type_name, custom_opsets);
             NGRAPH_CHECK(node->visit_attributes(visitor),
                          "Visitor API is not supported in ", node);
         }
         layer_type_attribute.set_value(
             translate_type_name(node_type_name).c_str());
 
-        const auto data_attr_size =
-            std::distance(data.attributes().begin(), data.attributes().end());
-        if (data_attr_size == 0 && node_type_name != "TensorIterator") {
+        const bool data_attr_size =
+            data.attributes().begin() == data.attributes().end();
+        if (data_attr_size && node_type_name != "TensorIterator") {
             layer.remove_child(data);
         }
 
@@ -541,6 +548,12 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
             for (auto i : node->inputs()) {
                 NGRAPH_CHECK(i.get_partial_shape().is_static(),
                              "Unsupported dynamic input shape in ", node);
+
+                // WA for LSTMCellv0, peephole input shall not be serialized
+                if (node_type_name == "LSTMCell" && (i.get_index() == 6)) {
+                    port_id++;
+                    continue;
+                }
 
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
@@ -581,6 +594,10 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
     const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, f);
     pugi::xml_node edges = netXml.append_child("edges");
     for (auto e : edge_mapping) {
+        // WA for LSTMCellv0, peephole input shall not be serialized
+        if (!strcmp(f.get_ordered_ops()[e.to_layer]->get_type_name(), "LSTMCell") && e.to_port == 6) {
+            continue;
+        }
         pugi::xml_node edge = edges.append_child("edge");
         edge.append_attribute("from-layer").set_value(e.from_layer);
         edge.append_attribute("from-port").set_value(e.from_port);
@@ -603,7 +620,11 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
     switch (m_version) {
     case Version::IR_V10:
-        ngfunction_2_irv10(xml_doc, bin_file, *f, m_custom_opsets);
+        {
+            std::string name = "net";
+            XmlSerializer visitor(xml_doc, bin_file, name, m_custom_opsets);
+            visitor.on_attribute(name, f);
+        }
         break;
     default:
         NGRAPH_UNREACHABLE("Unsupported version");

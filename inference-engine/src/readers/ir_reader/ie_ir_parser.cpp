@@ -984,6 +984,7 @@ template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
     const GenericLayerParams& layerParsePrms) {
+    checkParameters(inputs, layerParsePrms, 6);
     pugi::xml_node dn = node.child("data");
     if (dn.empty())
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
