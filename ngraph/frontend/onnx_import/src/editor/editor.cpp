@@ -99,14 +99,14 @@ struct onnx_import::ONNXModelEditor::Impl
 };
 
 onnx_import::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
-    : m_pImpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
+    : m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) { delete impl; }}
     , m_model_path{model_path}
 {
 }
 
 ONNX_NAMESPACE::ModelProto& onnx_import::ONNXModelEditor::model() const
 {
-    return m_pImpl->m_model_proto;
+    return m_pimpl->m_model_proto;
 }
 
 const std::string& onnx_import::ONNXModelEditor::model_path() const
@@ -117,7 +117,7 @@ const std::string& onnx_import::ONNXModelEditor::model_path() const
 void onnx_import::ONNXModelEditor::set_input_types(
     const std::map<std::string, element::Type_t>& input_types)
 {
-    auto* onnx_graph = m_pImpl->m_model_proto.mutable_graph();
+    auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
 
     for (const auto& input_desc : input_types)
     {
@@ -128,9 +128,9 @@ void onnx_import::ONNXModelEditor::set_input_types(
         }
         else
         {
-            throw ngraph_error(
-                "Could not set a custom element type for input: " + input_desc.first +
-                ". Such input was not found in the original ONNX model.");
+            throw ngraph_error("Could not set a custom element type for input: " +
+                               input_desc.first +
+                               ". Such input was not found in the original ONNX model.");
         }
     }
 }

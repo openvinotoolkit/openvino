@@ -73,7 +73,7 @@ namespace ngraph
             const std::string m_model_path;
 
             class Impl;
-            std::unique_ptr<Impl, void (*)(Impl*)> m_pImpl;
+            std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
         };
     } // namespace onnx_import
 } // namespace ngraph
