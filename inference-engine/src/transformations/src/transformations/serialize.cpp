@@ -64,11 +64,11 @@ const std::unordered_map<std::string, std::string>
     special_operator_to_opset_assignments = {{"ShuffleChannels", "opset3"}};
 
 std::string get_special_opset_for_op(const std::string &name) {
-  auto found = special_operator_to_opset_assignments.find(name);
-  if (found != end(special_operator_to_opset_assignments)) {
-    return found->second;
-  }
-  return "";
+    auto found = special_operator_to_opset_assignments.find(name);
+    if (found != end(special_operator_to_opset_assignments)) {
+        return found->second;
+    }
+    return "";
 }
 
 class XmlSerializer : public ngraph::AttributeVisitor {
@@ -243,7 +243,7 @@ std::string get_opset_name(
     for (int idx = 0; idx < opsets.size(); idx++) {
         if (opsets[idx].get().contains_op_type(n)) {
             return "opset" + std::to_string(idx + 1);
-      }
+        }
     }
 
     for (const auto& custom_opset : custom_opsets) {
