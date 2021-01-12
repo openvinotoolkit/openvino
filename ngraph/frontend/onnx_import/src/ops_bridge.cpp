@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@
 #include "onnx_import/op/flatten.hpp"
 #include "onnx_import/op/floor.hpp"
 #include "onnx_import/op/gather.hpp"
+#include "onnx_import/op/gather_elements.hpp"
 #include "onnx_import/op/gather_nd.hpp"
 #include "onnx_import/op/gemm.hpp"
 #include "onnx_import/op/global_average_pool.hpp"
@@ -344,6 +345,7 @@ namespace ngraph
             REGISTER_OPERATOR("Flatten", 1, flatten);
             REGISTER_OPERATOR("Floor", 1, floor);
             REGISTER_OPERATOR("Gather", 1, gather);
+            REGISTER_OPERATOR("GatherElements", 1, gather_elements);
             REGISTER_OPERATOR("GatherND", 1, gather_nd);
             REGISTER_OPERATOR("Gemm", 1, gemm);
             REGISTER_OPERATOR("Gemm", 6, gemm);
