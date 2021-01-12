@@ -57,10 +57,8 @@ void op::v6::ExperimentalDetectronTopKROIs::validate_input_rois_shape(const Part
                           "The 'input_rois' input is expected to be a 2D. Got: ",
                           shape);
 
-    NODE_VALIDATION_CHECK(this,
-                          shape[1] == 4,
-                          "The second dimension of 'input_rois' should be 4. Got: ",
-                          shape[1]);
+    NODE_VALIDATION_CHECK(
+        this, shape[1] == 4, "The second dimension of 'input_rois' should be 4. Got: ", shape[1]);
 }
 
 void op::v6::ExperimentalDetectronTopKROIs::validate_rois_probs_shape(const PartialShape& shape)
