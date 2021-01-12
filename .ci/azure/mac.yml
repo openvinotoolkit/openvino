@@ -111,7 +111,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      git clone https://github.com/openvinotoolkit/testdata.git
+      git clone --single-branch --branch releases/2021/2 https://github.com/openvinotoolkit/testdata.git
     workingDirectory: $(WORK_DIR)
     displayName: 'Clone testdata'
 
