@@ -3297,3 +3297,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dangling_parameter)
     test_case.add_expected_output<float>(Shape{3}, {1.0f, 2.0f, 3.0f});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_inbounds)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/test_clip_inbounds.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<int32_t> data{
+        -1, 0, 1, std::numeric_limits<int32_t>::lowest(), std::numeric_limits<int32_t>::max()};
+    test_case.add_input<int32_t>(data);
+    test_case.add_expected_output<int32_t>(Shape{data.size()}, data);
+    test_case.run();
+}
