@@ -46,7 +46,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                FakeQuantize() = default;
+                FakeQuantize();
                 ///
                 /// \brief      Constructs a FakeQuantize operation node.
                 ///
