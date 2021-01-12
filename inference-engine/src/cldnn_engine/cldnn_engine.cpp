@@ -69,8 +69,8 @@
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
+#include <low_precision/low_precision.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
@@ -147,7 +147,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         bool enableInt8;
         {
             ngraph::pass::Manager manager;
-            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
                     std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
@@ -367,28 +367,28 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             if (!config.enable_fp16_for_quantized_models) {
                 manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
             }
-            auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-            const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
-            lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
-            lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-            lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
-            manager.run_passes(nGraphFunc);
 
-            auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
-                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                      LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
-                                                      true);                                                       // supportAsymmetricQuantization
-            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
-                    .setSupportAsymmetricQuantization(false)
-                    .setSupport3DTensorOnActivations(false))
-                .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(LayerTransformation::Params(params)
-                    .setSupportAsymmetricQuantization(false)
-                    .setDeconvolutionSpecificChannelsRatio(true))
-                // INT8 StridedSlice not supported
-                .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
+            // TODO: LPT: not implemented:
+            //   - supportAsymmetricQuantization
+            //   - support3DTensorOnActivations
+            //   - deconvolutionSpecificChannelsRatio
 
-            transformer.transform(nGraphFunc);
+            auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
+                OperationPrecisionRestriction::create<ngraph::opset1::StridedSlice>({})
+            });
+
+            auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
+                OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
+                OperationPerTensorQuantizationRestriction::create<ngraph::opset1::GroupConvolution>({0})
+            });
+
+            ngraph::pass::Manager lptManager;
+
+            auto lptPassConfig = lptManager.get_pass_config();
+            lptPassConfig->disable<ngraph::pass::low_precision::StridedSliceTransformation>();
+
+            lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+            lptManager.run_passes(nGraphFunc);
         }
 
         {

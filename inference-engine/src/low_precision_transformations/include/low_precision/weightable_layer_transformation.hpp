@@ -21,6 +21,13 @@ public:
     bool isQuantized(std::shared_ptr<Node> layer, bool reshapeIsRequired) const noexcept;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
+    // TODO: stub
+    static bool checkPrecisionOnActivation(
+        const std::shared_ptr<const ngraph::Node>& node,
+        const std::vector<ngraph::element::Type>& supportedPrecisionsOnActivations) {
+        return true;
+    }
+
 protected:
     void decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& weightableLayer, size_t outChannelsShapeIndex = 0ul) const;
     static bool isGroup(const std::shared_ptr<Node>& node);

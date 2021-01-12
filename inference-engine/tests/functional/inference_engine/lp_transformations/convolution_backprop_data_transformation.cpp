@@ -325,7 +325,8 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
 };
 
 INSTANTIATE_TEST_CASE_P(
-    smoke_LPT,
+    // TODO: LPT: not implemented
+    DISABLED_smoke_LPT,
     ConvolutionBackpropDataTransformation,
     ::testing::Combine(
     ::testing::ValuesIn(netPrecisions),

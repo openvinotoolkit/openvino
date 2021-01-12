@@ -10,41 +10,30 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/transformation_context.hpp"
-#include <low_precision/transformer.hpp>
-#include <low_precision/iparams_manager.hpp>
-#include <low_precision/ilayer_transformations_manager.hpp>
+#include "low_precision/common/operation_precision_restriction.hpp"
+#include "low_precision/common/operation_per_tensor_quantization_restriction.hpp"
 
-class SimpleLowPrecisionTransformer : public
-    ngraph::pass::IParamsManager,
-    ngraph::pass::ILayerTransformationsManager {
+class SimpleLowPrecisionTransformer {
 public:
-    SimpleLowPrecisionTransformer();
-
-    // IParamsManager interface implementation
-    std::vector<ngraph::element::Type> getPrecisionsOnActivations(const ngraph::Node& op) const noexcept override;
-
-    // ILayerTransformationsManager interface implementation
-    bool isQuantized(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
-    bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
+    SimpleLowPrecisionTransformer(
+        const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions = {},
+        const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {});
 
     template <class T, class Operation>
-    ngraph::pass::low_precision::LayerTransformationPtr add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
-        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
-        const std::string typeName = ngraph::pass::low_precision::LowPrecisionTransformations::getType<Operation>();
+    void add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+        this->common->add_matcher<T>(params);
+    }
 
-        const auto it = transformations.find(typeName);
-        if (it != transformations.end()) {
-            transformations.erase(it);
-        }
-
-        auto transformation = std::make_shared<T>(params);
-        transformations.emplace(typeName, transformation);
-        return transformation;
+    template <class T>
+    void register_pass() {
+        lowPrecisionManager->register_pass<T>();
     }
 
     void transform(std::shared_ptr<ngraph::Function>& function);
 
 private:
+    ngraph::pass::low_precision::TransformationContext context;
+    std::shared_ptr<ngraph::pass::Manager> lowPrecisionManager;
+    std::shared_ptr<ngraph::pass::GraphRewrite> common;
     std::map<std::string, ngraph::pass::low_precision::LayerTransformationPtr> transformations;
 };

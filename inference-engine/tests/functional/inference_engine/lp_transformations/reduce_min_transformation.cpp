@@ -41,7 +41,7 @@ class ReduceMinTransformation : public ReduceTransformation<opset1::ReduceMin> {
 
 TEST_P(ReduceMinTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 

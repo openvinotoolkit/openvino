@@ -59,25 +59,6 @@ void AddTransformation::SetUp() {
         param.fakeQuantize1, param.fakeQuantize2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void AddTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    AddTestValues param;
-    std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
-
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    if ((!param.fakeQuantize1.empty()) && (!param.fakeQuantize2.empty())) {
-        const auto scaleShift = output->get_input_node_shared_ptr(0);
-        const std::string typeName = scaleShift->get_type_name();
-        ASSERT_EQ("ScaleShiftIE", typeName);
-    }
 }
 
 TEST_P(AddTransformation, CompareWithRefImpl) {

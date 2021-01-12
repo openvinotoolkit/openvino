@@ -172,6 +172,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
     manager.run_passes(f);
 
     // Returning value is false because pass::Manager always apply Validation pass

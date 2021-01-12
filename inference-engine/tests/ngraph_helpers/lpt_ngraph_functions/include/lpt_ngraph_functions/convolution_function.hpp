@@ -46,8 +46,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore,
         ngraph::element::Type weightsPrecision,
         std::vector<float> weightsValues,
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter,
-        bool isCorrect);
+        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type netPrecision,

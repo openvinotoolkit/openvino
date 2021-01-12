@@ -4,12 +4,20 @@
 
 #pragma once
 
+#include <algorithm>
+#include <map>
+#include <memory>
 #include <string>
 #include <tuple>
-#include <memory>
+#include <vector>
 
+#include <ngraph/ngraph.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
+
+#include "low_precision/iparams_manager.hpp"
+#include "low_precision/ilayer_transformations_manager.hpp"
+#include "low_precision/layer_transformation.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include <low_precision/transformer.hpp>
 
 namespace LayerTestsUtils {
 
@@ -34,16 +42,6 @@ protected:
         const ngraph::element::Type precision,
         const InferenceEngine::TensorDesc& tensorDesc,
         const float k = 1.f);
-
-    ngraph::pass::low_precision::LowPrecisionTransformations getLowPrecisionTransformationsNGraph(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params) const;
-
-    ngraph::pass::low_precision::LowPrecisionTransformer getLowPrecisionTransformerNGraph(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params) const;
-
-    std::shared_ptr<ngraph::Function> transformNGraph(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const ngraph::pass::low_precision::LowPrecisionTransformations& transformations);
 
     static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision);
 

@@ -88,7 +88,15 @@ public:
                 testValues.actual.fakeQuantizeOnData,
                 testValues.actual.fakeQuantizeOnWeights
             });
-        SimpleLowPrecisionTransformer transform;
+
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+               {0, testValues.precisionsOnActivations},
+               {1, testValues.precisionsOnActivationForLimitedOperation}
+           })
+        });
+
+        SimpleLowPrecisionTransformer transform(supportedPrecisions);
         transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::AvgPool>(params);
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(precisionLimitedOperationParams);
         transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);

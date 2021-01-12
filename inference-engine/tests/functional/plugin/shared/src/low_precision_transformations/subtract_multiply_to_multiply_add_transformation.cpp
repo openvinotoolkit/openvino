@@ -37,22 +37,6 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
         testValues.inputShape,
         testValues.precision,
         testValues.fqOnData);
-
-    validate();
-}
-
-void SubtractMultiplyToMultiplyAddTransformation::validate() {
-    SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = this->GetParam();
-
-    const ngraph::pass::low_precision::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
-    auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    ASSERT_EQ(1ul, transformed->get_output_size());
-    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
-    std::shared_ptr<ngraph::Node> scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareWithRefImpl) {
