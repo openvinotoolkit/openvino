@@ -30,17 +30,16 @@ namespace ngraph
         /// \brief   Parses an ONNX model from a file located on a storage device.
         ///
         /// \param   file_path    Path to the file containing an ONNX model.
-        /// \param   model_proto  A reference to the object which will be filled with
-        ///                           the model data
-        void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto);
+        ///
+        /// \return  The parsed in-memory representation of the ONNX model
+        ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path);
 
         /// \brief   Parses an ONNX model from a stream (representing for example a file)
         ///
         /// \param   model_stream  Path to the file containing an ONNX model.
-        /// \param   model_proto   A reference to the object which will be filled with
-        ///                            the model data
-        void parse_from_istream(std::istream& model_stream,
-                                ONNX_NAMESPACE::ModelProto& model_proto);
+        ///
+        /// \return  The parsed in-memory representation of the ONNX model
+        ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream);
     } // namespace onnx_import
 
 } // namespace ngraph

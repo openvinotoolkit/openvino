@@ -61,9 +61,7 @@ namespace ngraph
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {
-            ONNX_NAMESPACE::ModelProto model_proto;
-
-            parse_from_istream(stream, model_proto);
+            ONNX_NAMESPACE::ModelProto model_proto{parse_from_istream(stream)};
 
             return detail::import_onnx_model(model_proto, model_path);
         }
@@ -85,8 +83,7 @@ namespace ngraph
         {
             // this overload of the import_onnx_model is friended with the ONNXModelEditor
             // and thus can access its private members
-            return detail::import_onnx_model(*(model_editor.m_model_proto),
-                                             model_editor.m_model_path);
+            return detail::import_onnx_model(model_editor.model(), model_editor.model_path());
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,

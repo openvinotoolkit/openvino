@@ -32,7 +32,6 @@ namespace ONNX_NAMESPACE
 
 namespace ngraph
 {
-    class Function;
     namespace onnx_import
     {
         /// \brief A class representing a set of utilities allowing modification of an ONNX model
@@ -45,7 +44,6 @@ namespace ngraph
         {
         public:
             ONNXModelEditor() = delete;
-            ~ONNXModelEditor();
 
             /// \brief Creates an editor from a model file located on a storage device. The file
             ///        is parsed and loaded into the m_model_proto member variable.
@@ -62,14 +60,20 @@ namespace ngraph
             ///                    the inputs specified in its parameter.
             void set_input_types(const std::map<std::string, element::Type_t>& input_types);
 
+            /// \brief Returns a non-const reference to the underlying ModelProto object, possibly
+            ///        modified by the editor's API calls
+            ///
+            /// \return A reference to ONNX ModelProto object containing the in-memory model
+            ONNX_NAMESPACE::ModelProto& model() const;
+
+            /// \brief Returns the path to the original model file
+            const std::string& model_path() const;
+
         private:
-            ONNX_NAMESPACE::ModelProto* m_model_proto;
             const std::string m_model_path;
 
-            // This declaration lets the import_onnx_model function access the modified model
-            // without the need of exposing it to the public API of this class.
-            friend ONNX_IMPORTER_API std::shared_ptr<Function>
-                import_onnx_model(const ONNXModelEditor&);
+            class Impl;
+            std::unique_ptr<Impl, void (*)(Impl*)> m_pImpl;
         };
     } // namespace onnx_import
 } // namespace ngraph
