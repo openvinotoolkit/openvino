@@ -43,11 +43,16 @@ namespace ngraph
         public:
             /// \brief      Add node to the cache or override the existing one.
             ///
-            /// \note       GraphCahce takes ownership of the node.
+            /// \note       GraphCache takes ownership of the node.
             ///
             /// \param[in]  name       The name of node added to the cache.
             /// \param[in]  node       The node added to the cache.
             void emplace_node(const std::string& name, Output<ngraph::Node>&& node);
+
+            /// \brief      Remove node from the cache
+            ///
+            /// \param[in]  name       The name of node to be removed
+            void remove_node(const std::string& name);
 
             /// \brief      Get the node from the cache
             ///
