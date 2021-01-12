@@ -55,8 +55,6 @@ void GroupConvolutionTransformation::SetUp() {
         param.groupCalculationDimention,
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
-
-    validate();
 }
 
 void GroupConvolutionTransformation::Run() {

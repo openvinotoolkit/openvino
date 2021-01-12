@@ -284,7 +284,13 @@ void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const st
     }
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
-    const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, true);
+    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fq);
+    const auto precisions = precisionsAttribute == nullptr ?
+        PrecisionsAttribute::defaultPrecisions :
+        precisionsAttribute->get()->sharedValue->precisions;
+
+    const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
+
     auto tuple = NetworkHelper::decomposeFakeQuantize(
         fq,
         dataPrecision.precision,
@@ -334,7 +340,13 @@ std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuan
 DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) const {
     const auto fq = getFakeQuantizeOnWeights(node);
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
-    return getDataPrecision(fq, quantizationDetails, true);
+
+    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fq);
+    const auto precisions = precisionsAttribute == nullptr ?
+        PrecisionsAttribute::defaultPrecisions :
+        precisionsAttribute->get()->sharedValue->precisions;
+
+    return getDataPrecision(fq, quantizationDetails, precisions);
 }
 
 } // namespace low_precision

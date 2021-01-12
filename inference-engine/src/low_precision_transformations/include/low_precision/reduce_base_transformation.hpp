@@ -21,7 +21,7 @@ namespace low_precision {
 
 class LP_TRANSFORMATIONS_API ReduceBaseTransformation : public LayerTransformation {
 public:
-    ReduceBaseTransformation(const Params& params);
+    ReduceBaseTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher& m) const override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
 

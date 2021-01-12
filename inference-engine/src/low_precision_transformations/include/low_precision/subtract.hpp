@@ -13,9 +13,8 @@ namespace low_precision {
 
 class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation {
 public:
-    SubtractTransformation(const Params& params) : LayerTransformation(params) {}
-    ~SubtractTransformation() override {}
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
+    NGRAPH_RTTI_DECLARATION;
+    SubtractTransformation(const Params& params);
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
 };
 

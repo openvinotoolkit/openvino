@@ -10,6 +10,8 @@
 #include <vector>
 #include <cassert>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -18,28 +20,48 @@ namespace pass {
 namespace low_precision {
 
 ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(const Params& params) : WeightableLayerTransformation(params) {
+    // TODO: LPT: not implemented
+//    auto matcher = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+//        ngraph::pattern::wrap_type<opset1::Multiply>(),
+//        std::make_shared<pattern::op::Or>(OutputVector {
+//            pattern::wrap_type<opset1::Multiply>(),
+//            pattern::wrap_type<opset1::FakeQuantize>()
+//        })
+//    });
+    auto matcher = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (!op || transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ConvolutionBackpropDataTransformation");
+    this->register_matcher(m, callback);
 }
 
-void ConvolutionBackpropDataTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>(
-                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>(
-                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>(), make_op_label<opset1::Constant>() }));
-}
+//void ConvolutionBackpropDataTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
+//    addPattern(
+//            pass,
+//            context,
+//            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>() }));
+//    addPattern(
+//            pass,
+//            context,
+//            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() }));
+//    addPattern(
+//            pass,
+//            context,
+//            make_op_pattern<opset1::ConvolutionBackpropData>(
+//                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
+//    addPattern(
+//            pass,
+//            context,
+//            make_op_pattern<opset1::ConvolutionBackpropData>(
+//                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>(), make_op_label<opset1::Constant>() }));
+//}
 
 bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
     if (deconvolutionSpecificChannelsRatio) {

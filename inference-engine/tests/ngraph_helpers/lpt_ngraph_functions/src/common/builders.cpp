@@ -16,6 +16,8 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
+    using namespace ngraph::pass::low_precision;
+
 std::shared_ptr<Node> makeDequantization(
     const Output<Node>& data,
     const DequantizationOperations& dequantizationOperations) {
@@ -25,7 +27,7 @@ std::shared_ptr<Node> makeDequantization(
         std::shared_ptr<ngraph::opset1::Convert> convert = dequantizationOperations.convert.addDequantizationAttribute ?
             std::make_shared<ngraph::pass::low_precision::DequantizationConvert>(data, dequantizationOperations.convert.outPrecision) :
             std::make_shared<ngraph::opset1::Convert>(data, dequantizationOperations.convert.outPrecision);
-        ngraph::copy_runtime_info({ data.get_node_shared_ptr(), convert }, convert);
+        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), convert }, convert);
         parent = convert;
     }
 
@@ -122,7 +124,7 @@ std::shared_ptr<Node> makeDequantization(
         if (!dequantizationOperations.subtract.addDequantizationAttribute) {
             ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(subtract);
         }
-        ngraph::copy_runtime_info({ data.get_node_shared_ptr(), subtract }, subtract);
+        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), subtract }, subtract);
 
         if (!dequantizationOperations.subtract.attributes.empty()) {
             auto& rt = subtract->get_rt_info();
@@ -136,7 +138,7 @@ std::shared_ptr<Node> makeDequantization(
 
     if (!dequantizationOperations.multiply.empty()) {
         auto const newMultiply = makeMultiply(parent, dequantizationOperations.multiply);
-        ngraph::copy_runtime_info({ data.get_node_shared_ptr(), newMultiply }, newMultiply);
+        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), newMultiply }, newMultiply);
         parent = newMultiply;
     }
 
@@ -317,6 +319,12 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputHighValues.empty());
 
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fqOnData.quantizationLevel);
+
+    auto& rt = fq->get_rt_info();
+    for (auto& attribute : fqOnData.attributes) {
+        rt[attribute->get_type_info().name] = attribute;
+    }
+
     return fq;
 }
 
@@ -334,6 +342,16 @@ std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op
     auto& rtInfo = op->get_rt_info();
     rtInfo["DEQUANTIZATION"] = std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr());
     return op;
+}
+
+void addAttributes(std::vector<std::shared_ptr<ngraph::Node>> nodes, std::vector<std::shared_ptr<Variant>> attributes) {
+    for (const auto& node : nodes) {
+        for (const auto& attribute : attributes) {
+            auto& rt = node->get_rt_info();
+            const std::string typeInfoName = attribute->get_type_info().name;
+            rt[typeInfoName] = attribute;
+        }
+    }
 }
 
 } // namespace subgraph

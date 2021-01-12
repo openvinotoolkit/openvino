@@ -43,11 +43,41 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes)
     return newInfo;
 }
 
+// TODO: workaround to copy (not merge) attributes for the same types
+void copy_runtime_info_for_ports(const std::shared_ptr<ngraph::Node>& from,
+                                 const std::shared_ptr<ngraph::Node>& to)
+{
+    if (to->get_type_info() != from->get_type_info())
+    {
+        return;
+    }
+
+    for (size_t i = 0; i < from->get_input_size(); ++i)
+    {
+        auto& source = from->input(i).get_rt_info();
+        auto& target = to->input(i).get_rt_info();
+        for (auto attribute : source)
+        {
+            target[attribute.first] = attribute.second;
+        }
+    }
+    for (size_t i = 0; i < from->get_output_size(); ++i)
+    {
+        auto& source = from->output(i).get_rt_info();
+        auto& target = to->output(i).get_rt_info();
+        for (auto attribute : source)
+        {
+            target[attribute.first] = attribute.second;
+        }
+    }
+}
+
 void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to)
 {
     auto& rtInfoFrom = from->get_rt_info();
     auto& rtInfoTo = to->get_rt_info();
     rtInfoTo = rtInfoFrom;
+    copy_runtime_info_for_ports(from, to);
 }
 
 void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeVector to)
@@ -55,6 +85,7 @@ void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeV
     for (auto& op : to)
     {
         copy_runtime_info(from, op);
+        copy_runtime_info_for_ports(from, op);
     }
 }
 
@@ -62,6 +93,11 @@ void ngraph::copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<n
 {
     auto& rtInfoTo = to->get_rt_info();
     rtInfoTo = mergeRuntimeInfo(from);
+
+    for (auto& fromNode : from)
+    {
+        copy_runtime_info_for_ports(fromNode, to);
+    }
 }
 
 void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to)
@@ -71,5 +107,13 @@ void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVecto
     {
         auto& rtInfoTo = node->get_rt_info();
         rtInfoTo = mergedInfo;
+    }
+
+    for (auto& fromNode : from)
+    {
+        for (auto& toNode : to)
+        {
+            copy_runtime_info_for_ports(fromNode, toNode);
+        }
     }
 }
