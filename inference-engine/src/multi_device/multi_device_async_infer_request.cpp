@@ -87,7 +87,8 @@ void MultiDeviceAsyncInferRequest::Infer_ThreadUnsafe() {
     InferUsingAsync();
 }
 
-void MultiDeviceAsyncInferRequest::GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+void MultiDeviceAsyncInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+    CheckBusy();
     perfMap = std::move(_perfMap);
 }
 
