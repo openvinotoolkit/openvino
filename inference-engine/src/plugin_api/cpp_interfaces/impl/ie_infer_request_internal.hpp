@@ -109,7 +109,9 @@ public:
             if (preProcRequired) {
                 addInputPreProcessingFor(name, userBlob, devBlob ? devBlob : _inputs[name]);
             } else {
-                size_t inputSize = details::product(foundInput->getTensorDesc().getDims());
+                size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+                ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
+                : 1;
                 if (dataSize != inputSize) {
                     THROW_IE_EXCEPTION << "Input blob size is not equal network input size (" << dataSize
                                        << "!=" << inputSize << ").";
