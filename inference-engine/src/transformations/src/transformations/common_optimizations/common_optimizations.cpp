@@ -190,6 +190,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
     manager.run_passes(f);
 

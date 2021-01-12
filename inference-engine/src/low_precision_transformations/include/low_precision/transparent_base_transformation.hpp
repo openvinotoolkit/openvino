@@ -16,7 +16,7 @@ class LP_TRANSFORMATIONS_API TransparentBaseTransformation : public LayerTransfo
 public:
     TransparentBaseTransformation(const Params& params) : LayerTransformation(params) {}
     ~TransparentBaseTransformation() override {};
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 

@@ -8,10 +8,10 @@
 #include <map>
 
 #include "ngraph/descriptor/tensor.hpp"
+#include "ngraph/output_vector.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/output_vector.hpp"
 #include "ngraph/variant.hpp"
 
 namespace ngraph
@@ -48,13 +48,6 @@ namespace ngraph
         const Shape& get_shape() const;
         /// \return The partial shape of the input referred to by this input handle.
         const PartialShape& get_partial_shape() const;
-
-        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
-        /// \return The reference to runtime info map
-        RTMap& get_rt_info();
-        /// \return The constant reference to runtime info map
-        const RTMap& get_rt_info() const;
-
         /// \return A handle to the output that is connected to this input.
         Output<Node> get_source_output() const;
         /// \return A reference to the tensor descriptor for this input.
@@ -108,11 +101,6 @@ namespace ngraph
         const Shape& get_shape() const;
         /// \return The partial shape of the input referred to by this input handle.
         const PartialShape& get_partial_shape() const;
-
-        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
-        /// \return The constant reference to runtime info map
-        const RTMap& get_rt_info() const;
-
         /// \return A handle to the output that is connected to this input.
         Output<Node> get_source_output() const;
         /// \return A reference to the tensor descriptor for this input.

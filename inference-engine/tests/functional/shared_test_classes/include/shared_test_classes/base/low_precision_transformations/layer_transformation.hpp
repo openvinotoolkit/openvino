@@ -4,12 +4,18 @@
 
 #pragma once
 
+#include <algorithm>
+#include <map>
+#include <memory>
 #include <string>
 #include <tuple>
-#include <memory>
+#include <vector>
 
+#include <ngraph/ngraph.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
+
+#include "low_precision/layer_transformation.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include <low_precision/transformer.hpp>
 
 namespace LayerTestsUtils {
 
@@ -25,6 +31,31 @@ class LayerTransformationParamsFactory : public LayerTransformationParamsNGraphF
 };
 
 class LayerTransformation : virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    // TODO: LPT: not implemented: clean up ngraph::pass::low_precision::LayerTransformation::Params, use this type instead
+//    class Params : public ngraph::pass::low_precision::LayerTransformation::Params {
+//    public:
+//        Params(
+//            const bool updatePrecisions = true,
+//            const ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnActivations =
+//                ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
+//            const ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnWeights =
+//                ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+//            bool supportAsymmetricQuantization = true,
+//            std::vector<ngraph::element::Type> precisionsOnActivations = { ngraph::element::u8, ngraph::element::i8 },
+//            std::vector<ngraph::element::Type> precisionsOnWeights = { ngraph::element::i8 },
+//            ngraph::element::Type deqPrecision = ngraph::element::f32,
+//            bool support3DTensorOnActivations = true,
+//            bool deconvolutionSpecificChannelsRatio = false) : ngraph::pass::low_precision::LayerTransformation::Params(
+//                updatePrecisions,
+//                quantizedTensorAlignmentOnActivations,
+//                quantizedTensorAlignmentOnWeights,
+//                supportAsymmetricQuantization,
+//                deqPrecision,
+//                support3DTensorOnActivations,
+//                deconvolutionSpecificChannelsRatio) {}
+//    };
+
 protected:
     LayerTransformation();
 
@@ -32,16 +63,6 @@ protected:
         const ngraph::element::Type precision,
         const InferenceEngine::TensorDesc& tensorDesc,
         const float k = 1.f);
-
-    ngraph::pass::low_precision::LowPrecisionTransformations getLowPrecisionTransformationsNGraph(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params) const;
-
-    ngraph::pass::low_precision::LowPrecisionTransformer getLowPrecisionTransformerNGraph(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params) const;
-
-    std::shared_ptr<ngraph::Function> transformNGraph(
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const ngraph::pass::low_precision::LowPrecisionTransformations& transformations);
 
     static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision);
 

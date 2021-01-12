@@ -20,6 +20,9 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/layer_transformation.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -286,24 +289,63 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
             std::vector<element::Type>{ multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(newAdd, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(a, element::f32).get());
-    copyInfo(multiply, newMultiply);
+    copyInfo({ multiply, newMultiply }, newMultiply);
 
     replace_node(addAfterMultiply, newMultiply);
     return newMultiply;
 }
 
-void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
-    // TODO: merge_runtime_info with correctly defined DEQUANTIZATION
-    const auto& sourceAttributes = source->get_rt_info();
-    auto& targetAttrubutes = target->get_rt_info();
-    for (auto attribute : sourceAttributes) {
-        targetAttrubutes[attribute.first] = attribute.second;
-    }
+void NetworkHelper::copyInfo(
+    const std::vector<std::shared_ptr<Node>>& sources,
+    const std::vector<std::shared_ptr<Node>>& targets) {
+    ngraph::copy_runtime_info(sources, targets);
 
-    const std::string friendlyName = source->get_friendly_name();
-    if (!friendlyName.empty()) {
-        target->set_friendly_name(friendlyName);
+    for (const auto& target : targets) {
+        const std::string friendlyName = sources[0]->get_friendly_name();
+        if (!friendlyName.empty()) {
+            target->set_friendly_name(friendlyName);
+        }
+
+        {
+            // TODO: has to be implemented in ngraph::copy_runtime_info
+
+            for (auto& source : sources) {
+                if (target->get_type_info() != source->get_type_info()) {
+                    continue;
+                }
+
+                assert(source->get_input_size() == target->get_input_size());
+                for (size_t i = 0; i < target->get_input_size(); ++i) {
+                    auto sourceInput = source->input(i);
+                    const auto& sourceRt = sourceInput.get_rt_info();
+                    auto targetInput = target->input(i);
+                    auto& targetRt = targetInput.get_rt_info();
+                    for (const auto& it : sourceRt) {
+                        targetRt[it.first] = it.second;
+                    }
+                }
+
+                assert(source->get_output_size() == target->get_output_size());
+                for (size_t i = 0; i < target->get_output_size(); ++i) {
+                    auto sourceOutput = source->output(i);
+                    const auto& sourceRt = sourceOutput.get_rt_info();
+                    auto targetOutput = target->output(i);
+                    auto& targetRt = targetOutput.get_rt_info();
+                    for (const auto& it : sourceRt) {
+                        targetRt[it.first] = it.second;
+                    }
+                }
+            }
+        }
     }
+}
+
+void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target) {
+    copyInfo(sources, std::vector<std::shared_ptr<Node>>{ target });
+}
+
+void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
+    copyInfo(std::vector<std::shared_ptr<Node>>{ source }, std::vector<std::shared_ptr<Node>>{ target });
 }
 
 void NetworkHelper::cleanRunTimeInfo(const std::shared_ptr<Node>& layer) {
@@ -315,7 +357,21 @@ void NetworkHelper::cleanRunTimeInfo(const std::shared_ptr<Node>& layer) {
 }
 
 bool NetworkHelper::isScalarLike(std::shared_ptr<opset1::Constant> constant) {
-    return constant->get_all_data_elements_bitwise_identical();
+    // ticket #48857
+    // return constant->get_all_data_elements_bitwise_identical();
+
+    const auto shape = constant->output(0).get_shape();
+    if (shape_size(shape) == 1ul) {
+        return true;
+    }
+
+
+    const auto values = constant->cast_vector<float>();
+    if (values.empty()) {
+        return true;
+    }
+
+    return !std::any_of(values.begin(), values.end(), [&](float value) { return values[0] != value; });
 }
 
 bool NetworkHelper::isZero(std::shared_ptr<opset1::Constant> constant) {
@@ -598,8 +654,53 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
         fakeQuantize->get_levels());
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newFakeQuantize, node->get_output_element_type(0));
     replace_node(node->shared_from_this(), newFakeQuantize);
-    newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
+    NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
+
+    //const auto& originalRt = fakeQuantize->output(0).get_rt_info();
+    //auto& newRt = newFakeQuantize->output(0).get_rt_info();
+    //for (const auto& it : originalRt) {
+    //    newRt[it.first] = it.second;
+    //}
+
     return newFakeQuantize;
+}
+
+bool NetworkHelper::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node) {
+    auto& rt = node->get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name);
+    if (it == rt.end()) {
+        return false;
+    }
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<PrecisionPreservedAttributePtr>>(it->second);
+    assert(attribute != nullptr);
+    return attribute->get()->sharedValue->value;
+}
+
+size_t NetworkHelper::calculateLevels(
+    const float dataPrecisionMin,
+    const float dataPrecisionMax,
+    const float combinedIntervalLow,
+    const float combinedIntervalHigh,
+    const float minIntervalLow,
+    const float minIntervalHigh,
+    float& dequantizationMul,
+    float& dequantizationSub,
+    float& updatedOutputLowValue,
+    float& updatedOutputHighValue) {
+    const float maxOutputInterval = combinedIntervalHigh - combinedIntervalLow;
+    // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
+    const float quantizationMul = (dataPrecisionMax - dataPrecisionMin) / maxOutputInterval;
+    dequantizationMul = maxOutputInterval / (dataPrecisionMax - dataPrecisionMin);
+
+    // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
+    const float quantizationSub = combinedIntervalLow - dataPrecisionMin * dequantizationMul;
+    dequantizationSub = std::round(-quantizationSub * quantizationMul);
+
+    updatedOutputLowValue = (minIntervalLow - quantizationSub) * quantizationMul;
+    updatedOutputHighValue = (minIntervalHigh - quantizationSub) * quantizationMul;
+
+    const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
+    return levels;
 }
 
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
@@ -778,7 +879,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
             newFakeQuantize->get_levels(),
             newFakeQuantize->get_auto_broadcast());
         replace_node(dequantization.convert, replacement);
-        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        copyInfo({ fakeQuantize, dequantization.convert }, replacement);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, dequantization.convert->output(0).get_element_type());
         newFakeQuantize = replacement;
     }
@@ -797,7 +899,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
             newFakeQuantize->get_levels(),
             newFakeQuantize->get_auto_broadcast());
         replace_node(dequantization.subtract, replacement);
-        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        copyInfo({ newFakeQuantize, dequantization.subtract }, replacement);
         newFakeQuantize = replacement;
     }
 
@@ -833,7 +936,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
             newFakeQuantize->get_auto_broadcast());
 
         replace_node(dequantization.multiply, replacement);
-        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        //replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        copyInfo({ newFakeQuantize, dequantization.multiply }, replacement);
         newFakeQuantize = replacement;
     }
 
@@ -876,6 +980,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             minValues[i] = 1.f;
             maxValues[i] = 1.f;
         }
+    }
+
+    if ((!updatePrecision) &&
+        std::all_of(scales.begin(), scales.end(), [](const float value) { return value == 1.f; }) &&
+        std::all_of(shifts.begin(), shifts.end(), [](const float value) { return value == 0.f; })) {
+        return std::make_tuple(nullptr, nullptr);
     }
 
     std::shared_ptr<Node> shift = hasZeroPoint ?
@@ -986,7 +1096,8 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
     std::shared_ptr<opset1::FakeQuantize> fq,
     element::Type precision,
     float min,
-    float max) {
+    float max,
+    const bool replace) {
     auto newMin = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
     auto newMax = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
@@ -1000,7 +1111,9 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
             fq->get_auto_broadcast());
 
     NetworkHelper::setOutDataPrecision(newFQ, precision);
-    replace_node(fq, newFQ);
+    if (replace) {
+        replace_node(fq, newFQ);
+    }
 
     newFQ->set_friendly_name(fq->get_friendly_name());
     return newFQ;
@@ -1012,9 +1125,12 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     const ngraph::element::Type originalPrecision,
     const ngraph::PartialShape dataNodeOutputShape,
     element::Type precision,
-    const ngraph::element::Type deqPrecision) {
-    // TODO: we create input here! we really need it here?
-    const std::shared_ptr<opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
+    const ngraph::element::Type deqPrecision,
+    std::shared_ptr<ngraph::Node> input) {
+    if (input == nullptr) {
+        // TODO: we create input here! we really need it here?
+        input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
+    }
     std::shared_ptr<ngraph::Node> parent = input;
 
     std::shared_ptr<DequantizationConvert> convert;
@@ -1022,7 +1138,7 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
         convert = nullptr;
     } else {
         convert = std::make_shared<DequantizationConvert>(
-            input,
+            parent,
             deqPrecision);
         parent = convert;
     }
@@ -1220,7 +1336,12 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
 
 FakeQuantizeDequantization NetworkHelper::getDequantizationBelow(const std::shared_ptr<Node>& node) {
     const Output<Node> dataNode = node->output(0);
-    std::shared_ptr<Node> lastNode = dataNode.get_target_inputs().begin()->get_node()->shared_from_this();
+    const auto& targetInputs = dataNode.get_target_inputs();
+    if (targetInputs.size() == 0ul) {
+        return FakeQuantizeDequantization();
+    }
+
+    std::shared_ptr<Node> lastNode = targetInputs.begin()->get_node()->shared_from_this();
 
     const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(lastNode);
     if (convert != nullptr) {
@@ -1600,8 +1721,8 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
             }
         }
         const auto subtractValues = subtractConst->cast_vector<float>();
-        if (std::any_of(subtractValues.begin(), subtractValues.end(), [min, max] (const float& val) {
-                return (val < min) || (val > max); })) {
+        if (std::any_of(subtractValues.begin(), subtractValues.end(), [min, max](const float& val) {
+            return (val < min) || (val > max); })) {
             return false;
         }
     } else if (is_type<opset1::FakeQuantize>(node)) {
@@ -1611,12 +1732,12 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
         min = dataPrecision.min - 0.5f;
         max = dataPrecision.max + 0.5f;
         const auto quantizationDetails = QuantizationDetails::getDetails(as_type_ptr<opset1::FakeQuantize>(node));
-        for (size_t i = 0; i < quantizationDetails.outputIntervalsCount; ++i) {
+        for (size_t i = 0; i < quantizationDetails.outputLowValues.size(); ++i) {
             float shift;
             if (quantizationDetails.outputHighValues[i] != quantizationDetails.outputLowValues[i]) {
                 shift = (dataPrecision.min * quantizationDetails.outputHighValues[i] -
-                         dataPrecision.max * quantizationDetails.outputLowValues[i]) /
-                        (quantizationDetails.outputHighValues[i] - quantizationDetails.outputLowValues[i]);
+                    dataPrecision.max * quantizationDetails.outputLowValues[i]) /
+                    (quantizationDetails.outputHighValues[i] - quantizationDetails.outputLowValues[i]);
             } else {
                 shift = 0.f;
             }
@@ -1625,6 +1746,7 @@ bool NetworkHelper::checkZeroPoint(const std::shared_ptr<Node>& node, const Data
             }
         }
     }
+
     return true;
 }
 
@@ -1711,6 +1833,23 @@ bool NetworkHelper::isDQByDynamicDimension(const std::shared_ptr<Node>& layer, s
     return false;
 }
 
-}  // namespace low_precision
-}  // namespace pass
-}  // namespace ngraph
+bool isDisabled(const std::shared_ptr<Node>& node) {
+    for (const auto& input : node->inputs()) {
+        auto precisionAttribute = getAttribute<std::shared_ptr<PrecisionsAttribute>>(input);
+        if (precisionAttribute == nullptr) {
+            continue;
+        }
+
+        assert(precisionAttribute->get() != nullptr);
+        assert(precisionAttribute->get()->sharedValue != nullptr);
+
+        const auto& precisionRestrictions = precisionAttribute->get()->sharedValue->precisions;
+        if (precisionRestrictions.empty()) {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

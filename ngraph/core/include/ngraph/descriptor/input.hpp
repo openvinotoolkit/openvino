@@ -107,7 +107,6 @@ namespace ngraph
             size_t m_index; // Index into all input tensors
             RTMap m_rt_info;
             Output* m_output;
-            RTMap m_rt_info;
 
         private:
             bool m_is_relevant_to_shape;
