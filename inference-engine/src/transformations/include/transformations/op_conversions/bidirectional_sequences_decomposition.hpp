@@ -30,6 +30,7 @@ class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
 
 class ngraph::pass::BidirectionalLSTMSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     BidirectionalLSTMSequenceDecomposition();
 };
 
@@ -41,6 +42,7 @@ public:
 
 class ngraph::pass::BidirectionalGRUSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     BidirectionalGRUSequenceDecomposition();
 };
 
@@ -52,5 +54,6 @@ public:
 
 class ngraph::pass::BidirectionalRNNSequenceDecomposition : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     BidirectionalRNNSequenceDecomposition();
 };

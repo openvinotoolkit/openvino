@@ -17,7 +17,7 @@ No attributes available.
 * **2**: `axis` - An axis along `data` to split. A scalar of type T2 with value from range `-rank(data) .. rank(data)-1`. Negative values address dimensions from the end. 
 **Required.**
 
-* **3**: `split_lengths` - A list containing the sizes of each output tensor along the split `axis`. Size of `split_lengths` should be equal to the number of outputs. The sum of sizes must match `data.shape[axis]`. A 1-D Tensor of type T2. `split_lenghts` can contain a single `-1` element, that means all remining items along specified `axis` that are not consumed by other parts. **Required.**
+* **3**: `split_lengths` - A list containing the sizes of each output tensor along the split `axis`. Size of `split_lengths` should be equal to the number of outputs. The sum of sizes must match `data.shape[axis]`. A 1-D Tensor of type T2. `split_lenghts` can contain a single `-1` element, that means all remaining items along specified `axis` that are not consumed by other parts. **Required.**
 
 **Outputs**
 

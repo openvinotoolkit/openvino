@@ -68,8 +68,8 @@ benchmark_app [OPTION]
 Options:
 
     -h, --help                Print a usage message
+    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.	
     -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
                               Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
                               Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. 
@@ -87,11 +87,13 @@ Options:
     -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
 
   CPU-specific performance options:
-    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode
+    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
                               (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
                               Default value is determined automatically for a device. 
                               Please note that although the automatic selection usually provides a reasonable performance, 
                               it still may be non-optimal for some cases, especially for very small networks.
+                              Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency 
+                              estimations the number of streams should be set to 1.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
     -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
@@ -143,11 +145,11 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    
    * On CPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png  -d CPU -api async --progress true
    ```
    * On FPGA:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d HETERO:FPGA,CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png -d HETERO:FPGA,CPU -api async --progress true
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
@@ -157,7 +159,7 @@ Below are fragments of sample output for CPU and FPGA devices:
 
 * For CPU:
    ```
-   [Step 8/9] Measuring performance (Start inference asyncronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
+   [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)
    Progress: [....................] 100.00% done
 
    [Step 9/9] Dumping statistics report

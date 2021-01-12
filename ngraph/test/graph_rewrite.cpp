@@ -22,7 +22,7 @@ public:
         auto divide = std::make_shared<ngraph::pattern::op::Label>(
             element::f32, Shape{}, pattern::has_class<opset3::Divide>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-            if (m_transformation_callback(m.get_match_root()))
+            if (transformation_callback(m.get_match_root()))
             {
                 auto relu =
                     std::make_shared<ngraph::opset3::Relu>(m.get_match_root()->input_value(0));
@@ -179,7 +179,7 @@ public:
             std::make_shared<ngraph::pattern::op::Label>());
         //        element::f32, Shape{}, pattern::has_class<opset3::Divide>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-            if (m_transformation_callback(m.get_match_root()))
+            if (transformation_callback(m.get_match_root()))
             {
                 auto relu =
                     std::make_shared<ngraph::opset3::Relu>(m.get_match_root()->input_value(0));
@@ -204,7 +204,7 @@ public:
             std::make_shared<PrivateDivide>(std::make_shared<ngraph::pattern::op::Label>(),
                                             std::make_shared<ngraph::pattern::op::Label>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-            if (m_transformation_callback(m.get_match_root()))
+            if (transformation_callback(m.get_match_root()))
             {
                 auto tanh =
                     std::make_shared<ngraph::opset3::Tanh>(m.get_match_root()->input_value(0));
@@ -298,13 +298,13 @@ TEST(PassConfigTest, Test1)
     {
         auto f = get_function();
 
-        pass::Manager manager;
+        auto pass_config = std::make_shared<ngraph::pass::PassConfig>();
+        pass::Manager manager(pass_config);
+
         manager.register_pass<TestPass>();
 
-        auto pass_config = std::make_shared<ngraph::pass::PassConfig>();
         pass_config->set_callback<TestPass>(get_callback());
 
-        manager.set_pass_config(pass_config);
         manager.run_passes(f);
 
         ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
@@ -343,11 +343,9 @@ TEST(PassConfigTest, Test1)
     {
         auto pass_config = std::make_shared<pass::PassConfig>();
 
-        pass::Manager manager1;
-        pass::Manager manager2;
-        manager1.set_pass_config(pass_config);
-        manager2.set_pass_config(pass_config);
-        ASSERT_EQ(pass_config.use_count(), 1);
+        pass::Manager manager1(pass_config);
+        pass::Manager manager2(pass_config);
+        ASSERT_EQ(pass_config.use_count(), 3);
     }
 
     {

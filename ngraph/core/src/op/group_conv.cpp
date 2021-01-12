@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <numeric>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
@@ -23,7 +24,6 @@
 #include "ngraph/op/convolution.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/slice.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -61,6 +61,7 @@ op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
 
 bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_GroupConvolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -71,6 +72,7 @@ bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visito
 
 void op::v1::GroupConvolution::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
     PartialShape data_batch_shape = get_input_partial_shape(0);
     PartialShape filters_shape = get_input_partial_shape(1);
     element::Type data_batch_et = get_input_element_type(0);
@@ -176,6 +178,7 @@ void op::v1::GroupConvolution::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_GroupConvolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::GroupConvolution>(new_args.at(0),
                                              new_args.at(1),
@@ -255,6 +258,7 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(
 
 bool ngraph::op::v1::GroupConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -507,9 +511,9 @@ OutputVector op::v1::GroupConvolutionBackpropData::decompose_op() const
 
     auto groups = filters.get_shape()[0];
     // slice data
-    OutputVector sliced_data = builder::split(data, groups, 1);
+    OutputVector sliced_data = builder::opset1::split(data, groups, 1);
     // slice filters
-    OutputVector sliced_filters = builder::split(filters, groups, 0);
+    OutputVector sliced_filters = builder::opset1::split(filters, groups, 0);
     // We have to squeeze first empty dimension (groups).
     std::transform(
         std::begin(sliced_filters),
@@ -553,6 +557,7 @@ OutputVector op::v1::GroupConvolutionBackpropData::decompose_op() const
 shared_ptr<Node>
     op::v1::GroupConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3)
     {

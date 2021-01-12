@@ -34,6 +34,11 @@ class Policy {
         AUTO_PERMUTE
     } PermutePolicy = Permute::DISABLED;
 
+    enum class FlattenTrivialConcatConversion {
+        DISABLED,
+        ENABLED
+    } ConcatConversionPolicy = FlattenTrivialConcatConversion::ENABLED;
+
     enum class ConcatAlignment {
         DISABLED,
         DISABLED_FOR_FP32,

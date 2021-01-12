@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToScaleShift) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="256"/>
+            <data element_type="f32" offset="0" shape="64,1,1" size="256"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>64</dim>
@@ -53,7 +53,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToScaleShift) {
             </output>
         </layer>
         <layer id="3" name="broadcast2_data" type="Const" version="opset1">
-            <data offset="320" size="256"/>
+            <data element_type="f32" offset="320" shape="64,1,1" size="256"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>64</dim>
@@ -164,7 +164,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToPower) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1,1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -199,7 +199,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToPower) {
             </output>
         </layer>
         <layer id="3" name="broadcast2_data" type="Const" version="opset1">
-            <data offset="68" size="4"/>
+            <data element_type="f32" offset="68" shape="1,1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -318,7 +318,7 @@ TEST_F(NGraphReaderTests, ConvertMulToPower) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -432,7 +432,7 @@ TEST_F(NGraphReaderTests, ConvertMulToPower2) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -543,7 +543,7 @@ TEST_F(NGraphReaderTests, ConvertAddToPower) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -657,7 +657,7 @@ TEST_F(NGraphReaderTests, ConvertMulToScaleShift) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="256"/>
+            <data element_type="f32" offset="0" shape="64,1,1" size="256"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>64</dim>
@@ -765,7 +765,7 @@ TEST_F(NGraphReaderTests, ConvertAddToScaleShift) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="256"/>
+            <data element_type="f32" offset="0" shape="64,1,1" size="256"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>64</dim>
@@ -873,7 +873,7 @@ TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="448"/>
+            <data element_type="f32" offset="0" shape="112,1" size="448"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>112</dim>
@@ -994,7 +994,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="448"/>
+            <data element_type="f32" offset="0" shape="112,1" size="448"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>112</dim>
@@ -1115,7 +1115,7 @@ TEST_F(NGraphReaderTests, ReadAddNoBroadcastNetwork) {
             </output>
         </layer>
         <layer id="1" name="data1" type="Const" version="opset1">
-            <data offset="0" size="3211264"/>
+            <data element_type="f32" offset="0" shape="1,64,112,112" size="3211264"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1244,7 +1244,7 @@ TEST_F(NGraphReaderTests, ReadMultiplyNoBroadcastNetwork) {
             </output>
         </layer>
         <layer id="1" name="data1" type="Const" version="opset1">
-            <data offset="0" size="3211264"/>
+            <data element_type="f32" offset="0" shape="1,64,112,112" size="3211264"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1373,7 +1373,7 @@ TEST_F(NGraphReaderTests, RemoveAdd) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1502,7 +1502,7 @@ TEST_F(NGraphReaderTests, RemoveMulAdd) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1,1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1537,7 +1537,7 @@ TEST_F(NGraphReaderTests, RemoveMulAdd) {
             </output>
         </layer>
         <layer id="3" name="broadcast2_data" type="Const" version="opset1">
-            <data offset="68" size="4"/>
+            <data element_type="f32" offset="68" shape="1,1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1692,7 +1692,7 @@ TEST_F(NGraphReaderTests, RemoveAdd2) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1822,7 +1822,7 @@ TEST_F(NGraphReaderTests, RemoveAdd3) {
             </output>
         </layer>
         <layer id="1" name="broadcast1_data" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1855,7 +1855,7 @@ TEST_F(NGraphReaderTests, RemoveAdd3) {
             </output>
         </layer>
         <layer id="6" name="broadcast2_data" type="Const" version="opset1">
-            <data offset="4" size="4"/>
+            <data element_type="f32" offset="4" shape="1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -2020,7 +2020,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
             </output>
         </layer>
         <layer id="1" name="constant_1" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="i32" offset="0" shape="1,1,1" size="4"/>
             <output>
                 <port id="0" precision="I32">
                     <dim>1</dim>

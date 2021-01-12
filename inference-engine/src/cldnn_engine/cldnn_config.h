@@ -6,11 +6,6 @@
 
 #include <map>
 #include <string>
-#include <vector>
-
-#include "ie_blob.h"
-#include "cpp/ie_cnn_network.h"
-#include "debug_options.h"
 
 #include "cldnn_custom_layer.h"
 
@@ -35,7 +30,8 @@ struct Config {
                tuningConfig(),
                graph_dumps_dir(""),
                sources_dumps_dir(""),
-               device_id("") {
+               device_id(""),
+               kernels_cache_dir("") {
         adjustKeyMapValues();
     }
 
@@ -59,6 +55,7 @@ struct Config {
     std::string graph_dumps_dir;
     std::string sources_dumps_dir;
     std::string device_id;
+    std::string kernels_cache_dir;
 
     std::map<std::string, std::string> key_config_map;
 };

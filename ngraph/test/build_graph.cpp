@@ -37,7 +37,7 @@ TEST(build_graph, build_simple)
     auto arg3 = make_shared<op::Parameter>(element::f32, Shape{32, 7});
     auto broadcast_1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto b1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto dot = make_shared<op::Dot>(arg2, arg0);
+    auto dot = make_shared<op::MatMul>(arg2, arg0);
     ASSERT_EQ(dot->input_value(0).get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_value(1).get_node_shared_ptr(), arg0);
 
@@ -46,30 +46,16 @@ TEST(build_graph, build_simple)
     ASSERT_EQ(cluster_0->get_output_op(0)->input_value(0).get_node_shared_ptr(), dot);
 }
 
-// Check node comparisons
-TEST(build_graph, node_comparison)
-{
-    auto arg0 = make_shared<op::Parameter>(element::f32, Shape{32, 3});
-    auto arg1 = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto arg2 = make_shared<op::Parameter>(element::f32, Shape{32});
-
-    auto dot = make_shared<op::Dot>(arg0, arg1);
-    auto add = make_shared<op::Add>(dot, arg2);
-
-    auto parg = make_shared<op::Parameter>(element::f32, Shape{});
-    auto pattern_dot = make_shared<op::Dot>(parg, parg);
-}
-
 TEST(build_graph, literal)
 {
     // float scalar from a float
     // auto float0 = FloatConstant::make(3.0);
     vector<float> float_t{3.0};
-    auto float0 = make_shared<op::Constant>(element::f32, Shape{}, float_t);
+    auto float0 = make_shared<op::Constant>(element::f32, Shape{1}, float_t);
     ASSERT_EQ(float0->get_vector<float>(), std::vector<float>{3.0});
     ASSERT_EQ(float0->get_element_type(), element::f32);
-    ASSERT_EQ(float0->get_shape(), Shape{});
-    auto d = make_shared<op::Dot>(float0, float0);
+    ASSERT_EQ(float0->get_shape(), Shape{1});
+    auto d = make_shared<op::MatMul>(float0, float0);
     ASSERT_EQ(d->input_values().at(0).get_node_shared_ptr(), float0);
     ASSERT_EQ(d->input_values().at(1).get_node_shared_ptr(), float0);
 
@@ -89,7 +75,7 @@ TEST(build_graph, tensor)
     auto float0 = make_shared<op::Constant>(element::f32, shape, float_t);
     ASSERT_EQ(float0->get_element_type(), element::f32);
     ASSERT_EQ(float0->get_shape(), shape);
-    auto d = make_shared<op::Add>(float0, float0);
+    auto d = make_shared<op::v1::Add>(float0, float0);
     ASSERT_EQ(d->input_values().at(0).get_node_shared_ptr(), float0);
     ASSERT_EQ(d->input_values().at(1).get_node_shared_ptr(), float0);
 
@@ -110,7 +96,7 @@ TEST(build_graph, function_undeclared_parameters)
     auto arg3 = make_shared<op::Parameter>(element::f32, Shape{32, 7});
     auto broadcast_1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
     auto b1 = builder::opset1::make_broadcast(arg3, Shape{10, 32, 7}, AxisSet{0});
-    auto dot = make_shared<op::Dot>(arg2, arg0);
+    auto dot = make_shared<op::MatMul>(arg2, arg0);
     ASSERT_EQ(dot->input_values()[0].get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_values()[1].get_node_shared_ptr(), arg0);
     try
@@ -139,10 +125,10 @@ TEST(build_graph, no_arg_construction)
     auto arg1 = make_shared<op::Parameter>(element::f32, Shape{7});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{7});
     auto arg3 = make_shared<op::Parameter>(element::f32, Shape{7});
-    auto add0 = make_shared<op::Add>();
+    auto add0 = make_shared<op::v1::Add>();
     auto abs0 = make_shared<op::Abs>();
     auto acos0 = make_shared<op::Acos>();
-    auto add1 = make_shared<op::Add>();
+    auto add1 = make_shared<op::v1::Add>();
     add0->set_argument(1, arg0);
     add0->set_argument(0, arg1);
     abs0->set_argument(0, add0);
@@ -158,7 +144,7 @@ TEST(build_graph, multi_output_split_dynamic)
 {
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    const auto split = make_shared<op::Split>(data, axis, 2);
+    const auto split = make_shared<op::v1::Split>(data, axis, 2);
     auto abs = make_shared<op::Abs>(split->output(1));
     EXPECT_TRUE(abs->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 
@@ -214,7 +200,7 @@ TEST(build_graph, build_graph_with_sink)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
@@ -235,7 +221,7 @@ TEST(build_graph, build_graph_with_sink_output_ctor)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(
@@ -257,7 +243,7 @@ TEST(build_graph, build_graph_with_add_sink)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), ParameterVector{arg});
@@ -284,7 +270,7 @@ TEST(build_graph, build_graph_with_wrong_remove_sink)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
@@ -308,7 +294,7 @@ TEST(build_graph, build_graph_with_remove_sink)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<op::Assign>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), SinkVector({assign}), ParameterVector{arg});
@@ -334,7 +320,7 @@ TEST(build_graph, build_graph_with_add_result)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto res2 = make_shared<op::Result>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res}), ParameterVector{arg});
@@ -361,7 +347,7 @@ TEST(build_graph, build_graph_with_remove_result)
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
-    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto res2 = make_shared<op::Result>(crop, "v0");
 
     auto f = make_shared<Function>(ResultVector({res, res2}), ParameterVector{arg});

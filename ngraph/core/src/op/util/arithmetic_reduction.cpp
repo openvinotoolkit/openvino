@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/arithmetic_reduction.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -51,7 +52,11 @@ const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const
     AxisSet axes;
     if (auto const_op = as_type<op::Constant>(input_value(1).get_node()))
     {
-        axes = const_op->get_axis_set_val();
+        const auto const_data = const_op->cast_vector<int64_t>();
+        const auto input_data_rank = get_input_partial_shape(0).rank();
+        const auto normalized_axes =
+            ngraph::normalize_axes(get_friendly_name(), const_data, input_data_rank);
+        axes = AxisSet{normalized_axes};
     }
     return axes;
 }
@@ -65,6 +70,7 @@ void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_
 
 void op::util::ArithmeticReduction::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0);
     const auto input_rank = input_shape.rank();
 

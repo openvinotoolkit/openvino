@@ -424,7 +424,7 @@ static ncStatus_t getDeviceFwProtocolPrefix(const deviceDesc_t deviceDesc,
 
 static char* getDevicePlatform(deviceDesc_t deviceDesc, int useUniversalFirmware) {
     if (deviceDesc.platform == X_LINK_MYRIAD_X) {
-        if (useUniversalFirmware && deviceDesc.protocol != X_LINK_PCIE) {
+        if (useUniversalFirmware) {
             return "ma2x8x";
         } else {
             return "ma248x";
@@ -2524,6 +2524,7 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
     if (opAccess != NC_OP_ACCESS_READ_ONLY &&
         opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
@@ -2756,6 +2757,7 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
 
     if (opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
@@ -2825,6 +2827,7 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
     if (opAccess != NC_OP_ACCESS_READ_ONLY &&
        opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 

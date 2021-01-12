@@ -24,6 +24,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/shared_buffer.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
@@ -233,6 +234,22 @@ namespace ngraph
                 /// \param data A void* to constant data.
                 Constant(const element::Type& type, const Shape& shape, const void* data);
 
+                /// \brief Constructs a tensor constant with the supplied data
+                ///
+                /// \param type The element type of the tensor constant.
+                /// \param shape The shape of the tensor constant.
+                /// \param data A pointer to pre-allocated shared data.
+                template <typename T>
+                Constant(const element::Type& type,
+                         const Shape& shape,
+                         std::shared_ptr<runtime::SharedBuffer<T>> data)
+                    : m_element_type(type)
+                    , m_shape(shape)
+                {
+                    m_data = data;
+                    constructor_validate_and_infer_types();
+                }
+
                 Constant(const Constant& other);
                 Constant& operator=(const Constant&) = delete;
 
@@ -351,80 +368,67 @@ namespace ngraph
                     {
                     case element::Type_t::boolean:
                     {
-                        auto vector = get_vector<char>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<char>(rc);
                         break;
                     }
                     case element::Type_t::bf16:
                     {
-                        auto vector = get_vector<bfloat16>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<bfloat16>(rc);
                         break;
                     }
                     case element::Type_t::f16:
                     {
-                        auto vector = get_vector<float16>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<float16>(rc);
                         break;
                     }
                     case element::Type_t::f32:
                     {
-                        auto vector = get_vector<float>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<float>(rc);
                         break;
                     }
                     case element::Type_t::f64:
                     {
-                        auto vector = get_vector<double>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<double>(rc);
                         break;
                     }
                     case element::Type_t::i8:
                     {
-                        auto vector = get_vector<int8_t>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<int8_t>(rc);
                         break;
                     }
                     case element::Type_t::i16:
                     {
-                        auto vector = get_vector<int16_t>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<int16_t>(rc);
                         break;
                     }
                     case element::Type_t::i32:
                     {
-                        auto vector = get_vector<int32_t>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<int32_t>(rc);
                         break;
                     }
                     case element::Type_t::i64:
                     {
-                        auto vector = get_vector<int64_t>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<int64_t>(rc);
                         break;
                     }
                     case element::Type_t::u8:
                     {
-                        auto vector = get_vector<uint8_t>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<uint8_t>(rc);
                         break;
                     }
                     case element::Type_t::u16:
                     {
-                        auto vector = get_vector<uint16_t>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<uint16_t>(rc);
                         break;
                     }
                     case element::Type_t::u32:
                     {
-                        auto vector = get_vector<uint32_t>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<uint32_t>(rc);
                         break;
                     }
                     case element::Type_t::u64:
                     {
-                        auto vector = get_vector<uint64_t>();
-                        rc = std::vector<T>(vector.begin(), vector.end());
+                        cast_vector<uint64_t>(rc);
                         break;
                     }
                     default: throw std::runtime_error("unsupported type");
@@ -463,8 +467,19 @@ namespace ngraph
                 std::string convert_value_to_string(size_t index) const;
 
             protected:
-                /// \brief Allocate a buffer and return a pointer to it
-                void* allocate_buffer();
+                template <typename IN_T, typename OUT_T>
+                void cast_vector(std::vector<OUT_T>& output_vector) const
+                {
+                    auto source_vector = get_vector<IN_T>();
+                    output_vector.reserve(source_vector.size());
+
+                    std::transform(source_vector.begin(),
+                                   source_vector.end(),
+                                   std::back_inserter(output_vector),
+                                   [](IN_T c) { return static_cast<OUT_T>(c); });
+                }
+
+                void allocate_buffer();
 
                 void* get_data_ptr_nc() { return (m_data ? m_data->get_ptr() : nullptr); }
                 template <element::Type_t ET>
@@ -491,7 +506,7 @@ namespace ngraph
                 }
 
                 template <typename T, typename U>
-                void write_buffer(void* target, const std::vector<U>& source, size_t count)
+                static void write_buffer(void* target, const std::vector<U>& source, size_t count)
                 {
                     T* p = reinterpret_cast<T*>(target);
                     for (size_t i = 0; i < count; i++)
@@ -501,11 +516,11 @@ namespace ngraph
                 }
 
                 template <typename T>
-                void write_to_buffer(const element::Type& target_type,
-                                     const Shape& /* target_shape */,
-                                     const std::vector<T>& source,
-                                     void* target,
-                                     size_t target_element_count)
+                static void write_to_buffer(const element::Type& target_type,
+                                            const Shape& /* target_shape */,
+                                            const std::vector<T>& source,
+                                            void* target,
+                                            size_t target_element_count)
                 {
                     if (source.size() != target_element_count)
                     {

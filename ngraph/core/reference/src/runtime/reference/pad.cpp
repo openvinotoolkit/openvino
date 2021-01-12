@@ -191,8 +191,8 @@ namespace ngraph
                                 }
                                 else
                                 {
-                                    c[i] = static_cast<size_t>(padding_below[i] + src_dim +
-                                                               padding_above[i] - pos);
+                                    c[i] = static_cast<size_t>(2 * (padding_below[i] + src_dim) -
+                                                               c[i] - 1);
                                 }
                             }
                         }

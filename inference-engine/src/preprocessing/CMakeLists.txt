@@ -122,9 +122,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-# Create shared library file from object library
+# Create module library file from object library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME} MODULE
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -169,10 +169,12 @@ target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
 
 target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
 
+set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
+
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # developer package
 
@@ -183,4 +185,4 @@ ie_developer_export_targets(${TARGET_NAME})
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)

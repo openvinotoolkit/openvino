@@ -15,12 +15,17 @@
 # ******************************************************************************
 
 if (NGRAPH_INTERPRETER_ENABLE)
-    add_library(interpreter_backend SHARED int_backend.cpp int_executable.cpp)
+    add_library(interpreter_backend SHARED int_backend.cpp int_executable.cpp evaluates_map.cpp)
 
     if(COMMAND ie_faster_build)
         ie_faster_build(interpreter_backend
             UNITY
         )
+        endif()
+
+    if(COMMAND ie_add_vs_version_file)
+        ie_add_vs_version_file(NAME interpreter_backend
+                               FILEDESCRIPTION "nGraph interpreter backend library")
     endif()
 
     if(COMMAND ie_add_vs_version_file)
@@ -35,9 +40,5 @@ if (NGRAPH_INTERPRETER_ENABLE)
             SOVERSION ${NGRAPH_API_VERSION})
     endif()
     target_link_libraries(interpreter_backend PUBLIC ngraph_backend)
-    install(TARGETS interpreter_backend
-        LIBRARY DESTINATION "${NGRAPH_INSTALL_LIB}"
-        ARCHIVE DESTINATION "${NGRAPH_INSTALL_LIB}"
-        RUNTIME DESTINATION "${NGRAPH_INSTALL_LIB}"
-    )
+
 endif()

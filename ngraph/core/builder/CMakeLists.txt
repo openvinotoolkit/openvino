@@ -19,7 +19,7 @@ set(TARGET_NAME "ngraph_builders")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ CACHE INTERNAL "")
+set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -37,7 +37,7 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_STATIC_LIBRARY)
+target_compile_definitions(${TARGET_NAME} PRIVATE ngraph_EXPORTS)
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR}
@@ -48,4 +48,4 @@ add_library(ngraph::builder ALIAS ${TARGET_NAME})
 
 # developer package
 
-openvino_developer_export_targets(ngraph::builder)
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::builder)

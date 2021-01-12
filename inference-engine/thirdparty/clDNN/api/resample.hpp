@@ -100,24 +100,23 @@ struct resample : public primitive_base<resample> {
     /// @param scale Resample scale.
     /// @param num_filter Input filter. Only used by bilinear sample_type.
     /// @param sample_type Resample method (nearest neighbor/bilinear/caffe bilinear).
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
     resample(const primitive_id& id,
              const primitive_id& input,
              tensor output_size,
              uint32_t num_filter,
              resample_type operation_type = resample_type::nearest,
-             bool with_activation = false,
-             float activation_slp = 0.0f,
              const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           output_size(output_size),
           num_filter(num_filter),
+          axesAndScales({}),
+          pads_begin({}),
+          pads_end({}),
           align_corners(1),
           operation_type(operation_type),
           shape_calc_mode(shape_calculation_mode::sizes),
-          with_activation(with_activation),
-          activation_negative_slope(activation_slp),
+          antialias(0),
+          cube_coeff(0.0f),
           coord_trans_mode(coordinate_transformation_mode::asymmetric),
           round_mode(nearest_mode::floor) {
         if (operation_type == resample_type::caffe_bilinear) {
@@ -132,8 +131,6 @@ struct resample : public primitive_base<resample> {
     /// @param pads_end Optional end padding for input.
     /// @param align_corners Align corner pixels of the input and output tensors.
     /// @param resample_type Resample bilinear method.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
     resample(const primitive_id& id,
              const primitive_id& input,
              tensor output_size,
@@ -141,19 +138,18 @@ struct resample : public primitive_base<resample> {
              std::vector<int32_t> pads_end = {},
              int32_t align_corners = 1,
              resample_type operation_type = resample_type::bilinear,
-             bool with_activation = false,
-             float activation_slp = 0.0f,
              const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           output_size(output_size),
           num_filter(0),
+          axesAndScales({}),
           pads_begin(pads_begin),
           pads_end(pads_end),
           align_corners(align_corners),
           operation_type(operation_type),
           shape_calc_mode(shape_calculation_mode::sizes),
-          with_activation(with_activation),
-          activation_negative_slope(activation_slp),
+          antialias(0),
+          cube_coeff(0.0f),
           coord_trans_mode(coordinate_transformation_mode::asymmetric),
           round_mode(nearest_mode::floor) {}
 
@@ -170,19 +166,20 @@ struct resample : public primitive_base<resample> {
              std::vector<int32_t> pads_end = {},
              int32_t antialias = 0,
              float cube_coeff = -0.75f,
-             resample_type mode = resample_type::caffe_bilinear,
+             resample_type operation_type = resample_type::caffe_bilinear,
              shape_calculation_mode shape_calc_mode = shape_calculation_mode::sizes,
              coordinate_transformation_mode ctm = coordinate_transformation_mode::half_pixel,
              nearest_mode nm = nearest_mode::round_prefer_floor,
              const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           output_size(output_size),
+          num_filter(0),
           axesAndScales(axesAndScales),
           pads_begin(pads_begin),
           pads_end(pads_end),
-          operation_type(mode),
+          align_corners(1),
+          operation_type(operation_type),
           shape_calc_mode(shape_calc_mode),
-          with_activation(false),
           antialias(antialias),
           cube_coeff(cube_coeff),
           coord_trans_mode(ctm),
@@ -200,21 +197,17 @@ struct resample : public primitive_base<resample> {
     std::vector<int32_t> pads_end;
     /// @param align_corners corner pixels of the input and output tensors
     int32_t align_corners;
-    /// @param sample_type Resample method (nearest neighbor/bilinear/caffe bilinear).
+    /// @param operation_type Resample method (nearest neighbor/bilinear/caffe bilinear).
     resample_type operation_type;
     /// @param shape_calc_mode Specifies which input, sizes or scales, is used to calculate an output shape.
     shape_calculation_mode shape_calc_mode;
-    /// @brief Enables Relu activation.
-    bool with_activation;
-    /// @brief Relu activation slope.
-    float activation_negative_slope;
     /// @param antialias is a flag that specifies whether to perform anti-aliasing.
     int32_t antialias;
     /// @param cube_coeff specifies the parameter a for cubic interpolation. cube_coeff is used only when mode == cubic.
     float cube_coeff;
-    /// @param specifies how to transform the coordinate in the resized tensor to the coordinate in the original tensor
+    /// @param coord_trans_mode specifies how to transform the coordinate in the resized tensor to the coordinate in the original tensor
     coordinate_transformation_mode coord_trans_mode;
-    /// @param specifies round mode when mode == nearest and is used only when mode == nearest.
+    /// @param round_mode specifies round mode when mode == nearest and is used only when mode == nearest.
     nearest_mode round_mode;
 };
 /// @}

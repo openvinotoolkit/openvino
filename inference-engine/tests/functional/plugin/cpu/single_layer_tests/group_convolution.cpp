@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/group_convolution.hpp>
+#include <shared_test_classes/single_layer/group_convolution.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
+
+using groupConvLayerTestParamsSet = LayerTestsDefinitions::groupConvLayerTestParamsSet;
+using groupConvSpecificParams = LayerTestsDefinitions::groupConvSpecificParams;
 
 typedef std::tuple<
         groupConvLayerTestParamsSet,
@@ -57,7 +60,7 @@ protected:
         auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
                 ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                                       padEnd, dilation, padType, convOutChannels, numGroups));
-        groupConv->get_rt_info() = setCPUInfo(inFmts, outFmts, priority);
+        groupConv->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
         function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");
     }
@@ -67,7 +70,7 @@ TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Convolution", inFmts, outFmts, selectedType);
+    CheckCPUImpl(executableNetwork, "Convolution");
 }
 
 namespace {

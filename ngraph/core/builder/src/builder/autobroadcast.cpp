@@ -233,8 +233,7 @@ namespace ngraph
             auto trimmed_value = value;
             if (value_shape != trimmed_value_shape)
             {
-                trimmed_value = make_shared<op::Reshape>(
-                    value, get_default_order(value_shape), trimmed_value_shape);
+                trimmed_value = builder::opset1::reshape(value, trimmed_value_shape);
             }
 
             auto shape_const =

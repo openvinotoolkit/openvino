@@ -19,7 +19,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
-#include "upsample.hpp"
+#include "onnx_import/op/upsample.hpp"
 
 namespace ngraph
 {

@@ -17,16 +17,16 @@
 #include <algorithm>
 #include <deque>
 #include <iostream>
-#include <pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
 
-#include "graph_rewrite.hpp"
 #include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -270,6 +270,35 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
     // callback require static shape.
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
     NGRAPH_SUPPRESS_DEPRECATED_END
+}
+
+void pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs)
+{
+    auto pass_config = get_pass_config();
+    // We have to preserve disabled passes because in case when we register matchers inside
+    // GraphRewrite c-tor we work with local PassConfig instance.
+    // For example:
+    //
+    // class ExampleGraphRewrite: public pass::GraphRewrite {
+    //      ExampleGraphRewrite() {
+    //          add_mather<TestMatcher1, false /* disabled by default */>();
+    //          add_mather<TestMatcher2>();
+    //      }
+    // };
+    //
+    // When we call add_matcher inside c-tor we automatically work with locally created PassConfig
+    // instance that is not shared. So when instance of this pass is being created in pass::Manager
+    // we set shared PassConfig but we will override already existing rules inside local config. To
+    // resolve this we have to copy disabled passes from local PassConfig to shared but we take into
+    // account that if passes were manually enabled we do not add them.
+    rhs->add_disabled_passes(*pass_config);
+    PassBase::set_pass_config(rhs);
+
+    // update nested transformations with new shared pass_config
+    for (auto& pass : m_matchers)
+    {
+        pass->set_pass_config(rhs);
+    }
 }
 
 void pass::RecurrentGraphRewrite::add_matcher(

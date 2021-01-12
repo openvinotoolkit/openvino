@@ -81,7 +81,7 @@
 #include "onnx_import/op/lrn.hpp"
 #include "onnx_import/op/lstm.hpp"
 #include "onnx_import/op/matmul.hpp"
-#include "onnx_import/op/matmul_integer.hpp"
+//#include "onnx_import/op/matmul_integer.hpp"
 #include "onnx_import/op/max.hpp"
 #include "onnx_import/op/max_pool.hpp"
 #include "onnx_import/op/mean.hpp"
@@ -98,7 +98,7 @@
 #include "onnx_import/op/pad.hpp"
 #include "onnx_import/op/pow.hpp"
 #include "onnx_import/op/prelu.hpp"
-#include "onnx_import/op/qlinear_matmul.hpp"
+//#include "onnx_import/op/qlinear_matmul.hpp"
 // #include "onnx_import/op/quant_conv.hpp"
 #include "onnx_import/op/quantize_linear.hpp"
 #include "onnx_import/op/range.hpp"
@@ -148,6 +148,7 @@
 #include "onnx_import/op/org.openvinotoolkit/group_norm.hpp"
 #include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
 #include "onnx_import/op/org.openvinotoolkit/prior_box.hpp"
+#include "onnx_import/op/org.openvinotoolkit/swish.hpp"
 
 namespace ngraph
 {
@@ -366,7 +367,7 @@ namespace ngraph
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
             REGISTER_OPERATOR("MatMul", 1, matmul);
-            REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
+            // REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
             REGISTER_OPERATOR("MaxPool", 1, max_pool);
             REGISTER_OPERATOR("Max", 1, max);
             REGISTER_OPERATOR("Max", 8, max);
@@ -389,7 +390,7 @@ namespace ngraph
             REGISTER_OPERATOR("Pow", 1, pow);
             REGISTER_OPERATOR("PRelu", 1, prelu);
             // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
-            REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
+            // REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
             REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
             REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
             REGISTER_OPERATOR("Range", 1, range);
@@ -430,8 +431,10 @@ namespace ngraph
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
             REGISTER_OPERATOR("Split", 1, split);
+            REGISTER_OPERATOR("Split", 13, split);
             REGISTER_OPERATOR("Sqrt", 1, sqrt);
             REGISTER_OPERATOR("Squeeze", 1, squeeze);
+            REGISTER_OPERATOR("Squeeze", 13, squeeze);
             REGISTER_OPERATOR("Sub", 1, sub);
             REGISTER_OPERATOR("Sub", 7, sub);
             REGISTER_OPERATOR("Sum", 1, sum);
@@ -445,6 +448,7 @@ namespace ngraph
             REGISTER_OPERATOR("TopK", 11, topk);
             REGISTER_OPERATOR("Transpose", 1, transpose);
             REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
+            REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
             REGISTER_OPERATOR("Upsample", 1, upsample);
             REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
@@ -457,6 +461,7 @@ namespace ngraph
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
         }
 
 #undef REGISTER_OPERATOR

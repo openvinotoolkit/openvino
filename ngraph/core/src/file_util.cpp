@@ -255,6 +255,15 @@ void file_util::iterate_files(const string& path,
     }
 }
 
+std::string file_util::sanitize_path(const std::string& path)
+{
+    const auto colon_pos = path.find(":");
+    const auto sanitized_path = path.substr(colon_pos == std::string::npos ? 0 : colon_pos + 1);
+    const std::string to_erase = "/.\\";
+    const auto start = sanitized_path.find_first_not_of(to_erase);
+    return (start == std::string::npos) ? "" : sanitized_path.substr(start);
+}
+
 NGRAPH_API void file_util::convert_path_win_style(std::string& path)
 {
     std::replace(path.begin(), path.end(), '/', '\\');
@@ -291,5 +300,4 @@ std::wstring file_util::multi_byte_char_to_wstring(const char* str)
     return result;
 #endif
 }
-
 #endif // ENABLE_UNICODE_PATH_SUPPORT

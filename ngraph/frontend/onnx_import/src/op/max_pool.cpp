@@ -16,9 +16,9 @@
 
 #include <memory>
 
-#include "max_pool.hpp"
 #include "ngraph/op/max_pool.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "onnx_import/op/max_pool.hpp"
 #include "onnx_import/utils/pooling_factory.hpp"
 
 namespace ngraph
@@ -31,7 +31,7 @@ namespace ngraph
             {
                 OutputVector max_pool(const Node& node)
                 {
-                    auto max_pool = pooling::LocalPoolingFactory(node).make_max_pool();
+                    auto max_pool = pooling::PoolingFactory(node).make_max_pool();
                     max_pool.emplace_back(std::make_shared<NullNode>()); // Indices (optional)
                     return max_pool;
                 }

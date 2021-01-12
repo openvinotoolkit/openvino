@@ -35,7 +35,8 @@ NGRAPH_TEST(${BACKEND_NAME}, round)
 {
     Shape shape{5};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Round>(A), ParameterVector{A});
+    auto f = make_shared<Function>(
+        make_shared<op::v5::Round>(A, op::v5::Round::RoundMode::HALF_TO_EVEN), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -50,11 +51,33 @@ NGRAPH_TEST(${BACKEND_NAME}, round)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, round_away_from_zero)
+{
+    Shape shape{5};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(
+        make_shared<op::v5::Round>(A, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO),
+        ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    auto a = backend->create_tensor(element::f32, shape);
+    copy_data(a, vector<float>{0.9f, 2.5f, 2.3f, 1.5f, -4.5f});
+    auto result = backend->create_tensor(element::f32, shape);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f((vector<float>{1.0f, 3.0f, 2.0f, 2.0f, -5.0f}),
+                                  read_vector<float>(result),
+                                  MIN_FLOAT_TOLERANCE_BITS));
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, round_2D)
 {
     Shape shape{3, 5};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Round>(A), ParameterVector{A});
+    auto f = make_shared<Function>(
+        make_shared<op::v5::Round>(A, op::v5::Round::RoundMode::HALF_TO_EVEN), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -91,7 +114,8 @@ NGRAPH_TEST(${BACKEND_NAME}, round_int64)
     // This tests large numbers that will not fit in a double
     Shape shape{3};
     auto A = make_shared<op::Parameter>(element::i64, shape);
-    auto f = make_shared<Function>(make_shared<op::Round>(A), ParameterVector{A});
+    auto f = make_shared<Function>(
+        make_shared<op::v5::Round>(A, op::v5::Round::RoundMode::HALF_TO_EVEN), ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

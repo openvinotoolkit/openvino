@@ -20,8 +20,6 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(NGRAPH_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ngraph CACHE INTERNAL "")
-
 add_subdirectory(builder)
 add_subdirectory(reference)
 
@@ -33,8 +31,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 
-# Create shared library
-add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+# Create static or shared library depending on BUILD_SHARED_LIBS
+add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph
@@ -52,17 +51,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph library")
 endif()
 
-set_target_properties(ngraph PROPERTIES
-                      CXX_VISIBILITY_PRESET hidden
-                      C_VISIBILITY_PRESET hidden
-                      VISIBILITY_INLINES_HIDDEN ON)
-
-target_link_libraries(ngraph PRIVATE openvino::itt ngraph::builder ngraph::reference)
-
-find_package(Graphviz QUIET)
-if (GRAPHVIZ_FOUND)
-    set_property(SOURCE pass/visualize_tree.cpp APPEND PROPERTY COMPILE_DEFINITIONS GRAPHVIZ_FOUND)
-endif()
+target_link_libraries(ngraph PRIVATE openvino::conditional_compilation openvino::itt ngraph::builder ngraph::reference)
 
 if(NGRAPH_ADDRESS_SANITIZER)
     message(STATUS "Enable Address Sanitizer")
@@ -74,7 +63,10 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
         VERSION ${NGRAPH_VERSION}
         SOVERSION ${NGRAPH_API_VERSION})
 endif()
-target_compile_definitions(ngraph PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
+endif()
 
 if (LINUX)
     # nGraph links against one or more libraries (ex. LLVM) but we don't want to
@@ -97,31 +89,16 @@ elseif(APPLE)
 endif()
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}> $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>)
-target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
-                                          ${NGRAPH_INCLUDE_DIR}/op
-                                          ${NGRAPH_INCLUDE_DIR}/op/util
-                                          ${NGRAPH_INCLUDE_DIR}/pass
-                                          ${NGRAPH_INCLUDE_DIR}/pattern
-                                          ${NGRAPH_INCLUDE_DIR}/pattern/op
-                                          ${NGRAPH_INCLUDE_DIR}/runtime
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/src
-                                          )
+target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
+                                         $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>
+                                  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                          ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 #Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
 
 if (NOT WIN32)
-    target_link_libraries(ngraph PRIVATE dl)
-endif()
-
-# Build subdirectories for all build types on Windows
-if(WIN32)
-    foreach(BUILD_TYPE Release Debug RelWithDebInfo MinSizeRel)
-        if(NOT EXISTS ${NGRAPH_BUILD_DIR}/${BUILD_TYPE})
-            file(MAKE_DIRECTORY ${NGRAPH_BUILD_DIR}/${BUILD_TYPE})
-        endif()
-    endforeach()
+    target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
 #-----------------------------------------------------------------------------------------------

@@ -16,11 +16,11 @@
 
 #include <unordered_map>
 
-#include "convpool.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/utils/convpool.hpp"
 
 namespace ngraph
 {
@@ -97,6 +97,12 @@ namespace ngraph
             Strides get_dilations(const Node& node, const std::size_t kernel_rank)
             {
                 return detail::get_attribute_value(node, "dilations", kernel_rank);
+            }
+
+            ngraph::op::RoundingType get_rounding_type(const Node& node)
+            {
+                return static_cast<ngraph::op::RoundingType>(
+                    node.get_attribute_value<std::int64_t>("ceil_mode", 0));
             }
 
             ngraph::op::PadType get_auto_pad(const Node& node)

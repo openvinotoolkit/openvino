@@ -16,7 +16,9 @@
 
 #include "ngraph/op/gather.hpp"
 #include "itt.hpp"
+#include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/squeeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/shape.hpp"
@@ -45,11 +47,13 @@ op::v1::Gather::Gather(const Output<Node>& params,
 
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Gather_visit_attributes);
     return true;
 }
 
 void op::v1::Gather::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Gather_validate_and_infer_types);
     const auto& input_rank = get_input_partial_shape(PARAMS).rank();
     const auto& axis_shape = get_input_partial_shape(AXIS);
     const auto& axis_rank = axis_shape.rank();
@@ -133,6 +137,7 @@ int64_t op::v1::Gather::get_axis() const
 
 shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Gather_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
@@ -202,29 +207,88 @@ namespace gather
 
         switch (out->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(boolean)(arg0, arg1, out, axis);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis);
         default: rc = false; break;
         }
         return rc;
     }
-}
 
-bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+    bool cf_gather_with_subgraph(OutputVector& output_values,
+                                 const OutputVector& input_values,
+                                 const PartialShape& gather_ps)
+    {
+        if (gather_ps.is_dynamic() || input_values.size() != 3)
+        {
+            return false;
+        }
+
+        const auto concat =
+            std::dynamic_pointer_cast<op::Concat>(input_values[0].get_node_shared_ptr());
+        const auto indices =
+            std::dynamic_pointer_cast<op::Constant>(input_values[1].get_node_shared_ptr());
+        const auto axis =
+            std::dynamic_pointer_cast<op::Constant>(input_values[2].get_node_shared_ptr());
+
+        if (!concat || !indices || !axis)
+        {
+            return false;
+        }
+
+        // only along axis=0
+        if (axis->cast_vector<int64_t>()[0] != 0 || concat->get_axis() != 0)
+        {
+            return false;
+        }
+        // only single indices are accepted
+        const auto indices_shape = indices->get_shape();
+        if (indices_shape.size() > 1 || (indices_shape.size() == 1 && indices_shape[0] > 1))
+        {
+            return false;
+        }
+        // concat inputs are 1D and their count is equal to Concat output shape
+        if (concat->get_output_partial_shape(0).is_dynamic())
+        {
+            return false;
+        }
+        const auto concat_inputs = concat->inputs();
+        // concat inputs must be single elements
+        if (concat_inputs.size() != shape_size(concat->get_shape()))
+        {
+            return false;
+        }
+
+        const int64_t rank = concat->get_shape()[0];
+        const int64_t raw_index = indices->cast_vector<int64_t>()[0];
+        const int64_t positive_index = raw_index < 0 ? rank + raw_index : raw_index;
+        NGRAPH_CHECK(positive_index >= 0 && positive_index < rank);
+
+        // gather takes exactly one element out of the Concat output
+        const auto gathered_concat_input =
+            concat_inputs[positive_index].get_source_output().get_node_shared_ptr();
+        // Concat inputs are 1D, resulting tensor shape depends on Gather indices
+        auto gathered = gathered_concat_input;
+        if (indices_shape.empty())
+        {
+            // gathering a scalar
+            const auto axes = op::Constant::create(element::i64, Shape{1}, {0});
+            gathered = make_shared<op::v0::Squeeze>(gathered_concat_input, axes);
+        }
+
+        output_values[0] = gathered;
+
+        return true;
+    }
+} // namespace gather
+
+bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
+                                     const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Gather::evaluate");
     int64_t axis = 0;
     switch (inputs[2]->get_element_type())
     {
@@ -248,4 +312,24 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
         }
     }
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+}
+
+bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_Gather_evaluate);
+    return evaluate_gather(outputs, inputs);
+}
+
+bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)
+{
+    // try the regular constant folding just for the Gather node
+    if (Node::constant_fold(output_values, input_values))
+    {
+        return true;
+    }
+    else
+    {
+        return gather::cf_gather_with_subgraph(
+            output_values, input_values, get_output_partial_shape(0));
+    }
 }

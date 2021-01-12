@@ -19,6 +19,8 @@
 
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvFusion, "ConvFusion", 0);
+
 template <class A, class B>
 std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shared_ptr<ngraph::Node> node) {
     auto eltwise = std::dynamic_pointer_cast<A>(node->input(0).get_source_output().get_node_shared_ptr());

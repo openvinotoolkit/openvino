@@ -30,7 +30,7 @@ In addition to common parameters for Myriad plugin and HDDL plugin, HDDL plugin 
 | KEY_VPU_HDDL_STREAM_ID                | string           | empty string | Allows to execute inference on a specified device.                              |
 | KEY_VPU_HDDL_DEVICE_TAG               | string           | empty string | Allows to allocate/deallocate networks on specified devices.                    |
 | KEY_VPU_HDDL_BIND_DEVICE              | YES/NO           | NO           | Whether the network should bind to a device. Refer to vpu_plugin_config.hpp.    |
-| KEY_VPU_HDDL_RUNTIME_PRIORITY         | singed int       | 0            | Specify the runtime priority of a device among all devices that running a same network Refer to vpu_plugin_config.hpp. |
+| KEY_VPU_HDDL_RUNTIME_PRIORITY         | signed int       | 0            | Specify the runtime priority of a device among all devices that running a same network Refer to vpu_plugin_config.hpp. |
 
 ## See Also
 

@@ -22,7 +22,7 @@ from openvino.inference_engine import IECore, IENetwork
 
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, Node, PartialShape
-from ngraph.utils.types import NumericData, get_shape
+from ngraph.utils.types import NumericData, get_shape, get_dtype
 
 import tests
 
@@ -130,4 +130,10 @@ class Computation(object):
 
         request = executable_network.requests[0]
         request.infer(dict(zip(param_names, input_values)))
-        return [blob.buffer for blob in request.output_blobs.values()]
+
+        # Since OV overwrite result data type we have to convert results to the original one.
+        original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
+        result_buffers = [blob.buffer for blob in request.output_blobs.values()]
+        converted_buffers = [buffer.astype(original_dtype) for buffer, original_dtype in
+                             zip(result_buffers, original_dtypes)]
+        return converted_buffers

@@ -37,15 +37,13 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_STATIC_LIBRARY)
+target_compile_definitions(${TARGET_NAME} PRIVATE ngraph_EXPORTS)
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR}
-                                          PRIVATE ${NGRAPH_INCLUDE_PATH})
+target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::reference ALIAS ${TARGET_NAME})
 
 # developer package
-
-openvino_developer_export_targets(ngraph::reference)
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::reference)

@@ -67,13 +67,27 @@
 #define MAX(a, b)      ((a) > (b) ? (a) : (b))
 
 // Check alignment restrictions for using block writes on output.
-#define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * OUTPUT_BATCH_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
+#define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * TILE_OUT_B_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
 
 #if !REALIGN_FP16_OFFSET
-#   define MAIN_LOOP_ELEMENTS_COUNT  INPUT0_ELEMENTS_COUNT
+#   if OUTPUT_3D
+#       define MAIN_LOOP_ELEMENTS_COUNT  INPUT0_SIZE_Y
+#   else
+#       define MAIN_LOOP_ELEMENTS_COUNT  INPUT0_ELEMENTS_COUNT
+#   endif
 #else
 // For REALIGN_FP16_OFFSET one feature is processed separately before entering main loop to correct alignment.
-#   define MAIN_LOOP_ELEMENTS_COUNT (INPUT0_ELEMENTS_COUNT - 1)
+#   if OUTPUT_3D
+#       define MAIN_LOOP_ELEMENTS_COUNT  (INPUT0_SIZE_Y - 1)
+#   else
+#       define MAIN_LOOP_ELEMENTS_COUNT (INPUT0_ELEMENTS_COUNT - 1)
+#   endif
+#endif
+
+#if OUTPUT_3D
+#   define INPUT_ELEMENTS_COUNT INPUT0_SIZE_Y
+#else
+#   define INPUT_ELEMENTS_COUNT INPUT0_ELEMENTS_COUNT
 #endif
 
 __attribute__((intel_reqd_sub_group_size(SIMD)))
@@ -97,25 +111,24 @@ KERNEL(fc)(
     // full dispatch pipeline.
     uint feature_mini_block = gid % DISPATCH_FSV;
     uint batch_mini_block = gid / DISPATCH_FSV % DISPATCH_BSV;
-    uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(OUTPUT_FEATURE_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
-    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(OUTPUT_FEATURE_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
 
     uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (TILE_OFM * SIMD);
-    uint out_b = (batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B;
+    uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
 
     ACCUMULATOR_VEC_TYPE acc[TILE_B] = { };
     INPUT_VEC_TYPE       in_0[TILE_B] = { };
 
     FILTER_VEC_TYPE wei = 0;
-
-    uint weights_offset = out_f * INPUT0_ELEMENTS_COUNT;
-    uint input_offset = out_b * INPUT0_BATCH_PITCH + INPUT0_OFFSET;
+    uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
+    uint weights_offset = out_f * INPUT_ELEMENTS_COUNT;
 
 #if REALIGN_FP16_OFFSET
     // For fp16 we need to ensure that all block reads are aligned to 4 byte (2 words) boundary.
     // To do this solve first input feature separately.
     {
-        INPUT0_TYPE tmp_input = input[input_offset + get_sub_group_local_id() % TILE_B * INPUT0_BATCH_PITCH];
+        INPUT0_TYPE tmp_input = input[input_offset + get_sub_group_local_id() % TILE_B * TILE_IN_B_PITCH];
         MAKE_VECTOR_TYPE(FILTER_TYPE, TILE_OFM) tmp_wei = BLOCK_READN(FILTER_TYPE, TILE_OFM, weights, weights_offset);
 
         __attribute__((opencl_unroll_hint))
@@ -135,13 +148,12 @@ KERNEL(fc)(
         // Load input.
         #define LOAD_IN_0(bi) do {                                  \
                 in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += INPUT0_BATCH_PITCH;                 \
+                input_offset += TILE_IN_B_PITCH;                    \
             } while (false)
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - INPUT0_BATCH_PITCH * TILE_B;
-
+        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
@@ -172,13 +184,12 @@ KERNEL(fc)(
     {
         #define LOAD_IN_0(bi) do {                                  \
                 in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += INPUT0_BATCH_PITCH;                 \
+                input_offset += TILE_IN_B_PITCH;                    \
             } while (false)
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - INPUT0_BATCH_PITCH * TILE_B;
-
+        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
         __attribute__((opencl_unroll_hint))
         for (uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
             wei = FILTER_BLOCK_READ(weights, weights_offset);
@@ -210,7 +221,7 @@ KERNEL(fc)(
     }
 
 #if BIAS_TERM
-    #if OUTPUT_FEATURE_NUM % (TILE_OFM * SIMD) == 0
+    #if TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0
         BIAS_VEC_TYPE bias = BIAS_BLOCK_READ(biases, out_f);
     #else
         BIAS_VEC_TYPE bias = 0;
@@ -242,12 +253,12 @@ KERNEL(fc)(
 #endif
     // =====================================================================================================================================
     // Write results
-    uint output_offset = out_f * OUTPUT_FEATURE_PITCH + out_b * OUTPUT_BATCH_PITCH + OUTPUT_OFFSET;
+    uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
 
-    if (USE_BLOCK_WRITE && (OUTPUT_FEATURE_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= OUTPUT_FEATURE_NUM)) {
+    if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
         #define WRITE_OUTPUT(bi) do {                                       \
                 OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
-                output_offset += OUTPUT_BATCH_PITCH;                        \
+                output_offset += TILE_OUT_B_PITCH;                          \
             } while (false)
 
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
@@ -258,8 +269,8 @@ KERNEL(fc)(
         // TODO: Investigate why below code doesn't compile and check how it affects performance.
         //#define WRITE_OUTPUT_FEATURE(fi) do {                                                   \
         //        const bool should_write =                                                       \
-        //            OUTPUT_FEATURE_NUM %  (TILE_OFM * SIMD) == 0 ||                             \
-        //            out_f + (fi) * SIMD + get_sub_group_local_id() < OUTPUT_FEATURE_NUM;        \
+        //            TILE_OUT_F_NUM %  (TILE_OFM * SIMD) == 0 ||                                 \
+        //            out_f + (fi) * SIMD + get_sub_group_local_id() < TILE_OUT_F_NUM;            \
         //        if (should_write) {                                                             \
         //            output[output_offset] = result[out_bi][fi];                                 \
         //        }                                                                               \
@@ -269,7 +280,7 @@ KERNEL(fc)(
         //#define WRITE_OUTPUT(bi) do {                                                           \
         //        const uint out_bi = bi;                                                         \
         //        CONST_LOOP(TILE_OFM, WRITE_OUTPUT_FEATURE);                                     \
-        //        output_offset += OUTPUT_BATCH_PITCH - TILE_OFM * SIMD;                          \
+        //        output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;                            \
         //    } while (false)
         //
         //CONST_LOOP(TILE_B, WRITE_OUTPUT);
@@ -279,14 +290,14 @@ KERNEL(fc)(
         for (uint bi = 0; bi < TILE_B; ++bi) {
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
-                    OUTPUT_FEATURE_NUM %  (TILE_OFM * SIMD) == 0 ||
-                    out_f + fi * SIMD + get_sub_group_local_id() < OUTPUT_FEATURE_NUM;
+                    TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
+                    out_f + fi * SIMD + get_sub_group_local_id() < TILE_OUT_F_NUM;
                 if (should_write) {
                     output[output_offset] = ((OUTPUT_TYPE*)(&result[bi]))[fi];
                 }
                 output_offset += SIMD;
             }
-            output_offset += OUTPUT_BATCH_PITCH - TILE_OFM * SIMD;
+            output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
     // =====================================================================================================================================

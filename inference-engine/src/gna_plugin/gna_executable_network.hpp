@@ -40,7 +40,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         _networkOutputs = plg->GetOutputs();
     }
 
-    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
+    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->LoadNetwork(network);
     }
@@ -49,7 +49,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         : GNAExecutableNetwork(aotFileName, std::make_shared<GNAPlugin>(config)) {
     }
 
-    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config)
+    GNAExecutableNetwork(InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config)
         : GNAExecutableNetwork(network, std::make_shared<GNAPlugin>(config)) {
     }
 
@@ -59,12 +59,13 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         return std::make_shared<GNAInferRequest>(plg, networkInputs, networkOutputs);
     }
 
-
-
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState() override {
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr>  QueryState() override {
+        IE_SUPPRESS_DEPRECATED_START
         auto pluginStates = plg->QueryState();
-        std::vector<InferenceEngine::IMemoryStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
+        std::vector<InferenceEngine::IVariableStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());
         return plg->QueryState();
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     void Export(const std::string &modelFileName) override {

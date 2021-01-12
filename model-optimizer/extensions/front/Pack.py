@@ -15,9 +15,10 @@
 """
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph
+from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Node, Graph, rename_nodes
 from mo.ops.concat import Concat
-from mo.ops.expand_dims import ExpandDims
+from mo.ops.unsqueeze import Unsqueeze
 
 
 class Pack(FrontReplacementOp):
@@ -25,15 +26,15 @@ class Pack(FrontReplacementOp):
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
-        out_node = Concat(graph, {'axis': node.axis, 'in_ports_count': len(node.in_ports()),
-                                  'name': node.name + '/Concat_', }).create_node()
+        out_node = Concat(graph, {'axis': node.axis, 'in_ports_count': len(node.in_ports())}).create_node()
+        pack_name = node.soft_get('name', node.id)
 
         for ind in node.in_ports():
-            expand_dims_node = ExpandDims(graph, {'expand_axis': int64_array([node.axis]),
-                                                  'name': node.name + '/ExpandDims_'}).create_node()
-            node.in_port(ind).get_connection().set_destination(expand_dims_node.in_port(0))
-            expand_dims_node.out_port(0).connect(out_node.in_port(ind))
-        # Replace edge from out port 0 of the matched node with a edge from node out_node.id with port 0.
-        # The "explicit" version of the return value is: [(out_node.id, 0)])
+            unsqueeze_node = create_op_with_const_inputs(graph, Unsqueeze, {1: int64_array([node.axis])},
+                                                         {'name': node.soft_get('name', node.id) + '/Unsqueeze'})
+            node.in_port(ind).get_connection().set_destination(unsqueeze_node.in_port(0))
+            unsqueeze_node.out_port(0).connect(out_node.in_port(ind))
+
+        rename_nodes([(node, pack_name + '/TBR'), (out_node, pack_name)])
         return [out_node.id]
 

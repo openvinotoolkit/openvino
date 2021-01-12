@@ -44,10 +44,10 @@
   * **Default value**: None
   * **Required**: *yes*
   
-* *exclude_pad*
+* *exclude-pad*
 
-  * **Description**: *exclude_pad* is a type of pooling strategy for values in the padding area. For example, if *exclude_pad* is "true", zero-values in the padding are not used.
-  * **Range of values**: True or False
+  * **Description**: *exclude-pad* is a type of pooling strategy for values in the padding area. For example, if *exclude-pad* is "true", zero-values in the padding are not used.
+  * **Range of values**: true or false 
   * **Type**: boolean
   * **Default value**: None
   * **Required**: *yes*
@@ -64,7 +64,7 @@
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
-    * None (not specified): use explicit padding values.
+    * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
     * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
   * **Type**: string
@@ -78,15 +78,15 @@
 
 **Mathematical Formulation**
 
-    \f[
-    output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
-    \f]
+\f[
+output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
+\f]
 
 **Example**
 
 ```xml
 <layer ... type="AvgPool" ... >
-        <data auto_pad="same_upper" exclude_pad="true" kernel="3,3" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+        <data auto_pad="same_upper" exclude-pad="true" kernel="3,3" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
         <input> ... </input>
         <output> ... </output>
 </layer>

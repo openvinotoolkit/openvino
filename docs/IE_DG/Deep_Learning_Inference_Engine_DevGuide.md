@@ -10,7 +10,7 @@ and mixed-reality headsets.
 The OpenVINO™ toolkit:
 
 * Enables CNN-based deep learning inference on the edge
-* Supports heterogeneous execution across an Intel&reg; CPU, Intel&reg; Integrated Graphics, Intel&reg; Movidius&trade; Neural Compute Stick and Intel&reg; Neural Compute Stick 2
+* Supports heterogeneous execution across an Intel&reg; CPU, Intel&reg; Integrated Graphics, Intel&reg; Neural Compute Stick 2
 * Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
 * Includes optimized calls for computer vision standards including OpenCV\*, OpenCL&trade;, and OpenVX\*
 
@@ -35,7 +35,7 @@ optimized for running on Intel® hardware (CPU, GPU, IPU).
 This Guide provides overview of the Inference Engine describing the typical workflow for performing
 inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
-> **NOTES:** 
+> **NOTES:**
 > - Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_intel_index).
 > - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 

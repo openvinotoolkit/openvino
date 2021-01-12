@@ -32,39 +32,33 @@ namespace minop
     bool evaluate(const HostTensorPtr& arg,
                   const HostTensorPtr& out,
                   const AxisSet& axes,
-                  bool keep_dims)
+                  const bool keep_dims)
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::min(
-            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
         return true;
     }
 
     bool evaluate_min(const HostTensorPtr& arg,
                       const HostTensorPtr& out,
                       const AxisSet& axes,
-                      bool keep_dims)
+                      const bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(i64)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(u32)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(u64)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f32)(arg, out, axes, keep_dims);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_min, i32, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, i64, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, u32, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, u64, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, f16, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, f32, arg, out, axes, keep_dims);
         default: rc = false; break;
         }
         return rc;
     }
-}
+} // namespace minop
 
 constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
 
@@ -78,6 +72,7 @@ op::v1::ReduceMin::ReduceMin(const Output<Node>& arg,
 
 shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_ReduceMin_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::ReduceMin>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -85,6 +80,6 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMin::evaluate");
+    NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate);
     return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

@@ -5,6 +5,8 @@
 #include "vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp"
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
 
+NGRAPH_RTTI_DEFINITION(vpu::MergeSubsequentDSROperations, "MergeSubsequentDSROperations", 0);
+
 namespace vpu {
 
 MergeSubsequentDSROperations::MergeSubsequentDSROperations() : ngraph::pass::GraphRewrite() {
@@ -29,7 +31,9 @@ MergeSubsequentDSROperations::MergeSubsequentDSROperations() : ngraph::pass::Gra
         ngraph::pattern::has_class<ngraph::vpu::op::DynamicShapeResolver>());
 
     const auto& matcher = std::make_shared<ngraph::pattern::Matcher>(label, "MergeSubsequentDSROperations");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     add_matcher(matcher, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace vpu

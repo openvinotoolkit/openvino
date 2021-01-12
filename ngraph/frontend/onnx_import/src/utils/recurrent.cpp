@@ -25,7 +25,7 @@
 #include "ngraph/enum_names.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "recurrent.hpp"
+#include "onnx_import/utils/recurrent.hpp"
 
 namespace ngraph
 {
@@ -66,7 +66,8 @@ namespace ngraph
                     auto bias = ng_inputs.at(3);
                     auto split_bias = builder::opset1::split(bias, 2, 1);
                     NGRAPH_SUPPRESS_DEPRECATED_START
-                    m_map[OpInput::B] = split_bias.at(0) + split_bias.at(1);
+                    m_map[OpInput::B] =
+                        std::make_shared<ngraph::op::v1::Add>(split_bias.at(0), split_bias.at(1));
                     NGRAPH_SUPPRESS_DEPRECATED_END
                 }
                 else

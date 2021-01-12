@@ -16,6 +16,7 @@
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpu/ngraph/operations/static_shape_topk.hpp>
+#include <vpu/ngraph/utilities.hpp>
 
 namespace {
 
@@ -98,22 +99,13 @@ protected:
 
         ngraph::OutputVector first_shape_part, second_shape_part;
         if (topk_setup.first_split_point) {
-            std::vector<int64_t> idxs(topk_setup.first_split_point);
-            std::iota(idxs.begin(), idxs.end(), 0);
-            first_shape_part.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            first_shape_part.push_back(vpu::gatherShapeElements(dims, 0, topk_setup.first_split_point));
         }
         if (topk_setup.first_split_point + 1 < topk_setup.data_shape.size()) {
-            std::vector<int64_t> idxs(topk_setup.data_shape.size() - topk_setup.second_split_point);
-            std::iota(idxs.begin(), idxs.end(), topk_setup.second_split_point);
-            second_shape_part.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            second_shape_part.push_back(vpu::gatherShapeElements(
+                dims,
+                topk_setup.second_split_point,
+                topk_setup.data_shape.size() - topk_setup.second_split_point));
         }
         ngraph::OutputVector results, converted;
         ngraph::Output<ngraph::Node> k_0D = k;
@@ -208,22 +200,13 @@ protected:
 
         ngraph::OutputVector first_shape_part, second_shape_part;
         if (topk_setup.first_split_point) {
-            std::vector<int64_t> idxs(topk_setup.first_split_point);
-            std::iota(idxs.begin(), idxs.end(), 0);
-            first_shape_part.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            first_shape_part.push_back(vpu::gatherShapeElements(dims, 0, topk_setup.first_split_point));
         }
         if (topk_setup.first_split_point + 1 < topk_setup.data_shape.size()) {
-            std::vector<int64_t> idxs(topk_setup.data_shape.size() - topk_setup.second_split_point);
-            std::iota(idxs.begin(), idxs.end(), topk_setup.second_split_point);
-            second_shape_part.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            second_shape_part.push_back(vpu::gatherShapeElements(
+                dims,
+                topk_setup.second_split_point,
+                topk_setup.data_shape.size() - topk_setup.second_split_point));
         }
         ngraph::Output<ngraph::Node> k_0D = k;
         if (node->get_input_element_type(1)!= ngraph::element::i64) {
