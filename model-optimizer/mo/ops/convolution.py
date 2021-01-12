@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -52,22 +52,26 @@ class Convolution(Op):
                 pad = [0 for _ in pad]
             return ','.join(map(str, pad))
 
-        return [
-            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
-            ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
-            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-            ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
-            ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
+        if self.get_type() =='BinaryConvolution':
+            return [
+                # for BinaryConvolution only
+                'pad_value',
+                'mode',
+            ]
 
-            # for Backpropdata operations only - according to spec
-            ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
-                if node.has_valid('output_padding') and node.type in
-                    ('GroupConvolutionBackpropData', 'ConvolutionBackpropData') else None),
+        else:
+            return [
+                ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
+                ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
+                ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+                ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
+                ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
 
-            # for BinaryConvolution only
-            'pad_value',
-            'mode',
-        ]
+                # for Backpropdata operations only - according to spec
+                ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
+                    if node.has_valid('output_padding') and node.type in
+                        ('GroupConvolutionBackpropData', 'ConvolutionBackpropData') else None),
+            ]
 
     @staticmethod
     def calc_convolution(input_spatial_shape, stride_spatial_shape, pad_spatial_shape, kernel_extent):
