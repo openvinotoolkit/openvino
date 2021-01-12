@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2020-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -36,6 +36,10 @@ class CTCLoss(Op):
 
             'in_ports_count': 5,
             'out_ports_count': 1,
+
+            'preprocess_collapse_repeated': False,
+            'ctc_merge_repeated': True,
+            'unique': False
         }
         super().__init__(graph, mandatory_props, attrs)
 

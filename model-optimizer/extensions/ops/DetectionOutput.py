@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -37,6 +37,9 @@ class DetectionOutput(Op):
             'input_height': 1,
             'normalized': 1,
             'share_location': 1,
+            'clip_after_nms': 0,
+            'clip_before_nms': 0,
+            'decrease_label_id': 0,
             'variance_encoded_in_target': 0,
             'type_infer': self.type_infer,
         }, attrs)

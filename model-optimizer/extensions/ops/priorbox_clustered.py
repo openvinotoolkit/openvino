@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ class PriorBoxClusteredOp(Op):
             'out_ports_count': 1,
             'infer': self.priorbox_clustered_infer,
             'type_infer': self.type_infer,
+            'clip': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
 

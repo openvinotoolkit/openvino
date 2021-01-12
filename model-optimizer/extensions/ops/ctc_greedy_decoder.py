@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -33,7 +33,9 @@ class CTCGreedyDecoderOp(Op):
             'reinterp_shape': True,
 
             'in_ports_count': 2,
-            'out_ports_count': 1
+            'out_ports_count': 1,
+
+            'ctc_merge_repeated': 1     # We use int value because we extract this attr as int
         }
         super().__init__(graph, mandatory_props, attrs)
 

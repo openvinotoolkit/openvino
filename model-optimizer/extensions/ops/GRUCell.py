@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -46,7 +46,8 @@ class GRUCell(Op):
             'out_ports_count': 1,
             'version': 'opset3',
             'wr_input_id': 2,
-            'gates_count': 3
+            'gates_count': 3,
+            'linear_before_reset': 'false'
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -57,7 +58,7 @@ class GRUCell(Op):
             'activation_alpha',
             'activation_beta',
             'clip',
-            ('linear_before_reset', lambda node: get_boolean_attr(node, 'linear_before_reset')),
+            'linear_before_reset',
         ]
 
     def backend_attrs(self):
@@ -67,7 +68,7 @@ class GRUCell(Op):
             'activation_alpha',
             'activation_beta',
             'clip',
-            'linear_before_reset',
+            ('linear_before_reset',  lambda node: get_boolean_attr(node, 'linear_before_reset')),
         ]
 
     @staticmethod

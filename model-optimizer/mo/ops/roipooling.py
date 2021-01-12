@@ -30,6 +30,7 @@ class ROIPooling(Op):
             'pooled_h': None,
             'pooled_w': None,
             'spatial_scale': 0.0625,
+            'method': 'max',
             'infer': roipooling_infer,
             'in_ports_count': 2,
             'out_ports_count': 1,

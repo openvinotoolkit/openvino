@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ class PriorBoxOp(Op):
             'op': self.op,
             'version': 'opset1',
             'flip': 1,
+            'scale_all_sizes': 1,
             'max_size': np.array([]),
             'min_size': np.array([]),
             'aspect_ratio': np.array([]),
