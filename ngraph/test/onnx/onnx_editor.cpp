@@ -150,3 +150,25 @@ NGRAPH_TEST(onnx_editor, elem_type_missing_in_input)
     const auto function_result = function->get_result();
     EXPECT_EQ(function_result->get_element_type(), element::i64);
 }
+
+NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/shapes__dynamic_rank_in_model.prototxt")};
+
+    // input A in the model doesn't have the "shape" field meaning it has dynamic rank
+    // it should still be possible to set such input's shape to some custom value
+    const auto expected_shape_of_A = PartialShape{1, 2};
+    EXPECT_NO_THROW(editor.set_input_shapes({{"A", expected_shape_of_A}}));
+
+    const auto function = onnx_import::import_onnx_model(editor);
+
+    const auto graph_inputs = function->get_parameters();
+    const auto input_a = std::find_if(
+        std::begin(graph_inputs),
+        std::end(graph_inputs),
+        [](const std::shared_ptr<op::Parameter> i) { return i->get_friendly_name() == "A"; });
+
+    ASSERT_NE(input_a, std::end(graph_inputs));
+    EXPECT_TRUE(input_a->get()->get_partial_shape().same_scheme(expected_shape_of_A));
+}

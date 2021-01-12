@@ -54,7 +54,7 @@ namespace
         return nullptr;
     }
 
-    void modify_input_type(ValueInfoProto& onnx_input, element::Type_t elem_type)
+    void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_type)
     {
         if (!onnx_input.has_type())
         {
@@ -85,12 +85,55 @@ namespace
             tensor_type->set_elem_type(NG_2_ONNX_TYPES.at(elem_type));
         }
     }
+
+    void modify_input_shape(ValueInfoProto& onnx_input, const PartialShape& new_shape)
+    {
+        if (!onnx_input.has_type())
+        {
+            throw ngraph_error(
+                "The input is malformed - it doesn't contain the 'type' field. Cannot change the "
+                "input shape. Input name: " +
+                onnx_input.name());
+        }
+
+        auto* type_proto = onnx_input.mutable_type();
+        if (!type_proto->has_tensor_type())
+        {
+            throw ngraph_error(
+                "The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                "change the input shape. Input name: " +
+                onnx_input.name());
+        }
+
+        auto* tensor_type = type_proto->mutable_tensor_type();
+        // if (tensor_type->has_shape()) {
+        //     tensor_type->clear_shape();
+        // }
+
+        if (new_shape.rank().is_dynamic())
+        {
+            // TODO
+        }
+        else
+        {
+            auto* tensor_shape = tensor_type->mutable_shape();
+            tensor_shape->clear_dim();
+
+            for (const auto& dim : static_cast<std::vector<Dimension>>(new_shape))
+            {
+                auto* new_dim = tensor_shape->add_dim();
+                new_dim->set_dim_value(dim.get_length());
+            }
+        }
+    }
 } // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
 struct onnx_import::ONNXModelEditor::Impl
 {
     ONNX_NAMESPACE::ModelProto m_model_proto;
+
+    Impl() = delete;
 
     Impl(const std::string& model_path)
         : m_model_proto{std::move(parse_from_file(model_path))}
@@ -128,8 +171,28 @@ void onnx_import::ONNXModelEditor::set_input_types(
         }
         else
         {
-            throw ngraph_error("Could not set a custom element type for input: " +
-                               input_desc.first +
+            throw ngraph_error(
+                "Could not set a custom element type for input: " + input_desc.first +
+                ". Such input was not found in the original ONNX model.");
+        }
+    }
+}
+
+void onnx_import::ONNXModelEditor::set_input_shapes(
+    const std::map<std::string, ngraph::PartialShape>& input_shapes)
+{
+    auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
+
+    for (const auto& input_desc : input_shapes)
+    {
+        auto* onnx_input = find_graph_input(*onnx_graph, input_desc.first);
+        if (onnx_input != nullptr)
+        {
+            modify_input_shape(*onnx_input, input_desc.second);
+        }
+        else
+        {
+            throw ngraph_error("Could not set custom shape for input: " + input_desc.first +
                                ". Such input was not found in the original ONNX model.");
         }
     }
