@@ -90,7 +90,9 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.set_callback(transformations_callback);
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.run_passes(nGraphFunc);
     }
 
@@ -99,15 +101,9 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
 
 std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
-    const ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations) {
+    const ngraph::pass::low_precision::LowPrecisionTransformations& transformations) {
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function);
     auto nGraphFunc = clonedNetwork->getFunction();
-
-    auto transformations = getLowPrecisionTransformationsNGraph(params);
-
-    for (auto& additionalTransformation : additionalTransformations.transformations) {
-        transformations.transformations.emplace(additionalTransformation.first, additionalTransformation.second);
-    }
 
     ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
     transformer.transform(nGraphFunc);
@@ -146,7 +142,9 @@ std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    NGRAPH_SUPPRESS_DEPRECATED_START
     manager.set_callback(transformations_callback);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     manager.run_passes(nGraphFunc);
 
     return clonedNetwork->getFunction();

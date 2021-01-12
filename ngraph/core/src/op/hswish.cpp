@@ -35,11 +35,13 @@ op::v4::HSwish::HSwish(const Output<Node>& arg)
 
 bool op::v4::HSwish::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_HSwish_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_HSwish_clone_with_new_inputs);
     return make_shared<op::v4::HSwish>(new_args.at(0));
 }
 
@@ -72,9 +74,6 @@ namespace hswish
 
 bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v4_HSwish_evaluate)
-    {
-        return hswish::evaluate_hswish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return false;
+    NGRAPH_OP_SCOPE(v4_HSwish_evaluate);
+    return hswish::evaluate_hswish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

@@ -49,6 +49,9 @@ set(SRC
     build_graph.cpp
     builder_autobroadcast.cpp
     check.cpp
+    conditional_compilation/ngraph_cc_collect.cpp
+    conditional_compilation/ngraph_cc_off.cpp
+    conditional_compilation/ngraph_cc_on.cpp
     constant.cpp
     constant_folding.cpp
     control_dependencies.cpp
@@ -194,37 +197,12 @@ set(SRC
     type_prop/top_k.cpp
     type_prop/transpose.cpp
     type_prop/unary_elementwise.cpp
+    type_prop/unary_ops.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
     util.cpp
 )
-
-# This code generates one source file per header file under ngraph/src where the source file
-# has just a single #include statement. This checks that each header in the source tree is
-# complete and self-contained so it can be included without requiring any other includes.
-set(DIRECTORIES_IGNORED runtime frontend)
-set(NGRAPH_MAIN_SRC_DIR "${CMAKE_SOURCE_DIR}/src/ngraph")
-file(GLOB_RECURSE LIST_RECURSE
-    "${NGRAPH_MAIN_SRC_DIR}/builder/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/codegen/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/descriptor/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/distributed/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/op/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/pass/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/state*.hpp")
-file(GLOB LIST
-    "${NGRAPH_MAIN_SRC_DIR}/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp")
-set(NGRAPH_HEADER_LIST ${LIST_RECURSE} ${LIST})
-list(APPEND NGRAPH_HEADER_LIST ${LIST})
-foreach(HEADER ${NGRAPH_HEADER_LIST})
-    file(RELATIVE_PATH OUT_PATH ${NGRAPH_MAIN_SRC_DIR} ${HEADER})
-    string(REGEX REPLACE "hpp$" "cpp" OUT_PATH ${OUT_PATH})
-    set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/include_test/${OUT_PATH}")
-    configure_file("header_standalone.in.cpp" ${OUT_FILE})
-    list(APPEND SRC ${OUT_FILE})
-endforeach()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -232,10 +210,13 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (ENABLE_MKL_DNN)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
+    list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
 endif()
+
 if (ENABLE_CLDNN)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
+    list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
@@ -294,6 +275,7 @@ set(MULTI_TEST_SRC
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
+    backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
@@ -404,11 +386,17 @@ target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
 
+if(UNIT_TESTS_DEPENDENCIES)
+    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
+endif()
+
 if(NGRAPH_ADDRESS_SANITIZER)
     add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
+                                        openvino::conditional_compilation 
+                                        openvino::itt 
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend
