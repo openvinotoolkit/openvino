@@ -237,12 +237,12 @@ std::string get_opset_name(
 
     auto special_opset = get_special_opset_for_op(n->get_type_name());
     if (!special_opset.empty()) {
-      return special_opset;
+        return special_opset;
     }
     // return the oldest opset name where node type is present
     for (int idx = 0; idx < opsets.size(); idx++) {
-      if (opsets[idx].get().contains_op_type(n)) {
-        return "opset" + std::to_string(idx + 1);
+        if (opsets[idx].get().contains_op_type(n)) {
+            return "opset" + std::to_string(idx + 1);
       }
     }
 
