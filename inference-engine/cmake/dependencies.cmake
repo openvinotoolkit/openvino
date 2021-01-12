@@ -103,19 +103,22 @@ if (THREADING STREQUAL "OMP")
                 ARCHIVE_WIN "iomp.zip"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_MAC "iomp_20190130_mac.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc")
     else()
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
