@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -83,16 +83,15 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
                               blank_index_type);
 
         const auto& blank_index_partial_shape = get_input_partial_shape(2);
-        NODE_VALIDATION_CHECK(this,
-                              blank_index_partial_shape.is_static(),
-                              "Expected static shape for the 'blank_index' input.");
-
-        Shape blank_index_shape = blank_index_partial_shape.to_shape();
-        NODE_VALIDATION_CHECK(this,
-                              ngraph::is_scalar(blank_index_shape) ||
+        if(blank_index_partial_shape.is_static())
+        {
+            Shape blank_index_shape = blank_index_partial_shape.to_shape();
+            NODE_VALIDATION_CHECK(this,
+                                  ngraph::is_scalar(blank_index_shape) ||
                                   (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),
-                              "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
-                              blank_index_shape);
+                                  "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
+                                  blank_index_shape);
+        }
     }
 
     // validate input shapes and compute output shape

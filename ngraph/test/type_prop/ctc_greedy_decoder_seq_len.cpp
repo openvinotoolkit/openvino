@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,22 +62,12 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_dinemic_bi)
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
     auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto BI = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    try
-    {
-        auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(
+    auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(
             P, I, BI, false, element::i64, element::i64);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect indices rank";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Expected static shape for the 'blank_index' input."));
-    }
-    catch (...)
-    {
-        FAIL() << "Rank check failed for unexpected reason";
-    }
+    ASSERT_EQ(G->get_output_element_type(0), element::i64);
+    ASSERT_EQ(G->get_output_element_type(1), element::i64);
+    ASSERT_EQ(G->get_output_shape(0), out_shape1);
+    ASSERT_EQ(G->get_output_shape(1), out_shape2);
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_output_static_shape1)
