@@ -63,9 +63,6 @@ Follow the steps below to run pre-trained Face Detection network using Inference
 2. Build the Object Detection Sample with the following command:
    ```sh
    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino/deployment_tools/inference_engine/samples/cpp
-   ```
-   
-   ```sh
    make -j2 object_detection_sample_ssd
    ```
 3. Download the pre-trained Face Detection model with the [Model Downloader tool](@ref omz_tools_downloader_README):
