@@ -7,6 +7,7 @@
 #include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+#include <ie_ngraph_utils.hpp>
 
 namespace {
 
@@ -37,6 +38,25 @@ using GatherParameters = std::tuple<
 
 class DSR_GatherBase : public testing::WithParamInterface<GatherParameters>,
                        public DSR_TestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<GatherParameters> obj) {
+        DataType dataType, idxType;
+        GatherTestCase gatherTestCase;
+        LayerTestsUtils::TargetDevice targetDevice;
+        std::tie(dataType, idxType, gatherTestCase, targetDevice) = obj.param;
+
+        std::ostringstream result;
+        result << "DT=" << dataType << "_";
+        result << "IT=" << idxType << "_";
+        result << "DataRealShape=" << CommonTestUtils::vec2str(gatherTestCase.inputShapes.shape) << "_";
+        result << "DataUBShape=" << CommonTestUtils::vec2str(gatherTestCase.inputShapes.upperBoundShape) << "_";
+        result << "IdxRealShape=" << CommonTestUtils::vec2str(gatherTestCase.inputShapes.shape) << "_";
+        result << "IdxUBShape=" << CommonTestUtils::vec2str(gatherTestCase.inputShapes.upperBoundShape) << "_";
+        result << "Axis=" << gatherTestCase.axis << "_";
+        result << "trgDev=" << targetDevice;
+        return result.str();
+    }
+
 protected:
     std::set<std::string> m_indicesInputNames;
 
@@ -89,7 +109,8 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherData, DSR_GatherDynamicDataStaticIdx,
                 GatherTestCase{DataShapeWithUpperBound{{800}, {1000}}, DataShapeWithUpperBound{{700}, {}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{800, 4}, {1000, 4}}, DataShapeWithUpperBound{{700}, {}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{800, 4}, {1000, 4}}, DataShapeWithUpperBound{{700}, {}}, -2}),
-        testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
+        testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        DSR_GatherBase::getTestCaseName);
 
 
 class DSR_GatherStaticDataDynamicIdx : public DSR_GatherBase {
@@ -100,6 +121,7 @@ protected:
         const auto& idxType = std::get<1>(parameters);
         const auto& gatherSetup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
+        outPrc = InferenceEngine::details::convertPrecision(inDataType);;
 
         const auto dataParam = std::make_shared<ngraph::opset3::Parameter>(inDataType, gatherSetup.inputShapes.shape);
         m_parameterVector.push_back(dataParam);
@@ -124,8 +146,10 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherIdx, DSR_GatherStaticDataDynamicIdx, 
         testing::Values(
                 GatherTestCase{DataShapeWithUpperBound{{1000}, {}}, DataShapeWithUpperBound{{800}, {1000}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{1000, 4}, {}}, DataShapeWithUpperBound{{800}, {1000}}, 0},
-                GatherTestCase{DataShapeWithUpperBound{{1000, 4}, {}}, DataShapeWithUpperBound{{800}, {1000}}, -2}),
-        testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
+                GatherTestCase{DataShapeWithUpperBound{{1000, 4}, {}}, DataShapeWithUpperBound{{800}, {1000}}, -2},
+                GatherTestCase{DataShapeWithUpperBound{{1, 3, 200, 304}, {}}, DataShapeWithUpperBound{{142, 64}, {300, 64}}, 2}),
+        testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        DSR_GatherBase::getTestCaseName);
 
 
 class DSR_GatherDynamicDataDynamicIdx : public DSR_GatherBase {
@@ -160,6 +184,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicGather, DSR_GatherDynamicDataDynamicIdx, te
                 GatherTestCase{DataShapeWithUpperBound{{800}, {1000}}, DataShapeWithUpperBound{{700}, {1000}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{800, 4}, {1000, 4}}, DataShapeWithUpperBound{{700}, {1000}}, 0},
                 GatherTestCase{DataShapeWithUpperBound{{800, 4}, {1000, 4}}, DataShapeWithUpperBound{{700}, {1000}}, -2}),
-        testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
+        testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+        DSR_GatherBase::getTestCaseName);
 
 }  // namespace
