@@ -375,9 +375,4 @@ INSTANTIATE_TEST_CASE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
-
-
-
-
 }  // namespace
-
