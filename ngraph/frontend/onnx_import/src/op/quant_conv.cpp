@@ -29,7 +29,7 @@
 #include "ngraph/strides.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
-#include "quant_conv.hpp"
+#include "onnx_import/op/quant_conv.hpp"
 
 namespace ngraph
 {
