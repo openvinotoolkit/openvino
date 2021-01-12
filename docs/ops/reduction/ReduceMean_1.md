@@ -37,7 +37,7 @@ Each element in the output is the result of arithmetic mean reduction operation 
 
     output[i0, i1, ..., iN] = mean[j0,..., jN](x[j0, ..., jN]))
 
-Where indices i0, ..., iN run through all valid indices for the 1st input and finding the arithmetic mean `mean[j0, ..., jN]` have `jk = ik` for those dimensions `k` that are not in the set of indices specified by the 2nd input of the operation. 
+Where indices i0, ..., iN run through all valid indices for the 1st input and finding the arithmetic mean `mean[j0, ..., jN]` have `jk = ik` for those dimensions `k` that are not in the set of indices specified by the 2nd input of the operation. Corner cases:
 
 1. When the 2nd input is an empty list, then this operation does nothing, it is an identity. 
 2. When the 2nd input contains all dimensions of the 1st input, this means that a single reduction value is calculated for entire input tensor. 
