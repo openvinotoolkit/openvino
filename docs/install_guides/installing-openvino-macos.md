@@ -77,9 +77,9 @@ The following steps will be covered:
 
 1. <a href="#Install-Core">Install the Intel® Distribution of OpenVINO™ Toolkit </a>.
 2. <a href="#set-the-environment-variables">Set the OpenVINO environment variables and (optional) Update to <code>.bash_profile</code></a>.
-4. <a href="#configure-the-model-optimizer">Configure the Model Optimizer</a>.
-8. <a href="#get-started">Get Started with Code Samples and Demo Applications</a>.
-6. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit</a>.
+3. <a href="#configure-the-model-optimizer">Configure the Model Optimizer</a>.
+4. <a href="#get-started">Get Started with Code Samples and Demo Applications</a>.
+5. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit</a>.
 
 ## <a name="Install-Core"></a>Install the Intel® Distribution of OpenVINO™ toolkit Core Components
 

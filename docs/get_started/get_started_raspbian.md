@@ -64,18 +64,16 @@ mkdir build && cd build
 ```sh
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino/deployment_tools/inference_engine/samples/cpp
 ```
-```sh
-make -j2 object_detection_sample_ssd
-```
-3. Download the pre-trained Face Detection model with the Model Downloader:
-
    ```sh
-   git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
-   cd open_model_zoo/tools/downloader
-   python3 -m pip install -r requirements.in
-   python3 downloader.py --name face-detection-adas-0001 
+   make -j2 object_detection_sample_ssd
    ```
-
+3. Download the pre-trained Face Detection model with the [Model Downloader tool](@ref omz_tools_downloader_README):
+```sh
+git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
+cd open_model_zoo/tools/downloader
+python3 -m pip install -r requirements.in
+python3 downloader.py --name face-detection-adas-0001 
+```
 4. Run the sample, specifying the model and path to the input image:
 ```sh
 ./armv7l/Release/object_detection_sample_ssd -m face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
@@ -91,11 +89,9 @@ Following are some basic guidelines for executing the OpenVINO™ workflow using
 source <INSTALL_DIR>/bin/setupvars.sh
 ``` 
 2. Have the directory path for the following:
-- Code Sample binaries
-- Media: Video or image. Many sources are available from which you can download video media to use the code samples and demo applications, like https://videos.pexels.com and https://images.google.com.
-- Model in the IR format (.bin and .xml files).
-
-
+   - Code Sample binaries
+   - Media: Video or image. Many sources are available from which you can download video media to use the code samples and demo applications, like https://videos.pexels.com and https://images.google.com.
+   - Model in the IR format (.bin and .xml files).
 ## Additional Resources
 
 Use these resources to learn more about the OpenVINO™ toolkit:
