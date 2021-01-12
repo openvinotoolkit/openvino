@@ -86,10 +86,10 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     size_t num_of_inputs = get_input_size();
     std::vector<Dimension> channels(num_of_inputs - 1);
 
-    size_t i = 1;
-    for (auto& channel : channels)
+    for (size_t i = 1; i < num_of_inputs; i++)
     {
-        auto current_shape = get_input_partial_shape(i++);
+        auto& channel = channels[i - 1];
+        auto current_shape = get_input_partial_shape(i);
         auto current_rank = current_shape.rank();
 
         if (current_rank.is_dynamic() || current_shape[1].is_dynamic())
