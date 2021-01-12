@@ -26,6 +26,7 @@
 #include <ngraph/runtime/reference/convert.hpp>
 #include <ngraph/runtime/reference/convolution.hpp>
 #include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
+#include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
 #include <ngraph/runtime/reference/cum_sum.hpp>
 #include <ngraph/runtime/reference/detection_output.hpp>
@@ -1558,6 +1559,23 @@ namespace
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::ctc_greedy_decoder<T>(inputs[0]->get_data_ptr<const T>(),
                                                   inputs[1]->get_data_ptr<const T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  inputs[0]->get_shape(),
+                                                  inputs[1]->get_shape(),
+                                                  outputs[0]->get_shape(),
+                                                  op->get_ctc_merge_repeated());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::ctc_greedy_decoder_seq_len<T>(inputs[0]->get_data_ptr<const T>(),
+                                                  inputs[1]->get_data_ptr<const T>(),
+                                                  inputs[2]->get_data_ptr<const T>(),
                                                   outputs[0]->get_data_ptr<T>(),
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
