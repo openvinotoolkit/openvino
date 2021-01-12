@@ -37,7 +37,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                NormalizeL2() = default;
+                NormalizeL2();
                 ///
                 /// \brief      Constructs a Normalize operation.
                 ///
