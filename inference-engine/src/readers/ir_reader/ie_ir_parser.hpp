@@ -77,7 +77,7 @@ private:
         std::vector<LayerPortData> inputPorts;
         std::vector<LayerPortData> outputPorts;
 
-        size_t getRealInputPortId(size_t id) {
+        size_t getRealInputPortId(size_t id) const {
             size_t real_id = 0;
             for (auto& it : inputPorts) {
                 if (it.portId == id) {
@@ -88,7 +88,7 @@ private:
             THROW_IE_EXCEPTION << "Can not find input port with id " << id << " in layer " << name;
         }
 
-        size_t getRealOutputPortId(size_t id) {
+        size_t getRealOutputPortId(size_t id) const {
             size_t real_id = 0;
             for (auto& it : outputPorts) {
                 if (it.portId == id) {

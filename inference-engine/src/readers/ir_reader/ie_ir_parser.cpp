@@ -330,10 +330,11 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
                 THROW_IE_EXCEPTION << "Attempt to access node " << e.fromLayerId << " that not in graph.";
             }
             auto& p_output = params[e.fromLayerId].params;
-            if (p.params.getRealInputPortId(e.toPortId) >= inputs.size())
+            size_t const realInputPortId = p.params.getRealInputPortId(e.toPortId);
+            if (realInputPortId >= inputs.size())
                 THROW_IE_EXCEPTION << p.params.type << " layer " << p.params.name << " with id: " << p.params.layerId
                     << " is inconsistent!";
-            inputs[p.params.getRealInputPortId(e.toPortId)] =
+            inputs[realInputPortId] =
                 input_node->output(p_output.getRealOutputPortId(e.fromPortId));
         }
 
@@ -693,12 +694,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
         auto const & opset = opsetIt->second;
 
-        if (!opset.contains_type_insensitive(type)) {
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
+        if (!ngraphNode) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
-
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
-        ngraphNode->set_friendly_name(params.name);
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets);
         if (ngraphNode->visit_attributes(visitor))
