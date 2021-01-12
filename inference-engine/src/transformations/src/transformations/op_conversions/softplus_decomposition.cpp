@@ -23,7 +23,7 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
         auto softplus_input = pattern_to_output.at(input);
         auto softplus_node = pattern_to_output.at(softplus).get_node_shared_ptr();
 
-        if (m_transformation_callback(softplus_node)) {
+        if (transformation_callback(softplus_node)) {
             return false;
         }
 

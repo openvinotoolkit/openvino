@@ -17,13 +17,13 @@
 #include <memory>
 #include "itt.hpp"
 
-#include "fake_quantize.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/op/maximum.hpp"
@@ -40,6 +40,12 @@ using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::FakeQuantize, "FakeQuantize", 0);
+
+op::FakeQuantize::FakeQuantize()
+    : FusedOp()
+    , m_levels()
+{
+}
 
 op::FakeQuantize::FakeQuantize(const Output<Node>& data,
                                const Output<Node>& input_low,

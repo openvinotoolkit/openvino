@@ -22,7 +22,7 @@ public:
         auto divide = std::make_shared<ngraph::pattern::op::Label>(
             element::f32, Shape{}, pattern::has_class<opset3::Divide>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-            if (m_transformation_callback(m.get_match_root()))
+            if (transformation_callback(m.get_match_root()))
             {
                 auto relu =
                     std::make_shared<ngraph::opset3::Relu>(m.get_match_root()->input_value(0));
@@ -179,7 +179,7 @@ public:
             std::make_shared<ngraph::pattern::op::Label>());
         //        element::f32, Shape{}, pattern::has_class<opset3::Divide>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-            if (m_transformation_callback(m.get_match_root()))
+            if (transformation_callback(m.get_match_root()))
             {
                 auto relu =
                     std::make_shared<ngraph::opset3::Relu>(m.get_match_root()->input_value(0));
@@ -204,7 +204,7 @@ public:
             std::make_shared<PrivateDivide>(std::make_shared<ngraph::pattern::op::Label>(),
                                             std::make_shared<ngraph::pattern::op::Label>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-            if (m_transformation_callback(m.get_match_root()))
+            if (transformation_callback(m.get_match_root()))
             {
                 auto tanh =
                     std::make_shared<ngraph::opset3::Tanh>(m.get_match_root()->input_value(0));

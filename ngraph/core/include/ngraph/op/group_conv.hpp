@@ -21,8 +21,6 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
@@ -95,6 +93,8 @@ namespace ngraph
                 PadType m_auto_pad;
             };
 
+            NGRAPH_SUPPRESS_DEPRECATED_START
+
             /// \brief Data batch backprop for batched convolution operation.
             class NGRAPH_API GroupConvolutionBackpropData : public op::util::FusedOp
             {
@@ -102,7 +102,7 @@ namespace ngraph
                 static constexpr NodeTypeInfo type_info{"GroupConvolutionBackpropData", 1};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a batched-convolution data batch-backprop operation.
-                GroupConvolutionBackpropData() = default;
+                GroupConvolutionBackpropData();
                 // clang-format off
                 //
                 // \brief      Constructs a batched-convolution data batch-backprop operation.
@@ -249,8 +249,8 @@ namespace ngraph
                 PadType m_auto_pad;
                 CoordinateDiff m_output_padding;
             };
+
+            NGRAPH_SUPPRESS_DEPRECATED_END
         } // namespace v1
     }     // namespace op
 } // namespace ngraph
-
-NGRAPH_SUPPRESS_DEPRECATED_END
