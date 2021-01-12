@@ -126,7 +126,6 @@ extensions/front/ExpandDimsToUnsqueeze.py
 extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
-extensions/front/FusedBatchNormTraining.py
 extensions/front/GeLUMerger_Erf.py
 extensions/front/GeLUMerger_Tanh.py
 extensions/front/global_pooling_to_reduce.py
@@ -545,6 +544,7 @@ extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputReshape.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
+extensions/middle/FusedBatchNormTraining.py
 extensions/middle/FuseReshapesSequence.py
 extensions/middle/fusings.py
 extensions/middle/GatherNdNormalizer.py

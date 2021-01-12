@@ -24,7 +24,7 @@ class BatchNormTraining(Op):
     BatchNormInference will be replaced by BatchNormInference after 
         FusedBatchNormTraining tranformation 
     """
-    op = 'BatchNormTraining'
+    op = 'batchNormTraining'
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):

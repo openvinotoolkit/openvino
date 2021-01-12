@@ -20,7 +20,7 @@ from extensions.ops.mvn import MVN
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
-from mo.front.common.replacement import FrontReplacementPattern
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
@@ -29,7 +29,7 @@ from extensions.ops.BatchNormInference import BatchNormInference
 batchNormAttrList = ['data_format', 'data_type', 'eps', 'fix_gamma', 'shape', 'value']
 
 
-class FusedBatchNormTraining(FrontReplacementPattern):
+class FusedBatchNormTraining(MiddleReplacementPattern):
     """
     Transformation looks for the BatchNorm layers in training mode and does the following:
     1. Fuses batch dimension with one of the spatial dimensions of the input to BatchNorm because batch normalization is
@@ -38,16 +38,21 @@ class FusedBatchNormTraining(FrontReplacementPattern):
     3. Reshape MVN output back to the original one.
     """
     enabled = True
-    # replacement_id = "Fused_Batch_Norm_is_training_true"
+    replacement_id = "Fused_Batch_Norm_is_training_true"
+    force_shape_inference = True
+    force_clean_up = True
     # transformation works for the NHWC layout because transformation inserts Reshape to fuse N and H dimensions
     graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
 
-    def find_and_replace_pattern(self, graph: Graph):
-        for bn_train_node in graph.get_op_nodes(op='BatchNormTraining'):
-            FusedBatchNormTraining.__replace_batch_norm_training_node(bn_train_node, graph)
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('op', dict(kind='op', op=lambda op: op in ['batchNormTraining']))],
+            edges=[]
+        )
 
-    @staticmethod
-    def __replace_batch_norm_training_node(bn_train_node: Node, graph: Graph):
+    def replace_pattern(self, graph: Graph, match: dict):
+        bn_train_node = match['op']
         additional_attrs = {}
         for batchNormAttr in batchNormAttrList:
             if bn_train_node.has(batchNormAttr):
@@ -60,9 +65,15 @@ class FusedBatchNormTraining(FrontReplacementPattern):
             bn_train_node.in_port(port_id).get_connection(). \
                 set_destination(node.in_port(port_id))
 
-        for port_id, _ in bn_train_node.out_nodes().items():
-            bn_train_node.out_port(port_id).get_connection(). \
-                set_source(node.out_port(port_id))
+        for port_id, out_node in bn_train_node.out_nodes().items():
+            if port_id == 0:
+                bn_train_node.out_port(port_id).get_connection().\
+                    set_source(node.out_port(port_id))
+                continue
+            in_connected_ports = out_node.input_ports_with(bn_train_node)
+            pass
+
+
 
         shape = node.in_port(1).data.get_shape()
         assert shape is not None, 'The shape of scale input of the BatchNorm node {} is not defined'.format(node.name)

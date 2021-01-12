@@ -20,7 +20,7 @@ import numpy as np
 from generator import generator, generate
 from mo.graph.graph import Graph as gr
 
-from extensions.front.FusedBatchNormTraining import FusedBatchNormTraining
+from extensions.middle.FusedBatchNormTraining import FusedBatchNormTraining
 from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.eliminate import shape_inference
 from mo.middle.passes.eliminate_test import build_graph
@@ -48,7 +48,7 @@ nodes_attributes = {
     'variance_data': {'value': None, 'shape': int64_array([]), 'kind': 'data'},
 
     'batchnorm_train': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'type': None, 'kind': 'op',
-                  'op': 'BatchNormTraining', 'eps': 1e-3},
+                  'op': 'batchNormTraining', 'eps': 1e-3},
     'batchnorm_train_data': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'kind': 'data'},
     
     'batchnorm': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'type': None, 'kind': 'op',
@@ -82,10 +82,7 @@ nodes_attributes = {
 
 @generator
 class FusedBatchNormTrainingTest(unittest.TestCase):
-    @generate(*[
-        'BatchNormTraining',
-    ])
-    def test_transformation(self, op: str):
+    def test_transformation(self):
         graph = build_graph(nodes_attributes,
                             [('placeholder', 'placeholder_data', {}),
                              ('scale', 'scale_data'),
