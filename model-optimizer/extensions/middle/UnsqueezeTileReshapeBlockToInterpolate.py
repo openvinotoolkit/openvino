@@ -21,7 +21,7 @@ from extensions.ops.activation_ops import Floor
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -94,7 +94,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         if len(input_shape_of_unsqueeze) not in {4, 5}:
             return
 
-        scale = np.array([second_input_of_tile.value[d_idx]], dtype=np.float32)
+        scale = float32_array([second_input_of_tile.value[d_idx]])
         axis = d_idx - 1
         axis_node = Const(graph, {'name': unsqueeze_name + '/axis', 'value': int64_array([axis])}).create_node()
 

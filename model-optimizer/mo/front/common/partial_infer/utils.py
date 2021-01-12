@@ -28,6 +28,10 @@ def float_array(l: list):
     return np.array(l, dtype=np.float64)
 
 
+def float32_array(l: list):
+    return np.array(l, dtype=np.float32)
+
+
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
     """
     Preparing necessary attributes for edges at input ports starting from start_port.
