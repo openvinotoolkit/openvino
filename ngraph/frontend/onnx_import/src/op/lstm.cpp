@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "lstm.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/enum_names.hpp"
@@ -36,6 +35,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/op/lstm.hpp"
 #include "onnx_import/op/lstm.hpp"
 
 namespace ngraph

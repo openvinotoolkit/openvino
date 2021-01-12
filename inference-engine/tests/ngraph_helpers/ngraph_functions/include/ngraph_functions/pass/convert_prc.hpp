@@ -55,7 +55,9 @@ private:
         };
 
         auto m = std::make_shared<ngraph::pattern::Matcher>(constant, "ConvertPrecision");
+        NGRAPH_SUPPRESS_DEPRECATED_START
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     void convert_parameters_precision() {
@@ -71,7 +73,9 @@ private:
         };
 
         auto m = std::make_shared<ngraph::pattern::Matcher>(constant, "ConvertPrecision");
+        NGRAPH_SUPPRESS_DEPRECATED_START
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 };
 }  // namespace pass

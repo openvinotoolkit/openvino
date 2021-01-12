@@ -138,6 +138,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
         {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
         {"GatherElements",                                     LAYER_PARSER(parseGatherElements)},
+        {"Round",                                              LAYER_PARSER(parseRound)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -150,10 +151,6 @@ ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
     VPU_LOGGER_SECTION(env.log);
 
     return runCommonPasses(network);
-}
-
-bool FrontEnd::isLayerSupported(const std::string& type) {
-    return parsers.count(type) != 0;
 }
 
 ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {

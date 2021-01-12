@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "space_to_depth.hpp"
+#include "onnx_import/op/space_to_depth.hpp"
 #include "onnx_import/default_opset.hpp"
 
 namespace ngraph

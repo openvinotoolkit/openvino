@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "hardmax.hpp"
+#include "onnx_import/op/hardmax.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/op/topk.hpp"
