@@ -30,11 +30,6 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-set_target_properties(${TARGET_NAME} PROPERTIES
-                      CXX_VISIBILITY_PRESET hidden
-                      C_VISIBILITY_PRESET hidden
-                      VISIBILITY_INLINES_HIDDEN ON)
-
 if(COMMAND ie_faster_build)
     ie_faster_build(${TARGET_NAME}
         UNITY
