@@ -38,7 +38,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                Clamp() = default;
+                Clamp();
                 /// \brief Constructs a Clamp node.
                 ///
                 /// \param data - Node producing the input tensor
