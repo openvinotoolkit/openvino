@@ -7,6 +7,7 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
+# include <ngraph/opsets/opset.hpp>
 # include <ie_ngraph_utils.hpp>
 # include <ngraph/opsets/opset.hpp>
 #endif  // IR_READER_V10
@@ -19,6 +20,7 @@
 #include <cctype>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -58,7 +60,7 @@ public:
     std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights) override;
 
 private:
-    std::map<std::string, ngraph::OpSet> opsets;
+    std::unordered_map<std::string, ngraph::OpSet> opsets;
     const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
