@@ -12,10 +12,16 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/concat.hpp>
-#include <low_precision/concat_multi_channels.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/split.hpp>
+#include <low_precision/align_quantization_parameters.hpp>
+#include <low_precision/align_quantization_intervals.hpp>
+#include <low_precision/propagate_precisions.hpp>
+#include <low_precision/markup_avg_pool_precision_preserved.hpp>
+#include <low_precision/markup_precisions.hpp>
+#include <low_precision/markup_per_tensor_quantization.hpp>
+#include "low_precision/common/operation_precision_restriction.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -92,12 +98,22 @@ public:
             testValues.actual.fakeQuantize2,
             addConvolution);
 
-        SimpleLowPrecisionTransformer transform;
-        if (testValues.multiChannels) {
-            transform.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
-        } else {
-            transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        }
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+               ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                   {0, testValues.params.precisionsOnActivations},
+                   {1, testValues.params.precisionsOnWeights},
+               })
+           });
+
+        auto quantizationRestrictions = testValues.multiChannels ?
+            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
+            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
+                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>()
+            });
+
+        SimpleLowPrecisionTransformer transform(supportedPrecisions, quantizationRestrictions);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params);
         transform.transform(actualFunction);
 

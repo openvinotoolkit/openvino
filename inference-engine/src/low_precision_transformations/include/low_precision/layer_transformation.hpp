@@ -41,7 +41,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API DataPrecision {
+class LP_TRANSFORMATIONS_API DataPrecision {
 public:
     DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
 
@@ -148,20 +148,27 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 // Base class for all LP transformations, holds some common data structures
-class TRANSFORMATIONS_API LayerTransformation {
+class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
 public:
     enum QuantizedTensorAlignment {
         None,
         UpdateLevel
     };
 
+    // TODO: LPT: not implemented: clean up ngraph::pass::low_precision::LayerTransformation::Params,
+    // use LayerTestsUtils::LayerTransformation::Params type instead:
+    //   - quantizedTensorAlignmentOnActivations
+    //   - quantizedTensorAlignmentOnWeights
+    //   - supportAsymmetricQuantization
+    //   - precisionsOnActivations
+    //   - precisionsOnWeights
     class Params {
     public:
         Params(
                 const bool updatePrecisions = true,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations = QuantizedTensorAlignment::UpdateLevel,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
-                bool supportAsymmetricQuantization = false,
+                bool supportAsymmetricQuantization = true,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
                 std::vector<element::Type> precisionsOnWeights = { element::i8 },
                 element::Type deqPrecision = element::f32,
@@ -250,11 +257,12 @@ public:
 
     LayerTransformation(const Params& params);
     virtual ~LayerTransformation() = default;
-    virtual void registerMatcherIn(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const = 0;
     virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const = 0;
 
+    void setParams(const Params& params);
     void setParamsManager(IParamsManager* paramsManager) noexcept;
     void setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept;
+    void setContext(TransformationContext* context) noexcept;
 
     void setUpdatePrecisions(const bool updatePrecisions);
     void setQuantizedTensorAlignmentOnActivations(const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
@@ -264,16 +272,13 @@ public:
     void setZeroThreshold(const float value);
     void setMinQuantizationLevels(const size_t levels);
 
-    const std::vector<element::Type>& getPrecisionsOnActivations() const;
-    const std::vector<element::Type>& getPrecisionsOnWeights() const;
-
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex = 0ul) const;
 
     bool canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const;
 
-    PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails) const;
+    static PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails);
 
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
@@ -284,10 +289,11 @@ public:
     // note: dequantization operations on activations are absent during method execution
     virtual bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept = 0;
 
+    // TODO: LPT: not completed: remove whole method
     DataPrecision getDataPrecision(
-            std::shared_ptr<Node> layer,
+            const std::shared_ptr<Node>& layer,
             const QuantizationDetails& quantizationDetails,
-            const bool onWeights) const;
+            const std::vector<element::Type>& precisions) const;
 
     void fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const;
 
@@ -306,8 +312,6 @@ protected:
     QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
     QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
     bool supportAsymmetricQuantization;
-    std::vector<element::Type> precisionsOnActivations;
-    std::vector<element::Type> precisionsOnWeights;
     element::Type deqPrecision;
     bool support3DTensorOnActivations;
     bool deconvolutionSpecificChannelsRatio;
@@ -321,6 +325,7 @@ protected:
     static const char originalLayerPostfix[];
     IParamsManager* paramsManager;
     ILayerTransformationsManager* layerTransformationsManager;
+    TransformationContext* context;
 
 protected:
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(

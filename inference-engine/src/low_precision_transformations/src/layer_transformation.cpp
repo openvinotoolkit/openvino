@@ -28,8 +28,6 @@ LayerTransformation::LayerTransformation(const Params& params) :
     quantizedTensorAlignmentOnActivations(params.quantizedTensorAlignmentOnActivations),
     quantizedTensorAlignmentOnWeights(params.quantizedTensorAlignmentOnWeights),
     supportAsymmetricQuantization(params.supportAsymmetricQuantization),
-    precisionsOnActivations(params.precisionsOnActivations),
-    precisionsOnWeights(params.precisionsOnWeights),
     deqPrecision(params.deqPrecision),
     support3DTensorOnActivations(params.support3DTensorOnActivations),
     deconvolutionSpecificChannelsRatio(params.deconvolutionSpecificChannelsRatio),
@@ -39,12 +37,20 @@ LayerTransformation::LayerTransformation(const Params& params) :
     paramsManager(nullptr),
     layerTransformationsManager(nullptr) {}
 
+void LayerTransformation::setParams(const Params& params) {
+    //
+}
+
 void LayerTransformation::setParamsManager(IParamsManager* paramsManager) noexcept {
     this->paramsManager = paramsManager;
 }
 
 void LayerTransformation::setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept {
     this->layerTransformationsManager = layerTransformationsManager;
+}
+
+void LayerTransformation::setContext(TransformationContext* context) noexcept {
+    this->context = context;
 }
 
 void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
@@ -59,14 +65,6 @@ void LayerTransformation::setQuantizedTensorAlignmentOnActivations(
 void LayerTransformation::setQuantizedTensorAlignmentOnWeights(
     const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights) {
     this->quantizedTensorAlignmentOnWeights = quantizedTensorAlignmentOnWeights;
-}
-
-const std::vector<element::Type>& LayerTransformation::getPrecisionsOnActivations() const {
-    return precisionsOnActivations;
-}
-
-const std::vector<element::Type>& LayerTransformation::getPrecisionsOnWeights() const {
-    return precisionsOnWeights;
 }
 
 bool LayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
@@ -213,7 +211,11 @@ void LayerTransformation::setMinQuantizationLevels(const size_t levels) {
     this->minQuantizationLevels = levels;
 }
 
-LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) const {
+LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) {
+    // TODO: workaround: hardcoded values
+    const float zeroThreshold = 1.e-6f;
+    const float quantizationIntervalAsymmetryThreshold = 0.002f;
+
     const float asymmetricIntervalSideRatio256 = -128.f / 127.f;
     bool hasNegative = false;
     bool signedPrecision = true;
@@ -263,6 +265,17 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
         }
     }
 
+    // TODO: use this implementation after merge <= not aligned with master
+//    if (signedPrecision && (!unsignedPrecision)) {
+//        return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
+//    }
+//
+//    if ((!signedPrecision) && unsignedPrecision) {
+//        return LayerTransformation::PrecisionDetails(element::u8, hasNegative, hasZeroPoint);
+//    }
+//
+//    THROW_TRANSFORMATION_EXCEPTION << "unexpected interval";
+
     if (!hasZeroPoint) {
         if (signedPrecision && (!unsignedPrecision)) {
             return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
@@ -281,52 +294,35 @@ bool LayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcep
 }
 
 DataPrecision LayerTransformation::getDataPrecision(
-        std::shared_ptr<Node> layer,
+        const std::shared_ptr<Node>& layer,
         const QuantizationDetails& quantizationDetails,
-        const bool onWeights) const {
+        const std::vector<element::Type>& precisions) const {
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif
-    std::vector<element::Type> precisions = onWeights ? precisionsOnWeights : precisionsOnActivations;
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
-    {
-        if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
-            if (!onWeights) {
-                fillAvailablePrecisions(layer, precisions);
-            }
-
-            // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
-            if (!precisions.empty()) {
-                const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
-                const element::Type resultPrecision = foundIt != precisions.end() ?
-                                                  precisionDetailsAtOutputIntervals.precision :
-                                                  *precisions.begin();
-
-                const DataPrecision dataPrecision(
-                        resultPrecision,
-                        DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
-                        DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
-                        foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
-
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-                printDequantizationInfo(dataPrecision);
-#endif
-                return dataPrecision;
-            }
-        }
+    if (precisionDetailsAtOutputIntervals.precision == element::undefined) {
+        THROW_TRANSFORMATION_EXCEPTION << "unexpected results";
     }
 
-    const DataPrecision dataPrecision = precisions.empty() ?
-                                        DataPrecision(element::undefined, 0.f, 0.f, false) :
-                                        DataPrecision(
-                                                *precisions.begin(),
-                                                DataPrecision::getMinValue(*precisions.begin(), quantizationDetails.levels),
-                                                DataPrecision::getMaxValue(*precisions.begin(), quantizationDetails.levels),
-                                                true);
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-    printDequantizationInfo(dataPrecision);
-#endif
-    return dataPrecision;
+    if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
+        // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
+        if (!precisions.empty()) {
+            const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
+            const element::Type resultPrecision = foundIt != precisions.end() ?
+                precisionDetailsAtOutputIntervals.precision :
+                *precisions.begin();
+
+            const DataPrecision dataPrecision(
+                resultPrecision,
+                DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
+                DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
+                foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+
+            return dataPrecision;
+        }
+    }
+    return DataPrecision(element::undefined, 0.f, 0.f, false);
 }
 
 void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const {
@@ -422,15 +418,27 @@ void LayerTransformation::updateOutput(
     TransformationContext &context,
     std::shared_ptr<ngraph::Node> lastNode,
     std::shared_ptr<ngraph::Node> originalNode) const {
-    const size_t outputSize = context.function->get_output_size();
-    for (size_t i = 0; i < outputSize; ++i) {
-        std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
-        std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
-        if (outputNode.get() == lastNode.get()) {
-            const std::string originalName = originalNode->get_friendly_name();
-            originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
-            lastNode->set_friendly_name(originalName);
-            break;
+    //const size_t outputSize = context.function->get_output_size();
+    //for (size_t i = 0; i < outputSize; ++i) {
+    //    std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
+    //    std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
+    //    if (outputNode.get() == lastNode.get()) {
+    //        const std::string originalName = originalNode->get_friendly_name();
+    //        originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
+    //        lastNode->set_friendly_name(originalName);
+    //        break;
+    //    }
+    //}
+
+    // TODO: not tested!!!
+    for (auto output : lastNode->outputs()) {
+        for (auto input : output.get_target_inputs()) {
+            if (is_type<ngraph::opset1::Result>(input.get_node())) {
+                const std::string originalName = originalNode->get_friendly_name();
+                originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
+                lastNode->set_friendly_name(originalName);
+                break;
+            }
         }
     }
 }
