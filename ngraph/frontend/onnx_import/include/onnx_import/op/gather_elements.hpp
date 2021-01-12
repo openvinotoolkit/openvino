@@ -33,11 +33,8 @@ namespace ngraph
                     auto data = ng_inputs.at(0);
                     auto indices = ng_inputs.at(1);
                     auto axis = node.get_attribute_value<int64_t>("axis", 0);
-                    const auto valid_axis = ngraph::normalize_axis(
-                        node.get_description(), axis, data.get_partial_shape().rank());
 
-                    return {std::make_shared<ngraph::op::v6::GatherElements>(
-                        data, indices, valid_axis)};
+                    return {std::make_shared<ngraph::op::v6::GatherElements>(data, indices, axis)};
                 }
             } // namespace set_1
         }     // namespace op
