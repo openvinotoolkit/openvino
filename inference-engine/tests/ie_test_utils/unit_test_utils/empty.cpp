@@ -13,7 +13,6 @@
 
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_default.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_internal.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_thread_safe_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_async_only.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_default.hpp"
