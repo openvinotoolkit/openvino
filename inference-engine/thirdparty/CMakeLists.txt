@@ -62,11 +62,10 @@ else()
     target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
 endif()
 
-add_subdirectory(stb_lib)
 add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi)
 
-set_target_properties(ade fluid stb_image PROPERTIES FOLDER thirdparty)
+set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 
 # developer package
 
