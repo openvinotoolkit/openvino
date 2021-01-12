@@ -32,7 +32,6 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj);
 protected:
     void SetUp() override;
-private:
-    void validate();
 };
+
 }  // namespace LayerTestsDefinitions

@@ -13,8 +13,8 @@ namespace low_precision {
 
 class LP_TRANSFORMATIONS_API GroupConvolutionTransformation : public ConvolutionTransformation {
 public:
-    GroupConvolutionTransformation(const Params& params);
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
+    NGRAPH_RTTI_DECLARATION;
+    GroupConvolutionTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool isQuantized(std::shared_ptr<Node> layer) const noexcept override;
 };

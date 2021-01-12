@@ -63,12 +63,6 @@ std::string LayerTransformation::toString(const ngraph::pass::low_precision::Lay
     return result.str();
 }
 
-void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) {
-    ngraph::pass::low_precision::LowPrecisionTransformations transformations = ngraph::pass::low_precision::LowPrecisionTransformer::getAllTransformations();
-    ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
-    transformer.transform(function);
-}
-
 std::string LayerTransformation::getTestCaseNameByParams(
     const ngraph::element::Type& type,
     const ngraph::Shape& shape,

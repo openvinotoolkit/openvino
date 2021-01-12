@@ -65,12 +65,6 @@ InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
     return FuncTestUtils::createAndFillBlobConsistently(tensorDesc, hight - low, static_cast<int32_t>(low), 1ul);
 }
 
-ngraph::pass::low_precision::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformerNGraph(
-    const ngraph::pass::low_precision::LayerTransformation::Params& params) const {
-    ngraph::pass::low_precision::LowPrecisionTransformer transformer(getLowPrecisionTransformationsNGraph(params));
-    return transformer;
-}
-
 std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngraph::element::Type precision) {
     const bool unsignedInterval = precision == ngraph::element::u8;
     const float low = unsignedInterval ? 0.f : -128.f;
