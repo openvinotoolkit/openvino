@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "broadcast_base.hpp"
+#include "ngraph/op/util/broadcast_base.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
@@ -155,6 +155,7 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
 
 void op::util::BroadcastBase::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_BroadcastBase_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto shape_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
@@ -361,7 +362,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate<ET>");
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes);
     runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
                                   out->get_data_ptr<char>(),
                                   arg0->get_shape(),
@@ -499,8 +500,7 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) con
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate");
-
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate);
     Shape target_shape = get_target_shape(inputs[1]);
 
     PartialShape result_shape;

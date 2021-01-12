@@ -338,61 +338,6 @@ CNNLayer::Ptr NodeConverter<ngraph::opset5::Loop>::createLayer(const std::shared
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Convert",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto p = details::convertPrecision(layer->get_output_element_type(0));
-    std::string precision_str;
-    switch (p) {
-    case Precision::FP16:
-        precision_str = "FP16";
-        break;
-    case Precision::BF16:
-        precision_str = "BF16";
-        break;
-    case Precision::FP32:
-        precision_str = "FP32";
-        break;
-    case Precision::FP64:
-        precision_str = "FP64";
-        break;
-    case Precision::I8:
-        precision_str = "I8";
-        break;
-    case Precision::I16:
-        precision_str = "I16";
-        break;
-    case Precision::I32:
-        precision_str = "I32";
-        break;
-    case Precision::I64:
-        precision_str = "I64";
-        break;
-    case Precision::U8:
-        precision_str = "U8";
-        break;
-    case Precision::U16:
-        precision_str = "U16";
-        break;
-    case Precision::U32:
-        precision_str = "U32";
-        break;
-    case Precision::U64:
-        precision_str = "U64";
-        break;
-    case Precision::BOOL:
-        precision_str = "BOOL";
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported type";
-    }
-
-    res->params["precision"] = precision_str;
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Ceiling>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Ceiling",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -454,23 +399,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Exp>::createLayer(const std::shared_ptr<
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::MVN>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "MVN", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::MVNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::MVN>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["eps"] = asString(castedLayer->get_eps());
-
-    const size_t chanelAxis = 1;
-    ngraph::AxisSet reductionAxes = castedLayer->get_reduction_axes();
-    res->params["across_channels"] = asString(reductionAxes.count(chanelAxis) > 0);
-
-    res->params["normalize_variance"] = asString(castedLayer->get_normalize_variance());
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::CropIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Crop",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -503,29 +431,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::CropIE>::createLayer(const std::shared_p
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::Subtract>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Eltwise",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
-    res->params["operation"] = "sub";
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::Maximum>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Eltwise",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
     res->params["operation"] = "max";
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::Minimum>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Eltwise",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
-    res->params["operation"] = "min";
     return res;
 }
 
@@ -570,208 +480,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v0::Unsqueeze>::createLayer(const std::s
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformableConvolution>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "DeformableConvolution",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::DeformableConvolutionLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::DeformableConvolution>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_pads_begin()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_begin"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_pads_end()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_end"] = value;
-
-    switch (castedLayer->get_auto_pad()) {
-        case ngraph::op::PadType::SAME_UPPER:
-            res->params["auto_pad"] = "same_upper";
-            break;
-        case ngraph::op::PadType::SAME_LOWER:
-            res->params["auto_pad"] = "same_lower";
-            break;
-        case ngraph::op::PadType::VALID:
-            res->params["auto_pad"] = "valid";
-            break;
-        default:
-            break;
-    }
-
-    value.clear();
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["strides"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_dilations()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["dilations"] = value;
-
-    // Restore kernel size and output
-    const auto& shape = castedLayer->get_input_shape(2);
-    res->params["output"] = asString(shape[0]);
-
-    value.clear();
-    for (size_t i = 2; i < shape.size(); i++) {
-        if (!value.empty()) value += ",";
-        value += asString(shape[i]);
-    }
-    res->params["kernel"] = value;
-
-    res->params["group"] = asString(castedLayer->get_group());
-    res->params["deformable_group"] = asString(castedLayer->get_deformable_group());
-
-    const auto weightsNode = castedLayer->input_value(2).get_node_shared_ptr();
-    InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::AvgPool>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Pooling",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::PoolingLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::AvgPool>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_pads_begin()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_begin"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_pads_end()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_end"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["strides"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_kernel()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["kernel"] = value;
-
-    switch (castedLayer->get_auto_pad()) {
-    case ngraph::op::PadType::VALID:
-        res->params["auto_pad"] = "valid";
-        break;
-    case ngraph::op::PadType::SAME_UPPER:
-        res->params["auto_pad"] = "same_upper";
-        break;
-    case ngraph::op::PadType::SAME_LOWER:
-        res->params["auto_pad"] = "same_lower";
-        break;
-    default:
-        break;
-    }
-
-    auto exclude_pad = castedLayer->get_exclude_pad();
-    res->params["exclude-pad"] = exclude_pad ? "true" : "false";
-    res->params["pool-method"] = "avg";
-    switch (castedLayer->get_rounding_type()) {
-    case ngraph::op::RoundingType::CEIL:
-        res->params["rounding_type"] = "ceil";
-        break;
-    case ngraph::op::RoundingType::FLOOR:
-        res->params["rounding_type"] = "floor";
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported ngraph rounding type.";
-    }
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::MaxPool>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Pooling",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::PoolingLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::MaxPool>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_pads_begin()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_begin"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_pads_end()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_end"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["strides"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_kernel()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["kernel"] = value;
-    res->params["pool-method"] = "max";
-
-    switch (castedLayer->get_auto_pad()) {
-    case ngraph::op::PadType::VALID:
-        res->params["auto_pad"] = "valid";
-        break;
-    case ngraph::op::PadType::SAME_UPPER:
-        res->params["auto_pad"] = "same_upper";
-        break;
-    case ngraph::op::PadType::SAME_LOWER:
-        res->params["auto_pad"] = "same_lower";
-        break;
-    default:
-        break;
-    }
-
-    switch (castedLayer->get_rounding_type()) {
-    case ngraph::op::RoundingType::CEIL:
-        res->params["rounding_type"] = "ceil";
-        break;
-    case ngraph::op::RoundingType::FLOOR:
-        res->params["rounding_type"] = "floor";
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported ngraph rounding type.";
-    }
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::PSROIPooling>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "PSROIPooling",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -786,31 +494,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PSROIPooling>::createLayer(const std::sh
     res->params["spatial_scale"] = asString(castedLayer->get_spatial_scale());
     res->params["mode"] = castedLayer->get_mode();
 
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformablePSROIPooling>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "PSROIPooling",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::DeformablePSROIPooling>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["output_dim"] = asString(castedLayer->get_output_dim());
-    res->params["group_size"] = asString(castedLayer->get_group_size());
-    res->params["spatial_bins_x"] = asString(castedLayer->get_spatial_bins_x());
-    res->params["spatial_bins_y"] = asString(castedLayer->get_spatial_bins_y());
-    res->params["spatial_scale"] = asString(castedLayer->get_spatial_scale());
-    res->params["mode"] = castedLayer->get_mode();
-    res->params["trans_std"] = asString(castedLayer->get_trans_std());
-    res->params["part_size"] = asString(castedLayer->get_part_size());
-    res->params["no_trans"] = layer->get_input_size() == 2 ? "1" : "0";
-
-    // temporary workaround due to incorrect usage of group_size in the nGraph operation for the DeformablePSROIPooling
-    res->params["pooled_height"] = asString(castedLayer->get_group_size());
-    res->params["pooled_width"] = asString(castedLayer->get_group_size());
     return res;
 }
 
@@ -1249,19 +932,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NormalizeIE>::createLayer(const std::sha
         res->blobs["weights"] = dataBlob;
     }
 
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::CTCGreedyDecoder>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "CTCGreedyDecoder",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::CTCGreedyDecoder>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["ctc_merge_repeated"] = castedLayer->get_ctc_merge_repeated() ? "1" : "0";
     return res;
 }
 

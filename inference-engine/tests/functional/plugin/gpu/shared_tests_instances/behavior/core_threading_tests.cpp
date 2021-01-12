@@ -23,15 +23,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    const FuncTestUtils::TestModel::TestModel models[] = {
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
-    };
     std::vector<InferenceEngine::CNNNetwork> networks;
-    for (auto & model : models) {
-        networks.emplace_back(ie.ReadNetwork(model.model_xml_str, model.weights_blob));
-    }
-
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
@@ -52,5 +44,6 @@ INSTANTIATE_TEST_CASE_P(smoke_GPU, CoreThreadingTests, testing::ValuesIn(params)
 INSTANTIATE_TEST_CASE_P(smoke_GPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(4),
-                     testing::Values(20)),
+                     testing::Values(20),
+                     testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);

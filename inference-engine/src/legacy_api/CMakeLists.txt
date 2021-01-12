@@ -79,10 +79,6 @@ ie_add_manifest(TARGET_NAME ${TARGET_NAME}
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-# export targets
-
-export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
-
 # developer package
 
 ie_developer_export_targets(${TARGET_NAME})

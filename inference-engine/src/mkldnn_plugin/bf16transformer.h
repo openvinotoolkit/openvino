@@ -22,13 +22,13 @@ class BF16Transformer {
           "broadcast", "convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "concat", "power", "lrn",
           "permute", "ScatterUpdate", "ScatterElementsUpdate", "ScatterNDUpdate", "depthwise",
           "select", "ShuffleChannels", "SpaceToBatch", "SpaceToDepth", "squeeze", "StridedSlice", "unsqueeze", "eltwise",
-          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin" };
+          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin", "ScaleShift"};
 
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };
     //  prevent fallback to fp32 without considering both input and output nodes
     const InferenceEngine::details::caseless_set<std::string> _skipmarking =
-        { "memory" };
+        { "memory", "Split" };
 
     /**
     * Tries to mark tensor as FP32 by analyzing of local consumers of the tensor. Do not mark if

@@ -98,6 +98,8 @@ namespace ngraph
                 bool update_auto_padding(const PartialShape& in_shape,
                                          Shape& new_pads_end,
                                          Shape& new_pads_begin) const;
+                bool evaluate_maxpool(const HostTensorVector& outputs,
+                                      const HostTensorVector& inputs) const;
             };
         } // namespace v1
     }     // namespace op
