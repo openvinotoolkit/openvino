@@ -34,7 +34,7 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"Selu", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Selu() = default;
+                Selu();
                 /// \brief Constructs a Selu node.
                 ///
                 /// \param data - Node producing the input tensor
