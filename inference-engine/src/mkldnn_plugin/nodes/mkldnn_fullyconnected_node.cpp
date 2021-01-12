@@ -155,7 +155,7 @@ void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
                 auto oldMem = param->second;
                 auto dims = oldMem.get_desc().dims();
                 if (dims.size() == 3) {
-                    MKLDNNDims normalizedDims({dims[0] * dims[1], dims[2]});
+                    MKLDNNDims normalizedDims({static_cast<ptrdiff_t>(dims[0] * dims[1]), static_cast<ptrdiff_t>(dims[2])});
                     mkldnn::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
                     mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
                     primArgs.at(argType) = newMem;
