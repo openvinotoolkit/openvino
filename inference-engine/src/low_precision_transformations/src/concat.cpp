@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
 #include "low_precision/common/fake_quantize_dequantization.hpp"
@@ -22,6 +23,22 @@
 namespace ngraph {
 namespace pass {
 namespace low_precision {
+
+ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = ngraph::pattern::wrap_type<opset1::Concat>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (!op || m_transformation_callback(op)) {
+            return false;
+        }
+
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ConcatTransformation");
+    this->register_matcher(m, callback);
+}
 
 void ConcatTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
     addSingleNodePattern<opset1::Concat>(pass, context);

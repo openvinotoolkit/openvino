@@ -14,7 +14,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public LayerTransformation {
 public:
-    MultiplyToGroupConvolutionTransformation(const Params& params) : LayerTransformation(params), groupSize(1ul) {}
+    MultiplyToGroupConvolutionTransformation(const Params& params);
     ~MultiplyToGroupConvolutionTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
@@ -24,6 +24,13 @@ public:
 
     void setGroupSize(const size_t groupSize);
     size_t getGroupSize() const;
+
+    // TODO: stub
+    static bool checkPrecisionOnActivation(
+        const std::shared_ptr<const ngraph::Node>& node,
+        const std::vector<ngraph::element::Type>& supportedPrecisionsOnActivations) {
+        return true;
+    }
 private:
     size_t groupSize;
 };

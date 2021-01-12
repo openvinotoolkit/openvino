@@ -156,7 +156,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 // Base class for all LP transformations, holds some common data structures
-class TRANSFORMATIONS_API LayerTransformation {
+class TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
 public:
     enum QuantizedTensorAlignment {
         None,
@@ -169,7 +169,7 @@ public:
                 const bool updatePrecisions = true,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations = QuantizedTensorAlignment::UpdateLevel,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
-                bool supportAsymmetricQuantization = false,
+                bool supportAsymmetricQuantization = true,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
                 std::vector<element::Type> precisionsOnWeights = { element::i8 },
                 element::Type deqPrecision = element::f32,
@@ -253,8 +253,10 @@ public:
     virtual void registerMatcherIn(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const = 0;
     virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const = 0;
 
+    void setParams(const Params& params);
     void setParamsManager(IParamsManager* paramsManager) noexcept;
     void setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept;
+    void setContext(TransformationContext* context) noexcept;
 
     void setUpdatePrecisions(const bool updatePrecisions);
     void setQuantizedTensorAlignmentOnActivations(const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
@@ -320,6 +322,7 @@ protected:
     static const char originalLayerPostfix[];
     IParamsManager* paramsManager;
     ILayerTransformationsManager* layerTransformationsManager;
+    TransformationContext* context;
 
 protected:
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(

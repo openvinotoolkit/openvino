@@ -20,7 +20,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API ConcatMultiChannelsTransformation : public ConcatTransformation {
 public:
-    ConcatMultiChannelsTransformation(const Params& params) : ConcatTransformation(params) {}
+    ConcatMultiChannelsTransformation(const Params& params);
     ~ConcatMultiChannelsTransformation() override {};
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;

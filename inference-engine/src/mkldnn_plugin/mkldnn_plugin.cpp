@@ -83,6 +83,10 @@
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
 
+#include <low_precision/layer_transformation.hpp>
+#include <low_precision/manager.hpp>
+#include <low_precision/low_precision.hpp>
+
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_quantize_node.h"
 
@@ -291,27 +295,56 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
 
         ngraph::pass::Manager manager;
-        auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-        const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
-        lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
-        lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-        lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+
+        // discussion:
+
+        auto key = OperationRestriction::create<ngraph::opset1::Convolution>({
+            {0, {ngraph::element::u8}},
+            {1, {ngraph::element::i8}}
+        });
+
+        // variant #1: simple: transformation(supportedPrecisionsOnActivation)
+        auto supportedPrecisionsOnActivation = std::vector<OperationRestriction>({
+            // disabling, add precision pattern
+            // {getKey<ngraph::opset1::MaxPool>({}), {}},
+            // limitation by U8
+            OperationRestriction::create<ngraph::opset1::Convolution>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}}
+            }),
+            OperationRestriction::create<ngraph::opset1::GroupConvolution>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}}
+            }),
+            //{getKey<ngraph::opset1::GroupConvolution>(port), {ngraph::element::i8}}
+        });
+
+        //// variant #2: more general
+        //auto markup = manager.register_pass<ngraph::pass::GraphRewrite>();
+        //markup->add_matcher<ngraph::pass::Convolution1>({ ngraph::element::u8 });
+        //markup->add_matcher<ngraph::pass::Convolution2>({ ngraph::element::u8, ngraph::element::i8 });
+
+        //// TODO: transformation refactoring: let's skip it right now: use pattern matching for quantized weights identification
+        //manager.register_pass<ngraph::pass::low_precision::MarkupPortWeights>(supportedPrecisionsOnActivation);
+
+
+        manager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisionsOnActivation); // LayerTransformation::Params(true) - updatePrecisions configuration
+
+        // TODO: comment: apply callback for a transformation from all groups
+        //auto pass_config = manager.get_pass_config();
+        //const auto supportedPrecisionsOnActivations = { ngraph::element::u8 };
+        //pass_config->set_callback<MaxPoolTransformation>([&](const_node_ptr& node) -> bool {
+        //    return true;
+        //});
+
+        // just FYI:
+        //pass_config->disable<MaxPoolTransformation>();
+
+        //pass_config->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {
+        //    return MultiplyToGroupConvolutionTransformation::checkPrecisionOnActivation(node, supportedPrecisionsOnActivations);
+        //});
+
         manager.run_passes(nGraphFunc);
-
-        auto params = LayerTransformation::Params(
-            true,  // updatePrecisions
-            LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-            LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
-            .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
-            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
-
-        transformer.transform(nGraphFunc);
     }
 
     bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
