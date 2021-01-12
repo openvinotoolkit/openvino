@@ -33,7 +33,88 @@ using namespace std;
 NGRAPH_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
 NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
 
-bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
+op::v0::LSTMSequence::LSTMSequence()
+    : FusedOp()
+    , m_activations_alpha()
+    , m_activations_beta()
+    , m_activations()
+    , m_clip_threshold()
+    , m_direction()
+    , m_hidden_size()
+    , m_input_forget()
+    , m_weights_format()
+{
+}
+
+op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
+                                   const Output<Node>& initial_hidden_state,
+                                   const Output<Node>& initial_cell_state,
+                                   const Output<Node>& sequence_lengths,
+                                   const Output<Node>& W,
+                                   const Output<Node>& R,
+                                   const Output<Node>& B,
+                                   const Output<Node>& P,
+                                   const std::int64_t hidden_size,
+                                   const LSTMSequence::direction lstm_direction,
+                                   LSTMWeightsFormat weights_format,
+                                   const std::vector<float> activations_alpha,
+                                   const std::vector<float> activations_beta,
+                                   const std::vector<std::string> activations,
+                                   const float clip_threshold,
+                                   const bool input_forget)
+    : FusedOp({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, P})
+    , m_activations_alpha(activations_alpha)
+    , m_activations_beta(activations_beta)
+    , m_activations(activations)
+    , m_clip_threshold(clip_threshold)
+    , m_direction(lstm_direction)
+    , m_hidden_size(hidden_size)
+    , m_input_forget(input_forget)
+    , m_weights_format(weights_format)
+{
+    constructor_validate_and_infer_types();
+}
+
+op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
+                                   const Output<Node>& initial_hidden_state,
+                                   const Output<Node>& initial_cell_state,
+                                   const Output<Node>& sequence_lengths,
+                                   const Output<Node>& W,
+                                   const Output<Node>& R,
+                                   const Output<Node>& B,
+                                   const std::int64_t hidden_size,
+                                   const LSTMSequence::direction lstm_direction,
+                                   LSTMWeightsFormat weights_format,
+                                   const std::vector<float>& activations_alpha,
+                                   const std::vector<float>& activations_beta,
+                                   const std::vector<std::string>& activations,
+                                   const float clip_threshold,
+                                   const bool input_forget)
+    : op::v0::LSTMSequence(
+          X,
+          initial_hidden_state,
+          initial_cell_state,
+          sequence_lengths,
+          W,
+          R,
+          B,
+          Constant::create(
+              element::f32,
+              Shape{(lstm_direction == LSTMSequence::direction::BIDIRECTIONAL ? 2UL : 1UL),
+                    3UL * static_cast<size_t>(hidden_size)},
+              std::vector<float>{0.f}),
+          hidden_size,
+          lstm_direction,
+          weights_format,
+          activations_alpha,
+          activations_beta,
+          activations,
+          clip_threshold,
+          input_forget)
+{
+}
+
+bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_LSTMSequence_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
@@ -47,6 +128,7 @@ bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("weights_format", m_weights_format);
     return true;
 }
+
 OutputVector op::v0::LSTMSequence::decompose_op() const
 {
     OutputVector results;

@@ -32,6 +32,11 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::HardSigmoid::type_info;
 
+op::HardSigmoid::HardSigmoid()
+    : FusedOp()
+{
+}
+
 op::HardSigmoid::HardSigmoid(const Output<Node>& data,
                              const Output<Node>& alpha,
                              const Output<Node>& beta)

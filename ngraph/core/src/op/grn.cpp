@@ -35,6 +35,11 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::GRN::type_info;
 
+op::GRN::GRN()
+    : FusedOp()
+{
+}
+
 op::GRN::GRN(const Output<Node>& data, float bias)
     : FusedOp({data})
     , m_bias(bias)

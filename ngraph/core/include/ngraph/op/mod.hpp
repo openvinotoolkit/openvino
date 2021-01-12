@@ -35,7 +35,7 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"Mod", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Mod() = default;
+                Mod();
                 /// \brief Constructs a Mod node.
                 ///
                 /// \param A - Dividend tensor

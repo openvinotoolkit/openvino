@@ -93,6 +93,13 @@ bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 NGRAPH_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
 
+op::Clamp::Clamp()
+    : FusedOp()
+    , m_min()
+    , m_max()
+{
+}
+
 op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
     : FusedOp({data})
     , m_min{min}

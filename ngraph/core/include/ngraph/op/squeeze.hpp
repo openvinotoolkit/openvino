@@ -36,7 +36,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                Squeeze() = default;
+                Squeeze();
                 Squeeze(const Output<Node>& data, const Output<Node>& axes);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;

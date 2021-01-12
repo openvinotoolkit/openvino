@@ -35,7 +35,7 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"HardSigmoid", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                HardSigmoid() = default;
+                HardSigmoid();
 
                 /// \brief      Constructs a HardSigmoid operation.
                 ///

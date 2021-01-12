@@ -36,7 +36,7 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"SquaredDifference", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                SquaredDifference() = default;
+                SquaredDifference();
                 /// \brief Constructs the squared difference operation.
                 ///
                 /// \param x1 First input tensor

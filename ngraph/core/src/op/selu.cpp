@@ -31,6 +31,11 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::v0::Selu::type_info;
 
+op::v0::Selu::Selu()
+    : FusedOp()
+{
+}
+
 op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& lambda)
     : FusedOp({data, alpha, lambda})
 {

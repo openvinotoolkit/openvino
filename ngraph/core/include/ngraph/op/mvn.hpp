@@ -35,7 +35,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                MVN() = default;
+                MVN();
                 /// \brief Constructs an MVN operation.
                 ///
                 /// \param data Input tensor with data
