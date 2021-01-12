@@ -272,6 +272,12 @@ VPU_DECLARE_ENUM(BroadcastMode,
 // StageDataInfo
 //
 
+VPU_DECLARE_ENUM(InterpolateMode,
+    Nearest = 0,
+    Linear = 1,
+    Cubic = 2,
+    LinearOnnx = 3
+)
 VPU_DECLARE_ENUM(InterpolateCoordTransMode,
     HalfPixel = 0,
     PytorchHalfPixel = 1,
