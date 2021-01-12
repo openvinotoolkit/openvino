@@ -37,8 +37,6 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_compile_definitions(${TARGET_NAME} PRIVATE ngraph_EXPORTS)
-
 # Defines macro in C++ to load backend plugin
 target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR}
                                           PRIVATE ${NGRAPH_INCLUDE_PATH})
