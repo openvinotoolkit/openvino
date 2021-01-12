@@ -175,6 +175,7 @@ VPU_DECLARE_ENUM(StageType,
     HSwish = 137,
     Ceiling = 138,
     GatherElements = 139,
+    Round = 140,
 )
 
 //
@@ -267,6 +268,11 @@ VPU_DECLARE_ENUM(BroadcastMode,
     NUMPY = 0,
     EXPLICIT = 1,
     BIDIRECTIONAL = 2)
+
+// Modes for Round operation according to specification
+VPU_DECLARE_ENUM(RoundMode,
+    HALF_TO_EVEN = 0,
+    HALF_AWAY_FROM_ZERO = 1)
 
 //
 // StageDataInfo

@@ -255,7 +255,7 @@ void CompareFunctions(const Function& actual, const Function& expected) {
 }
 
 std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_info, const ngraph::OutputVector &outputVector) {
-    for (const auto& opset : {ngraph::get_opset3(), ngraph::get_opset2(), ngraph::get_opset1()})
+    for (const auto& opset : {ngraph::get_opset5(), ngraph::get_opset4(), ngraph::get_opset3(), ngraph::get_opset2(), ngraph::get_opset1()})
         if (opset.contains_type(type_info)) {
             const auto ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type_info.name));
             ngraphNode->set_arguments(outputVector);
