@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstring>
+#include <unordered_set>
 
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -100,6 +101,9 @@ namespace ngraph
         /// \brief Replace all users of this value with replacement
         void replace(const Output<Node>& replacement);
 
+        const std::unordered_set<std::string>& get_names() const;
+        void set_names(const std::unordered_set<std::string>& names);
+
         bool operator==(const Output& other) const;
         bool operator!=(const Output& other) const;
         bool operator<(const Output& other) const;
@@ -173,6 +177,8 @@ namespace ngraph
         bool operator>(const Output& other) const;
         bool operator<=(const Output& other) const;
         bool operator>=(const Output& other) const;
+
+        const std::unordered_set<std::string>& get_names() const;
 
     private:
         std::shared_ptr<const Node> m_node;

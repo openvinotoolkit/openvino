@@ -24,10 +24,10 @@ void TensorNamesTest::SetUp() {
 
     auto parameter = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
     parameter->set_friendly_name("parameter");
-    parameter->get_output_tensor(0).set_name("input");
+    parameter->output(0).set_names({"input"});
     auto relu = std::make_shared<ngraph::opset5::Relu>(parameter);
     relu->set_friendly_name("relu");
-    relu->get_output_tensor(0).set_names({"relu_t", "identity"});
+    relu->output(0).set_names({"relu_t", "identity"});
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(relu)};
     results[0]->set_friendly_name("out");
     results[0]->get_output_tensor(0).set_name("out_t");

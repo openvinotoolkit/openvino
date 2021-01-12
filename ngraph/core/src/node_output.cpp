@@ -89,6 +89,15 @@ namespace ngraph
         }
     }
 
+    const std::unordered_set<std::string>& Output<Node>::get_names() const
+    {
+        return m_node->m_outputs.at(m_index).get_names();
+    }
+    void Output<Node>::set_names(const std::unordered_set<std::string>& names)
+    {
+        m_node->m_outputs.at(m_index).set_names(names);
+    }
+
     bool Output<Node>::operator==(const Output& other) const
     {
         return m_node == other.m_node && m_index == other.m_index;
@@ -180,6 +189,11 @@ namespace ngraph
         return output.get_node()->write_description(out, 0) << "[" << output.get_index()
                                                             << "]:" << output.get_element_type()
                                                             << output.get_partial_shape();
+    }
+
+    const std::unordered_set<std::string>& Output<const Node>::get_names() const
+    {
+        return m_node->m_outputs.at(m_index).get_names();
     }
 
     std::ostream& operator<<(std::ostream& out, const Output<const Node>& output)

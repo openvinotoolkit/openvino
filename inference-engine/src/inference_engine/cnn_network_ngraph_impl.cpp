@@ -140,6 +140,12 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         std::string outName = layer->get_friendly_name();
         IE_ASSERT(layer->get_output_size() == 1);  // Parameter as only singly output port
 
+        // map original names to OpenVINO name
+        _opNames[outName] = outName;
+        for (const auto& name : layer->output(0).get_names()) {
+            _tensorNames[name] = outName;
+        }
+
         DataPtr& ptr = _data[outName];
         IE_ASSERT(ptr);  // Data must be allocated after the reshape method
 
@@ -157,7 +163,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
 }
 
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
-    if (network.getFunction() == nullptr) {
+    const auto* net = dynamic_cast<const CNNNetworkNGraphImpl*>(&network);
+    if (network.getFunction() == nullptr || !net) {
         THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
@@ -166,6 +173,9 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
     OutputsDataMap outputs;
     network.getInputsInfo(inputs);
     network.getOutputsInfo(outputs);
+
+    _opNames = net->_opNames;
+    _tensorNames = net->_tensorNames;
 
     for (const auto& outputInfo : outputs) {
         const auto& name = outputInfo.second->getName();
@@ -252,6 +262,17 @@ void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & ou
     createDataForResult(output, dataName, data);
     _data[dataName] = data;
     _outputData[dataName] = data;
+
+    // Save original framework names
+    for (const auto& name : output.get_names()) {
+        _tensorNames[name] = dataName;
+    }
+    for (const auto consumerInput : output.get_target_inputs()) {
+        const auto &consumerLayer = consumerInput.get_node()->shared_from_this();
+        if (std::dynamic_pointer_cast<ngraph::op::Result>(consumerLayer)) {
+            _opNames[consumerLayer->get_friendly_name()] = dataName;
+        }
+    }
 }
 
 size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
@@ -408,7 +429,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            ResponseDesc* resp) const noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (auto extension : _ie_extensions) {
+        for (const auto& extension : _ie_extensions) {
             auto opset = extension->getOpSets();
             custom_opsets.insert(begin(opset), end(opset));
         }
@@ -424,6 +445,20 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
     } catch (...) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
+    return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+    if (_tensorNames.find(orig_name) == _tensorNames.end())
+        return DescriptionBuffer(NOT_FOUND, resp) << "Framework tensor with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
+    ov_name = _tensorNames.at(orig_name);
+    return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+    if (_opNames.find(orig_name) == _opNames.end())
+        return DescriptionBuffer(NOT_FOUND, resp) << "Framework operation with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
+    ov_name = _opNames.at(orig_name);
     return OK;
 }
 

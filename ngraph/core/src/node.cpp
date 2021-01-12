@@ -143,6 +143,10 @@ std::shared_ptr<Node>
     {
         clone->add_control_dependency(cdep);
     }
+    for (size_t i = 0; i < get_output_size(); i++)
+    {
+        clone->output(i).set_names(output(i).get_names());
+    }
     return clone;
 }
 
