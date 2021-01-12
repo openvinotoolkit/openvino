@@ -95,15 +95,11 @@ def replace_resize(graph: Graph, resize: Node):
     input_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
     cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
-    mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node()
-    floor_node = Floor(graph, {'name': resize_name + '/Floor'}).create_node()
-    cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
 
     shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
-    cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
-    add_node.out_port(0).connect(mul_node.in_port(1))
-    mul_node.out_port(0).connect(floor_node.in_port(0))
-    floor_node.out_port(0).connect(cast_mul_result_to_int.in_port(0))
+    mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node([cast_shape_to_float, add_node])
+    floor_node = Floor(graph, {'name': resize_name + '/Floor'}).create_node([mul_node])
+    cast_mul_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node([floor_node])
     cast_mul_result_to_int.out_port(0).connect(sizes_ss.in_port(0))
     sizes_ss.out_port(0).connect(interpolate_node.in_port(1))
 
