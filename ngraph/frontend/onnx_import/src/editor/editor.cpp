@@ -116,14 +116,17 @@ namespace
         }
         else
         {
-            auto* tensor_shape = tensor_type->mutable_shape();
-            tensor_shape->clear_dim();
+            // make a copy intentionally, in case of an exception the original model is not modified
+            auto new_onnx_shape = tensor_type->shape();
+            new_onnx_shape.clear_dim();
 
             for (const auto& dim : static_cast<std::vector<Dimension>>(new_shape))
             {
-                auto* new_dim = tensor_shape->add_dim();
+                auto* new_dim = new_onnx_shape.add_dim();
                 new_dim->set_dim_value(dim.get_length());
             }
+
+            *(tensor_type->mutable_shape()) = std::move(new_onnx_shape);
         }
     }
 } // namespace
