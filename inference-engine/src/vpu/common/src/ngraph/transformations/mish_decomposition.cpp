@@ -21,7 +21,7 @@ MishDecomposition::MishDecomposition() {
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &matcher) {
         const auto& mish = ngraph::as_type_ptr<ngraph::opset5::Mish>(matcher.get_match_root());
 
-        if (!mish || m_transformation_callback(mish)) {
+        if (!mish || transformation_callback(mish)) {
             return false;
         }
 

@@ -23,7 +23,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "tensor_external_data.hpp"
+#include "onnx_import/utils/tensor_external_data.hpp"
 
 namespace ngraph
 {
