@@ -38,12 +38,20 @@ LayerTransformation::LayerTransformation(const Params& params) :
     paramsManager(nullptr),
     layerTransformationsManager(nullptr) {}
 
+void LayerTransformation::setParams(const Params& params) {
+    //
+}
+
 void LayerTransformation::setParamsManager(IParamsManager* paramsManager) noexcept {
     this->paramsManager = paramsManager;
 }
 
 void LayerTransformation::setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept {
     this->layerTransformationsManager = layerTransformationsManager;
+}
+
+void LayerTransformation::setContext(TransformationContext* context) noexcept {
+    this->context = context;
 }
 
 void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {

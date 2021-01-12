@@ -14,7 +14,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API FuseConvertTransformation : public LayerTransformation {
 public:
-    FuseConvertTransformation(const Params& params) : LayerTransformation(params) {}
+    FuseConvertTransformation(const Params& params);
     ~FuseConvertTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;

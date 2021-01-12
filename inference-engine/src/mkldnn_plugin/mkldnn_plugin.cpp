@@ -82,6 +82,10 @@
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
 
+#include <low_precision/layer_transformation.hpp>
+#include <low_precision/manager.hpp>
+#include <low_precision/low_precision.hpp>
+
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_quantize_node.h"
 
@@ -264,15 +268,9 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
             LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
             true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
-            .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
-            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
-
-        transformer.transform(nGraphFunc);
+        ngraph::pass::Manager lowPrecisionManager;
+        lowPrecisionManager.register_pass<ngraph::pass::low_precision::LowPrecision>(params);
+        lowPrecisionManager.run_passes(nGraphFunc);
     }
 
     bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);

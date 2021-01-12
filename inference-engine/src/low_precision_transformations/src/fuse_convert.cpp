@@ -15,6 +15,34 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+FuseConvertTransformation::FuseConvertTransformation(const Params& params) : LayerTransformation(params) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (!op || m_transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    this->register_matcher(
+        std::make_shared<ngraph::pattern::Matcher>(
+            make_op_pattern<opset1::Multiply>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }),
+            "FuseConvertTransformation"),
+        callback);
+
+    this->register_matcher(
+        std::make_shared<ngraph::pattern::Matcher>(
+            make_op_pattern<opset1::Subtract>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }),
+            "FuseConvertTransformation"),
+        callback);
+
+    this->register_matcher(
+        std::make_shared<ngraph::pattern::Matcher>(
+            make_op_pattern<opset1::Add>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }),
+            "FuseConvertTransformation"),
+        callback);
+}
+
 void FuseConvertTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     addPattern(
         pass,
