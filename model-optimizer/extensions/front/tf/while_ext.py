@@ -39,7 +39,10 @@ def update_body_graph(body_graph: Graph, subgraph_proto: dict,
     # create a map from a node name in original model to a name in a loop body graph assuming
     # that names in the original model are unique
     # initially, the map contains names for parameters that are common for the body and condition graphs
-    map_original_name = {name: name for name in body_parameter_names}
+    map_original_name = {}
+    for idx, pb_node in enumerate(subgraph_proto['input_arg']):
+        map_original_name[pb_node.name] = body_parameter_names[idx]
+
     # walk through all nodes (non-parameter and non-result nodes) and add into the loop body graph
     for pb_node in subgraph_proto['node_def']:
         # create an NX node
@@ -129,7 +132,7 @@ class WhileExtractor(FrontExtractorOp):
                                         'permute_attrs': PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])}
                                        )
             body_parameters.append(parameter_node)
-            body_parameter_names.append(pb_node.name)
+            body_parameter_names.append(param_id)
 
         # update the loop body graph with the body function graph
         body_results = []
