@@ -57,13 +57,14 @@ The OpenVINO™ workflow on Raspbian* OS is as follows:
 Follow the steps below to run pre-trained Face Detection network using Inference Engine samples from the OpenVINO toolkit.
 
 1. Create a samples build directory. This example uses a directory named `build`:
-```sh
-mkdir build && cd build
-```
+   ```sh
+   mkdir build && cd build
+   ```
 2. Build the Object Detection Sample with the following command:
-```sh
+   ```sh
    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino/deployment_tools/inference_engine/samples/cpp
    ```
+   
    ```sh
    make -j2 object_detection_sample_ssd
    ```
