@@ -52,26 +52,22 @@ class Convolution(Op):
                 pad = [0 for _ in pad]
             return ','.join(map(str, pad))
 
-        if self.get_type() =='BinaryConvolution':
-            return [
-                # for BinaryConvolution only
-                'pad_value',
-                'mode',
-            ]
+        return [
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
+            ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
+            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+            ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
+            ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
 
-        else:
-            return [
-                ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
-                ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
-                ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-                ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
-                ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
+            # for Backpropdata operations only - according to spec
+            ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
+                if node.has_valid('output_padding') and node.type in
+                    ('GroupConvolutionBackpropData', 'ConvolutionBackpropData') else None),
 
-                # for Backpropdata operations only - according to spec
-                ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
-                    if node.has_valid('output_padding') and node.type in
-                        ('GroupConvolutionBackpropData', 'ConvolutionBackpropData') else None),
-            ]
+            # for BinaryConvolution only
+            'pad_value',
+            'mode',
+        ]
 
     @staticmethod
     def calc_convolution(input_spatial_shape, stride_spatial_shape, pad_spatial_shape, kernel_extent):
