@@ -40,7 +40,6 @@ namespace ngraph
                 /// \brief Structure that specifies attributes of the operation
                 struct Attributes
                 {
-                    int64_t image_id;
                     int64_t output_size;
                     int64_t sampling_ratio;
                     std::vector<int64_t> pyramid_scales;

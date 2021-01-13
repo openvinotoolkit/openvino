@@ -41,7 +41,6 @@ def insert_experimental_layers(graph: Graph, input_fpn_heads: list, inp: str, ou
 
     input_fpn_head_nodes = [Node(graph, node_id) for node_id in input_fpn_heads]
     fpn_roi_align = ExperimentalDetectronROIFeatureExtractor(graph, {'name': output_name,
-                                                                     'image_id': 0,
                                                                      'output_size': 7,
                                                                      'pyramid_scales': int64_array(
                                                                          [4, 8, 16, 32, 64]),

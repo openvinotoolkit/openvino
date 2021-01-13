@@ -99,7 +99,6 @@ def insert_ExperimentalDetectronROIFeatureExtractor1(graph: Graph, replacement_d
     old_output_node = Node(graph, replacement_descriptions['ROIFeatureExtractor1_output'])
     input_fpn_head_nodes = [Node(graph, node_id) for node_id in input_fpn_heads]
     fpn_roi_align = ExperimentalDetectronROIFeatureExtractor(graph, {'name': 'ROIFeatureExtractor_1',
-                                                                     'image_id': 0,
                                                                      'output_size': 14,
                                                                      'pyramid_scales': int64_array(
                                                                          [4, 8, 16, 32, 64]),
@@ -117,7 +116,6 @@ def insert_ExperimentalDetectronROIFeatureExtractor2(graph: Graph, replacement_d
     old_output_node = Node(graph, replacement_descriptions['ROIFeatureExtractor2_output'])
     input_fpn_head_nodes = [Node(graph, node_id) for node_id in input_fpn_heads]
     fpn_roi_align = ExperimentalDetectronROIFeatureExtractor(graph, {'name': 'ROIFeatureExtractor_2',
-                                                                     'image_id': 0,
                                                                      'output_size': 7,
                                                                      'pyramid_scales': int64_array(
                                                                          [4, 8, 16, 32, 64]),

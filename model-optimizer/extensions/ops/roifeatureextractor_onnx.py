@@ -36,7 +36,6 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
     def backend_attrs(self):
         return [
             ('pyramid_scales', lambda node: ','.join(map(str, node['pyramid_scales']))),
-            'image_id',
             'output_size',
             'sampling_ratio',
             'aligned']

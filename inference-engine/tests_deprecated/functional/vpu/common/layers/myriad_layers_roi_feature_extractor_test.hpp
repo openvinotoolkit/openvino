@@ -89,7 +89,6 @@ TEST_P(myriadLayersTestsROIFeatureExtractor_smoke, ROIFeatureExtractor) {
         {"output_size",     std::to_string(test_params.output_size)},
         {"sampling_ratio",  std::to_string(test_params.sampling_ratio)},
         {"pyramid_scales",  pyramid_scales_str},
-        {"image_id", "0"},
     };
 
     makeSingleLayerNetwork(LayerInitParams("ExperimentalDetectronROIFeatureExtractor").params(layer_params));

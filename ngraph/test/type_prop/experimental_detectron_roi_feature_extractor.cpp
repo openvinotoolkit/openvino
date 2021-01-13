@@ -32,7 +32,6 @@ TEST(type_prop, detectron_roi_feature_extractor)
     attrs.output_size = 14;
     attrs.sampling_ratio = 2;
     attrs.pyramid_scales = {4, 8, 16, 32};
-    attrs.image_id = 0;
 
     auto input = std::make_shared<op::Parameter>(element::f32, Shape{1000, 4});
     auto pyramid_layer0 = std::make_shared<op::Parameter>(element::f32, Shape{1, 256, 200, 336});
@@ -54,7 +53,6 @@ TEST(type_prop, detectron_roi_feature_extractor_dynamic)
     attrs.output_size = 14;
     attrs.sampling_ratio = 2;
     attrs.pyramid_scales = {4, 8, 16, 32};
-    attrs.image_id = 0;
 
     struct Shapes
     {
