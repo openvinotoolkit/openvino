@@ -107,6 +107,6 @@ REGISTER_TYPED_TEST_CASE_P(UnaryOperator,
                            dynamic_rank_input_shape_3D,
                            dynamic_rank_input_shape_full);
 
-using Types = ::testing::Types<op::Acos>;
+using Types = ::testing::Types<op::Acos, op::Asin>;
 
 INSTANTIATE_TYPED_TEST_CASE_P(type_prop, UnaryOperator, Types);
