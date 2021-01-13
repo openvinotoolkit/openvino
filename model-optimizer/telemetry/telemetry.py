@@ -37,8 +37,8 @@ class Telemetry(metaclass=SingletonMetaClass):
     """
     def __init__(self, app_name: str = None, app_version: str = None, tid: [None, str] = None):
         if app_name is not None:
-            self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
-            #self.consent = True # For testing purposes # isip.isip_consent() == isip.ISIPConsent.APPROVED
+            #self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
+            self.consent = True  # for testing purposes
             # override default tid
             if tid is not None:
                 self.tid = tid
