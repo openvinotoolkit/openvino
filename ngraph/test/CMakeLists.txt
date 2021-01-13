@@ -354,7 +354,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
-            onnx/onnx_import_library.cpp)
+            onnx/onnx_import_library.cpp
+            onnx/onnx_editor.cpp)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
