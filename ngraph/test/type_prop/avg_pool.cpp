@@ -23,11 +23,11 @@ using namespace ngraph;
 
 TEST(type_prop, avg_pool_auto_padding)
 {
-    const PartialShape arg_shape{1, 3, 32, 32};
-    const Strides strides{1, 1};
-    const Shape pads_begin{0, 0};
-    const Shape pads_end{0, 0};
-    const Shape kernel_shape{2, 2};
+    const PartialShape arg_shape{1, 3, 32};
+    const Strides strides{1};
+    const Shape pads_begin{0};
+    const Shape pads_end{0};
+    const Shape kernel_shape{2};
     const bool exclude_pad = false;
     const auto rounding_mode = op::RoundingType::FLOOR;
     const auto auto_pad = op::PadType::SAME_LOWER;
@@ -36,12 +36,32 @@ TEST(type_prop, avg_pool_auto_padding)
     auto mp = make_shared<op::v1::AvgPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode, auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({1, 3, 32, 32}));
-    ASSERT_EQ(mp->get_pads_begin(), (Shape{1, 1}));
-    ASSERT_EQ(mp->get_pads_end(), (Shape{0, 0}));
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({1, 3, 32}));
+    ASSERT_EQ(mp->get_pads_begin(), (Shape{1}));
+    ASSERT_EQ(mp->get_pads_end(), (Shape{0}));
 }
 
-TEST(type_prop, avg_pool_auto_padding_nc_dims_dynamic_same_lower)
+TEST(type_prop, avg_pool_auto_padding_3D_nc_dims_dynamic_same_lower)
+{
+    const PartialShape arg_shape{Dimension::dynamic(), 32, 32};
+    const Strides strides{1};
+    const Shape pads_begin{0};
+    const Shape pads_end{0};
+    const Shape kernel_shape{2};
+    const bool exclude_pad = true;
+    const auto rounding_mode = op::RoundingType::FLOOR;
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto mp = make_shared<op::v1::AvgPool>(
+        arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode, auto_pad);
+
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 32, 32}));
+    ASSERT_EQ(mp->get_pads_begin(), (Shape{1}));
+    ASSERT_EQ(mp->get_pads_end(), (Shape{0}));
+}
+
+TEST(type_prop, avg_pool_auto_padding_4D_nc_dims_dynamic_same_lower)
 {
     const PartialShape arg_shape{Dimension::dynamic(), Dimension::dynamic(), 32, 32};
     const Strides strides{1, 1};
@@ -87,7 +107,7 @@ TEST(type_prop, avg_pool_auto_padding_spatial_dims_dynamic)
 {
     const PartialShape arg_shape{1, 3, 32, Dimension::dynamic()};
     const Strides strides{1, 1};
-    const Shape pads_begin{0, 0};
+    const Shape pads_begin{1, 1};
     const Shape pads_end{0, 0};
     const Shape kernel_shape{2, 2};
     const bool exclude_pad = true;
@@ -98,77 +118,48 @@ TEST(type_prop, avg_pool_auto_padding_spatial_dims_dynamic)
     auto mp = make_shared<op::v1::AvgPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode, auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme(
-        {1, 3, Dimension::dynamic(), Dimension::dynamic()}));
-    ASSERT_EQ(mp->get_pads_begin(), (Shape{}));
-    ASSERT_EQ(mp->get_pads_end(), (Shape{}));
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({1, 3, 32, Dimension::dynamic()}));
+    ASSERT_EQ(mp->get_pads_begin(), (Shape{1, 0}));
+    ASSERT_EQ(mp->get_pads_end(), (Shape{0, 0}));
 }
 
 TEST(type_prop, avg_pool_1d_deduce)
 {
-    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3});
     const Shape kernel{10};
-    const auto avg_pool = make_shared<op::v1::AvgPool>(
-        param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR);
-
-    EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 91}));
-
-    EXPECT_EQ(avg_pool->get_strides(), Strides{1});
-    EXPECT_EQ(avg_pool->get_kernel(), Shape{10});
-    EXPECT_EQ(avg_pool->get_pads_begin(), Shape{0});
-    EXPECT_EQ(avg_pool->get_pads_end(), Shape{0});
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
 }
 
 TEST(type_prop, avg_pool_1d_deduce_strided)
 {
-    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3});
     const Shape kernel{10};
     const auto move_strides = Strides{2};
-    const auto avg_pool = make_shared<op::v1::AvgPool>(
-        param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR);
-
-    EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 46}));
-
-    EXPECT_EQ(avg_pool->get_strides(), Strides{2});
-    EXPECT_EQ(avg_pool->get_kernel(), Shape{10});
-    EXPECT_EQ(avg_pool->get_pads_begin(), Shape{0});
-    EXPECT_EQ(avg_pool->get_pads_end(), Shape{0});
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
 }
 
 TEST(type_prop, avg_pool_1d_deduce_strided_small_uneven)
 {
-    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3});
     const Shape kernel{2};
     const auto move_strides = Strides{2};
-    const auto avg_pool = make_shared<op::v1::AvgPool>(
-        param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR);
-
-    EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 2}));
-
-    EXPECT_EQ(avg_pool->get_strides(), Strides{2});
-    EXPECT_EQ(avg_pool->get_kernel(), Shape{2});
-    EXPECT_EQ(avg_pool->get_pads_begin(), Shape{0});
-    EXPECT_EQ(avg_pool->get_pads_end(), Shape{0});
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
 }
 
 TEST(type_prop, avg_pool_1d_deduce_strided_small_even)
 {
-    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3, 6});
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{64, 3});
     const Shape kernel{2};
     const auto move_strides = Strides{2};
-    const auto avg_pool = make_shared<op::v1::AvgPool>(
-        param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR);
-
-    EXPECT_EQ(avg_pool->get_output_element_type(0), element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (Shape{64, 3, 3}));
-
-    EXPECT_EQ(avg_pool->get_strides(), Strides{2});
-    EXPECT_EQ(avg_pool->get_kernel(), Shape{2});
-    EXPECT_EQ(avg_pool->get_pads_begin(), Shape{0});
-    EXPECT_EQ(avg_pool->get_pads_end(), Shape{0});
+    EXPECT_THROW(make_shared<op::v1::AvgPool>(
+                     param, move_strides, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
+                 NodeValidationFailure);
 }
 
 TEST(type_prop, avg_pool_2d_deduce)
@@ -269,7 +260,7 @@ TEST(type_prop, avg_pool_invalid_2d_input)
 
 TEST(type_prop, avg_pool_invalid_0_batch_size)
 {
-    const auto param = make_shared<op::Parameter>(element::f32, Shape{0, 6, 1});
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{0, 6});
     const Shape kernel{1};
     EXPECT_THROW(make_shared<op::v1::AvgPool>(
                      param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
@@ -278,7 +269,7 @@ TEST(type_prop, avg_pool_invalid_0_batch_size)
 
 TEST(type_prop, avg_pool_invalid_0_channels)
 {
-    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 0, 1});
+    const auto param = make_shared<op::Parameter>(element::f32, Shape{6, 0});
     const Shape kernel{1};
     EXPECT_THROW(make_shared<op::v1::AvgPool>(
                      param, Strides{1}, Shape{}, Shape{}, kernel, true, op::RoundingType::FLOOR),
@@ -433,11 +424,11 @@ TEST(type_prop, avg_pool_partial_rank_dynamic_attrib_rank_mismatch)
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_ok)
 {
-    const PartialShape arg_shape{PartialShape::dynamic(6)};
-    const Shape kernel{2, 3, 4, 5};
-    const Strides window_movement_strides{1, 1, 1, 1};
-    const Shape pads_begin{0, 0, 0, 0};
-    const Shape pads_end{0, 0, 0, 0};
+    const PartialShape arg_shape{PartialShape::dynamic(5)};
+    const Shape kernel{2, 3, 4};
+    const Strides window_movement_strides{1, 1, 1};
+    const Shape pads_begin{0, 0, 0};
+    const Shape pads_end{0, 0, 0};
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
     auto ap = make_shared<op::v1::AvgPool>(param,
@@ -449,16 +440,16 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_ok)
                                            op::RoundingType::FLOOR);
 
     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(6)));
+    ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(5)));
 }
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_some_dims_known_ok)
 {
-    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-    const Shape kernel{2, 3, 4, 5};
-    const Strides window_movement_strides{1, 1, 1, 1};
-    const Shape pads_begin{0, 0, 0, 0};
-    const Shape pads_end{0, 0, 0, 0};
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4};
+    const Shape kernel{2, 3, 4};
+    const Strides window_movement_strides{1, 1, 1};
+    const Shape pads_begin{0, 0, 0};
+    const Shape pads_end{0, 0, 0};
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
     auto ap = make_shared<op::v1::AvgPool>(param,
@@ -471,16 +462,16 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_some_dims_known_ok)
 
     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
     ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(
-        PartialShape{5, Dimension::dynamic(), 7, Dimension::dynamic(), 1, 3}));
+        PartialShape{5, Dimension::dynamic(), 7, Dimension::dynamic(), 1}));
 }
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_attrib_rank_mismatch)
 {
-    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-    const Shape kernel{2, 3, 4, 5, 6};
-    const Strides window_movement_strides{1, 1, 1, 1};
-    const Shape pads_begin{0, 0, 0, 0};
-    const Shape pads_end{0, 0, 0, 0};
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4};
+    const Shape kernel{2, 3, 4, 5};
+    const Strides window_movement_strides{1, 1, 1};
+    const Shape pads_begin{0, 0, 0};
+    const Shape pads_end{0, 0, 0};
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
@@ -496,11 +487,11 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_attrib_rank_mismatch)
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_not_too_big)
 {
-    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-    const Shape kernel{9, 3, 4, 5};
-    const Strides window_movement_strides{1, 1, 1, 1};
-    const Shape pads_begin{0, 0, 0, 0};
-    const Shape pads_end{0, 0, 0, 0};
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4};
+    const Shape kernel{9, 3, 4};
+    const Strides window_movement_strides{1, 1, 1};
+    const Shape pads_begin{0, 0, 0};
+    const Shape pads_end{0, 0, 0};
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
@@ -516,11 +507,11 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_not_too_big)
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_padded_window_not_too_big)
 {
-    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-    const Shape kernel{9, 3, 4, 5};
-    const Strides window_movement_strides{1, 1, 1, 1};
-    const Shape pads_begin{0, 0, 0, 0};
-    const Shape pads_end{1, 0, 0, 0};
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4};
+    const Shape kernel{9, 3, 4};
+    const Strides window_movement_strides{1, 1, 1};
+    const Shape pads_begin{0, 0, 0};
+    const Shape pads_end{1, 0, 0};
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
     auto ap = make_shared<op::v1::AvgPool>(param,
@@ -533,16 +524,16 @@ TEST(type_prop, avg_pool_partial_rank_static_dynamic_padded_window_not_too_big)
 
     ASSERT_EQ(ap->get_output_element_type(0), element::f32);
     ASSERT_TRUE(ap->get_output_partial_shape(0).same_scheme(
-        PartialShape{5, Dimension::dynamic(), 1, Dimension::dynamic(), 1, 3}));
+        PartialShape{5, Dimension::dynamic(), 1, Dimension::dynamic(), 1}));
 }
 
 TEST(type_prop, avg_pool_partial_rank_static_dynamic_window_in_padding)
 {
-    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4, 7};
-    const Shape kernel{9, 3, 4, 3};
-    const Strides window_movement_strides{1, 1, 1, 1};
-    const Shape pads_begin{0, 0, 0, 4};
-    const Shape pads_end{0, 0, 0, 0};
+    const PartialShape arg_shape{5, Dimension::dynamic(), 8, Dimension::dynamic(), 4};
+    const Shape kernel{9, 3, 4};
+    const Strides window_movement_strides{1, 1, 1};
+    const Shape pads_begin{0, 0, 0};
+    const Shape pads_end{0, 0, 0};
 
     const auto param = make_shared<op::Parameter>(element::f32, arg_shape);
 
