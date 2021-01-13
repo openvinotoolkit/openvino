@@ -14,7 +14,7 @@ int XLink_sem_inc(XLink_sem_t* sem)
 {
     XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
     if (sem->refs < 0) {
-        // Semaphore has been already destroyed
+        mvLog(MVLOG_ERROR, "Semaphore has been already destroyed");
         XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
         return -1;
     }
@@ -29,8 +29,8 @@ int XLink_sem_dec(XLink_sem_t* sem)
 {
     XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
     if (sem->refs < 1) {
-        // Can't decrement reference count if there are no waiters
-        // or semaphore has been already destroyed
+        mvLog(MVLOG_ERROR, "Can't decrement reference count if there are no waiters "
+                           "or semaphore has been already destroyed, refs %d", sem->refs);
         XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
         return -1;
     }
@@ -47,8 +47,8 @@ int XLink_sem_init(XLink_sem_t* sem, int pshared, unsigned int value)
 {
     XLINK_RET_ERR_IF(sem == NULL, -1);
 
-    XLINK_RET_IF_FAIL(sem_init(&sem->psem, pshared, value));
     XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
+    XLINK_RET_IF_FAIL(sem_init(&sem->psem, pshared, value));
     sem->refs = 0;
     XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
 
@@ -66,8 +66,10 @@ int XLink_sem_destroy(XLink_sem_t* sem)
         return -1;
     }
 
-    while(sem->refs > 0) {
-        if (pthread_cond_wait(&ref_cond, &ref_mutex)) {
+    while (sem->refs > 0) {
+        int rc = pthread_cond_wait(&ref_cond, &ref_mutex);
+        if (rc) {
+            mvLog(MVLOG_ERROR, "pthread_cond_wait failed %d", rc);
             break;
         };
     }
@@ -81,9 +83,12 @@ int XLink_sem_destroy(XLink_sem_t* sem)
 int XLink_sem_post(XLink_sem_t* sem)
 {
     XLINK_RET_ERR_IF(sem == NULL, -1);
+
+    XLINK_RET_IF_FAIL(pthread_mutex_lock(&ref_mutex));
     if (sem->refs < 0) {
         return -1;
     }
+    XLINK_RET_IF_FAIL(pthread_mutex_unlock(&ref_mutex));
 
     return sem_post(&sem->psem);
 }

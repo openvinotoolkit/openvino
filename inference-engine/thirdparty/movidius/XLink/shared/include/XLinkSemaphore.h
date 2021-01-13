@@ -41,7 +41,7 @@ extern "C"
 
 typedef struct {
     sem_t psem;
-    int refs;
+    volatile int refs;
 } XLink_sem_t;
 
 //

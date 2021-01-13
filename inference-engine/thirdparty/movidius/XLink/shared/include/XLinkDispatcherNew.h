@@ -10,24 +10,44 @@
 #include "XLinkBlockingQueue.h"
 #include "XLinkStream.h"
 
-typedef enum{
+typedef enum {
     DISPATCHER_INITIALIZED = 0,
     DISPATCHER_UP,
-    DISPATCHER_NEED_TO_CLOOSE,
+    DISPATCHER_NEED_TO_CLOSE,
     DISPATCHER_WAITING_TO_CLOSE,
     DISPATCHER_DOWN
 } DispatcherStatus_t;
 
-typedef struct DispatcherNew_t DispatcherNew;
+typedef struct DispatcherNew_t {
+    DispatcherStatus_t status;
+    xLinkDeviceHandle_t* deviceHandle;
 
-DispatcherNew* Dispatcher_Create(StreamDispatcher* streamDispatcher,
-                                 BlockingQueue* packetsToSendQueue,
-                                 BlockingQueue* receivedPacketsQueue[MAX_STREAMS_NEW]);
-void Dispatcher_Destroy(DispatcherNew* dispatcher);
+    StreamDispatcher* streamDispatcher;
+    BlockingQueue* packetsToSendQueue;
+    BlockingQueue* receivedPacketsQueue;
 
-XLinkError_t Dispatcher_Start(DispatcherNew* dispatcher, xLinkDeviceHandle_t* deviceHandle);
-XLinkError_t Dispatcher_Stop(DispatcherNew* dispatcher);
+    pthread_t sendPacketsThread;
+    pthread_t receivePacketsThread;
+} DispatcherNew;
 
-DispatcherStatus_t Dispatcher_GetStatus(DispatcherNew* dispatcher);
+XLinkError_t Dispatcher_Create(
+        DispatcherNew* dispatcher,
+        StreamDispatcher* streamDispatcher,
+        BlockingQueue* packetsToSendQueue,
+        BlockingQueue* receivedPacketsQueue);
+void Dispatcher_Destroy(
+        DispatcherNew* dispatcher);
+
+XLinkError_t Dispatcher_Start(
+        DispatcherNew* dispatcher,
+        xLinkDeviceHandle_t* deviceHandle,
+        linkId_t connectionId);
+XLinkError_t Dispatcher_Stop(
+        DispatcherNew* dispatcher);
+
+DispatcherStatus_t Dispatcher_GetStatus(
+        DispatcherNew* dispatcher);
+void Dispatcher_SetStatus(
+        DispatcherNew* dispatcher, DispatcherStatus_t status);
 
 #endif //OPENVINO_XLINKDISPATCHERNEW_H

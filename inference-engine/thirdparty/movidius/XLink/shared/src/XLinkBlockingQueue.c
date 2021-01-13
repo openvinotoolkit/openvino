@@ -1,48 +1,47 @@
-#include <time.h>
-#include <errno.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <stdio.h>
-#include <string.h>
-
-#include "XLinkBlockingQueue.h"
-#include "XLinkTool.h"
-#include "XLinkStringUtils.h"
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #ifdef MVLOG_UNIT_NAME
 #undef MVLOG_UNIT_NAME
 #define MVLOG_UNIT_NAME xLink
 #endif
+
+#include "XLinkBlockingQueue.h"
+#include "XLinkErrorUtils.h"
+#include "XLinkStringUtils.h"
 #include "XLinkLog.h"
+
+#if (defined(_WIN32) || defined(_WIN64))
+# include "win_pthread.h"
+# include "win_semaphore.h"
+#else
+# include <pthread.h>
+# ifndef __APPLE__
+#  include <semaphore.h>
+# endif
+#endif
+
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 static void msToTimespec(struct timespec *ts, unsigned long ms)
 {
-    ts->tv_sec = ms / 1000;
-    ts->tv_nsec = (ms % 1000) * 1000000;
+    ASSERT_XLINK(!clock_gettime(CLOCK_REALTIME, ts));
+
+    ts->tv_nsec += (ms % 1000) * 1000000;
+    ts->tv_sec += ms / 1000;
+    ts->tv_sec += ts->tv_nsec / 1000000000;
+    ts->tv_nsec %= 1000000000;
 }
-
-#define QUEUE_SIZE (MAX_PACKET_PER_STREAM * 2)
-
-struct BlockingQueue_t {
-    char name[MAX_QUEUE_NAME_LENGHT];
-
-    size_t head;
-    size_t tail;
-    size_t count;
-    void* packets[QUEUE_SIZE];
-    pthread_mutex_t lock;
-    sem_t addPacketSem;
-    sem_t removePacketSem;
-};
 
 // ------------------------------------
 // Private methods declaration. Begin.
 // ------------------------------------
 
-static void _blockingQueue_Push(BlockingQueue* queue, void* packet);
-static void* _blockingQueue_Pop(BlockingQueue* queue);
+static XLinkError_t _blockingQueue_Push(BlockingQueue* queue, void* packet);
+static XLinkError_t _blockingQueue_Pop(BlockingQueue* queue, void** packet);
 
 // ------------------------------------
 // Private methods declaration. End.
@@ -52,135 +51,114 @@ static void* _blockingQueue_Pop(BlockingQueue* queue);
 // API methods implementation. Begin.
 // ------------------------------------
 
-BlockingQueue* BlockingQueue_Create(const char* name) {
-    BlockingQueue* ret_blockingQueue = NULL;
-    BlockingQueue* blockingQueue = malloc(sizeof(BlockingQueue));
-
+XLinkError_t BlockingQueue_Create(BlockingQueue* blockingQueue, const char* name) {
     if (blockingQueue == NULL) {
-        mvLog(MVLOG_ERROR, "Cannot allocate BlockingQueue\n");
-        return NULL;
+        mvLog(MVLOG_ERROR, "Cannot allocate BlockingQueue");
+        return X_LINK_ERROR;
     }
 
     memset(blockingQueue, 0, sizeof(BlockingQueue));
 
-    mv_strcpy(blockingQueue->name, MAX_QUEUE_NAME_LENGHT, name);
-    XLINK_OUT_WITH_LOG_IF(sem_init(&blockingQueue->addPacketSem, 0, 0),
-                      mvLog(MVLOG_ERROR, "Cannot initialize addPacketSem\n"));
-
-    XLINK_OUT_WITH_LOG_IF(sem_init(&blockingQueue->removePacketSem, 0, QUEUE_SIZE),
-                      mvLog(MVLOG_ERROR, "Cannot initialize removePacketSem\n"));
-
-    XLINK_OUT_WITH_LOG_IF(pthread_mutex_init(&blockingQueue->lock, NULL),
-                      mvLog(MVLOG_ERROR, "Cannot initialize lock mutex\n"));
-
-    ret_blockingQueue = blockingQueue;
-
-    XLINK_OUT:
-    if(ret_blockingQueue == NULL
-       && blockingQueue != NULL) {
-        BlockingQueue_Destroy(blockingQueue);
+    mv_strcpy(blockingQueue->name, MAX_QUEUE_NAME_LENGTH, name);
+    for (size_t i = 0; i < blockingQueue->count; ++i) {
+        blockingQueue->packets[i] = NULL;
     }
-    return ret_blockingQueue;
+    blockingQueue->front = 0;
+    blockingQueue->back = 0;
+    blockingQueue->count = 0;
+
+    if (sem_init(&blockingQueue->addPacketSem, 0, 0) ||
+        sem_init(&blockingQueue->removePacketSem, 0, QUEUE_SIZE) ||
+        pthread_mutex_init(&blockingQueue->lock, NULL)) {
+        mvLog(MVLOG_ERROR, "Cannot initialize synchronization tools, destroying the queue");
+        BlockingQueue_Destroy(blockingQueue);
+        return X_LINK_ERROR;
+    }
+
+    return X_LINK_SUCCESS;
 }
 
 void BlockingQueue_Destroy(BlockingQueue* blockingQueue) {
-    if(blockingQueue == NULL) {
+    if (blockingQueue == NULL) {
+        mvLog(MVLOG_ERROR, "BlockingQueue_Destroy: queue has been already destroyed");
         return;
     }
 
-    ASSERT_RC_XLINK(sem_destroy(&blockingQueue->addPacketSem));
-    ASSERT_RC_XLINK(sem_destroy(&blockingQueue->removePacketSem));
-    ASSERT_RC_XLINK(pthread_mutex_destroy(&blockingQueue->lock));
+    mvLog(MVLOG_DEBUG, "Blocking packet queue with name %s is being destroyed",
+          blockingQueue->name);
 
-    free(blockingQueue);
-
-    return;
+    if (pthread_mutex_destroy(&blockingQueue->lock)) {
+        mvLog(MVLOG_ERROR, "BlockingQueue_Destroy: Cannot destroy lock mutex");
+    }
+    if (sem_destroy(&blockingQueue->removePacketSem)) {
+        mvLog(MVLOG_ERROR, "BlockingQueue_Destroy: Cannot destroy removePacketSem");
+    }
+    if (sem_destroy(&blockingQueue->addPacketSem)) {
+        mvLog(MVLOG_ERROR, "BlockingQueue_Destroy: Cannot destroy addPacketSem");
+    }
 }
 
 XLinkError_t BlockingQueue_Push(BlockingQueue* queue, void* packet) {
-    ASSERT_XLINK(queue != NULL);
-    ASSERT_XLINK(packet != NULL);
+    XLINK_RET_IF(queue == NULL);
+    XLINK_RET_IF(packet == NULL);
 
-    mvLog(MVLOG_DEBUG, "%s Waiting to perform operation\n", queue->name);
+    mvLog(MVLOG_DEBUG, "BlockingQueue_Push: %s is waiting to perform operation", queue->name);
 
-    sem_wait(&queue->removePacketSem);
-    _blockingQueue_Push(queue, packet);
+    XLINK_RET_IF(sem_wait(&queue->removePacketSem));
 
-    return X_LINK_SUCCESS;
+    return _blockingQueue_Push(queue, packet);
 }
 
-int BlockingQueue_TryPush(BlockingQueue* queue, void* packet) {
-    ASSERT_XLINK(queue != NULL);
-    ASSERT_XLINK(packet != NULL);
+XLinkError_t BlockingQueue_TimedPush(BlockingQueue* queue, void* packet, unsigned long ms) {
+    XLINK_RET_IF(queue == NULL);
+    XLINK_RET_IF(packet == NULL);
 
-    mvLog(MVLOG_DEBUG, "%s Waiting to perform operation. count=%u\n",
-        queue->name, queue->count);
-
-    if(sem_trywait(&queue->removePacketSem) == 0) {
-        _blockingQueue_Push(queue, packet);
-        return 1;
-    }
-
-    return 0;
-}
-
-int BlockingQueue_TimedPush(BlockingQueue* queue, void* packet, unsigned long ms) {
-    ASSERT_XLINK(queue != NULL);
-    ASSERT_XLINK(packet != NULL);
-
-    mvLog(MVLOG_DEBUG, "%s Waiting to perform operation. count=%u\n",
+    mvLog(MVLOG_DEBUG, "BlockingQueue_TimedPush: %s is waiting to perform operation. count=%u",
           queue->name, queue->count);
 
     struct timespec ts;
     msToTimespec(&ts, ms);
-    if(sem_timedwait(&queue->removePacketSem, &ts) == 0) {
-        _blockingQueue_Push(queue, packet);
-        return 1;
+
+    int rc = sem_timedwait(&queue->removePacketSem, &ts);
+    if (rc && errno == ETIMEDOUT) {
+        return X_LINK_TIMEOUT;
+    } else if (rc) {
+        return X_LINK_ERROR;
     }
 
-    return 0;
+    return _blockingQueue_Push(queue, packet);
 }
 
 XLinkError_t BlockingQueue_Pop(BlockingQueue* queue, void** packet) {
-    ASSERT_XLINK(queue != NULL);
-    ASSERT_XLINK(packet != NULL);
+    XLINK_RET_IF(queue == NULL);
+    XLINK_RET_IF(packet == NULL);
 
-    mvLog(MVLOG_DEBUG, "%s Waiting to perform operation. count=%u\n",
+    mvLog(MVLOG_DEBUG, "BlockingQueue_Pop: %s is waiting to perform operation. count=%u",
           queue->name, queue->count);
 
-    sem_wait(&queue->addPacketSem);
-    *packet = _blockingQueue_Pop(queue);
+    XLINK_RET_IF(sem_wait(&queue->addPacketSem));
 
-    return X_LINK_SUCCESS;
+    return _blockingQueue_Pop(queue, packet);
 }
 
-int BlockingQueue_TryPop(BlockingQueue* queue, void** packet) {
-    ASSERT_XLINK(queue != NULL);
-    ASSERT_XLINK(packet != NULL);
+XLinkError_t BlockingQueue_TimedPop(BlockingQueue* queue, void** packet, unsigned long ms) {
+    XLINK_RET_IF(queue == NULL);
+    XLINK_RET_IF(packet == NULL);
 
-    mvLog(MVLOG_DEBUG, "%s Waiting to perform operation. count=%u\n",
+    mvLog(MVLOG_DEBUG, "BlockingQueue_TimedPop: %s is waiting to perform operation. count=%u",
           queue->name, queue->count);
-
-    if(sem_trywait(&queue->addPacketSem) == 0) {
-        *packet = _blockingQueue_Pop(queue);
-        return 1;
-    }
-
-    return 0;
-}
-
-int BlockingQueue_TimedPop(BlockingQueue* queue, void** packet, unsigned long ms) {
-    ASSERT_XLINK(queue != NULL);
-    ASSERT_XLINK(packet != NULL);
 
     struct timespec ts;
     msToTimespec(&ts, ms);
-    if(sem_timedwait(&queue->addPacketSem, &ts) == 0) {
-        *packet = _blockingQueue_Pop(queue);
-        return 1;
+
+    int rc = sem_timedwait(&queue->addPacketSem, &ts);
+    if (rc && (errno == ETIMEDOUT || errno == EINTR)) {
+        return X_LINK_TIMEOUT;
+    } else if (rc) {
+        return X_LINK_ERROR;
     }
 
-    return 0;
+    return _blockingQueue_Pop(queue, packet);;
 }
 
 // ------------------------------------
@@ -192,37 +170,44 @@ int BlockingQueue_TimedPop(BlockingQueue* queue, void** packet, unsigned long ms
 // Private methods implementation. Begin.
 // ------------------------------------
 
-void _blockingQueue_Push(BlockingQueue* queue, void* packet) {
-    pthread_mutex_lock(&queue->lock);
-    queue->packets[queue->head++] = packet;
-    if (queue->head >= QUEUE_SIZE) {
-        queue->head = 0;
+XLinkError_t _blockingQueue_Push(BlockingQueue* queue, void* packet) {
+    XLINK_RET_IF(queue == NULL);
+    XLINK_RET_IF(pthread_mutex_lock(&queue->lock));
+
+    queue->packets[queue->back++] = packet;
+    if (queue->back >= QUEUE_SIZE) {
+        queue->back = 0;
     }
     queue->count++;
 
-    mvLog(MVLOG_DEBUG, "%s Successfully completed. count=%u\n",
-        queue->name, queue->count);
+    XLINK_RET_IF(sem_post(&queue->addPacketSem));
 
-    pthread_mutex_unlock(&queue->lock);
-
-    sem_post(&queue->addPacketSem);
-}
-
-void* _blockingQueue_Pop(BlockingQueue* queue) {
-    pthread_mutex_lock(&queue->lock);
-    void* packet = queue->packets[queue->tail++];
-    if (queue->tail >= QUEUE_SIZE) {
-        queue->tail = 0;
-    }
-    queue->count--;
-    mvLog(MVLOG_DEBUG, "%s Successfully completed. count=%u\n",
+    mvLog(MVLOG_DEBUG, "_blockingQueue_Push: %s Successfully completed. count=%u",
           queue->name, queue->count);
 
-    pthread_mutex_unlock(&queue->lock);
+    XLINK_RET_IF(pthread_mutex_unlock(&queue->lock));
 
-    sem_post(&queue->removePacketSem);
+    return X_LINK_SUCCESS;
+}
 
-    return packet;
+XLinkError_t _blockingQueue_Pop(BlockingQueue* queue, void** packet) {
+    XLINK_RET_IF(queue == NULL);
+    XLINK_RET_IF(pthread_mutex_lock(&queue->lock));
+
+    *packet = queue->packets[queue->front++];
+    if (queue->front >= QUEUE_SIZE) {
+        queue->front = 0;
+    }
+    queue->count--;
+
+    XLINK_RET_IF(sem_post(&queue->removePacketSem));
+
+    mvLog(MVLOG_DEBUG, "_blockingQueue_Pop %s Successfully completed. count=%u",
+          queue->name, queue->count);
+
+    XLINK_RET_IF(pthread_mutex_unlock(&queue->lock));
+
+    return X_LINK_SUCCESS;
 }
 
 // ------------------------------------

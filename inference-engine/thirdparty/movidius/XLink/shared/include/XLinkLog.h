@@ -103,7 +103,7 @@ extern int pthread_getname_np (pthread_t , char *, size_t);
 #endif
 
 #ifndef MVLOG_MAXIMUM_THREAD_NAME_SIZE
-#define MVLOG_MAXIMUM_THREAD_NAME_SIZE 16
+#define MVLOG_MAXIMUM_THREAD_NAME_SIZE 24
 #endif
 
 typedef enum mvLog_t{

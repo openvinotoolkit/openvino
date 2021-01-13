@@ -2,30 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <stdio.h>
-#include <string.h>
-#include "stdlib.h"
-
-#include "XLinkPrivateFields.h"
-#include "XLinkPrivateDefines.h"
-#include "XLinkTool.h"
-
 #ifdef MVLOG_UNIT_NAME
 #undef MVLOG_UNIT_NAME
 #define MVLOG_UNIT_NAME xLink
 #endif
 
+#include "XLinkPrivateFields.h"
+#include "XLinkPrivateDefines.h"
 #include "XLinkLog.h"
+
+#include <string.h>
 
 Connection* getLinkById(linkId_t id)
 {
-    int i;
-    for (i = 0; i < MAX_LINKS; i++) {
+    for (int i = 0; i < MAX_LINKS; i++) {
         linkId_t currId = Connection_GetId(&availableConnections[i]);
-        if(currId == id) {
+        if (currId == id) {
             return &availableConnections[i];
         }
     }
 
     return NULL;
+}
+
+int XLink_isOnHostSide() {
+#ifdef __PC__
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int XLink_isOnDeviceSide() {
+    return !XLink_isOnHostSide();
 }

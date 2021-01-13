@@ -6,7 +6,7 @@
 #include "stdlib.h"
 
 #include "XLink.h"
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 #include "XLinkPlatform.h"
 #include "XLinkPublicDefines.h"
 #include "XLinkPrivateFields.h"
@@ -26,46 +26,32 @@
 
 XLinkError_t getDeviceName(int index, char* name, int nameSize, XLinkPlatform_t platform, XLinkDeviceState_t state)
 {
-    ASSERT_XLINK(name != NULL);
-    ASSERT_XLINK(index >= 0);
-    ASSERT_XLINK(nameSize >= 0 && nameSize <= XLINK_MAX_NAME_SIZE);
+    XLINK_RET_IF(name == NULL);
+    XLINK_RET_IF(index < 0);
+    XLINK_RET_IF(nameSize <= 0 || nameSize > XLINK_MAX_NAME_SIZE);
 
     deviceDesc_t in_deviceRequirements = { 0 };
     in_deviceRequirements.protocol = glHandler != NULL ? glHandler->protocol : USB_VSC;
     in_deviceRequirements.platform = platform;
     memset(name, 0, nameSize);
 
-    if(index == 0)
-    {
+    if (index == 0) {
         deviceDesc_t deviceToBoot = { 0 };
-        XLinkError_t rc =
-            XLinkFindFirstSuitableDevice(state, in_deviceRequirements, &deviceToBoot);
-        if(rc != X_LINK_SUCCESS)
-        {
-            return rc;
-        }
+        XLINK_RET_IF_FAIL(XLinkFindFirstSuitableDevice(state, in_deviceRequirements, &deviceToBoot));
 
-        return mv_strcpy(name, nameSize, deviceToBoot.name) == EOK ? X_LINK_SUCCESS : X_LINK_ERROR;
+        XLINK_RET_IF(mv_strcpy(name, nameSize, deviceToBoot.name) != EOK);
+        return X_LINK_SUCCESS;
     }
-    else
-    {
-        deviceDesc_t deviceDescArray[XLINK_MAX_DEVICES] = { 0 };
-        unsigned int numberOfDevices = 0;
-        XLinkError_t rc =
-            XLinkFindAllSuitableDevices(state, in_deviceRequirements,
-                                        deviceDescArray, XLINK_MAX_DEVICES, &numberOfDevices);
-        if(rc != X_LINK_SUCCESS)
-        {
-            return rc;
-        }
 
-        if((unsigned int)index >= numberOfDevices)
-        {
-            return X_LINK_DEVICE_NOT_FOUND;
-        }
+    deviceDesc_t deviceDescArray[XLINK_MAX_DEVICES] = { 0 };
+    unsigned int numberOfDevices = 0;
+    XLINK_RET_IF_FAIL(XLinkFindAllSuitableDevices(
+            state, in_deviceRequirements, deviceDescArray, XLINK_MAX_DEVICES, &numberOfDevices));
 
-        return mv_strcpy(name, nameSize, deviceDescArray[index].name) == EOK ? X_LINK_SUCCESS : X_LINK_ERROR;
-    }
+    XLINK_RET_ERR_IF((unsigned int)index >= numberOfDevices, X_LINK_DEVICE_NOT_FOUND);
+
+    XLINK_RET_IF(mv_strcpy(name, nameSize, deviceDescArray[index].name) != EOK);
+    return X_LINK_SUCCESS;
 }
 
 XLinkError_t XLinkGetDeviceName(int index, char* name, int nameSize)
@@ -83,12 +69,12 @@ XLinkError_t XLinkGetDeviceNameExtended(int index, char* name, int nameSize, int
 
 XLinkError_t XLinkBootRemote(const char* deviceName, const char* binaryPath)
 {
-    ASSERT_XLINK(deviceName != NULL);
-    ASSERT_XLINK(binaryPath != NULL);
+    XLINK_RET_IF(deviceName == NULL);
+    XLINK_RET_IF(binaryPath == NULL);
 
     deviceDesc_t deviceDesc = { 0 };
     deviceDesc.protocol = glHandler != NULL ? glHandler->protocol : USB_VSC;
-    mv_strcpy(deviceDesc.name, XLINK_MAX_NAME_SIZE, deviceName);
+    XLINK_RET_IF(mv_strcpy(deviceDesc.name, XLINK_MAX_NAME_SIZE, deviceName) != EOK);
 
     return XLinkBoot(&deviceDesc, binaryPath);
 }

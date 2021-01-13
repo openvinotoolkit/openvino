@@ -1,25 +1,53 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef OPENVINO_PACKETQUEUE_H
-#define OPENVINO_PACKETQUEUE_H
-
-#define MAX_QUEUE_NAME_LENGHT (64)
+#ifndef OPENVINO_XLINK_BLOCKINGQUEUE_H
+#define OPENVINO_XLINK_BLOCKINGQUEUE_H
 
 #include "XLinkPublicDefines.h"
+#include "XLinkSemaphore.h"
 
-typedef struct BlockingQueue_t BlockingQueue;
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
-BlockingQueue* BlockingQueue_Create(const char* name);
-void BlockingQueue_Destroy(BlockingQueue* dispatcher);
+#define MAX_QUEUE_NAME_LENGTH (64)
+#define QUEUE_SIZE (XLINK_MAX_PACKET_PER_STREAM * 2)
 
-XLinkError_t BlockingQueue_Push(BlockingQueue* queue, void* packet);
-int BlockingQueue_TryPush(BlockingQueue* queue, void* packet);
-int BlockingQueue_TimedPush(BlockingQueue* queue, void* packet, unsigned long ms);
+typedef struct BlockingQueue_t {
+    char name[MAX_QUEUE_NAME_LENGTH];
+    void* packets[QUEUE_SIZE];
 
-XLinkError_t BlockingQueue_Pop(BlockingQueue* queue, void** packet);
-int BlockingQueue_TryPop(BlockingQueue* queue, void** packet);
-int BlockingQueue_TimedPop(BlockingQueue* queue, void** packet, unsigned long ms);
+    size_t front;
+    size_t back;
+    size_t count;
 
-#endif //OPENVINO_PACKETQUEUE_H
+    pthread_mutex_t lock;
+    sem_t addPacketSem;
+    sem_t removePacketSem;
+} BlockingQueue;
+
+XLinkError_t BlockingQueue_Create(
+        BlockingQueue* blockingQueue,
+        const char* name);
+void BlockingQueue_Destroy(
+        BlockingQueue* dispatcher);
+
+XLinkError_t BlockingQueue_Push(
+        BlockingQueue* queue,
+        void* packet);
+XLinkError_t BlockingQueue_TimedPush(
+        BlockingQueue* queue,
+        void* packet,
+        unsigned long ms);
+
+XLinkError_t BlockingQueue_Pop(
+        BlockingQueue* queue,
+        void** packet);
+XLinkError_t BlockingQueue_TimedPop(
+        BlockingQueue* queue,
+        void** packet,
+        unsigned long ms);
+
+#endif // OPENVINO_XLINK_BLOCKINGQUEUE_H

@@ -15,15 +15,14 @@ extern "C"
 {
 #endif
 
-#define CONTROL_SRTEAM_ID (31)
-#define MAX_STREAMS_NEW (CONTROL_SRTEAM_ID + 1)
-#define MAX_PACKET_PER_STREAM (64)
+#define XLINK_CONTROL_STREAM_ID (31)
+#define XLINK_MAX_STREAMS_NEW (XLINK_CONTROL_STREAM_ID + 1)
+#define XLINK_MAX_PACKET_PER_STREAM (64)
 
 #define XLINK_MAX_NAME_SIZE 28
-#define XLINK_MAX_STREAMS 32
-#define XLINK_MAX_PACKETS_PER_STREAM 64
+#define XLINK_MAX_STREAMS XLINK_MAX_STREAMS_NEW
 
-typedef enum{
+typedef enum {
     X_LINK_SUCCESS = 0,
     X_LINK_ALREADY_OPEN,
     X_LINK_COMMUNICATION_NOT_OPEN,
@@ -36,7 +35,7 @@ typedef enum{
     X_LINK_NOT_IMPLEMENTED
 } XLinkError_t;
 
-typedef enum{
+typedef enum {
     X_LINK_USB_VSC = 0,
     X_LINK_USB_CDC,
     X_LINK_PCIE,
@@ -45,19 +44,19 @@ typedef enum{
     X_LINK_ANY_PROTOCOL
 } XLinkProtocol_t;
 
-typedef enum{
+typedef enum {
     X_LINK_ANY_PLATFORM = 0,
     X_LINK_MYRIAD_2 = 2450,
     X_LINK_MYRIAD_X = 2480,
 } XLinkPlatform_t;
 
-typedef enum{
+typedef enum {
     X_LINK_ANY_STATE = 0,
     X_LINK_BOOTED,
     X_LINK_UNBOOTED,
 } XLinkDeviceState_t;
 
-typedef enum{
+typedef enum {
     X_LINK_PCIE_UNKNOWN_BOOTLOADER = 0,
     X_LINK_PCIE_SIMPLIFIED_BOOTLOADER = 1,
     X_LINK_PCIE_UNIFIED_BOOTLOADER = 2
@@ -65,7 +64,7 @@ typedef enum{
 
 #define INVALID_STREAM_ID 0xDEADDEAD
 #define INVALID_STREAM_ID_OUT_OF_MEMORY 0xDEADFFFF
-#define INVALID_LINK_ID   0xFF
+#define INVALID_LINK_ID 0xFF
 #define MAX_STREAM_NAME_LENGTH 64
 
 typedef uint32_t streamId_t;
@@ -77,14 +76,12 @@ typedef struct {
     char name[XLINK_MAX_NAME_SIZE];
 } deviceDesc_t;
 
-typedef struct streamPacketDesc_t
-{
+typedef struct streamPacketDesc_t {
     uint8_t* data;
     uint32_t length;
 } streamPacketDesc_t;
 
-typedef struct XLinkProf_t
-{
+typedef struct XLinkProf_t {
     float totalReadTime;
     float totalWriteTime;
     unsigned long totalReadBytes;
@@ -93,8 +90,7 @@ typedef struct XLinkProf_t
     float totalBootTime;
 } XLinkProf_t;
 
-typedef struct XLinkGlobalHandler_t
-{
+typedef struct XLinkGlobalHandler_t {
     int profEnable;
     XLinkProf_t profilingData;
 
@@ -104,8 +100,7 @@ typedef struct XLinkGlobalHandler_t
     //Deprecated fields. End.
 } XLinkGlobalHandler_t;
 
-typedef struct
-{
+typedef struct {
     char* devicePath;
     char* devicePath2;
     int linkId;
@@ -116,7 +111,7 @@ const char* XLinkErrorToStr(XLinkError_t rc);
 
 //Deprecated defines. Begin.
 
-typedef enum{
+typedef enum {
     USB_VSC = 0,
     USB_CDC,
     PCIE,

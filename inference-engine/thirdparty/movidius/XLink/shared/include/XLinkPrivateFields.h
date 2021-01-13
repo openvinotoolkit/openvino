@@ -12,8 +12,8 @@
 #define LINK_ID_SHIFT ((sizeof(uint32_t) - sizeof(uint8_t)) * 8)
 #define STREAM_ID_MASK 0xFFFFFF
 
-#define EXTRACT_LINK_ID(streamId) (((streamId) >> LINK_ID_SHIFT) & LINK_ID_MASK)
-#define EXTRACT_STREAM_ID(streamId) ((streamId) & STREAM_ID_MASK)
+#define EXTRACT_LINK_ID(streamId) (((streamId) >> (uint32_t)LINK_ID_SHIFT) & (uint32_t)LINK_ID_MASK)
+#define EXTRACT_STREAM_ID(streamId) ((streamId) & (uint32_t)STREAM_ID_MASK)
 
 #define COMBINE_IDS(streamId, linkid) \
     streamId = streamId | ((linkid & LINK_ID_MASK) << LINK_ID_SHIFT);
@@ -23,6 +23,8 @@
 // ------------------------------------
 extern XLinkGlobalHandler_t* glHandler;
 extern Connection availableConnections[MAX_LINKS];
+
+extern sem_t pingSem;
 
 // ------------------------------------
 // Global fields declaration. End.
@@ -34,6 +36,9 @@ extern Connection availableConnections[MAX_LINKS];
 // ------------------------------------
 
 Connection* getLinkById(linkId_t id);
+
+int XLink_isOnHostSide();
+int XLink_isOnDeviceSide();
 
 // ------------------------------------
 // Helpers declaration. End.
