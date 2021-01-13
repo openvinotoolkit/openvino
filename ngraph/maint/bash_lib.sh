@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -88,4 +88,3 @@ if bash_lib_am_sudo_or_root; then
 else
     bash_lib_MAYBE_SUDO='sudo --set-home'
 fi
-

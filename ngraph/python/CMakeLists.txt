@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     #disable warning: This operator was deprecated and will be removed with v0 operation.
-    add_compile_options(/wd4996) 
+    add_compile_options(/wd4996)
 endif()
 
 file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
@@ -71,7 +71,7 @@ target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_impor
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
 
-    install(TARGETS _${PROJECT_NAME} 
+    install(TARGETS _${PROJECT_NAME}
             DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyngraph_${PYTHON_VERSION})
 

@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -395,8 +395,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation 
-                                        openvino::itt 
+                                        openvino::conditional_compilation
+                                        openvino::itt
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend
