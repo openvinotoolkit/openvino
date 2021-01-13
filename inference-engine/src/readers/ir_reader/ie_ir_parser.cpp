@@ -17,7 +17,6 @@
 #include <string>
 #include <vector>
 #include <ngraph/ops.hpp>
-#include <ngraph/opsets/opset.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
@@ -331,10 +330,11 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
                 THROW_IE_EXCEPTION << "Attempt to access node " << e.fromLayerId << " that not in graph.";
             }
             auto& p_output = params[e.fromLayerId].params;
-            if (p.params.getRealInputPortId(e.toPortId) >= inputs.size())
+            size_t const realInputPortId = p.params.getRealInputPortId(e.toPortId);
+            if (realInputPortId >= inputs.size())
                 THROW_IE_EXCEPTION << p.params.type << " layer " << p.params.name << " with id: " << p.params.layerId
                     << " is inconsistent!";
-            inputs[p.params.getRealInputPortId(e.toPortId)] =
+            inputs[realInputPortId] =
                 input_node->output(p_output.getRealOutputPortId(e.fromPortId));
         }
 
@@ -622,32 +622,32 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const pugi::xml_node& node,
                                                     const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
-    static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
-        std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual"),
-        std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference"),
-        std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal"),
-        std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell"),
-        std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo"),
-        std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
-        std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
-        std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling"),
-        std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit"),
-        std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop"),
-        std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd"),
-        std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr"),
-        std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor"),
-        std::make_shared<LayerCreator<ngraph::op::v1::LogicalNot>>("LogicalNot"),
+    static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
+        { "GreaterEqual", std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual") },
+        { "SquaredDifference", std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference") },
+        { "LessEqual", std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual") },
+        { "Equal", std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal") },
+        { "LSTMCell", std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell") },
+        { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
+        { "RegionYolo", std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo") },
+        { "Result", std::make_shared<LayerCreator<ngraph::op::Result>>("Result") },
+        { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
+        { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
+        { "Loop", std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop") },
+        { "LogicalAnd", std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd") },
+        { "LogicalOr", std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr") },
+        { "LogicalXor", std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor") },
+        { "LogicalNot", std::make_shared<LayerCreator<ngraph::op::v1::LogicalNot>>("LogicalNot") },
     };
 
     // Check that operation in default opsets
     auto isDefaultOpSet = [](const std::string& version) -> bool {
-        for (size_t i = 1; i <= 6; i++) {
-            std::string opset_name = "opset" + std::to_string(i);
-            if (version == opset_name)
-                return true;
-        }
-        return false;
+        static char const * prefix = "opset";
+        static size_t const prefixLen = strlen(prefix);
+        return version.length() == prefixLen + 1
+                && version.compare(0, prefixLen, prefix) == 0
+                && version[prefixLen] >= '1'
+                && version[prefixLen] <= '6';
     };
 
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -660,48 +660,48 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     }
 
     std::shared_ptr<ngraph::Node> ngraphNode;
+
+    // Find registerd opset
+    auto opsetIt = opsets.find(params.version);
+
     if (isDefaultOpSet(params.version)) {
         // Try to create operation from creators
-        for (const auto& creator : creators) {
-            if (creator->shouldCreate(params.type)) {
-                bool useCreator = false;
-                // Check that opset is registered
-                useCreator |= opsets.find(params.version) == opsets.end();
-                if (!useCreator) {
-                    // Check that creator can create operation with the version from opset
-                    const auto opset = opsets.at(params.version);
-                    // Opset should contains the same version of operation or doesn't contain operation with current type
-                    useCreator |= opset.contains_type(creator->getNodeType()) || !opset.contains_type(params.type);
-                }
-                if (useCreator)
-                    ngraphNode = creator->createLayer(inputs, node, weights, params);
-                break;
-            }
+        auto creatorIt = creators.find(params.type);
+        if (creatorIt != creators.end()) {
+            auto const & creator = creatorIt->second;
+            // Check that opset isn't registered
+            // or opset should contains the same version of operation
+            // or doesn't contain operation with current type
+            if (opsetIt == opsets.end()
+                || opsetIt->second.contains_type(creator->getNodeType())
+                || !opsetIt->second.contains_type(params.type))
+                ngraphNode = creator->createLayer(inputs, node, weights, params);
         }
     }
 
     // Try to create operation from loaded opsets
-    if (!ngraphNode && opsets.count(params.version)) {
-        auto opset = opsets.at(params.version);
-        std::string type = params.type;
-
-        if (type == "Const") {
-            type = "Constant";
-        }
+    if (!ngraphNode && opsetIt != opsets.end()) {
+        auto const & type = params.type == "Const"
+                                ? "Constant"
+                                : params.type;
 
         if (params.version == "opset1") {
             // MVN and ROIPooling were missing in opset1
             if (type == "MVN" || type == "ROIPooling") {
-                opset = opsets.at("opset2");
+                opsetIt = opsets.find("opset2");
+                if (opsetIt == opsets.end()) {
+                    THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
+                        << " from unsupported opset: " << params.version;
+                }
             }
         }
 
-        if (!opset.contains_type_insensitive(type)) {
-            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
-        }
+        auto const & opset = opsetIt->second;
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
-        ngraphNode->set_friendly_name(params.name);
+        if (!ngraphNode) {
+            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
+        }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets);
         if (ngraphNode->visit_attributes(visitor))
