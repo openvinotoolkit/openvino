@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //  Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -107,6 +107,6 @@ REGISTER_TYPED_TEST_CASE_P(UnaryOperator,
                            dynamic_rank_input_shape_3D,
                            dynamic_rank_input_shape_full);
 
-using Types = ::testing::Types<op::Acos>;
+using Types = ::testing::Types<op::Acos, op::Asin>;
 
 INSTANTIATE_TYPED_TEST_CASE_P(type_prop, UnaryOperator, Types);

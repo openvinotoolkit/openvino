@@ -20,8 +20,8 @@
 #include <map>
 #include <memory>
 
-#include "ngraph/type/element_type.hpp"
 #include "ngraph/partial_shape.hpp"
+#include "ngraph/type/element_type.hpp"
 #include "onnx_import/utils/onnx_importer_visibility.hpp"
 
 namespace ONNX_NAMESPACE
@@ -78,6 +78,7 @@ namespace ngraph
 
             /// \brief Returns the path to the original model file
             const std::string& model_path() const;
+
         private:
             const std::string m_model_path;
 

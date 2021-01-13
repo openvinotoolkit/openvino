@@ -638,7 +638,6 @@ void ReversePermutationsPass::run() {
 
 void RemovePermutationsNHWCToNCHWPass::run() {
     std::list<CNNLayerPtr> permutationsToRemove;
-
     for (auto& l : *pLayers) {
         if (!LayerInfo(l).isConvolution()) {
             continue;
@@ -654,12 +653,31 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         auto next = getInputTo(l->outData.front()).begin()->second;
         auto prev = CNNNetPrevLayer(l);
 
-        if (!LayerInfo(next).isPermute() || !LayerInfo(prev).isPermute()) {
+        // The next layer must be NCHW to NHWC permute
+        if (!LayerInfo(next).isPermute() || next->input()->getLayout() != Layout::NCHW ||
+            next->GetParamAsInts("order") != GetPermuteOrder(Layout::NCHW, Layout::NHWC)) {
             continue;
         }
 
-        if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
-            permutationsToRemove.push_back(prev);
+        // The previous layer must be NHWC to NCHW permute or have 1D data
+        if (LayerInfo(prev).isPermute()) {
+            if (prev->outData[0]->getLayout() != Layout::NCHW ||
+                prev->GetParamAsInts("order") != GetPermuteOrder(Layout::NHWC, Layout::NCHW)) {
+                continue;
+            }
+
+            if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+                permutationsToRemove.push_back(prev);
+            }
+        } else  {
+            if (prev->outData.size() != 1 || getInputTo(prev->outData[0]).size() != 1) {
+                continue;
+            }
+            auto prev_dims = prev->outData[0]->getDims();
+            // Check if the previous layer has all dimensions except one to be equal to 1
+            if (std::count_if(std::begin(prev_dims), std::end(prev_dims), [](size_t dim) { return dim != 1; }) > 1) {
+                continue;
+            }
         }
         permutationsToRemove.push_back(next);
     }
@@ -675,7 +693,6 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 next->input()->setDims(toRemove->input()->getDims());
                 next->input()->setLayout(Layout::NHWC);
                 auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-
                 DataPtr output = nullptr;
                 for (auto before_output : layerBeforePermute->outData) {
                     if (areEqualDatas(toRemove->input(), before_output)) {
