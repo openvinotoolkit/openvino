@@ -442,23 +442,20 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     std::unordered_set<std::string> networkInputs;
     pugi::xml_node inputsNode = heteroNode.child("inputs");
-    for (auto inputNode = inputsNode.child("input"); !inputNode.empty();
-            inputNode = inputNode.next_sibling("input")) {
+    FOREACH_CHILD(inputNode, inputsNode, "input")  {
         networkInputs.insert(GetStrAttr(inputNode, "name"));
     }
 
     std::unordered_set<std::string> networkOutputs;
     pugi::xml_node outputsNode = heteroNode.child("outputs");
-    for (auto outputNode = outputsNode.child("output"); !outputNode.empty();
-            outputNode = outputNode.next_sibling("output")) {
+    FOREACH_CHILD(outputNode, outputsNode, "output") {
         networkOutputs.insert(GetStrAttr(outputNode, "name"));
     }
 
     Engine::Configs importedConfigs;
     auto configsNode = heteroNode.child("configs");
-    for (auto configNode = configsNode.child("config"); !configNode.empty();
-            configNode = configNode.next_sibling("config")) {
-            importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
+    FOREACH_CHILD(configNode, configsNode, "config") {
+        importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
     }
 
     for (auto&& config : configs) {
@@ -467,8 +464,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     std::vector<NetworkDesc> descs;
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
-    for (auto subnetworkNode = subnetworksNode.child("subnetwork"); !subnetworkNode.empty();
-            subnetworkNode = subnetworkNode.next_sibling("subnetwork")) {
+    FOREACH_CHILD(subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
         auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, importedConfigs);
@@ -501,17 +497,17 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
             auto inputs = cnnnetwork.getInputsInfo();
             auto inputsNode = subnetworkNode.child("inputs");
-            for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
+            FOREACH_CHILD(inputNode, inputsNode, "input") {
                 auto inputName = GetStrAttr(inputNode, "name");
                 inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
             }
 
             auto outputsNode = subnetworkNode.child("outputs");
-            for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+            FOREACH_CHILD(outputNode, outputsNode, "output") {
                 cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
             }
             auto outputs = cnnnetwork.getOutputsInfo();
-            for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+            FOREACH_CHILD(outputNode, outputsNode, "output") {
                 outputs[GetStrAttr(outputNode, "name")]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
             }
             executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
