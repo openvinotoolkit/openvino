@@ -278,7 +278,8 @@ void op::v1::TopK::validate_and_infer_types()
         this, k_partial_shape.rank().compatible(0), "The 'K' input must be a scalar.");
 
     NODE_VALIDATION_CHECK(this,
-                          m_index_element_type == "i32" || m_index_element_type == "i64",
+                          m_index_element_type == element::i32 ||
+                              m_index_element_type == element::i64,
                           "Index element type attribute should be either \'i32\' or \'i64\'. Got: ",
                           m_index_element_type);
 
