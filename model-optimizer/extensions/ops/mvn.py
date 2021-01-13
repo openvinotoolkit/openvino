@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
 """
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
+from mo.utils.error import Error
 
 
 class MVN(Op):
@@ -25,22 +27,28 @@ class MVN(Op):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset6',
             'eps': None,
             'normalize_variance': None,
             'eps_mode': None,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
 
     def supported_attrs(self):
         return ['eps', 'eps_mode', 'normalize_variance']
 
     def backend_attrs(self):
-        return ['eps', 'eps_mode', 'normalize_variance']
+        version = self.get_opset()
+        if version is 'opset2':
+            return ['eps', 'across_channels', 'normalize_variance']
+        elif version is 'opset6':
+            return ['eps', 'eps_mode', 'normalize_variance']
+        else:
+            raise Error('Unsupported MVN opset version "{}"'.format(version))
 
     @staticmethod
     def infer(node: None):
@@ -51,12 +59,13 @@ class MVN(Op):
         assert node.normalize_variance is not None, \
             'MVN required attribute `normalize_variance` unspecified for node {}'.format(name)
 
+        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
         copy_shape_infer(node)
 
 
 class MVNCaffe(Op):
     op = 'MVNCaffe'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {

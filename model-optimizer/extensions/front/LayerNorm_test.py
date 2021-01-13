@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ nodes_attributes_mvn = {
 
 nodes_attributes_ref = {
     'inp': {'kind': 'op', 'op': 'AnyOp'},
-    'mvn': {'kind': 'op', 'op': 'MVN'},
+    'mvn': {'kind': 'op', 'op': 'MVN', 'eps': 1e-6, 'normalize_variance': 1, 'eps_mode': 'inside_sqrt'},
     'mvn_param': {'kind': 'op', 'op': 'Const'},
     'out': {'kind': 'op', 'op': 'AnyOp'},
 }
