@@ -6,7 +6,7 @@
 
 **Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/pooling.html)
 
-**Detailed description**: [Reference](https://deeplizard.com/learn/video/ZjM_XQa5s6s). Input shape can be either 3D, 4D or 5D. Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value is 0.  
+**Detailed description**: [Reference](https://deeplizard.com/learn/video/ZjM_XQa5s6s). Input shape can be either 3D, 4D or 5D. Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value is `-inf`.  
         `H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`  
         `W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
         `D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`  
@@ -14,34 +14,34 @@
 Example 1 shows how *MaxPool* operates with `auto_pad = explicit`
 
 ```
-input = [[1, 2, 3],
-         [4, 5, 6],
-         [7, 8, 9]]
+input = [[-1, 2, 3],
+         [4, 5, -6],
+         [-7, 8, 9]]
 strides = [1, 1]
 pads_begin = [1, 1]
 pads_end = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "explicit"
-output = [[1, 2, 3, 3],
-          [4, 5, 6, 6],
-          [7, 8, 9, 9],
-          [7, 8, 9, 9]]
+output = [[-1, 2, 3, 3],
+          [4, 5, 5, -6],
+          [4, 8, 9, 9],
+          [-7, 8, 9, 9]]
 ```
 
 Example 2 shows how *MaxPool* operates with `auto_pad = valid`
 
 ```
-input = [[1, 2, 3],
-         [4, 5, 6],
-         [7, 8, 9]]
+input = [[-1, 2, 3],
+         [4, 5, -6],
+         [-7, 8, 9]]
 strides = [1, 1]
 pads_begin = [1, 1]
 pads_end = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "valid"
-output = [[5, 6],
+output = [[5, 5],
           [8, 9]]
 ```
 
@@ -49,33 +49,33 @@ output = [[5, 6],
 Example 3 shows how *MaxPool* operates with `auto_pad = same_upper`
 
 ```
-input = [[1, 2, 3],
-         [4, 5, 6],
-         [7, 8, 9]]
+input = [[-1, 2, 3],
+         [4, 5, -6],
+         [-7, 8, 9]]
 strides = [1, 1]
 pads_begin = [1, 1]
 pads_end = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_upper"
-output = [[1, 2, 3],
-          [4, 5, 6]
-          [7, 8, 9]]
+output = [[-1, 2, 3],
+          [4, 5, 5]
+          [4, 8, 9]]
 ```
 
 Example 4 shows how *MaxPool* operates with `auto_pad = same_lower`
 
 ```
-input = [[1, 2, 3],
-         [4, 5, 6],
-         [7, 8, 9]]
+input = [[-1, 2, 3],
+         [4, 5, -6],
+         [-7, 8, 9]]
 strides = [1, 1]
 pads_begin = [1, 1]
 pads_end = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_lower"
-output = [[5, 6, 6],
+output = [[5, 5, -6],
           [8, 9, 9]
           [8, 9, 9]]
 ```
