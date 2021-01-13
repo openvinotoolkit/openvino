@@ -81,10 +81,10 @@ const element::Type& descriptor::Output::get_element_type() const
 
 const std::unordered_set<std::string>& descriptor::Output::get_names() const
 {
-    return names;
+    return m_names;
 }
 
 void descriptor::Output::set_names(const std::unordered_set<std::string>& names)
 {
-    this->names = names;
+    m_names = names;
 }

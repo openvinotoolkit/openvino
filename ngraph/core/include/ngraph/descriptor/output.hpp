@@ -84,7 +84,7 @@ namespace ngraph
             size_t m_index;
             std::shared_ptr<Tensor> m_tensor;
             std::vector<Input*> m_inputs;
-            std::unordered_set<std::string> names;
+            std::unordered_set<std::string> m_names;
         };
     }
 }
