@@ -172,3 +172,25 @@ NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model)
     ASSERT_NE(input_a, std::end(graph_inputs));
     EXPECT_TRUE(input_a->get()->get_partial_shape().same_scheme(expected_shape_of_A));
 }
+
+NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
+
+    const auto new_shape = PartialShape{Dimension::dynamic()};
+
+    // dynamic dimensions (with bounds) are not supported so this call should throw
+    editor.set_input_shapes({{"A", new_shape}});
+
+    const auto function = onnx_import::import_onnx_model(editor);
+
+    const auto graph_inputs = function->get_parameters();
+    const auto input_a = std::find_if(
+        std::begin(graph_inputs),
+        std::end(graph_inputs),
+        [](const std::shared_ptr<op::Parameter> i) { return i->get_friendly_name() == "A"; });
+
+    ASSERT_NE(input_a, std::end(graph_inputs));
+    EXPECT_TRUE(input_a->get()->get_partial_shape().same_scheme(new_shape));
+}

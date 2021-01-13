@@ -120,10 +120,18 @@ namespace
             auto new_onnx_shape = tensor_type->shape();
             new_onnx_shape.clear_dim();
 
+            unsigned int dynamic_dims = 0u;
             for (const auto& dim : static_cast<std::vector<Dimension>>(new_shape))
             {
                 auto* new_dim = new_onnx_shape.add_dim();
-                new_dim->set_dim_value(dim.get_length());
+                if (dim.is_static())
+                {
+                    new_dim->set_dim_value(dim.get_length());
+                }
+                else
+                {
+                    new_dim->set_dim_param("__dynamic_dim_" + std::to_string(dynamic_dims++));
+                }
             }
 
             *(tensor_type->mutable_shape()) = std::move(new_onnx_shape);
