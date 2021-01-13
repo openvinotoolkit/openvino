@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,13 @@ using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
+
+op::NormalizeL2::NormalizeL2()
+    : FusedOp()
+    , m_eps()
+    , m_eps_mode()
+{
+}
 
 op::NormalizeL2::NormalizeL2(const Output<Node>& data,
                              const Output<Node>& axes,
