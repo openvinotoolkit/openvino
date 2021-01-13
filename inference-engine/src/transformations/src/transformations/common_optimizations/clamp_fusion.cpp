@@ -19,7 +19,7 @@ ngraph::pass::ClampFusion::ClampFusion() {
     auto data_pattern = ngraph::pattern::any_input();
     auto min_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto max_pattern = ngraph::pattern::wrap_type<opset5::Maximum>({data_pattern, min_const_pattern});
+    auto max_pattern = ngraph::pattern::wrap_type<opset5::Maximum>({data_pattern, min_const_pattern}, pattern::consumers_count(1));
     auto min_pattern = ngraph::pattern::wrap_type<opset5::Minimum>({max_pattern, max_const_pattern});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -44,12 +44,10 @@ ngraph::pass::ClampFusion::ClampFusion() {
         clamp->set_friendly_name(minimum.get_node()->get_friendly_name());
 
         copy_runtime_info({
-                            data.get_node_shared_ptr(),
-                            min_const,
-                            max_const,
                             pattern_map.at(max_pattern).get_node_shared_ptr(),
                             minimum.get_node_shared_ptr()
-                            }, clamp);
+                          },
+                          clamp);
         replace_node(minimum.get_node_shared_ptr(), clamp);
 
         return true;
