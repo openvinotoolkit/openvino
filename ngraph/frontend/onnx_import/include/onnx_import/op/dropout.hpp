@@ -44,8 +44,6 @@ namespace ngraph
             {
                 inline OutputVector dropout(const Node& node)
                 {
-                    std::cout << "\n ONNX Dropout 12 \n";
-
                     auto inputs_size = node.get_ng_inputs().size();
                     auto outputs_size = node.get_outputs_size();
                     auto input_data = node.get_ng_inputs().at(0);
@@ -56,6 +54,9 @@ namespace ngraph
                     }
                     else
                     {
+                        // This is work around for hanging optional inputs and optional output
+                        // that are not useful for inference
+                        // Inputs -> Concat -> Split -> Outputs
                         std::shared_ptr<ngraph::Node> shape_of_data;
 
                         if (input_data.get_partial_shape().is_static())
@@ -142,7 +143,7 @@ namespace ngraph
                         }
                     }
                 }
-            } // namespace set_1
+            } // namespace set_12
 
         } // namespace op
 
