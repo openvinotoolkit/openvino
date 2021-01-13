@@ -35,7 +35,6 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
 
     def backend_attrs(self):
         return [
-            'distribute_rois_between_levels',
             ('pyramid_scales', lambda node: ','.join(map(str, node['pyramid_scales']))),
             'image_id',
             'output_size',

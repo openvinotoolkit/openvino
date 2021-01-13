@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,6 @@ namespace ngraph
                 /// \brief Structure that specifies attributes of the operation
                 struct Attributes
                 {
-                    int64_t distribute_rois_between_levels;
                     int64_t image_id;
                     int64_t output_size;
                     int64_t preserve_rois_order;

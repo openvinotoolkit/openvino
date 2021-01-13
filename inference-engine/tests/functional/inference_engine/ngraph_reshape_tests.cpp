@@ -872,7 +872,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
             </output>
         </layer>
         <layer id="2" name="1190" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
-			<data aligned="0" distribute_rois_between_levels="1" output_size="7" preserve_rois_order="1" pyramid_scales="4" sampling_ratio="2"/>
+			<data aligned="0" output_size="7" preserve_rois_order="1" pyramid_scales="4" sampling_ratio="2"/>
 			<input>
 				<port id="0">
 					<dim>1000</dim>
@@ -946,7 +946,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractorOpset6) {
             </output>
         </layer>
         <layer id="2" name="1190" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
-			<data aligned="0" distribute_rois_between_levels="1" output_size="7" preserve_rois_order="1" pyramid_scales="4" sampling_ratio="2"/>
+			<data aligned="0" output_size="7" preserve_rois_order="1" pyramid_scales="4" sampling_ratio="2"/>
 			<input>
 				<port id="0">
 					<dim>1000</dim>

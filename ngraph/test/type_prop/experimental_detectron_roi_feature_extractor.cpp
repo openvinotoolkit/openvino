@@ -29,7 +29,6 @@ TEST(type_prop, detectron_roi_feature_extractor)
 {
     Attrs attrs;
     attrs.aligned = false;
-    attrs.distribute_rois_between_levels = 1;
     attrs.output_size = 14;
     attrs.preserve_rois_order = 1;
     attrs.sampling_ratio = 2;
@@ -53,7 +52,6 @@ TEST(type_prop, detectron_roi_feature_extractor_dynamic)
 {
     Attrs attrs;
     attrs.aligned = false;
-    attrs.distribute_rois_between_levels = 1;
     attrs.output_size = 14;
     attrs.preserve_rois_order = 1;
     attrs.sampling_ratio = 2;

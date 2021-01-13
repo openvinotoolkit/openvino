@@ -46,7 +46,6 @@ op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatur
 bool op::v6::ExperimentalDetectronROIFeatureExtractor::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_visit_attributes);
-    visitor.on_attribute("distribute_rois_between_levels", m_attrs.distribute_rois_between_levels);
     visitor.on_attribute("image_id", m_attrs.image_id);
     visitor.on_attribute("output_size", m_attrs.output_size);
     visitor.on_attribute("preserve_rois_order", m_attrs.preserve_rois_order);

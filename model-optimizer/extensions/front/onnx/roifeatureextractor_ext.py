@@ -29,7 +29,6 @@ class ExperimentalDetectronROIFeatureExtractorFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = dict(output_size=onnx_attr(node, 'output_size', 'i', 7),
                      sampling_ratio=onnx_attr(node, 'sampling_ratio', 'i', 2),
-                     distribute_rois_between_levels=onnx_attr(node, 'distribute_rois_between_levels', 'i', 1),
                      preserve_rois_order=onnx_attr(node, 'preserve_rois_order', 'i', 1),
                      aligned=onnx_attr(node, 'aligned', 'i', 0),
                      num_classes=onnx_attr(node, 'num_classes', 'i', 81),
