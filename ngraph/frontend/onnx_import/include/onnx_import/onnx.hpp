@@ -22,6 +22,7 @@
 #include <set>
 #include <string>
 
+#include "editor/editor.hpp"
 #include "ngraph/function.hpp"
 #include "utils/onnx_importer_visibility.hpp"
 
@@ -85,6 +86,15 @@ namespace ngraph
         ONNX_IMPORTER_API
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path);
 
+        /// \brief     Imports an ONNX model modified by the ONNXModelEditor wrapper.
+        ///
+        /// \note      Refer to the ONNXModelEditor documentation for available modifications.
+        ///
+        /// \param[in] model_editor  Reference to the model editor object instance.
+        ///
+        /// \return    An nGraph function representing the previously modified ONNX model.
+        ONNX_IMPORTER_API
+        std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor);
     } // namespace onnx_import
 
 } // namespace ngraph
