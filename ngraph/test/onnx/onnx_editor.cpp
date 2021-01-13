@@ -246,6 +246,26 @@ NGRAPH_TEST(onnx_editor, shapes__set_mixed_dimensions)
     EXPECT_TRUE(input_B->get_partial_shape().same_scheme(new_shape_B));
 }
 
+NGRAPH_TEST(onnx_editor, shapes__set_scalar_inputs)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
+
+    const auto new_shape = PartialShape{};
+
+    editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
+
+    const auto function = onnx_import::import_onnx_model(editor);
+
+    const auto graph_inputs = function->get_parameters();
+
+    const auto input_A = find_input(graph_inputs, "A");
+    EXPECT_TRUE(input_A->get_partial_shape().same_scheme(new_shape));
+
+    const auto input_B = find_input(graph_inputs, "B");
+    EXPECT_TRUE(input_B->get_partial_shape().same_scheme(new_shape));
+}
+
 NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution)
 {
     onnx_import::ONNXModelEditor editor{
