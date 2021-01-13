@@ -19,8 +19,7 @@
 """
 Use this script to create a wheel with Model Optimizer code:
 
-$ python setup.py sdist
-$ python -m pip wheel --no-index --no-deps --wheel-dir dist dist/*.tar.gz
+$ python setup.py sdist bdist_wheel
 """
 
 import sys
@@ -86,7 +85,7 @@ packages = [package_name + '.' + p for p in packages]
 setup(name='openvino-mo',
       version='0.0.0',
       author='Intel Corporation',
-      email='openvino_pushbot@intel.com',
+      author_email='openvino_pushbot@intel.com',
       url='https://github.com/openvinotoolkit/openvino',
       packages=packages,
       package_dir={package_name: '.'},
@@ -96,6 +95,4 @@ setup(name='openvino-mo',
           'build_py': BuildCmd,
       },
       install_requires=deps,
-      include_package_data=True,
-      data_files=[('', requirements_txt)]
 )
