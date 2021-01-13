@@ -130,7 +130,7 @@ def test_mvn():
     axes = np.array([2, 3], dtype=np.int64)
     epsilon = 1e-9
     normalize_variance = True
-    eps_mode = 'outside_sqrt'
+    eps_mode = "outside_sqrt"
     excepted = np.array([[[[1.3546423], [0.33053496], [-1.5450814]],
                           [[-1.2106764], [-0.8925952], [0.29888135]],
                           [[0.38083088], [0.81808794], [0.85865635]]],
