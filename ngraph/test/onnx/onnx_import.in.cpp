@@ -564,7 +564,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_single_basic_1in_param_1out)
         file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_single_basic_1in_param_1out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_input<float>({1, 2, 3, 4});                            // Data input
     test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
     test_case.run();
 }
@@ -576,9 +576,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_single_1in_param_2out)
         file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_single_1in_param_2out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_input<float>({1, 2, 3, 4});                            // Data input
     test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
-    // Dropout optional second output "mask", 
+    // Dropout optional second output "mask",
     // Default for inference, shape same as input, all values "True", should be bool
     test_case.add_expected_output<float>(Shape{1, 4}, {true, true, true, true});
     test_case.run();
@@ -591,8 +591,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_basic_1in_param_1out)
         file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_basic_1in_param_1out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4});  // Data input
-    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});  // Data output
+    test_case.add_input<float>({1, 2, 3, 4});                            // Data input
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
     test_case.run();
 }
 
@@ -603,9 +603,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_1in_param_2out)
         file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_1in_param_2out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_input<float>({1, 2, 3, 4});                            // Data input
     test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
-    // Dropout optional second output "mask", 
+    // Dropout optional second output "mask",
     // Default for inference, shape same as input, all values "True", should be bool
     test_case.add_expected_output<float>(Shape{1, 4}, {true, true, true, true});
     test_case.run();
@@ -620,11 +620,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_3in_param_2out)
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1, 2, 3, 4}); // Data input
     // Optional Dropout op inputs, redundant for inference mode
-    test_case.add_input<float>(Shape{}, {0.5});  // Dropout op input "ratio"
+    test_case.add_input<float>(Shape{}, {0.5});   // Dropout op input "ratio"
     test_case.add_input(std::vector<bool>{true}); // Dropout op input "training_mode"
 
     test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
-    // Dropout optional second output "mask", 
+    // Dropout optional second output "mask",
     // Default for inference, shape same as input, all values "True", should be bool
     test_case.add_expected_output<float>(Shape{1, 4}, {true, true, true, true});
     test_case.run();
@@ -639,7 +639,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_3in_param_1out)
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1, 2, 3, 4}); // Data input
     // Optional Dropout op inputs, redundant for inference mode
-    test_case.add_input<float>(Shape{}, {0.5});  // Dropout op input "ratio"
+    test_case.add_input<float>(Shape{}, {0.5});   // Dropout op input "ratio"
     test_case.add_input(std::vector<bool>{true}); // Dropout op input "training_mode"
 
     test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
@@ -650,11 +650,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_1in_param_2in_const_1out)
 {
     // Test ONNXgraph: Relu->Power^1->Dropout->Relu
     // Dropout optional inputs "ratio" and "training_mode" as Constant
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_1in_param_2in_const_1out.prototxt"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dropout_graph_1in_param_2in_const_1out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_input<float>({1, 2, 3, 4});                            // Data input
     test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
     test_case.run();
 }
@@ -663,13 +663,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_1in_param_1in_const_2out)
 {
     // Test ONNXgraph: Power^1->Relu->Dropout->Relu
     // Dropout optional inputs "ratio" as Constant
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_1in_param_1in_const_2out.prototxt"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dropout_graph_1in_param_1in_const_2out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1, 2, 3, 4}); // Data input
-    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});; // Data output
-    // Dropout optional second output "mask", 
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
+    ; // Data output
+    // Dropout optional second output "mask",
     // Default for inference, shape same as input, all values "True", should be bool
     test_case.add_expected_output<float>(Shape{1, 4}, {true, true, true, true});
     test_case.run();

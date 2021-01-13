@@ -23,7 +23,6 @@
 #include "onnx_import/op/max_pool.hpp"
 #include "onnx_import/utils/pooling_factory.hpp"
 
-
 namespace ngraph
 {
     namespace onnx_import
