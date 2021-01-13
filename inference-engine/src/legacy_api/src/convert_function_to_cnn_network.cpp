@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -349,7 +349,7 @@ public:
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void*>& adapter) override {
         if (std::string(node->get_type_name()) != "Constant") {
             const auto data_beg = static_cast<char*>(adapter.get_ptr());
-            params[name] = std::string(data_beg, adapter.size()); 
+            params[name] = std::string(data_beg, adapter.size());
         }
     }
 
@@ -663,7 +663,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
         res->params["kernel"] = kernel_value;
 
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr(); 
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
         if (InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             if (node->inputs().size() == 3) {
                 const auto biasNode = node->input_value(2).get_node_shared_ptr();
@@ -752,7 +752,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         const auto biasNode = node->input_value(3).get_node_shared_ptr();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
- 
+
         return res;
     });
 
@@ -1317,12 +1317,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"NormalizeIE"}, [](const std::shared_ptr<::ngraph::Node> &node, 
+    addSpecificCreator({"NormalizeIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                            const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Normalize",
                              details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::NormLayer>(attrs);
-        
+
         res->params = params;
         res->params["channel_shared"] = res->getBoolStrParamAsIntStr("channel_shared");
         res->params["across_spatial"] = res->getBoolStrParamAsIntStr("across_spatial");
@@ -1432,7 +1432,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             THROW_IE_EXCEPTION << "Interp do not support mode '" << interp_attrs.mode << "'";
         }
 
-        bool align_corners;    
+        bool align_corners;
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
 
@@ -1498,7 +1498,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params.erase("auto_pad");
         }
 
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr(); 
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
         if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             if (node->inputs().size() == 3) {
                 const auto biasNode = node->input_value(2).get_node_shared_ptr();
@@ -1849,7 +1849,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 cnnLayer->outData.clear();
                 continue;
             }
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto outName = layer->output(i).get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             if (outName.empty()) {
                 outName = ngraph::op::util::create_ie_output_name(layer->output(i));
             }
@@ -1903,7 +1905,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto name = input.get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             if (!name.empty())
                 cnnNetworkImpl->addOutput(name);
             else

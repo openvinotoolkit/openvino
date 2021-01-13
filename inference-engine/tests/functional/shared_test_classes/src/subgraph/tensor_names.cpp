@@ -33,11 +33,8 @@ void TensorNamesTest::SetUp() {
     relu->output(0).set_names({"relu_t", "identity"});
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(relu)};
     results[0]->set_friendly_name("out");
-    results[0]->get_output_tensor(0).set_name("out_t");
     ngraph::ParameterVector params{parameter};
     function = std::make_shared<ngraph::Function>(results, params, "TensorNames");
 }
 
 }  // namespace SubgraphTestsDefinitions
-
-

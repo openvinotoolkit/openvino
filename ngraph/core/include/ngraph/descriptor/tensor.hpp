@@ -44,7 +44,9 @@ namespace ngraph
                    Node* node,
                    size_t node_output_number);
 
+            NGRAPH_DEPRECATED("Only output ports have names")
             const std::string& get_name() const;
+            NGRAPH_DEPRECATED("Only output ports have names")
             void set_name(const std::string& name);
             void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
             void set_element_type(const element::Type& elemenet_type);

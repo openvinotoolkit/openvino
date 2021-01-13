@@ -42,11 +42,6 @@ descriptor::Tensor::Tensor(const element::Type& element_type,
 {
 }
 
-void descriptor::Tensor::set_name(const string& name)
-{
-    m_name = name;
-}
-
 void descriptor::Tensor::set_tensor_type(const element::Type& element_type,
                                          const PartialShape& pshape)
 {
@@ -90,6 +85,13 @@ size_t descriptor::Tensor::size() const
     return shape_size(get_shape()) * m_element_type.size();
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
+void descriptor::Tensor::set_name(const string& name)
+{
+    m_name = name;
+}
+
 const std::string& descriptor::Tensor::get_name() const
 {
     return m_name;
@@ -100,3 +102,5 @@ ostream& operator<<(ostream& out, const descriptor::Tensor& tensor)
     out << "Tensor(" << tensor.get_name() << ")";
     return out;
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_END
