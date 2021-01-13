@@ -94,6 +94,9 @@ class Loop(TensorIterator):
                 loop_port_idx = record['external_port_id']
                 if loop_port_idx != -1:
                     input_shape = loop_node.in_port(loop_port_idx).get_connection().get_source().data.get_shape()
+                slice_axis = record['axis']
+                if slice_axis is not None:
+                    input_shape[slice_axis] = 1
                 body_node.shape = input_shape
                 log.debug('Updated shape for the body node with internal_id "{}" with value {}'
                           ''.format(record['internal_layer_id'], body_node.shape))
@@ -124,7 +127,7 @@ class Loop(TensorIterator):
                                                            'output for Loop node "{}" for loop output port "{}"'.\
                         format(loop_name, loop_port_idx)
                     num_iters = Loop.iterations_count(loop_node)
-                    if num_iters is None:
+                    if num_iters is None or num_iters == -1:
                         log.error('Dynamic number of iterations for Loop node "{}". Consider number to be 1 to be able'
                                   ' to generate the IR.'.format(loop_name), extra={'is_warning': True})
                         num_iters = 1

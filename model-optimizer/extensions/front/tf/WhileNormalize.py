@@ -13,10 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
-from extensions.front.pass_separator import FrontStart
-from extensions.front.restore_ports import RestorePorts
 from extensions.ops.loop import Loop
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph, Node
@@ -50,4 +47,5 @@ class WhileNormalize(FrontReplacementSubgraph):
         exec_cond_node = Const(graph, {'name': loop_name + '/ExecutionConditionValue', 'value': True}).create_node()
         loop_node.in_port(1).get_connection().set_source(exec_cond_node.out_port(0))
 
+        loop_node.body.clean_up()
         Loop.normalize_input_output_ports(loop_node)
