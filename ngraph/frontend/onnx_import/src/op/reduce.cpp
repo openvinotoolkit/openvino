@@ -142,7 +142,7 @@ namespace ngraph
                     }
                     else
                     {
-                        return op::set_1::identity(node).at(0).get_node_shared_ptr();
+                        return ng_input.get_node_shared_ptr();
                     }
                 }
             } // namespace
