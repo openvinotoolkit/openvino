@@ -47,11 +47,13 @@ TEST(type_prop, detectron_topk_rois_dynamic)
     const auto dyn_dim = Dimension::dynamic();
     const auto dyn_shape = PartialShape::dynamic();
 
-    std::vector<ShapesAndMaxROIs> shapes_and_attrs = {
-        {{3000, 4}, dyn_shape, 700}, {dyn_shape, {4000}, 600}, {dyn_shape, dyn_shape, 500},
-        {{dyn_dim, 4}, dyn_shape, 700}, {dyn_shape, {dyn_dim}, 600}, {dyn_shape, dyn_shape, 500},
-        {{dyn_dim, 4}, {dyn_dim}, 700}
-    };
+    std::vector<ShapesAndMaxROIs> shapes_and_attrs = {{{3000, 4}, dyn_shape, 700},
+                                                      {dyn_shape, {4000}, 600},
+                                                      {dyn_shape, dyn_shape, 500},
+                                                      {{dyn_dim, 4}, dyn_shape, 700},
+                                                      {dyn_shape, {dyn_dim}, 600},
+                                                      {dyn_shape, dyn_shape, 500},
+                                                      {{dyn_dim, 4}, {dyn_dim}, 700}};
 
     for (const auto& s : shapes_and_attrs)
     {
