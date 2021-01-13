@@ -19,12 +19,12 @@
 #include <numeric>
 #include <sstream>
 
-#include "ngraph/log.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/provenance.hpp"
 #include "core/graph.hpp"
 #include "core/node.hpp"
 #include "exceptions.hpp"
+#include "ngraph/log.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/provenance.hpp"
 #include "utils/common.hpp"
 #include "utils/provenance_tag.hpp"
 

@@ -18,11 +18,11 @@
 #include <memory>
 #include <vector>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "default_opset.hpp"
-#include "exceptions.hpp"
 #include "op/gather.hpp"
 #include "utils/common.hpp"
 

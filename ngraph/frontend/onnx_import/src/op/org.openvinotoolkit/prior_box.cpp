@@ -15,9 +15,9 @@
 //*****************************************************************************
 
 #include "ngraph/op/prior_box.hpp"
-#include "ngraph/node.hpp"
 #include "core/node.hpp"
 #include "default_opset.hpp"
+#include "ngraph/node.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
 
 namespace ngraph

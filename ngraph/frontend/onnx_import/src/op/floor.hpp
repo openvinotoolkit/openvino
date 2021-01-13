@@ -18,10 +18,10 @@
 
 #include <memory>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/floor.hpp"
 #include "core/node.hpp"
 #include "default_opset.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/op/floor.hpp"
 
 namespace ngraph
 {

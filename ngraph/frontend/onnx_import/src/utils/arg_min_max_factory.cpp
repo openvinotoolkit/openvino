@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "utils/arg_min_max_factory.hpp"
-#include "ngraph/validation_util.hpp"
 #include "default_opset.hpp"
+#include "ngraph/validation_util.hpp"
 
 namespace ngraph
 {

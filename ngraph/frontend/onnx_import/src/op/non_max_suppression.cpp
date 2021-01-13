@@ -16,10 +16,10 @@
 
 #include <memory>
 
-#include "ngraph/op/non_max_suppression.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/op/non_max_suppression.hpp"
+#include "ngraph/op/util/attr_types.hpp"
 #include "op/non_max_suppression.hpp"
 #include "utils/reshape.hpp"
 

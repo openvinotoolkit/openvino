@@ -15,9 +15,9 @@
 //*****************************************************************************
 
 #include "ngraph/op/detection_output.hpp"
-#include "ngraph/node.hpp"
 #include "core/node.hpp"
 #include "default_opset.hpp"
+#include "ngraph/node.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 
 namespace ngraph

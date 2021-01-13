@@ -18,10 +18,10 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/shape.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/axis_vector.hpp"
+#include "ngraph/shape.hpp"
 #include "op/reshape.hpp"
 #include "utils/reshape.hpp"
 

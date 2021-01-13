@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "ngraph/node.hpp"
 #include "default_opset.hpp"
+#include "ngraph/node.hpp"
 #include "op/pow.hpp"
 
 namespace ngraph

@@ -16,12 +16,12 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/matmul.hpp"
 #include "ngraph/op/multiply.hpp"
-#include "default_opset.hpp"
 #include "op/gemm.hpp"
 
 namespace ngraph

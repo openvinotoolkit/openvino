@@ -18,8 +18,8 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "ngraph/except.hpp"
 #include "core/tensor.hpp"
+#include "ngraph/except.hpp"
 
 namespace ngraph
 {

@@ -16,11 +16,11 @@
 
 #include <memory>
 
+#include "core/node.hpp"
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
-#include "core/node.hpp"
-#include "default_opset.hpp"
 #include "op/reverse_sequence.hpp"
 
 namespace ngraph

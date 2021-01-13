@@ -18,9 +18,9 @@
 
 #include <string>
 
+#include "core/node.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
-#include "core/node.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ngraph

@@ -17,9 +17,9 @@
 #include <fstream>
 #include <sstream>
 
+#include "exceptions.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
-#include "exceptions.hpp"
 #include "utils/tensor_external_data.hpp"
 
 namespace ngraph

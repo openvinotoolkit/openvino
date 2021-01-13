@@ -17,10 +17,10 @@
 #include <functional>
 #include <memory>
 
-#include "ngraph/builder/norm.hpp"
-#include "ngraph/node.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/builder/norm.hpp"
+#include "ngraph/node.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph

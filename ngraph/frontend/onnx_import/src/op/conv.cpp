@@ -18,11 +18,11 @@
 #include <memory>
 #include <vector>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "default_opset.hpp"
-#include "exceptions.hpp"
 #include "op/conv.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"

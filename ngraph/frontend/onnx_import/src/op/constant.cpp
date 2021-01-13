@@ -15,10 +15,10 @@
 //*****************************************************************************
 
 #include "op/constant.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/op/constant.hpp"
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
+#include "ngraph/log.hpp"
+#include "ngraph/op/constant.hpp"
 
 namespace ngraph
 {

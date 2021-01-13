@@ -18,9 +18,9 @@
 #include <cstdint>
 #include <memory>
 
-#include "ngraph/node.hpp"
 #include "core/node.hpp"
 #include "default_opset.hpp"
+#include "ngraph/node.hpp"
 
 namespace ngraph
 {

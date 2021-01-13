@@ -17,8 +17,8 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/shape.hpp"
 #include "default_opset.hpp"
+#include "ngraph/shape.hpp"
 #include "op/softsign.hpp"
 
 namespace ngraph

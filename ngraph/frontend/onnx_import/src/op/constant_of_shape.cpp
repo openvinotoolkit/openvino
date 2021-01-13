@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/constant.hpp"
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
+#include "ngraph/op/constant.hpp"
 #include "op/constant.hpp"
 #include "utils/reshape.hpp"
 

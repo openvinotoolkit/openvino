@@ -17,11 +17,11 @@
 #include <string>
 #include <vector>
 
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/shape.hpp"
-#include "core/null_node.hpp"
-#include "default_opset.hpp"
 #include "op/gru.hpp"
 #include "utils/recurrent.hpp"
 

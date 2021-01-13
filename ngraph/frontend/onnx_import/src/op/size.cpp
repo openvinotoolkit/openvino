@@ -18,9 +18,9 @@
 #include <memory>
 #include <vector>
 
+#include "default_opset.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "default_opset.hpp"
 #include "op/size.hpp"
 
 namespace ngraph

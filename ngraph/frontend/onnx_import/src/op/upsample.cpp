@@ -16,9 +16,9 @@
 
 #include <memory>
 
-#include "ngraph/op/util/op_types.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "op/upsample.hpp"
 
 namespace ngraph

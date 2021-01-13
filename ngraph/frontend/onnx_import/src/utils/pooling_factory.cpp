@@ -16,9 +16,9 @@
 
 #include <iterator>
 
-#include "ngraph/coordinate_diff.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/coordinate_diff.hpp"
 #include "utils/convpool.hpp"
 #include "utils/pooling_factory.hpp"
 

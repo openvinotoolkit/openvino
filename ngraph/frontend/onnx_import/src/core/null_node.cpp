@@ -16,8 +16,8 @@
 
 #include <string>
 
-#include "ngraph/node.hpp"
 #include "core/null_node.hpp"
+#include "ngraph/node.hpp"
 
 namespace ngraph
 {

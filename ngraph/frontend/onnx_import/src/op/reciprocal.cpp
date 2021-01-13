@@ -17,8 +17,8 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/op/constant.hpp"
 #include "default_opset.hpp"
+#include "ngraph/op/constant.hpp"
 #include "op/reciprocal.hpp"
 
 namespace ngraph

@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <ngraph/except.hpp>
 #include <core/graph_cache.hpp>
+#include <ngraph/except.hpp>
 
 namespace ngraph
 {

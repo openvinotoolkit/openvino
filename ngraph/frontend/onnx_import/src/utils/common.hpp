@@ -25,11 +25,11 @@
 #include <type_traits> // std::enable_if
 #include <vector>
 
+#include "core/node.hpp"
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "core/node.hpp"
-#include "default_opset.hpp"
 
 namespace ngraph
 {

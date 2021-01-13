@@ -16,10 +16,10 @@
 
 #include <cstdint>
 
-#include "ngraph/op/concat.hpp"
-#include "ngraph/validation_util.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/op/concat.hpp"
+#include "ngraph/validation_util.hpp"
 #include "op/concat.hpp"
 
 namespace ngraph

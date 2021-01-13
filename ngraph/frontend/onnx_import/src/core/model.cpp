@@ -16,8 +16,8 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "ngraph/log.hpp"
 #include "core/model.hpp"
+#include "ngraph/log.hpp"
 #include "ops_bridge.hpp"
 
 namespace ngraph

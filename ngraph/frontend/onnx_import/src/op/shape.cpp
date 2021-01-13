@@ -16,10 +16,10 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "default_opset.hpp"
 #include "op/shape.hpp"
 
 namespace ngraph

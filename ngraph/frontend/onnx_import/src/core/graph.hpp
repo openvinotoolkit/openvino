@@ -21,12 +21,12 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/op/parameter.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
 #include "core/operator_set.hpp"
 #include "core/value_info.hpp"
 #include "default_opset.hpp"
+#include "ngraph/op/parameter.hpp"
 
 namespace ngraph
 {

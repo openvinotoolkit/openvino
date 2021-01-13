@@ -19,10 +19,10 @@
 #include <google/protobuf/text_format.h>
 #include <memory>
 
-#include "ngraph/except.hpp"
 #include "core/graph.hpp"
 #include "core/model.hpp"
 #include "core/transform.hpp"
+#include "ngraph/except.hpp"
 #include "onnx.hpp"
 #include "ops_bridge.hpp"
 

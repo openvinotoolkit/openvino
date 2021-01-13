@@ -16,9 +16,9 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
-#include "default_opset.hpp"
 #include "op/softmax.hpp"
 
 namespace ngraph

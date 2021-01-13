@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/partial_shape.hpp"
 #include "core/node.hpp"
+#include "ngraph/partial_shape.hpp"
 
 namespace ngraph
 {

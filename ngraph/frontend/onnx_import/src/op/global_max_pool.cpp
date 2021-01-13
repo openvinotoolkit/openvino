@@ -17,8 +17,8 @@
 #include <numeric>
 #include <vector>
 
-#include "ngraph/node.hpp"
 #include "default_opset.hpp"
+#include "ngraph/node.hpp"
 #include "op/global_max_pool.hpp"
 
 namespace ngraph

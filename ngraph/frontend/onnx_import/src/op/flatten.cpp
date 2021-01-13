@@ -16,9 +16,9 @@
 
 #include <cinttypes>
 
+#include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
-#include "exceptions.hpp"
 #include "op/flatten.hpp"
 
 namespace ngraph

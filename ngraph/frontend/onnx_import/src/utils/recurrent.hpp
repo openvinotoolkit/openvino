@@ -20,9 +20,9 @@
 #include <map>
 #include <memory>
 
+#include "core/node.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "core/node.hpp"
 
 namespace ngraph
 {

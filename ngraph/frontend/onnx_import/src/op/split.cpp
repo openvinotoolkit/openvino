@@ -17,8 +17,8 @@
 #include <cstdint>
 #include <vector>
 
-#include "ngraph/builder/split.hpp"
 #include "default_opset.hpp"
+#include "ngraph/builder/split.hpp"
 #include "op/split.hpp"
 
 namespace ngraph

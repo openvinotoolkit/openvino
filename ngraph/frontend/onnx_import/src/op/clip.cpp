@@ -17,9 +17,9 @@
 #include <limits>
 #include <memory>
 
-#include "ngraph/builder/make_constant.hpp"
 #include "core/null_node.hpp"
 #include "default_opset.hpp"
+#include "ngraph/builder/make_constant.hpp"
 #include "op/clip.hpp"
 
 namespace ngraph

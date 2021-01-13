@@ -21,14 +21,14 @@
 #include <memory>
 #include <vector>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/quantization/quantized_linear_convolution.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/frontend/onnx_import/utils/convpool.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset0.hpp"
 #include "ngraph/strides.hpp"
-#include "default_opset.hpp"
-#include "exceptions.hpp"
 #include "op/quant_conv.hpp"
 
 namespace ngraph

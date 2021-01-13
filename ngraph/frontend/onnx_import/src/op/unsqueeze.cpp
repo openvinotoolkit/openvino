@@ -16,10 +16,10 @@
 
 #include <memory>
 
-#include "ngraph/shape.hpp"
-#include "ngraph/validation_util.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/shape.hpp"
+#include "ngraph/validation_util.hpp"
 #include "op/unsqueeze.hpp"
 
 namespace ngraph
