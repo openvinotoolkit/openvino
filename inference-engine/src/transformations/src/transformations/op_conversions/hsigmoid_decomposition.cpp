@@ -20,7 +20,7 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto hsigmoid_node = pattern_to_output.at(hsigmoid).get_node_shared_ptr();
 
-        if (m_transformation_callback(hsigmoid_node)) {
+        if (transformation_callback(hsigmoid_node)) {
             return false;
         }
 
