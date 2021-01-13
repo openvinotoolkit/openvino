@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,11 +59,13 @@ std::string translate_type_name(const std::string& name) {
 // Some of the operators were added to wrong opsets. This is a
 // mapping that allows such operators to be serialized with proper
 // opsets. If new operators are discovered that have the same problem
-// the opset mapping needs to be updated here.
+// the opset mapping needs to be updated here. The keys also contain op
+// versions, concatenated after the actual names.
 const std::unordered_map<std::string, std::string>
-    special_operator_to_opset_assignments = {{"ShuffleChannels", "opset3"}};
+    special_operator_to_opset_assignments = {{"ShuffleChannels_v0", "opset3"}};
 
-std::string get_special_opset_for_op(const std::string &name) {
+std::string get_special_opset_for_op(const ngraph::Node::type_info_t& type_info) {
+    const std::string name = std::string(type_info.name) + "_v" + std::to_string(type_info.version);
     auto found = special_operator_to_opset_assignments.find(name);
     if (found != end(special_operator_to_opset_assignments)) {
         return found->second;
@@ -235,7 +237,7 @@ std::string get_opset_name(
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5()};
 
-    auto special_opset = get_special_opset_for_op(n->get_type_name());
+    auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {
         return special_opset;
     }
