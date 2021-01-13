@@ -51,6 +51,11 @@ macro(onnx_set_target_properties)
     else()
         target_compile_options(onnx PRIVATE -Wno-error)
     endif()
+
+    set_target_properties(onnx onnx_proto PROPERTIES
+                          CXX_VISIBILITY_PRESET default
+                          C_VISIBILITY_PRESET default
+                          VISIBILITY_INLINES_HIDDEN OFF)
 endmacro()
 
 FetchContent_GetProperties(ext_onnx)

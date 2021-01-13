@@ -110,6 +110,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Clamp::type_info,                 dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Floor::type_info,                 dynamicToStaticUnaryElementwise},
         {ngraph::opset5::Ceiling::type_info,               dynamicToStaticUnaryElementwise},
+        {ngraph::opset5::Round::type_info,                 dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Log::type_info,                   dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Relu::type_info,                  dynamicToStaticUnaryElementwise},
         {ngraph::opset3::ScatterUpdate::type_info,         dynamicToStaticUnaryElementwise},

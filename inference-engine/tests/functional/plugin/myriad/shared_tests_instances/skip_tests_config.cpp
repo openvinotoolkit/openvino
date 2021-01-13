@@ -33,6 +33,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 42721
         R"(.*(DSR_GatherND).*)",
         // TODO: Issue 43781
-        ".*ROIPoolingLayerTest.*"
+        ".*ROIPoolingLayerTest.*",
+        // TODO: Issue 26090
+        ".*DSR_GatherStaticDataDynamicIdx.*f32.*1.3.200.304.*"
     };
 }
