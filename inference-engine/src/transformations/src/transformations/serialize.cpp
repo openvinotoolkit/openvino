@@ -83,37 +83,43 @@ public:
         , m_custom_opsets(custom_opsets) {
     }
 
-    void map_type_from_body(const pugi::xml_node& xml_node,
-        const std::string map_type, std::vector<std::string>& output) {
-        if (!map_type.compare("Result") || !map_type.compare("Parameter")) {
+    std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
+        const std::string& map_type) {
+        std::vector<std::string> output;
+        if (map_type == "Result" || map_type == "Parameter") {
             for (pugi::xml_node node : xml_node.child("body").child("layers")) {
-                auto param = std::strcmp(node.attribute("type").value(), map_type.c_str());
+                auto param = map_type.compare(node.attribute("type").value());
                 if (!param) {
                     output.push_back(node.attribute("id").value());
                 }
             }
+
+            // parameters/results for serialized body function are provided in reversed order
+            std::reverse(output.begin(), output.end());
         }
-        // parameters/results for serialized body function are provided in reversed order
-        std::reverse(output.begin(), output.end());
+
+        return output;
     }
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
         (void)name;
 
-        if (m_xml_node.child("body")) {
+        if (m_xml_node.parent().child("body")) {
             // parameters and results from body are required for port_map attributes serialization
-            std::vector<std::string> parameter_mapping;
-            std::vector<std::string> result_mapping;
+            std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
+            std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
 
-            map_type_from_body(m_xml_node, "Parameter", parameter_mapping);
-            map_type_from_body(m_xml_node, "Result", result_mapping);
+            NGRAPH_CHECK(!parameter_mapping.empty() || !result_mapping.empty(), "No parameters or results found in body Function.");
 
+            // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
+            // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (here "m_xml_node")
+            // with empty attributes is removed.
             if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                         <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
-                pugi::xml_node port_map = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
+                pugi::xml_node port_map = m_xml_node.parent().find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
                 if (!port_map) {
-                    port_map = m_xml_node.insert_child_before("port_map", m_xml_node.first_child());
+                    port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
                 }
 
                 for (const auto& input_description : a->get()) {
@@ -138,7 +144,7 @@ public:
                     } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                         pugi::xml_node back_edges = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "back_edges") == 0;});
                         if (!back_edges) {
-                            back_edges = m_xml_node.insert_child_after("back_edges", port_map);
+                            back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
                         }
                         pugi::xml_node edge = back_edges.append_child("edge");
                         edge.append_attribute("from-layer").set_value(result_mapping[merged_input->m_body_value_index].c_str());
@@ -147,9 +153,9 @@ public:
                 }
             } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                         <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                pugi::xml_node port_map = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
+                pugi::xml_node port_map = m_xml_node.parent().find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
                 if (!port_map) {
-                    port_map = m_xml_node.insert_child_before("port_map", m_xml_node.first_child());
+                    port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
                 }
 
                 for (const auto& output_description : a->get()) {
@@ -251,12 +257,19 @@ public:
 
         ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets);
 
-        if (!name.compare("body")) {
+        if (name == "body") {
             xml_body.first_child().remove_attribute("name");
             xml_body.first_child().remove_attribute("version");
             xml_body.first_child().set_name(name.c_str());
+            // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
+            // to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (m_xml_node) with empty attributes
+            // is removed.
+            m_xml_node.parent().append_copy(xml_body.first_child());
+        } else if (name == "net") {
+            m_xml_node.append_copy(xml_body.first_child());
+        } else {
+            NGRAPH_CHECK(false, "Unsupported Function name.");
         }
-        m_xml_node.append_copy(xml_body.first_child());
     }
 };
 
@@ -518,11 +531,8 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
         }
 
         // <layers/data>
+        pugi::xml_node data = layer.append_child("data");
         std::string node_type_name{node->get_type_name()};
-        pugi::xml_node data = layer;
-        if (node_type_name != "TensorIterator") {
-            data = layer.append_child("data");
-        }
 
         // <layers/data> general attributes
         if (exec_graph) {
@@ -537,7 +547,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
 
         const bool data_attr_size =
             data.attributes().begin() == data.attributes().end();
-        if (data_attr_size && node_type_name != "TensorIterator") {
+        if (data_attr_size) {
             layer.remove_child(data);
         }
 
