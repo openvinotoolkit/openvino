@@ -152,8 +152,6 @@ namespace gapi {
         }
     };
 
-
-
     cv::gapi::GKernelPackage preprocKernels();
 
 }  // namespace gapi
