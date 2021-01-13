@@ -39,7 +39,7 @@ class ExperimentalDetectronDetectionOutput(Op):
 
     def backend_attrs(self):
         return [
-            'class_agnostic_box_regression',
+            ('class_agnostic_box_regression', lambda node: str(bool(node['class_agnostic_box_regression'])).lower()),
             'max_detections_per_image',
             'nms_threshold',
             'num_classes',
