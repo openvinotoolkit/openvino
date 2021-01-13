@@ -35,6 +35,9 @@ static constexpr char targetDeviceMessage[] =
 static constexpr char output_message[] =
                                              "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
 
+static constexpr char log_level_message[] =
+                                             "Optional. Log level for InferenceEngine library.";
+
 static constexpr char config_message[] =
                                              "Optional. Path to the configuration file.";
 
@@ -86,6 +89,7 @@ DEFINE_bool(h, false, help_message);
 DEFINE_string(m, "", model_message);
 DEFINE_string(d, "", targetDeviceMessage);
 DEFINE_string(o, "", output_message);
+DEFINE_string(log_level, "", log_level_message);
 DEFINE_string(c, "", config_message);
 DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
@@ -124,7 +128,7 @@ static void showUsage() {
     std::cout << std::endl;
 }
 
-static bool parseCommandLine(int* argc, char*** argv, InferenceEngine::Core& ie) {
+static bool parseCommandLine(int* argc, char*** argv) {
     gflags::ParseCommandLineNonHelpFlags(argc, argv, true);
 
     if (FLAGS_h) {
@@ -471,10 +475,13 @@ int main(int argc, char* argv[]) {
         std::cout << "Inference Engine: " << InferenceEngine::GetInferenceEngineVersion() << std::endl;
         std::cout << std::endl;
 
-        InferenceEngine::Core ie;
-
-        if (!parseCommandLine(&argc, &argv, ie)) {
+        if (!parseCommandLine(&argc, &argv)) {
             return EXIT_SUCCESS;
+        }
+
+        InferenceEngine::Core ie;
+        if (!FLAGS_log_level.empty()) {
+            ie.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
         }
 
         auto network = ie.ReadNetwork(FLAGS_m);
