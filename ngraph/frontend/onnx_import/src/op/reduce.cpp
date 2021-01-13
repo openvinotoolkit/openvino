@@ -37,13 +37,13 @@ namespace ngraph
                     const auto input = node.get_ng_inputs().at(0);
                     const auto shape_of_input = std::make_shared<default_opset::ShapeOf>(input);
                     const auto scalar =
-                        default_opset::Constant::create(element::i64, Shape{1}, {0});
+                        default_opset::Constant::create(element::i32, Shape{1}, {0});
                     const auto rank_of_input =
                         std::make_shared<default_opset::ShapeOf>(shape_of_input);
                     const auto rank_of_input_scalar =
                         std::make_shared<default_opset::Squeeze>(rank_of_input, scalar);
-                    const auto start = default_opset::Constant::create(element::i64, Shape{}, {0});
-                    const auto step = default_opset::Constant::create(element::i64, Shape{}, {1});
+                    const auto start = default_opset::Constant::create(element::i32, Shape{}, {0});
+                    const auto step = default_opset::Constant::create(element::i32, Shape{}, {1});
                     return std::make_shared<default_opset::Range>(
                         start, rank_of_input_scalar, step, element::i64);
                 }
