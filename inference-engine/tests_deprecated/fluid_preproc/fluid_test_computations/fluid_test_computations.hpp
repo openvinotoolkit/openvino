@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <vector>
+#include <array>
 
 #if defined(_WIN32)
     #ifdef IMPLEMENT_FLUID_COMPUTATION_API
@@ -43,6 +44,11 @@ struct Rect{
         return width == 0 && height == 0;
     };
 };
+struct Scalar
+{
+    std::array<double, 4> v;
+};
+
 }
 
 class FLUID_COMPUTATION_VISIBILITY FluidComputation
@@ -102,6 +108,12 @@ class FLUID_COMPUTATION_VISIBILITY ConvertDepthComputation : public FluidComputa
 {
 public:
     ConvertDepthComputation(test::Mat inMat, test::Mat outMat, int depth);
+};
+
+class FLUID_COMPUTATION_VISIBILITY MeanValueSubtractComputation : public FluidComputation
+{
+public:
+    MeanValueSubtractComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& mean, test::Scalar const& std);
 };
 
 #endif // FLUID_TEST_COMPUTATIONS_HPP
