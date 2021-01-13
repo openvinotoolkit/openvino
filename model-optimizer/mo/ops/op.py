@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2021 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -296,14 +296,6 @@ class Op(object):
         :return: the string with the opset name
         """
         return self.attrs.get('version', 'extension')
-
-    def get_type(self):
-        """
-        Gets the operation type.
-        If the version is not defined then consider it an unknown
-        :return: the string with the opset name
-        """
-        return self.attrs.get('type', '<UNKNOWN>')
 
 
     @classmethod
