@@ -181,7 +181,7 @@ private:
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
         explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights,
-        const std::map<std::string, ngraph::OpSet>& opsets) : node(node), weights(weights), opsets(opsets) {}
+        const std::unordered_map<std::string, ngraph::OpSet>& opsets) : node(node), weights(weights), opsets(opsets) {}
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -286,7 +286,7 @@ private:
     private:
         const pugi::xml_node node;
         const Blob::CPtr& weights;
-        const std::map<std::string, ngraph::OpSet>& opsets;
+        const std::unordered_map<std::string, ngraph::OpSet>& opsets;
         /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
         /// Shall be used only for ops which have port_map attribute.
         /// \param node xml op representation

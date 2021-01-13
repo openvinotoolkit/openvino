@@ -689,6 +689,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
             // MVN and ROIPooling were missing in opset1
             if (type == "MVN" || type == "ROIPooling") {
                 opsetIt = opsets.find("opset2");
+                if (opsetIt == opsets.end()) {
+                    THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
+                        << " from unsupported opset: " << params.version;
+                }
             }
         }
 
