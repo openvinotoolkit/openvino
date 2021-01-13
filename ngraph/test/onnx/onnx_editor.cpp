@@ -151,6 +151,25 @@ NGRAPH_TEST(onnx_editor, elem_type_missing_in_input)
     EXPECT_EQ(function_result->get_element_type(), element::i64);
 }
 
+NGRAPH_TEST(onnx_editor, shapes__modify_all_inputs)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
+
+    const auto new_shape = PartialShape{1, 2, 3, 5, 8, 13};
+
+    editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
+
+    const auto function = onnx_import::import_onnx_model(editor);
+
+    const auto graph_inputs = function->get_parameters();
+
+    for (const auto& input : graph_inputs)
+    {
+        EXPECT_TRUE(input->get_partial_shape().same_scheme(new_shape));
+    }
+}
+
 NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model)
 {
     onnx_import::ONNXModelEditor editor{file_util::path_join(
@@ -175,12 +194,11 @@ NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model)
 
 NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
-        SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
 
     const auto new_shape = PartialShape{Dimension::dynamic()};
 
-    // dynamic dimensions (with bounds) are not supported so this call should throw
     editor.set_input_shapes({{"A", new_shape}});
 
     const auto function = onnx_import::import_onnx_model(editor);
