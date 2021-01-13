@@ -68,24 +68,16 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
 endif()
 
-if (LINUX)
-    # nGraph links against one or more libraries (ex. LLVM) but we don't want to
-    # export these symbols as part of the DSO. This is a GNU ld (and derivatives) specific
-    # option so making this portable is still an open issue. As a note for the future,
-    # this is not an issue on Windows and LLVM's lld does support --exclude-libs.
-    set_property(TARGET ngraph APPEND_STRING PROPERTY LINK_FLAGS " -Wl,--exclude-libs,ALL")
-
-    # GCC invokes the linker with --as-needed by default which doesn't work for us
-    # because generated code needs to find symbols in these DSOs at runtime.
-    # The fix below is temporary and will be removed once we find a better way
-    # to do this because certain dependencies like the OpenMP runtime libraries
-    # _do_ need to be linked with --as-needed with a higher priority for the
-    # Intel OpenMP runtime so we don't mix libgomp and libiomp5
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set_property(TARGET ngraph APPEND_STRING PROPERTY LINK_FLAGS " -Wl,--no-as-needed")
-    endif()
-elseif(APPLE)
-    set_property(TARGET ngraph APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-rpath,@loader_path")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # ngraph is linked against ngraph_builders, ngraph_reference static libraries
+    # which include ngraph headers with dllimport attribute. Linker complains about it
+    # but no way to fix this: linking with no attribute defaults to dllexport and we have
+    # multiple defitions for ngraph symbols.
+    #
+    # The possible way is to use object libraries for ngraph_builders, ngraph_reference
+    # but it's not convinient since these libraries are exported from build tree
+    # and it's better to use them as static libraries in 3rd party projects
+    set_target_properties(ngraph PROPERTIES LINK_FLAGS "/IGNORE:4217,4286")
 endif()
 
 # Defines macro in C++ to load backend plugin
