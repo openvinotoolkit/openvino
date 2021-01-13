@@ -29,6 +29,12 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::SquaredDifference::type_info;
 
+op::SquaredDifference::SquaredDifference()
+    : FusedOp()
+    , m_autobroadcast()
+{
+}
+
 op::SquaredDifference::SquaredDifference(const Output<Node>& x1,
                                          const Output<Node>& x2,
                                          const AutoBroadcastSpec& auto_broadcast)

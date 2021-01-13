@@ -35,6 +35,8 @@ namespace ngraph
     {
         namespace v0
         {
+            NGRAPH_SUPPRESS_DEPRECATED_START
+
             ///
             /// \brief      Class for lstm sequence node.
             ///
@@ -48,7 +50,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                LSTMSequence() = default;
+                LSTMSequence();
 
                 using direction = RecurrentSequenceDirection;
 
@@ -70,26 +72,7 @@ namespace ngraph
                                                                                     "tanh",
                                                                                     "tanh"},
                                       const float clip_threshold = 0,
-                                      const bool input_forget = false)
-                    : FusedOp({X,
-                               initial_hidden_state,
-                               initial_cell_state,
-                               sequence_lengths,
-                               W,
-                               R,
-                               B,
-                               P})
-                    , m_activations_alpha(activations_alpha)
-                    , m_activations_beta(activations_beta)
-                    , m_activations(activations)
-                    , m_clip_threshold(clip_threshold)
-                    , m_direction(lstm_direction)
-                    , m_hidden_size(hidden_size)
-                    , m_input_forget(input_forget)
-                    , m_weights_format(weights_format)
-                {
-                    constructor_validate_and_infer_types();
-                }
+                                      const bool input_forget = false);
 
                 explicit LSTMSequence(const Output<Node>& X,
                                       const Output<Node>& initial_hidden_state,
@@ -107,30 +90,7 @@ namespace ngraph
                                                                                      "tanh",
                                                                                      "tanh"},
                                       const float clip_threshold = 0,
-                                      const bool input_forget = false)
-                    : LSTMSequence(
-                          X,
-                          initial_hidden_state,
-                          initial_cell_state,
-                          sequence_lengths,
-                          W,
-                          R,
-                          B,
-                          Constant::create(
-                              element::f32,
-                              Shape{(lstm_direction == direction::BIDIRECTIONAL ? 2UL : 1UL),
-                                    3UL * static_cast<size_t>(hidden_size)},
-                              std::vector<float>{0.f}),
-                          hidden_size,
-                          lstm_direction,
-                          weights_format,
-                          activations_alpha,
-                          activations_beta,
-                          activations,
-                          clip_threshold,
-                          input_forget)
-                {
-                }
+                                      const bool input_forget = false);
 
                 virtual void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -183,6 +143,8 @@ namespace ngraph
                 bool m_input_forget;
                 LSTMWeightsFormat m_weights_format;
             };
+
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
 
         namespace v5
