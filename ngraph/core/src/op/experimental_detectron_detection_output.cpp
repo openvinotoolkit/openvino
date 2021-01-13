@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,10 +65,6 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
     auto scores_shape = get_input_partial_shape(2);
     auto im_info_shape = get_input_partial_shape(3);
 
-    set_output_type(0, input_et, Shape{rois_num, 4});
-    set_output_type(1, element::Type_t::i32, Shape{rois_num});
-    set_output_type(2, input_et, Shape{rois_num});
-
     if (rois_shape.rank().is_dynamic() || deltas_shape.rank().is_dynamic() ||
         scores_shape.rank().is_dynamic() || im_info_shape.rank().is_dynamic())
     {
@@ -126,6 +122,10 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
                               "; input_scores batch: ",
                               num_batches_scores);
     }
+
+    set_output_type(0, input_et, Shape{rois_num, 4});
+    set_output_type(1, element::Type_t::i32, Shape{rois_num});
+    set_output_type(2, input_et, Shape{rois_num});
 }
 
 shared_ptr<Node> op::v6::ExperimentalDetectronDetectionOutput::clone_with_new_inputs(
