@@ -86,6 +86,23 @@ namespace
         }
     }
 
+    void add_dim_to_onnx_shape(const Dimension& dim, ONNX_NAMESPACE::TensorShapeProto& onnx_shape)
+    {
+        auto* new_dim = onnx_shape.add_dim();
+        if (dim.is_static())
+        {
+            new_dim->set_dim_value(dim.get_length());
+        }
+        else
+        {
+            // nGraph Dimension is also considered dynamic if it represents a constrained range
+            // of allowed values as well as if it's unconstrained at all. ONNX cannot represent
+            // ranged dimensions so this might not be 100% accurate. The modified ONNX model will
+            // always have a fully dynamic dimension in this case.
+            new_dim->set_dim_param("__dynamic_dimension__");
+        }
+    }
+
     void modify_input_shape(ValueInfoProto& onnx_input, const PartialShape& new_shape)
     {
         if (!onnx_input.has_type())
@@ -120,18 +137,9 @@ namespace
             auto new_onnx_shape = tensor_type->shape();
             new_onnx_shape.clear_dim();
 
-            unsigned int dynamic_dims = 0u;
             for (const auto& dim : static_cast<std::vector<Dimension>>(new_shape))
             {
-                auto* new_dim = new_onnx_shape.add_dim();
-                if (dim.is_static())
-                {
-                    new_dim->set_dim_value(dim.get_length());
-                }
-                else
-                {
-                    new_dim->set_dim_param("__dynamic_dim_" + std::to_string(dynamic_dims++));
-                }
+                add_dim_to_onnx_shape(dim, new_onnx_shape);
             }
 
             *(tensor_type->mutable_shape()) = std::move(new_onnx_shape);
