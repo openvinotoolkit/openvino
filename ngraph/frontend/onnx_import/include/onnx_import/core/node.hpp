@@ -21,7 +21,7 @@
 
 #include "ngraph/except.hpp"
 #include "ngraph/node.hpp"
-#include "utils/onnx_importer_visibility.hpp"
+#include "onnx_import/utils/onnx_importer_visibility.hpp"
 
 namespace ONNX_NAMESPACE
 {
