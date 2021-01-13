@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,11 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
-import uuid
-from platform import system
-
 import telemetry.utils.isip as isip
+
 from telemetry.backend.backend_ga import GABackend
 from telemetry.utils.sender import TelemetrySender
 
@@ -40,76 +37,16 @@ class Telemetry(metaclass=SingletonMetaClass):
     """
     def __init__(self, app_name: str = None, app_version: str = None, tid: [None, str] = None):
         if app_name is not None:
-            self.consent = True # For testing purposes # isip.isip_consent() == isip.ISIPConsent.APPROVED
-            self.uid = Telemetry._get_or_generate_uid()
+            self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
+            #self.consent = True # For testing purposes # isip.isip_consent() == isip.ISIPConsent.APPROVED
             # override default tid
             if tid is not None:
                 self.tid = tid
-            self.backend = GABackend(self.tid, self.uid, app_name, app_version)
+            self.backend = GABackend(self.tid, app_name, app_version)
             self.sender = TelemetrySender()
         else:  # use already configured instance
             assert self.sender is not None, 'The first instantiation of the Telemetry should be done with the ' \
                                             'application name and version'
-
-    @staticmethod
-    def _is_valid_uuid(uid: str):
-        try:
-            uuid.UUID(uid, version=4)
-        except ValueError:
-            return False
-        return True
-
-    @staticmethod
-    def _generate_uid():
-        """
-        The function which randomly generates the UID for the user and save it to the specific file in the user's home
-        directory.
-        :return: the generated UID
-        """
-        try:
-            uid_file = Telemetry._get_uid_file_path()
-
-            # create directories recursively first
-            os.makedirs(os.path.dirname(uid_file), exist_ok=True)
-
-            with open(uid_file, 'w') as file:
-                uid = str(uuid.uuid4())
-                file.write(uid)
-                return uid
-
-        except Exception as e:
-            print('Failed to generate the UID file: {}'.format(str(e)))
-            return None
-
-    @staticmethod
-    def _get_or_generate_uid():
-        if os.path.exists(Telemetry._get_uid_file_path()):
-            uid = None
-            with open(Telemetry._get_uid_file_path(), 'r') as file:
-                uid = file.readline().strip()
-
-            # if the UUID is not specified or is in incorrect format then generate a new one
-            if uid is None or not Telemetry._is_valid_uuid(uid):
-                return Telemetry._generate_uid()
-            return uid
-        else:
-            return Telemetry._generate_uid()
-
-    @staticmethod
-    def _get_uid_file_path():
-        """
-        Returns a full path to the file with the OpenVINO randomly generated UUID file.
-        :return: the full path to the UUID file.
-        """
-        platform = system()
-        subdir = None
-        if platform == 'Windows':
-            subdir = 'Intel Corporation'
-        elif platform in ['Linux', 'Darwin']:
-            subdir = '.intel'
-        if subdir is None:
-            raise Exception('Failed to determine the operation system type')
-        return os.path.join(isip.isip_consent_base_dir(), subdir, 'openvino_uuid')
 
     def send_event(self, event_category: str, event_action: str, event_label: str, event_value: int = 1, **kwargs):
         """
@@ -139,6 +76,26 @@ class Telemetry(metaclass=SingletonMetaClass):
         """
         if self.consent:
             pass
+
+    def start_session(self, **kwargs):
+        """
+        Sends a message about starting of a new session.
+
+        :param kwargs: additional parameters
+        :return: None
+        """
+        if self.consent:
+            self.sender.send(self.backend, self.backend.build_session_start_message(**kwargs))
+
+    def end_session(self, **kwargs):
+        """
+        Sends a message about ending of the current session.
+
+        :param kwargs: additional parameters
+        :return: None
+        """
+        if self.consent:
+            self.sender.send(self.backend, self.backend.build_session_end_message(**kwargs))
 
     def send_error(self, error_msg: str, **kwargs):
         if self.consent:

@@ -115,7 +115,7 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
-    t.send_event('model_conversion', 'session', 'start')
+    t.start_session()
 
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
@@ -307,7 +307,7 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         if ov_update_message:
             print(ov_update_message)
         tm.Telemetry().send_event('model_conversion', 'conversion_result', 'success')
-        tm.Telemetry().send_event('model_conversion', 'session', 'end')
+        tm.Telemetry().end_session()
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
@@ -334,5 +334,5 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
         tm.Telemetry().send_event('model_conversion', 'conversion_result', 'fail')
-    tm.Telemetry().send_event('model_conversion', 'session', 'end')
+    tm.Telemetry().end_session()
     return 1

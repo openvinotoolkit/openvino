@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ class MessageType(Enum):
     EVENT = 0
     ERROR = 1
     STACK_TRACE = 2
+    SESSION_START = 3
+    SESSION_END = 4
 
 
 class Message:

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,11 +20,10 @@ from telemetry.utils.message import Message
 
 class TelemetryBackend(abc.ABC):
     @abc.abstractmethod
-    def __init__(self, tid: str, uid: str, app_name: str, app_version: str):
+    def __init__(self, tid: str, app_name: str, app_version: str):
         """
         Initializer of the class
         :param tid: database id
-        :param uid: user id
         :param app_name: name of the application
         :param app_version: version of the application
         """
@@ -55,4 +54,16 @@ class TelemetryBackend(abc.ABC):
     def build_stack_trace_message(self, error_msg: str, **kwargs):
         """
         Should return the Message object build from the stack trace message.
+        """
+
+    @abc.abstractmethod
+    def build_session_start_message(self, **kwargs):
+        """
+        Should return the Message object corresponding to the session start.
+        """
+
+    @abc.abstractmethod
+    def build_session_end_message(self, **kwargs):
+        """
+        Should return the Message object corresponding to the session end.
         """
