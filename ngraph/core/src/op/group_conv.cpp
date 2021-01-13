@@ -195,6 +195,17 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 
 constexpr NodeTypeInfo op::v1::GroupConvolutionBackpropData::type_info;
 
+op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
+    : FusedOp()
+    , m_strides()
+    , m_dilations()
+    , m_pads_begin()
+    , m_pads_end()
+    , m_auto_pad()
+    , m_output_padding()
+{
+}
+
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(
     const Output<Node>& data,
     const Output<Node>& filters,

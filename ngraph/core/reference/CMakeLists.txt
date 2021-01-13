@@ -19,7 +19,7 @@ set(TARGET_NAME "ngraph_reference")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(REF_IMPL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+set(REF_IMPL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -29,11 +29,6 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-
-set_target_properties(${TARGET_NAME} PROPERTIES
-                      CXX_VISIBILITY_PRESET hidden
-                      C_VISIBILITY_PRESET hidden
-                      VISIBILITY_INLINES_HIDDEN ON)
 
 if(COMMAND ie_faster_build)
     ie_faster_build(${TARGET_NAME}
