@@ -36,7 +36,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                PRelu() = default;
+                PRelu();
                 /// \brief Constructs a PRelu operation.
                 ///
                 /// \param data Input tensor
