@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
+
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
+
       http://www.apache.org/licenses/LICENSE-2.0
+
  Unless required by applicable law or agreed to in writing, software
  distributed under the License is distributed on an "AS IS" BASIS,
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,17 +36,18 @@ package_name = 'mo'
 requirements_txt = []
 py_modules = []
 for name in os.listdir():
-    if re.match('requirements_(.*)\.txt', name):
+    if re.match('requirements(.*)\.txt', name):
         requirements_txt.append(name)
     if re.match('mo_(.*)\.py', name):
         py_modules.append(name.split('.')[0])
 
 # Minimal set of dependencies
-deps = [
-    'networkx>=1.11',
-    'defusedxml>=0.5.0',
-    'numpy>=1.14.0',
-]
+deps_whitelist = ('networkx', 'defusedxml', 'numpy')
+deps = []
+with open('requirements.txt', 'rt') as f:
+    for line in f.read().split('\n'):
+        if line.startswith(deps_whitelist):
+            deps.append(line)
 
 
 class InstallCmd(install):
@@ -80,7 +84,9 @@ packages = find_packages()
 packages = [package_name + '.' + p for p in packages]
 
 setup(name='openvino-mo',
-      author='Intel',
+      version='0.0.0',
+      author='Intel Corporation',
+      email='openvino_pushbot@intel.com',
       url='https://github.com/openvinotoolkit/openvino',
       packages=packages,
       package_dir={package_name: '.'},
