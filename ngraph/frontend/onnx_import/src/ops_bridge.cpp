@@ -309,7 +309,9 @@ namespace ngraph
             REGISTER_OPERATOR("Add", 7, add);
             REGISTER_OPERATOR("And", 1, logical_and);
             REGISTER_OPERATOR("ArgMin", 1, argmin);
+            REGISTER_OPERATOR("ArgMin", 12, argmin);
             REGISTER_OPERATOR("ArgMax", 1, argmax);
+            REGISTER_OPERATOR("ArgMax", 12, argmax);
             REGISTER_OPERATOR("Asin", 1, asin);
             REGISTER_OPERATOR("Asinh", 1, asinh);
             REGISTER_OPERATOR("Atan", 1, atan);

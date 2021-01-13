@@ -37,6 +37,18 @@ namespace ngraph
 
             } // namespace set_1
 
+            namespace set_12
+            {
+                /// \brief Convert ONNX ArgMax operation to an nGraph node.
+                ///
+                /// \param node   The ONNX node object representing this operation.
+                ///
+                /// \return The vector containing an Ngraph node which produces the output
+                ///         of an ONNX ArgMax operation.
+                OutputVector argmax(const Node& node);
+
+            } // namespace set_12
+
         } // namespace op
 
     } // namespace onnx_import

@@ -39,6 +39,7 @@
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/constant_folding.hpp"
@@ -2236,6 +2237,50 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_float)
     test_case.add_input<float>({4, 0.1, 2, 3, -3, 1, -0.9, 0, 1, 2, 3, 0});
     test_case.add_expected_output<std::int64_t>({1, 1, 0, 2});
     test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_select_last_index)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_select_last_index.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const onnx_import::error::OnnxNodeValidationFailure& e)
+    {
+        std::string what{e.what()};
+        EXPECT_NE(
+            what.find(
+                "Mode 'select_last_index=1' is not supported by current implementation of ArgMax"),
+            std::string::npos);
+    }
+    catch (...)
+    {
+        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_select_last_index)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_select_last_index.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const onnx_import::error::OnnxNodeValidationFailure& e)
+    {
+        std::string what{e.what()};
+        EXPECT_NE(
+            what.find(
+                "Mode 'select_last_index=1' is not supported by current implementation of ArgMin"),
+            std::string::npos);
+    }
+    catch (...)
+    {
+        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_top_k)
