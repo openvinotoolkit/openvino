@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PullTransposeThroughFQUp, "PullTransposeThroughFQUp", 0);
 
 ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
-    IE_TRANSFORMATION_SCOPE(PullTransposeThroughFQUp);
+    TRANSFORMATION_SCOPE(PullTransposeThroughFQUp);
     auto m_fq = pattern::wrap_type<opset1::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank()),
@@ -56,6 +56,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         ngraph::copy_runtime_info({fq, transpose}, new_ops);
         ngraph::replace_node(transpose, new_fq);
 
+        MATCHER_SCOPE(PullTransposeThroughFQUp);
         return true;
     };
 

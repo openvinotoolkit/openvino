@@ -33,7 +33,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusion, "SwishFusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithSigmoid, "SwishFusionWithSigmoid", 0);
 
 ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
-    IE_TRANSFORMATION_SCOPE(SwishFusionWithSigmoid);
+    TRANSFORMATION_SCOPE(SwishFusionWithSigmoid);
     // replaces a sub-graphs x * Sigmoid(x) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto sigmoid = std::make_shared<ngraph::opset4::Sigmoid>(input);
@@ -50,6 +50,7 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
                                    pattern_to_output.at(mul).get_node_shared_ptr()},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
+        MATCHER_SCOPE(SwishFusionWithSigmoid);
         return true;
     };
 
@@ -60,7 +61,7 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithSigmoidWithBeta, "SwishFusionWithSigmoidWithBeta", 0);
 
 ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
-    IE_TRANSFORMATION_SCOPE(SwishFusionWithSigmoidWithBeta);
+    TRANSFORMATION_SCOPE(SwishFusionWithSigmoidWithBeta);
     // replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto beta = ngraph::pattern::any_input();
@@ -96,6 +97,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
                                    pattern_to_output.at(mul).get_node_shared_ptr()},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
+        MATCHER_SCOPE(SwishFusionWithSigmoidWithBeta);
         return true;
     };
 
@@ -106,7 +108,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithBeta, "SwishFusionWithBeta", 0);
 
 ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
-    IE_TRANSFORMATION_SCOPE(SwishFusionWithBeta);
+    TRANSFORMATION_SCOPE(SwishFusionWithBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto beta = ngraph::pattern::any_input();
@@ -138,6 +140,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
                                    pattern_to_output.at(div).get_node_shared_ptr()},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
+        MATCHER_SCOPE(SwishFusionWithBeta);
         return true;
     };
 
@@ -148,7 +151,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusionWithoutBeta, "SwishFusionWithoutBeta", 0);
 
 ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
-    IE_TRANSFORMATION_SCOPE(SwishFusionWithoutBeta);
+    TRANSFORMATION_SCOPE(SwishFusionWithoutBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
     auto input = ngraph::pattern::any_input();
     auto neg = std::make_shared<ngraph::opset4::Negative>(input);
@@ -176,6 +179,7 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
                                    pattern_to_output.at(div).get_node_shared_ptr()},
                                    swish);
         ngraph::replace_node(m.get_match_root(), swish);
+        MATCHER_SCOPE(SwishFusionWithoutBeta);
         return true;
     };
 

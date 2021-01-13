@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNegative, "ConvertNegative", 0);
 
 ngraph::pass::ConvertNegative::ConvertNegative() {
-    IE_TRANSFORMATION_SCOPE(ConvertNegative);
+    TRANSFORMATION_SCOPE(ConvertNegative);
     auto neg = ngraph::pattern::wrap_type<ngraph::opset1::Negative>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
@@ -29,6 +29,7 @@ ngraph::pass::ConvertNegative::ConvertNegative() {
         mul->set_friendly_name(neg->get_friendly_name());
         ngraph::copy_runtime_info(neg, mul);
         ngraph::replace_node(neg, mul);
+        MATCHER_SCOPE(ConvertNegative);
         return true;
     };
 

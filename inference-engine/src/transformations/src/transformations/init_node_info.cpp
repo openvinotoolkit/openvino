@@ -17,7 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::InitNodeInfo, "InitNodeInfo", 0);
 
 bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    IE_TRANSFORMATION_SCOPE(InitNodeInfo_run_on_function);
+    MATCHER_SCOPE(InitNodeInfo_run_on_function);
     std::vector<std::shared_ptr<Variant> > attributes {
         std::make_shared<VariantWrapper<FusedNames> >(FusedNames())
     };

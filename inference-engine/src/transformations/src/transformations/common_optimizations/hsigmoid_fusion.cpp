@@ -17,7 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusion, "HSigmoidFusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithReluDiv, "HSigmoidFusionWithReluDiv", 0);
 
 ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
-    IE_TRANSFORMATION_SCOPE(HSigmoidFusionWithReluDiv);
+    TRANSFORMATION_SCOPE(HSigmoidFusionWithReluDiv);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) / 6 with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -54,6 +54,7 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
                                    },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE(HSigmoidFusionWithReluDiv);
         return true;
     };
 
@@ -64,7 +65,7 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithReluMul, "HSigmoidFusionWithReluMul", 0);
 
 ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
-    IE_TRANSFORMATION_SCOPE(HSigmoidFusionWithReluMul);
+    TRANSFORMATION_SCOPE(HSigmoidFusionWithReluMul);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) * const(1/6) with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -102,6 +103,7 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
                                    },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE(HSigmoidFusionWithReluMul);
         return true;
     };
 
@@ -112,7 +114,7 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithoutRelu, "HSigmoidFusionWithoutRelu", 0);
 
 ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
-    IE_TRANSFORMATION_SCOPE(HSigmoidFusionWithoutRelu);
+    TRANSFORMATION_SCOPE(HSigmoidFusionWithoutRelu);
     // Replaces a sub-graph (min(max(x + 3, 0), 6) / 6) with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -153,6 +155,7 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
                                    },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE(HSigmoidFusionWithoutRelu);
         return true;
     };
 
@@ -163,7 +166,7 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithClamp, "HSigmoidFusionWithClamp", 0);
 
 ngraph::pass::HSigmoidFusionWithClamp::HSigmoidFusionWithClamp() {
-    IE_TRANSFORMATION_SCOPE(HSigmoidFusionWithClamp);
+    TRANSFORMATION_SCOPE(HSigmoidFusionWithClamp);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -195,6 +198,7 @@ ngraph::pass::HSigmoidFusionWithClamp::HSigmoidFusionWithClamp() {
                                   },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
+        MATCHER_SCOPE(HSigmoidFusionWithClamp);
         return true;
     };
 

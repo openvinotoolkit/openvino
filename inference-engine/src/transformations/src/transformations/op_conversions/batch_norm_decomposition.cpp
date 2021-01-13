@@ -18,7 +18,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormDecomposition, "BatchNormDecomposition", 0);
 
 ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
-    IE_TRANSFORMATION_SCOPE(BatchNormDecomposition);
+    TRANSFORMATION_SCOPE(BatchNormDecomposition);
     auto bn = pattern::wrap_type<opset1::BatchNormInference>({
         pattern::any_input(pattern::has_static_rank()),
         pattern::any_input(pattern::has_static_shape()),
@@ -73,6 +73,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         replace_node(m_bn, add);
 
+        MATCHER_SCOPE(BatchNormDecomposition);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");
@@ -83,7 +84,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormV5Decomposition, "BatchNormDecompo
 
 // TODO: this pass will be unified with BatchNormDecomposition pass
 ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
-    IE_TRANSFORMATION_SCOPE(BatchNormV5Decomposition);
+    TRANSFORMATION_SCOPE(BatchNormV5Decomposition);
     auto bn = pattern::wrap_type<opset5::BatchNormInference>({
         pattern::any_input(pattern::has_static_rank()),
         pattern::any_input(pattern::has_static_shape()),
@@ -138,6 +139,7 @@ ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
 
         replace_node(m_bn, add);
 
+        MATCHER_SCOPE(BatchNormV5Decomposition);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");

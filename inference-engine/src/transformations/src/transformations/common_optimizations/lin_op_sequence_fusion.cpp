@@ -32,7 +32,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::LinOpSequenceFusion, "LinOpSequenceFusion",
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddMultiplyFusion, "AddMultiplyFusion", 0);
 
 ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
-    IE_TRANSFORMATION_SCOPE(AddMultiplyFusion);
+    TRANSFORMATION_SCOPE(AddMultiplyFusion);
     // Create Add->Multiply pattern where Add has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_add_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -69,6 +69,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         copy_runtime_info({add, mul}, {new_mul, new_add});
         new_add->set_friendly_name(mul->get_friendly_name());
         replace_node(mul, new_add);
+        MATCHER_SCOPE(AddMultiplyFusion);
         return true;
     };
 
@@ -79,7 +80,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddAddFusion, "AddAddFusion", 0);
 
 ngraph::pass::AddAddFusion::AddAddFusion() {
-    IE_TRANSFORMATION_SCOPE(AddAddFusion);
+    TRANSFORMATION_SCOPE(AddAddFusion);
     // Create Add->Add pattern where first Add has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_add1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -104,6 +105,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         copy_runtime_info({add1, add2}, new_add);
         new_add->set_friendly_name(add2->get_friendly_name());
         replace_node(add2, new_add);
+        MATCHER_SCOPE(AddAddFusion);
         return true;
     };
 
@@ -114,7 +116,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyMultiplyFusion, "MultiplyMultiplyFusion", 0);
 
 ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
-    IE_TRANSFORMATION_SCOPE(MultiplyMultiplyFusion);
+    TRANSFORMATION_SCOPE(MultiplyMultiplyFusion);
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
     auto m_data = ngraph::pattern::any_input();
     auto m_mul1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -139,6 +141,7 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         copy_runtime_info({mul1, mul2}, new_mul);
         new_mul->set_friendly_name(mul2->get_friendly_name());
         replace_node(mul2, new_mul);
+        MATCHER_SCOPE(MultiplyMultiplyFusion);
         return true;
     };
 

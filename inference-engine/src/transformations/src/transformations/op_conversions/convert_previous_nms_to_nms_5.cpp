@@ -162,10 +162,13 @@ struct NMSAttributes {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToNMS5, "ConvertNMS4ToNMS5", 0);
 
 ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
-    IE_TRANSFORMATION_SCOPE(ConvertNMS4ToNMS5);
+    TRANSFORMATION_SCOPE(ConvertNMS4ToNMS5);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset4::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        return callback_func(m, this);
+        auto rcode = callback_func(m, this);
+        if (rcode)
+            MATCHER_SCOPE(ConvertNMS4ToNMS5);
+        return rcode;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS4ToNMS5");
@@ -175,10 +178,13 @@ ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS3ToNMS5, "ConvertNMS3ToNMS5", 0);
 
 ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
-    IE_TRANSFORMATION_SCOPE(ConvertNMS3ToNMS5);
+    TRANSFORMATION_SCOPE(ConvertNMS3ToNMS5);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset3::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        return callback_func(m, this);
+        auto rcode = callback_func(m, this);
+        if (rcode)
+            MATCHER_SCOPE(ConvertNMS3ToNMS5);
+        return rcode;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS3ToNMS5");
@@ -188,10 +194,13 @@ ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS1ToNMS5, "ConvertNMS1ToNMS5", 0);
 
 ngraph::pass::ConvertNMS1ToNMS5::ConvertNMS1ToNMS5() {
-    IE_TRANSFORMATION_SCOPE(ConvertNMS1ToNMS5);
+    TRANSFORMATION_SCOPE(ConvertNMS1ToNMS5);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset1::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        return callback_func(m, this);
+        auto rcode = callback_func(m, this);
+        if (rcode)
+            MATCHER_SCOPE(ConvertNMS1ToNMS5);
+        return rcode;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS1ToNMS5");

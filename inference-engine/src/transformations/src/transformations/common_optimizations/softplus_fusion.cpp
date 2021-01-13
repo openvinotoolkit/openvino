@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusFusion, "SoftPlusFusion", 0);
 
 ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
-    IE_TRANSFORMATION_SCOPE(SoftPlusFusion);
+    TRANSFORMATION_SCOPE(SoftPlusFusion);
     // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)
     auto input = ngraph::pattern::any_input();
     auto exp = std::make_shared<ngraph::opset4::Exp>(input);
@@ -49,6 +49,7 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
                                    pattern_to_output.at(add).get_node_shared_ptr(),
                                    pattern_to_output.at(exp).get_node_shared_ptr()}, softplus);
         ngraph::replace_node(m.get_match_root(), softplus);
+        MATCHER_SCOPE(SoftPlusFusion);
         return true;
     };
 

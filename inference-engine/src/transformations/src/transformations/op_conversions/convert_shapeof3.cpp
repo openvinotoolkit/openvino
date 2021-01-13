@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShapeOf3, "ConvertShapeOf3", 0);
 
 void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
-    IE_TRANSFORMATION_SCOPE(ConvertShapeOf3_convert_shapeof3);
+    TRANSFORMATION_SCOPE(ConvertShapeOf3_convert_shapeof3);
     auto input = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input);
 
@@ -41,6 +41,7 @@ void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
         last.get_node_shared_ptr()->set_friendly_name(shapeof->get_friendly_name());
         ngraph::copy_runtime_info(shapeof, new_ops);
         ngraph::replace_node(shapeof, last.get_node_shared_ptr());
+        MATCHER_SCOPE(ConvertShapeOf3_convert_shapeof3);
         return true;
     };
 

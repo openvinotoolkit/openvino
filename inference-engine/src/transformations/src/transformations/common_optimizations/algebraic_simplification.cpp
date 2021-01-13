@@ -235,7 +235,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
 }
 
 bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f) {
-    IE_TRANSFORMATION_SCOPE(AlgebraicSimplification_run_on_function);
+    MATCHER_SCOPE(AlgebraicSimplification_run_on_function);
     static const unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> ops_to_simplifiers =
         {{opset3::Gather::type_info, simplify_gather},
          {opset2::ShapeOf::type_info, simplify_gather_shapeof},

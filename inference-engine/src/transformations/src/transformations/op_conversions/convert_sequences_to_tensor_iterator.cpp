@@ -85,7 +85,7 @@ namespace {
 } // namespace
 
 ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
-    IE_TRANSFORMATION_SCOPE(ConvertRNNSequenceToTensorIterator);
+    TRANSFORMATION_SCOPE(ConvertRNNSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::RNNSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
@@ -236,6 +236,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
             ngraph::copy_runtime_info(sequence, tensor_iterator);
             ngraph::replace_node(sequence, tensor_iterator);
         }
+        MATCHER_SCOPE(ConvertRNNSequenceToTensorIterator);
         return true;
     };
 
@@ -244,7 +245,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
 }
 
 ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
-    IE_TRANSFORMATION_SCOPE(ConvertGRUSequenceToTensorIterator);
+    TRANSFORMATION_SCOPE(ConvertGRUSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::GRUSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
@@ -395,6 +396,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
             ngraph::copy_runtime_info(sequence, tensor_iterator);
             ngraph::replace_node(sequence, tensor_iterator);
         }
+        MATCHER_SCOPE(ConvertGRUSequenceToTensorIterator);
         return true;
     };
 
@@ -403,7 +405,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
 }
 
 ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
-    IE_TRANSFORMATION_SCOPE(ConvertLSTMSequenceToTensorIterator);
+    TRANSFORMATION_SCOPE(ConvertLSTMSequenceToTensorIterator);
     // X, H, C, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::LSTMSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                      pattern::any_input(pattern::has_static_shape()),
@@ -582,6 +584,7 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
             ngraph::copy_runtime_info(sequence, tensor_iterator);
             ngraph::replace_node(sequence, tensor_iterator);
         }
+        MATCHER_SCOPE(ConvertLSTMSequenceToTensorIterator);
         return true;
     };
 

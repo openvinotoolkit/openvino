@@ -16,7 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertScatterElementsToScatter, "ConvertScatterElementsToScatter", 0);
 
 void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_scatter() {
-    IE_TRANSFORMATION_SCOPE(ConvertScatterElementsToScatter_convert_scatter_elements_to_scatter);
+    TRANSFORMATION_SCOPE(ConvertScatterElementsToScatter_convert_scatter_elements_to_scatter);
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto indices = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
     auto updates = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -207,6 +207,7 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
         scatter_update->set_friendly_name(scatter->get_friendly_name());
         ngraph::copy_runtime_info({scatter, broadcast}, {new_ops});
         ngraph::replace_node(scatter, scatter_update);
+        MATCHER_SCOPE(ConvertScatterElementsToScatter_convert_scatter_elements_to_scatter);
         return true;
     };
 

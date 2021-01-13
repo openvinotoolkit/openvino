@@ -20,6 +20,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolutions, "ConvertConvolutions",
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolution, "ConvertConvolution", 0);
 
 ngraph::pass::ConvertConvolution::ConvertConvolution() {
+    TRANSFORMATION_SCOPE(ConvertConvolution);
     auto conv = ngraph::pattern::wrap_type<opset1::Convolution>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -40,6 +41,7 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
         ngraph::copy_runtime_info(conv, conv_ie);
         conv_ie->set_friendly_name(conv->get_friendly_name());
         ngraph::replace_node(conv, conv_ie);
+        MATCHER_SCOPE(ConvertConvolution);
         return true;
     };
 
@@ -50,7 +52,7 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
 
 ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
-    IE_TRANSFORMATION_SCOPE(ConvertGroupConvolution);
+    TRANSFORMATION_SCOPE(ConvertGroupConvolution);
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -87,6 +89,7 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
         conv_ie->set_friendly_name(gconv->get_friendly_name());
         ngraph::copy_runtime_info(gconv, conv_ie);
         ngraph::replace_node(gconv, conv_ie);
+        MATCHER_SCOPE(ConvertGroupConvolution);
         return true;
     };
 
@@ -97,7 +100,7 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
 
 ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
-    IE_TRANSFORMATION_SCOPE(ConvertDeconvolution);
+    TRANSFORMATION_SCOPE(ConvertDeconvolution);
     auto conv = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -120,6 +123,7 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
         deconv_ie->set_friendly_name(deconv->get_friendly_name());
         ngraph::copy_runtime_info(deconv, deconv_ie);
         ngraph::replace_node(deconv, deconv_ie);
+        MATCHER_SCOPE(ConvertDeconvolution);
         return true;
     };
 
@@ -130,7 +134,7 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
 
 ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
-    IE_TRANSFORMATION_SCOPE(ConvertGroupDeconvolution);
+    TRANSFORMATION_SCOPE(ConvertGroupDeconvolution);
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -165,6 +169,7 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
         conv_ie->set_friendly_name(gconv->get_friendly_name());
         ngraph::copy_runtime_info(gconv, conv_ie);
         ngraph::replace_node(gconv, conv_ie);
+        MATCHER_SCOPE(ConvertGroupDeconvolution);
         return true;
     };
 

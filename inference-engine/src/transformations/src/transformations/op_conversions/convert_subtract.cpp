@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSubtract, "ConvertSubtract", 0);
 
 ngraph::pass::ConvertSubtract::ConvertSubtract() {
-    IE_TRANSFORMATION_SCOPE(ConvertSubtract);
+    TRANSFORMATION_SCOPE(ConvertSubtract);
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
@@ -62,6 +62,7 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         ngraph::copy_runtime_info(sub, {neg, add});
         ngraph::replace_node(sub, add);
 
+        MATCHER_SCOPE(ConvertSubtract);
         return true;
     };
 

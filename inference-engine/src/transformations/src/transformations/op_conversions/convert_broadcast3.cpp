@@ -56,7 +56,7 @@ bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector
 }
 
 ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
-    IE_TRANSFORMATION_SCOPE(ConvertBroadcast3);
+    TRANSFORMATION_SCOPE(ConvertBroadcast3);
     auto broadcast = pattern::wrap_type<opset3::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -105,6 +105,7 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
         input.get_node_shared_ptr()->set_friendly_name(broadcast->get_friendly_name());
         copy_runtime_info(broadcast, input.get_node_shared_ptr());
         replace_node(broadcast, {input});
+        MATCHER_SCOPE(ConvertBroadcast3);
         return true;
     };
 

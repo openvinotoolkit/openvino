@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBatchToSpace, "ConvertBatchToSpace", 0);
 
 void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
-    IE_TRANSFORMATION_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
+    TRANSFORMATION_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
     auto batch_to_space = ngraph::pattern::wrap_type<ngraph::opset3::BatchToSpace>();
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto batch_to_space = std::dynamic_pointer_cast<ngraph::opset3::BatchToSpace> (m.get_match_root());
@@ -120,6 +120,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
         ngraph::copy_runtime_info(batch_to_space, new_ops);
         ngraph::replace_node(batch_to_space, flat_node);
+        MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
         return true;
     };
 
@@ -128,7 +129,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
 }
 
 void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
-    IE_TRANSFORMATION_SCOPE(ConvertBatchToSpace_convert_batch_to_space_by_elements);
+    TRANSFORMATION_SCOPE(ConvertBatchToSpace_convert_batch_to_space_by_elements);
     auto batch_to_space = ngraph::pattern::wrap_type<ngraph::opset3::BatchToSpace>();
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto batch_to_space = std::dynamic_pointer_cast<ngraph::opset3::BatchToSpace> (m.get_match_root());
@@ -220,6 +221,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
         ngraph::copy_runtime_info(batch_to_space, new_ops);
         ngraph::replace_node(batch_to_space, flat_node);
+        MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space_by_elements);
         return true;
     };
 

@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReduceL1Decomposition, "ReduceL1Decomposition", 0);
 
 ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
-    IE_TRANSFORMATION_SCOPE(ReduceL1Decomposition);
+    TRANSFORMATION_SCOPE(ReduceL1Decomposition);
     // decomposes ReduceL1 operations into ReduceSum(abs(x))
     auto reduce_l1 = ngraph::pattern::wrap_type<opset4::ReduceL1>();
 
@@ -33,6 +33,7 @@ ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
         ngraph::copy_runtime_info(reduce_l1_node,
                                   {abs, reduce_sum});
         ngraph::replace_node(m.get_match_root(), reduce_sum);
+        MATCHER_SCOPE(ReduceL1Decomposition);
         return true;
     };
 

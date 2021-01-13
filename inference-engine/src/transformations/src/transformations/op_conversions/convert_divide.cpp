@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
 
 ngraph::pass::ConvertDivide::ConvertDivide() {
-    IE_TRANSFORMATION_SCOPE(ConvertDivide);
+    TRANSFORMATION_SCOPE(ConvertDivide);
     auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
@@ -33,6 +33,7 @@ ngraph::pass::ConvertDivide::ConvertDivide() {
         mul->set_friendly_name(div->get_friendly_name());
         ngraph::copy_runtime_info(div, {pow, mul});
         ngraph::replace_node(div, mul);
+        MATCHER_SCOPE(ConvertDivide);
         return true;
     };
 

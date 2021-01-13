@@ -7,6 +7,7 @@
 #include <memory>
 #include <numeric>
 #include <vector>
+#include <functional>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -66,8 +67,8 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
 }
 
 template <class Conv>
-ngraph::graph_rewrite_callback get_callback() {
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
+ngraph::graph_rewrite_callback get_callback(const std::function<void()>& success_callback) {
+    ngraph::graph_rewrite_callback callback = [success_callback](ngraph::pattern::Matcher &m) {
         auto eltwise = m.get_match_root();
 
         std::shared_ptr<ngraph::opset1::Constant> m_const;
@@ -150,6 +151,7 @@ ngraph::graph_rewrite_callback get_callback() {
         ngraph::copy_runtime_info({m_conv, eltwise}, new_conv.get_node_shared_ptr());
         new_conv.get_node_shared_ptr()->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::replace_node(m.get_match_root(), new_conv.get_node_shared_ptr());
+        success_callback();
         return true;
     };
     return callback;
@@ -158,11 +160,13 @@ ngraph::graph_rewrite_callback get_callback() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvAddFusion, "ConvAddFusion", 0);
 
 ngraph::pass::ConvAddFusion::ConvAddFusion() {
-    IE_TRANSFORMATION_SCOPE(ConvAddFusion);
+    TRANSFORMATION_SCOPE(ConvAddFusion);
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
-    matcher_pass_callback callback = get_callback<op::ConvolutionIE>();
+    matcher_pass_callback callback = get_callback<op::ConvolutionIE>([]() {
+        MATCHER_SCOPE(ConvAddFusion);
+    });
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvAddFusion");
     register_matcher(m, callback);
@@ -171,11 +175,13 @@ ngraph::pass::ConvAddFusion::ConvAddFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
 
 ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
-    IE_TRANSFORMATION_SCOPE(ConvMultiplyFusion);
+    TRANSFORMATION_SCOPE(ConvMultiplyFusion);
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, std::make_shared<pattern::op::Label>()});
 
-    matcher_pass_callback callback = get_callback<op::ConvolutionIE>();
+    matcher_pass_callback callback = get_callback<op::ConvolutionIE>([]() {
+        MATCHER_SCOPE(ConvMultiplyFusion);
+    });
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvMultiplyFusion");
     register_matcher(m, callback);
@@ -184,11 +190,13 @@ ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DeconvAddFusion, "DeconvAddFusion", 0);
 
 ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
-    IE_TRANSFORMATION_SCOPE(DeconvAddFusion);
+    TRANSFORMATION_SCOPE(DeconvAddFusion);
     auto conv = ngraph::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
-    matcher_pass_callback callback = get_callback<op::DeconvolutionIE>();
+    matcher_pass_callback callback = get_callback<op::DeconvolutionIE>([](){
+        MATCHER_SCOPE(DeconvAddFusion);
+    });
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "DeconvAddFusion");
     register_matcher(m, callback);

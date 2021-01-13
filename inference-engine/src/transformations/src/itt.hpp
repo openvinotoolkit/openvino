@@ -37,18 +37,30 @@ namespace domains {
 OV_CC_DOMAINS(ngraph_pass);
 OV_CC_DOMAINS(ie_op);
 
+/*
+ * MATCHER_SCOPE macro allows to define and disable the section of code which we want to switch off if it is not used
+ * TRANSFORMATION_SCOPE macro allows to disable the code sections which are not needed if we disable the matcher
+ * INTERNAL_OP_SCOPE macro allows to disable parts of internal nGraph operations if they are not used
+ */
 #if defined(SELECTIVE_BUILD_ANALYZER)
-#define IE_TRANSFORMATION_SCOPE(region) OV_SCOPE(ngraph_pass, region)
-#define IE_OP_SCOPE(region) OV_SCOPE(ie_op, region)
+#define MATCHER_SCOPE(region) OV_SCOPE(ngraph_pass, region)
+#define TRANSFORMATION_SCOPE(region)
+
+#define INTERNAL_OP_SCOPE(region) OV_SCOPE(ie_op, region)
+
 #elif defined(SELECTIVE_BUILD)
+
 #define TRANSFORMATION_SCOPE_(scope, region)                                                   \
     if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(scope, _, region)) == 0)                             \
     throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(scope, _, region))) +     \
                                " is disabled!")
 
-#define IE_TRANSFORMATION_SCOPE(region) TRANSFORMATION_SCOPE_(ngraph_pass, region)
-#define IE_OP_SCOPE(region) TRANSFORMATION_SCOPE_(ie_op, region)
+#define TRANSFORMATION_SCOPE(region) TRANSFORMATION_SCOPE_(ngraph_pass, region)
+#define INTERNAL_OP_SCOPE(region) TRANSFORMATION_SCOPE_(ie_op, region)
+#define MATCHER_SCOPE(region) TRANSFORMATION_SCOPE_(ngraph_pass, region)
+
 #else
-#define IE_TRANSFORMATION_SCOPE(region)
-#define IE_OP_SCOPE(region)
+#define TRANSFORMATION_SCOPE(region)
+#define INTERNAL_OP_SCOPE(region)
+#define MATCHER_SCOPE(region)
 #endif

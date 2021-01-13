@@ -16,7 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GRUCellDecomposition, "GRUCellDecomposition", 0);
 
 ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
-    IE_TRANSFORMATION_SCOPE(GRUCellDecomposition);
+    TRANSFORMATION_SCOPE(GRUCellDecomposition);
     auto gru_cell = ngraph::pattern::wrap_type<opset4::GRUCell>();
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto gru_cell = std::dynamic_pointer_cast<ngraph::opset4::GRUCell> (m.get_match_root());
@@ -100,6 +100,7 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         ngraph::copy_runtime_info(gru_cell, {Xt_W, Ht_R, axis_0, Xt_W_zrh, R_zrh, Ht_R_zrh, biases_zrh,
                                              add_z_1, add_z_2, add_r_1, add_r_2, h_t, one, sub, mul_1, mul_2, out_H});
         ngraph::replace_node(gru_cell, out_H);
+        MATCHER_SCOPE(GRUCellDecomposition);
         return true;
     };
 

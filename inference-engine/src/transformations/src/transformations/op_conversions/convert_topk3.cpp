@@ -16,7 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopK3, "ConvertTopK3", 0);
 
 void ngraph::pass::ConvertTopK3::convert_topk3() {
-    IE_TRANSFORMATION_SCOPE(ConvertTopK3_convert_topk3);
+    TRANSFORMATION_SCOPE(ConvertTopK3_convert_topk3);
     auto topk = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::TopK>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
@@ -58,6 +58,7 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
         ngraph::copy_runtime_info(topk, new_ops);
         topk->output(0).replace(last0);
         topk->output(1).replace(last1);
+        MATCHER_SCOPE(ConvertTopK3_convert_topk3);
         return true;
     };
 

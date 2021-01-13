@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGELU, "ConvertGELU", 0);
 
 ngraph::pass::ConvertGELU::ConvertGELU() {
-    IE_TRANSFORMATION_SCOPE(ConvertGELU);
+    TRANSFORMATION_SCOPE(ConvertGELU);
     auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto gelu = std::make_shared<ngraph::opset2::Gelu>(input);
 
@@ -36,6 +36,7 @@ ngraph::pass::ConvertGELU::ConvertGELU() {
         res->set_friendly_name(gelu->get_friendly_name());
         ngraph::copy_runtime_info(gelu, {mul, sq2, div, erf, add, res});
         ngraph::replace_node(gelu, res);
+        MATCHER_SCOPE(ConvertGELU);
         return true;
     };
 

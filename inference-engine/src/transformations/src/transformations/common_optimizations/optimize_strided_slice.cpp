@@ -16,7 +16,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOpti
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedSliceEraser", 0);
 
 bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    IE_TRANSFORMATION_SCOPE(UselessStridedSliceEraser_run_on_function);
+    MATCHER_SCOPE(UselessStridedSliceEraser_run_on_function);
     bool rewritten = false;
     for (auto & node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
@@ -91,7 +91,7 @@ bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlic
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedStridedSliceEraser, "SharedStridedSliceEraser", 0);
 
 bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    IE_TRANSFORMATION_SCOPE(SharedStridedSliceEraser_run_on_function);
+    MATCHER_SCOPE(SharedStridedSliceEraser_run_on_function);
     bool graph_rewritten = false;
 
     std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ngraph::opset1::StridedSlice>>> source_to_ss;
@@ -123,7 +123,7 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedStridedSliceOptimizer, "GroupedStridedSliceOptimizer", 0);
 
 bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    IE_TRANSFORMATION_SCOPE(GroupedStridedSliceOptimizer_run_on_function);
+    MATCHER_SCOPE(GroupedStridedSliceOptimizer_run_on_function);
     bool graph_rewritten = false;
     using planned_slice = std::pair<std::shared_ptr<ngraph::opset1::StridedSlice>, ngraph::SlicePlan>;
 
@@ -236,7 +236,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
 }
 
 bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    IE_TRANSFORMATION_SCOPE(StridedSliceOptimization_run_on_function);
+    MATCHER_SCOPE(StridedSliceOptimization_run_on_function);
     bool rewritten = UselessStridedSliceEraser().run_on_function(f);
     rewritten |= SharedStridedSliceEraser().run_on_function(f);
     rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);

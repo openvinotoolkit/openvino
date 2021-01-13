@@ -9,7 +9,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MimicSetBatchSize, "MimicSetBatchSize", 0);
 
 bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    IE_TRANSFORMATION_SCOPE(MimicSetBatchSize_run_on_function);
+    MATCHER_SCOPE(MimicSetBatchSize_run_on_function);
     // extracting ratio of out to in 0-index dimension value from the folded function
     auto specialized_function = ngraph::clone_function(*f);
     ngraph::pass::Manager manager;

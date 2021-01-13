@@ -18,7 +18,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMSToNMSIEInternal, "ConvertNMSToNMSIEInternal", 0);
 
 ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
-    IE_TRANSFORMATION_SCOPE(ConvertNMSToNMSIEInternal);
+    TRANSFORMATION_SCOPE(ConvertNMSToNMSIEInternal);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -117,6 +117,7 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         nms_legacy->set_friendly_name(nms_5->get_friendly_name());
         ngraph::copy_runtime_info(nms_5, new_ops);
         ngraph::replace_node(nms_5, {output_0, nms_legacy->output(1), output_2});
+        MATCHER_SCOPE(ConvertNMSToNMSIEInternal);
         return true;
     };
 

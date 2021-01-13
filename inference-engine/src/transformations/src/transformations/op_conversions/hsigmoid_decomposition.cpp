@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidDecomposition, "HSigmoidDecomposition", 0);
 
 ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
-    IE_TRANSFORMATION_SCOPE(HSigmoidDecomposition);
+    TRANSFORMATION_SCOPE(HSigmoidDecomposition);
     // Decomposes HSigmoid(x) op into sub-graph (min(Relu(x + 3), 6) * const(1/6)
     auto hsigmoid = ngraph::pattern::wrap_type<opset5::HSigmoid>();
 
@@ -39,6 +39,7 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         ngraph::copy_runtime_info(hsigmoid_node,
                                   {add_constant, add, relu, min_constant, min, min_constant, mul});
         ngraph::replace_node(m.get_match_root(), mul);
+        MATCHER_SCOPE(HSigmoidDecomposition);
         return true;
     };
 

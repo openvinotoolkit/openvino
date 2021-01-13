@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSpaceToDepth, "ConvertSpaceToDepth", 0);
 
 ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
-    IE_TRANSFORMATION_SCOPE(ConvertSpaceToDepth);
+    TRANSFORMATION_SCOPE(ConvertSpaceToDepth);
     auto dts = ngraph::pattern::wrap_type<ngraph::opset1::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -88,6 +88,7 @@ ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
         reshape_end->set_friendly_name(std_node->get_friendly_name());
         ngraph::copy_runtime_info(std_node, {reshape_begin, transpose, reshape_end});
         ngraph::replace_node(std_node, reshape_end);
+        MATCHER_SCOPE(ConvertSpaceToDepth);
         return true;
     };
 

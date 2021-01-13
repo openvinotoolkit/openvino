@@ -54,7 +54,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    IE_TRANSFORMATION_SCOPE(CommonOptimizations_run_on_function);
+    MATCHER_SCOPE(CommonOptimizations_run_on_function);
     ngraph::pass::Manager manager(get_pass_config());
 
     // This pass must be called first in pipeline

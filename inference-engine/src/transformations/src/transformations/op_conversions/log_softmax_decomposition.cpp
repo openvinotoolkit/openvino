@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LogSoftmaxDecomposition, "LogSoftmaxDecomposition", 0);
 
 ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
-    IE_TRANSFORMATION_SCOPE(LogSoftmaxDecomposition);
+    TRANSFORMATION_SCOPE(LogSoftmaxDecomposition);
     // Decomposes LogSoftmax(x, axis) op into sub-graph x - log(reduce_sum(exp(x), axis))
     auto log_softmax = ngraph::pattern::wrap_type<opset5::LogSoftmax>();
 
@@ -38,6 +38,7 @@ ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
         sub_end->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(log_softmax_node, { axis1, axis2, max, sub, exp, sum, log, sub_end });
         ngraph::replace_node(m.get_match_root(), sub_end);
+        MATCHER_SCOPE(LogSoftmaxDecomposition);
         return true;
     };
 

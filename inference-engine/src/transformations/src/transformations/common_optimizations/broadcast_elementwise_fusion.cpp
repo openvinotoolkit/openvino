@@ -45,7 +45,7 @@ bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngra
 }
 
 ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
-    IE_TRANSFORMATION_SCOPE(BroadcastElementwiseFusion);
+    TRANSFORMATION_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
     auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()});
     auto eltwise_input = pattern::any_input();
@@ -67,6 +67,7 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
 
         copy_runtime_info(m_broadcast.get_node_shared_ptr(), m_eltwise.get_node_shared_ptr());
         m_broadcast.replace(m_broadcast_input);
+        MATCHER_SCOPE(BroadcastElementwiseFusion);
 
         return false;
     };
