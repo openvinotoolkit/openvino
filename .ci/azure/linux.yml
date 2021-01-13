@@ -52,6 +52,7 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      echo Branch: $(System.PullRequest.TargetBranch)
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
     displayName: 'Make dir'
