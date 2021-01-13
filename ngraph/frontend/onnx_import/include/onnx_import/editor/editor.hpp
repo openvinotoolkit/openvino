@@ -79,6 +79,8 @@ namespace ngraph
             /// \brief Returns the path to the original model file
             const std::string& model_path() const;
 
+            void serialize(const std::string& out_file_path) const;
+
         private:
             const std::string m_model_path;
 

@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <fstream>
 #include <onnx/onnx_pb.h>
 
 #include "onnx_import/editor/editor.hpp"
@@ -170,6 +171,25 @@ ONNX_NAMESPACE::ModelProto& onnx_import::ONNXModelEditor::model() const
 const std::string& onnx_import::ONNXModelEditor::model_path() const
 {
     return m_model_path;
+}
+
+void onnx_import::ONNXModelEditor::serialize(const std::string& out_file_path) const
+{
+    std::ofstream out_file{out_file_path, std::ios::out | std::ios::binary};
+
+    if (!out_file.is_open())
+    {
+        throw ngraph_error("Could not open the file: " + out_file_path);
+    };
+
+    if (!m_pimpl->m_model_proto.SerializeToOstream(&out_file))
+    {
+        throw ngraph_error("Could not serialize the model to: " + out_file_path);
+    }
+    else
+    {
+        out_file.close();
+    }
 }
 
 void onnx_import::ONNXModelEditor::set_input_types(
