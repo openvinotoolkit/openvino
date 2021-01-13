@@ -31,6 +31,7 @@ const std::vector<std::vector<size_t >> strides = {{1, 1},
                                                           {1, 2}};
 const std::vector<std::vector<size_t >> strides3D = {{1, 1, 1},
                                                           {2, 2, 2}};
+const std::vector<std::vector<size_t >> stridess3D = {{2, 2, 2}};
 const std::vector<std::vector<size_t >> padBegins = {{0, 0},
                                                             {0, 2}};
 const std::vector<std::vector<size_t >> padBegins3D = {{0, 0, 0}};
@@ -277,6 +278,78 @@ INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTes
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
 
+/* ========== Explicit Pad Floor Rounding 5D input========== */
+const auto avgPool_ExplicitPad_FloorRounding_5Dinput_Params = ::testing::Combine(
+        ::testing::Values(ngraph::helpers::PoolingTypes::AVG),
+        ::testing::ValuesIn(kernel3D),
+        ::testing::ValuesIn(strides3D),
+        ::testing::ValuesIn(padBegins3D),
+        ::testing::ValuesIn(padEnds3D),
+        ::testing::Values(ngraph::op::RoundingType::FLOOR),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::Values(true, false)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_FloorRounding_5Dinput, PoolingLayerTest,
+                        ::testing::Combine(
+                                avgPool_ExplicitPad_FloorRounding_5Dinput_Params,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 4})),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        PoolingLayerTest::getTestCaseName);
+
+/* ========== Same Upper Pad Floor Rounding 5D input========== */
+const auto avgPool_SameUpperPad_FloorRounding_5Dinput_Params = ::testing::Combine(
+        ::testing::Values(ngraph::helpers::PoolingTypes::AVG),
+        ::testing::ValuesIn(kernel3D),
+        ::testing::ValuesIn(strides3D),
+        ::testing::ValuesIn(padBegins3D),
+        ::testing::ValuesIn(padEnds3D),
+        ::testing::Values(ngraph::op::RoundingType::FLOOR),
+        ::testing::Values(ngraph::op::PadType::SAME_UPPER),
+        ::testing::Values(true)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_SameUpperPad_FloorRounding_5Dinput, PoolingLayerTest,
+                        ::testing::Combine(
+                                avgPool_SameUpperPad_FloorRounding_5Dinput_Params,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 4})),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        PoolingLayerTest::getTestCaseName);
+
+/* ========== Same Lower Pad Ceil Rounding 5D input========== */
+const auto avgPool_SameLowerPad_CeilRounding_5Dinput_Params = ::testing::Combine(
+        ::testing::Values(ngraph::helpers::PoolingTypes::AVG),
+        ::testing::ValuesIn(kernel3D),
+        ::testing::ValuesIn(strides3D),
+        ::testing::ValuesIn(padBegins3D),
+        ::testing::ValuesIn(padEnds3D),
+        ::testing::Values(ngraph::op::RoundingType::CEIL),
+        ::testing::Values(ngraph::op::PadType::SAME_LOWER),
+        ::testing::Values(true)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_SameLowerPad_CeilRounding_5Dinput, PoolingLayerTest,
+                        ::testing::Combine(
+                                avgPool_SameLowerPad_CeilRounding_5Dinput_Params,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t >({32, 32, 2, 2, 2})),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        PoolingLayerTest::getTestCaseName);
+
 ////* ========== Avg and Max Polling Cases ========== */
 /*    ========== Valid Pad Rounding Not Applicable ========== */
 const auto allPools_ValidPad_Params = ::testing::Combine(
@@ -302,8 +375,4 @@ INSTANTIATE_TEST_CASE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
-
-
-
 }  // namespace
-
