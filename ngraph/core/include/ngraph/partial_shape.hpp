@@ -44,7 +44,14 @@ namespace ngraph
     ///     (Informal notation examples: `{1,2,3,4}`, `{6}`, `{}`)
     class NGRAPH_API PartialShape
     {
+        using Dimensions = std::vector<Dimension>;
+
     public:
+        using iterator = Dimensions::iterator;
+        using const_iterator = Dimensions::const_iterator;
+        using reverse_iterator = Dimensions::reverse_iterator;
+        using const_reverse_iterator = Dimensions::const_reverse_iterator;
+
         /// \brief Constructs a shape with static rank from an initializer list of Dimension.
         /// \param init The Dimension values for the constructed shape.
         ///
@@ -223,6 +230,54 @@ namespace ngraph
                                          const PartialShape& src,
                                          const op::AutoBroadcastSpec& autob);
 
+        /// \brief Returns a read/write iterator that points to the first
+        ///        element in the shape. Iteration is done in ordinary
+        ///        element order.
+        iterator begin() noexcept { return m_dimensions.begin(); }
+        /// \brief Returns a read-only (constant) iterator that points to the
+        ///        first element in the shape. Iteration is done in ordinary
+        ///        element order.
+        const_iterator begin() const noexcept { return cbegin(); }
+        /// \brief Returns a read/write iterator that points one past the last
+        ///        element in the shape. Iteration is done in ordinary
+        ///        element order.
+        iterator end() noexcept { return m_dimensions.end(); }
+        /// \brief Returns a read-only (constant) iterator that points one past
+        ///        the last element in the shape. Iteration is done in ordinary
+        ///        element order.
+        const_iterator end() const noexcept { return cend(); }
+        /// \brief Returns a read/write reverse iterator that points to the
+        ///        last element in the shape. Iteration is done in reverse
+        ///        element order.
+        reverse_iterator rbegin() noexcept { return m_dimensions.rbegin(); }
+        /// \brief Returns a read-only (constant) reverse iterator that points
+        ///        to the last element in the shape. Iteration is done in
+        ///        reverse element order.
+        const_reverse_iterator rbegin() const noexcept { return crbegin(); }
+        /// \brief Returns a read/write reverse iterator that points to one
+        ///        before the first element in the shape. Iteration is done
+        ///        in reverse element order.
+        reverse_iterator rend() noexcept { return m_dimensions.rend(); }
+        /// \brief Returns a read-only (constant) reverse iterator that points
+        ///        to one before the first element in the shape. Iteration
+        ///        is done in reverse element order.
+        const_reverse_iterator rend() const noexcept { return crend(); }
+        /// \brief Returns a read-only (constant) iterator that points to the
+        ///        first element in the shape. Iteration is done in ordinary
+        ///        element order.
+        const_iterator cbegin() const noexcept { return m_dimensions.cbegin(); }
+        /// \brief Returns a read-only (constant) iterator that points one past
+        ///        the last element in the shape. Iteration is done in ordinary
+        ///        element order.
+        const_iterator cend() const noexcept { return m_dimensions.cend(); }
+        /// \brief Returns a read-only (constant) reverse iterator that points
+        ///        to the last element in the shape. Iteration is done in
+        ///        reverse element order.
+        const_reverse_iterator crbegin() const noexcept { return m_dimensions.crbegin(); }
+        /// \brief Returns a read-only (constant) reverse iterator that points
+        ///        to one before the first element in the shape. Iteration
+        ///        is done in reverse element order.
+        const_reverse_iterator crend() const noexcept { return m_dimensions.crend(); }
     private:
         // Private constructor for PartialShape::dynamic().
         PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions);
@@ -250,7 +305,7 @@ namespace ngraph
         } m_shape_type{ShapeType::SHAPE_IS_UNKNOWN};
 
         // Shape dimensions. This has no meaning if m_rank_is_static is false.
-        std::vector<Dimension> m_dimensions;
+        Dimensions m_dimensions;
     };
 
     /// \brief Elementwise addition of two PartialShape objects.
