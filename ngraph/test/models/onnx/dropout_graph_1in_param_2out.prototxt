@@ -2,6 +2,20 @@ ir_version: 7
 producer_name: "onnx-importer-test"
 graph {
   node {
+    output: "N"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 1
+        float_data: 1.0
+        name: "const_tensor_N"
+      }
+      type: TENSOR
+    }
+  }
+  node {
     input: "X"
     input: "N"
     output: "A"
@@ -35,19 +49,6 @@ graph {
           }
           dim {
             dim_value: 4
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "N"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 1
           }
         }
       }

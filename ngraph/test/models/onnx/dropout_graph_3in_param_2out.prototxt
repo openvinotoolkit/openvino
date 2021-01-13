@@ -2,20 +2,37 @@ ir_version: 7
 producer_name: "onnx-importer-test"
 graph {
   node {
+    output: "N"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 1
+        float_data: 1.0
+        name: "const_tensor_N"
+      }
+      type: TENSOR
+    }
+  }
+  node {
     input: "X"
-    input: "N"
     output: "A"
-    op_type: "Pow"
+    op_type: "Relu"
   }
   node {
     input: "A"
+    input: "N"
     output: "B"
-    op_type: "Dropout"
+    op_type: "Pow"
   }
   node {
     input: "B"
+    input: "R"
+    input: "T"
     output: "C"
-    op_type: "Relu"
+    output: "M"
+    op_type: "Dropout"
   }
   node {
     input: "C"
@@ -40,14 +57,21 @@ graph {
     }
   }
   input {
-    name: "N"
+    name: "R"
     type {
       tensor_type {
         elem_type: 1
         shape {
-          dim {
-            dim_value: 1
-          }
+        }
+      }
+    }
+  }
+  input {
+    name: "T"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
         }
       }
     }
@@ -57,6 +81,22 @@ graph {
     type {
       tensor_type {
         elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "M"
+    type {
+      tensor_type {
+        elem_type: 9
         shape {
           dim {
             dim_value: 1

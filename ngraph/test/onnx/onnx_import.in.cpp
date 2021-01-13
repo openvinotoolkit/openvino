@@ -557,77 +557,121 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sum)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_single_basic_1in_param_1out)
 {
+    // Test ONNX graph: single op Dropout
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_default.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_single_basic_1in_param_1out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4});
-    test_case.add_input<float>({1});
-    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
+    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_basic_single)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_single_1in_param_2out)
 {
+    // Test ONNX graph: single op Dropout
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_basic_single.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_single_1in_param_2out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4});
-    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
+    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
+    // Dropout optional second output "mask", 
+    // Default for inference, shape same as input, all values "True", should be bool
+    test_case.add_expected_output<float>(Shape{1, 4}, {true, true, true, true});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_mask)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_basic_1in_param_1out)
 {
+    // Test ONNX graph: Power^1->Dropout->Relu->Relu
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_default_mask.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_basic_1in_param_1out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4});
-    test_case.add_input<float>({1});
-    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
-    test_case.add_expected_output<int>(Shape{1, 4}, {true, true, true, true});
+    test_case.add_input<float>({1, 2, 3, 4});  // Data input
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});  // Data output
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_m_r_t)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_1in_param_2out)
 {
+    // Test ONNX graph: Power^1->Dropout->Relu->Relu
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_ratio_mask.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_1in_param_2out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4});
-    test_case.add_input<float>({1});
-    test_case.add_input<float>(Shape{}, {0.5});
-    test_case.add_input(std::vector<bool>{true});
-    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
-    test_case.add_expected_output<int>(Shape{1, 4}, {true, true, true, true});
+    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
+    // Dropout optional second output "mask", 
+    // Default for inference, shape same as input, all values "True", should be bool
+    test_case.add_expected_output<float>(Shape{1, 4}, {true, true, true, true});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_m_r_t_const)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_3in_param_2out)
 {
+    // Test ONNXgraph: Power^1->Relu->Dropout->Relu
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_const_m_r.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_3in_param_2out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4});
-    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
-    test_case.add_expected_output<int>(Shape{1, 4}, {true, true, true, true});
+    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    // Optional Dropout op inputs, redundant for inference mode
+    test_case.add_input<float>(Shape{}, {0.5});  // Dropout op input "ratio"
+    test_case.add_input(std::vector<bool>{true}); // Dropout op input "training_mode"
+
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
+    // Dropout optional second output "mask", 
+    // Default for inference, shape same as input, all values "True", should be bool
+    test_case.add_expected_output<float>(Shape{1, 4}, {true, true, true, true});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_r_t_const)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_3in_param_1out)
 {
+    // Test ONNXgraph: Power^1->Relu->Dropout->Relu
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_const_r_t.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_3in_param_1out.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1, 2, 3, 4});
-    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
+    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    // Optional Dropout op inputs, redundant for inference mode
+    test_case.add_input<float>(Shape{}, {0.5});  // Dropout op input "ratio"
+    test_case.add_input(std::vector<bool>{true}); // Dropout op input "training_mode"
+
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_1in_param_2in_const_1out)
+{
+    // Test ONNXgraph: Relu->Power^1->Dropout->Relu
+    // Dropout optional inputs "ratio" and "training_mode" as Constant
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_1in_param_2in_const_1out.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.}); // Data output
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dropout_graph_1in_param_1in_const_2out)
+{
+    // Test ONNXgraph: Power^1->Relu->Dropout->Relu
+    // Dropout optional inputs "ratio" as Constant
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout_graph_1in_param_1in_const_2out.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4}); // Data input
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});; // Data output
+    // Dropout optional second output "mask", 
+    // Default for inference, shape same as input, all values "True", should be bool
+    test_case.add_expected_output<float>(Shape{1, 4}, {true, true, true, true});
     test_case.run();
 }
 
