@@ -11,6 +11,75 @@
         `W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
         `D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`  
 
+Example 1 shows how *MaxPool* operates with `auto_pad = explicit`
+
+```
+input = [[1, 2, 3],
+         [4, 5, 6],
+         [7, 8, 9]]
+strides = [1, 1]
+pads_begin = [1, 1]
+pads_end = [1, 1]
+kernel = [2, 2]
+rounding_type = "floor"
+auto_pad = "explicit"
+output = [[1, 2, 3, 3],
+          [4, 5, 6, 6],
+          [7, 8, 9, 9],
+          [7, 8, 9, 9]]
+```
+
+Example 2 shows how *MaxPool* operates with `auto_pad = valid`
+
+```
+input = [[1, 2, 3],
+         [4, 5, 6],
+         [7, 8, 9]]
+strides = [1, 1]
+pads_begin = [1, 1]
+pads_end = [1, 1]
+kernel = [2, 2]
+rounding_type = "floor"
+auto_pad = "valid"
+output = [[5, 6],
+          [8, 9]]
+```
+
+
+Example 3 shows how *MaxPool* operates with `auto_pad = same_upper`
+
+```
+input = [[1, 2, 3],
+         [4, 5, 6],
+         [7, 8, 9]]
+strides = [1, 1]
+pads_begin = [1, 1]
+pads_end = [1, 1]
+kernel = [2, 2]
+rounding_type = "floor"
+auto_pad = "same_upper"
+output = [[1, 2, 3],
+          [4, 5, 6]
+          [7, 8, 9]]
+```
+
+Example 4 shows how *MaxPool* operates with `auto_pad = same_lower`
+
+```
+input = [[1, 2, 3],
+         [4, 5, 6],
+         [7, 8, 9]]
+strides = [1, 1]
+pads_begin = [1, 1]
+pads_end = [1, 1]
+kernel = [2, 2]
+rounding_type = "floor"
+auto_pad = "same_lower"
+output = [[5, 6, 6],
+          [8, 9, 9]
+          [8, 9, 9]]
+```
+
 **Attributes**: *Pooling* attributes are specified in the `data` node, which is a child of the layer node.
 
 * *strides*
