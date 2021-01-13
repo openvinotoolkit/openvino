@@ -43,7 +43,7 @@ namespace
     }
 } // namespace
 
-NGRAPH_TEST(onnx_editor, single_input_type_substitution)
+NGRAPH_TEST(onnx_editor, types__single_input_type_substitution)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
     onnx_import::ONNXModelEditor editor{
@@ -73,7 +73,7 @@ NGRAPH_TEST(onnx_editor, single_input_type_substitution)
     EXPECT_EQ(input_a->get()->get_element_type(), element::i64);
 }
 
-NGRAPH_TEST(onnx_editor, all_inputs_type_substitution)
+NGRAPH_TEST(onnx_editor, types__all_inputs_type_substitution)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
     onnx_import::ONNXModelEditor editor{
@@ -95,7 +95,7 @@ NGRAPH_TEST(onnx_editor, all_inputs_type_substitution)
     EXPECT_EQ(integer_inputs_count, 3);
 }
 
-NGRAPH_TEST(onnx_editor, missing_type_in_input_descriptor)
+NGRAPH_TEST(onnx_editor, types__missing_type_in_input_descriptor)
 {
     onnx_import::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_type.prototxt")};
@@ -104,7 +104,7 @@ NGRAPH_TEST(onnx_editor, missing_type_in_input_descriptor)
     EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ngraph_error);
 }
 
-NGRAPH_TEST(onnx_editor, missing_tensor_type_in_input_descriptor)
+NGRAPH_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor)
 {
     onnx_import::ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_tensor_type.prototxt")};
@@ -113,7 +113,7 @@ NGRAPH_TEST(onnx_editor, missing_tensor_type_in_input_descriptor)
     EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ngraph_error);
 }
 
-NGRAPH_TEST(onnx_editor, unsupported_data_type_passed)
+NGRAPH_TEST(onnx_editor, types__unsupported_data_type_passed)
 {
     onnx_import::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
@@ -121,7 +121,7 @@ NGRAPH_TEST(onnx_editor, unsupported_data_type_passed)
     EXPECT_THROW(editor.set_input_types({{"A", element::dynamic}}), ngraph_error);
 }
 
-NGRAPH_TEST(onnx_editor, incorrect_input_name_passed)
+NGRAPH_TEST(onnx_editor, types__incorrect_input_name_passed)
 {
     onnx_import::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
@@ -129,7 +129,7 @@ NGRAPH_TEST(onnx_editor, incorrect_input_name_passed)
     EXPECT_THROW(editor.set_input_types({{"ShiaLaBeouf", element::i64}}), ngraph_error);
 }
 
-NGRAPH_TEST(onnx_editor, elem_type_missing_in_input)
+NGRAPH_TEST(onnx_editor, types__elem_type_missing_in_input)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
     onnx_import::ONNXModelEditor editor{file_util::path_join(
@@ -233,4 +233,23 @@ NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension)
 
     ASSERT_NE(input_a, std::end(graph_inputs));
     EXPECT_TRUE(input_a->get()->get_partial_shape().same_scheme(new_shape));
+}
+
+NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
+
+    const auto new_shape = PartialShape::dynamic();
+
+    editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
+
+    const auto function = onnx_import::import_onnx_model(editor);
+
+    const auto graph_inputs = function->get_parameters();
+
+    for (const auto& input : graph_inputs)
+    {
+        EXPECT_TRUE(input->get_partial_shape().same_scheme(new_shape));
+    }
 }

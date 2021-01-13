@@ -123,13 +123,9 @@ namespace
         }
 
         auto* tensor_type = type_proto->mutable_tensor_type();
-        // if (tensor_type->has_shape()) {
-        //     tensor_type->clear_shape();
-        // }
-
         if (new_shape.rank().is_dynamic())
         {
-            // TODO
+            tensor_type->clear_shape();
         }
         else
         {
