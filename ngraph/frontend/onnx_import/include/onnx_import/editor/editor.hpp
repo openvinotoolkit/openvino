@@ -79,6 +79,10 @@ namespace ngraph
             /// \brief Returns the path to the original model file
             const std::string& model_path() const;
 
+            /// \brief Saves the possibly model held by this class to a file. Serializes in binary
+            /// mode.
+            ///
+            /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
         private:
