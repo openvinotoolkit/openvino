@@ -8,11 +8,13 @@
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <XLinkPrivateFields.h>
 
+#include "XLinkErrorUtils.h"
 #include "XLinkStream.h"
-#include "XLinkTool.h"
-#include "XLinkMacros.h"
 #include "XLinkStringUtils.h"
+#include "XLinkMacros.h"
 
 #ifdef MVLOG_UNIT_NAME
 #undef MVLOG_UNIT_NAME
@@ -24,71 +26,100 @@
 // Stream API implementation. Begin.
 // ------------------------------------
 
-struct Stream_t {
-    streamId_t streamId;
-    char name[MAX_STREAM_NAME_LENGTH];
-
-    PacketPool* inPacketsPool;
-    PacketPool* outPacketsPool;
-};
-
-Stream* Stream_Create(streamId_t streamId) {
-    Stream *ret_stream = NULL;
-    Stream *stream = malloc(sizeof(Stream));
-
+XLinkError_t Stream_Create(Stream* stream, streamId_t streamId) {
     if (stream == NULL) {
         mvLog(MVLOG_ERROR, "Cannot allocate PacketPool\n");
-        return ret_stream;
+        return X_LINK_ERROR;
     }
 
     memset(stream, 0, sizeof(Stream));
 
-    snprintf(stream->name, sizeof(stream->name), "Stream[%u]", streamId);
+    snprintf(stream->name, MAX_STREAM_NAME_LENGTH, "Stream[%u]", streamId);
     stream->streamId = streamId;
+    stream->streamStatus = STREAM_CLOSED;
 
-    char poolName[MAX_STREAM_NAME_LENGTH];
-    snprintf(poolName, sizeof(poolName), "Stream[%u][InPacketsPool]", streamId);
-    PacketPool* pool = PacketPool_Create(streamId, poolName);
-    XLINK_OUT_IF(pool == NULL);
-
-    stream->inPacketsPool = pool;
-
-    snprintf(poolName, sizeof(poolName), "Stream[%u][OutPacketsPool]", streamId);
-    pool = PacketPool_Create(streamId, poolName);
-    XLINK_OUT_IF(pool == NULL);
-
-    stream->outPacketsPool = pool;
-
-    ret_stream = stream;
-
-    XLINK_OUT:
-    if(ret_stream == NULL
-       && stream != NULL) {
+    if (pthread_mutex_init(&stream->streamLock, NULL)) {
+        mvLog(MVLOG_ERROR, "Cannot initialize streamLock, destroying the stream");
         Stream_Destroy(stream);
+        return X_LINK_ERROR;
     }
-    return ret_stream;
+
+    return X_LINK_SUCCESS;
 }
 
 void Stream_Destroy(Stream* stream) {
-    if(stream == NULL) {
-        return;
+    ASSERT_XLINK(stream);
+
+    if (pthread_mutex_destroy(&stream->streamLock)) {
+        mvLog(MVLOG_ERROR, "Cannot destroy streamLock");
     }
-
-    PacketPool_Destroy(stream->inPacketsPool);
-    PacketPool_Destroy(stream->outPacketsPool);
-
-    return;
 }
 
-XLinkError_t Stream_SetName(Stream* stream, const char* name) {
+XLinkError_t Stream_Open(Stream* stream, const char* name) {
     XLINK_RET_IF(stream == NULL);
     XLINK_RET_IF(name == NULL);
 
-    //mvLog(MVLOG_DEBUG, "For stream=%s new name: %s", stream->name, name);
+    ASSERT_XLINK(!pthread_mutex_lock(&stream->streamLock));
+
+    if (stream->streamStatus != STREAM_CLOSED) {
+        ASSERT_XLINK(!pthread_mutex_unlock(&stream->streamLock));
+        return X_LINK_ALREADY_OPEN;
+    }
+
+    stream->streamStatus = STREAM_OPENED;
     mv_strcpy(stream->name, MAX_STREAM_NAME_LENGTH, name);
 
-    XLINK_RET_IF(PacketPool_SetStreamName(stream->inPacketsPool, name));
-    XLINK_RET_IF(PacketPool_SetStreamName(stream->outPacketsPool, name));
+    if (PacketPool_Create(&stream->inPacketsPool, stream->streamId, name) != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Cannot create input packet pool");
+        ASSERT_XLINK(!pthread_mutex_unlock(&stream->streamLock));
+        Stream_Close(stream);
+        return X_LINK_ERROR;
+    }
+    if (PacketPool_SetStreamName(&stream->inPacketsPool, name) != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Cannot set name for input packet pool");
+        ASSERT_XLINK(!pthread_mutex_unlock(&stream->streamLock));
+        Stream_Close(stream);
+        return X_LINK_ERROR;
+    }
+
+    if (PacketPool_Create(&stream->outPacketsPool, stream->streamId, name) != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Cannot create output packet pool");
+        ASSERT_XLINK(!pthread_mutex_unlock(&stream->streamLock));
+        Stream_Close(stream);
+        return X_LINK_ERROR;
+    }
+    if (PacketPool_SetStreamName(&stream->outPacketsPool, name) != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Cannot set name for output packet pool");
+        ASSERT_XLINK(!pthread_mutex_unlock(&stream->streamLock));
+        Stream_Close(stream);
+        return X_LINK_ERROR;
+    }
+
+    ASSERT_XLINK(!pthread_mutex_unlock(&stream->streamLock));
+
+    return X_LINK_SUCCESS;
+}
+
+XLinkError_t Stream_Close(Stream* stream) {
+    XLINK_RET_IF(stream == NULL);
+
+    ASSERT_XLINK(!pthread_mutex_lock(&stream->streamLock));
+
+    if (stream->streamStatus == STREAM_CLOSED) {
+        ASSERT_XLINK(!pthread_mutex_unlock(&stream->streamLock));
+        return X_LINK_SUCCESS;
+    }
+
+    ASSERT_XLINK(stream->inPacketsPool.busyPacketsCount == 0);
+    ASSERT_XLINK(stream->outPacketsPool.busyPacketsCount == 0);
+
+    PacketPool_Destroy(&stream->inPacketsPool);
+    PacketPool_Destroy(&stream->outPacketsPool);
+
+    snprintf(stream->name, MAX_STREAM_NAME_LENGTH, "Stream[%u]", stream->streamId);
+    stream->streamStatus = STREAM_CLOSED;
+
+    ASSERT_XLINK(!pthread_mutex_unlock(&stream->streamLock));
 
     return X_LINK_SUCCESS;
 }
@@ -99,44 +130,48 @@ streamId_t Stream_GetId(Stream* stream) {
     return stream->streamId;
 }
 
-PacketNew* Stream_GetPacket(Stream* stream, ChannelType_t channelType) {
-    PacketNew* ret_packet = NULL;
-    XLINK_OUT_IF(stream == NULL);
+Packet* Stream_GetPacket(Stream* stream, ChannelType_t channelType) {
+    XLINK_RET_ERR_IF(stream == NULL, NULL);
+    XLINK_RET_ERR_IF(stream->streamStatus != STREAM_OPENED, NULL);
 
     PacketPool* packetPool = NULL;
     switch (channelType) {
         case IN_CHANNEL: {
-            packetPool = stream->inPacketsPool;
+            packetPool = &stream->inPacketsPool;
             break;
         }
         case OUT_CHANNEL: {
-            packetPool = stream->outPacketsPool;
+            packetPool = &stream->outPacketsPool;
             break;
         }
         default: {
-            XLINK_OUT_IF("Bad channel type");
+            mvLog(MVLOG_ERROR, "Bad channel type");
+            return NULL;
         }
     }
 
     ASSERT_XLINK(packetPool);
-    PacketNew* packet = PacketPool_GetPacket(packetPool);
-    XLINK_OUT_IF(packet == NULL);
+    Packet* packet = PacketPool_GetPacket(packetPool);
+    if (packet == NULL) {
+        mvLog(MVLOG_ERROR, "Cannot get packet from packet pool");
+        return NULL;
+    }
 
-    ret_packet = packet;
-    XLINK_OUT:
-    return ret_packet;
+    return packet;
 }
 
-PacketNew* Stream_FindPendingPacket(Stream* stream, packetId_t packetId) {
-    XLINK_RET_WITH_ERR_IF(stream == NULL, NULL);
+Packet* Stream_FindPendingPacket(Stream* stream, Packet* packet) {
+    XLINK_RET_ERR_IF(stream == NULL, NULL);
+    XLINK_RET_ERR_IF(stream->streamStatus != STREAM_OPENED, NULL);
 
-    return PacketPool_FindPacket(stream->outPacketsPool, packetId);
+    return PacketPool_FindPendingPacket(&stream->outPacketsPool, packet->header.id);
 }
 
 XLinkError_t Stream_FreePendingPackets(Stream* stream, packetStatus_t status) {
     XLINK_RET_IF(stream == NULL);
+    XLINK_RET_IF(stream->streamStatus != STREAM_OPENED);
 
-    return PacketPool_FreePendingPackets(stream->outPacketsPool, status);
+    return PacketPool_FreePendingPackets(&stream->outPacketsPool, status);
 }
 
 // ------------------------------------
@@ -144,275 +179,230 @@ XLinkError_t Stream_FreePendingPackets(Stream* stream, packetStatus_t status) {
 // ------------------------------------
 
 
+// ------------------------------------
+// StreamDispatcher helpers. Begin.
+// ------------------------------------
+
+int StreamDispatcher_GetFirstFreeStream(StreamDispatcher* streamDispatcher) {
+    ASSERT_XLINK(streamDispatcher);
+
+    for (int i = 0; i < XLINK_MAX_STREAMS; ++i) {
+        if (streamDispatcher->streams[i].streamStatus == STREAM_CLOSED) {
+            return i;
+        }
+    }
+
+    return XLINK_MAX_STREAMS;
+}
+
+// ------------------------------------
+// StreamDispatcher helpers. End.
+// ------------------------------------
+
 
 // ------------------------------------
 // StreamDispatcher API implementation. Begin.
 // ------------------------------------
 
-#define FREE_STREAM_FLAG 0
-#define BUSY_STREAM_FLAG 1
 
-struct StreamDispatcher_t {
-    Stream* streams[MAX_STREAMS_NEW];
-    int freeStreamsIdx[MAX_PACKET_PER_STREAM];
 
-    pthread_mutex_t streamDispatcherLock;
-    pthread_mutex_t streamLock[MAX_STREAMS_NEW];
-};
-
-static int getFirstFreeStream(StreamDispatcher* streamDispatcher);
-
-StreamDispatcher* StreamDispatcher_Create() {
-    StreamDispatcher *ret_streamDispatcher = NULL;
-    StreamDispatcher *streamDispatcher = malloc(sizeof(StreamDispatcher));
-
+XLinkError_t StreamDispatcher_Create(StreamDispatcher* streamDispatcher) {
     if (streamDispatcher == NULL) {
-        mvLog(MVLOG_ERROR, "Cannot allocate PoolContainer_t\n");
-        return ret_streamDispatcher;
+        mvLog(MVLOG_ERROR, "Cannot allocate StreamDispatcher\n");
+        return X_LINK_ERROR;
     }
 
     memset(streamDispatcher, 0, sizeof(StreamDispatcher));
 
     srand(time(NULL));
-    for (int i = 0; i < MAX_STREAMS_NEW; ++i) {
-        Stream* stream = Stream_Create(i);
-        XLINK_OUT_IF(stream == NULL);
-
-        streamDispatcher->streams[i] = stream;
-        streamDispatcher->freeStreamsIdx[i] = FREE_STREAM_FLAG;
-
-        XLINK_OUT_WITH_LOG_IF(pthread_mutex_init(&streamDispatcher->streamLock[i], NULL),
-                              mvLog(MVLOG_ERROR, "Cannot initialize lock mutex\n"));
+    for (int i = 0; i < XLINK_MAX_STREAMS; ++i) {
+        if (Stream_Create(&streamDispatcher->streams[i], i) != X_LINK_SUCCESS) {
+            mvLog(MVLOG_ERROR, "Cannot create stream, destroying the stream dispatcher");
+            StreamDispatcher_Destroy(streamDispatcher);
+            return X_LINK_ERROR;
+        }
     }
 
-    XLINK_OUT_WITH_LOG_IF(pthread_mutex_init(&streamDispatcher->streamDispatcherLock, NULL),
-                          mvLog(MVLOG_ERROR, "Cannot initialize lock mutex\n"));
-
-    ret_streamDispatcher = streamDispatcher;
-
-    XLINK_OUT:
-    if(ret_streamDispatcher == NULL
-       && streamDispatcher != NULL) {
+    if (pthread_mutex_init(&streamDispatcher->streamDispatcherLock, NULL)) {
+        mvLog(MVLOG_ERROR, "Cannot initialize lock mutex, destroying the stream dispatcher");
         StreamDispatcher_Destroy(streamDispatcher);
+        return X_LINK_ERROR;
     }
-    return ret_streamDispatcher;
+
+    return X_LINK_SUCCESS;
 }
 
 void StreamDispatcher_Destroy(StreamDispatcher* streamDispatcher) {
-    if(streamDispatcher == NULL) {
+    if (streamDispatcher == NULL) {
         return;
     }
 
-    for (int i = 0; i < MAX_STREAMS_NEW; ++i) {
-        Stream_Destroy(streamDispatcher->streams[i]);
-        ASSERT_RC_XLINK(pthread_mutex_destroy(&streamDispatcher->streamLock[i]));
+    for (int i = 0; i < XLINK_MAX_STREAMS; ++i) {
+        Stream_Destroy(&streamDispatcher->streams[i]);
     }
 
-    ASSERT_RC_XLINK(pthread_mutex_destroy(&streamDispatcher->streamDispatcherLock));
-
-    free(streamDispatcher);
-    return;
+    if (pthread_mutex_destroy(&streamDispatcher->streamDispatcherLock)) {
+        mvLog(MVLOG_ERROR, "Cannot destroy streamDispatcherLock");
+    }
 }
 
 Stream* StreamDispatcher_OpenStream(StreamDispatcher* streamDispatcher, const char* streamName) {
-    Stream* ret_stream = NULL;
-    XLINK_RET_WITH_ERR_IF(streamDispatcher == NULL, NULL);
-    XLINK_RET_WITH_ERR_IF(streamName == NULL, NULL);
+    XLINK_RET_ERR_IF(streamDispatcher == NULL, NULL);
+    XLINK_RET_ERR_IF(streamName == NULL, NULL);
 
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
+    ASSERT_XLINK(!pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
 
     int streamIdx = 0;
-    for (streamIdx = 0; streamIdx < MAX_STREAMS_NEW; ++streamIdx) {
-        Stream* tmp_stream = streamDispatcher->streams[streamIdx];
-        if(strcmp(tmp_stream->name, streamName) == 0) {
+    for (; streamIdx < XLINK_MAX_STREAMS; ++streamIdx) {
+        Stream* tmp_stream = &streamDispatcher->streams[streamIdx];
+        if (strcmp(tmp_stream->name, streamName) == 0) {
             break;
         }
     }
 
-    if(streamIdx < MAX_STREAMS_NEW) {
-        ret_stream = streamDispatcher->streams[streamIdx];
+    Stream* ret_stream = NULL;
+    if (streamIdx < XLINK_MAX_STREAMS) {
+        ret_stream = &streamDispatcher->streams[streamIdx];
     } else {
-        int freeStreamIdx = getFirstFreeStream(streamDispatcher);
-        XLINK_OUT_IF(freeStreamIdx >= MAX_STREAMS_NEW);
+        int freeStreamIdx = StreamDispatcher_GetFirstFreeStream(streamDispatcher);
+        if (freeStreamIdx >= XLINK_MAX_STREAMS) {
+            mvLog(MVLOG_ERROR, "The maximum stream count has been reached");
+            ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
+            return NULL;
+        }
 
-        ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamLock[freeStreamIdx]));
-
-        ret_stream = streamDispatcher->streams[freeStreamIdx];
-        streamDispatcher->freeStreamsIdx[freeStreamIdx] = BUSY_STREAM_FLAG;
-        Stream_SetName(ret_stream, streamName);
-
-        ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamLock[freeStreamIdx]));
+        ret_stream = &streamDispatcher->streams[freeStreamIdx];
+        if (Stream_Open(ret_stream, streamName) != X_LINK_SUCCESS) {
+            mvLog(MVLOG_ERROR, "Cannot open stream with name %s and id %u", streamName, freeStreamIdx);
+            ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
+            return NULL;
+        }
     }
 
-    XLINK_OUT:
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
+    ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
     return ret_stream;
 }
 
 Stream* StreamDispatcher_OpenStreamById(StreamDispatcher* streamDispatcher,
-    const char* streamName, streamId_t streamId) {
-    Stream* ret_stream = NULL;
-    XLINK_RET_WITH_ERR_IF(streamDispatcher == NULL, NULL);
-    XLINK_RET_WITH_ERR_IF(streamName == NULL, NULL);
+                                        const char* streamName, streamId_t streamId) {
+    XLINK_RET_ERR_IF(streamDispatcher == NULL, NULL);
+    XLINK_RET_ERR_IF(streamName == NULL, NULL);
 
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
-    XLINK_RET_WITH_ERR_IF(streamDispatcher->freeStreamsIdx[streamId]
-                                       == BUSY_STREAM_FLAG, NULL);
-
-    {
-        ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamLock[streamId]));
-
-        ret_stream = streamDispatcher->streams[streamId];
-        streamDispatcher->freeStreamsIdx[streamId] = BUSY_STREAM_FLAG;
-        Stream_SetName(ret_stream, streamName);
-
-        ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamLock[streamId]));
+    ASSERT_XLINK(!pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
+    for (streamId_t tmpStreamId = 0; tmpStreamId < XLINK_MAX_STREAMS; ++tmpStreamId) {
+        Stream* tmpStream = &streamDispatcher->streams[tmpStreamId];
+        if (tmpStream->streamStatus == STREAM_OPENED) {
+            if (tmpStreamId == streamId) {
+                if (strcmp(streamDispatcher->streams[streamId].name, streamName) != 0) {
+                    tmpStream = NULL;
+                }
+                ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
+                return tmpStream;
+            }
+            if (strcmp(tmpStream->name, streamName) == 0) {
+                if (tmpStreamId != streamId) {
+                    tmpStream = NULL;
+                }
+                ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
+                return tmpStream;
+            }
+        }
     }
 
-    XLINK_OUT:
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
+    Stream* ret_stream = &streamDispatcher->streams[streamId];
+    if (Stream_Open(ret_stream, streamName) != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Cannot open stream with name %s and id %u", streamName, streamId);
+        ret_stream = NULL;
+    }
+
+    ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
     return ret_stream;
 }
 
 XLinkError_t StreamDispatcher_CloseStream(StreamDispatcher* streamDispatcher, streamId_t streamId) {
     XLINK_RET_IF(streamDispatcher == NULL);
-    XLINK_RET_IF(streamId >= MAX_STREAMS_NEW);
+    XLINK_RET_IF(streamId >= XLINK_MAX_STREAMS);
 
-    XLinkError_t rc = X_LINK_SUCCESS;
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamLock[streamId]));
+    ASSERT_XLINK(!pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
 
-    Stream* stream = streamDispatcher->streams[streamId];
-    Stream_Destroy(stream);
+    Stream* stream = &streamDispatcher->streams[streamId];
+    XLinkError_t rc = Stream_Close(stream);
+    if (rc != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Cannot close stream with id %u", streamId);
+    }
 
-    stream = Stream_Create(streamId);
-    XLINK_OUT_RC_WITH_ERR_IF(stream == NULL, X_LINK_ERROR);
-    streamDispatcher->streams[streamId] = stream;
-    streamDispatcher->freeStreamsIdx[streamId] = FREE_STREAM_FLAG;
+    ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
 
-    XLINK_OUT:
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamLock[streamId]));
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
     return rc;
 }
 
 Stream* StreamDispatcher_GetStream(StreamDispatcher* streamDispatcher, streamId_t streamId) {
-    Stream* ret_stream = NULL;
-    XLINK_RET_WITH_ERR_IF(streamDispatcher == NULL, NULL);
-    XLINK_RET_WITH_ERR_IF(streamId >= MAX_STREAMS_NEW, NULL);
+    XLINK_RET_ERR_IF(streamDispatcher == NULL, NULL);
+    XLINK_RET_ERR_IF(streamId >= XLINK_MAX_STREAMS, NULL);
 
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamLock[streamId]));
+    ASSERT_XLINK(!pthread_mutex_lock(&streamDispatcher->streams[streamId].streamLock));
 
-    Stream* stream = streamDispatcher->streams[streamId];
-    int streamFlag = streamDispatcher->freeStreamsIdx[streamId];
-    ASSERT_XLINK(streamFlag == FREE_STREAM_FLAG
-    || streamFlag == BUSY_STREAM_FLAG);
-    XLINK_OUT_IF(streamFlag == FREE_STREAM_FLAG);
+    Stream* stream = &streamDispatcher->streams[streamId];
+    ASSERT_XLINK(stream != NULL);
 
-    ret_stream = stream;
+    ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streams[streamId].streamLock));
 
-    XLINK_OUT:
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamLock[streamId]));
-    return ret_stream;
+    return stream;
 }
 
-Stream* StreamDispatcher_GetStreamByName(StreamDispatcher* streamDispatcher, const char* streamName) {
-    Stream* ret_stream = NULL;
-    XLINK_RET_WITH_ERR_IF(streamDispatcher == NULL, NULL);
-    XLINK_RET_WITH_ERR_IF(streamName == NULL, NULL);
+Packet* StreamDispatcher_GetPacket(StreamDispatcher* streamDispatcher,
+                                   streamId_t streamId, ChannelType_t channelType) {
+    XLINK_RET_ERR_IF(streamDispatcher == NULL, NULL);
+    XLINK_RET_ERR_IF(streamId >= XLINK_MAX_STREAMS, NULL);
 
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
+    ASSERT_XLINK(!pthread_mutex_lock(&streamDispatcher->streams[streamId].streamLock));
 
-    int streamIdx = 0;
-    for (streamIdx = 0; streamIdx < MAX_STREAMS_NEW; ++streamIdx) {
-        Stream* tmp_stream = streamDispatcher->streams[streamIdx];
-        if(strcmp(tmp_stream->name, streamName) == 0) {
-            break;
-        }
-    }
+    Stream* stream = &streamDispatcher->streams[streamId];
+    ASSERT_XLINK(stream != NULL);
 
-    if(streamIdx >= MAX_STREAMS_NEW) {
-        ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
-        return ret_stream;
-    }
+    Packet* retPacket = Stream_GetPacket(stream, channelType);
 
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamLock[streamIdx]));
-    XLINK_OUT_IF(streamIdx >= MAX_STREAMS_NEW);
+    ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streams[streamId].streamLock));
 
-    Stream* stream = streamDispatcher->streams[streamIdx];
-    XLINK_OUT_IF(stream == NULL);
-    int streamFlag = streamDispatcher->freeStreamsIdx[stream->streamId];
-    ASSERT_XLINK(streamFlag == FREE_STREAM_FLAG
-                 || streamFlag == BUSY_STREAM_FLAG);
-    XLINK_OUT_IF(streamFlag == FREE_STREAM_FLAG);
-
-    ret_stream = stream;
-    XLINK_OUT:
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamLock[streamIdx]));
-    return ret_stream;
+    return retPacket;
 }
 
-PacketNew* StreamDispatcher_GetPacket(StreamDispatcher* streamDispatcher,
-                                      streamId_t streamId, ChannelType_t channelType) {
-    XLINK_RET_WITH_ERR_IF(streamDispatcher == NULL, NULL);
-    XLINK_RET_WITH_ERR_IF(streamId >= MAX_STREAMS_NEW, NULL);
+Packet* StreamDispatcher_FindPendingPacket(StreamDispatcher* streamDispatcher,
+                                           streamId_t streamId, Packet* packet) {
+    XLINK_RET_ERR_IF(streamDispatcher == NULL, NULL);
+    XLINK_RET_ERR_IF(streamId >= XLINK_MAX_STREAMS, NULL);
 
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamLock[streamId]));
+    ASSERT_XLINK(!pthread_mutex_lock(&streamDispatcher->streams[streamId].streamLock));
 
-    PacketNew* ret_packet = NULL;
-    Stream* stream = streamDispatcher->streams[streamId];
-    int streamFlag = streamDispatcher->freeStreamsIdx[streamId];
-    ASSERT_XLINK(streamFlag == FREE_STREAM_FLAG
-                 || streamFlag == BUSY_STREAM_FLAG);
+    Stream* stream = &streamDispatcher->streams[streamId];
+    ASSERT_XLINK(stream != NULL);
 
-    XLINK_OUT_IF(streamFlag == FREE_STREAM_FLAG);
-    ret_packet = Stream_GetPacket(stream, channelType);
+    Packet* retPacket = Stream_FindPendingPacket(stream, packet);
 
-    XLINK_OUT:
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamLock[streamId]));
-    return ret_packet;
-}
-
-PacketNew* StreamDispatcher_FindPendingPacket(StreamDispatcher* streamDispatcher,
-                                              streamId_t streamId, packetId_t packetId) {
-    XLINK_RET_WITH_ERR_IF(streamDispatcher == NULL, NULL);
-    XLINK_RET_WITH_ERR_IF(streamId >= MAX_STREAMS_NEW, NULL);
-
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamLock[streamId]));
-
-    PacketNew* ret_packet = NULL;
-    Stream* stream = streamDispatcher->streams[streamId];
-    int streamFlag = streamDispatcher->freeStreamsIdx[streamId];
-    ASSERT_XLINK(streamFlag == FREE_STREAM_FLAG
-                 || streamFlag == BUSY_STREAM_FLAG);
-    XLINK_OUT_IF(streamFlag == FREE_STREAM_FLAG);
-
-    ret_packet = Stream_FindPendingPacket(stream, packetId);
-
-    XLINK_OUT:
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamLock[streamId]));
-    return ret_packet;
+    ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streams[streamId].streamLock));
+    return retPacket;
 }
 
 XLinkError_t StreamDispatcher_FreePendingPackets(StreamDispatcher* streamDispatcher,
                                                  streamId_t streamId, packetStatus_t status) {
     XLINK_RET_IF(streamDispatcher == NULL);
-    XLINK_RET_IF(streamId >= MAX_STREAMS_NEW);
+    XLINK_RET_IF(streamId >= XLINK_MAX_STREAMS);
 
-    Stream* stream = streamDispatcher->streams[streamId];
-    int streamFlag = streamDispatcher->freeStreamsIdx[streamId];
-    ASSERT_XLINK(streamFlag == FREE_STREAM_FLAG
-                 || streamFlag == BUSY_STREAM_FLAG);
-    XLINK_RET_IF(streamFlag == FREE_STREAM_FLAG);
+    ASSERT_XLINK(!pthread_mutex_lock(&streamDispatcher->streams[streamId].streamLock));
 
-    return Stream_FreePendingPackets(stream, status);
+    Stream* stream = &streamDispatcher->streams[streamId];
+    ASSERT_XLINK(stream != NULL);
+    XLinkError_t rc = Stream_FreePendingPackets(stream, status);
+
+    ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streams[streamId].streamLock));
+
+    return rc;
 }
 
 XLinkError_t StreamDispatcher_Lock(StreamDispatcher* streamDispatcher) {
     XLINK_RET_IF(streamDispatcher == NULL);
 
-    ASSERT_RC_XLINK(pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
+    ASSERT_XLINK(!pthread_mutex_lock(&streamDispatcher->streamDispatcherLock));
 
     return X_LINK_SUCCESS;
 }
@@ -420,18 +410,18 @@ XLinkError_t StreamDispatcher_Lock(StreamDispatcher* streamDispatcher) {
 XLinkError_t StreamDispatcher_Unlock(StreamDispatcher* streamDispatcher) {
     XLINK_RET_IF(streamDispatcher == NULL);
 
-    ASSERT_RC_XLINK(pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
+    ASSERT_XLINK(!pthread_mutex_unlock(&streamDispatcher->streamDispatcherLock));
 
     return X_LINK_SUCCESS;
 }
 
 XLinkError_t StreamDispatcher_GetOpenedStreamIds(StreamDispatcher* streamDispatcher,
-                                                 int openedStreamIds[MAX_STREAMS_NEW], int* count) {
+                                                 int openedStreamIds[XLINK_MAX_STREAMS], int* count) {
     XLINK_RET_IF(streamDispatcher == NULL);
 
     int out_idx = 0;
-    for (int i = 0; i < MAX_STREAMS_NEW; ++i) {
-        if(streamDispatcher->freeStreamsIdx[i] == BUSY_STREAM_FLAG) {
+    for (int i = 0; i < XLINK_MAX_STREAMS; ++i) {
+        if (streamDispatcher->streams[i].streamStatus == STREAM_OPENED) {
             openedStreamIds[out_idx] = i;
             out_idx++;
         }
@@ -440,18 +430,6 @@ XLinkError_t StreamDispatcher_GetOpenedStreamIds(StreamDispatcher* streamDispatc
     *count = out_idx;
 
     return X_LINK_SUCCESS;
-}
-
-int getFirstFreeStream(StreamDispatcher* streamDispatcher) {
-    ASSERT_XLINK(streamDispatcher);
-
-    for (int i = 0; i < MAX_STREAMS_NEW; ++i) {
-        if(streamDispatcher->freeStreamsIdx[i] == FREE_STREAM_FLAG) {
-            return i;
-        }
-    }
-
-    return MAX_STREAMS_NEW;
 }
 
 // ------------------------------------

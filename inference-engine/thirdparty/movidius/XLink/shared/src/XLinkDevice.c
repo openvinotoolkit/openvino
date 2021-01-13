@@ -2,10 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "stdio.h"
-#include "stdint.h"
-#include "string.h"
-#include "stdlib.h"
+#ifdef MVLOG_UNIT_NAME
+#undef MVLOG_UNIT_NAME
+#define MVLOG_UNIT_NAME xLink
+#endif
+#include "XLinkLog.h"
+#include "XLinkStringUtils.h"
+
+#include "XLink.h"
+
+#include "XLinkConnection.h"
+#include "XLinkErrorUtils.h"
+#include "XLinkPlatform.h"
+#include "XLinkPrivateFields.h"
 
 #if (defined(_WIN32) || defined(_WIN64))
 # include "win_pthread.h"
@@ -17,19 +26,10 @@
 # endif
 #endif
 
-#include "XLink.h"
-#include "XLinkTool.h"
-
-#include "XLinkPlatform.h"
-#include "XLinkPrivateFields.h"
-#include "XLinkConnection.h"
-
-#ifdef MVLOG_UNIT_NAME
-#undef MVLOG_UNIT_NAME
-#define MVLOG_UNIT_NAME xLink
-#endif
-#include "XLinkLog.h"
-#include "XLinkStringUtils.h"
+#include "stdio.h"
+#include "stdint.h"
+#include "string.h"
+#include "stdlib.h"
 
 #define MAX_PATH_LENGTH (255)
 
@@ -45,9 +45,9 @@ int g_IsInitialized = 0;
 #define BUSY_CONNECTION_FLAG 1
 
 Connection availableConnections[MAX_LINKS];
-int freeConnectionsIds[MAX_PACKET_PER_STREAM];
-linkId_t nextUniqueLinkId = 0; //incremental number, doesn't get decremented.
-sem_t  pingSem; //to b used by myriad
+int freeConnectionsIds[XLINK_MAX_PACKET_PER_STREAM];
+linkId_t nextUniqueLinkId = 0;  // incremental number, doesn't get decremented.
+sem_t pingSem;  // to be used by myriad
 
 // ------------------------------------
 // Global fields. End.
@@ -61,12 +61,12 @@ sem_t  pingSem; //to b used by myriad
 
 static linkId_t getNextAvailableLinkUniqueId();
 static Connection* getNextAvailableConnection();
-static XLinkError_t releaseConnection(Connection* connection);
 
 #ifdef __PC__
 
+static XLinkError_t releaseConnection(Connection* connection);
+
 static XLinkError_t parsePlatformError(xLinkPlatformErrorCode_t rc);
-static linkId_t getNextAvailableLinkUniqueId();
 
 #endif // __PC__
 
@@ -87,20 +87,20 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     mvLogDefaultLevelSet(MVLOG_FATAL);
 #endif
 
-    ASSERT_XLINK(globalHandler);
+    XLINK_RET_IF(globalHandler == NULL);
     ASSERT_XLINK(XLINK_MAX_STREAMS <= MAX_POOLS_ALLOC);
     glHandler = globalHandler;
 
-    if(g_IsInitialized) {
+    if (g_IsInitialized) {
         return X_LINK_SUCCESS;
     }
 
     XLinkPlatformInit();
 
-    //Using deprecated fields. Begin.
+    // Using deprecated fields. Begin.
     int loglevel = globalHandler->loglevel;
     int protocol = globalHandler->protocol;
-    //Using deprecated fields. End.
+    // Using deprecated fields. End.
 
     memset((void*)globalHandler, 0, sizeof(XLinkGlobalHandler_t));
     memset(availableConnections, 0, MAX_LINKS * sizeof(Connection));
@@ -113,6 +113,26 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     for (int i = 0; i < MAX_LINKS; ++i) {
         availableConnections[i].id = INVALID_LINK_ID;
         freeConnectionsIds[i] = FREE_CONNECTION_FLAG;
+    }
+
+    if (XLink_isOnDeviceSide()) {
+        if (sem_init(&pingSem, 0, 0)) {
+            mvLog(MVLOG_ERROR, "Can't create semaphore\n");
+        }
+
+        Connection *connection = getNextAvailableConnection();
+        if (connection == NULL)
+            return X_LINK_COMMUNICATION_NOT_OPEN;
+
+        XLINK_RET_IF(Connection_Init(connection, getNextAvailableLinkUniqueId()));
+
+        connection->status = XLINK_CONNECTION_UP;
+        connection->deviceHandle.xLinkFD = NULL;
+        connection->deviceHandle.protocol = X_LINK_ANY_PROTOCOL;
+
+        Dispatcher_Start(&connection->dispatcher, &connection->deviceHandle, 0);
+
+        sem_wait(&pingSem);
     }
 
     g_IsInitialized = 1;
@@ -129,7 +149,7 @@ XLinkError_t XLinkFindFirstSuitableDevice(XLinkDeviceState_t state,
                                           const deviceDesc_t in_deviceRequirements,
                                           deviceDesc_t *out_foundDevice)
 {
-    ASSERT_XLINK(out_foundDevice);
+    XLINK_RET_IF(out_foundDevice == NULL);
 
     xLinkPlatformErrorCode_t rc;
     rc = XLinkPlatformFindDeviceName(state, in_deviceRequirements, out_foundDevice);
@@ -141,9 +161,9 @@ XLinkError_t XLinkFindAllSuitableDevices(XLinkDeviceState_t state,
                                          deviceDesc_t *out_foundDevicesPtr,
                                          const unsigned int devicesArraySize,
                                          unsigned int* out_foundDevicesCount) {
-    ASSERT_XLINK(out_foundDevicesPtr);
-    ASSERT_XLINK(devicesArraySize > 0);
-    ASSERT_XLINK(out_foundDevicesCount);
+    XLINK_RET_IF(out_foundDevicesPtr == NULL);
+    XLINK_RET_IF(devicesArraySize == 0);
+    XLINK_RET_IF(out_foundDevicesCount == 0);
 
     xLinkPlatformErrorCode_t rc;
     rc = XLinkPlatformFindArrayOfDevicesNames(
@@ -153,34 +173,40 @@ XLinkError_t XLinkFindAllSuitableDevices(XLinkDeviceState_t state,
     return parsePlatformError(rc);
 }
 
-//Called only from app - per device
+// Called only from app - per device
 XLinkError_t XLinkConnect(XLinkHandler_t* handler)
 {
-    ASSERT_XLINK(handler);
+    XLINK_RET_IF(handler == NULL);
     if (strnlen(handler->devicePath, MAX_PATH_LENGTH) < 2) {
         mvLog(MVLOG_ERROR, "Device path is incorrect");
         return X_LINK_ERROR;
     }
 
-    XLinkError_t isCompleted = X_LINK_ERROR;
     Connection* connection = getNextAvailableConnection();
     XLINK_RET_IF(Connection_Init(connection, getNextAvailableLinkUniqueId()));
     mvLog(MVLOG_DEBUG,"device name=%s glHandler=%p protocol=%d\n", handler->devicePath, glHandler, handler->protocol);
 
-    XLINK_OUT_IF(Connection_Connect(connection, handler));
+    if (Connection_Connect(connection, handler) != X_LINK_SUCCESS) {
+        Connection_Clean(connection);
+        return X_LINK_ERROR;
+    }
     handler->linkId = Connection_GetId(connection);
 
-    isCompleted = X_LINK_SUCCESS;
-    XLINK_OUT:
-    if(isCompleted != X_LINK_SUCCESS) {
-        Connection_Clean(connection);
-    }
-    return isCompleted;
+    return X_LINK_SUCCESS;
 }
 
 XLinkError_t XLinkBoot(deviceDesc_t* deviceDesc, const char* binaryPath)
 {
-    if (XLinkPlatformBootRemote(deviceDesc, binaryPath) == 0) {
+    if (!XLinkPlatformBootRemote(deviceDesc, binaryPath)) {
+        return X_LINK_SUCCESS;
+    }
+
+    return X_LINK_COMMUNICATION_FAIL;
+}
+
+XLinkError_t XLinkBootFirmware(deviceDesc_t* deviceDesc, const char* firmware, unsigned long length)
+{
+    if (!XLinkPlatformBootFirmware(deviceDesc, firmware, length)) {
         return X_LINK_SUCCESS;
     }
 
@@ -191,17 +217,17 @@ XLinkError_t XLinkResetRemote(linkId_t id)
 {
     Connection* connection = getLinkById(id);
     ASSERT_XLINK(connection != NULL);
-    ConnectionStatus_t connectionStatus = Connection_GetStatus(connection);
+    xLinkConnectionStatus_t connectionStatus = Connection_GetStatus(connection);
 
-    if (connectionStatus == CONNECTION_UP) {
-        ASSERT_RC_XLINK(Connection_Reset(connection));
+    if (connectionStatus == XLINK_CONNECTION_UP) {
+        ASSERT_XLINK(Connection_Reset(connection) == X_LINK_SUCCESS);
     } else {
-        mvLog(MVLOG_WARN, "Link is down");
+        mvLog(MVLOG_WARN, "Link is down, close connection to device without reset");
+        XLinkPlatformCloseRemote(&connection->deviceHandle);
+        return X_LINK_COMMUNICATION_NOT_OPEN;
     }
 
-    XLINK_RET_IF(releaseConnection(connection));
-
-    return X_LINK_SUCCESS;
+    return releaseConnection(connection);
 }
 
 XLinkError_t XLinkResetAll()
@@ -210,7 +236,9 @@ XLinkError_t XLinkResetAll()
     mvLog(MVLOG_INFO, "Devices will not be restarted for this configuration (NO_BOOT)");
 #else
     for (int i = 0; i < MAX_LINKS; ++i) {
-        XLinkResetRemote(Connection_GetId(&availableConnections[i]));
+        if (availableConnections[i].id != INVALID_LINK_ID) {
+            XLinkResetRemote(Connection_GetId(&availableConnections[i]));
+        }
     }
 #endif
     return X_LINK_SUCCESS;
@@ -274,25 +302,21 @@ XLinkError_t XLinkProfPrint()
 // Helpers implementation. Begin.
 // ------------------------------------
 
-static linkId_t getNextAvailableLinkUniqueId()
+linkId_t getNextAvailableLinkUniqueId()
 {
     linkId_t start = nextUniqueLinkId;
-    do
-    {
+    do {
         int i;
-        for (i = 0; i < MAX_LINKS; i++)
-        {
+        for (i = 0; i < MAX_LINKS; i++) {
             if (availableConnections[i].id != INVALID_LINK_ID &&
                 availableConnections[i].id == nextUniqueLinkId)
                 break;
         }
-        if (i >= MAX_LINKS)
-        {
+        if (i >= MAX_LINKS) {
             return nextUniqueLinkId;
         }
         nextUniqueLinkId++;
-        if (nextUniqueLinkId == INVALID_LINK_ID)
-        {
+        if (nextUniqueLinkId == INVALID_LINK_ID) {
             nextUniqueLinkId = 0;
         }
     } while (start != nextUniqueLinkId);
@@ -300,9 +324,9 @@ static linkId_t getNextAvailableLinkUniqueId()
     return INVALID_LINK_ID;
 }
 
-static Connection* getNextAvailableConnection() {
+Connection* getNextAvailableConnection() {
     for (int i = 0; i < MAX_LINKS; ++i) {
-        if(freeConnectionsIds[i] == FREE_CONNECTION_FLAG) {
+        if (freeConnectionsIds[i] == FREE_CONNECTION_FLAG) {
             freeConnectionsIds[i] = BUSY_CONNECTION_FLAG;
             return &availableConnections[i];
         }
@@ -311,7 +335,9 @@ static Connection* getNextAvailableConnection() {
     return NULL;
 }
 
-static XLinkError_t releaseConnection(Connection* connection) {
+#ifdef __PC__
+
+XLinkError_t releaseConnection(Connection* connection) {
     XLINK_RET_IF(connection == NULL);
 
     linkId_t id = Connection_GetId(connection);
@@ -323,9 +349,7 @@ static XLinkError_t releaseConnection(Connection* connection) {
     return X_LINK_SUCCESS;
 }
 
-#ifdef __PC__
-
-static XLinkError_t parsePlatformError(xLinkPlatformErrorCode_t rc) {
+XLinkError_t parsePlatformError(xLinkPlatformErrorCode_t rc) {
     switch (rc) {
         case X_LINK_PLATFORM_SUCCESS:
             return X_LINK_SUCCESS;
