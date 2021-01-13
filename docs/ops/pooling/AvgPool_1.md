@@ -6,7 +6,11 @@
 
 **Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/pooling.html)
 
-**Detailed description**: [Reference](http://cs231n.github.io/convolutional-networks/#pool)
+**Detailed description**: [Reference](http://cs231n.github.io/convolutional-networks/#pool). Average Pool is a pooling operation that performs down-sampling by dividing the input into pooling regions of size specified by kernel attribute and computing the average values of each region. Output shape is calculated as follows: 
+        `H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`  
+        `W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
+        `D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`  
+       
 
 **Attributes**: *Pooling* attributes are specified in the `data` node, which is a child of the layer node.
 
@@ -44,9 +48,9 @@
   * **Default value**: None
   * **Required**: *yes*
   
-* *exclude-pad*
+* *exclude_pad*
 
-  * **Description**: *exclude-pad* is a type of pooling strategy for values in the padding area. For example, if *exclude-pad* is "true", zero-values in the padding are not used.
+  * **Description**: *exclude_pad* is a type of pooling strategy for values in the padding area. For example, if *exclude_pad* is "true", then zero-values that came from padding are not included in averaging calculation.
   * **Range of values**: true or false 
   * **Type**: boolean
   * **Default value**: None
@@ -60,6 +64,7 @@
     * *floor*
   * **Type**: string
   * **Default value**: *floor*
+  * **Required**: *no*
 
 * *auto_pad*
 
@@ -68,13 +73,16 @@
     * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
   * **Type**: string
-  * **Default value**: None
+  * **Default value**: *explicit*
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
 
 **Inputs**:
 
-*   **1**: 4D or 5D input tensor. Required.
+*   **1**: 3D, 4D or 5D input tensor. Required.
+
+**Outputs**:
+  * **1**: Input shape can be either `[N,C,H]`, `[N,C,H,W]` or `[N,C,H,W,D]`. Then the corresponding output shape is `[N,C,H_out]`, `[N,C,H_out,W_out]` or `[N,C,H_out,W_out,D_out]`.
 
 **Mathematical Formulation**
 
@@ -82,12 +90,106 @@
 output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
 \f]
 
-**Example**
+**Examples**
 
 ```xml
 <layer ... type="AvgPool" ... >
-        <data auto_pad="same_upper" exclude-pad="true" kernel="3,3" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
-        <input> ... </input>
-        <output> ... </output>
+    <data auto_pad="same_upper" exclude_pad="true" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+    <input> 
+        <port id="0">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+        </port>
+    </output>
+</layer>
+
+<layer ... type="AvgPool" ... >
+    <data auto_pad="same_upper" exclude_pad="false" kernel="5,5" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+    <input> 
+        <port id="0">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+        </port>
+    </output>
+</layer>
+
+<layer ... type="AvgPool" ... >
+    <data auto_pad="explicit" exclude_pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="3,3"/>
+    <input> 
+        <port id="0">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>10</dim>
+            <dim>10</dim>
+        </port>
+    </output>
+</layer>
+
+<layer ... type="AvgPool" ... >
+    <data auto_pad="explicit" exclude_pad="false" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+    <input> 
+        <port id="0">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>15</dim>
+            <dim>15</dim>
+        </port>
+    </output>
+</layer>
+
+<layer ... type="AvgPool" ... >
+    <data auto_pad="valid" exclude_pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+    <input> 
+        <port id="0">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>14</dim>
+            <dim>14</dim>
+        </port>
+    </output>
 </layer>
 ```
