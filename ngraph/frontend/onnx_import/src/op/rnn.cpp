@@ -17,9 +17,9 @@
 #include <memory>
 
 #include "ngraph/builder/reshape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/rnn.hpp"
-#include "onnx_import/utils/recurrent.hpp"
+#include "default_opset.hpp"
+#include "op/rnn.hpp"
+#include "utils/recurrent.hpp"
 
 namespace ngraph
 {

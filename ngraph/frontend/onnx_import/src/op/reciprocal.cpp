@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "ngraph/op/constant.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/reciprocal.hpp"
+#include "default_opset.hpp"
+#include "op/reciprocal.hpp"
 
 namespace ngraph
 {

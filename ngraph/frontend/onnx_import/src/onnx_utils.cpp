@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/onnx_utils.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "onnx_utils.hpp"
+#include "ops_bridge.hpp"
 
 namespace ngraph
 {

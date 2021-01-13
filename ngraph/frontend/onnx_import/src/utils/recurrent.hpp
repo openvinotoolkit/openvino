@@ -22,7 +22,7 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
 namespace ngraph
 {

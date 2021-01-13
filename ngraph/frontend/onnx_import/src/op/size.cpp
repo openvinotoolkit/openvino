@@ -20,8 +20,8 @@
 
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/size.hpp"
+#include "default_opset.hpp"
+#include "op/size.hpp"
 
 namespace ngraph
 {

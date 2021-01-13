@@ -19,8 +19,8 @@
 
 #include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/tensor_external_data.hpp"
+#include "exceptions.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ngraph
 {

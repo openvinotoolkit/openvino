@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "ngraph/partial_shape.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
 namespace ngraph
 {

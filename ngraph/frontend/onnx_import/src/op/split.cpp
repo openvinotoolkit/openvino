@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "ngraph/builder/split.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/split.hpp"
+#include "default_opset.hpp"
+#include "op/split.hpp"
 
 namespace ngraph
 {

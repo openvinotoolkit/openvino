@@ -19,7 +19,7 @@
 #include <memory>
 
 #include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
 namespace ngraph
 {

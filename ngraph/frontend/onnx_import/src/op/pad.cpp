@@ -23,10 +23,10 @@
 #include "ngraph/op/pad.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/pad.hpp"
-#include "onnx_import/utils/convpool.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "op/pad.hpp"
+#include "utils/convpool.hpp"
 
 namespace
 {

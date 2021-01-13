@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include <ngraph/except.hpp>
-#include <onnx_import/core/graph_cache.hpp>
+#include <core/graph_cache.hpp>
 
 namespace ngraph
 {

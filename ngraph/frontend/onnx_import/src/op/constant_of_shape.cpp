@@ -15,10 +15,10 @@
 //*****************************************************************************
 
 #include "ngraph/op/constant.hpp"
-#include "onnx_import/core/tensor.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/constant.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "core/tensor.hpp"
+#include "default_opset.hpp"
+#include "op/constant.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {

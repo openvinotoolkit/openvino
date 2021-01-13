@@ -25,7 +25,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 
 namespace ngraph
 {

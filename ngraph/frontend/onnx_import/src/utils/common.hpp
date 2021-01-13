@@ -28,8 +28,8 @@
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "core/node.hpp"
+#include "default_opset.hpp"
 
 namespace ngraph
 {

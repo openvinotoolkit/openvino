@@ -17,9 +17,9 @@
 #pragma once
 
 #include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/variadic.hpp"
+#include "core/node.hpp"
+#include "default_opset.hpp"
+#include "utils/variadic.hpp"
 
 namespace ngraph
 {

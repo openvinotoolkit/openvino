@@ -27,9 +27,9 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset0.hpp"
 #include "ngraph/strides.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/quant_conv.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "op/quant_conv.hpp"
 
 namespace ngraph
 {

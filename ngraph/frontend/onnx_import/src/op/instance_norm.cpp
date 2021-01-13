@@ -26,10 +26,10 @@
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/partial_shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/instance_norm.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "op/instance_norm.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {

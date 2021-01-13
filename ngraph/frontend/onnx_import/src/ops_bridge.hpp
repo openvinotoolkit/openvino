@@ -23,7 +23,7 @@
 #include <unordered_map>
 
 #include "ngraph/except.hpp"
-#include "onnx_import/core/operator_set.hpp"
+#include "core/operator_set.hpp"
 
 namespace ngraph
 {

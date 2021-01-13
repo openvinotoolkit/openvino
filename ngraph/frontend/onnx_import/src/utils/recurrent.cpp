@@ -23,9 +23,9 @@
 #include "ngraph/builder/split.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/enum_names.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/recurrent.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
+#include "utils/recurrent.hpp"
 
 namespace ngraph
 {

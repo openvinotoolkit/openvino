@@ -23,8 +23,8 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "default_opset.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {

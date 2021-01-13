@@ -22,10 +22,10 @@
 #include "ngraph/op/convert.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/dequantize_linear.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
+#include "op/dequantize_linear.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {

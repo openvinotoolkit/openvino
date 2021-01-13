@@ -19,7 +19,7 @@
 #include <memory>
 
 #include "ngraph/node.hpp"
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
+#include "utils/onnx_importer_visibility.hpp"
 
 namespace ngraph
 {

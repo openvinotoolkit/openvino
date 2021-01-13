@@ -21,8 +21,8 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/matmul.hpp"
 #include "ngraph/op/multiply.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/gemm.hpp"
+#include "default_opset.hpp"
+#include "op/gemm.hpp"
 
 namespace ngraph
 {

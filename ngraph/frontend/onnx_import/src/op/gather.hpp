@@ -20,8 +20,8 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "core/node.hpp"
+#include "default_opset.hpp"
 
 namespace ngraph
 {

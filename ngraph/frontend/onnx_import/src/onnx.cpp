@@ -20,11 +20,11 @@
 #include <memory>
 
 #include "ngraph/except.hpp"
-#include "onnx_import/core/graph.hpp"
-#include "onnx_import/core/model.hpp"
-#include "onnx_import/core/transform.hpp"
-#include "onnx_import/onnx.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "core/graph.hpp"
+#include "core/model.hpp"
+#include "core/transform.hpp"
+#include "onnx.hpp"
+#include "ops_bridge.hpp"
 
 namespace ngraph
 {

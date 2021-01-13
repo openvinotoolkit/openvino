@@ -17,10 +17,10 @@
 #include <iterator>
 
 #include "ngraph/coordinate_diff.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/convpool.hpp"
-#include "onnx_import/utils/pooling_factory.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "utils/convpool.hpp"
+#include "utils/pooling_factory.hpp"
 
 namespace ngraph
 {

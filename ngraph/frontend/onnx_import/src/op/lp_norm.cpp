@@ -24,9 +24,9 @@
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/lp_norm.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "op/lp_norm.hpp"
 
 namespace ngraph
 {

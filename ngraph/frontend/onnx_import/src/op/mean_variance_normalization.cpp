@@ -19,8 +19,8 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/mvn.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/mean_variance_normalization.hpp"
+#include "default_opset.hpp"
+#include "op/mean_variance_normalization.hpp"
 
 namespace ngraph
 {

@@ -20,8 +20,8 @@
 
 #include "ngraph/check.hpp"
 #include "ngraph/except.hpp"
-#include "onnx_import/core/node.hpp"
-#include "onnx_import/utils/tensor_external_data.hpp"
+#include "core/node.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ngraph
 {

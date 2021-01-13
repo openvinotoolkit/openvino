@@ -19,9 +19,9 @@
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/mod.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/mod.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "op/mod.hpp"
 
 namespace ngraph
 {

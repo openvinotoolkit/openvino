@@ -17,8 +17,8 @@
 #include <memory>
 
 #include "ngraph/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/pow.hpp"
+#include "default_opset.hpp"
+#include "op/pow.hpp"
 
 namespace ngraph
 {

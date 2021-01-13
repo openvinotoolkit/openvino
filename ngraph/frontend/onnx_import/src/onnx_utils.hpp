@@ -19,8 +19,8 @@
 #include <cstdint>
 #include <string>
 
-#include "onnx_import/core/operator_set.hpp"
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
+#include "core/operator_set.hpp"
+#include "utils/onnx_importer_visibility.hpp"
 
 namespace ngraph
 {
