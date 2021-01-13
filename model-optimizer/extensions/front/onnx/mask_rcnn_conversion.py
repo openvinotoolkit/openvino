@@ -101,7 +101,6 @@ def insert_ExperimentalDetectronROIFeatureExtractor1(graph: Graph, replacement_d
     fpn_roi_align = ExperimentalDetectronROIFeatureExtractor(graph, {'name': 'ROIFeatureExtractor_1',
                                                                      'image_id': 0,
                                                                      'output_size': 14,
-                                                                     'preserve_rois_order': 1,
                                                                      'pyramid_scales': int64_array(
                                                                          [4, 8, 16, 32, 64]),
                                                                      'sampling_ratio': 2,
@@ -120,7 +119,6 @@ def insert_ExperimentalDetectronROIFeatureExtractor2(graph: Graph, replacement_d
     fpn_roi_align = ExperimentalDetectronROIFeatureExtractor(graph, {'name': 'ROIFeatureExtractor_2',
                                                                      'image_id': 0,
                                                                      'output_size': 7,
-                                                                     'preserve_rois_order': 1,
                                                                      'pyramid_scales': int64_array(
                                                                          [4, 8, 16, 32, 64]),
                                                                      'sampling_ratio': 2,

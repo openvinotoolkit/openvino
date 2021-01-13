@@ -48,7 +48,6 @@ bool op::v6::ExperimentalDetectronROIFeatureExtractor::visit_attributes(Attribut
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_visit_attributes);
     visitor.on_attribute("image_id", m_attrs.image_id);
     visitor.on_attribute("output_size", m_attrs.output_size);
-    visitor.on_attribute("preserve_rois_order", m_attrs.preserve_rois_order);
     visitor.on_attribute("sampling_ratio", m_attrs.sampling_ratio);
     visitor.on_attribute("pyramid_scales", m_attrs.pyramid_scales);
     visitor.on_attribute("aligned", m_attrs.aligned);

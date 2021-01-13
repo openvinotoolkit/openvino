@@ -30,7 +30,6 @@ TEST(type_prop, detectron_roi_feature_extractor)
     Attrs attrs;
     attrs.aligned = false;
     attrs.output_size = 14;
-    attrs.preserve_rois_order = 1;
     attrs.sampling_ratio = 2;
     attrs.pyramid_scales = {4, 8, 16, 32};
     attrs.image_id = 0;
@@ -53,7 +52,6 @@ TEST(type_prop, detectron_roi_feature_extractor_dynamic)
     Attrs attrs;
     attrs.aligned = false;
     attrs.output_size = 14;
-    attrs.preserve_rois_order = 1;
     attrs.sampling_ratio = 2;
     attrs.pyramid_scales = {4, 8, 16, 32};
     attrs.image_id = 0;

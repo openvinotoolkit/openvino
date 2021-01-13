@@ -993,7 +993,7 @@ TEST(CNNNGraphImplTests, AddOutputToExperimentalOpOpset6) {
 			</output>
 		</layer>
 		<layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
-			<data aligned="0" output_size="7" preserve_rois_order="1" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
+			<data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
 			<input>
 				<port id="0">
 					<dim>1000</dim>
@@ -1138,7 +1138,7 @@ TEST(CNNNGraphImplTests, AddOutputToExperimentalOp) {
 			</output>
 		</layer>
 		<layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
-			<data aligned="0" output_size="7" preserve_rois_order="1" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
+			<data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
 			<input>
 				<port id="0">
 					<dim>1000</dim>
@@ -1283,7 +1283,7 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
 			</output>
 		</layer>
 		<layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
-			<data aligned="0" output_size="7" preserve_rois_order="1" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
+			<data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
 			<input>
 				<port id="0">
 					<dim>1000</dim>
@@ -1475,7 +1475,7 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
 			</output>
 		</layer>
 		<layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
-			<data aligned="0" output_size="7" preserve_rois_order="1" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
+			<data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
 			<input>
 				<port id="0">
 					<dim>1000</dim>

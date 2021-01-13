@@ -42,7 +42,6 @@ namespace ngraph
                 {
                     int64_t image_id;
                     int64_t output_size;
-                    int64_t preserve_rois_order;
                     int64_t sampling_ratio;
                     std::vector<int64_t> pyramid_scales;
                     bool aligned;
