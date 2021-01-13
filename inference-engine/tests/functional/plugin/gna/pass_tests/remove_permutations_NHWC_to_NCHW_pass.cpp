@@ -22,7 +22,8 @@
 typedef std::tuple<
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
-    std::map<std::string, std::string>  //Configuration
+    std::map<std::string, std::string>, // Configuration
+    std::vector<size_t>                 // Input shape
 > removePermutationsPassParams;
 
 namespace LayerTestsDefinitions {
@@ -34,7 +35,8 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
             InferenceEngine::Precision netPrecision;
             std::string targetDevice;
             std::map<std::string, std::string> configuration;
-            std::tie(netPrecision, targetDevice, configuration) = obj.param;
+            std::vector<size_t> inputShape;
+            std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
 
             std::ostringstream result;
             result << "netPRC=" << netPrecision.name() << "_";
@@ -42,43 +44,46 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
             for (auto const& configItem : configuration) {
                 result << "_configItem=" << configItem.first << "_" << configItem.second;
             }
+            result << "_IS=" << CommonTestUtils::vec2str(inputShape);
             return result.str();
         }
 
     protected:
         void SetUp() override {
-            //      Reshape ([1, 336] -> [1, 1, 168, 2])
+            //      Reshape
             //          |
             //      Permute (order: [0, 3, 1, 2])
             //          |
-            //      Convolution (weights: [2, 12, 1, 8])
+            //      Convolution
             //          |
             //      Permute (order: [0, 2, 3, 1])
             //          |
-            //      Reshape ([1, 1, 161, 12] -> [1, 1932])
+            //      Reshape
             InferenceEngine::Precision netPrecision;
-            std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+            std::vector<size_t> inputShape;
+            std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-            auto params = ngraph::builder::makeParams(ngPrc, { {1, 336} });
+            size_t in_total_dims_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<double>());
+            auto params = ngraph::builder::makeParams(ngPrc, { {1, in_total_dims_size} });
 
-            std::vector<size_t> outFormShapes1 = { 1, 1, 168, 2 };
-            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, outFormShapes1);
+            auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, inputShape);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
             auto permute1 = std::make_shared<ngraph::opset1::Transpose>(reshape1,
                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
-            permute1->set_friendly_name("permute1");
 
-            auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, { 1, 8 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
-                ngraph::op::PadType::VALID, 12);
+            size_t num_out_channels = 12;
+            size_t kernal_size = 8;
+            auto conv1 = ngraph::builder::makeConvolution(permute1, ngPrc, { 1, kernal_size }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 1, 1 },
+                ngraph::op::PadType::VALID, num_out_channels);
 
             auto permute2 = std::make_shared<ngraph::opset1::Transpose>(conv1,
                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 2, 3, 1 }));
-            permute2->set_friendly_name("permute2");
 
-            std::vector<size_t> outFormShapes2 = { 1, 1932 };
-            auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes2);
+            size_t out_width = (inputShape[2] - kernal_size) + 1;
+            std::vector<size_t> outFormShapes = { 1, out_width * num_out_channels };
+            auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
             auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(permute2, pattern2, false);
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
@@ -93,7 +98,8 @@ public:
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
-        std::tie(netPrecision, targetDevice, configuration) = obj.param;
+        std::vector<size_t> inputShape;
+        std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
@@ -101,16 +107,18 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
+        result << "_IS=" << CommonTestUtils::vec2str(inputShape);
         return result.str();
     }
 
 protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        std::vector<size_t> inputShape;
+        std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, { {1, 1, 168, 2} });
+        auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
         auto permute1 = std::make_shared<ngraph::opset1::Transpose>(params[0],
                              ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
@@ -145,18 +153,29 @@ protected:
         }
     };
 
+    const std::vector<std::vector<size_t>> inputShapes {
+        {1, 1, 168, 1},
+        {1, 1, 168, 2},
+        {1, 1, 168, 8},
+        {1, 1, 32, 1},
+        {1, 1, 32, 2},
+        {1, 1, 32, 8}
+    };
+
     INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPassTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-            ::testing::ValuesIn(configs)),
+            ::testing::ValuesIn(configs),
+            ::testing::ValuesIn(inputShapes)),
         RemovePermutationsNHWCToNCHWPassTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPass4DOutputTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-            ::testing::ValuesIn(configs)),
+            ::testing::ValuesIn(configs),
+            ::testing::ValuesIn(inputShapes)),
         RemovePermutationsNHWCToNCHWPass4DOutputTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
