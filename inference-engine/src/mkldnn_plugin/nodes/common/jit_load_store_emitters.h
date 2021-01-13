@@ -68,6 +68,9 @@ private:
     void load_words_to_dword_extension(const Vmm &vmm, const Xbyak::Reg64 &reg, int64_t offset, bool is_bf16, bool is_signed, int load_size,
         bool is_fill = false, std::string fill_value = "zero") const;
 
+    template <typename Vmm>
+    void fill_with_default(const Vmm &vmm, std::string fill_value, const int &load_num) const;
+
     void register_table_entries() override {
         push_arg_entry_of("zero", 0x00000000, true);
         push_arg_entry_of("int_one", 0x00000001, true);

@@ -159,7 +159,8 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int64
     };
 
     if (is_zmm && (load_size != 64) && mayiuse(cpu::avx512_core)) {
-        h->mov(Reg64(aux_gpr_idxs[0]), (1 << load_size) - 1);
+        unsigned mask = (1 << load_size) - 1;
+        h->mov(Reg64(aux_gpr_idxs[0]), mask);
         h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
         h->vmovdqu8(zmm | k_mask | T_z, addr(0));
     } else {
@@ -256,15 +257,8 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int64
         }
     }
 
-    if (is_fill) {
-        uint8 imm = 1;
-        imm = ~((imm << (load_size / 4)) - imm);  // shift load_num bit
-        if (is_xmm) {
-            h->blendps(vmm, table_val(fill_value), imm);
-        } else {
-            h->vblendps(vmm, vmm, table_val(fill_value), imm);
-        }
-    }
+    if (is_fill)
+        fill_with_default(vmm, fill_value, load_size / 4);
 }
 
 /**
@@ -334,7 +328,7 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
     } else {
         // tails process
         if (is_zmm) {
-            int mask = (1 << load_size) - 1;
+            unsigned mask = (1 << load_size) - 1;
             h->mov(Reg32(aux_gpr_idxs[0]), mask);
             h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
             if (is_signed)
@@ -351,15 +345,8 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
         }
     }
 
-    if (is_fill) {
-        uint8 imm = 1;
-        imm = ~((imm << load_size) - imm);  // shift load_num bit
-        if (is_xmm) {
-            h->blendps(vmm, table_val(fill_value), imm);
-        } else {
-            h->vblendps(vmm, vmm, table_val(fill_value), imm);
-        }
-    }
+    if (is_fill)
+        fill_with_default(vmm, fill_value, load_size);
 }
 
 /**
@@ -442,7 +429,7 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
         }
     } else {
         if (is_zmm) {
-            int mask = (1 << (load_size / 2)) - 1;
+            unsigned mask = (1 << (load_size / 2)) - 1;
             h->mov(Reg32(aux_gpr_idxs[0]), mask);
             h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
             if (is_bf16) {
@@ -469,16 +456,30 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
         }
     }
 
-    if (is_fill) {
-        uint8 imm = 1;
-        imm = ~((imm << (load_size / 2)) - imm);  // shift load_num bit
-        if (is_xmm) {
-            h->blendps(vmm, table_val(fill_value), imm);
-        } else {
-            h->vblendps(vmm, vmm, table_val(fill_value), imm);
+    if (is_fill)
+        fill_with_default(vmm, fill_value, load_size / 2);
+}
+
+template <typename Vmm>
+    void jit_load_emitter::fill_with_default(const Vmm &vmm, std::string fill_value, const int &load_num) const {
+        constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
+        constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
+        constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
+
+        if (is_xmm || is_ymm) {
+            uint8 imm = 1;
+            imm = ~((imm << load_num) - imm);  // shift load_num bit
+            if (is_xmm)
+                h->blendps(vmm, table_val(fill_value), imm);
+            else
+                h->vblendps(vmm, vmm, table_val(fill_value), imm);
+        } else if (is_zmm) {
+            unsigned tail_mask = ~((1 << load_num) - 1);
+            h->mov(Reg64(aux_gpr_idxs[0]), tail_mask);
+            h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
+            h->vblendmps(vmm | k_mask, vmm, table_val(fill_value));
         }
     }
-}
 
 /// STORE ///
 jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
@@ -632,10 +633,12 @@ template <typename Vmm>
             return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
         };
 
-        if (is_zmm && (store_size != 64) && mayiuse(cpu::avx512_core)) {
-            h->mov(Reg64(aux_gpr_idxs[0]), (1 << store_size) - 1);
+        // if (is_zmm && (store_size != 64) && mayiuse(cpu::avx512_core)) {
+        if (0) {
+            unsigned mask = (1 << store_size) - 1;
+            h->mov(Reg64(aux_gpr_idxs[0]), mask);
             h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
-            h->vmovdqu8(addr(0), zmm | k_mask);
+            h->vmovdqu8(addr(0) | k_mask, zmm);
         } else {
             if (store_size == 64) {
                 h->uni_vmovdqu(addr(0), zmm);
@@ -767,14 +770,14 @@ template <typename Vmm>
                     h->vpmovusdb(addr(0), vmm);
                 }
             } else {
-                int mask = (1 << store_num) - 1;
+                unsigned mask = (1 << store_num) - 1;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
                 h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
                 if (is_signed) {
-                    h->vpmovsdb(addr(0), vmm | k_mask);
+                    h->vpmovsdb(addr(0) | k_mask, vmm);
                 } else {
                     h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
-                    h->vpmovusdb(addr(0), vmm | k_mask);
+                    h->vpmovusdb(addr(0) | k_mask, vmm);
                 }
             }
         } else {
@@ -853,14 +856,14 @@ template <typename Vmm>
                         h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
                     }
                 } else {
-                    int mask = (1 << store_num) - 1;
+                    unsigned mask = (1 << store_num) - 1;
                     h->mov(Reg32(aux_gpr_idxs[0]), mask);
                     h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
                     if (is_signed) {
-                        h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
+                        h->vpmovsdw(ptr[reg + offset] | k_mask, vmm);
                     } else {
                         h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);
-                        h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
+                        h->vpmovusdw(ptr[reg + offset] | k_mask, vmm);
                     }
                 }
             } else {

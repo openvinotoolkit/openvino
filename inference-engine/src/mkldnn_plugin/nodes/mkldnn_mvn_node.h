@@ -21,6 +21,7 @@ struct jit_mvn_config_params {
     InferenceEngine::Precision dst_prc;
     int src_data_size;
     int dst_data_size;
+    int C, D, H, W;
 };
 
 struct jit_mvn_call_args {
