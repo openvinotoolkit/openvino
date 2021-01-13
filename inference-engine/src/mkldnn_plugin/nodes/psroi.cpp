@@ -114,7 +114,7 @@ public:
         const int outBlockSize = (outFmt == Layout::BLOCKED ? dstDesc.getBlockingDesc().getBlockDims()[4] : 1);
         auto inputChannelsPadding = srcDesc.getBlockingDesc().getBlockDims()[1] * inBlockSize;
         auto outputChannelsPadding = dstDesc.getBlockingDesc().getBlockDims()[1] * outBlockSize;
-        int hOutStrIndex, wOutStrIndex, hInStrIndex, wInStrIndex;
+        int hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
         auto outOrder = dstDesc.getBlockingDesc().getOrder();
         auto inOrder = srcDesc.getBlockingDesc().getOrder();
         for (int i = 0; i < outOrder.size(); i++) {
