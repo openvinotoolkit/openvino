@@ -66,6 +66,25 @@ namespace ngraph
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model)
             : Graph(graph_proto, model, std::unique_ptr<GraphCache>(new GraphCache()))
         {
+            // Remove dangling Parameters
+            for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();)
+            {
+                if ((*param_it)->get_output_target_inputs(0).size() == 0)
+                {
+                    const auto& name = (*param_it)->get_friendly_name();
+                    auto out_it = std::find_if(
+                        m_outputs.begin(), m_outputs.end(), [&name](const ValueInfo& info) {
+                            return info.get_name() == name;
+                        });
+                    if (out_it == m_outputs.end())
+                    {
+                        m_cache->remove_node(name);
+                        param_it = m_parameters.erase(param_it);
+                        continue;
+                    }
+                }
+                param_it++;
+            }
         }
 
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto,
