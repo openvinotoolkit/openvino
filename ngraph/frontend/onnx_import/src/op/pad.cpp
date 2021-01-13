@@ -25,8 +25,8 @@
 #include "ngraph/shape.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
+#include "onnx_import/op/pad.hpp"
 #include "onnx_import/utils/convpool.hpp"
-#include "pad.hpp"
 
 namespace
 {
