@@ -29,6 +29,9 @@ public:
 
 private:
     void prepareOptimizedParams();
+    void optimizedNspc2Ncsp(size_t MB);
+
+    bool canUseOptimizedNspc2Ncsp;
 
     size_t axis = 1;
 

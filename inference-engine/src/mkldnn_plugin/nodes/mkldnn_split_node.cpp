@@ -218,6 +218,16 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
     }
+
+    // Special nspc -> ncsp case when splitting channels
+    if (axis == 1 && (dstFirstDims.ndims() == 4 || dstFirstDims.ndims() == 5)) {
+        auto plain = makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref);
+        auto perChannel = makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref);
+
+        plain.getConfig().inConfs[0].desc = perChannel.getConfig().inConfs[0].desc;
+
+        supportedPrimitiveDescriptors.push_back(plain);
+    }
 }
 
 void MKLDNNSplitNode::createPrimitive() {
@@ -231,7 +241,21 @@ void MKLDNNSplitNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "Preferable primitive descriptor is not set.";
 
-    if (!isOptimized())
+    canUseOptimizedNspc2Ncsp = true;
+    if (axis != 1)
+        canUseOptimizedNspc2Ncsp = false;
+
+    if (getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NHWC &&
+        getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NDHWC)
+        canUseOptimizedNspc2Ncsp = false;
+
+    for (size_t i = 0; i < getChildEdges().size(); i++) {
+        if (getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCHW &&
+            getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCDHW)
+            canUseOptimizedNspc2Ncsp = false;
+    }
+
+    if (!canUseOptimizedNspc2Ncsp && !isOptimized())
         prepareOptimizedParams();
 }
 
@@ -240,6 +264,12 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
         return;
 
     int MB = batchToProcess();
+
+    if (canUseOptimizedNspc2Ncsp) {
+        optimizedNspc2Ncsp(MB);
+        return;
+    }
+
     uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     size_t batch = this->getParentEdgeAt(0)->getDims()[0];
 
@@ -346,7 +376,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
                 inNum = 0;
             }
             if (MKLDNNExtensionUtils::initTensorsAreEqual(
-                    getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[0].desc,
+                    supportedPrimitiveDescriptors[i].getConfig().inConfs[0].desc,
                     parent_spd->getConfig().outConfs[inNum].desc)) {
                 canSelectPrimitive.push_back(i);
             }
@@ -362,6 +392,47 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
             selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
             return;
         }
+    }
+
+    // if there are no inPlace, but more than one suitable configurations, select the one that matches the output layout
+    for (auto indx : canSelectPrimitive) {
+        bool outputDescFullMatch = true;
+        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+            auto childEdge = getChildEdgeAt(i);
+            auto childPtr = childEdge->getChild();
+            auto& vecChildSpd = childPtr->getSupportedPrimitiveDescriptors();
+            const auto& outputDesc = supportedPrimitiveDescriptors[indx].getConfig().outConfs[i].desc;
+
+            if (!vecChildSpd.empty()) {
+                int inNum = childEdge->getOutputNum();
+                if (inNum < 0) {
+                    inNum = 0;
+                }
+                bool hasMatchDesc = false;
+                for (auto& child_spd : vecChildSpd) {
+                    if (inNum >= child_spd.getConfig().inConfs.size()) {
+                        inNum = 0;
+                    }
+                    if (MKLDNNExtensionUtils::initTensorsAreEqual(outputDesc,
+                            child_spd.getConfig().inConfs[inNum].desc)) {
+                        hasMatchDesc = true;
+                        break;
+                    }
+                }
+                if (!hasMatchDesc) {
+                    outputDescFullMatch = false;
+                    break;
+                }
+            }
+        }
+        if (outputDescFullMatch) {
+            selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
+            return;
+        }
+    }
+    if (!canSelectPrimitive.empty()) {
+        selectPrimitiveDescriptorByIndex(static_cast<int>(canSelectPrimitive.front()));
+        return;
     }
 
     // if there are no matching data layouts, select first optimized implementation
@@ -430,4 +501,55 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
         optimizedParams.srcDataOffsets[i] = optimizedParams.srcDataOffsets[i - 1] + optimizedParams.dataSize[i - 1];
     }
 }
+void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
+    auto parentEdge = getParentEdgeAt(0);
+    const int ndims = parentEdge->getDims().ndims();
+    const size_t IC = parentEdge->getDims()[1];
+    const size_t D = ndims == 5 ? parentEdge->getDims()[ndims - 3] : 1;
+    const size_t H = parentEdge->getDims()[ndims - 2];
+    const size_t W = parentEdge->getDims()[ndims - 1];
+
+    auto srcBlob = parentEdge->getBlob();
+    auto srcData = srcBlob->cbuffer().as<const uint8_t*>();
+    const auto dataSize = srcBlob->getTensorDesc().getPrecision().size();
+
+    for (size_t i = 0, sIdx = 0; i < getChildEdges().size(); i++) {
+        auto childEdge = getChildEdgeAt(i);
+        auto dstBlob = childEdge->getBlob();
+        auto dstData = dstBlob->buffer().as<uint8_t*>();
+
+        const size_t OC = childEdge->getDims()[1];
+
+        size_t innerSize = 1;
+        for (size_t j = axis; j < dstBlob->getTensorDesc().getDims().size(); j++) {
+            innerSize *= dstBlob->getTensorDesc().getDims()[j];
+        }
+
+        auto srcPtr = srcData + srcBlob->getTensorDesc().offset(sIdx) * dataSize;
+
+        const size_t strideIB = D*H*W*IC*dataSize;
+        const size_t strideID = H*W*IC*dataSize;
+        const size_t strideIH = W*IC*dataSize;
+        const size_t strideIW = IC*dataSize;
+
+        const size_t strideOB = OC*D*H*W*dataSize;
+        const size_t strideOC = D*H*W*dataSize;
+        const size_t strideOD = H*W*dataSize;
+        const size_t strideOW = W*dataSize;
+
+        parallel_for4d(MB, D, H, W, [&](size_t b, size_t d, size_t h, size_t w) {
+            auto localSrcPtr = srcPtr + b*strideIB + d*strideID + h*strideIH + w*strideIW;
+            auto localDstPtr = dstData + b*strideOB + d*strideOD + h*strideOW + w*dataSize;
+            for (size_t c = 0; c < OC; c++) {
+                cpu_memcpy(localDstPtr, localSrcPtr, dataSize);
+                localSrcPtr += dataSize;
+                localDstPtr += strideOC;
+            }
+        });
+
+        sIdx += innerSize;
+    }
+}
+
+
 REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);
