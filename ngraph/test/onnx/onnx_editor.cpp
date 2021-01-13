@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -149,6 +149,28 @@ NGRAPH_TEST(onnx_editor, elem_type_missing_in_input)
 
     const auto function_result = function->get_result();
     EXPECT_EQ(function_result->get_element_type(), element::i64);
+}
+
+NGRAPH_TEST(onnx_editor, shapes__modify_single_input)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
+
+    const auto new_shape = PartialShape{1};
+
+    editor.set_input_shapes({{"B", new_shape}});
+
+    const auto function = onnx_import::import_onnx_model(editor);
+
+    const auto graph_inputs = function->get_parameters();
+
+    const auto input_b = std::find_if(
+        std::begin(graph_inputs),
+        std::end(graph_inputs),
+        [](const std::shared_ptr<op::Parameter> i) { return i->get_friendly_name() == "B"; });
+
+    ASSERT_NE(input_b, std::end(graph_inputs));
+    EXPECT_TRUE(input_b->get()->get_partial_shape().same_scheme(new_shape));
 }
 
 NGRAPH_TEST(onnx_editor, shapes__modify_all_inputs)
