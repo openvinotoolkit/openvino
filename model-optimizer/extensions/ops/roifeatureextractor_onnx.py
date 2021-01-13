@@ -38,7 +38,7 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
             ('pyramid_scales', lambda node: ','.join(map(str, node['pyramid_scales']))),
             'output_size',
             'sampling_ratio',
-            'aligned']
+            ('aligned', lambda node: str(bool(node['aligned'])).lower())]
 
     @staticmethod
     def infer(node):
