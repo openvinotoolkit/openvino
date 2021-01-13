@@ -7,4 +7,8 @@
 #include "moc_transformations.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(MOCTransformations, "MOCTransformations", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
+
+bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::Function>) {
+    return false;
+}
