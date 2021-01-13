@@ -90,7 +90,7 @@ def mvn(
     eps_mode: str,
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which performs MeanVarianceNormalization (MVN)
+    """Return a node which performs MeanVarianceNormalization (MVN).
 
     @param data: The node with data tensor.
     @param axes: The node with axes to reduce on.
