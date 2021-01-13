@@ -28,10 +28,10 @@ list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
     )
 list(REMOVE_ITEM LIBRARY_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/conv_integer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/matmul_integer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/qlinear_matmul.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/quant_conv.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/matmul_integer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/qlinear_matmul.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.hpp
     )
 
 set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
