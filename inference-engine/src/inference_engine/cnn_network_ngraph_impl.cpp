@@ -147,7 +147,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     }
     for (auto& output : _outputData) {
         // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
-        if (output.second->getPrecision() == Precision::I64 || output.second->getPrecision() == Precision::BOOL) {
+        if (output.second->getPrecision() == Precision::I64) {
             output.second->setPrecision(Precision::I32);
         } else if (output.second->getPrecision() != Precision::FP32 &&
             output.second->getPrecision() != Precision::I32) {
