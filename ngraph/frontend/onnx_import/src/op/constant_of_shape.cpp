@@ -14,10 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "constant.hpp"
 #include "ngraph/op/constant.hpp"
 #include "onnx_import/core/tensor.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/constant.hpp"
 #include "onnx_import/utils/reshape.hpp"
 
 namespace ngraph
