@@ -48,9 +48,9 @@
   * **Default value**: None
   * **Required**: *yes*
   
-* *exclude-pad*
+* *exclude_pad*
 
-  * **Description**: *exclude-pad* is a type of pooling strategy for values in the padding area. For example, if *exclude-pad* is "true", then zero-values that came from padding are not included in averaging calculation.
+  * **Description**: *exclude_pad* is a type of pooling strategy for values in the padding area. For example, if *exclude_pad* is "true", then zero-values that came from padding are not included in averaging calculation.
   * **Range of values**: true or false 
   * **Type**: boolean
   * **Default value**: None
