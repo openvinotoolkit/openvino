@@ -25,7 +25,10 @@ void TensorNamesTest::SetUp() {
     auto parameter = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
     parameter->set_friendly_name("parameter");
     parameter->output(0).set_names({"input"});
-    auto relu = std::make_shared<ngraph::opset5::Relu>(parameter);
+    auto relu_prev = std::make_shared<ngraph::opset5::Relu>(parameter);
+    relu_prev->set_friendly_name("relu_prev");
+    relu_prev->output(0).set_names({"relu_prev_t", "identity_prev_t"});
+    auto relu = std::make_shared<ngraph::opset5::Relu>(relu_prev);
     relu->set_friendly_name("relu");
     relu->output(0).set_names({"relu_t", "identity"});
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(relu)};

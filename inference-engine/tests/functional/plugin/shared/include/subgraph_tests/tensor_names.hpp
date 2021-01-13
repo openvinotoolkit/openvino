@@ -12,7 +12,6 @@ namespace SubgraphTestsDefinitions {
 TEST_P(TensorNamesTest, CheckTensorNames) {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     ConfigureNetwork();
-    executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 
     auto inputs = cnnNetwork.getInputsInfo();
     auto outputs = cnnNetwork.getOutputsInfo();
@@ -35,6 +34,7 @@ TEST_P(TensorNamesTest, CheckTensorNames) {
             ASSERT_TRUE(outNames.count(cnnNetwork.getOVNameForTensor(name)));
     }
 
+    executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
     inferRequest = executableNetwork.CreateInferRequest();
 
     for (const auto& param : function->get_parameters()) {
@@ -54,7 +54,6 @@ TEST_P(TensorNamesTest, CheckTensorNamesAfterClone) {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     InferenceEngine::CNNNetwork clonedNet(static_cast<InferenceEngine::ICNNNetwork::Ptr>(cnnNetwork));
     ConfigureNetwork();
-    executableNetwork = core->LoadNetwork(clonedNet, targetDevice, configuration);
 
     auto inputs = clonedNet.getInputsInfo();
     auto outputs = clonedNet.getOutputsInfo();
@@ -77,6 +76,7 @@ TEST_P(TensorNamesTest, CheckTensorNamesAfterClone) {
             ASSERT_TRUE(outNames.count(clonedNet.getOVNameForTensor(name)));
     }
 
+    executableNetwork = core->LoadNetwork(clonedNet, targetDevice, configuration);
     inferRequest = executableNetwork.CreateInferRequest();
 
     for (const auto& param : function->get_parameters()) {
@@ -89,6 +89,73 @@ TEST_P(TensorNamesTest, CheckTensorNamesAfterClone) {
         ASSERT_NO_THROW(inferRequest.GetBlob(clonedNet.getOVNameForOperation(result->get_friendly_name())));
         for (const auto& name : result->output(0).get_names())
             ASSERT_NO_THROW(inferRequest.GetBlob(clonedNet.getOVNameForTensor(name)));
+    }
+}
+
+TEST_P(TensorNamesTest, CheckAddOutput) {
+    cnnNetwork = InferenceEngine::CNNNetwork{function};
+    ConfigureNetwork();
+
+    auto inputs = cnnNetwork.getInputsInfo();
+    auto outputs = cnnNetwork.getOutputsInfo();
+    std::unordered_set<std::string> inNames;
+    for (const auto& in : inputs)
+        inNames.emplace(in.first);
+    std::unordered_set<std::string> outNames;
+    for (const auto& out : outputs)
+        outNames.emplace(out.first);
+
+    ASSERT_EQ(1, inputs.size());
+    ASSERT_EQ(1, outputs.size());
+    ASSERT_EQ(1, function->get_results().size());
+
+    // Check that relu_prev doesn't exist in output and input maps
+    for (const auto& names : {inNames, outNames}) {
+        ASSERT_THROW(cnnNetwork.getOVNameForOperation("relu_prev"), InferenceEngine::NotFound);
+        for (const std::string& tensor_name : {"relu_prev_t", "identity_prev_t"}) {
+            ASSERT_THROW(cnnNetwork.getOVNameForOperation(tensor_name), InferenceEngine::NotFound);
+        }
+    }
+
+    // Add relu_prev as output
+    cnnNetwork.addOutput("relu_prev");
+
+    inputs = cnnNetwork.getInputsInfo();
+    outputs = cnnNetwork.getOutputsInfo();
+    inNames.clear();
+    for (const auto& in : inputs)
+        inNames.emplace(in.first);
+    outNames.clear();
+    for (const auto& out : outputs)
+        outNames.emplace(out.first);
+
+    ASSERT_EQ(1, inputs.size());
+    ASSERT_EQ(2, outputs.size());
+    ASSERT_EQ(2, function->get_results().size());
+
+    // Check that relu_prev exists in output map
+    ASSERT_FALSE(inNames.count(cnnNetwork.getOVNameForOperation("relu_prev")));
+    for (const std::string& tensor_name : {"relu_prev_t", "identity_prev_t"}) {
+        ASSERT_FALSE(inNames.count(cnnNetwork.getOVNameForTensor(tensor_name)));
+    }
+    ASSERT_TRUE(outNames.count(cnnNetwork.getOVNameForOperation("relu_prev")));
+    for (const std::string& tensor_name : {"relu_prev_t", "identity_prev_t"}) {
+        ASSERT_TRUE(outNames.count(cnnNetwork.getOVNameForTensor(tensor_name)));
+    }
+
+    executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+    inferRequest = executableNetwork.CreateInferRequest();
+
+    for (const auto& param : cnnNetwork.getFunction()->get_parameters()) {
+        ASSERT_NO_THROW(inferRequest.GetBlob(cnnNetwork.getOVNameForOperation(param->get_friendly_name())));
+        for (const auto& name : param->output(0).get_names())
+            ASSERT_NO_THROW(inferRequest.GetBlob(cnnNetwork.getOVNameForTensor(name)));
+    }
+
+    for (const auto& result : cnnNetwork.getFunction()->get_results()) {
+        ASSERT_NO_THROW(inferRequest.GetBlob(cnnNetwork.getOVNameForOperation(result->get_friendly_name())));
+        for (const auto& name : result->output(0).get_names())
+            ASSERT_NO_THROW(inferRequest.GetBlob(cnnNetwork.getOVNameForTensor(name)));
     }
 }
 

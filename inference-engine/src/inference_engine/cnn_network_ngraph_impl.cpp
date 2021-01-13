@@ -235,13 +235,15 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
     try {
         for (const auto & layer : _ngraph_function->get_ops()) {
             if (layer->get_friendly_name() == layerName) {
-                auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
-                _ngraph_function->add_results({result});
-
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
                     outputName += "." + std::to_string(outputIndex);
                 }
+
+                auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
+                result->set_friendly_name(outputName);
+                _ngraph_function->add_results({result});
+
                 if (_outputData.count(outputName) == 0) {
                     reshape();
                 }
