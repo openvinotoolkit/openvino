@@ -682,8 +682,8 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     // Try to create operation from loaded opsets
     auto version = params.version;
-    const std::set<std::string> experimental_detectrons = {"ExperimentalDetectronROIFeatureExtractor"};
-    if (experimental_detectrons.count(params.type) != 0) {
+    static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronROIFeatureExtractor"};
+    if (experimental_detectrons.count(params.type)) {
         version = "opset6";
     }
 
