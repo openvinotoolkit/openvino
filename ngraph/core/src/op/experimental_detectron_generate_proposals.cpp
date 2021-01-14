@@ -94,8 +94,13 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
     if (im_info_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              im_info_shape.rank().get_length() == 3,
-                              "The 'input_im_info' input is expected to be a 3D. Got: ",
+                              im_info_shape.rank().get_length() == 1,
+                              "The 'input_im_info' input is expected to be a 1D. Got: ",
+                              im_info_shape);
+
+        NODE_VALIDATION_CHECK(this,
+                              im_info_shape[0] == 3,
+                              "The 'input_im_info' shape is expected to be a [3]. Got: ",
                               im_info_shape);
     }
 
