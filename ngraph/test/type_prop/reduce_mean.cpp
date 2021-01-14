@@ -59,3 +59,26 @@ TEST(type_prop, reduce_mean_v1_shape_if_not_keep_dims)
     auto reduce_prod = make_shared<op::v1::ReduceMean>(arg, axes, keep_dims);
     ASSERT_TRUE(reduce_prod->get_output_partial_shape(0).compatible(PartialShape{3}));
 }
+
+TEST(type_prop, reduce_mean_dynamic_shape)
+{
+    auto arg =
+        make_shared<op::Parameter>(element::f32, PartialShape{3, 4, 5, Dimension::dynamic()});
+    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
+    auto keep_dims = true;
+    auto reduce_prod = make_shared<op::v1::ReduceMean>(arg, axes, keep_dims);
+    ASSERT_TRUE(reduce_prod->get_output_partial_shape(0).compatible(
+        PartialShape{3, 1, 1, Dimension::dynamic()}));
+}
+
+TEST(type_prop, reduce_mean_reduce_dynamic_shape)
+{
+    auto arg =
+        make_shared<op::Parameter>(element::f32, PartialShape{3, 4, 5, Dimension::dynamic()});
+    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 3});
+    auto keep_dims = true;
+    auto reduce_prod = make_shared<op::v1::ReduceMean>(arg, axes, keep_dims);
+
+    ASSERT_TRUE(reduce_prod->get_output_partial_shape(0).compatible(
+        PartialShape{3, 1, 5, Dimension::dynamic()}));
+}
