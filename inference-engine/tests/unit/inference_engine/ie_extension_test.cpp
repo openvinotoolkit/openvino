@@ -47,7 +47,7 @@ TEST(ExtensionTests, testGetImplTypesThrowsIfNgraphNodeIsNullPtr) {
 TEST(ExtensionTests, testGetImplementation) {
     IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
     auto opset = extension->getOpSets().begin()->second;
-    std::shared_ptr<ngraph::Node> op(opset.create(opset.get_types_info().begin()->name));
+    std::shared_ptr<ngraph::Node> op(opset.create("Template"));
     ASSERT_NE(nullptr, extension->getImplementation(op, extension->getImplTypes(op)[0]));
 }
 

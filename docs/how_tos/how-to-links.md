@@ -12,8 +12,8 @@
 * [Introducing int8 quantization for fast CPU inference using OpenVINO](https://www.intel.ai/introducing-int8-quantization-for-fast-cpu-inference-using-openvino/)
 * [Accelerate Vision-based AI with Intel® Distribution of OpenVINO™ Toolkit](https://www.intel.ai/accelerate-vision-based-ai-with-intel-distribution-of-openvino-toolkit/)
 
-## Custom Layers Guide
-To learn about what is *custom layers* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Layers Guide](../HOWTO/Custom_Layers_Guide.md).
+## Custom Operations Guide
+To learn about what is *custom operation* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Operations Guide](../HOWTO/Custom_Layers_Guide.md).
  
 ## Introducing OpenVINO™ and Computer Vision | IoT Developer Show Season 2 | Intel Software
 

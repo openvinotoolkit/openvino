@@ -77,7 +77,6 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
             * [Converting DeepSpeech from TensorFlow](prepare_model/convert_model/tf_specific/Convert_DeepSpeech_From_Tensorflow.md)
             * [Converting Language Model on One Billion Word Benchmark from TensorFlow](prepare_model/convert_model/tf_specific/Convert_lm_1b_From_Tensorflow.md)
             * [Converting Neural Collaborative Filtering Model from TensorFlow*](prepare_model/convert_model/tf_specific/Convert_NCF_From_Tensorflow.md)
-
             * [Converting TensorFlow* Object Detection API Models](prepare_model/convert_model/tf_specific/Convert_Object_Detection_API_Models.md)
             * [Converting TensorFlow*-Slim Image Classification Model Library Models](prepare_model/convert_model/tf_specific/Convert_Slim_Library_Models.md)
             * [Converting CRNN Model from TensorFlow*](prepare_model/convert_model/tf_specific/Convert_CRNN_From_Tensorflow.md)
@@ -91,17 +90,15 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
         * [Model Optimizations Techniques](prepare_model/Model_Optimization_Techniques.md)
         * [Cutting parts of the model](prepare_model/convert_model/Cutting_Model.md)
         * [Sub-graph Replacement in Model Optimizer](prepare_model/customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)
-            * [(Deprecated) Case-Study: Converting SSD models created with the TensorFlow* Object Detection API](prepare_model/customize_model_optimizer/TensorFlow_SSD_ObjectDetection_API.md)
-            * [(Deprecated) Case-Study: Converting Faster R-CNN models created with the TensorFlow* Object Detection API](prepare_model/customize_model_optimizer/TensorFlow_Faster_RCNN_ObjectDetection_API.md)
         * [Supported Framework Layers](prepare_model/Supported_Frameworks_Layers.md)
         * [Intermediate Representation and Operation Sets](IR_and_opsets.md)
         * [Operations Specification](../ops/opset.md)
         * [Intermediate Representation suitable for INT8 inference](prepare_model/convert_model/IR_suitable_for_INT8_inference.md)
-
-    * [Custom Layers in Model Optimizer](prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
+    * [Model Optimizer Extensibility](prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
         * [Extending Model Optimizer with New Primitives](prepare_model/customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md)
+        * [Extending Model Optimizer with Caffe Python Layers](prepare_model/customize_model_optimizer/Extending_Model_Optimizer_with_Caffe_Python_Layers.md)
+        * [Extending Model Optimizer with Custom MXNet* Operations](prepare_model/customize_model_optimizer/Extending_MXNet_Model_Optimizer_with_New_Primitives.md)
         * [Legacy Mode for Caffe* Custom Layers](prepare_model/customize_model_optimizer/Legacy_Mode_for_Caffe_Custom_Layers.md)
-
     * [Model Optimizer Frequently Asked Questions](prepare_model/Model_Optimizer_FAQ.md)
 
 * [Known Issues](Known_Issues_Limitations.md)
