@@ -57,9 +57,12 @@ public:
     static std::string getTestCaseName(fusingSpecificParams params);
 
 protected:
+    /**
+     * @brief This function adds post operations.
+     */
     std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
-                                                      ngraph::ParameterVector &params,
-                                                      const std::shared_ptr<ngraph::Node> &lastNode) const override;
+                                              ngraph::ParameterVector &params,
+                                              const std::shared_ptr<ngraph::Node> &lastNode) const override;
 
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const override;
 

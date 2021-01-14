@@ -55,6 +55,13 @@ public:
 
 protected:
     virtual void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
+    /**
+     * @brief This function modifies the initial single layer test graph to add any necessary modifications that are specific to the cpu test scope.
+     * @param ngPrc Graph precision.
+     * @param params Graph parameters vector.
+     * @param lastNode The last node of the initial graph.
+     * @return The last node of the modified graph.
+     */
     virtual std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
                                                       ngraph::ParameterVector &params,
                                                       const std::shared_ptr<ngraph::Node> &lastNode) const;
