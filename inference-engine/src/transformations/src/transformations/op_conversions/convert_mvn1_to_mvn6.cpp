@@ -25,12 +25,6 @@ ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
 
         const auto input = mvn_node->input_value(0);
 
-        // MVN-1 support only 4D and higher input tensors
-        auto input_rank = input.get_partial_shape().rank();
-        if (!input_rank.is_static() || input_rank.get_length() < 4) {
-            return false;
-        }
-
         int64_t start_axis = 1 + (!mvn_node->get_across_channels());
         std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
         std::iota(axes_v.begin(), axes_v.end(), start_axis);
