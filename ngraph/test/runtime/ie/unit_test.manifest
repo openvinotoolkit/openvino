@@ -40,8 +40,11 @@ onnx_model_matmul_integer_4d_zero_point
 onnx_model_matmul_integer_4d_no_zero_point
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
-onnx_model_gather_elements_int32
-onnx_model_gather_elements_float
+
+# Unsupported operator detected in the graph: GatherElements
+onnx_model_gather_elements_float_negative_axis
+onnx_model_gather_elements_int32_axis_0
+onnx_model_gather_elements_int8_axis_1
 
 # Result mismatch
 onnx_model_split_equal_parts_default
