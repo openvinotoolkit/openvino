@@ -65,6 +65,8 @@ mkldnn::memory::format_tag str2fmt(const char *str) {
         CASE(OIhw8o16i2o);
         CASE(IOhw8o16i2o);
         CASE(OIhw8o8i);
+        CASE(OIhw8o32i);
+        CASE(OIhw16o32i);
         CASE(OIhw16o16i);
         CASE(IOhw16o16i);
         CASE(Oihw16o);

@@ -1531,39 +1531,50 @@ void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
-    if (!isPostOpDataInitialized) {
-        isPostOpDataInitialized = true;
+    // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
+    // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
+    // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
+    const size_t bufferAlignment = 16;
 
-        // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
-        // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
-        // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
-        const size_t bufferAlignment = 16;
-        if (cropLow.size() > 1)
-            cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
-        if (cropHigh.size() > 1)
-            cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
-        if (inputScale.size() > 1)
-            inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
-        if (inputShift.size() > 1)
-            inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
-        if (outputScale.size() > 1)
-            outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
-        if (outputShift.size() > 1)
-            outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
+    if (quantizeOpType == QuantizeOpType::Binarization) {
+        if (!isPostOpDataInitialized) {
+            size_t paddedSize = rnd_up(binarizationThresholds.size(), bufferAlignment);
+            binarizationThresholds.resize(paddedSize, 0);
+            binarizationOutputMask.resize(paddedSize, 0);
+        }
 
-        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
-        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
-        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
-        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
-        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
-        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+        ops.append_binarization(mkldnn::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);
+    } else {
+        if (!isPostOpDataInitialized) {
+            if (cropLow.size() > 1)
+                cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
+            if (cropHigh.size() > 1)
+                cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
+            if (inputScale.size() > 1)
+                inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
+            if (inputShift.size() > 1)
+                inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
+            if (outputScale.size() > 1)
+                outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
+            if (outputShift.size() > 1)
+                outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
+
+            cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
+            cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
+            inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
+            inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
+            outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
+            outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+        }
+
+        mkldnn::algorithm alg = quantizeOpType == QuantizeOpType::FakeQuantization ? mkldnn::algorithm::quantization_quantize_dequantize :
+                                                                                     mkldnn::algorithm::quantization_quantize;
+
+        ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
     }
 
-    mkldnn::algorithm alg = quantizeOpType == QuantizeOpType::FakeQuantization ? mkldnn::algorithm::quantization_quantize_dequantize :
-                            quantizeOpType == QuantizeOpType::Quantization ? mkldnn::algorithm::quantization_quantize :
-                            mkldnn::algorithm::binarization_depthwise;
-
-    ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
+    if (!isPostOpDataInitialized)
+        isPostOpDataInitialized = true;
 }
 
 bool MKLDNNQuantizeNode::created() const {

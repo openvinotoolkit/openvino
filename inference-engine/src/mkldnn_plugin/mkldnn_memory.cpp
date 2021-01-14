@@ -250,10 +250,8 @@ Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
             return Precision::I8;
         case memory::data_type::s32:
             return Precision::I32;
-// TODO: bin is not ported yet
-//
-//        case memory::data_type::bin:
-//            return Precision::BIN;
+        case memory::data_type::bin:
+            return Precision::BIN;
         case memory::data_type::bf16:
             return Precision::BF16;
         default:
@@ -276,6 +274,8 @@ memory::data_type MKLDNNMemory::convertToDataType(const InferenceEngine::Precisi
             return memory::data_type::u8;
         case Precision::I8:
             return memory::data_type::s8;
+        case Precision::BIN:
+            return memory::data_type::bin;
         default:
             THROW_IE_EXCEPTION << "Unknown mkldnn data type";
     }
@@ -363,6 +363,7 @@ size_t MKLDNNMemoryDesc::GetElementSize() const {
             return 4;
         case memory::data_type::s8 :
         case memory::data_type::u8 :
+        case memory::data_type::bin :
             return 1;
         default:
             THROW_IE_EXCEPTION << "Unknown data type";
@@ -445,6 +446,8 @@ static const std::map<int, std::vector<mkldnn::memory::format_tag>> form_tags_by
         mkldnn::memory::format_tag::aBCd4b4c,
         mkldnn::memory::format_tag::ABcd8a16b2a,
         mkldnn::memory::format_tag::ABcd8a8b,
+        mkldnn::memory::format_tag::ABcd8a32b,
+        mkldnn::memory::format_tag::ABcd32a32b,
         mkldnn::memory::format_tag::ABcd8a4b,
 
         mkldnn::memory::format_tag::ABcd8b16a2b,

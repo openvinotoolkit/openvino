@@ -103,8 +103,6 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         mask = 1 << oc_dim_id;
 
         attr.set_output_scales(mask, scales);
-        // TODO [oneDNN]: Where is set_int_output_round_mode?
-//        attr.set_int_output_round_mode(round_mode::round_nearest);
     }
 
     auto createReorder = [&]() -> bool {
@@ -144,26 +142,9 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
             success = createReorder();
         }
     }
-    if (!success) {
-        // TODO [oneDNN]: is it unreachable case? may we remove it?
-        THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
 
-        // MKLDNN doesn't support direct reorders between planar data formats in case they have different rank but the same number of elements.
-        // Code block below detects these cases and substitute src dims with dst ones.
-//        } else if (MKLDNNMemory::GetPlainFormat(src_blocked->GetDims()) == src_blocked->GetFormat() &&
-//                   MKLDNNMemory::GetPlainFormat(dst_blocked->GetDims()) == dst_blocked->GetFormat() &&
-//                   src_blocked->GetElementsCount() == dst_blocked->GetElementsCount()) {
-//            try {
-//                auto newDesc = mkldnn::memory::desc(dst_blocked->GetDims(), src_blocked->GetDataType(), dst_blocked->GetFormat());
-//                src_blocked->Create(newDesc, srcPtr, false);
-//
-//                createReorder();
-//            } catch (...) {
-//                THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
-//            }
-//        } else {
-//            THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
-//        }
+    if (!success) {
+        THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
     }
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();

@@ -168,6 +168,29 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                 defConvLayer->blobs.clear();
                 defConvLayer->_weights = nullptr;
             }
+        } else if (layer->type == "BinaryConvolution") {
+            auto * binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(layer.get());
+            if (binConvLayer == nullptr)
+                THROW_IE_EXCEPTION << "Cannot convert binary convolution layer.";
+
+            Blob::Ptr weightsBlob = binConvLayer->blobs["weights"];
+            if (weightsBlob != nullptr) {
+                std::vector<size_t> shape;
+
+                if (binConvLayer->_group != 1) {
+                    shape.push_back(binConvLayer->_group);
+                }
+                shape.push_back(binConvLayer->_out_depth);
+                shape.push_back(binConvLayer->input()->getDims()[1]);
+                for (int i = 1; i <= binConvLayer->_kernel.size(); i++) {
+                    shape.push_back(binConvLayer->_kernel[binConvLayer->_kernel.size() - i]);
+                }
+
+                createConstInputTo(layer, weightsBlob, shape, "weights");
+
+                binConvLayer->blobs.clear();
+                binConvLayer->_weights = nullptr;
+            }
         }
     }
 

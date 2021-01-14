@@ -779,7 +779,6 @@ void MKLDNNGraph::Infer(int batch) {
             OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profiling.execute);
             graphNodes[i]->execute(stream);
         }
-
         ENABLE_DUMP(do_after(DUMP_DIR, graphNodes[i]));
     }
 
