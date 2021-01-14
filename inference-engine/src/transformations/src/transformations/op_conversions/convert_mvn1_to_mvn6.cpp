@@ -42,7 +42,7 @@ ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
             ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         mvn6_node->set_friendly_name(mvn_node->get_friendly_name());
-        ngraph::copy_runtime_info(mvn_node, { mvn6_node });
+        ngraph::copy_runtime_info(mvn_node, mvn6_node);
         ngraph::replace_node(mvn_node, mvn6_node);
         return true;
     };
