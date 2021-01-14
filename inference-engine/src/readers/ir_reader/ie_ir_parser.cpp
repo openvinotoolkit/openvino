@@ -709,8 +709,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets);
-        if (ngraphNode->visit_attributes(visitor))
+        if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
+        }
+        ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
     }
 
     // Create GenericIE operation for backward compatibility
