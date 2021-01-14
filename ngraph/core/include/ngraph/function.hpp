@@ -176,7 +176,7 @@ namespace ngraph
         void add_parameters(const ParameterVector& params);
 
         /// \brief Delete Parameter node from the list of parameters. Method will not delete node from
-        /// graph.
+        /// graph. Attention: Indexing of parameters will be changed.
         /// \param param Parameter node to delete
         void remove_parameter(const std::shared_ptr<op::Parameter>& param);
 
