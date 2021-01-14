@@ -52,6 +52,8 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      echo TargetBranch: $(System.PullRequest.TargetBranch)
+      echo SourceBranch: $(Build.SourceBranch)
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
     displayName: 'Make dir'
@@ -98,6 +100,7 @@ jobs:
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.6
         -DENABLE_TESTS=ON
+        -DENABLE_FASTER_BUILD=ON
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)

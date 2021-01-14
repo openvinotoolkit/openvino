@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -115,10 +115,6 @@ namespace ngraph
                                            const PartialShape input_partial_shape,
                                            const int64_t k) const;
                 void set_axis(const Rank input_rank, const int64_t axis);
-
-            private:
-                bool evaluate_topk(const HostTensorVector& outputs,
-                                   const HostTensorVector& inputs) const;
             };
         } // namespace v1
 

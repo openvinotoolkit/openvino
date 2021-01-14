@@ -62,21 +62,20 @@ else()
     target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
 endif()
 
-add_subdirectory(stb_lib)
 add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi)
 
-set_target_properties(ade fluid stb_image PROPERTIES FOLDER thirdparty)
+set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 
 # developer package
 
-ie_developer_export_targets(ade fluid)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
 if (NOT USE_SYSTEM_PUGIXML)
     set_target_properties(pugixml PROPERTIES FOLDER thirdparty)
-    ie_developer_export_targets(pugixml)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml)
     if(TARGET pugixml_mt)
-        ie_developer_export_targets(pugixml_mt)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml_mt)
         set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
     endif()
 endif()

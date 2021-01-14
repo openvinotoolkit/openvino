@@ -23,6 +23,7 @@
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
 #include <openvino/itt.hpp>
+#include <ngraph/node.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -51,6 +52,7 @@ enum Type {
     Reshape,
     Tile,
     SimplerNMS,
+    ROIAlign,
     ROIPooling,
     BatchNormalization,
     Flatten,
@@ -128,6 +130,8 @@ static std::string NameFromType(Type type) {
             return "Tile";
         case SimplerNMS:
             return "SimplerNMS";
+        case ROIAlign:
+            return "ROIAlign";
         case ROIPooling:
             return "ROIPooling";
         case BatchNormalization:

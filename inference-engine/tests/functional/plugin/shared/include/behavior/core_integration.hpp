@@ -235,7 +235,7 @@ TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
     ASSERT_THROW(Core ie("nonExistPlugins.xml"), InferenceEngineException);
 }
 
-#if defined __linux__  && !defined(__APPLE__)
+#ifdef __linux__
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigNoThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "runtime/reference/tensor_iterator.hpp"
-#include "runtime/reference/concat.hpp"
-#include "runtime/reference/function.hpp"
-#include "runtime/reference/split.hpp"
+#include "ngraph/runtime/reference/tensor_iterator.hpp"
+#include "ngraph/runtime/reference/concat.hpp"
+#include "ngraph/runtime/reference/function.hpp"
+#include "ngraph/runtime/reference/split.hpp"
 
 namespace ngraph
 {

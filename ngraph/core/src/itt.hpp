@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,30 +36,36 @@ namespace ngraph
             OV_ITT_DOMAIN(ngraph_op, "nGraph::Op");
         }
     }
-    OV_CC_DOMAINS(ngraph_op);
 }
+OV_CC_DOMAINS(ngraph_op);
 
-#if defined(SELECTIVE_BUILD) || defined(SELECTIVE_BUILD_ANALYZER)
-#define NGRAPH_OP_SCOPE(region, ...) OV_SCOPE(ngraph_op, region, __VA_ARGS__)
+#if defined(SELECTIVE_BUILD_ANALYZER)
+#define NGRAPH_OP_SCOPE(region) OV_SCOPE(ngraph_op, region)
+#elif defined(SELECTIVE_BUILD)
+#define NGRAPH_OP_SCOPE(region)                                                                    \
+    if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(ngraph_op, _, region)) == 0)                             \
+    throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_op, _, region))) +     \
+                               " is disabled!")
 #else
-#define NGRAPH_OP_SCOPE(region, ...)                                                               \
-    OV_ITT_SCOPED_TASK(itt::domains::ngraph_op, #region);                                          \
-    __VA_ARGS__
+#define NGRAPH_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ngraph::itt::domains::ngraph_op, #region)
 #endif
 
 #define NGRAPH_TYPE_CASE(region, a, ...)                                                           \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        OV_SCOPE(                                                                                  \
-            ngraph_op, OV_CC_CAT3(region, _, a), rc = evaluate<element::Type_t::a>(__VA_ARGS__));  \
+        OV_SCOPE(ngraph_op, OV_CC_CAT3(region, _, a))                                              \
+        {                                                                                          \
+            rc = evaluate<element::Type_t::a>(__VA_ARGS__);                                        \
+        }                                                                                          \
     }                                                                                              \
-    break;
+    break
 
 #define NGRAPH_COPY_TENSOR(region, a, ...)                                                         \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        OV_SCOPE(ngraph_op,                                                                        \
-                 OV_CC_CAT3(region, _, a),                                                         \
-                 rc = copy_tensor<element::Type_t::a>(__VA_ARGS__));                               \
+        OV_SCOPE(ngraph_op, OV_CC_CAT3(region, _, a))                                              \
+        {                                                                                          \
+            rc = copy_tensor<element::Type_t::a>(__VA_ARGS__);                                     \
+        }                                                                                          \
     }                                                                                              \
-    break;
+    break

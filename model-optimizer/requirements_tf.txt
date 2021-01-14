@@ -1,5 +1,5 @@
 tensorflow>=1.15.2,<2.0; python_version < "3.8"
-tensorflow>=2.0; python_version >= "3.8"
+tensorflow>=2.2; python_version >= "3.8"
 networkx>=1.11
 numpy>=1.14.0,<1.19.0
 test-generator==0.1.1

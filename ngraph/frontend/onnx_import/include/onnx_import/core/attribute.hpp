@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include <onnx/onnx_pb.h>
 
 #include "ngraph/except.hpp"
-#include "tensor.hpp"
+#include "onnx_import/core/tensor.hpp"
 
 namespace ngraph
 {

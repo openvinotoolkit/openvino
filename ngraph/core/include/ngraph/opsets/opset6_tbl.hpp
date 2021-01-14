@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -174,3 +174,4 @@ NGRAPH_OP(Round, ngraph::op::v5)
 
 // New operations added in opset6
 NGRAPH_OP(MVN, ngraph::op::v6)
+NGRAPH_OP(GatherElements, ngraph::op::v6)

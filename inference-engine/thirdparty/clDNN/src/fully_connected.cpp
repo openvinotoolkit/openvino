@@ -65,10 +65,13 @@ format::type get_preferred_format(const fully_connected_node& node) {
         return format::yxfb;
 
     bool no_spatial_padding = true;
-    for (auto pad : input_layout.data_padding.lower_size().spatial)
-        no_spatial_padding &= pad == 0;
-    for (auto pad : input_layout.data_padding.upper_size().spatial)
-        no_spatial_padding &= pad == 0;
+    // C++ 11 range loop shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
+    for (size_t i = 0; i < input_layout.data_padding.lower_size().spatial.size(); ++i) {
+        no_spatial_padding &= (input_layout.data_padding.lower_size().spatial[i] == 0);
+    }
+    for (size_t i = 0; i < input_layout.data_padding.upper_size().spatial.size(); ++i) {
+        no_spatial_padding &= (input_layout.data_padding.upper_size().spatial[i] == 0);
+    }
 
     if (input_layout.data_type == data_types::f32 &&
         input_layout.format == format::bfyx &&

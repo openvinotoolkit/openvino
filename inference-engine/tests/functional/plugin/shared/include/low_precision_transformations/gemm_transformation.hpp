@@ -11,15 +11,24 @@
 
 namespace LayerTestsDefinitions {
 
+typedef std::tuple<
+    ngraph::element::Type,
+    ngraph::Shape,
+    std::string,
+    ngraph::pass::low_precision::LayerTransformation::Params> GemmTransformationParams;
+
 // TODO: use MatMulTransformation
 class GemmTransformation :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+    public testing::WithParamInterface<GemmTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<GemmTransformationParams> obj);
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

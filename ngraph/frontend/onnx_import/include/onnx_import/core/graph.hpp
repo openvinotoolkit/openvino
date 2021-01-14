@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@
 #include <string>
 #include <vector>
 
-#include "graph_cache.hpp"
-#include "model.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "onnx_import/core/graph_cache.hpp"
+#include "onnx_import/core/model.hpp"
+#include "onnx_import/core/operator_set.hpp"
+#include "onnx_import/core/value_info.hpp"
 #include "onnx_import/default_opset.hpp"
-#include "operator_set.hpp"
-#include "value_info.hpp"
 
 namespace ngraph
 {
