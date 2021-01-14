@@ -27,6 +27,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "generic_ie.hpp"
 #include <ngraph/variant.hpp>
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -52,6 +53,7 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
 }
 
 void CLDNNGraph::UpdateLayersMaps() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdateLayersMaps");
     primitiveIDs = m_program->primitiveIDs;
     primitivesToIRLayersMap = m_program->primitivesToIRLayersMap;
     IRToNgraphLayersMap = m_program->IRToNgraphLayersMap;
@@ -62,6 +64,7 @@ void CLDNNGraph::UpdateLayersMaps() {
 }
 
 void CLDNNGraph::Build() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::Build");
     UpdateLayersMaps();
 
     if (GetMaxDynamicBatchSize() > 1) {
@@ -81,6 +84,7 @@ void CLDNNGraph::Build() {
 }
 
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::BuildNetwork");
     auto network = std::make_shared<cldnn::network>(*program, m_stream_id);
 
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
@@ -101,6 +105,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
 
 InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetExecGraphInfoByPrimitivesInfo");
     if (m_config.useProfiling) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
@@ -474,6 +479,7 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfo() {
 
 
 void CLDNNGraph::UpdatePerfStatistics() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdatePerfStatistics");
     if (GetNetworksCount() == 0) {
         return;
     }
@@ -545,6 +551,7 @@ bool CLDNNGraph::IsLoaded() const {
 }
 
 void CLDNNGraph::UpdateImplementationsMap() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::UpdateImplementationsMap");
     if (m_config.useProfiling) {
         auto extractImplementationFromInfo = [](const std::string& info) -> std::string {
             std::string def_implementation = "undef";
@@ -587,6 +594,7 @@ void CLDNNGraph::UpdateImplementationsMap() {
 }
 
 void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &result) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetPerformanceCounts");
     bool combinePrimByIRLayers = false;
     unsigned i = 0;
     auto allIds = GetNetwork()->get_all_primitive_org_ids();
