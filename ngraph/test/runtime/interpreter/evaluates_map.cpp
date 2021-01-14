@@ -1586,30 +1586,29 @@ namespace
             using TSL = int64_t;
         }
 
-
         if (op->get_sequence_length_type() == element::i32)
         {
             runtime::reference::ctc_greedy_decoder_seq_len<TF>(
-               inputs[0]->get_data_ptr<const TF>(),
-               inputs[1]->get_data_ptr<const int32_t>(),
-               inputs[2]->get_data_ptr<const int32_t>(),
-               outputs[0]->get_data_ptr<TCI>(),
-               outputs[1]->get_data_ptr<TSL>(),
-               inputs[0]->get_shape(),
-               outputs[0]->get_shape(),
-               op->get_merge_repeated());
+                inputs[0]->get_data_ptr<const TF>(),
+                inputs[1]->get_data_ptr<const int32_t>(),
+                inputs[2]->get_data_ptr<const int32_t>(),
+                outputs[0]->get_data_ptr<TCI>(),
+                outputs[1]->get_data_ptr<TSL>(),
+                inputs[0]->get_shape(),
+                outputs[0]->get_shape(),
+                op->get_merge_repeated());
         }
         else if (op->get_sequence_length_type() == element::i64)
         {
             runtime::reference::ctc_greedy_decoder_seq_len<TF>(
                 inputs[0]->get_data_ptr<const TF>(),
-               inputs[1]->get_data_ptr<const int64_t>(),
-               inputs[2]->get_data_ptr<const int64_t>(),
-               outputs[0]->get_data_ptr<int64_t>(),
-               outputs[1]->get_data_ptr<int64_t>(),
-               inputs[0]->get_shape(),
-               outputs[0]->get_shape(),
-               op->get_merge_repeated());
+                inputs[1]->get_data_ptr<const int64_t>(),
+                inputs[2]->get_data_ptr<const int64_t>(),
+                outputs[0]->get_data_ptr<int64_t>(),
+                outputs[1]->get_data_ptr<int64_t>(),
+                inputs[0]->get_shape(),
+                outputs[0]->get_shape(),
+                op->get_merge_repeated());
         }
         return true;
     }
