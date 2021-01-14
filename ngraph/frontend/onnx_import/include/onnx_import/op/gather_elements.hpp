@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2021 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #pragma once
 
 #include "ngraph/output_vector.hpp"
-// #include "onnx_import/core/node.hpp"
 
 namespace ngraph
 {
