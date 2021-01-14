@@ -55,7 +55,7 @@ std::string translate_type_name(const std::string& name) {
     return name;
 }
 
-void ngfunction_2_irv10(pugi::xml_document& doc,
+void ngfunction_2_irv10(pugi::xml_node& node,
                         std::ostream& bin_file,
                         const ngraph::Function& f,
                         const std::map<std::string, ngraph::OpSet>& custom_opsets);
@@ -253,20 +253,16 @@ public:
     void on_adapter(
         const std::string& name,
         ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        pugi::xml_document xml_body;
-
-        ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets);
-
         if (name == "body") {
-            xml_body.first_child().remove_attribute("name");
-            xml_body.first_child().remove_attribute("version");
-            xml_body.first_child().set_name(name.c_str());
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
             // to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (m_xml_node) with empty attributes
             // is removed.
-            m_xml_node.parent().append_copy(xml_body.first_child());
+            pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
+            ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets);
+            xml_body.first_child().remove_attribute("name");
+            xml_body.first_child().remove_attribute("version");
         } else if (name == "net") {
-            m_xml_node.append_copy(xml_body.first_child());
+            ngfunction_2_irv10(m_xml_node, m_bin_data, *adapter.get(), m_custom_opsets);
         } else {
             NGRAPH_CHECK(false, "Unsupported Function name.");
         }
@@ -498,13 +494,12 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
     return true;
 }
 
-void ngfunction_2_irv10(pugi::xml_document& doc,
+void ngfunction_2_irv10(pugi::xml_node& netXml,
                         std::ostream& bin_file,
                         const ngraph::Function& f,
                         const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     const bool exec_graph = is_exec_graph(f);
 
-    pugi::xml_node netXml = doc.append_child("net");
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value("10");
     pugi::xml_node layers = netXml.append_child("layers");
@@ -562,7 +557,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
                 // WA for LSTMCellv0, peephole input shall not be serialized
                 if (i.get_index() == 6) {
                     auto type_info = node->get_type_info();
-                    if (type_info.name == "LSTM" && type_info.version == 0) {
+                    if (!strcmp(type_info.name, "LSTM") && type_info.version == 0) {
                         port_id++;
                         continue;
                     }
@@ -635,7 +630,8 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     case Version::IR_V10:
         {
             std::string name = "net";
-            XmlSerializer visitor(xml_doc, bin_file, name, m_custom_opsets);
+            pugi::xml_node net_node = xml_doc.append_child(name.c_str());
+            XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
             visitor.on_attribute(name, f);
         }
         break;
