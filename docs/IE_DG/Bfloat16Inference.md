@@ -2,7 +2,8 @@
 
 ## Disclaimer
 
-Inference Engine with the bfloat16 inference implemented on CPU must support the `avx512_bf16` instruction and therefore the bfloat16 data format.
+Inference Engine with the bfloat16 inference implemented on CPU must support the native `avx512_bf16` instruction and therefore the bfloat16 data format.
+It is possible to use bfloat16 inference in simulation mode on platforms with Intel® Advanced Vector Extensions 512 (Intel® AVX-512), but it leads to significant performance degradation in comparison with FP32 or native `avx512_bf16` instruction usage.
 
 ## Introduction
 
@@ -12,7 +13,7 @@ Bfloat16 computations (referred to as BF16) is the Brain Floating-Point format w
 
 Preserving the exponent bits keeps BF16 to the same range as the FP32 (~1e-38 to ~3e38). This simplifies conversion between two data types: you just need to skip or flush to zero 16 low bits.
 Truncated mantissa leads to occasionally less precision, but according to [investigations](https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus), neural networks are more sensitive to the size of the exponent than the mantissa size. Also, in lots of models, precision is needed close to zero but not so much at the maximum range.
-Another useful feature of BF16 is possibility to encode an INT8 in BF16 without loss of accuracy, because INT8 range completely fits in BF16 mantissa field. It reduces data flow in conversion from INT8 input image data to BF16 directly without intermediate representation in FP32, or in combination of [INT8 inference](Int8Inference.md) and BF16 layers.
+Another useful feature of BF16 is possibility to encode INT8 in BF16 without loss of accuracy, because INT8 range completely fits in BF16 mantissa field. It reduces data flow in conversion from INT8 input image data to BF16 directly without intermediate representation in FP32, or in combination of [INT8 inference](Int8Inference.md) and BF16 layers.
 
 See the [Intel's site](https://software.intel.com/sites/default/files/managed/40/8b/bf16-hardware-numerics-definition-white-paper.pdf) for more bfloat16 format details.
 
@@ -22,14 +23,7 @@ There are two ways to check if CPU device can support bfloat16 computations for 
 
 @snippet snippets/Bfloat16Inference0.cpp part0
 
-Current Inference Engine solution for bfloat16 inference uses Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN) and supports inference of the following layers in BF16 computation mode:
-* Convolution
-* FullyConnected
-* InnerProduct
-* LRN
-* Pooling
-
-This means that BF16 inference can only be performed with the CPU plugin on the layers listed above. All other layers are executed in FP32.
+Current Inference Engine solution for bfloat16 inference uses Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN) and supports inference of the significant number of layers in BF16 computation mode.
 
 ## Lowering Inference Precision
 
@@ -43,18 +37,36 @@ Bfloat16 data usage provides the following benefits that increase performance:
 4. Reduced size of data in memory, as a result, larger models fit in the same memory bounds.
 5. Reduced amount of data that must be transferred, as a result, reduced data transition time.
 
-For default optimization on CPU, source model converts from FP32 or FP16 to BF16 and executes internally on platforms with native BF16 support. In that case, `KEY_ENFORCE_BF16` is set to `YES`.
+For default optimization on CPU, source model is converted from FP32 or FP16 to BF16 and executed internally on platforms with native BF16 support. In this case, `KEY_ENFORCE_BF16` is set to `YES`.
 The code below demonstrates how to check if the key is set:
 
 @snippet snippets/Bfloat16Inference1.cpp part1
 
-To disable BF16 internal transformations, set the `KEY_ENFORCE_BF16` to `NO`. In this case, the model infers AS IS without modifications with precisions that were set on each layer edge.
+To disable BF16 internal transformations, set the `KEY_ENFORCE_BF16` to `NO`. In this case, the model infers as is without modifications with precisions that were set on each layer edge.
 
 @snippet snippets/Bfloat16Inference2.cpp part2
+To disable BF16 in C API:
 
-An exception with message `Platform doesn't support BF16 format` is formed in case of setting `KEY_ENFORCE_BF16` to `YES` on CPU without native BF16 support.
+```
+ie_config_t config = { "ENFORCE_BF16", "NO", NULL};
+ie_core_load_network(core, network, device_name, &config, &exe_network);
+```
 
-Low-Precision 8-bit integer models do not convert to BF16, even if bfloat16 optimization is set by default.         
+An exception with message `Platform doesn't support BF16 format` is formed in case of setting `KEY_ENFORCE_BF16` to `YES` on CPU without native BF16 support or BF16 simulation mode.
+
+Low-Precision 8-bit integer models cannot be converted to BF16, even if bfloat16 optimization is set by default.         
+
+## Bfloat16 Simulation Mode
+
+Bfloat16 simulation mode is available on CPU and Intel® AVX-512 platforms that do not support the native `avx512_bf16` instruction. The simulator does not guarantee an adequate performance.
+To enable Bfloat16 simulator:
+* In [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), add the `-enforcebf16=true` option
+* In C++ API, set `KEY_ENFORCE_BF16` to `YES`
+* In C API:
+```
+ie_config_t config = { "ENFORCE_BF16", "YES", NULL};
+ie_core_load_network(core, network, device_name, &config, &exe_network);
+```
 
 ## Performance Counters
 
