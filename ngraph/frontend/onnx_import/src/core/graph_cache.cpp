@@ -26,6 +26,15 @@ namespace ngraph
             m_graph_cache_map[name] = std::move(node);
         }
 
+        void GraphCache::remove_node(const std::string& name)
+        {
+            auto it = m_graph_cache_map.find(name);
+            if (it != m_graph_cache_map.end())
+            {
+                m_graph_cache_map.erase(it);
+            }
+        }
+
         Output<ngraph::Node> GraphCache::get_node(const std::string& name) const
         {
             try

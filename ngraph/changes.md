@@ -97,8 +97,7 @@ The `read` and `write` methods on ngraph::runtime::Tensor which take a `tensor_o
 second of three arguments have been deprecated. The replacement `read` and `write` methods take
 two arguments, the buffer pointer and the size. For any references to the deprecated methods
 remove the second argument, the tensor offset, to update to the new API. These old read/write
-methods have been decorated with deprecated warnings which may be enabled by setting
-`-DNGRAPH_DEPRECATED_ENABLE=ON`.
+methods have been decorated with deprecated warnings.
 
 To update, remove the passed argument. For example,
 ```C++
