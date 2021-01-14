@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <cstdint>
+#include <mutex>
 
 #include <cpp/ie_cnn_network.h>
 #include "details/ie_exception.hpp"
@@ -126,7 +127,10 @@ public:
 
     template<typename OpType, typename std::enable_if<std::is_base_of<ngraph::Node, OpType>::value, int>::type = 0>
     static void RegisterFactory(factory_t func) {
-        Program::factories_map.insert({OpType::type_info, func});
+        static std::mutex m;
+        std::lock_guard<std::mutex> lock(m);
+        if (Program::factories_map.find(OpType::type_info) == Program::factories_map.end())
+            Program::factories_map.insert({OpType::type_info, func});
     }
 
     template<typename PType>
