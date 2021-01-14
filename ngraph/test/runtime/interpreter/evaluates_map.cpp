@@ -1149,6 +1149,9 @@ namespace
             case element::Type_t::i64:
                 convert_like_v1::evaluate_bool<element::Type_t::i64>(op, outputs, inputs);
                 break;
+            case element::Type_t::bf16:
+                convert_like_v1::evaluate_bool<element::Type_t::bf16>(op, outputs, inputs);
+                break;
             case element::Type_t::f16:
                 convert_like_v1::evaluate_bool<element::Type_t::f16>(op, outputs, inputs);
                 break;
@@ -1188,6 +1191,9 @@ namespace
                 break;
             case element::Type_t::i64:
                 convert_like_v1::evaluate<element::Type_t::i64, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::bf16:
+                convert_like_v1::evaluate<element::Type_t::bf16, ET>(op, outputs, inputs);
                 break;
             case element::Type_t::f16:
                 convert_like_v1::evaluate<element::Type_t::f16, ET>(op, outputs, inputs);
@@ -1835,9 +1841,8 @@ namespace
         {
         case element::Type_t::boolean:
             return evaluate<element::Type_t::boolean>(as_type_ptr<T>(node), outputs, inputs);
-            ;
-        //            case element::Type_t::bf16:
-        //                break;
+        case element::Type_t::bf16:
+            return evaluate<element::Type_t::bf16>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f16:
             return evaluate<element::Type_t::f16>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f64:
