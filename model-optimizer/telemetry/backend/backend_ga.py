@@ -40,7 +40,7 @@ class GABackend(TelemetryBackend):
             'ua': 'Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14'  # identifier of the browser
         }
 
-    def send(self, backend: TelemetryBackend, message: Message):
+    def send(self, message: Message):
         print("Sending message: {}".format(message.attrs))
         requests.post(self.backend_url, message.attrs)
 

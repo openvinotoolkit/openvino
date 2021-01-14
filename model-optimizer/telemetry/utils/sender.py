@@ -32,7 +32,7 @@ class TelemetrySender:
             self.queue_size -= 1
 
         if self.queue_size < MAX_QUEUE_SIZE:
-            fut = self.executor.submit(backend.send, backend, message)
+            fut = self.executor.submit(backend.send, message)
             fut.add_done_callback(_future_callback)
             self.queue_size += 1
         else:

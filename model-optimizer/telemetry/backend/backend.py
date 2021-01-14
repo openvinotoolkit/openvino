@@ -29,10 +29,9 @@ class TelemetryBackend(abc.ABC):
         """
 
     @abc.abstractmethod
-    def send(self, backend, message: Message):
+    def send(self, message: Message):
         """
         Sends the message to the backend.
-        :param backend: backend instance
         :param message: The Message object to send
         :return: None
         """
