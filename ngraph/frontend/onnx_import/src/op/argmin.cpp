@@ -46,7 +46,7 @@ namespace ngraph
                                      "implementation of ArgMin");
 
                     const utils::ArgMinMaxFactory arg_factory(node);
-                    return {arg_factory.make_arg_max()};
+                    return {arg_factory.make_arg_min()};
                 }
 
             } // namespace set_12
