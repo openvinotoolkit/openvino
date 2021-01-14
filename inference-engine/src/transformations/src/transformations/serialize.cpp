@@ -560,9 +560,12 @@ void ngfunction_2_irv10(pugi::xml_document& doc,
                              "Unsupported dynamic input shape in ", node);
 
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (node_type_name == "LSTMCell" && (i.get_index() == 6)) {
-                    port_id++;
-                    continue;
+                if (i.get_index() == 6) {
+                    auto type_info = node->get_type_info();
+                    if (type_info.name == "LSTM" && type_info.version == 0) {
+                        port_id++;
+                        continue;
+                    }
                 }
 
                 pugi::xml_node port = input.append_child("port");

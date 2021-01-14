@@ -31,6 +31,7 @@ protected:
         InferenceEngine::Core ie;
 
         std::ifstream model(model_path);
+        ASSERT_TRUE(model);
         buffer << model.rdbuf();
 
         auto expected = ie.ReadNetwork(buffer.str(), weights);
