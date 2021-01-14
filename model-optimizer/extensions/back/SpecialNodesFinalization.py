@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -125,6 +125,10 @@ class RemoveConstToResult(BackReplacementPattern):
     """
     enabled = True
     force_clean_up = True
+    # TODO: remove this transformation once all plugins support constant value network.
+    # Now it avoids to be run recursively since Const->Result sub-graph can be encountered in a body graph of Loop node
+    run_not_recursively = True
+
 
     @staticmethod
     def pattern():
@@ -140,18 +144,17 @@ class RemoveConstToResult(BackReplacementPattern):
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        pass
-        #const_data_node = match['const_data']
-        #result_node = match['result_node']
-        #nodes_to_remove = [result_node.id]
+        const_data_node = match['const_data']
+        result_node = match['result_node']
+        nodes_to_remove = [result_node.id]
 
         # in case only const data consumer that is the result node, remove the whole sub-graph
-        #parent_node = result_node.in_port(0).get_source().node
-        #if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1:
-        #    nodes_to_remove.append(parent_node.id)
-        #    nodes_to_remove.append(const_data_node.id)
+        parent_node = result_node.in_port(0).get_source().node
+        if parent_node.soft_get('type') == 'Const' and len(parent_node.out_port(0).get_destinations()) == 1:
+            nodes_to_remove.append(parent_node.id)
+            nodes_to_remove.append(const_data_node.id)
 
-        #graph.remove_nodes_from(nodes_to_remove)
+        graph.remove_nodes_from(nodes_to_remove)
 
 
 class NormalizeTI(BackReplacementPattern):

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2017-2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -375,7 +375,8 @@ class Loop(TensorIterator):
                     new_port_id += 1
 
             for port_idx_to_remove in reversed(range(new_port_id, max_port_id + 1)):
-                loop_node.delete_output_port(port_idx_to_remove)
+                if port_idx_to_remove in loop_node.out_ports().keys():
+                    loop_node.delete_output_port(port_idx_to_remove)
 
     @staticmethod
     def remove_unused_ops_from_port_map(loop_node: Node, port_map: dict, port_map_attr: str, dir: [None, str] = None):
