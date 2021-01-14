@@ -1086,6 +1086,121 @@ namespace
         return true;
     }
 
+    namespace convert_like_v1
+    {
+        template <element::Type_t ET>
+        inline void evaluate_bool(const shared_ptr<op::v1::ConvertLike>& op,
+                                  const HostTensorVector& outputs,
+                                  const HostTensorVector& inputs)
+        {
+            using T = typename element_type_traits<ET>::value_type;
+            runtime::reference::convert_to_bool<T>(inputs[0]->get_data_ptr<T>(),
+                                                   outputs[0]->get_data_ptr<char>(),
+                                                   shape_size(inputs[0]->get_shape()));
+        }
+
+        template <element::Type_t ti, element::Type_t to>
+        inline void evaluate(const shared_ptr<op::v1::ConvertLike>& op,
+                             const HostTensorVector& outputs,
+                             const HostTensorVector& inputs)
+        {
+            using TI = typename element_type_traits<ti>::value_type;
+            using TO = typename element_type_traits<to>::value_type;
+            runtime::reference::convert<TI, TO>(inputs[0]->get_data_ptr<TI>(),
+                                                outputs[0]->get_data_ptr<TO>(),
+                                                shape_size(inputs[0]->get_shape()));
+        }
+
+    } // namespace convert_like_v1
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::ConvertLike>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        if (ET == element::Type_t::boolean)
+        {
+            switch (inputs[0]->get_element_type())
+            {
+            case element::Type_t::boolean:
+                convert_like_v1::evaluate_bool<element::Type_t::boolean>(op, outputs, inputs);
+                break;
+            case element::Type_t::u8:
+                convert_like_v1::evaluate_bool<element::Type_t::u8>(op, outputs, inputs);
+                break;
+            case element::Type_t::u16:
+                convert_like_v1::evaluate_bool<element::Type_t::u16>(op, outputs, inputs);
+                break;
+            case element::Type_t::u32:
+                convert_like_v1::evaluate_bool<element::Type_t::u32>(op, outputs, inputs);
+                break;
+            case element::Type_t::u64:
+                convert_like_v1::evaluate_bool<element::Type_t::u64>(op, outputs, inputs);
+                break;
+            case element::Type_t::i8:
+                convert_like_v1::evaluate_bool<element::Type_t::i8>(op, outputs, inputs);
+                break;
+            case element::Type_t::i16:
+                convert_like_v1::evaluate_bool<element::Type_t::i16>(op, outputs, inputs);
+                break;
+            case element::Type_t::i32:
+                convert_like_v1::evaluate_bool<element::Type_t::i32>(op, outputs, inputs);
+                break;
+            case element::Type_t::i64:
+                convert_like_v1::evaluate_bool<element::Type_t::i64>(op, outputs, inputs);
+                break;
+            case element::Type_t::f16:
+                convert_like_v1::evaluate_bool<element::Type_t::f16>(op, outputs, inputs);
+                break;
+            case element::Type_t::f32:
+                convert_like_v1::evaluate_bool<element::Type_t::f32>(op, outputs, inputs);
+                break;
+            default: return false;
+            }
+        }
+        else
+        {
+            switch (inputs[0]->get_element_type())
+            {
+            case element::Type_t::boolean:
+                convert_like_v1::evaluate<element::Type_t::boolean, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::u8:
+                convert_like_v1::evaluate<element::Type_t::u8, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::u16:
+                convert_like_v1::evaluate<element::Type_t::u16, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::u32:
+                convert_like_v1::evaluate<element::Type_t::u32, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::u64:
+                convert_like_v1::evaluate<element::Type_t::u64, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::i8:
+                convert_like_v1::evaluate<element::Type_t::i8, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::i16:
+                convert_like_v1::evaluate<element::Type_t::i16, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::i32:
+                convert_like_v1::evaluate<element::Type_t::i32, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::i64:
+                convert_like_v1::evaluate<element::Type_t::i64, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::f16:
+                convert_like_v1::evaluate<element::Type_t::f16, ET>(op, outputs, inputs);
+                break;
+            case element::Type_t::f32:
+                convert_like_v1::evaluate<element::Type_t::f32, ET>(op, outputs, inputs);
+                break;
+            default: return false;
+            }
+        }
+        return true;
+    }
+
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::OneHot>& op,
                   const HostTensorVector& outputs,
