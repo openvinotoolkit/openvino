@@ -52,10 +52,12 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
                 eps_add = std::make_shared<ngraph::opset6::Add>(sum, eps_node);
                 sqrt = std::make_shared<ngraph::opset6::Sqrt>(eps_add);
                 div = std::make_shared<ngraph::opset6::Divide>(mean_normalization, sqrt);
-            } else {
+            } else if (eps_mode == op::MVNEpsMode::OUTSIDE_SQRT) {
                 sqrt = std::make_shared<ngraph::opset6::Sqrt>(sum);
                 eps_add = std::make_shared<ngraph::opset6::Add>(sqrt, eps_node);
                 div = std::make_shared<ngraph::opset6::Divide>(mean_normalization, sqrt);
+            } else {
+                return false;
             }
 
             div->set_friendly_name(mvn_node->get_friendly_name());
