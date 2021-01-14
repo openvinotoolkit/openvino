@@ -85,7 +85,7 @@ namespace {
 } // namespace
 
 ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
-    TRANSFORMATION_SCOPE(ConvertRNNSequenceToTensorIterator);
+    MATCHER_SCOPE(ConvertRNNSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::RNNSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
@@ -94,6 +94,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
                                                                     pattern::any_input(),
                                                                     pattern::any_input()});
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(ConvertRNNSequenceToTensorIterator);
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -236,7 +237,6 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
             ngraph::copy_runtime_info(sequence, tensor_iterator);
             ngraph::replace_node(sequence, tensor_iterator);
         }
-        MATCHER_SCOPE(ConvertRNNSequenceToTensorIterator);
         return true;
     };
 
@@ -245,7 +245,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
 }
 
 ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
-    TRANSFORMATION_SCOPE(ConvertGRUSequenceToTensorIterator);
+    MATCHER_SCOPE(ConvertGRUSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::GRUSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
@@ -254,6 +254,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
                                                                     pattern::any_input(),
                                                                     pattern::any_input()});
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(ConvertGRUSequenceToTensorIterator);
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -396,7 +397,6 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
             ngraph::copy_runtime_info(sequence, tensor_iterator);
             ngraph::replace_node(sequence, tensor_iterator);
         }
-        MATCHER_SCOPE(ConvertGRUSequenceToTensorIterator);
         return true;
     };
 
@@ -405,7 +405,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
 }
 
 ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
-    TRANSFORMATION_SCOPE(ConvertLSTMSequenceToTensorIterator);
+    MATCHER_SCOPE(ConvertLSTMSequenceToTensorIterator);
     // X, H, C, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::LSTMSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                      pattern::any_input(pattern::has_static_shape()),
@@ -415,6 +415,7 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
                                                                      pattern::any_input(),
                                                                      pattern::any_input()});
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(ConvertLSTMSequenceToTensorIterator);
         auto sequence = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
@@ -584,7 +585,6 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
             ngraph::copy_runtime_info(sequence, tensor_iterator);
             ngraph::replace_node(sequence, tensor_iterator);
         }
-        MATCHER_SCOPE(ConvertLSTMSequenceToTensorIterator);
         return true;
     };
 

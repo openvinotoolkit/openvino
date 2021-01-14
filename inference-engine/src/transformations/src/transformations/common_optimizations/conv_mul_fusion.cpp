@@ -19,7 +19,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvolutionMultiplyFusion, "ConvolutionMultiplyFusion", 0);
 
 ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
-    TRANSFORMATION_SCOPE(ConvolutionMultiplyFusion);
+    MATCHER_SCOPE(ConvolutionMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input(pattern::has_static_dim(0) /* has OIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::Convolution>({input, weights}, pattern::consumers_count(1));
@@ -27,6 +27,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
+        MATCHER_CALLBACK_SCOPE(ConvolutionMultiplyFusion);
         const auto & pattern_to_output = m.get_pattern_value_map();
 
         const auto & m_weights = pattern_to_output.at(weights);
@@ -73,7 +74,6 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
-        MATCHER_SCOPE(ConvolutionMultiplyFusion);
         return true;
     };
 
@@ -84,7 +84,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupConvolutionMultiplyFusion, "GroupConvolutionMultiplyFusion", 0);
 
 ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
-    TRANSFORMATION_SCOPE(GroupConvolutionMultiplyFusion);
+    MATCHER_SCOPE(GroupConvolutionMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input();//pattern::has_static_dims({0, 1}) /* has GOIYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::GroupConvolution>({input, weights}, pattern::consumers_count(1));
@@ -92,6 +92,7 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
+        MATCHER_CALLBACK_SCOPE(GroupConvolutionMultiplyFusion);
         const auto & pattern_to_output = m.get_pattern_value_map();
 
         const auto & m_weights = pattern_to_output.at(weights);
@@ -140,7 +141,6 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
-        MATCHER_SCOPE(GroupConvolutionMultiplyFusion);
         return true;
     };
 
@@ -151,7 +151,7 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvolutionBackpropDataMultiplyFusion, "ConvolutionBackpropDataMultiplyFusion", 0);
 
 ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiplyFusion() {
-    TRANSFORMATION_SCOPE(ConvolutionBackpropDataMultiplyFusion);
+    MATCHER_SCOPE(ConvolutionBackpropDataMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input(pattern::has_static_dim(1) /* has IOYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
@@ -159,6 +159,7 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
+        MATCHER_CALLBACK_SCOPE(ConvolutionBackpropDataMultiplyFusion);
         const auto & pattern_to_output = m.get_pattern_value_map();
 
         const auto & m_weights = pattern_to_output.at(weights);
@@ -205,7 +206,6 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
-        MATCHER_SCOPE(ConvolutionBackpropDataMultiplyFusion);
         return true;
     };
 
@@ -216,7 +216,7 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion, "GroupConvolutionBackpropDataMultiplyFusion", 0);
 
 ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDataMultiplyFusion() {
-    TRANSFORMATION_SCOPE(GroupConvolutionBackpropDataMultiplyFusion);
+    MATCHER_SCOPE(GroupConvolutionBackpropDataMultiplyFusion);
     auto input = pattern::any_input();
     auto weights = ngraph::pattern::any_input(pattern::has_static_dims({0, 2}) /* has GIOYX layout */);
     auto conv = ngraph::pattern::wrap_type<opset4::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
@@ -224,6 +224,7 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
+        MATCHER_CALLBACK_SCOPE(GroupConvolutionBackpropDataMultiplyFusion);
         const auto & pattern_to_output = m.get_pattern_value_map();
 
         const auto & m_weights = pattern_to_output.at(weights);
@@ -272,7 +273,6 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
-        MATCHER_SCOPE(GroupConvolutionBackpropDataMultiplyFusion);
         return true;
     };
 

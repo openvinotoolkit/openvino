@@ -15,12 +15,13 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusDecomposition, "SoftPlusDecomposition", 0);
 
 ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
-    TRANSFORMATION_SCOPE(SoftPlusDecomposition);
+    MATCHER_SCOPE(SoftPlusDecomposition);
     // decomposes SoftPlus(x) operation into ln(exp(x) + 1.0)
     auto input = ngraph::pattern::any_input();
     auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(SoftPlusDecomposition);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto softplus_input = pattern_to_output.at(input);
         auto softplus_node = pattern_to_output.at(softplus).get_node_shared_ptr();
@@ -37,7 +38,6 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
         log->set_friendly_name(softplus_node->get_friendly_name());
         ngraph::copy_runtime_info(softplus_node, {exp, add, log});
         ngraph::replace_node(softplus_node, log);
-        MATCHER_SCOPE(SoftPlusDecomposition);
         return true;
     };
 

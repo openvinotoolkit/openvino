@@ -50,7 +50,7 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeAMatMul, "ReshapeAMatMul", 0);
 
 ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
-    TRANSFORMATION_SCOPE(ReshapeAMatMul);
+    MATCHER_SCOPE(ReshapeAMatMul);
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
@@ -58,11 +58,9 @@ ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
     auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>({reshape_label, other_input_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
+        MATCHER_CALLBACK_SCOPE(ReshapeAMatMul);
         const auto & pattern_to_output = m.get_pattern_value_map();
-        auto rcode =  relax_hc_reshape_followed_by_matmul(pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, true);
-        if (rcode)
-            MATCHER_SCOPE(ReshapeAMatMul);
-        return rcode;
+        return relax_hc_reshape_followed_by_matmul(pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, true);
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, "ReshapeMatMul_A");
     register_matcher(m, callback);
@@ -71,7 +69,7 @@ ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeBMatMul, "ReshapeBMatMul", 0);
 
 ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
-    TRANSFORMATION_SCOPE(ReshapeBMatMul);
+    MATCHER_SCOPE(ReshapeBMatMul);
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
     auto reshape_pattern_label = pattern::any_input();
@@ -79,11 +77,9 @@ ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
     auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>({other_input_label, reshape_label});
 
     matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
+        MATCHER_CALLBACK_SCOPE(ReshapeBMatMul);
         const auto & pattern_to_output = m.get_pattern_value_map();
-        auto rcode =  relax_hc_reshape_followed_by_matmul(pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, false);
-        if (rcode)
-            MATCHER_SCOPE(ReshapeBMatMul);
-        return rcode;
+        return relax_hc_reshape_followed_by_matmul(pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, false);
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, "ReshapeMatMul_B");
     register_matcher(m, callback);
@@ -92,10 +88,11 @@ ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeMatMul, "TransposeMatMul", 0);
 
 ngraph::pass::TransposeMatMul::TransposeMatMul() {
-    TRANSFORMATION_SCOPE(TransposeMatMul);
+    MATCHER_SCOPE(TransposeMatMul);
     auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>();
 
     matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
+        MATCHER_CALLBACK_SCOPE(TransposeMatMul);
         const auto & pattern_to_output = m.get_pattern_value_map();
         auto matmul = std::dynamic_pointer_cast<ngraph::opset4::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
         if (!matmul)
@@ -140,7 +137,6 @@ ngraph::pass::TransposeMatMul::TransposeMatMul() {
             copy_runtime_info(fused_nodes, updated_matmul);
             updated_matmul->set_friendly_name(matmul->get_friendly_name());
             replace_node(matmul, updated_matmul);
-            MATCHER_SCOPE(TransposeMatMul);
             return true;
         }
         return false;

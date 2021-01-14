@@ -14,11 +14,12 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishDecomposition, "HSwishDecomposition", 0);
 
 ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
-    TRANSFORMATION_SCOPE(HSwishDecomposition);
+    MATCHER_SCOPE(HSwishDecomposition);
     // Decomposes HSwish(x) op into sub-graph x * (min(Relu(x + 3), 6) * const(1/6)
     auto hswish = ngraph::pattern::wrap_type<opset4::HSwish>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(HSwishDecomposition);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto hswish_node = pattern_to_output.at(hswish).get_node_shared_ptr();
 
@@ -40,7 +41,6 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
         ngraph::copy_runtime_info(hswish_node,
                                   {add_constant, add, relu, min_constant, min, mul_first, mul_constant, mul_second});
         ngraph::replace_node(m.get_match_root(), mul_second);
-        MATCHER_SCOPE(HSwishDecomposition);
         return true;
     };
 

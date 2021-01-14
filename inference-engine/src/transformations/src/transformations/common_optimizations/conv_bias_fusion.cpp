@@ -67,106 +67,109 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
 }
 
 template <class Conv>
-ngraph::graph_rewrite_callback get_callback(const std::function<void()>& success_callback) {
-    ngraph::graph_rewrite_callback callback = [success_callback](ngraph::pattern::Matcher &m) {
-        auto eltwise = m.get_match_root();
+bool conv_callback(ngraph::pattern::Matcher &m) {
+    auto eltwise = m.get_match_root();
 
-        std::shared_ptr<ngraph::opset1::Constant> m_const;
-        std::shared_ptr<Conv> m_conv;
-        // FIXME: use auto [m_conv, m_const] when C++17 is available
-        std::tie(m_conv, m_const) = parse_eltwise_inputs<Conv, ngraph::opset1::Constant>(eltwise);
-        if (!m_conv || !m_const) {
-            return false;
-        }
+    std::shared_ptr<ngraph::opset1::Constant> m_const;
+    std::shared_ptr<Conv> m_conv;
+    // FIXME: use auto [m_conv, m_const] when C++17 is available
+    std::tie(m_conv, m_const) = parse_eltwise_inputs<Conv, ngraph::opset1::Constant>(eltwise);
+    if (!m_conv || !m_const) {
+        return false;
+    }
 
-        const auto & const_shape = m_const->get_shape();
-        const auto & output_pshape = m_conv->get_output_partial_shape(0);
+    const auto & const_shape = m_const->get_shape();
+    const auto & output_pshape = m_conv->get_output_partial_shape(0);
 
-        if (output_pshape.rank().is_dynamic() || output_pshape[1].is_dynamic()) {
-            return false;
-        }
+    if (output_pshape.rank().is_dynamic() || output_pshape[1].is_dynamic()) {
+        return false;
+    }
 
-        const auto &  output_rank = output_pshape.rank().get_length();
+    const auto &  output_rank = output_pshape.rank().get_length();
 
-        const int64_t channel_dim = output_pshape[1].get_length();
+    const int64_t channel_dim = output_pshape[1].get_length();
 
-        bool is_scalar_multiplier(shape_size(const_shape) == 1);
+    bool is_scalar_multiplier(shape_size(const_shape) == 1);
 
-        // Check that constant has shape [1, C, 1, 1] where the number of 1 is equal to
-        // the number of spatial dimensions or it's a scalar. That means that Constant
-        // applied per channel and can be fused into Convolution weights.
-        // Also Constant shape rank must be less or equal Convolution output shape
-        // otherwise fusion will break output broadcasting
-        auto expected_shape = Shape(output_rank, 1);
-        expected_shape[1] = channel_dim;
+    // Check that constant has shape [1, C, 1, 1] where the number of 1 is equal to
+    // the number of spatial dimensions or it's a scalar. That means that Constant
+    // applied per channel and can be fused into Convolution weights.
+    // Also Constant shape rank must be less or equal Convolution output shape
+    // otherwise fusion will break output broadcasting
+    auto expected_shape = Shape(output_rank, 1);
+    expected_shape[1] = channel_dim;
 
-        if (op::util::check_for_broadcast(expected_shape, const_shape)) {
-            return false;
-        }
+    if (op::util::check_for_broadcast(expected_shape, const_shape)) {
+        return false;
+    }
 
-        // Broadcast constant to [1, C, 1, 1] where the number of 1 is equal to
-        // the number of weights dimensions.
-        Output<Node> final_const = m_const;
-        if (is_scalar_multiplier) {
-            final_const = op::util::broadcastTo(m_const, expected_shape);
-        }
+    // Broadcast constant to [1, C, 1, 1] where the number of 1 is equal to
+    // the number of weights dimensions.
+    Output<Node> final_const = m_const;
+    if (is_scalar_multiplier) {
+        final_const = op::util::broadcastTo(m_const, expected_shape);
+    }
 
-        if (final_const.get_shape().size() > 1) {
-            final_const = std::make_shared<ngraph::opset1::Reshape>(final_const,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {channel_dim}), true);
-        }
+    if (final_const.get_shape().size() > 1) {
+        final_const = std::make_shared<ngraph::opset1::Reshape>(final_const,
+                                                                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {channel_dim}), true);
+    }
 
-        ngraph::Output<ngraph::Node> new_conv, new_weights, new_bias;
-        if (std::dynamic_pointer_cast<ngraph::opset1::Add>(eltwise)) {
-            // Fuse: ConvolutionIE/DeconvolutionIE->Add
-            if (m_conv->inputs().size() == 2) {
-                new_bias = final_const;
-            } else {
-                new_bias = std::make_shared<ngraph::opset1::Add>(final_const, m_conv->input_value(2));
-            }
-            new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), m_conv->input_value(1), new_bias});
-        } else if (std::is_same<Conv, ngraph::op::ConvolutionIE>() && std::dynamic_pointer_cast<ngraph::opset1::Multiply>(eltwise) &&
-                !IsConvInLowPrecision(m_conv)) {
-            // Fuse: ConvolutionIE->Mul
-            auto weights_shape = m_conv->input(1).get_shape();
-
-            ngraph::Shape weights_const_shape(weights_shape.size(), 1);
-            weights_const_shape[0] = weights_shape[0];
-
-            auto const_reshape = std::make_shared<ngraph::opset1::Reshape>(final_const,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{weights_const_shape.size()}, weights_const_shape), true);
-            new_weights = std::make_shared<ngraph::opset1::Multiply> (m_conv->input_value(1), const_reshape);
-            if (m_conv->inputs().size() == 2) {
-                new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights});
-            } else {
-                auto bias_reshape = std::make_shared<ngraph::opset1::Reshape>(final_const,
-                        ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {weights_shape[0]}), true);
-                new_bias = std::make_shared<ngraph::opset1::Multiply>(bias_reshape, final_const);
-                new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights, new_bias});
-            }
+    ngraph::Output<ngraph::Node> new_conv, new_weights, new_bias;
+    if (std::dynamic_pointer_cast<ngraph::opset1::Add>(eltwise)) {
+        // Fuse: ConvolutionIE/DeconvolutionIE->Add
+        if (m_conv->inputs().size() == 2) {
+            new_bias = final_const;
         } else {
-            return false;
+            new_bias = std::make_shared<ngraph::opset1::Add>(final_const, m_conv->input_value(2));
         }
+        new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), m_conv->input_value(1), new_bias});
+    } else if (std::is_same<Conv, ngraph::op::ConvolutionIE>() && std::dynamic_pointer_cast<ngraph::opset1::Multiply>(eltwise) &&
+               !IsConvInLowPrecision(m_conv)) {
+        // Fuse: ConvolutionIE->Mul
+        auto weights_shape = m_conv->input(1).get_shape();
 
-        ngraph::copy_runtime_info({m_conv, eltwise}, new_conv.get_node_shared_ptr());
-        new_conv.get_node_shared_ptr()->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), new_conv.get_node_shared_ptr());
-        success_callback();
-        return true;
-    };
-    return callback;
+        ngraph::Shape weights_const_shape(weights_shape.size(), 1);
+        weights_const_shape[0] = weights_shape[0];
+
+        auto const_reshape = std::make_shared<ngraph::opset1::Reshape>(final_const,
+                                                                       ngraph::opset1::Constant::create(ngraph::element::i64,
+                                                                                                        ngraph::Shape{weights_const_shape.size()},
+                                                                                                        weights_const_shape),
+                                                                       true);
+        new_weights = std::make_shared<ngraph::opset1::Multiply> (m_conv->input_value(1), const_reshape);
+        if (m_conv->inputs().size() == 2) {
+            new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights});
+        } else {
+            auto bias_reshape = std::make_shared<ngraph::opset1::Reshape>(final_const,
+                                                                          ngraph::opset1::Constant::create(ngraph::element::i64,
+                                                                                                           ngraph::Shape{1},
+                                                                                                           {weights_shape[0]}),
+                                                                          true);
+            new_bias = std::make_shared<ngraph::opset1::Multiply>(bias_reshape, final_const);
+            new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights, new_bias});
+        }
+    } else {
+        return false;
+    }
+
+    ngraph::copy_runtime_info({m_conv, eltwise}, new_conv.get_node_shared_ptr());
+    new_conv.get_node_shared_ptr()->set_friendly_name(m.get_match_root()->get_friendly_name());
+    ngraph::replace_node(m.get_match_root(), new_conv.get_node_shared_ptr());
+    return true;
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvAddFusion, "ConvAddFusion", 0);
 
 ngraph::pass::ConvAddFusion::ConvAddFusion() {
-    TRANSFORMATION_SCOPE(ConvAddFusion);
+    MATCHER_SCOPE(ConvAddFusion);
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
-    matcher_pass_callback callback = get_callback<op::ConvolutionIE>([]() {
-        MATCHER_SCOPE(ConvAddFusion);
-    });
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(ConvAddFusion);
+        return conv_callback<op::ConvolutionIE>(m);
+    };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvAddFusion");
     register_matcher(m, callback);
@@ -175,13 +178,14 @@ ngraph::pass::ConvAddFusion::ConvAddFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
 
 ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
-    TRANSFORMATION_SCOPE(ConvMultiplyFusion);
+    MATCHER_SCOPE(ConvMultiplyFusion);
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, std::make_shared<pattern::op::Label>()});
 
-    matcher_pass_callback callback = get_callback<op::ConvolutionIE>([]() {
-        MATCHER_SCOPE(ConvMultiplyFusion);
-    });
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(ConvMultiplyFusion);
+        return conv_callback<op::ConvolutionIE>(m);
+    };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvMultiplyFusion");
     register_matcher(m, callback);
@@ -190,13 +194,14 @@ ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DeconvAddFusion, "DeconvAddFusion", 0);
 
 ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
-    TRANSFORMATION_SCOPE(DeconvAddFusion);
+    MATCHER_SCOPE(DeconvAddFusion);
     auto conv = ngraph::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
-    matcher_pass_callback callback = get_callback<op::DeconvolutionIE>([](){
-        MATCHER_SCOPE(DeconvAddFusion);
-    });
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher &m){
+        MATCHER_CALLBACK_SCOPE(DeconvAddFusion);
+        return conv_callback<op::DeconvolutionIE>(m);
+    };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "DeconvAddFusion");
     register_matcher(m, callback);

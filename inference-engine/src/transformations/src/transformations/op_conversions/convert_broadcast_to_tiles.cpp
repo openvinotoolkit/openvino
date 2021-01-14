@@ -15,10 +15,11 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcastToTiles, "ConvertBroadcastToTiles", 0);
 
 ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
-    TRANSFORMATION_SCOPE(ConvertBroadcastToTiles);
+    MATCHER_SCOPE(ConvertBroadcastToTiles);
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(ConvertBroadcastToTiles);
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {
@@ -95,7 +96,6 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
 
         ngraph::copy_runtime_info(broadcast, new_ops);
         ngraph::replace_node(broadcast, tile);
-        MATCHER_SCOPE(ConvertBroadcastToTiles);
         return true;
     };
 

@@ -15,10 +15,11 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMinimum, "ConvertMinimum", 0);
 
 ngraph::pass::ConvertMinimum::ConvertMinimum() {
-    TRANSFORMATION_SCOPE(ConvertMinimum);
+    MATCHER_SCOPE(ConvertMinimum);
     auto minimum = ngraph::pattern::wrap_type<opset1::Minimum>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(ConvertMinimum);
         auto minimum = std::dynamic_pointer_cast<ngraph::opset1::Minimum> (m.get_match_root());
         if (!minimum  || transformation_callback(minimum)) {
             return false;
@@ -42,7 +43,6 @@ ngraph::pass::ConvertMinimum::ConvertMinimum() {
         neg_2->set_friendly_name(minimum->get_friendly_name());
         ngraph::copy_runtime_info(minimum, {neg_0, neg_1, max, neg_2});
         ngraph::replace_node(minimum, neg_2);
-        MATCHER_SCOPE(ConvertMinimum);
         return true;
     };
 

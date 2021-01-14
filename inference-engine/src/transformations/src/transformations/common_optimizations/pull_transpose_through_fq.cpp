@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PullTransposeThroughFQUp, "PullTransposeThroughFQUp", 0);
 
 ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
-    TRANSFORMATION_SCOPE(PullTransposeThroughFQUp);
+    MATCHER_SCOPE(PullTransposeThroughFQUp);
     auto m_fq = pattern::wrap_type<opset1::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank()),
@@ -25,6 +25,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     auto m_transpose = pattern::wrap_type<opset1::Transpose>({m_fq, pattern::wrap_type<opset1::Constant>()});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(PullTransposeThroughFQUp);
         auto & pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
@@ -56,7 +57,6 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         ngraph::copy_runtime_info({fq, transpose}, new_ops);
         ngraph::replace_node(transpose, new_fq);
 
-        MATCHER_SCOPE(PullTransposeThroughFQUp);
         return true;
     };
 

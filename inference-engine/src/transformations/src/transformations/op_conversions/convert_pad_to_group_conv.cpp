@@ -16,10 +16,11 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToGroupConvolution, "ConvertPadToGroupConvolution", 0);
 
 ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
-    TRANSFORMATION_SCOPE(ConvertPadToGroupConvolution);
+    MATCHER_SCOPE(ConvertPadToGroupConvolution);
     auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(ConvertPadToGroupConvolution);
         auto pad = std::dynamic_pointer_cast<ngraph::opset4::Pad> (m.get_match_root());
         if (!pad) {
             return false;
@@ -79,7 +80,6 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         conv->set_friendly_name(pad->get_friendly_name());
         ngraph::copy_runtime_info(pad, conv);
         ngraph::replace_node(pad, conv);
-        MATCHER_SCOPE(ConvertPadToGroupConvolution);
         return true;
     };
 

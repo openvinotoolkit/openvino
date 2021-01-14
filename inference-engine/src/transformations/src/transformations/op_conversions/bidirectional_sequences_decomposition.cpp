@@ -17,10 +17,11 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalGRUSequenceDecomposition, "Bid
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalRNNSequenceDecomposition, "BidirectionalRNNSequenceDecomposition", 0);
 
 ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
-    TRANSFORMATION_SCOPE(BidirectionalLSTMSequenceDecomposition_BidirectionalLSTMSequenceDecomposition);
+    MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition_BidirectionalLSTMSequenceDecomposition);
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(BidirectionalLSTMSequenceDecomposition_BidirectionalLSTMSequenceDecomposition);
         auto lstm_sequence = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
         if (!lstm_sequence) {
             return false;
@@ -78,7 +79,6 @@ ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceD
         concat_1->set_friendly_name(lstm_sequence->get_friendly_name()+".1");
         concat_2->set_friendly_name(lstm_sequence->get_friendly_name()+".2");
         ngraph::replace_node(lstm_sequence, {concat_0->output(0), concat_1->output(0), concat_2->output(0)});
-        MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition_BidirectionalLSTMSequenceDecomposition);
         return true;
     };
 
@@ -87,10 +87,11 @@ ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceD
 }
 
 ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecomposition() {
-    TRANSFORMATION_SCOPE(BidirectionalGRUSequenceDecomposition_BidirectionalGRUSequenceDecomposition);
+    MATCHER_SCOPE(BidirectionalGRUSequenceDecomposition_BidirectionalGRUSequenceDecomposition);
     auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::GRUSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(BidirectionalGRUSequenceDecomposition_BidirectionalGRUSequenceDecomposition);
         auto gru_sequence = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
         if (!gru_sequence) {
             return false;
@@ -144,7 +145,6 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
         concat_0->set_friendly_name(gru_sequence->get_friendly_name()+".0");
         concat_1->set_friendly_name(gru_sequence->get_friendly_name()+".1");
         ngraph::replace_node(gru_sequence, {concat_0->output(0), concat_1->output(0)});
-        MATCHER_SCOPE(BidirectionalGRUSequenceDecomposition_BidirectionalGRUSequenceDecomposition);
         return true;
     };
 
@@ -153,10 +153,11 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
 }
 
 ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecomposition() {
-    TRANSFORMATION_SCOPE(BidirectionalRNNSequenceDecomposition_BidirectionalRNNSequenceDecomposition);
+    MATCHER_SCOPE(BidirectionalRNNSequenceDecomposition_BidirectionalRNNSequenceDecomposition);
     auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::RNNSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(BidirectionalRNNSequenceDecomposition_BidirectionalRNNSequenceDecomposition);
         auto rnn_sequence = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
         if (!rnn_sequence) {
             return false;
@@ -208,7 +209,6 @@ ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDec
         concat_0->set_friendly_name(rnn_sequence->get_friendly_name() + ".0");
         concat_1->set_friendly_name(rnn_sequence->get_friendly_name() + ".1");
         ngraph::replace_node(rnn_sequence, {concat_0->output(0), concat_1->output(0)});
-        MATCHER_SCOPE(BidirectionalRNNSequenceDecomposition_BidirectionalRNNSequenceDecomposition);
         return true;
     };
 

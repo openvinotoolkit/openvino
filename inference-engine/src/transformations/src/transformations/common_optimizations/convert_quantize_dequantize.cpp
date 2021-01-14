@@ -58,7 +58,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertQuantizeDequantize, "ConvertQuantizeDequantize", 0);
 
 ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
-    TRANSFORMATION_SCOPE(ConvertQuantizeDequantize);
+    MATCHER_SCOPE(ConvertQuantizeDequantize);
     auto data_pattern = ngraph::pattern::any_input();
     auto input_low_pattern = ngraph::pattern::any_input();
     auto input_high_pattern = ngraph::pattern::any_input();
@@ -75,6 +75,7 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto mul_pattern = ngraph::pattern::wrap_type<opset4::Multiply>({sub_pattern, scale_pattern});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(ConvertQuantizeDequantize);
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
@@ -148,7 +149,6 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
         replace_node(mul, new_fq);
 
-        MATCHER_SCOPE(ConvertQuantizeDequantize);
         return true;
     };
 

@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeReshapeFusion, "FakeQuantizeReshapeFusion", 0);
 
 ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
-    TRANSFORMATION_SCOPE(FakeQuantizeReshapeFusion);
+    MATCHER_SCOPE(FakeQuantizeReshapeFusion);
     const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
             {ngraph::pattern::wrap_type<opset4::Constant>(), // for weights only
              ngraph::pattern::any_input(),
@@ -34,6 +34,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             });
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(FakeQuantizeReshapeFusion);
         const auto &pattern_map = m.get_pattern_value_map();
         const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
         if (fq_node->is_dynamic())
@@ -73,7 +74,6 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         replace_node(reshape_node, new_fq_node);
         new_fq_node->set_friendly_name(fq_node->get_friendly_name());
         copy_runtime_info({fq_node, reshape_node}, new_fq_node);
-        MATCHER_SCOPE(FakeQuantizeReshapeFusion);
         return true;
     };
 

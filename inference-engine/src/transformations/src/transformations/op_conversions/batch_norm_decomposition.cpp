@@ -18,7 +18,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormDecomposition, "BatchNormDecomposition", 0);
 
 ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
-    TRANSFORMATION_SCOPE(BatchNormDecomposition);
+    MATCHER_SCOPE(BatchNormDecomposition);
     auto bn = pattern::wrap_type<opset1::BatchNormInference>({
         pattern::any_input(pattern::has_static_rank()),
         pattern::any_input(pattern::has_static_shape()),
@@ -28,6 +28,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     });
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(BatchNormDecomposition);
         auto m_bn = dynamic_pointer_cast<opset1::BatchNormInference>(m.get_match_root());
         if (!m_bn) {
             return false;
@@ -73,7 +74,6 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         replace_node(m_bn, add);
 
-        MATCHER_SCOPE(BatchNormDecomposition);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");
@@ -84,7 +84,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormV5Decomposition, "BatchNormDecompo
 
 // TODO: this pass will be unified with BatchNormDecomposition pass
 ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
-    TRANSFORMATION_SCOPE(BatchNormV5Decomposition);
+    MATCHER_SCOPE(BatchNormV5Decomposition);
     auto bn = pattern::wrap_type<opset5::BatchNormInference>({
         pattern::any_input(pattern::has_static_rank()),
         pattern::any_input(pattern::has_static_shape()),
@@ -94,6 +94,7 @@ ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
     });
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(BatchNormV5Decomposition);
         auto m_bn = dynamic_pointer_cast<opset5::BatchNormInference>(m.get_match_root());
         if (!m_bn) {
             return false;
@@ -139,7 +140,6 @@ ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
 
         replace_node(m_bn, add);
 
-        MATCHER_SCOPE(BatchNormV5Decomposition);
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");

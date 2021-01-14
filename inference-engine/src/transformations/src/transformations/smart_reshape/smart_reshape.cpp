@@ -18,7 +18,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SmartReshape, "SmartReshape", 0);
 
 bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    MATCHER_SCOPE(SmartReshape_run_on_function);
+    RUN_ON_FUNCTION_SCOPE(SmartReshape_run_on_function);
     ngraph::pass::Manager static_manager;
     // This pass must be called first in pipeline
     static_manager.register_pass<ngraph::pass::InitNodeInfo>();

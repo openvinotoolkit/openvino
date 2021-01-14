@@ -17,12 +17,13 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LSTMCellDecomposition, "LSTMCellDecomposition", 0);
 
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
-    TRANSFORMATION_SCOPE(LSTMCellDecomposition);
+    MATCHER_SCOPE(LSTMCellDecomposition);
     auto is_supported_lstm_cell = [](const std::shared_ptr<Node>& n) {
         return pattern::has_class<ngraph::opset1::LSTMCell>()(n) || pattern::has_class<ngraph::opset4::LSTMCell>()(n);
     };
     auto any_lstm = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_supported_lstm_cell);
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(LSTMCellDecomposition);
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
         if (!lstm_cell || transformation_callback(lstm_cell)) {
             return false;
@@ -85,7 +86,6 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         ngraph::copy_runtime_info(lstm_cell, {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node, XHB,
                                               f_t, i_t, c_t, o_t});
         ngraph::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
-        MATCHER_SCOPE(LSTMCellDecomposition);
         return true;
     };
 

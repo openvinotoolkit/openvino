@@ -15,10 +15,11 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
 
 ngraph::pass::ConvertDivide::ConvertDivide() {
-    TRANSFORMATION_SCOPE(ConvertDivide);
+    MATCHER_SCOPE(ConvertDivide);
     auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(ConvertDivide);
         auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide> (m.get_match_root());
         // We can not apply this transformation in case with integer input data type
         if (!div || div->input(0).get_element_type().is_integral()) {
@@ -33,7 +34,6 @@ ngraph::pass::ConvertDivide::ConvertDivide() {
         mul->set_friendly_name(div->get_friendly_name());
         ngraph::copy_runtime_info(div, {pow, mul});
         ngraph::replace_node(div, mul);
-        MATCHER_SCOPE(ConvertDivide);
         return true;
     };
 

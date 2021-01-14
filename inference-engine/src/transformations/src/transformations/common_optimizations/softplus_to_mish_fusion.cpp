@@ -15,13 +15,14 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusToMishFusion, "SoftPlusToMishFusion", 0);
 
 ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
-    TRANSFORMATION_SCOPE(SoftPlusToMishFusion);
+    MATCHER_SCOPE(SoftPlusToMishFusion);
     auto input = ngraph::pattern::any_input();
     auto softplus = ngraph::pattern::wrap_type<ngraph::opset4::SoftPlus>({input}, pattern::consumers_count(1));
     auto tanh = ngraph::pattern::wrap_type<ngraph::opset4::Tanh>({softplus}, pattern::consumers_count(1));
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(SoftPlusToMishFusion);
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -32,7 +33,6 @@ ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
                                    pattern_to_output.at(tanh).get_node_shared_ptr(),
                                    pattern_to_output.at(softplus).get_node_shared_ptr()}, mish);
         ngraph::replace_node(m.get_match_root(), mish);
-        MATCHER_SCOPE(SoftPlusToMishFusion);
         return true;
     };
 

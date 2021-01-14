@@ -14,11 +14,12 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LogSoftmaxDecomposition, "LogSoftmaxDecomposition", 0);
 
 ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
-    TRANSFORMATION_SCOPE(LogSoftmaxDecomposition);
+    MATCHER_SCOPE(LogSoftmaxDecomposition);
     // Decomposes LogSoftmax(x, axis) op into sub-graph x - log(reduce_sum(exp(x), axis))
     auto log_softmax = ngraph::pattern::wrap_type<opset5::LogSoftmax>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(LogSoftmaxDecomposition);
         auto& pattern_to_output = m.get_pattern_value_map();
         auto log_softmax_node = std::dynamic_pointer_cast<ngraph::opset5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
 
@@ -38,7 +39,6 @@ ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
         sub_end->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(log_softmax_node, { axis1, axis2, max, sub, exp, sum, log, sub_end });
         ngraph::replace_node(m.get_match_root(), sub_end);
-        MATCHER_SCOPE(LogSoftmaxDecomposition);
         return true;
     };
 

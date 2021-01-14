@@ -15,10 +15,11 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNegative, "ConvertNegative", 0);
 
 ngraph::pass::ConvertNegative::ConvertNegative() {
-    TRANSFORMATION_SCOPE(ConvertNegative);
+    MATCHER_SCOPE(ConvertNegative);
     auto neg = ngraph::pattern::wrap_type<ngraph::opset1::Negative>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(ConvertNegative);
         auto neg = std::dynamic_pointer_cast<ngraph::opset1::Negative> (m.get_match_root());
         if (!neg) {
             return false;
@@ -29,7 +30,6 @@ ngraph::pass::ConvertNegative::ConvertNegative() {
         mul->set_friendly_name(neg->get_friendly_name());
         ngraph::copy_runtime_info(neg, mul);
         ngraph::replace_node(neg, mul);
-        MATCHER_SCOPE(ConvertNegative);
         return true;
     };
 

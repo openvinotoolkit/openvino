@@ -85,7 +85,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
 
 void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
-    TRANSFORMATION_SCOPE(DepthToSpaceFusion_depth_to_space_fusion);
+    MATCHER_SCOPE(DepthToSpaceFusion_depth_to_space_fusion);
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
@@ -95,6 +95,7 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
     auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, input3, false);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(DepthToSpaceFusion_depth_to_space_fusion);
         auto reshape_after = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;
@@ -158,7 +159,6 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
         ngraph::replace_node(reshape_after, depth_to_space);
-        MATCHER_SCOPE(DepthToSpaceFusion_depth_to_space_fusion);
         return true;
     };
 

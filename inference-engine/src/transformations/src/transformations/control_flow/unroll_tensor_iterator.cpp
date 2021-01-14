@@ -17,7 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
 
 bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    MATCHER_SCOPE(UnrollTensorIterator_run_on_function);
+    RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator_run_on_function);
     for (const auto& op : f->get_ops()) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(op);
         if (!ti || transformation_callback(ti)) {

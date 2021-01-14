@@ -17,11 +17,12 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleChannels3", 0);
 
 void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
-    TRANSFORMATION_SCOPE(ConvertShuffleChannels3_convert_shuffle_channels3);
+    MATCHER_SCOPE(ConvertShuffleChannels3_convert_shuffle_channels3);
     auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
+        MATCHER_CALLBACK_SCOPE(ConvertShuffleChannels3_convert_shuffle_channels3);
         auto shuffle_channels = std::dynamic_pointer_cast<::opset3::ShuffleChannels>(m.get_match_root());
         if (!shuffle_channels || transformation_callback(shuffle_channels)) {
             return false;
@@ -96,7 +97,6 @@ void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
         reshape_back->set_friendly_name(shuffle_channels->get_friendly_name());
         ::copy_runtime_info(shuffle_channels, new_ops);
         ::replace_node(shuffle_channels, reshape_back);
-        MATCHER_SCOPE(ConvertShuffleChannels3_convert_shuffle_channels3);
         return true;
     };
 

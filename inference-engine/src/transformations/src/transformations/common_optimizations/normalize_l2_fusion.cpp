@@ -18,7 +18,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2Fusion, "NormalizeL2Fusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithMax, "NormalizeL2FusionWithMax", 0);
 
 ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
-    TRANSFORMATION_SCOPE(NormalizeL2FusionWithMax);
+    MATCHER_SCOPE(NormalizeL2FusionWithMax);
     auto input = ngraph::pattern::any_input();
 
     auto exp = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -31,6 +31,7 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
     auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_max_eps);
 
     ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(NormalizeL2FusionWithMax);
         auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
@@ -62,7 +63,6 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
                                    },
                                    normalize_l2);
         ngraph::replace_node(m.get_match_root(), normalize_l2);
-        MATCHER_SCOPE(NormalizeL2FusionWithMax);
         return true;
     };
 
@@ -73,7 +73,7 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithAdd, "NormalizeL2FusionWithAdd", 0);
 
 ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
-    TRANSFORMATION_SCOPE(NormalizeL2FusionWithAdd);
+    MATCHER_SCOPE(NormalizeL2FusionWithAdd);
     auto input = ngraph::pattern::any_input();
 
     auto exp = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -86,6 +86,7 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
     auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_add_eps);
 
     ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(NormalizeL2FusionWithAdd);
         auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
@@ -117,7 +118,6 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
                                    },
                                    normalize_l2);
         ngraph::replace_node(m.get_match_root(), normalize_l2);
-        MATCHER_SCOPE(NormalizeL2FusionWithAdd);
         return true;
     };
 

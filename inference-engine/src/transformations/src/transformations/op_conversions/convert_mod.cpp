@@ -15,10 +15,11 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMod, "ConvertMod", 0);
 
 ngraph::pass::ConvertMod::ConvertMod() {
-    TRANSFORMATION_SCOPE(ConvertMod);
+    MATCHER_SCOPE(ConvertMod);
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(ConvertMod);
         auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod> (m.get_match_root());
         if (!mod) {
             return false;
@@ -44,7 +45,6 @@ ngraph::pass::ConvertMod::ConvertMod() {
         mul->set_friendly_name(mod->get_friendly_name());
         ngraph::copy_runtime_info(mod, {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
         ngraph::replace_node(mod, mul);
-        MATCHER_SCOPE(ConvertMod);
         return true;
     };
 

@@ -16,9 +16,10 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RNNCellDecomposition, "RNNCellDecomposition", 0);
 
 ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
-    TRANSFORMATION_SCOPE(RNNCellDecomposition);
+    MATCHER_SCOPE(RNNCellDecomposition);
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+        MATCHER_CALLBACK_SCOPE(RNNCellDecomposition);
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset4::RNNCell> (m.get_match_root());
         if (!rnn_cell || transformation_callback(rnn_cell)) {
             return false;
@@ -48,7 +49,6 @@ ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
         out->set_friendly_name(rnn_cell->get_friendly_name());
         ngraph::copy_runtime_info(rnn_cell, {Xt_W, Ht_R, add, i_t, out});
         ngraph::replace_node(rnn_cell, out);
-        MATCHER_SCOPE(RNNCellDecomposition);
         return true;
     };
 
