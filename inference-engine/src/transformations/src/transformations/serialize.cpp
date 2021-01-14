@@ -56,11 +56,10 @@ std::string translate_type_name(const std::string& name) {
     return name;
 }
 
-// Some of the operators were added to wrong opsets. This is a
-// mapping that allows such operators to be serialized with proper
-// opsets. If new operators are discovered that have the same problem
-// the opset mapping needs to be updated here. The keys also contain op
-// versions, concatenated after the actual names.
+// Some of the operators were added to wrong opsets. This is a mapping
+// that allows such operators to be serialized with proper opsets.
+// If new operators are discovered that have the same problem, the mapping
+// needs to be updated here. The keys contain op name and version in NodeTypeInfo.
 const std::unordered_map<ngraph::Node::type_info_t, std::string>
     special_operator_to_opset_assignments = {{ngraph::Node::type_info_t("ShuffleChannels", 0), "opset3"}};
 
