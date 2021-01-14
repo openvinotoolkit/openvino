@@ -45,20 +45,21 @@ void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op
     bool position_sensitive = true;
 
     auto psROIPoolingPrim = cldnn::roi_pooling(layerName,
-                                                inputPrimitives,
-                                                mode,
-                                                position_sensitive,
-                                                pooled_width,
-                                                pooled_height,
-                                                spatial_scale,
-                                                trans_std,
-                                                no_trans,
-                                                part_size,
-                                                group_size,
-                                                output_dim,
-                                                spatial_bins_x,
-                                                spatial_bins_y);
+                                               inputPrimitives,
+                                               mode,
+                                               position_sensitive,
+                                               pooled_width,
+                                               pooled_height,
+                                               spatial_scale,
+                                               trans_std,
+                                               no_trans,
+                                               part_size,
+                                               group_size,
+                                               output_dim,
+                                               spatial_bins_x,
+                                               spatial_bins_y);
     p.AddPrimitive(psROIPoolingPrim);
+    p.AddPrimitiveToProfiler(op);
 }
 
 void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::PSROIPooling>& op) {
