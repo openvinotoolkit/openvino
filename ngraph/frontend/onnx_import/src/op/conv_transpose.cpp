@@ -21,8 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "default_opset.hpp"
-#include "exceptions.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/coordinate_diff.hpp"
@@ -31,6 +29,8 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "op/conv_transpose.hpp"
 #include "utils/convpool.hpp"
 

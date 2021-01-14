@@ -23,9 +23,9 @@
 #include "core/model.hpp"
 #include "core/transform.hpp"
 #include "ngraph/except.hpp"
-#include "onnx.hpp"
+#include "onnx_import/onnx.hpp"
+#include "onnx_import/utils/parser.hpp"
 #include "ops_bridge.hpp"
-#include "utils/parser.hpp"
 
 namespace ngraph
 {

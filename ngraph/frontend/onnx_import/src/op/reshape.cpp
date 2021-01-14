@@ -18,8 +18,8 @@
 #include <memory>
 #include <vector>
 
-#include "default_opset.hpp"
-#include "exceptions.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/shape.hpp"
 #include "op/reshape.hpp"

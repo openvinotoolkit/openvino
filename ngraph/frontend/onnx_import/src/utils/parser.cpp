@@ -19,7 +19,7 @@
 #include <onnx/onnx_pb.h>
 
 #include "ngraph/except.hpp"
-#include "utils/parser.hpp"
+#include "onnx_import/utils/parser.hpp"
 
 namespace ngraph
 {

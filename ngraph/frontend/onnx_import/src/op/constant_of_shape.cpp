@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "core/tensor.hpp"
-#include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
+#include "onnx_import/default_opset.hpp"
 #include "op/constant.hpp"
 #include "utils/reshape.hpp"
 

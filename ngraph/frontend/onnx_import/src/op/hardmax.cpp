@@ -15,11 +15,11 @@
 //*****************************************************************************
 
 #include "op/hardmax.hpp"
-#include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/validation_util.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 

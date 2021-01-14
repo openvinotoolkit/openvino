@@ -16,7 +16,7 @@
 
 #include <memory>
 
-#include "exceptions.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "op/eye_like.hpp"
 #include "utils/common.hpp"
 

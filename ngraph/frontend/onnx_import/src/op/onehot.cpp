@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "default_opset.hpp"
+#include "onnx_import/default_opset.hpp"
 #include "op/onehot.hpp"
 #include "utils/reshape.hpp"
 

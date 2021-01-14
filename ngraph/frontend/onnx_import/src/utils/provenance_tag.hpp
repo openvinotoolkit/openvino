@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
-#include "core/node.hpp"
 #include "ngraph/partial_shape.hpp"
+#include "onnx_import/core/node.hpp"
 
 namespace ngraph
 {

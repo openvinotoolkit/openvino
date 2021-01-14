@@ -23,10 +23,10 @@
 
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
-#include "core/operator_set.hpp"
 #include "core/value_info.hpp"
-#include "default_opset.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "onnx_import/core/operator_set.hpp"
+#include "onnx_import/default_opset.hpp"
 
 namespace ngraph
 {

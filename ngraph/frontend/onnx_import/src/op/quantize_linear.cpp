@@ -19,8 +19,8 @@
 #include <numeric>
 #include <tuple>
 
-#include "default_opset.hpp"
-#include "exceptions.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/shape.hpp"

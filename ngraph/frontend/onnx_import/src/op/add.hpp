@@ -18,8 +18,8 @@
 
 #include <memory>
 
-#include "core/node.hpp"
 #include "ngraph/node.hpp"
+#include "onnx_import/core/node.hpp"
 
 namespace ngraph
 {

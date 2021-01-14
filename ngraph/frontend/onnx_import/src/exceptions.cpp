@@ -16,7 +16,7 @@
 
 #include <sstream>
 
-#include "exceptions.hpp"
+#include "onnx_import/exceptions.hpp"
 
 namespace ngraph
 {

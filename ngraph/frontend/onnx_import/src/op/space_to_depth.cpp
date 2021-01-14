@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "op/space_to_depth.hpp"
-#include "default_opset.hpp"
+#include "onnx_import/default_opset.hpp"
 
 namespace ngraph
 {

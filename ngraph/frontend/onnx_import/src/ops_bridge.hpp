@@ -22,8 +22,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "core/operator_set.hpp"
 #include "ngraph/except.hpp"
+#include "onnx_import/core/operator_set.hpp"
 
 namespace ngraph
 {

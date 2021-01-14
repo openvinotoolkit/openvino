@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "core/node.hpp"
-#include "default_opset.hpp"
+#include "onnx_import/core/node.hpp"
+#include "onnx_import/default_opset.hpp"
 #include "op/tile.hpp"
 
 namespace ngraph

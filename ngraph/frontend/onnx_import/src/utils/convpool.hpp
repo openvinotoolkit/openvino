@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include "core/node.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
+#include "onnx_import/core/node.hpp"
 
 namespace ngraph
 {

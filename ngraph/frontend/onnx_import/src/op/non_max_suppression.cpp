@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "default_opset.hpp"
-#include "exceptions.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "op/non_max_suppression.hpp"

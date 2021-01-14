@@ -17,7 +17,7 @@
 #include <memory>
 #include <vector>
 
-#include "default_opset.hpp"
+#include "onnx_import/default_opset.hpp"
 #include "op/thresholded_relu.hpp"
 
 namespace ngraph
