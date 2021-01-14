@@ -34,6 +34,7 @@
 #include "layers/gna_fake_quantize_layer.hpp"
 #include "round_float_define.hpp"
 #include "gna_plugin_policy.hpp"
+#include "gna_groups.hpp"
 
 using namespace InferenceEngine;
 using namespace std;
@@ -253,6 +254,15 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto out_height = FROM_IR_DIM(outputs, out_order[2]);
     auto out_width = FROM_IR_DIM(outputs, out_order[3]);
 
+    if (in_height > 1 && in_width == 1) {
+        std::swap(in_height, in_width);
+        std::swap(out_height, out_width);
+        std::swap(convolution._kernel_x, convolution._kernel_y);
+        std::swap(convolution._padding_x, convolution._padding_y);
+        std::swap(convolution._stride_x, convolution._stride_y);
+        std::swap(convolution._dilation_x, convolution._dilation_y);
+    }
+
     if (in_batch != 1 || out_batch != 1) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
     }
@@ -439,9 +449,10 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     if (getInputTo(layer->outData.front()).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, isNonFunctional)) {
         // if height dim and width dim both equal 1, the permute is not needed to return correct results
         // if height dim doesn't equal 1, the case requires additional permute
-        auto inputDimsCheck = (in_channels != 1 ||
-                              (in_height == 1 && in_width == 1) ||
-                              in_height != 1);
+        auto inputDimsCheck = (outputs->getLayout() == Layout::NHWC ||
+                               in_channels != 1 ||
+                               (in_height == 1 && in_width == 1) ||
+                               in_height != 1);
 
         //if kernel is pow of 2 and heigher than 8, then the issue doesn't appear
         auto kernelCheck = convolution._kernel_x > 15 && !(convolution._kernel_x & (convolution._kernel_x - 1));
@@ -522,22 +533,11 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto input = layer->insData[0].lock();
 
     auto outputs = *layer->outData.begin();
-    uint32_t num_rows_in = InferenceEngine::details::product(begin(input->getDims()), end(input->getDims()));
-    uint32_t num_columns_in = 1;
+    auto reshaped_dims = Get2DReshapedData(input, 8)->getDims();
+    uint32_t num_rows_in = reshaped_dims[1];
+    uint32_t num_columns_in = reshaped_dims[0];
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
-
-    if (input->getDims().size() > 2 || input->getDims()[0] >= 8) {
-        for (size_t index_divide = 8; index_divide > 0; index_divide--) {
-            if (num_rows_in % index_divide == 0) {
-                num_rows_in /= index_divide;
-                num_columns_in = index_divide;
-                break;
-            }
-        }
-        num_rows_out = num_rows_in;
-        num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
-    }
 
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
@@ -729,10 +729,11 @@ void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-    uint32_t num_rows_in = FROM_IR_DIM(inputs, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
-    uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
-    uint32_t num_columns_out = FROM_IR_DIM(outputs, 2);
+    auto reshaped_dims = Get2DReshapedData(inputs, 8)->getDims();
+    uint32_t num_rows_in = reshaped_dims[1];
+    uint32_t num_columns_in = reshaped_dims[0];
+    uint32_t num_rows_out = num_rows_in;
+    uint32_t num_columns_out = num_columns_in;
     uint32_t num_padding_out = ALIGN(num_rows_out, 8) - num_rows_out;
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
@@ -1116,8 +1117,9 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     auto outputs = *layer->outData.begin();
     auto inputPrecision = quantized ? Precision(Precision::I16) : inputs->getPrecision();
 
-    uint32_t num_rows_in = FROM_IR_DIM(inputs, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
+    auto input_data = HasTo2DReshapeData(layer) ? Get2DReshapedData(inputs, 8) : inputs;
+    uint32_t num_rows_in = FROM_IR_DIM(input_data, 1);
+    uint32_t num_columns_in = FROM_IR_DIM(input_data, 2);
     uint32_t num_rows_out = isDiag ? num_rows_in : FROM_IR_DIM(outputs, 1);
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
     uint32_t num_padding_out = isDiag ? num_padding : 0;
@@ -1563,8 +1565,12 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (dnn->new_num_conv_columns) {
-        num_rows = dnn->new_num_conv_columns;
-        if (inputs->getDims().size() == 4) num_rows /= num_columns;
+        if (dnn->new_num_conv_columns % num_columns == 0) {
+            num_rows = dnn->new_num_conv_columns / num_columns;
+        } else {
+            num_columns = dnn->new_num_conv_columns;
+            num_rows = 1;
+        }
         dnn->new_num_conv_columns = 0;
     }
 
@@ -2031,7 +2037,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             // if request for allocation less that realTensorInput - we need to extend request
             auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer);
             if (num_data_bytes_in < minInput) {
-                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, 8) << "\n";
+                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, 8);
                 num_data_bytes_in = ALIGN(minInput, 8);
             }
 

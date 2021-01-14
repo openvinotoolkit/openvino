@@ -12,7 +12,7 @@
 #include <memory>
 #include "ie_extension.h"
 #include <condition_variable>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "multi-device/multi_device_config.hpp"
@@ -20,12 +20,12 @@
 #include <ie_core.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 #include <thread>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "subgraph_tests/basic_lstm.hpp"
+#include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace BehaviorTestsDefinitions {
 using InferRequestTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -634,8 +634,10 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngraph::Function
-    // return function which computes around 20ms on GNA SW
-    function = LayerTestsDefinitions::Basic_LSTM_S::GetNetwork(3000, 380);
+    // return ngrpah::Function
+    // GetNetwork(3000, 380) make inference around 20ms on GNA SW
+    // so increases chances for getting RESULT_NOT_READY
+    function = SubgraphTestsDefinitions::Basic_LSTM_S::GetNetwork(300, 38);
     InferenceEngine::CNNNetwork cnnNet(function);
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
     auto M_body = make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
 
     // Body
-    auto Zo = (Xi + Yi) * M_body;
+    auto Zo = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(Xi, Yi), M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
@@ -132,7 +132,7 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
     auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
 
     // Body
-    auto Zo = (Xi + Yi) * M_body;
+    auto Zo = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(Xi, Yi), M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();

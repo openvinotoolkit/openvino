@@ -37,7 +37,7 @@
 #include "layers/gna_layer_info.hpp"
 #include "gna_upstream_iterator.hpp"
 #include "frontend/quantization.h"
-
+#include "gna_groups.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -77,8 +77,9 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     IE_ASSERT(diagLayer != nullptr);
 
     // TODO: diagonal size
-    auto dimsIndex = nextLayer->outData[0]->getTensorDesc().getDims().size() - 1;
-    std::vector<float> weightsValues(nextLayer->outData[0]->getTensorDesc().getDims()[dimsIndex], fillValue);
+    size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ? weightsSize = nextLayer->outData[0]->getDims().back() :
+                                                               Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
+    std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(
             TensorDesc(
@@ -91,7 +92,6 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
 
     auto diagonalWithQuant = quantized ?
                              InferenceEngine::injectData<QuantizedLayerParams>(diagLayer) : diagLayer;
-
     getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
     // actual insertion
@@ -259,6 +259,10 @@ void HandleMultipleActivationsForTheLayerPass::run() {
                 LayerInfo info(inputTo.second);
 
                 if (info.isActivation()) {
+                    if (!activations.empty() && odata->getDims()[0] != 1) {
+                        THROW_GNA_EXCEPTION << "Unsupported batch size " << odata->getDims()[0]
+                                            << " for diagonal layer insertion";
+                    }
                     activations.insert(inputTo.second);
                 }
             }
@@ -634,7 +638,6 @@ void ReversePermutationsPass::run() {
 
 void RemovePermutationsNHWCToNCHWPass::run() {
     std::list<CNNLayerPtr> permutationsToRemove;
-
     for (auto& l : *pLayers) {
         if (!LayerInfo(l).isConvolution()) {
             continue;
@@ -650,12 +653,31 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         auto next = getInputTo(l->outData.front()).begin()->second;
         auto prev = CNNNetPrevLayer(l);
 
-        if (!LayerInfo(next).isPermute() || !LayerInfo(prev).isPermute()) {
+        // The next layer must be NCHW to NHWC permute
+        if (!LayerInfo(next).isPermute() || next->input()->getLayout() != Layout::NCHW ||
+            next->GetParamAsInts("order") != GetPermuteOrder(Layout::NCHW, Layout::NHWC)) {
             continue;
         }
 
-        if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
-            permutationsToRemove.push_back(prev);
+        // The previous layer must be NHWC to NCHW permute or have 1D data
+        if (LayerInfo(prev).isPermute()) {
+            if (prev->outData[0]->getLayout() != Layout::NCHW ||
+                prev->GetParamAsInts("order") != GetPermuteOrder(Layout::NHWC, Layout::NCHW)) {
+                continue;
+            }
+
+            if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+                permutationsToRemove.push_back(prev);
+            }
+        } else  {
+            if (prev->outData.size() != 1 || getInputTo(prev->outData[0]).size() != 1) {
+                continue;
+            }
+            auto prev_dims = prev->outData[0]->getDims();
+            // Check if the previous layer has all dimensions except one to be equal to 1
+            if (std::count_if(std::begin(prev_dims), std::end(prev_dims), [](size_t dim) { return dim != 1; }) > 1) {
+                continue;
+            }
         }
         permutationsToRemove.push_back(next);
     }
@@ -671,7 +693,6 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 next->input()->setDims(toRemove->input()->getDims());
                 next->input()->setLayout(Layout::NHWC);
                 auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-
                 DataPtr output = nullptr;
                 for (auto before_output : layerBeforePermute->outData) {
                     if (areEqualDatas(toRemove->input(), before_output)) {
@@ -779,67 +800,124 @@ void InsertIdentityLayerPass::run() {
 }
 
 void InsertCopyLayerPass::run() {
+    // Copy layer insertion happens in few cases:
+    // Crop output goes to concat layer -> copy layer insertion
+    // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
+    // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
+    // and copies before concay layers (one less copy than outputs)
     for (auto & l : *pLayers) {
-        if (l->insData.empty()) continue;
-        auto prevLayers = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr origin){
-            return !LayerInfo(origin).isNonFunctional();
-        });
+        if (LayerInfo(l).isNonFunctional()) continue;
+        // Crop -> Concat and Concat -> Memory cases
+        if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat()) {
+            std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> copy_insertion_tuples;
+            std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> delayed_copy_insertion_tuples;
 
-        for (int i=0; i != prevLayers.size(); i++) {
-            auto & prevIndirectLayer = prevLayers[i].first;
-            bool bInsert = false;
-            /// Delayed copy layers need to be moved to the very end of processing
-            bool bInsertDelayed = false;
+            for (auto output : l->outData) {
+                auto& inputTo = getInputTo(output);
+                for (auto& childLayer : inputTo) {
+                    auto original_child = childLayer.second;
+                    auto original_parent = l;
+                    auto current_layer = original_child;
+                    size_t input_idx = CNNLayerFindInsDataIdxes(output, original_child)[0];
 
-            auto isInserted = [&bInsertDelayed, &bInsert]() {
-                return bInsert || bInsertDelayed;
-            };
-
-            if (LayerInfo(l).isMemory()) {
-                if (LayerInfo(prevIndirectLayer).isConcat() || LayerInfo(prevIndirectLayer).isCrop()
-                    || LayerInfo(prevIndirectLayer).isSplit()) { bInsertDelayed = true;}
-                // memory usualy preceded by either activation or split, or other layers in order to have 2b precision
-                for (auto && inputto : getInputTo(prevLayers[i].first->outData[prevLayers[i].second])) {
-                    auto current_layer = inputto.second;
-                    while (LayerInfo(current_layer).isNonFunctional() || LayerInfo(current_layer).isSplit()) {
+                    while (LayerInfo(current_layer).isNonFunctional()) {
                         if (current_layer->outData.size() == 0) break;
                         if (getInputTo(current_layer->outData[0]).size() == 0) break;
-                        auto new_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
-                        current_layer = new_layer;
+
+                        auto next_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
+                        if (current_layer->outData.size() == 1 && getInputTo(current_layer->outData[0]).size() == 1 && original_child == current_layer) {
+                            original_child = next_layer;
+                            original_parent = current_layer;
+                            input_idx = CNNLayerFindInsDataIdxes(original_parent->outData[0], original_child)[0];
+                        }
+                        current_layer = next_layer;
                     }
-                    // if preceding layer is common for memory and concat
-                    if (LayerInfo(current_layer).isConcat()) {
-                        bInsertDelayed = true;
-                        break;
+
+                    if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
+                        // Concat|Split|Crop -> Memory case
+                        delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
+                    } else if (LayerInfo(l).isCrop() && LayerInfo(current_layer).isConcat()) {
+                        // Crop -> Concat case
+                        copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
                     }
                 }
             }
-            if (!isInserted() && LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
 
-            if (isInserted()) {
-                if (LayerInfo(prevIndirectLayer).isCropAffined()) {
-                    // The crop will be replaced by affine.
-                    // Copy layer insertion is not required
-                    continue;
+            for (auto& tuple : delayed_copy_insertion_tuples) {
+                // Concat -> Memory case
+                InsertCopyLayer(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), this->getPassManager(), DelayedCopyLayerName);
+            }
+            for (auto& tuple : copy_insertion_tuples) {
+                // Crop -> Concat case
+                InsertCopyLayer(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), this->getPassManager(), CopyLayerName);
+            }
+        }
+
+        // Layer -> multiple concat/memory case
+        for (auto output : l->outData) {
+            std::vector<std::pair<CNNLayerPtr, size_t>> MemoryLayers;
+            std::vector<std::pair<CNNLayerPtr, size_t>> ConcatLayers;
+            auto& inputTo = getInputTo(output);
+            if (inputTo.size() < 2) continue;
+            for (auto& childLayer : inputTo) {
+                auto layer_to_insert = childLayer.second;
+                auto current_layer = childLayer.second;
+                auto previous_layer = l;
+                size_t input_idx = CNNLayerFindInsDataIdxes(output, current_layer)[0];
+
+                while (LayerInfo(current_layer).isNonFunctional()) {
+                    if (current_layer->outData.size() == 0) break;
+                    if (getInputTo(current_layer->outData[0]).size() == 0) break;
+                    previous_layer = current_layer;
+                    current_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
                 }
-                auto prevLayer = CNNNetPrevLayer(l, i);
-                InsertCopyLayer(prevLayer, l, i, getPassManager(), bInsertDelayed ? DelayedCopyLayerName : CopyLayerName);
+                if (LayerInfo(current_layer).isConcat()) {
+                    ConcatLayers.push_back(make_pair(layer_to_insert, input_idx));
+                } else if (LayerInfo(current_layer).isMemory()) {
+                    MemoryLayers.push_back(make_pair(layer_to_insert, input_idx));
+                }
+            }
+            if (MemoryLayers.empty() && ConcatLayers.empty()) continue;
+            auto toCopyCount = MemoryLayers.size() + ConcatLayers.size() - 1;
+            size_t currentCopyIdx = 0;
+            while (currentCopyIdx < toCopyCount) {
+                if (currentCopyIdx < MemoryLayers.size()) {
+                    size_t memoryIdx = currentCopyIdx;
+                    auto memoryLayer = MemoryLayers[memoryIdx].first;
+                    auto inputIdx = MemoryLayers[memoryIdx].second;
+                    InsertCopyLayer(l, memoryLayer, inputIdx, this->getPassManager(), DelayedCopyLayerName);
+                } else {
+                    size_t concatIdx = currentCopyIdx - MemoryLayers.size();
+                    auto concatLayer = ConcatLayers[concatIdx].first;
+                    auto inputIdx = ConcatLayers[concatIdx].second;
+                    InsertCopyLayer(l, concatLayer, inputIdx, this->getPassManager(), CopyLayerName);
+                }
+                currentCopyIdx++;
             }
         }
     }
 }
 
-void Concat4Dto2DPass::run() {
-    // Find 4D concat layers that will have to use ConcatAlignFilters and can be substituted by 2D concat
+void FlattenTrivialConcatPass::run() {
+    // change all trivial concatenations (concatenation where output buffer is a buffer made by appending input buffers)
+    // by reshaping its inputs to 1 x total_input_size and its output to 1 x total_cocat_size and chaning the axis to 1
     // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used if sizes before
     // axis are all ones then concat can be changed to 2D for example, lets say all unputs have same shape equal to:
     // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
     // but for shape 2, 1, 5, 3 only axis 0 is valid and inputs will reshape to 1, 30
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
-
-    if (getPassManager()->getPolicy().ConcatConversionPolicy == Policy::Concat4Dto2DConversion::DISABLED) return;
+    if (getPassManager()->getPolicy().ConcatConversionPolicy == Policy::FlattenTrivialConcatConversion::DISABLED) return;
     if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) return;
     if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) return;
+
+    auto getLayerByIndex = [](int idx, ConcatLayer* concatLayer) {
+        auto input = concatLayer->insData[idx];
+        auto lockedInput = input.lock();
+        if (!lockedInput) {
+            THROW_GNA_EXCEPTION << "cannot get insdata : "<< idx << " for layer: " << concatLayer->name;
+        }
+        return lockedInput;
+    };
 
     for (auto & l : *pLayers) {
         LayerInfo info(l);
@@ -848,63 +926,58 @@ void Concat4Dto2DPass::run() {
         if (concatLayer->insData.size() < 1) continue;
 
         auto dims_size = concatLayer->insData[0].lock()->getDims().size();
-        if (dims_size > 2) {
-            auto axis = concatLayer->_axis;
-            bool skip_layer = false;
-            for (int i = 0; i < axis; i++) {
-                if (concatLayer->insData[0].lock()->getDims()[i] != 1) skip_layer = true;
-            }
-            if (skip_layer) continue;
-            skip_layer = true;
-            std::vector<size_t> total_sizes;
-            for (auto& input : concatLayer->insData) {
-                auto input_dims = input.lock()->getDims();
-                total_sizes.push_back(std::accumulate(input_dims.begin(), input_dims.end(), size_t(1), std::multiplies<size_t>()));
-                if (total_sizes.back() % 64 != 0) skip_layer = false;
-            }
-            if (skip_layer) continue;
+        if (dims_size < 2 || concatLayer->_axis == dims_size - 1) continue;
 
-            for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
-                auto getLayerByIndex = [&concatLayer](int idx) {
-                    auto input = concatLayer->insData[idx];
-                    auto lockedInput = input.lock();
-                    if (!lockedInput) {
-                        THROW_GNA_EXCEPTION << "cannot get insdata : "<< idx << " for layer: " << concatLayer->name;
-                    }
-                    return lockedInput;
-                };
-
-                auto concatInput = getLayerByIndex(input_idx);
-
-                auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
-                tensor.reshape(SizeVector({1, total_sizes[input_idx]}), Layout::NC);
-                auto reshapeName = l->name + "_input_"+ std::to_string(input_idx) +"_reshape";
-                auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
-
-                CNNNetworkInsertLayer(getCreatorLayer(concatInput).lock(), l, reshape);
-                gnalog() << "\tInserted " << reshapeName << " between " << getCreatorLayer(concatInput).lock()->name << " and " << l->name << std::endl;
-            }
-
-            for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
-                auto output = concatLayer->outData[output_idx];
-                auto output_tensor_copy = TensorDesc(output->getTensorDesc());
-
-                auto dims = output_tensor_copy.getDims();
-                auto total_size = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
-
-                auto new_tensor = output->getTensorDesc();
-                new_tensor.reshape(SizeVector({1, total_size}), Layout::NC);
-
-                auto new_output = CNNReplaceDataWithChangedTensorDescription(output, new_tensor);
-                gnalog() << "\tChanged " << output->getName() << " dims to 2D" << std::endl;
-
-                auto reshapeName = l->name + "_output_"+ std::to_string(output_idx) +"_reshape";
-
-                auto reshape = CNNNetworkCreateReshape(output_tensor_copy, reshapeName, quantized);
-                CNNNetworkInsertLayer(l, nullptr, reshape, output_idx);
-                gnalog() << "\tInserted " << reshapeName << " after " << l->name << std::endl;
-            }
+        auto axis = concatLayer->_axis;
+        bool skip_layer = false;
+        for (int i = 0; i < axis; i++) {
+            if (concatLayer->insData[0].lock()->getDims()[i] != 1) skip_layer = true;
         }
+        if (skip_layer) continue;
+        std::vector<size_t> total_sizes;
+        for (auto& input : concatLayer->insData) {
+            auto input_dims = input.lock()->getDims();
+            total_sizes.push_back(std::accumulate(input_dims.begin(), input_dims.end(), size_t(1), std::multiplies<size_t>()));
+        }
+
+        for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+            auto concatInput = getLayerByIndex(input_idx, concatLayer);
+
+            auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
+            tensor.reshape(SizeVector({1, total_sizes[input_idx]}), Layout::NC);
+            auto reshapeName = l->name + "_input_"+ std::to_string(input_idx) +"_reshape";
+            auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
+
+            CNNNetworkInsertLayer(getCreatorLayer(concatInput).lock(), l, reshape);
+            gnalog() << "\tInserted " << reshapeName << " between " << getCreatorLayer(concatInput).lock()->name << " and " << l->name << std::endl;
+        }
+
+        for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
+            auto output = concatLayer->outData[output_idx];
+            auto output_tensor_copy = TensorDesc(output->getTensorDesc());
+
+            auto dims = output_tensor_copy.getDims();
+            auto total_size = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
+
+            auto new_tensor = output->getTensorDesc();
+            new_tensor.reshape(SizeVector({1, total_size}), Layout::NC);
+
+            auto new_output = CNNReplaceDataWithChangedTensorDescription(output, new_tensor);
+            gnalog() << "\tChanged " << output->getName() << " dims to 2D" << std::endl;
+
+            auto reshapeName = l->name + "_output_"+ std::to_string(output_idx) +"_reshape";
+
+            auto reshape = CNNNetworkCreateReshape(output_tensor_copy, reshapeName, quantized);
+            if (getInputTo(new_output).empty()) {
+                reshape->insData.push_back(new_output);
+                getInputTo(new_output)[reshape->name] = reshape;
+            } else {
+                CNNNetworkInsertLayer(l, nullptr, reshape, output_idx);
+            }
+            gnalog() << "\tInserted " << reshapeName << " after " << l->name << std::endl;
+        }
+
+        concatLayer->_axis = 1;
     }
 }
 
@@ -1356,28 +1429,30 @@ void SubstituteScaleShiftBroadCastPass::run() {
         }
 
         bool was_reshaped = reshaped_data.count(insData->getName()) != 0;
+        bool reshape_batch = HasTo2DReshapeData(l);
         InferenceEngine::SizeVector dataDims;
         if (was_reshaped) {
             dataDims = reshaped_data[insData->getName()];
         } else {
-            dataDims = insData->getDims();
+            dataDims = HasTo2DReshapeData(l) ? Get2DReshapedData(insData, 8)->getDims() : insData->getDims();
         }
 
         if (dataDims.size() <= 2) {
             // NC or C cannot do broadcast
             continue;
         }
+
         auto batchSize = dataDims[0];
         auto nElements = product(begin(dataDims), end(dataDims)) / batchSize;
         auto weightsElements = scaleShift->_weights->size();
         auto weightsBytes = scaleShift->_weights->byteSize();
 
-        if (nElements == weightsElements) {
+        if (!reshape_batch && nElements == weightsElements) {
             continue;
         }
 
         // only 3d scaleshift supported where number of c is arbitrary
-        auto lastD = dataDims[dataDims.size() - 1];
+        auto lastD = reshape_batch ? dataDims[1] : dataDims.back();
         if (lastD != weightsElements) {
             THROW_GNA_EXCEPTION << "Unsupported layer: " << l->name
                                 << " should have last dim(" << lastD << ") equal to weights(" << weightsElements << ") length";
@@ -1620,11 +1695,17 @@ void FuseMultipleIdentitiesPass::run() {
         };
 
         auto prevLayersReached = CNNNetGetPrevLayersSkip(l, isFunctional);
-        prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
-                                               prevLayersReached.end(),
-                                               [] (const std::pair<CNNLayerPtr, int> & candidate) {
-            return LayerInfo(candidate.first).isLink();
-        }), prevLayersReached.end());
+        if (!prevLayersReached.empty()) {
+            prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
+                                                prevLayersReached.end(),
+                                                [] (const std::pair<CNNLayerPtr, int> & candidate) {
+                return LayerInfo(candidate.first).isLink();
+            }), prevLayersReached.end());
+            if (prevLayersReached.empty()) {
+                gnalog() << ", connected to link output only" << std::endl;
+                continue;
+            }
+        }
 
         if (prevLayersReached.size() != 1) {
             std::stringstream layers;

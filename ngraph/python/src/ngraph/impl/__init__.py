@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,5 +45,6 @@ from _pyngraph import CoordinateDiff
 from _pyngraph import AxisSet
 from _pyngraph import AxisVector
 from _pyngraph import Coordinate
+from _pyngraph import Output
 
 from _pyngraph import util

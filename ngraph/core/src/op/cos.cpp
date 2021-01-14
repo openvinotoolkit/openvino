@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,11 +37,13 @@ op::Cos::Cos(const Output<Node>& arg)
 
 bool op::Cos::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Cos_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Cos::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Cos_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Cos>(new_args.at(0));
 }
@@ -63,20 +65,13 @@ namespace cosop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_cos, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_cos, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_cos, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_cos, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_cos, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_cos, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_cos, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -85,6 +80,6 @@ namespace cosop
 
 bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Cos::evaluate");
+    NGRAPH_OP_SCOPE(v0_Cos_evaluate);
     return cosop::evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

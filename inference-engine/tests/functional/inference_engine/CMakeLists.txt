@@ -10,17 +10,22 @@ set(LINK_LIBRARIES
     gmock
     funcTestUtils
     ngraphFunctions
+    lptNgraphFunctions
     inference_engine_transformations
     openvino::itt
+    openvino::conditional_compilation
+    sharedTestClasses
 )
 set(DEPENDENCIES
     mock_engine
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
     template_extension
+    lptNgraphFunctions
+    sharedTestClasses
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")
     list(APPEND LINK_LIBRARIES onnx_custom_op)
     list(APPEND DEPENDENCIES onnx_custom_op)
@@ -28,7 +33,7 @@ else()
     set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
-if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN)
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN OR NGRAPH_USE_PROTOBUF_LITE)
     set(EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS} "${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp")
 endif()
 
@@ -147,6 +152,13 @@ function(ie_headers_compilation_with_custom_flags)
     # To include TBB headers as system
     set_ie_threading_interface_for(${target_name})
 
+    # To avoid further TBB find_package action in next call of this function. Some version of TBB
+    # has an issue with cmake config which lead to fail in case of multiple call of find_package
+    # from one cmake script file.
+    set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
+    set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+    set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
+
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}
                           CXX_STANDARD_REQUIRED OFF)
@@ -158,6 +170,10 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_DEFINITIONS)
         target_compile_definitions(${target_name} PRIVATE ${IE_TEST_DEFINITIONS})
+    endif()
+
+    if(WIN32)
+        set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
     endif()
 
     add_dependencies(${TARGET_NAME} ${target_name})
@@ -206,15 +222,12 @@ if(UNIX)
                                                  PLUGIN_API)
     else()
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS "-Wpedantic"
-                                                 HEADERS_TO_SKIP "generic_ie.hpp"
                                                  PLUGIN_API)
     endif()
 else()
-    # TODO: enable
-    # ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
-    #                                          HEADERS_TO_SKIP "generic_ie.hpp"
-    #                                          FLAGS  "/we4996 /W4 /WX"
-    #                                          PLUGIN_API)
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
+                                             FLAGS  "/we4996 /W4 /WX"
+                                             PLUGIN_API)
 endif()
 
 # ir serialization functional tests variables

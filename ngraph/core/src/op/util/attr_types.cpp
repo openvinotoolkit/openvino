@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -118,7 +118,7 @@ namespace ngraph
     NGRAPH_API EnumNames<op::EpsMode>& EnumNames<op::EpsMode>::get()
     {
         static auto enum_names = EnumNames<op::EpsMode>(
-            "op::EpsMode", {{"ADD", op::EpsMode::ADD}, {"MAX", op::EpsMode::MAX}});
+            "op::EpsMode", {{"add", op::EpsMode::ADD}, {"max", op::EpsMode::MAX}});
         return enum_names;
     }
 
@@ -128,6 +128,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
+
     template <>
     NGRAPH_API EnumNames<op::TopKSortType>& EnumNames<op::TopKSortType>::get()
     {

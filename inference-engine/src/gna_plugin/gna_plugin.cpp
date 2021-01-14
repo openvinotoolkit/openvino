@@ -433,10 +433,10 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & netwo
     }
 }
 
-void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
+void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
-        std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(_network);
+        std::shared_ptr<ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(graph);
@@ -460,7 +460,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *clonedNetwork);
     }
-    InferenceEngine::ICNNNetwork &network = convertedNetwork ? *convertedNetwork : _network;
+    InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
 
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
@@ -498,7 +498,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        passes->registerPass<Concat4Dto2DPass>();
+        passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         if (policy.PermutePolicy != Policy::Permute::DISABLED) {
@@ -1089,7 +1089,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                            gnadevice ? 2 : 4,
                            // TODO: only works for cnn4a and google command so far
                            dims[0],
-                           is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 3],  // num_feature_vectors looks batch should be there
+                           InferenceEngine::details::product(dims) / dims[0],
                            num_rotate_rows,
                            num_rotate_columns);
         }
@@ -1458,7 +1458,7 @@ void GNAPlugin::UpdateFieldsFromConfig() {
     *gnaFlags = config.gnaFlags;
 }
 
-InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                             const std::map<std::string, std::string>& config) const {
     InferenceEngine::QueryNetworkResult res;
 
@@ -1467,9 +1467,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     }
 
     std::unordered_set<CNNLayer *> allLayers;
-    InferenceEngine::InputsDataMap inputs;
-
-    network.getInputsInfo(inputs);
+    InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
 
     if (inputs.empty()) {

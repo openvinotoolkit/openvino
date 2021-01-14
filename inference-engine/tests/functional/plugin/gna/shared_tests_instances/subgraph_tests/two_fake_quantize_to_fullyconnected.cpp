@@ -8,7 +8,7 @@
 #include "subgraph_tests/two_fake_quantize_to_fullyconnected.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 
@@ -42,7 +42,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
         {1, 440}
 };
 const std::vector<std::vector<std::vector<size_t>>> constShapes = {
-        {{1}, {2048, 1}}
+        {{1}, {1024, 1}}
 };
 
 const std::vector<std::vector<std::vector<size_t>>> constShapes_int16 = {

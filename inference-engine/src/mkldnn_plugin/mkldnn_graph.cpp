@@ -767,6 +767,11 @@ void MKLDNNGraph::Infer(int batch) {
 
     mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
     for (int i = 0; i < graphNodes.size(); i++) {
+        if (IsCancellationRequested()) {
+            ResetCancellationRequest();
+            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::INFER_CANCELLED;
+        }
+
         PERF(graphNodes[i]);
 
         if (batch > 0)
@@ -1083,7 +1088,7 @@ void MKLDNNGraph::RemoveDroppedEdges() {
     }
 }
 
-void MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
+MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
                                 bool isOptimized, InferenceEngine::Blob::Ptr scales) {
     CNNLayerPtr layer(new CNNLayer({layerName,
                                     "Reorder",
@@ -1133,6 +1138,7 @@ void MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const
     }
 
     graphNodes.push_back(newReorder);
+    return newReorder;
 }
 
 void MKLDNNGraph::dumpToDotFile(std::string file) const {

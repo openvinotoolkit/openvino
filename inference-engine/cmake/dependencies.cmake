@@ -4,10 +4,7 @@
 
 cmake_policy(SET CMP0054 NEW)
 
-include(models)
-
-#we have number of dependencies stored on ftp
-include(dependency_solver)
+# we have number of dependencies stored on ftp
 
 if (CMAKE_CROSSCOMPILING)
     set(CMAKE_STAGING_PREFIX "${TEMP}")
@@ -32,7 +29,6 @@ message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
 fetch_models_and_validation_set()
 
-include(linux_name)
 if(COMMAND get_linux_name)
     get_linux_name(LINUX_OS_NAME)
 endif()
@@ -40,7 +36,7 @@ endif()
 include(CMakeParseArguments)
 
 if (ENABLE_MYRIAD)
-    include(vpu_dependencies)
+    include(cmake/vpu_dependencies.cmake)
 endif()
 
 ## enable cblas_gemm from OpenBLAS package
@@ -107,25 +103,35 @@ if (THREADING STREQUAL "OMP")
                 ARCHIVE_WIN "iomp.zip"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_MAC "iomp_20190130_mac.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc")
     else()
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
+    
+    ie_cpack_add_component(omp)
+    file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
+    install(FILES ${source_list} 
+            DESTINATION "deployment_tools/inference_engine/external/omp/lib"
+            COMPONENT omp)
+    
 endif ()
 
 ## TBB package
@@ -195,8 +201,8 @@ endif ()
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.5.0")
-    set(OPENCV_BUILD "36")
+    set(OPENCV_VERSION "4.5.1")
+    set(OPENCV_BUILD "044")
     set(OPENCV_BUILD_YOCTO "337")
 
     if (AARCH64)
@@ -228,36 +234,36 @@ if (ENABLE_OPENCV)
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "f20bfbf47281895fe488b594090958bb37f6893e5d9845ae56bc84079987f1df")
+                    SHA256 "5250bfe5860c15eb1b31963c78804ee9b301a19d8d6e920c06ef41de681cb99e")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(OPENCV
                     ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "3c0d81b6450e209daea9597906b24fab2c2654fa3a966d38c7ac87e4de5043a6")
+                    SHA256 "f3ebc5cc72c86106c30cc711ac689e02281556bb43c09a89cd45cb99b6bef9a8")
         elseif(LINUX)
             if (AARCH64)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
             elseif (ARM)
                 set(OPENCV_SUFFIX "debian9arm")
-                set(OPENCV_HASH "120336ac7696779a8152c2b71ace3fa5cf868b452d03032ef66513ed8446a794")
+                set(OPENCV_HASH "0e787d6738092993bc92bb55975f52caabae45dc73473b5196d15e65e87d6b9d")
             elseif (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 set(OPENCV_SUFFIX "centos7")
-                set(OPENCV_HASH "ed68bc21ae62ac892f61ba7bad266be3a1a1937e692f9dc7eb080c167a5fd37a")
+                set(OPENCV_HASH "9b813af064d463b31fa1603b11b6559532a031d59bb0782d234380955fd397e0")
             elseif (LINUX_OS_NAME MATCHES "CentOS 8")
                 set(OPENCV_SUFFIX "centos8")
-                set(OPENCV_HASH "94b6a22eecd99c1c7383ef171750b75ea8b5c13e6399937387c6fb11ec1ecd69")
+                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04")
                 set(OPENCV_SUFFIX "ubuntu16")
                 set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04")
                 set(OPENCV_SUFFIX "ubuntu18")
-                set(OPENCV_HASH "94b6a22eecd99c1c7383ef171750b75ea8b5c13e6399937387c6fb11ec1ecd69")
+                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
                 set(OPENCV_SUFFIX "ubuntu20")
-                set(OPENCV_HASH "85ddb4df514e47b8451c5416e8ba91a3caa6b0c97ea8129d0c89cd005bd4995f")
+                set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
             else()
                 message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
@@ -287,9 +293,13 @@ if (ENABLE_OPENCV)
         log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
     endif()
     debug_message(STATUS "opencv=" ${OPENCV})
+else()
+    reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(ie_parallel)
+# TODO: remove global CMAKE_MODULE_PATH
+list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
+include(cmake/ie_parallel.cmake)
 
 if (ENABLE_GNA)
     reset_deps_cache(
@@ -336,25 +346,25 @@ if (ENABLE_SPEECH_DEMO)
     if(DEFINED IE_PATH_TO_DEPS)
         if (WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.754_windows.zip"
+                    ARCHIVE_WIN "speech_demo_1.0.0.755_windows.zip"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
-                    SHA256 "0379a0d37695d0b9325caf313f1f0e92f55a13b24847bfbbb9ddb190d3b703f6")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.755"
+                    SHA256 "58adef14b8a749f70fa83888614cee34b941956e6e958e445e3f48885b3c20a0")
             debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
         elseif (LINUX AND X86_64)
             if (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.754_centos.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.755_centos.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
-                    SHA256 "3852ddc057bbe3701209602900d64eb28a947899e8027b8f152236b49c57e3ca")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.755"
+                    SHA256 "716201e377714ac50f3909c445d36d47a089de50a557d8ef65232de040671188")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             else()
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.754_linux.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.755_linux.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.754"
-                    SHA256 "d530ac07c24bd05cc689c12a2467c3c51c504ab1a2162065c4811061ac4ef235")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.755"
+                    SHA256 "7714b8776ec0183ed73eed6d3d965ee6d5c15d2dc49ee5ae118cc368c89c7a9d")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             endif()
         else()
@@ -364,18 +374,3 @@ if (ENABLE_SPEECH_DEMO)
     endif()
     update_deps_cache(SPEECH_LIBS_AND_DEMOS "${SPEECH_LIBS_AND_DEMOS}" "Path to SPEECH_LIBS_AND_DEMOS root folder")
 endif()
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
-        "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-        @ONLY)
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
-        "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
-        COPYONLY)
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"
-        "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
-        COPYONLY)

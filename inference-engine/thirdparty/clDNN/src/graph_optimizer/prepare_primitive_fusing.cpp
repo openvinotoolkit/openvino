@@ -111,7 +111,8 @@ void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program_impl &p) {
             if (&input != &sigmoid.input())
                 return;
 
-            auto swish_prim = std::make_shared<cldnn::activation>(mul.id()+"_swish", input.id(), activation_func::swish);
+            activation_additional_params swish_params = {1.0f, 0.0f};
+            auto swish_prim = std::make_shared<cldnn::activation>(mul.id() + "_swish", input.id(), activation_func::swish, swish_params);
             auto& swish = p.get_or_create(swish_prim);
 
             p.add_optimized_primitive_info(node.id(), {swish.id()});
@@ -676,11 +677,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                           (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
                            input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
 
-            should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt() &&
-                            // fp16/fp32 optimized kernels don't support chaning data type
-                           (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
-                            input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
-                            input_data.get_output_layout().data_type == out_layout.data_type);
+            should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
@@ -738,6 +735,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                       (parents[i]->is_type<space_to_batch>()) ||
                                       (parents[i]->is_type<eltwise>() && eltwise_supports_fusings(parents[i]->as<eltwise>())) ||
                                       (parents[i]->is_type<scale>()) ||
+                                      (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()));
             }
