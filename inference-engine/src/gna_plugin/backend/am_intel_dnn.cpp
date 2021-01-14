@@ -23,6 +23,7 @@
 #include "am_intel_dnn.hpp"
 #include "dnn_types.h"
 #include "gna_types.h"
+#include "gna_limitations.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -189,6 +190,11 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
 
     if (comp.num_rows_in * comp.num_columns_in % 8 != 0) {
         THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent is not multiply by 8";
+    }
+    if (comp.op.conv1D.num_filters < GNALimitations::convMinFiltersNum ||
+        comp.op.conv1D.num_filters > GNALimitations::convMaxFiltersNum ||
+        comp.op.conv1D.num_filters % GNALimitations::convFiltersNumDivider != 0) {
+        THROW_GNA_EXCEPTION << "Unsupported number of filters in Convolutional1DComponent: " << comp.op.conv1D.num_filters;
     }
     auto filter_stride_size = comp.op.conv1D.num_feature_maps * comp.op.conv1D.num_feature_map_columns;
     auto max_number_of_out_elements = (comp.num_columns_in - comp.op.conv1D.num_filter_coefficients) / filter_stride_size + 1;
