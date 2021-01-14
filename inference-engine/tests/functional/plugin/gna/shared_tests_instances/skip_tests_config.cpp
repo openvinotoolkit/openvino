@@ -32,7 +32,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 31661
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
-        R"(.*(Sigmoid|Tanh|Exp|Log).*)",
+        R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
@@ -50,6 +50,9 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 40960
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 29577
-        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)"
+        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
+        // TODO: Issue 24839
+        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
+        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)"
     };
 }
