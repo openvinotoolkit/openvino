@@ -87,13 +87,14 @@ TEST(onnx_importer, exception_msg_std_err_wrapped)
     try
     {
         onnx_import::import_onnx_model(file_util::path_join(
-            SERIALIZED_ZOO, "onnx/dynamic_shapes/add_opset6_dyn_shape.prototxt"));
+            SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_link_dyn_shape.prototxt"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     }
     catch (const std::exception& e)
     {
-        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(Add)"));
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("While validating ONNX node '<Node(EyeLike): y"));
     }
     catch (...)
     {
