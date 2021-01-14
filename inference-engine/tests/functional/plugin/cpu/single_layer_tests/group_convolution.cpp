@@ -46,7 +46,7 @@ protected:
         std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(postFunction, postNodes, fusedOps) = fusingParams;
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         groupConvSpecificParams groupConvParams;
         std::vector<size_t> inputShape;
@@ -125,6 +125,7 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingReluScaleShift,
         fusingFakeQuantizePerTensorRelu,
         fusingFakeQuantizePerChannelRelu,
+        fusingSumEluFQ,
         fusingSum,
 };
 

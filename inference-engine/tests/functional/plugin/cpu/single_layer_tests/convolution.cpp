@@ -59,7 +59,7 @@ protected:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(postFunction, postNodes, fusedOps) = fusingParams;
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         convSpecificParams convParams;
         std::vector<size_t> inputShape;
@@ -112,7 +112,8 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
         fusingReluScaleShift,
         fusingFakeQuantizePerTensorRelu,
         fusingFakeQuantizePerChannelRelu,
-        fusingSum,
+        fusingSumEluFQ,
+        fusingSum
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSetBF16{
@@ -126,7 +127,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingSwish,
         // other patterns
         fusingReluScaleShift,
-        fusingSum,
+        fusingSum
 };
 
 const std::map<std::string, std::string> cpuEmptyPluginConfig;

@@ -11,19 +11,14 @@ namespace CPUTestUtils {
 
 std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
     std::ostringstream result;
-    std::shared_ptr<ngraph::Function> postFunction;
-    std::vector<postNode> postNodes;
     std::vector<std::string> fusedOps;
-    std::tie(postFunction, postNodes, fusedOps) = params;
+    std::shared_ptr<postOpMgr> postOpMgrPtr;
+    std::tie(postOpMgrPtr, fusedOps) = params;
 
-    if (postFunction) {
-        result << "_Fused=" << postFunction->get_friendly_name();
-    } else if (!postNodes.empty()) {
-        result << "_Fused=";
-        const char* separator = "";
-        for (const auto& item : postNodes) {
-            result << separator << item.name;
-            separator = ",";
+    if (postOpMgrPtr) {
+        auto postOpsNames = postOpMgrPtr->getFusedOpsNames();
+        if (!postOpsNames.empty()) {
+            result << "_Fused=" << postOpsNames;
         }
     }
 
@@ -34,29 +29,11 @@ std::shared_ptr<ngraph::Node>
 CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
     CPUTestsBase::modifyGraph(ngPrc, params, lastNode);
     std::shared_ptr<ngraph::Node> retNode = lastNode;
-    if (postFunction) {
-        retNode = addPostFunction(lastNode);
-    } else if (!postNodes.empty()) {
-        retNode = addPostNodes(ngPrc, params, lastNode);
+    if (postOpMgrPtr) {
+        retNode = postOpMgrPtr->addPostOps(ngPrc, params, lastNode);
     }
+
     return retNode;
-}
-
-std::shared_ptr<ngraph::Node> CpuTestWithFusing::addPostFunction(const std::shared_ptr<ngraph::Node> &lastNode) const {
-    auto clonedPostFunction = clone_function(*postFunction);
-    clonedPostFunction->set_friendly_name(postFunction->get_friendly_name());
-    clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], lastNode);
-    return clonedPostFunction->get_result()->get_input_node_shared_ptr(0);
-}
-
-std::shared_ptr<ngraph::Node>
-CpuTestWithFusing::addPostNodes(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
-    std::shared_ptr<ngraph::Node> tmpNode = lastNode;
-
-    for (auto postNode : postNodes) {
-        tmpNode = postNode.makeNode(tmpNode, ngPrc, params);
-    }
-    return tmpNode;
 }
 
 void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
@@ -87,5 +64,39 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
             }
         }
     }
+}
+
+std::shared_ptr<ngraph::Node>
+postFunctionMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+    auto clonedPostFunction = clone_function(*_pFunction);
+    clonedPostFunction->set_friendly_name(_pFunction->get_friendly_name());
+    clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], lastNode);
+    return clonedPostFunction->get_result()->get_input_node_shared_ptr(0);
+}
+
+std::string postFunctionMgr::getFusedOpsNames() const {
+    return _pFunction->get_friendly_name();
+}
+
+postNodesMgr::postNodesMgr(std::vector<postNodeBuilder> postNodes) : _postNodes(std::move(postNodes)) {}
+
+std::shared_ptr<ngraph::Node>
+postNodesMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+    std::shared_ptr<ngraph::Node> tmpNode = lastNode;
+
+    for (auto postNode : _postNodes) {
+        tmpNode = postNode.makeNode(tmpNode, ngPrc, params);
+    }
+    return tmpNode;
+}
+
+std::string postNodesMgr::getFusedOpsNames() const {
+    std::ostringstream result;
+    const char* separator = "";
+    for (const auto& item : _postNodes) {
+        result << separator << item.name;
+        separator = ",";
+    }
+    return result.str();
 }
 } // namespace CPUTestUtils
