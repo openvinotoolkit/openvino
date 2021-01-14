@@ -44,6 +44,7 @@
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/cosh.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
+#include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 #include "ngraph/op/ctc_loss.hpp"
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/deformable_convolution.hpp"
