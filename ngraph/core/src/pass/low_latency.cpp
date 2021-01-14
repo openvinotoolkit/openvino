@@ -9,7 +9,6 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/variant.hpp>
-#include <numeric>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 
@@ -30,9 +29,7 @@ ngraph::pass::LowLatency::LowLatency()
         int64_t variable_id = 0;
         std::vector<std::shared_ptr<ngraph::op::Sink>> assigns;
         const auto& func = ti->get_function();
-        auto in_descs = ti->get_input_descriptions();
-        std::vector<int> inputs_ind_to_delete;
-        for (const auto& in : in_descs)
+        for (const auto& in : ti->get_input_descriptions())
         {
             // Process all back edges
             if (const auto& merged_in = std::dynamic_pointer_cast<
@@ -47,14 +44,8 @@ ngraph::pass::LowLatency::LowLatency()
                                                     .at(merged_in->m_body_parameter_index)
                                                     ->get_friendly_name() +
                                                 "/variable_" + std::to_string(variable_id));
-                auto init_shape = func->get_parameters().at(merged_in->m_body_parameter_index)->get_partial_shape().get_shape();
-                int zeros_length = 1.0;
-                for (auto i : init_shape){
-                    zeros_length *= i;
-                }
-                std::vector<float> zeros(zeros_length, 0);
-                auto init_const = op::Constant::create(element::f32, init_shape, zeros);
-                auto read_value = std::make_shared<opset5::ReadValue>(init_const, variable_name);
+                auto read_value = std::make_shared<opset5::ReadValue>(
+                    func->get_parameters().at(merged_in->m_body_parameter_index), variable_name);
                 read_value->set_friendly_name(variable_name);
                 for (const auto& input_to : inputs_to)
                 {
@@ -67,34 +58,9 @@ ngraph::pass::LowLatency::LowLatency()
                 // control dependency so that ReadValue is processed before Assign
                 assign->add_control_dependency(read_value);
                 assigns.emplace_back(assign);
-                // save index of input to delete
-                inputs_ind_to_delete.push_back(merged_in->m_body_parameter_index);
             }
             variable_id++;
-        } 
-
-        std::sort(inputs_ind_to_delete.begin(), inputs_ind_to_delete.end());
-        auto params = func->get_parameters();
-        for (int i=inputs_ind_to_delete.size()-1; i>=0; i--){
-            func->remove_parameter(params[inputs_ind_to_delete[i]]);
         }
-        
-        // remove replaced inputs from descriptions
-        ti->get_input_descriptions().erase(remove_if(ti->get_input_descriptions().begin(), ti->get_input_descriptions().end(), 
-        [](ngraph::op::util::InputDescriptionPtr it){
-            return std::dynamic_pointer_cast<ngraph::opset5::TensorIterator::MergedInputDescription>(it);
-            }), ti->get_input_descriptions().end());
-        
-        // fix indexes for other inputs
-         for (const auto& in : in_descs)
-        {
-            int already_deleted = 0;
-            while(in->m_body_parameter_index > inputs_ind_to_delete[already_deleted]){
-                already_deleted++;
-            }
-            in->m_body_parameter_index -= already_deleted;
-        }
-
         // save Assign in the func so that it gets into graph traversals and isn't deleted.
         func->add_sinks(assigns);
         return false;

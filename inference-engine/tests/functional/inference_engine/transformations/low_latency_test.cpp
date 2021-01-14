@@ -74,8 +74,8 @@ TEST(TransformationTests, LowLatencyLSTM) {
     }
     {
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<opset5::Constant>(element::f32, Shape{1, 128}, std::vector<float>(128, 0));
-        auto C_t = std::make_shared<opset5::Constant>(element::f32, Shape{1, 128}, std::vector<float>(128, 0));
+        auto H_t = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto C_t = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
 
         const std::string variable_name_H("LSTMTensorIterator/variable0");
         const std::string variable_name_C("LSTMTensorIterator/variable1");
@@ -98,7 +98,7 @@ TEST(TransformationTests, LowLatencyLSTM) {
         auto unsqueeze = std::make_shared<opset5::Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
         auto res_1 = std::make_shared<opset5::Result>(lstm_cell->output(0));
-        f_ref = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2}, ParameterVector{Xi});
+        f_ref = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
         assign_C->add_control_dependency(read_value_C);
@@ -155,7 +155,7 @@ TEST(TransformationTests, LowLatencyGRU) {
     }
     {
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<opset5::Constant>(element::f32, Shape{1, 128}, std::vector<float>(128, 0));
+        auto H_t = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
 
         const std::string variable_name_H("GRUTensorIterator/variable0");
         auto read_value_H = std::make_shared<opset5::ReadValue>(H_t, variable_name_H);
@@ -175,7 +175,7 @@ TEST(TransformationTests, LowLatencyGRU) {
         auto res_1 = std::make_shared<opset5::Result>(assign_H);
         auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), axis);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        f_ref = std::make_shared<ngraph::Function>(OutputVector{unsqueeze}, ParameterVector{Xi});
+        f_ref = std::make_shared<ngraph::Function>(OutputVector{unsqueeze}, ParameterVector{Xi, H_t});
         f_ref->add_sinks({assign_H});
         assign_H->add_control_dependency(read_value_H);
     }
@@ -232,7 +232,7 @@ TEST(TransformationTests, LowLatencyRNN) {
     }
     {
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<opset5::Constant>(element::f32, Shape{1, 128}, std::vector<float>(128, 0));
+        auto H_t = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
 
         const std::string variable_name_H("RNNTensorIterator/variable0");
         auto read_value_H = std::make_shared<opset5::ReadValue>(H_t, variable_name_H);
@@ -252,7 +252,7 @@ TEST(TransformationTests, LowLatencyRNN) {
         auto res_1 = std::make_shared<opset5::Result>(assign_H);
         auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), axis);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-        f_ref = std::make_shared<ngraph::Function>(OutputVector{unsqueeze}, ParameterVector{Xi});
+        f_ref = std::make_shared<ngraph::Function>(OutputVector{unsqueeze}, ParameterVector{Xi, H_t});
         f_ref->add_sinks({assign_H});
         assign_H->add_control_dependency(read_value_H);
     }
@@ -319,8 +319,8 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
     }
     {
         auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<opset5::Constant>(element::f32, Shape{1, 128}, std::vector<float>(128, 0));
-        auto C_t = std::make_shared<opset5::Constant>(element::f32, Shape{1, 128}, std::vector<float>(128, 0));
+        auto H_t = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto C_t = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
 
         const std::string variable_name_H("LSTMTensorIterator/variable0");
         const std::string variable_name_C("LSTMTensorIterator/variable1");
@@ -343,65 +343,11 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
         auto unsqueeze = std::make_shared<opset5::Unsqueeze>(lstm_cell->output(0), axis);
         auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
         auto res_1 = std::make_shared<opset5::Result>(lstm_cell->output(0));
-        f_ref = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2}, ParameterVector{Xi});
+        f_ref = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2}, ParameterVector{Xi, H_t, C_t});
         f_ref->add_sinks({assign_C, assign_H});
         assign_H->add_control_dependency(read_value_H);
         assign_C->add_control_dependency(read_value_C);
     }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST(TransformationTests, LowLatencyLSTM_3dinput) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    
-    auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-    auto H_init = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-    auto C_init = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-
-    auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
-    auto H_t = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-    auto C_t = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
-
-    // Body
-    auto axis = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-    auto squeeze = std::make_shared<opset5::Squeeze>(Xi, axis);
-
-    auto w_val = std::vector<float>(512 * 16, 0);
-    auto r_val = std::vector<float>(512 * 128, 0);
-    auto b_val = std::vector<float>(512, 0);
-    auto W = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{512, 16}, w_val);
-    auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{512, 128}, r_val);
-    auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{512}, b_val);
-
-    auto lstm_cell = std::make_shared<opset5::LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-    auto res_1 = std::make_shared<opset5::Result>(lstm_cell->output(0));
-    auto unsqueeze = std::make_shared<opset5::Unsqueeze>(lstm_cell->output(0), axis);
-    auto res_2 = std::make_shared<opset5::Result>(unsqueeze);
-    auto res_3 = std::make_shared<opset5::Result>(lstm_cell->output(1));
-    auto body = std::make_shared<ngraph::Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{H_t, Xi, C_t});
-
-    auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
-    tensor_iterator->set_body(body);
-    tensor_iterator->set_friendly_name("LSTMTensorIterator");
-
-    tensor_iterator->set_merged_input(C_t, C_init, res_3);
-    tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-    tensor_iterator->set_merged_input(H_t, H_init, res_1);
-
-    auto out0 = tensor_iterator->get_iter_value(res_1, -1);
-    auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
-
-    auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-    auto res_ti_2 = std::make_shared<opset5::Result>(tensor_iterator->output(0));
-    f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1, res_ti_2},
-                                            ngraph::ParameterVector{X, H_init, C_init});
-
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::LowLatency>();
-    manager.run_passes(f);
-
-    ASSERT_EQ(body->get_parameters().size(), 1);
-    ASSERT_EQ(tensor_iterator->get_input_descriptions()[0]->m_body_parameter_index, 0);
 }
