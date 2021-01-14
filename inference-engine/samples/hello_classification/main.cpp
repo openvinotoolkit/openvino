@@ -12,7 +12,6 @@
 #include <samples/ocv_common.hpp>
 #include <samples/classification_results.h>
 
-
 using namespace InferenceEngine;
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
