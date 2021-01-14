@@ -46,10 +46,10 @@ Extension::Extension() {
 Extension::~Extension() {
 #ifdef NGRAPH_ONNX_IMPORT_ENABLED
     ngraph::onnx_import::unregister_operator(Operation::type_info.name, 1, "custom_domain");
-#endif
 #ifdef OPENCV_IMPORT_ENABLED
     ngraph::onnx_import::unregister_operator(FFTOp::type_info.name, 1, "custom_domain");
-#endif
+#endif // OPENCV_IMPORT_ENABLED
+#endif // NGRAPH_ONNX_IMPORT_ENABLED
 }
 //! [extension:dtor]
 
