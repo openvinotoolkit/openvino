@@ -130,6 +130,14 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
                           axes_mapping_val,
                           " not in sorted order");
 
+    if (arg_shape.size() == 0 && axes_mapping_val.size() > 0)
+    {
+        NODE_VALIDATION_CHECK(this,
+                              target_shape[axes_mapping_val[0]] == 1,
+                              "Broadcast target[axes_mapping[0]]. Expected 1. Got ",
+                              target_shape[axes_mapping_val[0]]);
+    }
+
     for (size_t i = 0; i < axes_mapping_val.size(); i++)
     {
         NODE_VALIDATION_CHECK(this,
@@ -141,15 +149,18 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
                               " exceeds target rank ",
                               target_shape.size());
 
-        NODE_VALIDATION_CHECK(this,
-                              target_shape[axes_mapping_val[i]] == arg_shape[i],
-                              "Broadcast target[axes_mapping[",
-                              i,
-                              "]]",
-                              " Expected ",
-                              arg_shape[i],
-                              ". Got ",
-                              target_shape[axes_mapping_val[i]]);
+        if (arg_shape.size() > 0)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  target_shape[axes_mapping_val[i]] == arg_shape[i],
+                                  "Broadcast target[axes_mapping[",
+                                  i,
+                                  "]]",
+                                  " Expected ",
+                                  arg_shape[i],
+                                  ". Got ",
+                                  target_shape[axes_mapping_val[i]]);
+        }
     }
 }
 
@@ -246,14 +257,16 @@ void op::util::BroadcastBase::validate_and_infer_types()
         {
             auto arg_shape = get_input_shape(0);
             auto axes_shape = get_input_shape(2);
+            auto input_rank =
+                (arg_shape.size() == 0 && shape_size(axes_shape) > 0) ? 1 : arg_shape.size();
 
             // Rank(arg_shape) == shape_size(axes_mapping)
             NODE_VALIDATION_CHECK(this,
-                                  shape_size(axes_shape) == arg_shape.size(),
+                                  shape_size(axes_shape) == input_rank,
                                   "Broadcast axes_mapping shape ",
                                   axes_shape,
                                   " doesn't match rank of input tensor ",
-                                  arg_shape.size());
+                                  input_rank);
 
             if (shape_constant && op::is_constant(input_value(2).get_node()))
             {
@@ -363,9 +376,14 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const AxisSet& broadcast_axes) const
 {
     NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes);
+    auto arg0_shape = arg0->get_shape();
+    if (arg0_shape.size() == 0)
+    {
+        arg0_shape = Shape{1};
+    }
     runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
                                   out->get_data_ptr<char>(),
-                                  arg0->get_shape(),
+                                  arg0_shape,
                                   out->get_shape(),
                                   broadcast_axes,
                                   arg0->get_element_type().size());

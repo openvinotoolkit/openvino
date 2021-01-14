@@ -5,6 +5,7 @@
 #include "cldnn_program.h"
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -175,6 +176,7 @@ void Program::CleanupBuild() {
 std::shared_ptr<cldnn::program> Program::BuildProgram(std::vector<std::shared_ptr<ngraph::Node>> ops,
                                                       InferenceEngine::InputsDataMap networkInputs,
                                                       InferenceEngine::OutputsDataMap networkOutputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::BuildProgram");
     cldnn::build_options options;
     if (!m_config.graph_dumps_dir.empty()) {
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
@@ -186,14 +188,17 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(std::vector<std::shared_pt
     for (auto op : ops) {
         CreateSingleLayerPrimitive(*m_topology, op);
     }
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateProgram");
+        auto program = std::make_shared<cldnn::program>(*m_engine, *m_topology, options);
+        CleanupBuild();
 
-    auto program = std::make_shared<cldnn::program>(*m_engine, *m_topology, options);
-    CleanupBuild();
-
-    return program;
+        return program;
+    }
 }
 
 bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::IsOpSupported");
     cldnn::topology topology;
     try {
         // Query mode disables checks that input primitives are created,
@@ -220,6 +225,7 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
 }
 
 void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateSingleLayerPrimitive");
     InitProfileInfo(op->get_friendly_name(), op->get_type_name());
 
     bool is_created = false;
