@@ -13,6 +13,7 @@
 #include <cmath>
 #include <algorithm>
 #include "cldnn_graph.h"
+#include "cldnn_itt.h"
 
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
@@ -63,6 +64,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
 
 InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                    OutputsDataMap networkOutputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
     if (m_graphs.empty()) {
         THROW_IE_EXCEPTION << NETWORK_NOT_LOADED_str;
     }
@@ -90,6 +92,7 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
 }
 
 IInferRequest::Ptr CLDNNExecNetwork::CreateInferRequest() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequest");
     return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
 
@@ -110,6 +113,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetConfig(const std::string &name) 
 }
 
 InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::GetMetric");
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_ASSERT(!m_graphs.empty());
         IE_SET_METRIC_RETURN(NETWORK_NAME, m_graphs[0]->getName());

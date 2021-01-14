@@ -11,6 +11,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_api.h"
 #include "file_utils.h"
+#include "cldnn_itt.h"
 
 #ifdef _WIN32
 # include <direct.h>
@@ -40,6 +41,7 @@ static void createDirectory(std::string _path) {
 }
 
 void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Config::UpdateFromMap");
     for (auto& kvp : configMap) {
         std::string key = kvp.first;
         std::string val = kvp.second;
@@ -228,6 +230,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
 }
 
 void Config::adjustKeyMapValues() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Config::adjustKeyMapValues");
     if (useProfiling)
         key_config_map[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::YES;
     else
