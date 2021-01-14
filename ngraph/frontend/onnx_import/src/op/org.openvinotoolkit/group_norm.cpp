@@ -15,11 +15,11 @@
 //*****************************************************************************
 
 #include "op/org.openvinotoolkit/group_norm.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 

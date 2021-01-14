@@ -15,8 +15,8 @@
 //*****************************************************************************
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/default_opset.hpp"
 #include "op/cast.hpp"
 #include "utils/common.hpp"
 

@@ -18,12 +18,12 @@
 #include <cstdint>
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/util.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
 #include "op/lp_pool.hpp"
 #include "utils/common.hpp"
 

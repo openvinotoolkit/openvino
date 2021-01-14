@@ -16,8 +16,8 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "onnx_import/default_opset.hpp"
 #include "op/rnn.hpp"
 #include "utils/recurrent.hpp"
 

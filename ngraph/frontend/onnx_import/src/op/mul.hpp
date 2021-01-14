@@ -18,12 +18,12 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
 
 namespace ngraph
 {

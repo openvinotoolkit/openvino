@@ -16,7 +16,7 @@
 
 #include <memory>
 
-#include "onnx_import/default_opset.hpp"
+#include "default_opset.hpp"
 #include "op/lrn.hpp"
 
 namespace ngraph

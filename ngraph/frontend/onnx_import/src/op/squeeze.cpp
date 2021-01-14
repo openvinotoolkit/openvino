@@ -15,10 +15,10 @@
 //*****************************************************************************
 
 #include "ngraph/op/squeeze.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
 #include "op/squeeze.hpp"
 
 namespace ngraph

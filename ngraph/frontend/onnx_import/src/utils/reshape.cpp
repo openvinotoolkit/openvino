@@ -19,11 +19,11 @@
 #include <iterator>
 #include <numeric>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph

@@ -19,12 +19,12 @@
 #include <onnx/onnx_pb.h>
 
 #include "core/tensor.hpp"
+#include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph

@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "op/image_scaler.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "default_opset.hpp"
 
 namespace ngraph
 {
