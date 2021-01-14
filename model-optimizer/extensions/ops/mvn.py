@@ -71,7 +71,7 @@ class MVNCaffe(Op):
         super().__init__(graph, {
             'kind': 'op',
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'version': None,
             'eps': 1e-9,
             'normalize_variance': 1,
