@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ namespace ngraph
 
                         auto class_index = data + data_index;
                         auto class_max_element =
-                                std::max_element(class_index, class_index + class_count);
+                            std::max_element(class_index, class_index + class_count);
                         unsigned int max_class_ind = std::distance(class_index, class_max_element);
                         if (!(previous_class_index == max_class_ind && ctc_merge_repeated) &&
                             max_class_ind < blank_index[0])
