@@ -159,8 +159,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
     auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
-    auto isNchwFmt = srcMemory0.GetDesc().isBlockedCFormat();
-    auto isNhwcFmt = !isPlainFmt && !isNchwFmt;
+    auto isNhwcFmt = srcMemory0.GetDesc().isTailCFormat();
 
     const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
