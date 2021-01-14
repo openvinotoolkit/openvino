@@ -15,6 +15,7 @@
 #endif
 
 #include "simple_math.h"
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 using namespace XMLParseUtils;
@@ -224,6 +225,7 @@ cldnn::format CLDNNCustomLayer::FormatFromString(const std::string & str) {
 }
 
 void CLDNNCustomLayer::LoadFromFile(const std::string configFile, CLDNNCustomLayerMap& customLayers, bool can_be_missed) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNCustomLayer::LoadFromFile");
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
     if (res.status != pugi::status_ok) {
