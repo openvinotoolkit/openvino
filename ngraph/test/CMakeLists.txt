@@ -252,6 +252,7 @@ set(MULTI_TEST_SRC
     backend/atan.in.cpp
     backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
+    backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -356,7 +357,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
-            onnx/onnx_import_library.cpp)
+            onnx/onnx_import_library.cpp
+            onnx/onnx_editor.cpp)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
@@ -397,8 +399,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation 
-                                        openvino::itt 
+                                        openvino::conditional_compilation
+                                        openvino::itt
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend

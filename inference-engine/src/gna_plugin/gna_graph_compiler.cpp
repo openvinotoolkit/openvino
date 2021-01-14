@@ -254,6 +254,15 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto out_height = FROM_IR_DIM(outputs, out_order[2]);
     auto out_width = FROM_IR_DIM(outputs, out_order[3]);
 
+    if (in_height > 1 && in_width == 1) {
+        std::swap(in_height, in_width);
+        std::swap(out_height, out_width);
+        std::swap(convolution._kernel_x, convolution._kernel_y);
+        std::swap(convolution._padding_x, convolution._padding_y);
+        std::swap(convolution._stride_x, convolution._stride_y);
+        std::swap(convolution._dilation_x, convolution._dilation_y);
+    }
+
     if (in_batch != 1 || out_batch != 1) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with batch size not equals 1 is not supported";
     }
@@ -440,9 +449,10 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     if (getInputTo(layer->outData.front()).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, isNonFunctional)) {
         // if height dim and width dim both equal 1, the permute is not needed to return correct results
         // if height dim doesn't equal 1, the case requires additional permute
-        auto inputDimsCheck = (in_channels != 1 ||
-                              (in_height == 1 && in_width == 1) ||
-                              in_height != 1);
+        auto inputDimsCheck = (outputs->getLayout() == Layout::NHWC ||
+                               in_channels != 1 ||
+                               (in_height == 1 && in_width == 1) ||
+                               in_height != 1);
 
         //if kernel is pow of 2 and heigher than 8, then the issue doesn't appear
         auto kernelCheck = convolution._kernel_x > 15 && !(convolution._kernel_x & (convolution._kernel_x - 1));
@@ -719,10 +729,11 @@ void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-    uint32_t num_rows_in = FROM_IR_DIM(inputs, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
-    uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
-    uint32_t num_columns_out = FROM_IR_DIM(outputs, 2);
+    auto reshaped_dims = Get2DReshapedData(inputs, 8)->getDims();
+    uint32_t num_rows_in = reshaped_dims[1];
+    uint32_t num_columns_in = reshaped_dims[0];
+    uint32_t num_rows_out = num_rows_in;
+    uint32_t num_columns_out = num_columns_in;
     uint32_t num_padding_out = ALIGN(num_rows_out, 8) - num_rows_out;
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
