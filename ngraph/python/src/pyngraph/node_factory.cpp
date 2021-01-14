@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -92,6 +92,7 @@ namespace
                 {"opset3", OpsetFunction(ngraph::get_opset3)},
                 {"opset4", OpsetFunction(ngraph::get_opset4)},
                 {"opset5", OpsetFunction(ngraph::get_opset5)},
+                {"opset6", OpsetFunction(ngraph::get_opset6)},
             };
 
             auto it = s_opsets.find(opset_ver);
@@ -102,7 +103,7 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset{ngraph::get_opset5()};
+        const ngraph::OpSet& m_opset{ngraph::get_opset6()};
     };
 }
 

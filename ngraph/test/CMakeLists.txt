@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -210,10 +210,13 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (ENABLE_MKL_DNN)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
+    list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
 endif()
+
 if (ENABLE_CLDNN)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
+    list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
@@ -248,6 +251,7 @@ set(MULTI_TEST_SRC
     backend/atan.in.cpp
     backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
+    backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -272,6 +276,7 @@ set(MULTI_TEST_SRC
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
+    backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
@@ -350,7 +355,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
-            onnx/onnx_import_library.cpp)
+            onnx/onnx_import_library.cpp
+            onnx/onnx_editor.cpp)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
@@ -382,13 +388,17 @@ target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
 
+if(UNIT_TESTS_DEPENDENCIES)
+    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
+endif()
+
 if(NGRAPH_ADDRESS_SANITIZER)
     add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
-                                        openvino::conditional_compilation 
-                                        openvino::itt 
+                                        openvino::conditional_compilation
+                                        openvino::itt
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend

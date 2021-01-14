@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -86,3 +86,5 @@ NGRAPH_OP(LSTMSequence, op::v5)
 NGRAPH_OP(NonMaxSuppression, op::v5)
 NGRAPH_OP(RNNSequence, op::v5)
 NGRAPH_OP(Round, op::v5)
+
+NGRAPH_OP(GatherElements, op::v6)
