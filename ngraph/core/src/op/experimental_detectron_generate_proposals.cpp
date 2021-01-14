@@ -59,11 +59,84 @@ bool op::v6::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes
     return true;
 }
 
+void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_deltas_shape(
+    const PartialShape& shape)
+{
+    NODE_VALIDATION_CHECK(this,
+                          shape.rank().get_length() == 3,
+                          "The 'input_deltas' input is expected to be a 3D. Got: ",
+                          shape);
+}
+
+void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_scores_shape(
+    const PartialShape& shape)
+{
+    NODE_VALIDATION_CHECK(this,
+                          shape.rank().get_length() == 3,
+                          "The 'input_scores' input is expected to be a 3D. Got: ",
+                          shape);
+}
+
 void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
     size_t post_nms_count = static_cast<size_t>(m_attrs.post_nms_count);
     auto input_et = get_input_element_type(0);
+
     set_output_type(0, input_et, Shape{post_nms_count, 4});
     set_output_type(1, input_et, Shape{post_nms_count});
+
+    auto im_info_shape = get_input_partial_shape(0);
+    auto anchors_shape = get_input_partial_shape(1);
+    auto deltas_shape = get_input_partial_shape(2);
+    auto scores_shape = get_input_partial_shape(3);
+
+    if (im_info_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              im_info_shape.rank().get_length() == 3,
+                              "The 'input_im_info' input is expected to be a 3D. Got: ",
+                              im_info_shape);
+    }
+
+    if (anchors_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              anchors_shape.rank().get_length() == 2,
+                              "The 'input_anchors' input is expected to be a 2D. Got: ",
+                              anchors_shape);
+
+        NODE_VALIDATION_CHECK(this,
+                              anchors_shape[1] == 4,
+                              "The second dimension of 'input_anchors' should be 4. Got: ",
+                              anchors_shape[1]);
+    }
+
+    if (deltas_shape.rank().is_static() && scores_shape.rank().is_dynamic())
+    {
+        validate_deltas_shape(deltas_shape);
+    }
+    else if (deltas_shape.rank().is_dynamic() && scores_shape.rank().is_static())
+    {
+        validate_scores_shape(scores_shape);
+    }
+    else if (deltas_shape.rank().is_static() && scores_shape.rank().is_static())
+    {
+        validate_deltas_shape(deltas_shape);
+        validate_scores_shape(scores_shape);
+
+        NODE_VALIDATION_CHECK(this,
+                              deltas_shape[1] == scores_shape[1],
+                              "Heights for inputs 'input_deltas' and 'input_scores' should be "
+                              "equal. Got: ",
+                              deltas_shape[1],
+                              scores_shape[1]);
+
+        NODE_VALIDATION_CHECK(this,
+                              deltas_shape[2] == scores_shape[2],
+                              "Width for inputs 'input_deltas' and 'input_scores' should be "
+                              "equal. Got: ",
+                              deltas_shape[2],
+                              scores_shape[2]);
+    }
 }
