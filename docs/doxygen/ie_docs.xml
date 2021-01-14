@@ -38,17 +38,15 @@
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
                         <tab type="user" title="Cutting off Parts of a Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model"/>
-                        <tab type="usergroup" title="Sub-graph Replacement in Model Optimizer" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Subgraph_Replacement_Model_Optimizer">
-                            <tab type="user" title="[DEPRECATED] Case-Study: Converting SSD models created with the TensorFlow* Object Detection API" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_TensorFlow_SSD_ObjectDetection_API"/>
-                            <tab type="user" title="[DEPRECATED] Case-Study: Converting Faster R-CNN models created with the TensorFlow* Object Detection API" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_TensorFlow_Faster_RCNN_ObjectDetection_API"/>
-                        </tab>
+                        <tab type="user" title="Sub-graph Replacement in Model Optimizer" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Subgraph_Replacement_Model_Optimizer"/>
                         <tab type="user" title="Supported Framework Layers" url="@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers"/>
                         <tab type="user" title="[DEPRECATED] IR Notation Reference" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Legacy_IR_Layers_Catalog_Spec"/>
                         <tab type="user" title="IR suitable for INT8 inference" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference"/>
                     </tab>
-                    <tab type="usergroup" title="Custom Layers in Model Optimizer" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer">
+                    <tab type="usergroup" title="Model Optimizer Extensibility" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer">
                         <tab type="user" title="Extending Model Optimizer with New Primitives" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives"/>
-                        <tab type="user" title="Extending MXNet Model Optimizer with New Primitives" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives"/>
+                        <tab type="user" title="Extending Model Optimizer with Caffe* Python Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers"/>
+                        <tab type="user" title="Extending Model Optimizer for Custom MXNet* Operations" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives"/>
                         <tab type="user" title="Legacy Mode for Caffe* Custom Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers"/>
                         <tab type="user" title="[DEPRECATED] Offloading Sub-Graph Inference" url="https://docs.openvinotoolkit.org/2020.1/_docs_MO_DG_prepare_model_customize_model_optimizer_Offloading_Sub_Graph_Inference.html"/>
                     </tab>
@@ -58,10 +56,10 @@
             </tab>
             <!-- Model Downloader -->
             <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
-            <!-- Custom Layers Guide -->
-            <tab type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
-        </tab>    
-        
+            <!-- Custom Operations Guide -->
+            <tab type="usergroup" title="Custom Operations Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
+        </tab>
+
         <!-- Intermediate Representation and Operations Sets -->
         <tab id="intermediate_representaton_and_operations_sets" type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
             <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
@@ -300,7 +298,7 @@
 
             <!-- Compile Tool -->
             <tab type="user" title="Compile Tool" url="@ref openvino_inference_engine_tools_compile_tool_README"/>
-            
+
             <!-- API References -->
             <tab id="api_references" type="usergroup" title="API References">
                 <!-- IE C -->

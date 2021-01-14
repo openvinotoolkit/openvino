@@ -225,6 +225,8 @@ inline std::string fmt_to_str(format fmt) {
             return "g_os_zyx_is_osv32_isv16";
         case format::g_os_zyx_is_osv32_isv32:
             return "g_os_zyx_is_osv32_isv32";
+        case format::gs_oi_yxs_gsv32_yxsv4:
+            return "gs_oi_yxs_gsv32_yxsv4";
         default:
             return "unknown (" + std::to_string(fmt.value) + ")";
     }

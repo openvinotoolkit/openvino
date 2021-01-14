@@ -31,14 +31,23 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
             break;
         }
 
+        bool valid_mask = true;
         for (auto& m : op->get_begin_mask()) {
-            if (m != 0)
+            if (m != 0) {
+                valid_mask = false;
                 break;
+            }
         }
 
         for (auto& m : op->get_end_mask()) {
-            if (m != 0)
+            if (m != 0) {
+                valid_mask = false;
                 break;
+            }
+        }
+
+        if (!valid_mask) {
+            break;
         }
 
         auto input_shape = op->get_input_shape(0);
@@ -186,7 +195,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
             uniq_id++;
         }
 
-        if (axes.size() != 4) {
+        if (axes.size() > 4) {
             break;
         }
 
