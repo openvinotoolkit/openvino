@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,6 +64,7 @@
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
+#include "cldnn_itt.h"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -122,9 +123,11 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 
 InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                                   const CLDNNPlugin::Config& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
     if (clonedNetwork.getFunction()) {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork");
         auto nGraphFunc = clonedNetwork.getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
@@ -268,6 +271,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
         bool enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
         if (enableInt8) {
+            OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
             ngraph::pass::Manager conversion_manager;
             // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
@@ -284,6 +288,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         }
 
         {
+            OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::RunPasses");
             ngraph::pass::Manager manager;
             // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
             // TODO: check why we have these reshapes
@@ -349,6 +354,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
 };
 
 void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::UpdateConfig");
     auto device_info = GetDeviceInfo(params);
     conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(params);
@@ -359,6 +365,7 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                const std::map<std::string, std::string> &config) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
@@ -389,6 +396,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     };
 
     {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
         if (!canReuseDefaultContext()) {
             m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), conf));
@@ -398,7 +406,10 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     context = m_defaultContext;
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
-    return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateExeNetwork");
+        return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+    }
 }
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
@@ -451,6 +462,7 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
 
 QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                                              const std::map<std::string, std::string>& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::QueryNetwork");
     QueryNetworkResult res;
     CLDNNPlugin::Config conf = _impl->m_config;
     UpdateConfig(conf, network, config);
@@ -664,6 +676,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
 }
 
 Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetConfig");
     Parameter result;
     auto option = _impl->m_config.key_config_map.find(name);
     if (option != _impl->m_config.key_config_map.end()) {
@@ -692,6 +705,7 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 };
 
 Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetMetric");
     auto device_id = GetConfig(CONFIG_KEY(DEVICE_ID), {});
     if (options.find(CONFIG_KEY(DEVICE_ID)) != options.end())
         device_id = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
