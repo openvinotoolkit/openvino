@@ -45,27 +45,29 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_seq_len)
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_ctc_greedy_decoder_seq_len)
 {
-    const int T = 3;
     const int N = 1;
+    const int T = 3;
     const int C = 3;
     const auto data_shape = Shape{N, T, C};
     const auto seq_len_shape = Shape{N};
 
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    auto seq_len = make_shared<op::Parameter>(element::f32, seq_len_shape);
-    auto decoder = make_shared<op::CTCGreedyDecoderSeqLen>(data, seq_len, false);
+    auto seq_len = make_shared<op::Parameter>(element::i32, seq_len_shape);
+    auto blanck_index = op::Constant::create<int32_t>(element::i32, Shape{}, {2});
+    auto decoder = make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, blanck_index, false);
     auto function = make_shared<Function>(decoder, ParameterVector{data, seq_len});
     auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input<float>({0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f});
-    test_case.add_input<float>({1.0f, 1.0f, 1.0f});
-    test_case.add_expected_output(Shape{N, T}, vector<float>{1.0f, 0.0f, 1.0f});
+    test_case.add_input<int32_t>({2});
+    test_case.add_expected_output(Shape{N, T}, vector<int32_t>{1, 0, -1});
+    test_case.add_expected_output(Shape{N}, vector<int32_t>{2});
 
-    test_case.run_with_tolerance_as_fp(1.0e-4f);
+    test_case.run();
 }
-
+/*
 NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_seq_len_f16)
 {
     const int T = 3;
@@ -85,7 +87,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_seq_len_f16)
     test_case.add_expected_output(Shape{N, T, 1, 1}, vector<float16>{1.0f, 0.0f, 1.0f});
 
     test_case.run_with_tolerance_as_fp(1.0e-4f);
-}
+}*/
 /*
 NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_multiple_batches)
 {

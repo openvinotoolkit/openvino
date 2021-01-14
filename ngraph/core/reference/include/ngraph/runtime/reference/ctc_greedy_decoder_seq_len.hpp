@@ -26,57 +26,48 @@ namespace ngraph
     {
         namespace reference
         {
-            /*
-             const Output<Node>& input,
-           const Output<Node>& seq_len,
-           const Output<Node>& blank_index,
-             */
-            template <typename T>
-            void ctc_greedy_decoder_seq_len(const T* data,
-                                            const T* seq_len,
-                                            const T* blank_index,
-                                            T* out,
+            template <typename TF, typename TI, typename TCI, typename TSL>
+            void ctc_greedy_decoder_seq_len(const TF* data,
+                                            const TI* sequence_length,
+                                            const TI* blank_index,
+                                            TCI* out1,
+                                            TSL* out2,
                                             const Shape& data_shape,
-                                            const Shape& seq_len_shape,
                                             const Shape& out_shape,
                                             const bool ctc_merge_repeated)
             {
                 const auto batch_size = data_shape[0];
-                const auto max_seq_len = data_shape[1];
                 const auto class_count = data_shape[2];
-                //const auto blank_index = class_count - 1;
 
                 CoordinateTransform out_transform = CoordinateTransform(out_shape);
                 CoordinateTransform data_transform = CoordinateTransform(data_shape);
-                CoordinateTransform seq_len_transform = CoordinateTransform(seq_len_shape);
 
-                // final sequences don't have to fill the whole output, elements that don't store
-                // information are set to -1
-
-                std::vector<T> tmp_out(shape_size(out_shape));
-                std::fill(tmp_out.begin(), tmp_out.end(), static_cast<T>(-1.0));
+                std::vector<TF> tmp_out(shape_size(out_shape));
+                std::fill(tmp_out.begin(), tmp_out.end(), static_cast<TF>(-1.0));
 
                 for (unsigned int batch_ind = 0; batch_ind < batch_size; batch_ind++)
                 {
-                    T previous_class_index = static_cast<T>(-1);
-                    auto out_index = out_transform.index({batch_ind, 0, 0, 0});
-                    for (unsigned int seq_ind = 0; seq_ind < max_seq_len; seq_ind++)
+                    TI previous_class_index = static_cast<TI>(-1);
+                    auto out_index = out_transform.index({batch_ind, 0});
+                    auto seq_len = sequence_length[batch_ind];
+                    for (unsigned int seq_ind = 0; seq_ind < seq_len; seq_ind++)
                     {
-                        auto data_index = data_transform.index({seq_ind, batch_ind, 0});
+                        auto data_index = data_transform.index({batch_ind, seq_ind, 0});
 
                         auto class_index = data + data_index;
                         auto class_max_element =
                                 std::max_element(class_index, class_index + class_count);
                         unsigned int max_class_ind = std::distance(class_index, class_max_element);
                         if (!(previous_class_index == max_class_ind && ctc_merge_repeated) &&
-                            max_class_ind < blank_index)
+                            max_class_ind < blank_index[0])
                         {
                             tmp_out[out_index++] = max_class_ind;
                         }
                         previous_class_index = max_class_ind;
                     }
+                    out2[batch_ind] = seq_len;
                 }
-                std::copy(tmp_out.begin(), tmp_out.end(), out);
+                std::copy(tmp_out.begin(), tmp_out.end(), out1);
             }
         } // namespace reference
     }     // namespace runtime
