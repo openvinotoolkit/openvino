@@ -729,6 +729,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                       (parents[i]->is_type<mvn>() && mvn_supports_fusings(parents[i]->as<mvn>())) ||
                                       (parents[i]->is_type<deconvolution>()) ||
                                       (parents[i]->is_type<permute>()) ||
+                                      (parents[i]->is_type<resample>()) ||
                                       (parents[i]->is_type<space_to_depth>()) ||
                                       (parents[i]->is_type<gemm>() && gemm_supports_fusings(parents[i]->as<gemm>())) ||
                                       (parents[i]->is_type<batch_to_space>()) ||
@@ -803,6 +804,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if (p.get_processing_order().get_processing_number(fused_node) <
                 p.get_processing_order().get_processing_number(peer_node))
                 recalc_processing_order = true;
+
+            // [WA]: Resample + Eltwise fusing causes accuracy issues without processing order update.
+            // As in both cases processing order is valid, the issue might be connected with memory pool
+            if (fused_node->is_type<resample>()) {
+                recalc_processing_order = true;
+            }
 
             p.fuse_nodes(*fused_node, node);
         };
