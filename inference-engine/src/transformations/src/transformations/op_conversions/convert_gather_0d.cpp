@@ -37,7 +37,7 @@ ngraph::pass::ConvertGather0D::ConvertGather0D() {
 
         auto axis = axes_constant->cast_vector<int64_t>()[0];
         indices = std::make_shared<ngraph::opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
-        auto gather_new = std::make_shared<ngraph::op::v1::Gather>(gather->input_value(0), indices, axes_constant);
+        auto gather_new = std::make_shared<ngraph::opset1::Gather>(gather->input_value(0), indices, axes_constant);
         auto sq = std::make_shared<ngraph::opset1::Squeeze>(gather_new, opset1::Constant::create(element::i64, Shape{1}, {axis}));
         sq->set_friendly_name(gather->get_friendly_name());
 
