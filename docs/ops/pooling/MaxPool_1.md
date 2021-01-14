@@ -73,36 +73,36 @@
   * **1**: Input shape can be either [N,C,H], [N,C,H,W] or [N,C,H,W,D]. Then the corresponding output shape will be [N,C,H_out], [N,C,H_out,W_out] or [N,C,H_out,W_out,D_out]
 
 **Mathematical Formulation**
-Outputshape calculation based on `auto_pad` and `rounding_type`:
-  * `auto_pad = explicit` and `rounding_type = floor`\  
-          `H_out = floor(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`\ 
-          `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`\ 
-          `D_out = floor(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`\ 
+Outputshape calculation based on `auto_pad` and `rounding_type`:  
+  * `auto_pad = explicit` and `rounding_type = floor`   
+          `H_out = floor(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`  
+          `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
+          `D_out = floor(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`   
   
-  * `auto_pad = valid` and `rounding_type = floor`
-        `H_out = floor(H - kernel[0] / strides[0]) + 1` 
-        `W_out = floor(W - kernel[1] / strides[1]) + 1`  
-        `D_out = floor(D - kernel[2] / strides[2]) + 1`
+  * `auto_pad = valid` and `rounding_type = floor`  
+        `H_out = floor(H - kernel[0] / strides[0]) + 1`   
+        `W_out = floor(W - kernel[1] / strides[1]) + 1`    
+        `D_out = floor(D - kernel[2] / strides[2]) + 1`  
   
-  * `auto_pad = same_upper/same_lower` and `rounding_type = floor`
-        `H_out = H` 
-        `W_out = W`  
-        `D_out = D`
+  * `auto_pad = same_upper/same_lower` and `rounding_type = floor`  
+        `H_out = H`   
+        `W_out = W`    
+        `D_out = D`  
   
-  * `auto_pad = explicit` and `rounding_type = ceil`
-        `H_out = ceil(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1` 
-        `W_out = ceil(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
-        `D_out = ceil(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`  
+  * `auto_pad = explicit` and `rounding_type = ceil`  
+        `H_out = ceil(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`   
+        `W_out = ceil(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`    
+        `D_out = ceil(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`    
   
-  * `auto_pad = valid` and `rounding_type = ceil`
-        `H_out = ceil(H - kernel[0] / strides[0]) + 1` 
-        `W_out = ceil(W - kernel[1] / strides[1]) + 1`  
-        `D_out = ceil(D - kernel[2] / strides[2]) + 1`
+  * `auto_pad = valid` and `rounding_type = ceil`  
+        `H_out = ceil(H - kernel[0] / strides[0]) + 1`   
+        `W_out = ceil(W - kernel[1] / strides[1]) + 1`    
+        `D_out = ceil(D - kernel[2] / strides[2]) + 1`  
   
-  * `auto_pad = same_upper/same_lower` and `rounding_type = ceil`
-        `H_out = H` 
-        `W_out = W`  
-        `D_out = D`
+  * `auto_pad = same_upper/same_lower` and `rounding_type = ceil`  
+        `H_out = H`   
+        `W_out = W`    
+        `D_out = D`  
 
 If `(H + pads_begin[i] + pads_end[i] - kernel[i]` is not divided by `strides[i]` evenly then the result is rounded with the respect to `rounding_type` attribute. 
 
