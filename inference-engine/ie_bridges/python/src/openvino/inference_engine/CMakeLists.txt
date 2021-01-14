@@ -7,7 +7,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_e
 
 file(GLOB SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
-        ${CMAKE_CURRENT_SOURCE_DIR}/ie_api_impl.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 
@@ -16,7 +16,6 @@ set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 cython_add_module(${TARGET_NAME} ${SOURCE})
 set(INSTALLED_TARGETS ${TARGET_NAME})
 
-# build other modules
 file(GLOB OTHER_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 list(REMOVE_ITEM OTHER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
