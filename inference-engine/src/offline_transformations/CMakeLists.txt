@@ -15,14 +15,9 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
+# Create static library
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Offline Transformations library")
-
-target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
 target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_transformations
                                      PRIVATE openvino::itt)
@@ -31,8 +26,6 @@ target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
 

@@ -6,14 +6,12 @@
 
 #include <memory>
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API MOCTransformations;
+class MOCTransformations;
 
 }  // namespace pass
 }  // namespace ngraph
