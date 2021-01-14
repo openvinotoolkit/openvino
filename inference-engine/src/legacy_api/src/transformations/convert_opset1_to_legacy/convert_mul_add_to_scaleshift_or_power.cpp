@@ -210,5 +210,7 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "CPUFusion.MulAddToScaleShiftOrPower");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
