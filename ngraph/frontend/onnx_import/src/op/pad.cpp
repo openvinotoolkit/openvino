@@ -16,8 +16,6 @@
 
 #include <memory>
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/constant.hpp"
@@ -25,6 +23,8 @@
 #include "ngraph/op/pad.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "op/pad.hpp"
 #include "utils/convpool.hpp"
 

@@ -16,9 +16,9 @@
 
 #include "op/resize.hpp"
 #include <map>
+#include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph

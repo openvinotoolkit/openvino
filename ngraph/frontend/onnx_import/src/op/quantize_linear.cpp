@@ -19,13 +19,13 @@
 #include <numeric>
 #include <tuple>
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/exceptions.hpp"
 #include "op/quantize_linear.hpp"
 #include "utils/reshape.hpp"
 
