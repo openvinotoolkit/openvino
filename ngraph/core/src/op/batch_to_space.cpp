@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <ngraph/ops.hpp>
 #include <numeric>
-#include <ops.hpp>
 #include "itt.hpp"
 
 #include "ngraph/builder/make_constant.hpp"

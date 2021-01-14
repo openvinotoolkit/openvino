@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 #include <cstring>
 #include <memory>
 
-#include "host_tensor.hpp"
 #include "ngraph/chrome_trace.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/util.hpp"
 
 using namespace ngraph;
