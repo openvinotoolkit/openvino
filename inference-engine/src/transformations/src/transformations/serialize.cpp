@@ -61,12 +61,11 @@ std::string translate_type_name(const std::string& name) {
 // opsets. If new operators are discovered that have the same problem
 // the opset mapping needs to be updated here. The keys also contain op
 // versions, concatenated after the actual names.
-const std::unordered_map<std::string, std::string>
-    special_operator_to_opset_assignments = {{"ShuffleChannels_v0", "opset3"}};
+const std::unordered_map<ngraph::Node::type_info_t, std::string>
+    special_operator_to_opset_assignments = {{ngraph::Node::type_info_t("ShuffleChannels", 0), "opset3"}};
 
 std::string get_special_opset_for_op(const ngraph::Node::type_info_t& type_info) {
-    const std::string name = std::string(type_info.name) + "_v" + std::to_string(type_info.version);
-    auto found = special_operator_to_opset_assignments.find(name);
+    auto found = special_operator_to_opset_assignments.find(type_info);
     if (found != end(special_operator_to_opset_assignments)) {
         return found->second;
     }
