@@ -32,6 +32,7 @@ jobs:
     BIN_DIR: $(REPO_DIR)\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
+    TEST_ENV_PATH: $(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.1\opencv\bin;%PATH%
 
   steps:
   - script: |
@@ -107,67 +108,67 @@ jobs:
     displayName: 'List files'
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
     displayName: 'IE UT'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
     displayName: 'CPU UT'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\templateFuncTests --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\MklDnnBehaviorTests  --gtest_output=xml:TEST-MklDnnBehaviorTests.xml
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
@@ -175,7 +176,7 @@ jobs:
     # Add for gtest-parallel, it hangs now (CVS-33386)
     #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.1\opencv\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       set DATA_PATH=$(MODELS_PATH)
       set MODELS_PATH=$(MODELS_PATH)
       $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
@@ -183,7 +184,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.1\opencv\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       set DATA_PATH=$(MODELS_PATH)
       set MODELS_PATH=$(MODELS_PATH)
       $(BIN_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
