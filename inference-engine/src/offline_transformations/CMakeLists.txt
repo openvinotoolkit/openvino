@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create shared library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Offline Transformations library")
@@ -41,10 +41,3 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 # developer package
 
 ie_developer_export_targets(${TARGET_NAME})
-
-# install
-
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)

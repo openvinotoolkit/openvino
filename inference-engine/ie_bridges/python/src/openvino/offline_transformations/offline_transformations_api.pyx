@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the 'License');
  you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from .cimport offline_api_impl_defs as C
-from .ie_api cimport IENetwork
+from .cimport offline_transformations_api_impl_defs as C
+from ..inference_engine.ie_api cimport IENetwork
 
 from libcpp cimport bool
 
