@@ -6,7 +6,7 @@
 
 **Short description**: Performs max pooling operation on input.
 
-**Detailed description**: Input shape can be either 3D, 4D or 5D. Max Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value is `-inf`. [Reference](https://deeplizard.com/learn/video/ZjM_XQa5s6s)(Article about max pooling in Convolutional Networks).  
+**Detailed description**: Input shape can be either 3D, 4D or 5D. Max Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value is `-inf`. [Article about max pooling in Convolutional Networks](https://deeplizard.com/learn/video/ZjM_XQa5s6s). 
 
 **Attributes**: *Pooling* attributes are specified in the `data` node, which is a child of the layer node.
 
@@ -74,10 +74,10 @@
 
 **Mathematical Formulation**
 Outputshape calculation based on `auto_pad` and `rounding_type`:
-  * `auto_pad = explicit` and `rounding_type = floor`
-        `H_out = floor(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1` 
-        `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
-        `D_out = floor(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`  
+  * `auto_pad = explicit` and `rounding_type = floor`\  
+          `H_out = floor(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`\ 
+          `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`\ 
+          `D_out = floor(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`\ 
   
   * `auto_pad = valid` and `rounding_type = floor`
         `H_out = floor(H - kernel[0] / strides[0]) + 1` 
