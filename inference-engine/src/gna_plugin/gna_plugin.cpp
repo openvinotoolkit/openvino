@@ -1089,7 +1089,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                            gnadevice ? 2 : 4,
                            // TODO: only works for cnn4a and google command so far
                            dims[0],
-                           is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 3],  // num_feature_vectors looks batch should be there
+                           InferenceEngine::details::product(dims) / dims[0],
                            num_rotate_rows,
                            num_rotate_columns);
         }
