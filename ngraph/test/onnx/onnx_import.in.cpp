@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -765,7 +765,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_0D)
         file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_0D.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({3.141592});
     test_case.add_expected_output<float>({1.0});
     test_case.run();
 }
@@ -1120,21 +1119,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square)
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_resize10_import_only)
-{
-    const auto resize_fn = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize_opset10.prototxt"));
-
-    // Input data shape (1, 2, 3, 4)
-    // Scales input constant values {4, 3, 2, 1}
-
-    Shape expected_output_shape{4, 6, 6, 4};
-    EXPECT_EQ(resize_fn->get_output_size(), 1);
-    EXPECT_EQ(resize_fn->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<op::v0::Interpolate>(resize_fn), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(resize_fn), 1);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input)
@@ -2612,7 +2596,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like)
         file_util::path_join(SERIALIZED_ZOO, "onnx/eye_like.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
     test_case.add_expected_output<float>(
         Shape{3, 4}, {0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f});
 
@@ -3300,5 +3283,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid)
 
     test_case.add_input<float>({inf, neg_inf, 0.0f, 1.0f});
     test_case.add_expected_output<float>(Shape{4}, {1.0f, 0.0f, 0.5f, 0.699999988079071f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dangling_parameter)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dangling_parameter.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({-1.0f, 2.0f, -3.0f});
+    test_case.add_expected_output<float>(Shape{3}, {1.0f, 2.0f, 3.0f});
     test_case.run();
 }
