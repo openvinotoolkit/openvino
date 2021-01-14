@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,11 @@ using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::HardSigmoid::type_info;
+
+op::HardSigmoid::HardSigmoid()
+    : FusedOp()
+{
+}
 
 op::HardSigmoid::HardSigmoid(const Output<Node>& data,
                              const Output<Node>& alpha,
