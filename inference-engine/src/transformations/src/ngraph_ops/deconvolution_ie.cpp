@@ -68,7 +68,6 @@ void op::DeconvolutionIE::validate_and_infer_types() {
     // but before we need to reshape weights from I(G*O)YX to GIOYX
     auto weights = input_value(1);
     const auto weights_pshape = weights.get_partial_shape();
-    const auto weights_shape_rank = weights_pshape.rank();
     if (weights_pshape.is_static()) {
         auto weights_shape = weights_pshape.to_shape();
         std::vector<int64_t> reshape_dims(3);
