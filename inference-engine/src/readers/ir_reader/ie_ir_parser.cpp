@@ -686,6 +686,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     }
 
     if (!ngraphNode && opsets.count(version)) {
+        auto opset = opsets.at(version);
         auto const & type = params.type == "Const"
                                 ? "Constant"
                                 : params.type;
