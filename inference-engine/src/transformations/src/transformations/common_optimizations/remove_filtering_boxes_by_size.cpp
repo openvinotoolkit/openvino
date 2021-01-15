@@ -104,5 +104,7 @@ void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() 
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(cast, "RemoveFilteringBoxesBySize");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
