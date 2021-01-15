@@ -60,6 +60,11 @@ class GABackend(TelemetryBackend):
         data = self.default_message_attrs.copy()
         data.update({
             'sc': 'start',
+            't': 'event',
+            'ec': 'session',
+            'ea': 'control',
+            'el': 'start',
+            'ev': 1,
         })
         return Message(MessageType.SESSION_START, data)
 
@@ -67,6 +72,11 @@ class GABackend(TelemetryBackend):
         data = self.default_message_attrs.copy()
         data.update({
             'sc': 'end',
+            't': 'event',
+            'ec': 'session',
+            'ea': 'control',
+            'el': 'end',
+            'ev': 1,
         })
         return Message(MessageType.SESSION_END, data)
 
