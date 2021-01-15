@@ -57,7 +57,6 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
