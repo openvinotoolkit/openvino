@@ -17,9 +17,9 @@
 #include <algorithm>
 #include "gtest/gtest.h"
 
+#include "default_opset.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/default_opset.hpp"
 #include "onnx_import/editor/editor.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/test_control.hpp"

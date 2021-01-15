@@ -46,6 +46,7 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
+    k.EnableReampleType(ResampleType::LINEAR_ONNX);
     k.EnableSubGroup();
     k.EnableSubGroupShort();
     return k;

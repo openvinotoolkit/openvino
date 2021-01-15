@@ -19,12 +19,13 @@
 #include <google/protobuf/text_format.h>
 #include <memory>
 
-#include "onnx_import/core/graph.hpp"
-#include "onnx_import/core/model.hpp"
-#include "onnx_import/core/transform.hpp"
+#include "core/graph.hpp"
+#include "core/model.hpp"
+#include "core/transform.hpp"
+#include "ngraph/except.hpp"
 #include "onnx_import/onnx.hpp"
-#include "onnx_import/ops_bridge.hpp"
-#include "onnx_import/utils/parser.hpp"
+#include "ops_bridge.hpp"
+#include "utils/parser.hpp"
 
 namespace ngraph
 {

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,9 +41,10 @@ struct Edge {
 // Here operation type names are translated from ngraph convention to IR
 // convention. Most of them are the same, but there are exceptions, e.g
 // Constant (ngraph name) and Const (IR name). If there will be more
-// discrepancies discoverd, translations needs to be added here.
+// discrepancies discovered, translations needs to be added here.
 const std::unordered_map<std::string, std::string> translate_type_name_translator = {
     {"Constant", "Const"},
+    {"PRelu", "PReLU"},
     {"Relu", "ReLU"},
     {"Softmax", "SoftMax"}};
 
@@ -53,6 +54,21 @@ std::string translate_type_name(const std::string& name) {
         return found->second;
     }
     return name;
+}
+
+// Some of the operators were added to wrong opsets. This is a mapping
+// that allows such operators to be serialized with proper opsets.
+// If new operators are discovered that have the same problem, the mapping
+// needs to be updated here. The keys contain op name and version in NodeTypeInfo.
+const std::unordered_map<ngraph::Node::type_info_t, std::string>
+    special_operator_to_opset_assignments = {{ngraph::Node::type_info_t("ShuffleChannels", 0), "opset3"}};
+
+std::string get_special_opset_for_op(const ngraph::Node::type_info_t& type_info) {
+    auto found = special_operator_to_opset_assignments.find(type_info);
+    if (found != end(special_operator_to_opset_assignments)) {
+        return found->second;
+    }
+    return "";
 }
 
 class XmlSerializer : public ngraph::AttributeVisitor {
@@ -212,8 +228,6 @@ const std::vector<Edge> create_edge_mapping(
     return edges;
 }
 
-
-
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
@@ -221,8 +235,12 @@ std::string get_opset_name(
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5()};
 
+    auto special_opset = get_special_opset_for_op(n->get_type_info());
+    if (!special_opset.empty()) {
+        return special_opset;
+    }
     // return the oldest opset name where node type is present
-    for (int idx = 0; idx < opsets.size(); idx++) {
+    for (size_t idx = 0; idx < opsets.size(); idx++) {
         if (opsets[idx].get().contains_op_type(n)) {
             return "opset" + std::to_string(idx + 1);
         }
@@ -238,7 +256,6 @@ std::string get_opset_name(
 
     return "experimental";
 }
-
 
 std::string get_output_precision_name(ngraph::Output<Node>& o) {
     auto elem_type = o.get_element_type();
@@ -342,7 +359,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
                 return shape;
             }
             auto out_shape = PartialShape::dynamic(shape.rank());
-            for (size_t i = 0; i < shape.rank().get_length(); ++i) {
+            for (int64_t i = 0; i < shape.rank().get_length(); ++i) {
                 const auto & in_dim = shape[i];
                 out_shape[i] = (in_dim.is_dynamic() ? Dimension(in_dim.get_max_length()) : in_dim);
             }
