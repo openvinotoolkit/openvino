@@ -18,7 +18,7 @@
 #include <numeric>
 #include <sstream>
 
-#include "onnx_import/utils/provenance_tag.hpp"
+#include "utils/provenance_tag.hpp"
 
 namespace ngraph
 {

@@ -17,7 +17,7 @@
 #include <memory>
 
 #include "ngraph/opsets/opset3.hpp"
-#include "onnx_import/op/roi_align.hpp"
+#include "op/roi_align.hpp"
 
 namespace ngraph
 {

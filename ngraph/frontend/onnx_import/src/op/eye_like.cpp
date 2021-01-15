@@ -16,9 +16,9 @@
 
 #include <memory>
 
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/eye_like.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "exceptions.hpp"
+#include "op/eye_like.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {

@@ -411,6 +411,9 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test
         SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
     target_link_libraries(unit-test PRIVATE ${Protobuf_LIBRARIES} ${ONNX_LIBRARIES})
+
+    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
 target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")

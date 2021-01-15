@@ -17,11 +17,11 @@
 #include <onnx/defs/function.h>
 #include <onnx/defs/schema.h>
 
-#include "onnx_import/core/model.hpp"
-#include "onnx_import/core/transform.hpp"
+#include "core/model.hpp"
+#include "core/transform.hpp"
 
 #include "ngraph/file_util.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "ops_bridge.hpp"
 
 void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto)
 {

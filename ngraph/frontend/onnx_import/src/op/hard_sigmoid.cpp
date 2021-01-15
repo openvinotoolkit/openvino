@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/hard_sigmoid.hpp"
+#include "default_opset.hpp"
+#include "op/hard_sigmoid.hpp"
 
 namespace ngraph
 {

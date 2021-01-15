@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/mean.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/variadic.hpp"
+#include "op/mean.hpp"
+#include "default_opset.hpp"
+#include "utils/variadic.hpp"
 
 namespace ngraph
 {

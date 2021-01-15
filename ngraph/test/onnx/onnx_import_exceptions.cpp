@@ -16,10 +16,10 @@
 
 #include <exception>
 
+#include "exceptions.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "onnx_import/exceptions.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/type_prop.hpp"
 

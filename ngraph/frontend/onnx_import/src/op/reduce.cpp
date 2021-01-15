@@ -17,11 +17,11 @@
 #include <functional>
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {

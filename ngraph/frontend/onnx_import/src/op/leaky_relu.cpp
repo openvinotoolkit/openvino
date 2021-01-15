@@ -16,9 +16,9 @@
 
 #include <memory>
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/leaky_relu.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "op/leaky_relu.hpp"
 
 namespace ngraph
 {
