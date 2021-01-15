@@ -60,7 +60,6 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
     auto broadcast = pattern::wrap_type<opset3::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertBroadcast3);
         auto broadcast = std::dynamic_pointer_cast<opset3::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
@@ -109,6 +108,6 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(broadcast, "ConvertBroadcast3");
+    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
     register_matcher(m, callback);
 }

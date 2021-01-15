@@ -40,7 +40,6 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sigmoid);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(SwishFusionWithSigmoid);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -54,7 +53,7 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -70,7 +69,6 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sigmoid);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(SwishFusionWithSigmoidWithBeta);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
         auto beta_input = pattern_to_output.at(beta);
@@ -101,7 +99,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidWithBetaFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -120,7 +118,6 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(SwishFusionWithBeta);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -144,7 +141,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "SwishWithBetaFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -161,7 +158,6 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(SwishFusionWithoutBeta);
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -183,6 +179,6 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "SwishWithoutBetaFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }

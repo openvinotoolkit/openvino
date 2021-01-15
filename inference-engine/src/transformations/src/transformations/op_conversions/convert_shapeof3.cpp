@@ -20,7 +20,6 @@ void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
     auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input);
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertShapeOf3_convert_shapeof3);
         auto shapeof = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf> (m.get_match_root());
         if (!shapeof) {
             return false;
@@ -45,7 +44,7 @@ void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, "ConvertShapeOf3");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, matcher_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END

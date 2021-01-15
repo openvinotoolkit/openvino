@@ -19,7 +19,6 @@ ngraph::pass::ConvertMod::ConvertMod() {
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertMod);
         auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod> (m.get_match_root());
         if (!mod) {
             return false;
@@ -48,6 +47,6 @@ ngraph::pass::ConvertMod::ConvertMod() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mod, "ConvertMod");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mod, matcher_name);
     this->register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

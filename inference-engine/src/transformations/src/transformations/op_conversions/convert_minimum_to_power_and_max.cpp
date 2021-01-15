@@ -19,7 +19,6 @@ ngraph::pass::ConvertMinimum::ConvertMinimum() {
     auto minimum = ngraph::pattern::wrap_type<opset1::Minimum>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertMinimum);
         auto minimum = std::dynamic_pointer_cast<ngraph::opset1::Minimum> (m.get_match_root());
         if (!minimum  || transformation_callback(minimum)) {
             return false;
@@ -46,6 +45,6 @@ ngraph::pass::ConvertMinimum::ConvertMinimum() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(minimum, "ConvertMinimum");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(minimum, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -22,7 +22,6 @@ void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
     auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(ConvertShuffleChannels3_convert_shuffle_channels3);
         auto shuffle_channels = std::dynamic_pointer_cast<::opset3::ShuffleChannels>(m.get_match_root());
         if (!shuffle_channels || transformation_callback(shuffle_channels)) {
             return false;
@@ -100,7 +99,7 @@ void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, "ConvertShuffleChannels3");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, matcher_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END

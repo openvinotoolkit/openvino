@@ -167,11 +167,10 @@ ngraph::pass::ConvAddFusion::ConvAddFusion() {
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
     matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(ConvAddFusion);
         return conv_callback<op::ConvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvAddFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -183,11 +182,10 @@ ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
     auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, std::make_shared<pattern::op::Label>()});
 
     matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(ConvMultiplyFusion);
         return conv_callback<op::ConvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -199,10 +197,9 @@ ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
     matcher_pass_callback callback = [](ngraph::pattern::Matcher &m){
-        MATCHER_CALLBACK_SCOPE(DeconvAddFusion);
         return conv_callback<op::DeconvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "DeconvAddFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }

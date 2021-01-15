@@ -95,7 +95,6 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
     auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, input3, false);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(DepthToSpaceFusion_depth_to_space_fusion);
         auto reshape_after = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;
@@ -162,7 +161,7 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, "DepthToSpaceFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, matcher_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END

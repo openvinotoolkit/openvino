@@ -19,7 +19,6 @@ ngraph::pass::ConvertNegative::ConvertNegative() {
     auto neg = ngraph::pattern::wrap_type<ngraph::opset1::Negative>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertNegative);
         auto neg = std::dynamic_pointer_cast<ngraph::opset1::Negative> (m.get_match_root());
         if (!neg) {
             return false;
@@ -33,6 +32,6 @@ ngraph::pass::ConvertNegative::ConvertNegative() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, "ConvertNegative");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, matcher_name);
     this->register_matcher(m, callback);
 }

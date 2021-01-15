@@ -20,7 +20,6 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
     auto topk = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::TopK>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertTopK3_convert_topk3);
         auto topk = std::dynamic_pointer_cast<ngraph::opset3::TopK> (m.get_match_root());
         if (!topk) {
             return false;
@@ -62,7 +61,7 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopK3");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, matcher_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END

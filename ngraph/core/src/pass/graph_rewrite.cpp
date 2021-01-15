@@ -251,6 +251,7 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
             if (m->match(node->output(0)))
             {
                 NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                NGRAPH_PASS_CALLBACK(m);
                 bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
@@ -387,6 +388,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
         if (m->match(node->output(0)))
         {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+            NGRAPH_PASS_CALLBACK(m);
             bool status = callback(*m.get());
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();

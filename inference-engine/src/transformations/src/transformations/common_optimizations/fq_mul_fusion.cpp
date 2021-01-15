@@ -80,7 +80,6 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                                                                          {fq_node_p, mul_constant_p}, pattern::consumers_count(1));
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(FakeQuantizeMulFusion);
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
@@ -107,7 +106,6 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_node_p,
-                                                        "FakeQuantizeMulFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_node_p, matcher_name);
     this->register_matcher(m, callback);
 }

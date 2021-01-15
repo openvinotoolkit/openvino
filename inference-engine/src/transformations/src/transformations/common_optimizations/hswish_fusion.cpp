@@ -30,7 +30,6 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     auto div = std::make_shared<ngraph::opset4::Divide>(mul, div_constant);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSwishFusionWithReluDiv);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -63,7 +62,7 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "HSwishWithReluDivFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -83,7 +82,6 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
     auto mul_second = std::make_shared<ngraph::opset4::Multiply>(mul_first, mul_constant);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSwishFusionWithReluMul);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -116,7 +114,7 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, "HSwishWithReluMulFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -137,7 +135,6 @@ ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, div);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSwishFusionWithoutRelu);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -173,7 +170,7 @@ ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "HSwishWithoutReluFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -191,7 +188,6 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
     auto mul_second = std::make_shared<ngraph::opset4::Multiply>(input, mul_first);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSwishFusionWithClamp);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -220,6 +216,6 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, "HSwishWithClampFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }

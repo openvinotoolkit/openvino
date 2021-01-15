@@ -291,6 +291,6 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "CPUFusion.ConvertPriorBoxClusteredToPriorBoxClusteredIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "CPUFusion_ConvertPriorBoxClusteredToPriorBoxClusteredIE");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

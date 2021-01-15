@@ -24,7 +24,6 @@ ngraph::pass::MishFusion::MishFusion() {
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
 
     ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(MishFusion);
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -40,6 +39,6 @@ ngraph::pass::MishFusion::MishFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "MishFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

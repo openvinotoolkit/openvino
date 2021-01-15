@@ -19,7 +19,6 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
     auto hsigmoid = ngraph::pattern::wrap_type<opset5::HSigmoid>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSigmoidDecomposition);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto hsigmoid_node = pattern_to_output.at(hsigmoid).get_node_shared_ptr();
 
@@ -43,6 +42,6 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(hsigmoid, "HSigmoidDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(hsigmoid, matcher_name);
     register_matcher(m, callback);
 }

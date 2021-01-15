@@ -19,7 +19,6 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
     auto hswish = ngraph::pattern::wrap_type<opset4::HSwish>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSwishDecomposition);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto hswish_node = pattern_to_output.at(hswish).get_node_shared_ptr();
 
@@ -44,6 +43,6 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(hswish, "HSwishDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(hswish, matcher_name);
     register_matcher(m, callback);
 }

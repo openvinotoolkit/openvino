@@ -29,7 +29,6 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     auto div = std::make_shared<ngraph::opset4::Divide>(min, div_constant);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSigmoidFusionWithReluDiv);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -58,7 +57,7 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "HSigmoidWithReluDivFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -78,7 +77,6 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     auto mul_second = std::make_shared<ngraph::opset4::Multiply>(min, mul_constant);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSigmoidFusionWithReluMul);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -107,7 +105,7 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, "HSigmoidWithReluMulFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -128,7 +126,6 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, div);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSigmoidFusionWithoutRelu);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -159,7 +156,7 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "HSigmoidWithoutReluFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -176,7 +173,6 @@ ngraph::pass::HSigmoidFusionWithClamp::HSigmoidFusionWithClamp() {
     auto mul_first = std::make_shared<ngraph::opset4::Multiply>(clamp, mul_constant);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(HSigmoidFusionWithClamp);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -202,6 +198,6 @@ ngraph::pass::HSigmoidFusionWithClamp::HSigmoidFusionWithClamp() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_first, "HSigmoidWithClampFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_first, matcher_name);
     register_matcher(m, callback);
 }

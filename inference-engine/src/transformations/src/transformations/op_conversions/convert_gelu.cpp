@@ -19,7 +19,6 @@ ngraph::pass::ConvertGELU::ConvertGELU() {
     auto gelu = std::make_shared<ngraph::opset2::Gelu>(input);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertGELU);
         auto gelu = std::dynamic_pointer_cast<ngraph::opset2::Gelu>(m.get_match_root());
         if (!gelu || transformation_callback(gelu))
             return false;
@@ -40,6 +39,6 @@ ngraph::pass::ConvertGELU::ConvertGELU() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gelu, "ConvertGELU");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gelu, matcher_name);
     register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

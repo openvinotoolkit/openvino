@@ -82,7 +82,6 @@ void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() 
     auto cast = std::make_shared<ngraph::opset3::Convert>(squeeze_3, ngraph::element::i64);
 
     ngraph::graph_rewrite_callback callback = [data](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(RemoveFilteringBoxesBySize_remove_filtering_boxes_by_size);
         auto start = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({0}));
         auto step = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({1}));
 
@@ -106,6 +105,6 @@ void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(cast, "RemoveFilteringBoxesBySize");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(cast, matcher_name);
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

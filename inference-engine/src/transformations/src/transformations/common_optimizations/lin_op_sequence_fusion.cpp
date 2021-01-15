@@ -41,7 +41,6 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     auto m_mul = ngraph::pattern::wrap_type<opset3::Multiply>({m_add, m_mul_constant});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
-        MATCHER_CALLBACK_SCOPE(AddMultiplyFusion);
         auto & label_to_output = m.get_pattern_value_map();
 
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
@@ -73,7 +72,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul, "AddMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -89,7 +88,6 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
     auto m_add2 = ngraph::pattern::wrap_type<opset3::Add>({m_add1, m_add2_constant});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
-        MATCHER_CALLBACK_SCOPE(AddAddFusion);
         auto & label_to_output = m.get_pattern_value_map();
 
         auto add1 = label_to_output[m_add1].get_node_shared_ptr();
@@ -109,7 +107,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add2, "AddAddFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add2, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -125,7 +123,6 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     auto m_mul2 = ngraph::pattern::wrap_type<ngraph::opset3::Multiply>({m_mul1, m_mul2_constant});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
-        MATCHER_CALLBACK_SCOPE(MultiplyMultiplyFusion);
         auto & label_to_output = m.get_pattern_value_map();
 
         auto mul1 = label_to_output[m_mul1].get_node_shared_ptr();
@@ -145,6 +142,6 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul2, "MultiplyMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul2, matcher_name);
     this->register_matcher(m, callback);
 }

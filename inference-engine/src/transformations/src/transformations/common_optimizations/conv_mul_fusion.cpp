@@ -27,7 +27,6 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
-        MATCHER_CALLBACK_SCOPE(ConvolutionMultiplyFusion);
         const auto & pattern_to_output = m.get_pattern_value_map();
 
         const auto & m_weights = pattern_to_output.at(weights);
@@ -77,7 +76,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "ConvolutionMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -92,7 +91,6 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
-        MATCHER_CALLBACK_SCOPE(GroupConvolutionMultiplyFusion);
         const auto & pattern_to_output = m.get_pattern_value_map();
 
         const auto & m_weights = pattern_to_output.at(weights);
@@ -144,7 +142,7 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "GroupConvolutionMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -159,7 +157,6 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
-        MATCHER_CALLBACK_SCOPE(ConvolutionBackpropDataMultiplyFusion);
         const auto & pattern_to_output = m.get_pattern_value_map();
 
         const auto & m_weights = pattern_to_output.at(weights);
@@ -209,7 +206,7 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "ConvolutionBackpropDataMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -224,7 +221,6 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
     auto mul = ngraph::pattern::wrap_type<opset4::Multiply>({conv, mul_const});
 
     matcher_pass_callback callback = [conv, input, weights, mul, mul_const](pattern::Matcher & m) -> bool {
-        MATCHER_CALLBACK_SCOPE(GroupConvolutionBackpropDataMultiplyFusion);
         const auto & pattern_to_output = m.get_pattern_value_map();
 
         const auto & m_weights = pattern_to_output.at(weights);
@@ -276,6 +272,6 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "GroupConvolutionMultiplyFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }

@@ -42,10 +42,9 @@ ngraph::pass::Proposal1Scales::Proposal1Scales() {
     auto proposal_label = ngraph::pattern::wrap_type<opset1::Proposal>({pattern::any_input(), pattern::any_input(), reshape_label});
 
     matcher_pass_callback callback = [parameter_label, proposal_label](pattern::Matcher &m) -> bool {
-        MATCHER_CALLBACK_SCOPE(Proposal1Scales);
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label, "Proposal1Scales");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -62,9 +61,8 @@ ngraph::pass::Proposal4Scales::Proposal4Scales() {
     auto proposal_label = ngraph::pattern::wrap_type<opset4::Proposal>({pattern::any_input(), pattern::any_input(), reshape_label});
 
     matcher_pass_callback callback = [parameter_label, proposal_label](pattern::Matcher &m) -> bool {
-        MATCHER_CALLBACK_SCOPE(Proposal4Scales);
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label, "Proposal4Scales");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label, matcher_name);
     register_matcher(m, callback);
 }

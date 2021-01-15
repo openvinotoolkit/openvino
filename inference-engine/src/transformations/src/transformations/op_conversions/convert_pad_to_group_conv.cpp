@@ -20,7 +20,6 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertPadToGroupConvolution);
         auto pad = std::dynamic_pointer_cast<ngraph::opset4::Pad> (m.get_match_root());
         if (!pad) {
             return false;
@@ -83,6 +82,6 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, "ConvertPadToGroupConvolution");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, matcher_name);
     this->register_matcher(m, callback);
 }

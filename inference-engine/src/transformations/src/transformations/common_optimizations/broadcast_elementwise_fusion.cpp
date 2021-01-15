@@ -59,7 +59,6 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     auto eltwise = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(BroadcastElementwiseFusion);
         auto & pattern_value = m.get_pattern_value_map();
 
         const auto & m_eltwise_input = pattern_value.at(eltwise_input);
@@ -79,6 +78,6 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, "BroadcastElementwiseFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, matcher_name);
     register_matcher(m, callback);
 }

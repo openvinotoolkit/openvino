@@ -75,7 +75,6 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto mul_pattern = ngraph::pattern::wrap_type<opset4::Multiply>({sub_pattern, scale_pattern});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertQuantizeDequantize);
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
@@ -152,6 +151,6 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, "ConvertQuantizeDequantize");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

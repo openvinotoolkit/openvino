@@ -19,7 +19,6 @@ ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
     auto log_softmax = ngraph::pattern::wrap_type<opset5::LogSoftmax>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(LogSoftmaxDecomposition);
         auto& pattern_to_output = m.get_pattern_value_map();
         auto log_softmax_node = std::dynamic_pointer_cast<ngraph::opset5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
 
@@ -42,6 +41,6 @@ ngraph::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(log_softmax, "LogSoftmaxDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(log_softmax, matcher_name);
     register_matcher(m, callback);
 }

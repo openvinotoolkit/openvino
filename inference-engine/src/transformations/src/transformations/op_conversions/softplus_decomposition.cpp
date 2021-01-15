@@ -21,7 +21,6 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(SoftPlusDecomposition);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto softplus_input = pattern_to_output.at(input);
         auto softplus_node = pattern_to_output.at(softplus).get_node_shared_ptr();
@@ -41,6 +40,6 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(softplus, "SoftPlusDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(softplus, matcher_name);
     register_matcher(m, callback);
 }

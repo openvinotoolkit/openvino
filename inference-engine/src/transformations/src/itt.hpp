@@ -38,13 +38,14 @@ OV_CC_DOMAINS(ngraph_pass);
 OV_CC_DOMAINS(ie_op);
 
 /*
- * MATCHER_CALLBACK_SCOPE macro allows to define and disable the section of code which we want to switch off if it is not used
- * MATCHER_SCOPE macro allows to disable the code sections which are not needed if we disable the matcher
+ * RUN_ON_FUNCTION_SCOPE macro allows to disable the run_on_function pass
+ * MATCHER_SCOPE macro allows to disable the MatcherPass if matcher isn't applied
  * INTERNAL_OP_SCOPE macro allows to disable parts of internal nGraph operations if they are not used
  */
 #if defined(SELECTIVE_BUILD_ANALYZER)
-#define MATCHER_CALLBACK_SCOPE(region) OV_SCOPE(ngraph_pass, region)
-#define MATCHER_SCOPE(region)
+#define RUN_ON_FUNCTION_SCOPE(region) OV_SCOPE(ngraph_pass, OV_CC_CAT(region, _run_on_function))
+#define MATCHER_SCOPE(region)                                                                   \
+    std::string matcher_name(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_pass, _, region)))
 
 #define INTERNAL_OP_SCOPE(region) OV_SCOPE(ie_op, region)
 
@@ -55,14 +56,15 @@ OV_CC_DOMAINS(ie_op);
     throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(scope, _, region))) +     \
                                " is disabled!")
 
-#define MATCHER_SCOPE(region) MATCHER_SCOPE_(ngraph_pass, region)
+#define MATCHER_SCOPE(region)                                                                   \
+    std::string matcher_name(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_pass, _, region)));               \
+    MATCHER_SCOPE_(ngraph_pass, region)
 #define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(ie_op, region)
-#define MATCHER_CALLBACK_SCOPE(region) MATCHER_SCOPE_(ngraph_pass, region)
+#define RUN_ON_FUNCTION_SCOPE(region) MATCHER_SCOPE_(ngraph_pass, OV_CC_CAT(region, _run_on_function))
 
 #else
-#define MATCHER_SCOPE(region)
+#define MATCHER_SCOPE(region)                                                                   \
+    std::string matcher_name(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_pass, _, region)))
 #define INTERNAL_OP_SCOPE(region)
-#define MATCHER_CALLBACK_SCOPE(region)
+#define RUN_ON_FUNCTION_SCOPE(region)
 #endif
-
-#define RUN_ON_FUNCTION_SCOPE(region) MATCHER_CALLBACK_SCOPE(region)

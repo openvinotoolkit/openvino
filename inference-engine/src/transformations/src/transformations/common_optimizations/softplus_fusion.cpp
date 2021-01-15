@@ -24,7 +24,6 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
     auto log = std::make_shared<ngraph::opset4::Log>(add);
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(SoftPlusFusion);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -53,6 +52,6 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(log, "SoftPlusFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(log, matcher_name);
     register_matcher(m, callback);
 }

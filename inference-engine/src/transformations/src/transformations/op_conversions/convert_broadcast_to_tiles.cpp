@@ -19,7 +19,6 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertBroadcastToTiles);
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {
@@ -99,6 +98,6 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, "ConvertBroadcastToTile");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, matcher_name);
     this->register_matcher(m, callback);
 }

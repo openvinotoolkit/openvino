@@ -19,7 +19,6 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     auto squeeze_label = ngraph::pattern::wrap_type<opset5::Squeeze>({ss_label, ngraph::pattern::wrap_type<opset5::Constant>()});
 
     matcher_pass_callback callback = [](pattern::Matcher &m) -> bool {
-        MATCHER_CALLBACK_SCOPE(StridedSliceSqueeze);
         const auto & squeeze = m.get_match_root();
         const auto & const_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(squeeze->get_input_node_shared_ptr(1));
         auto slice = std::dynamic_pointer_cast<ngraph::opset5::StridedSlice>(squeeze->get_input_node_shared_ptr(0));
@@ -77,7 +76,7 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         copy_runtime_info(slice, new_slice);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label, "ngraph::pass::StridedSliceSqueeze");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label, matcher_name);
     register_matcher(m, callback);
 }
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SqueezeStridedSlice, "ngraph::pass::SqueezeStridedSlice", 0);
@@ -89,7 +88,6 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
     auto ss_label = ngraph::pattern::wrap_type<opset5::StridedSlice>({squeeze_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [](pattern::Matcher &m) -> bool {
-        MATCHER_CALLBACK_SCOPE(SqueezeStridedSlice);
         auto slice = std::dynamic_pointer_cast<ngraph::opset5::StridedSlice>(m.get_match_root());
         auto squeeze = slice->get_input_node_shared_ptr(0);
         const auto & const_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(squeeze->get_input_node_shared_ptr(1));
@@ -142,7 +140,7 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         copy_runtime_info(slice, new_slice);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(ss_label, "ngraph::pass::SqueezeStridedSlice");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(ss_label, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -166,7 +164,7 @@ bool squeezes_perform_the_same(std::shared_ptr<ngraph::opset5::Squeeze> lhs, std
 }
 
 bool ngraph::pass::SharedSqueeze::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    RUN_ON_FUNCTION_SCOPE(SharedSqueeze_run_on_function);
+    RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SharedSqueeze");
 
     bool graph_rewritten = false;

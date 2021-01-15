@@ -25,7 +25,6 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     auto m_transpose = pattern::wrap_type<opset1::Transpose>({m_fq, pattern::wrap_type<opset1::Constant>()});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(PullTransposeThroughFQUp);
         auto & pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
@@ -60,6 +59,6 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_transpose, "PullTransposeThroughFQUp");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_transpose, matcher_name);
     this->register_matcher(m, callback);
 }

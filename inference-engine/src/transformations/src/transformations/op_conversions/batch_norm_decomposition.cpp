@@ -28,7 +28,6 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     });
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(BatchNormDecomposition);
         auto m_bn = dynamic_pointer_cast<opset1::BatchNormInference>(m.get_match_root());
         if (!m_bn) {
             return false;
@@ -76,7 +75,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -94,7 +93,6 @@ ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
     });
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(BatchNormV5Decomposition);
         auto m_bn = dynamic_pointer_cast<opset5::BatchNormInference>(m.get_match_root());
         if (!m_bn) {
             return false;
@@ -142,6 +140,6 @@ ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
 
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);
     this->register_matcher(m, callback);
 }

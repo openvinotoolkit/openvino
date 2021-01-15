@@ -28,7 +28,6 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
     auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, broadcast, updates, axis);
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertScatterElementsToScatter_convert_scatter_elements_to_scatter);
         auto scatter = m.get_match_root();
         auto broadcast = scatter->input_value(1).get_node_shared_ptr();
         auto axis_const = std::dynamic_pointer_cast<ngraph::opset3::Constant>(scatter->input_value(3).get_node_shared_ptr());
@@ -211,7 +210,7 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, "ConvertScatterElementsToScatter");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, matcher_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END

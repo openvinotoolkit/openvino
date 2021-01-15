@@ -19,7 +19,6 @@ ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
     auto reduce_l1 = ngraph::pattern::wrap_type<opset4::ReduceL1>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(ReduceL1Decomposition);
         auto &pattern_to_output = m.get_pattern_value_map();
         auto reduce_l1_node = std::dynamic_pointer_cast<ngraph::opset4::ReduceL1>(pattern_to_output.at(reduce_l1).get_node_shared_ptr());
 
@@ -37,7 +36,7 @@ ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_l1, "ReduceL1Decomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_l1, matcher_name);
     register_matcher(m, callback);
 }
 

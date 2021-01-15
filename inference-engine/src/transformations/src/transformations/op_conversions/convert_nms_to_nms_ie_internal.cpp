@@ -22,7 +22,6 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(ConvertNMSToNMSIEInternal);
         auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
         if (!nms_5) {
             return false;
@@ -121,6 +120,6 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMSToNMSIEInternal");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

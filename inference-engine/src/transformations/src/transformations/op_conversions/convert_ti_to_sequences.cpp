@@ -27,7 +27,6 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(ConvertTensorIteratorToLSTMSequence);
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
@@ -194,7 +193,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "ConvertTensorIteratorToLSTMSequence");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -203,7 +202,6 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(ConvertTensorIteratorToRNNSequence);
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
@@ -349,7 +347,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "ConvertTensorIteratorToRNNSequence");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -358,7 +356,6 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
-        MATCHER_CALLBACK_SCOPE(ConvertTensorIteratorToGRUSequence);
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
@@ -505,6 +502,6 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "ConvertTensorIteratorToGRUSequence");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, matcher_name);
     register_matcher(m, callback);
 }

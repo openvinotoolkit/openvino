@@ -19,7 +19,6 @@ ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
     auto dts = ngraph::pattern::wrap_type<ngraph::opset1::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        MATCHER_CALLBACK_SCOPE(ConvertSpaceToDepth);
         auto std_node = std::dynamic_pointer_cast<ngraph::opset1::SpaceToDepth> (m.get_match_root());
         if (!std_node || transformation_callback(std_node)) {
             return false;
@@ -92,6 +91,6 @@ ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(dts, "ConvertSpaceToDepth");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(dts, matcher_name);
     this->register_matcher(m, callback);
 }
