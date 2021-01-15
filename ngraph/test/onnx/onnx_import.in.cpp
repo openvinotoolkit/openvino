@@ -3579,8 +3579,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_inbounds)
         file_util::path_join(SERIALIZED_ZOO, "onnx/test_clip_inbounds.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    const std::vector<int32_t> data{
-        -1, 0, 1, std::numeric_limits<int32_t>::lowest(), std::numeric_limits<int32_t>::max()};
+    const std::vector<int32_t> data{-1, 0, 1, -9999, 9999};
     test_case.add_input<int32_t>(data);
     test_case.add_expected_output<int32_t>(Shape{data.size()}, data);
     test_case.run();
