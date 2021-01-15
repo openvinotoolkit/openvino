@@ -46,6 +46,7 @@ onnx_model_gather_elements_float_1D
 onnx_model_gather_elements_float_negative_axis
 onnx_model_gather_elements_int32_axis_0
 onnx_model_gather_elements_int8_axis_1
+onnx_model_gather_elements_float_3D_axis_2
 
 # Result mismatch
 onnx_model_split_equal_parts_default
