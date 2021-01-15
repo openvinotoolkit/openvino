@@ -159,7 +159,8 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int64
     };
 
     if (is_zmm && (load_size != 64) && mayiuse(cpu::avx512_core)) {
-        unsigned mask = (1 << load_size) - 1;
+        uint64_t mask = 1;
+        mask = (mask << load_size) - mask;
         h->mov(Reg64(aux_gpr_idxs[0]), mask);
         h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
         h->vmovdqu8(zmm | k_mask | T_z, addr(0));
@@ -328,7 +329,8 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
     } else {
         // tails process
         if (is_zmm) {
-            unsigned mask = (1 << load_size) - 1;
+            unsigned int mask = 1;
+            mask = (mask << load_size) - mask;
             h->mov(Reg32(aux_gpr_idxs[0]), mask);
             h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
             if (is_signed)
@@ -429,7 +431,8 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
         }
     } else {
         if (is_zmm) {
-            unsigned mask = (1 << (load_size / 2)) - 1;
+            unsigned int mask = 1;
+            mask = (mask << (load_size / 2)) - mask;
             h->mov(Reg32(aux_gpr_idxs[0]), mask);
             h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
             if (is_bf16) {
@@ -474,7 +477,8 @@ template <typename Vmm>
             else
                 h->vblendps(vmm, vmm, table_val(fill_value), imm);
         } else if (is_zmm) {
-            unsigned tail_mask = ~((1 << load_num) - 1);
+            uint64_t tail_mask = 1;
+            tail_mask = ~((tail_mask << load_num) - tail_mask);
             h->mov(Reg64(aux_gpr_idxs[0]), tail_mask);
             h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
             h->vblendmps(vmm | k_mask, vmm, table_val(fill_value));
@@ -633,9 +637,9 @@ template <typename Vmm>
             return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
         };
 
-        // if (is_zmm && (store_size != 64) && mayiuse(cpu::avx512_core)) {
-        if (0) {
-            unsigned mask = (1 << store_size) - 1;
+        if (is_zmm && (store_size != 64) && mayiuse(cpu::avx512_core)) {
+            uint64_t mask = 1;
+            mask = (mask << store_size) - mask;
             h->mov(Reg64(aux_gpr_idxs[0]), mask);
             h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
             h->vmovdqu8(addr(0) | k_mask, zmm);
@@ -770,7 +774,8 @@ template <typename Vmm>
                     h->vpmovusdb(addr(0), vmm);
                 }
             } else {
-                unsigned mask = (1 << store_num) - 1;
+                unsigned int mask = 1;
+                mask = (mask << store_num) - mask;
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
                 h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
                 if (is_signed) {
@@ -856,7 +861,8 @@ template <typename Vmm>
                         h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
                     }
                 } else {
-                    unsigned mask = (1 << store_num) - 1;
+                    unsigned int mask = 1;
+                    mask = (mask << store_num) - mask;
                     h->mov(Reg32(aux_gpr_idxs[0]), mask);
                     h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
                     if (is_signed) {
