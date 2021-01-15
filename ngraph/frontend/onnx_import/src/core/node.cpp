@@ -18,9 +18,9 @@
 
 #include "core/attribute.hpp"
 #include "core/graph.hpp"
+#include "core/null_node.hpp"
 #include "core/tensor.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/core/null_node.hpp"
 
 namespace ngraph
 {
