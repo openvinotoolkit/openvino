@@ -17,10 +17,10 @@
 #include <limits>
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/clip.hpp"
+#include "op/clip.hpp"
 
 namespace ngraph
 {

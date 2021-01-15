@@ -13,19 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-#include "onnx_import/op/loop.hpp"
+#include "op/loop.hpp"
 
 #include <iterator>
 #include <memory>
 
+#include "core/graph.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {

@@ -17,10 +17,10 @@
 #include <cstdint>
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/batch_norm.hpp"
+#include "op/batch_norm.hpp"
 
 namespace ngraph
 {
