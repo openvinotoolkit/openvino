@@ -55,6 +55,24 @@ void GNADeviceHelper::free(void * ptr) {
 #endif
 }
 
+std::string GNADeviceHelper::getGnaLibraryVersionPrivate() {
+#if GNA_LIB_VER == 1
+    return "1.X";
+#else
+    char buffer[64] = {};
+    const auto status = Gna2GetLibraryVersion(buffer, sizeof(buffer));
+    if (status != Gna2StatusSuccess) {
+        return "2.Gna2GetLibraryVersionReturned[" + std::to_string(status) + "]";
+    }
+    return buffer;
+#endif
+}
+
+std::string GNADeviceHelper::GetGnaLibraryVersion() {
+    static std::string gnaLibraryVersion{ getGnaLibraryVersionPrivate() };
+    return gnaLibraryVersion;
+}
+
 #if GNA_LIB_VER == 1
 uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
                    const uint32_t *pActiveIndices,
@@ -98,7 +116,7 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
 
 void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
-        if (gnaModel.Operations->Type == Gna2OperationTypeConvolution) {
+        if (gnaModel.Operations[i].Type == Gna2OperationTypeConvolution) {
             snprintf(
                 const_cast<char*>(gnaModel.Operations[i].Operands[1]->Layout),
                 sizeof(gnaModel.Operations[i].Operands[1]->Layout) / sizeof(char),
@@ -107,23 +125,10 @@ void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     }
 }
 
-std::string GNADeviceHelper::getGnaLibraryVersion() {
-#if GNA_LIB_VER == 1
-    return "1.X";
-#else
-    char buffer[64] = {};
-    const auto status = Gna2GetLibraryVersion(buffer, sizeof(buffer));
-    if (status != Gna2StatusSuccess) {
-        return "Gna2GetLibraryVersionReturned[" + std::to_string(status) + "]";
-    }
-    return buffer;
-#endif
-}
-
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t modelId;
-    if (isUpTo20GnaDevice()) {
+    if (isUpTo20GnaHwDevice() && isGnaLibVersion2_1) {
         enforceLegacyCnns(gnaModel);
     }
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
@@ -143,7 +148,7 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     uint32_t reqConfId;
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
     checkGna2Status(status, "Gna2RequestConfigCreate");
-    if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation) {
+    if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation && !isGnaLibVersion2_1) {
         status = Gna2RequestConfigEnableHardwareConsistency(reqConfId,
             isUpTo20GnaDevice() ? gna2HwConsistency : detectedGnaDevVersion);
         checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency");

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ostream>
+#include <ie_common.h>
 #include <details/ie_exception.hpp>
 
 // #define GNA_DEBUG
