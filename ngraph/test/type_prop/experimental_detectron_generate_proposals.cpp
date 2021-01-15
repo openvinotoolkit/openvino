@@ -112,5 +112,5 @@ TEST(type_prop, detectron_proposals_dynamic)
         ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
         EXPECT_EQ(proposals->get_output_shape(0), (Shape{s.post_nms_count, 4}));
         EXPECT_EQ(proposals->get_output_shape(1), (Shape{s.post_nms_count}));
-   }
+    }
 }
