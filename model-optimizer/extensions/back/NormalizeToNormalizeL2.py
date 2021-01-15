@@ -28,6 +28,8 @@ class NormalizeToNormalizeL2(BackReplacementPattern):
     enabled = True
     force_clean_up = True
 
+    id = 'NormalizeToNormalizeL2_transformg'
+
     def run_after(self):
         return [CompatibilityL2NormalizationPattern]
 
