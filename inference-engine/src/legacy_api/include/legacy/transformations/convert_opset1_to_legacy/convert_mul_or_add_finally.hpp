@@ -299,5 +299,7 @@ void ngraph::pass::ConvertMulOrAddFinally::convert_mul_or_add_finally() {
     auto lin_op = std::make_shared<T>(data_batch_1, data_batch_2);
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(lin_op);
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, get_callback<T>(), PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

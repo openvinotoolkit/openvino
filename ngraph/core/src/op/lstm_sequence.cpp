@@ -30,6 +30,8 @@
 using namespace ngraph;
 using namespace std;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 NGRAPH_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
 NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
 

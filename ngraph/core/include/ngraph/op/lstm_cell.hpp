@@ -26,8 +26,6 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace op
