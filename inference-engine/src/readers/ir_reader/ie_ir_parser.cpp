@@ -1072,7 +1072,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::RegionYolo>::c
     auto axis = GetIntAttr(dn, "axis");
     auto classes = GetUIntAttr(dn, "classes");
     auto coords = GetUIntAttr(dn, "coords");
-    auto do_softmax = GetIntAttr(dn, "do_softmax");
+    auto do_softmax = GetBoolAttr(dn, "do_softmax");
     auto end_axis = GetIntAttr(dn, "end_axis");
     auto num = GetUIntAttr(dn, "num");
     auto mask = getParameters<int64_t>(dn, "mask", {});
