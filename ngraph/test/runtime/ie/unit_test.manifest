@@ -42,6 +42,7 @@ onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
 # Unsupported operator detected in the graph: GatherElements
+onnx_model_gather_elements_float_1D
 onnx_model_gather_elements_float_negative_axis
 onnx_model_gather_elements_int32_axis_0
 onnx_model_gather_elements_int8_axis_1
