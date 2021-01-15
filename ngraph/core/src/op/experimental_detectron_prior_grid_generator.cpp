@@ -132,11 +132,11 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
 
     if (m_attrs.flatten)
     {
-        out_shape = Shape{featmap_height * featmap_width * num_priors, 4};
+        out_shape = PartialShape{featmap_height * featmap_width * num_priors, 4};
     }
     else
     {
-        out_shape = Shape{featmap_height, featmap_width, num_priors, 4};
+        out_shape = PartialShape{featmap_height, featmap_width, num_priors, 4};
     }
     set_output_type(0, input_et, out_shape);
 }
