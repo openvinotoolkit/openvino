@@ -17,7 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ReluFakeQuantizeFusion, "ReluFakeQuantizeFu
 
 ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     auto data_pattern = ngraph::pattern::any_input();
-    auto relu_pattern = ngraph::pattern::wrap_type<opset5::Relu>({data_pattern});
+    auto relu_pattern = ngraph::pattern::wrap_type<opset5::Relu>({data_pattern}, pattern::consumers_count(1));
     auto input_low_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({relu_pattern, input_low_pattern,
                                                                         ngraph::pattern::wrap_type<opset5::Constant>(),
@@ -33,18 +33,17 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         if (!input_low_const)
             return false;
         auto input_low_values = input_low_const->cast_vector<float>();
-        bool negative_input_low = std::any_of(input_low_values.begin(), input_low_values.end(), [] (float f) -> bool { return f < 0; });
-        if (negative_input_low)
+        if (std::any_of(input_low_values.begin(), input_low_values.end(), [] (float f) -> bool { return f < 0; }))
             return false;
         auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
         if (!fq)
             return false;
 
         auto new_fq = std::make_shared<ngraph::opset5::FakeQuantize>(data,
-                                                                     fq->get_input_node_shared_ptr(1),
-                                                                     fq->get_input_node_shared_ptr(2),
-                                                                     fq->get_input_node_shared_ptr(3),
-                                                                     fq->get_input_node_shared_ptr(4),
+                                                                     fq->input_value(1),
+                                                                     fq->input_value(2),
+                                                                     fq->input_value(3),
+                                                                     fq->input_value(4),
                                                                      fq->get_levels());
         new_fq->set_friendly_name(fq->get_friendly_name());
 
