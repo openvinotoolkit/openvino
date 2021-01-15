@@ -297,7 +297,6 @@ limitations under the License.
                     <tab type="user" title="GNA Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GNA"/>
                 </tab>
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_IE_DG_Known_Issues_Limitations"/>
-                <tab type="user" title="Optimization Notice" url="@ref openvino_docs_Optimization_notice"/>
                 <tab type="user" title="Glossary" url="@ref openvino_docs_IE_DG_Glossary"/>
             </tab>
 
