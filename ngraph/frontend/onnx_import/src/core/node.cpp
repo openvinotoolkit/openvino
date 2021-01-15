@@ -16,11 +16,11 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "onnx_import/core/attribute.hpp"
-#include "onnx_import/core/graph.hpp"
+#include "core/attribute.hpp"
+#include "core/graph.hpp"
+#include "core/tensor.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "onnx_import/core/tensor.hpp"
 
 namespace ngraph
 {

@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/utils/arg_min_max_factory.hpp"
+#include "utils/arg_min_max_factory.hpp"
 
 namespace ngraph
 {
