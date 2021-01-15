@@ -38,7 +38,6 @@ void regclass_ExecutableNetwork(py::module m)
         cls(m, "ExecutableNetwork");
 
     cls.def("create_infer_request", [](InferenceEngine::ExecutableNetwork& self) {
-        py::print("Created infer request!");
         return static_cast<InferenceEngine::InferRequest>(self.CreateInferRequest()); // PyInferRequest
     });
 
