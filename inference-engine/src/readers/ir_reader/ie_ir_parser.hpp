@@ -9,7 +9,7 @@
 # include <ngraph/op/util/sub_graph_base.hpp>
 # include <ngraph/opsets/opset.hpp>
 # include <ie_ngraph_utils.hpp>
-# include <ngraph/opsets/opset.hpp>
+# include <ngraph/opsets/opset5.hpp>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>
@@ -308,6 +308,10 @@ private:
         /// \param weights weights attached to current node
         /// \return shared pointer to function representing input node
         std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root, const Blob::CPtr& weights);
+        /// \brief Traverses xml node representation in order to get the purpose attribute of inputs/outputs in the body of Loop op.
+        /// \param node xml node representation
+        /// \return struct with value of purpuse attribute
+        ngraph::op::v5::Loop::SpecialBodyPorts parsePurposeAttribute(const pugi::xml_node& node);
 
         GenericLayerParams parseGenericParams(const pugi::xml_node& node);
         std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,

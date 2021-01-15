@@ -84,7 +84,6 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
     for (const auto& input : input_map) {
         auto &_input = input.second;
         auto axis_attr = _input.attribute("axis");
-        auto purpose = XMLParseUtils::GetStrAttr(_input, "purpose", "");
         int64_t ti_input_index = XMLParseUtils::GetInt64Attr(_input, "external_port_id");
         size_t body_parameter_index = XMLParseUtils::GetUIntAttr(_input, "internal_layer_id");
 
@@ -150,7 +149,6 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> V1
     for (const auto& output : output_map) {
         auto& _output = output.second;
         auto axis_attr = _output.attribute("axis");
-        auto purpose = XMLParseUtils::GetStrAttr(_output, "purpose", "");
         size_t body_result_index = XMLParseUtils::GetUIntAttr(_output, "internal_layer_id");
 
         // if axis is set, then concatenation is enabled. Create ngraph::TensorIterator::ConcatOutput.
@@ -181,6 +179,48 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> V1
     return outputs;
 }
 
+ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeAttribute(const pugi::xml_node& node) {
+    ngraph::op::v5::Loop::SpecialBodyPorts result = {-1, -1};
+    std::map<uint64_t, uint64_t> params;
+    std::map<uint64_t, uint64_t> results;
+    map_type_in_function(node, "Parameter", params);
+    map_type_in_function(node, "Result", results);
+
+    NGRAPH_CHECK(!params.empty() || !results.empty(), "No parameters or results found in body Function.");
+
+    // Parse PortMap: external_port_id for inputs/outputs does not always appear in consecutive order
+    std::map<uint64_t, pugi::xml_node> input_map;
+    FOREACH_CHILD(_input, node.child("port_map"), "input") {
+        int64_t ext_port_id = GetInt64Attr(_input, "external_port_id");
+        input_map[ext_port_id] = _input;
+    }
+    std::map<int64_t, pugi::xml_node> output_map;
+    FOREACH_CHILD(_output, node.child("port_map"), "output") {
+        int64_t ext_port_id = GetInt64Attr(_output, "external_port_id");
+        output_map[ext_port_id] = _output;
+    }
+
+    for (const auto& input : input_map) {
+        auto &_input = input.second;
+        auto purpose = XMLParseUtils::GetStrAttr(_input, "purpose", "");
+        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(_input, "internal_layer_id");
+        if (purpose == "current_iteration") {
+            result.current_iteration_input_idx = params[body_parameter_index];
+        }
+    }
+
+    for (const auto& output : output_map) {
+        auto &_output = output.second;
+        auto purpose = XMLParseUtils::GetStrAttr(_output, "purpose", "");
+        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(_output, "internal_layer_id");
+        if (purpose == "execution_condition") {
+            result.body_condition_output_idx = results[body_parameter_index];
+        }
+    }
+
+    return result;
+}
+
 void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
     std::string val;
 
@@ -192,6 +232,8 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                     <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
             a->set(parseOutputDescription(node));
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+            a->set(parsePurposeAttribute(node));
         }
     }
 
@@ -633,7 +675,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         { "Result", std::make_shared<LayerCreator<ngraph::op::Result>>("Result") },
         { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
         { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
-        { "Loop", std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop") },
+        //{ "Loop", std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop") },
         { "LogicalAnd", std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd") },
         { "LogicalOr", std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr") },
         { "LogicalXor", std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor") },

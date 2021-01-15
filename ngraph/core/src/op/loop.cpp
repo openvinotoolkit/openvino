@@ -41,8 +41,9 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
+    visitor.on_attribute("special_body_ports", m_special_body_ports);
 
-    return false;
+    return true;
 }
 
 void op::v5::Loop::validate_and_infer_types()
@@ -171,9 +172,9 @@ void op::v5::Loop::validate_and_infer_types()
                           get_input_size() == m_input_descriptions.size() + 2,
                           "Number of inputs must be the same as number of input descriptions");
 
-    NODE_VALIDATION_CHECK(this,
+    /*NODE_VALIDATION_CHECK(this,
                           get_output_size() == m_output_descriptions.size(),
-                          "Number of outputs must be the same as number of output descriptions");
+                          "Number of outputs must be the same as number of output descriptions");*/
 
     // Input
     uint64_t index_it = 2;
@@ -297,6 +298,10 @@ void op::v5::Loop::validate_and_infer_types()
             }
         }
     }
+
+    NODE_VALIDATION_CHECK(this,
+                          get_output_size() == m_output_descriptions.size(),
+                          "Number of outputs must be the same as number of output descriptions");
 }
 
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
@@ -398,4 +403,9 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
     runtime::reference::loop(
         m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
     return true;
+}
+
+namespace ngraph
+{
+    constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Loop::SpecialBodyPorts>::type_info;
 }
