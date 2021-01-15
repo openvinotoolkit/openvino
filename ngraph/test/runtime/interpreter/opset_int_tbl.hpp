@@ -64,6 +64,7 @@ NGRAPH_OP(Reshape, op::v1)
 NGRAPH_OP(Select, op::v1)
 NGRAPH_OP(GatherTree, op::v1)
 
+NGRAPH_OP(Bucketize, op::v3)
 NGRAPH_OP(EmbeddingBagOffsetsSum, ngraph::op::v3)
 NGRAPH_OP(EmbeddingBagPackedSum, ngraph::op::v3)
 NGRAPH_OP(ExtractImagePatches, op::v3)
