@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@
 #include <numeric>
 #include "itt.hpp"
 
-#include "depth_to_space.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
 
 #include "ngraph/runtime/opt_kernel/reshape.hpp"

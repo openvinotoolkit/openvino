@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/cosh.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
+#include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 #include "ngraph/op/ctc_loss.hpp"
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/deformable_convolution.hpp"

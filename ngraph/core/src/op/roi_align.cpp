@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "roi_align.hpp"
+#include "ngraph/op/roi_align.hpp"
 #include "itt.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/roi_align.hpp"
-#include "util.hpp" // for host_tensor_2_vector
+#include "ngraph/util.hpp" // for host_tensor_2_vector
 
 using namespace std;
 using namespace ngraph;

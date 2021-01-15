@@ -33,13 +33,13 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
-#include <vpu/ngraph/transformations/mish_decomposition.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
+#include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 
 namespace vpu {
 
@@ -138,6 +138,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
         {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
         {"GatherElements",                                     LAYER_PARSER(parseGatherElements)},
+        {"Round",                                              LAYER_PARSER(parseRound)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -150,10 +151,6 @@ ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
     VPU_LOGGER_SECTION(env.log);
 
     return runCommonPasses(network);
-}
-
-bool FrontEnd::isLayerSupported(const std::string& type) {
-    return parsers.count(type) != 0;
 }
 
 ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
@@ -185,11 +182,16 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
+
+    manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t>{
+        ngraph::opset5::MatMul::type_info,
+        ngraph::opset5::Convolution::type_info,
+        ngraph::opset5::GroupConvolution::type_info
+    });
+
     manager.register_pass<vpu::DynamicToStaticShape>();
     manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
     manager.register_pass<vpu::ConvertExtractImagePatchesToReorgYolo>();
-    // WA: Mish is not accurate enough. Remove this decomposition when mish is improved
-    manager.register_pass<vpu::MishDecomposition>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();

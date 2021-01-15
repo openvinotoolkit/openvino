@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 #include <functional>
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "op/identity.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/identity.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -37,13 +37,13 @@ namespace ngraph
                     const auto input = node.get_ng_inputs().at(0);
                     const auto shape_of_input = std::make_shared<default_opset::ShapeOf>(input);
                     const auto scalar =
-                        default_opset::Constant::create(element::i32, Shape{1}, {0});
+                        default_opset::Constant::create(element::i64, Shape{1}, {0});
                     const auto rank_of_input =
                         std::make_shared<default_opset::ShapeOf>(shape_of_input);
                     const auto rank_of_input_scalar =
                         std::make_shared<default_opset::Squeeze>(rank_of_input, scalar);
-                    const auto start = default_opset::Constant::create(element::i32, Shape{}, {0});
-                    const auto step = default_opset::Constant::create(element::i32, Shape{}, {1});
+                    const auto start = default_opset::Constant::create(element::i64, Shape{}, {0});
+                    const auto step = default_opset::Constant::create(element::i64, Shape{}, {1});
                     return std::make_shared<default_opset::Range>(
                         start, rank_of_input_scalar, step, element::i64);
                 }
