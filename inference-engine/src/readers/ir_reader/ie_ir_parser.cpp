@@ -712,7 +712,13 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
         }
+
+        // To be sure that all default values will be initialized:
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
+
+        if (auto subGraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphNode)) {
+            subGraph->validate_and_infer_types();
+        }
     }
 
     // Create GenericIE operation for backward compatibility
