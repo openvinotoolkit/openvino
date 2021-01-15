@@ -69,62 +69,77 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
     set_output_type(1, element::Type_t::i32, Shape{rois_num});
     set_output_type(2, input_et, Shape{rois_num});
 
-    if (rois_shape.rank().is_dynamic() || deltas_shape.rank().is_dynamic() ||
-        scores_shape.rank().is_dynamic() || im_info_shape.rank().is_dynamic())
+    if (rois_shape.rank().is_static())
     {
+        NODE_VALIDATION_CHECK(
+            this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
+
+        NODE_VALIDATION_CHECK(this,
+                              rois_shape[1].is_static() && rois_shape[1].get_length() == 4u,
+                              "The last dimension of the 'input_rois' input must be equal to 4. "
+                              "Got: ",
+                              rois_shape[1]);
+    }
+
+    if (deltas_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(
+            this, deltas_shape.rank().get_length() == 2, "Input deltas rank must be equal to 2.");
+
+        if (deltas_shape[1].is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  deltas_shape[1].get_length() == m_attrs.num_classes * 4,
+                                  "The last dimension of the 'input_deltas' input must be equal to "
+                                  "the value of the attribute 'num_classes' * 4. Got: ",
+                                  deltas_shape[1]);
+        }
+    }
+
+    if (scores_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(
+            this, scores_shape.rank().get_length() == 2, "Input scores rank must be equal to 2.");
+
+        if (scores_shape[1].is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  scores_shape[1].get_length() == m_attrs.num_classes,
+                                  "The last dimension of the 'input_scores' input must be equal to "
+                                  "the value of the attribute 'num_classes'. Got: ",
+                                  scores_shape[1]);
+        }
+    }
+
+    if (im_info_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              im_info_shape.rank().get_length() == 2,
+                              "Input image info rank must be equal to 2.");
+    }
+
+    if (rois_shape.rank().is_static() && deltas_shape.rank().is_static() &&
+        scores_shape.rank().is_static())
+    {
+        const auto num_batches_rois = rois_shape[0];
+        const auto num_batches_deltas = deltas_shape[0];
+        const auto num_batches_scores = scores_shape[0];
+
+        if (num_batches_rois.is_static() && num_batches_deltas.is_static() &&
+            num_batches_scores.is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  num_batches_rois.same_scheme(num_batches_deltas) &&
+                                      num_batches_deltas.same_scheme(num_batches_scores),
+                                  "The first dimension of inputs 'input_rois', 'input_deltas', "
+                                  "'input_scores' must be the same. input_rois batch: ",
+                                  num_batches_rois,
+                                  "; input_deltas batch: ",
+                                  num_batches_deltas,
+                                  "; input_scores batch: ",
+                                  num_batches_scores);
+        }
         return;
-    }
-
-    NODE_VALIDATION_CHECK(
-        this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
-    NODE_VALIDATION_CHECK(
-        this, deltas_shape.rank().get_length() == 2, "Input deltas rank must be equal to 2.");
-    NODE_VALIDATION_CHECK(
-        this, scores_shape.rank().get_length() == 2, "Input scores rank must be equal to 2.");
-    NODE_VALIDATION_CHECK(
-        this, im_info_shape.rank().get_length() == 2, "Input image info rank must be equal to 2.");
-
-    NODE_VALIDATION_CHECK(this,
-                          rois_shape[1].is_static() && rois_shape[1].get_length() == 4u,
-                          "The last dimension of the 'input_rois' input must be equal to 4. "
-                          "Got: ",
-                          rois_shape[1]);
-
-    if (scores_shape[1].is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              scores_shape[1].get_length() == m_attrs.num_classes,
-                              "The last dimension of the 'input_scores' input must be equal to "
-                              "the value of the attribute 'num_classes'. Got: ",
-                              scores_shape[1]);
-    }
-
-    if (deltas_shape[1].is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              deltas_shape[1].get_length() == m_attrs.num_classes * 4,
-                              "The last dimension of the 'input_deltas' input must be equal to "
-                              "the value of the attribute 'num_classes' * 4. Got: ",
-                              deltas_shape[1]);
-    }
-
-    const auto num_batches_rois = rois_shape[0];
-    const auto num_batches_deltas = deltas_shape[0];
-    const auto num_batches_scores = scores_shape[0];
-
-    if (num_batches_rois.is_static() && num_batches_deltas.is_static() &&
-        num_batches_scores.is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              num_batches_rois.same_scheme(num_batches_deltas) &&
-                                  num_batches_deltas.same_scheme(num_batches_scores),
-                              "The first dimension of inputs 'input_rois', 'input_deltas', "
-                              "'input_scores' must be the same. input_rois batch: ",
-                              num_batches_rois,
-                              "; input_deltas batch: ",
-                              num_batches_deltas,
-                              "; input_scores batch: ",
-                              num_batches_scores);
     }
 }
 
