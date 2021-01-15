@@ -82,11 +82,13 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
 
     for c in cls.__subclasses__():
         # Force enabling operations
-        if hasattr(c, 'id') and c.id in enabled_transforms:
+        if hasattr(c, 'id') and c.id in enabled_transforms or \
+                ".".join([c.__module__, c.__name__]) in enabled_transforms:
             setattr(c, 'enabled', True)
 
         # Force disabling operations
-        if hasattr(c, 'id') and c.id in disabled_transforms:
+        if hasattr(c, 'id') and c.id in disabled_transforms or \
+                ".".join([c.__module__, c.__name__]) in disabled_transforms:
             setattr(c, 'enabled', False)
 
         if c not in registered_list:
