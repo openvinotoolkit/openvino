@@ -899,7 +899,6 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
         output_map[ext_port_id] = _output;
     }
 
-    int i = 0;
     for (const auto& output : output_map) {
         auto& _output = output.second;
         auto axis_attr = _output.attribute("axis");

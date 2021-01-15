@@ -167,8 +167,8 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         std::vector<OutputToPatrition> output_to_partition;
         for (size_t i = 0; i < input_shape.size(); ++i) {
             for (const auto & ss_plan : pair.second) {
-                if (ss_plan.second.begins[i] != 0 || ss_plan.second.ends[i] != input_shape[i]) {
-                    if (axis == -1 || axis == i)
+                if (ss_plan.second.begins[i] != 0 || ss_plan.second.ends[i] != static_cast<int64_t>(input_shape[i])) {
+                    if (axis == -1 || axis == static_cast<int>(i))
                         axis = static_cast<int>(i);
                     else
                         valid_for_replacement = false;

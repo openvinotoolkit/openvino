@@ -4,10 +4,11 @@
 
 set (TARGET_NAME "clDNNPlugin")
 
-if (LINUX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1 -msse4.2")
+if(CMAKE_COMPILER_IS_GNUCC)
+    ie_add_compiler_flags(-Wno-all)
+    ie_add_compiler_flags(-msse4.1 -msse4.2)
     if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=terminate")
+        ie_add_compiler_flags(-Wno-error=terminate)
     endif()
 endif()
 
