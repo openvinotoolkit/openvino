@@ -114,3 +114,40 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes)
         ASSERT_TRUE(grid_gen->get_output_partial_shape(0).same_scheme(s.ref_out_shape));
     }
 }
+
+
+TEST(type_prop, detectron_grid_generator_dynamic_shapes_intervals)
+{
+    Attrs attrs;
+    attrs.flatten = false;
+    attrs.h = 0;
+    attrs.w = 0;
+    attrs.stride_x = 4.0f;
+    attrs.stride_y = 4.0f;
+
+    struct ShapesAndAttrs
+    {
+        PartialShape im_data_shape;
+        PartialShape priors_shape;
+        PartialShape feature_map_shape;
+        PartialShape ref_out_shape;
+        bool flatten;
+    };
+
+    std::vector<ShapesAndAttrs> shapes = {};
+
+    for (const auto& s : shapes)
+    {
+        auto grid_attrs = attrs;
+        grid_attrs.flatten = s.flatten;
+
+        auto priors = std::make_shared<op::Parameter>(element::f32, s.priors_shape);
+        auto feature_map = std::make_shared<op::Parameter>(element::f32, s.feature_map_shape);
+        auto im_data = std::make_shared<op::Parameter>(element::f32, s.im_data_shape);
+
+        auto grid_gen = std::make_shared<GridGenerator>(priors, feature_map, im_data, grid_attrs);
+
+        ASSERT_EQ(grid_gen->get_output_element_type(0), element::f32);
+        ASSERT_TRUE(grid_gen->get_output_partial_shape(0).same_scheme(s.ref_out_shape));
+    }
+}
