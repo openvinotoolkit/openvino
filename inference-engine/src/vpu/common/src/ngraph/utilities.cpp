@@ -86,8 +86,4 @@ std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::N
         ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
 }
 
-void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
-    stream << object.name << " ver. " << object.version;
-}
-
 }  // namespace vpu
