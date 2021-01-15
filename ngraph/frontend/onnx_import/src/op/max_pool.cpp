@@ -18,8 +18,8 @@
 
 #include "ngraph/op/max_pool.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "onnx_import/op/max_pool.hpp"
-#include "onnx_import/utils/pooling_factory.hpp"
+#include "op/max_pool.hpp"
+#include "utils/pooling_factory.hpp"
 
 namespace ngraph
 {
