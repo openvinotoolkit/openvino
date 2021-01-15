@@ -37,6 +37,9 @@ def main(args):
     ci_job = args.ci_job.strip()
     watchdog_job = args.watchdog_job.strip()
     quiet = args.quiet
+    jenkins_watchdog_token = args.jenkins_watchdog_token.strip()
+    jenkins_watchdog_user = args.jenkins_watchdog_user.strip()
+    jenkins_watchdog_server = args.jenkins_watchdog_server.strip()
 
     wd = Watchdog(jenkins_token=jenkins_token,
                   jenkins_server=jenkins_server,
@@ -46,7 +49,10 @@ def main(args):
                   git_project=github_project,
                   msteams_url=msteams_url,
                   ci_job_name=ci_job,
-                  watchdog_job_name=watchdog_job)
+                  watchdog_job_name=watchdog_job,
+                  jenkins_watchdog_token=jenkins_watchdog_token,
+                  jenkins_watchdog_user=jenkins_watchdog_user,
+                  jenkins_watchdog_server=jenkins_watchdog_server)
     wd.run(quiet=quiet)
 
     return 0
@@ -55,35 +61,44 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--msteams-url', help='Path to MS Teams channel url to communicate messages.',
+    parser.add_argument('--msteams-url', help='Path to MS Teams channel url to communicate messages',
                         default=DEFAULT_MSTEAMS_URL_FILE, action='store', required=False)
 
-    parser.add_argument('--github-credentials', help='GitHub user credentials to access repo.',
-                        nargs="+", required=True)
+    parser.add_argument('--github-credentials', help='GitHub user credentials to access repo',
+                        action='store', required=True)
 
-    parser.add_argument('--github-org', help='Name of organization on GitHub.',
+    parser.add_argument('--github-org', help='Name of organization on GitHub',
                         default=DEFAULT_GITHUB_ORGANIZATION, action='store', required=False)
 
-    parser.add_argument('--github-project', help='Name of project on GitHub.',
+    parser.add_argument('--github-project', help='Name of project on GitHub',
                         default=DEFAULT_GITHUB_PROJECT, action='store', required=False)
 
-    parser.add_argument('--jenkins-token', help='Path to Jenkins user token to access build info.',
+    parser.add_argument('--jenkins-token', help='Path to Jenkins user token to access build info',
                         default=DEFAULT_JENKINS_TOKEN_FILE, action='store', required=False)
 
-    parser.add_argument('--jenkins-server', help='Jenkins server address.',
+    parser.add_argument('--jenkins-server', help='Jenkins server address',
                         default=DEFAULT_JENKINS_SERVER, action='store', required=False)
 
-    parser.add_argument('--jenkins-user', help='Jenkins user used to log in.',
+    parser.add_argument('--jenkins-user', help='Jenkins user used to log in',
                         default=DEFAULT_JENKINS_USER, action='store', required=False)
 
-    parser.add_argument('--ci-job', help='Jenkins CI job name.',
+    parser.add_argument('--ci-job', help='Jenkins CI job name',
                         default=DEFAULT_CI_JOB_NAME, action='store', required=False)
 
-    parser.add_argument('--watchdog-job', help='Jenkins CI Watchdog job name.',
+    parser.add_argument('--watchdog-job', help='Jenkins CI Watchdog job name',
                         default=DEFAULT_WATCHDOG_JOB_NAME, action='store', required=False)
 
-    parser.add_argument('--quiet', help="Quiet mode - doesn\'t send message to communicator.",
+    parser.add_argument('--quiet', help="Quiet mode - doesn\'t send message to communicator",
                         action='store_true', required=False)
+
+    parser.add_argument('--jenkins-watchdog-token', help='Watchdog Jenkins user token',
+                        action='store', required=False)
+
+    parser.add_argument('--jenkins-watchdog-user', help='Watchdog Jenkins user name',
+                        action='store', required=False)
+
+    parser.add_argument('--jenkins-watchdog-server', help='Watchdog Jenkins server address',
+                        action='store', required=False)
 
     args = parser.parse_args()
     sys.exit(main(args))

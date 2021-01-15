@@ -35,7 +35,7 @@ class GitWrapper:
     """
 
     def __init__(self, github_credentials, repository, project):
-        self.git = Github(*github_credentials)
+        self.git = Github(github_credentials)
         self.repository = repository
         self.project = project
         self.github_credentials = github_credentials
