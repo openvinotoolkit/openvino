@@ -87,7 +87,6 @@ void HeteroInferRequest::SetBlob(const char* name, const InferenceEngine::Blob::
 
 void HeteroInferRequest::InferImpl() {
     updateInOutIfNeeded();
-    size_t i = 0;
     for (auto &&desc : _inferRequests) {
         OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, desc._profilingTask);
         auto &r = desc._request;

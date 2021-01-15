@@ -43,7 +43,6 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
 
         // Port map : inputs and back edges
         for (const auto& desc : ti->get_input_descriptions()) {
-            const std::string& type_name = desc->get_type_info().name;
             if (const auto& input_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::SliceInputDescription>(desc)) {
                 // Connect the sliced input (layer before the input) to the Split layer and connect
                 // the corresponding Split output to the corresponding copy of the body.
@@ -104,7 +103,6 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
 
         // Port map: outputs
         for (const auto& desc : ti->get_output_descriptions()) {
-            std::string type_name = desc->get_type_info().name;
             if (const auto& concat_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::ConcatOutputDescription>(desc)) {
                 if (!concat_desc) {
                     return false;

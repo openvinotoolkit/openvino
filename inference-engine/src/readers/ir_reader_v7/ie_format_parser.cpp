@@ -301,7 +301,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
             inputLayers.push_back(layer);
         }
 
-        for (int i = 0; i < lprms.outputPorts.size(); i++) {
+        for (size_t i = 0; i < lprms.outputPorts.size(); i++) {
             const auto& outPort = lprms.outputPorts[i];
             const auto outId = gen_id(lprms.layerId, outPort.portId);
             const std::string outName =
@@ -370,7 +370,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 
         if (layer->insData.empty()) layer->insData.resize(pars_info.inputPorts.size());
 
-        for (int i = 0; i < layer->insData.size(); i++) {
+        for (size_t i = 0; i < layer->insData.size(); i++) {
             if (!layer->insData[i].lock()) {
                 std::string data_name =
                     (layer->insData.size() == 1) ? layer->name : layer->name + "." + std::to_string(i);
