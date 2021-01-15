@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ void MKLDNNSplitNode::getSupportedDescriptors() {
 void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     using TensorDescFactory = std::function<TensorDesc(const Precision&, const SizeVector&)>;
     constexpr size_t channelsPos = 1lu;
-    // perform guard checks
+
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -409,12 +409,11 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
                     inNum = 0;
                 }
                 bool hasMatchDesc = false;
-                for (auto& child_spd : vecChildSpd) {
-                    if (inNum >= child_spd.getConfig().inConfs.size()) {
+                for (auto& childSpd : vecChildSpd) {
+                    if (inNum >= childSpd.getConfig().inConfs.size()) {
                         inNum = 0;
                     }
-                    if (MKLDNNExtensionUtils::initTensorsAreEqual(outputDesc,
-                            child_spd.getConfig().inConfs[inNum].desc)) {
+                    if (MKLDNNExtensionUtils::initTensorsAreEqual(outputDesc, childSpd.getConfig().inConfs[inNum].desc)) {
                         hasMatchDesc = true;
                         break;
                     }
@@ -513,6 +512,11 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     auto srcData = srcBlob->cbuffer().as<const uint8_t*>();
     const auto dataSize = srcBlob->getTensorDesc().getPrecision().size();
 
+    const size_t DHW = D*H*W;
+    const size_t strideIB = DHW * IC * dataSize;
+    const size_t strideIW = IC*dataSize;
+    const size_t strideOC = DHW * dataSize;
+
     for (size_t i = 0, sIdx = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         auto dstBlob = childEdge->getBlob();
@@ -527,19 +531,11 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
 
         auto srcPtr = srcData + srcBlob->getTensorDesc().offset(sIdx) * dataSize;
 
-        const size_t strideIB = D*H*W*IC*dataSize;
-        const size_t strideID = H*W*IC*dataSize;
-        const size_t strideIH = W*IC*dataSize;
-        const size_t strideIW = IC*dataSize;
+        const size_t strideOB = OC * strideOC;
 
-        const size_t strideOB = OC*D*H*W*dataSize;
-        const size_t strideOC = D*H*W*dataSize;
-        const size_t strideOD = H*W*dataSize;
-        const size_t strideOW = W*dataSize;
-
-        parallel_for4d(MB, D, H, W, [&](size_t b, size_t d, size_t h, size_t w) {
-            auto localSrcPtr = srcPtr + b*strideIB + d*strideID + h*strideIH + w*strideIW;
-            auto localDstPtr = dstData + b*strideOB + d*strideOD + h*strideOW + w*dataSize;
+        parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
+            auto localSrcPtr = srcPtr + b*strideIB + j*strideIW;
+            auto localDstPtr = dstData + b*strideOB + j*dataSize;
             for (size_t c = 0; c < OC; c++) {
                 cpu_memcpy(localDstPtr, localSrcPtr, dataSize);
                 localSrcPtr += dataSize;

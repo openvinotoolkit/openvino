@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,8 +94,8 @@ const auto planar_5D = CPUSpecificParams{{ncdhw}, {ncdhw}, {}, "unknown"};
 const auto perChannels_4D = CPUSpecificParams{{nhwc}, {nhwc}, {}, "ref"};
 const auto perChannels_5D = CPUSpecificParams{{ndhwc}, {ndhwc}, {}, "ref"};
 
-const auto planarChannels_4D = CPUSpecificParams{{nhwc}, {nchw}, {}, "ref"};
-const auto planarChannels_5D = CPUSpecificParams{{ndhwc}, {ncdhw}, {}, "ref"};
+const auto perChannelsToPlanar_4D = CPUSpecificParams{{nhwc}, {nchw}, {}, "ref"};
+const auto perChannelsToPlanar_5D = CPUSpecificParams{{ndhwc}, {ncdhw}, {}, "ref"};
 
 const auto blocked8_4D = CPUSpecificParams{{nChw8c}, {nChw8c}, {}, "unknown"};
 const auto blocked8_5D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {}, "unknown"};
@@ -117,7 +117,7 @@ const std::vector<Precision> netPrecisions = {
         Precision::BF16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Nspc2NcspSpetial, SplitLayerCPUTest,
+INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Nspc2NcspSpecial, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(4),
                                 ::testing::Values(1),
@@ -125,10 +125,10 @@ INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Nspc2NcspSpetial, SplitLayerCPUTest,
                                 ::testing::Values(std::vector<size_t>({3, 28, 24, 9})),
                                 ::testing::Values(std::vector<size_t>({})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                ::testing::Values(planarChannels_4D)),
+                                ::testing::Values(perChannelsToPlanar_4D)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Nspc2NcspSpetial, SplitLayerCPUTest,
+INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Nspc2NcspSpecial, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(3),
                                 ::testing::Values(1),
@@ -136,7 +136,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Nspc2NcspSpetial, SplitLayerCPUTest,
                                 ::testing::Values(std::vector<size_t>({3, 21, 24, 9, 15})),
                                 ::testing::Values(std::vector<size_t>({})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                ::testing::Values(planarChannels_5D)),
+                                ::testing::Values(perChannelsToPlanar_5D)),
                         SplitLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block8inPlace, SplitLayerCPUTest,
