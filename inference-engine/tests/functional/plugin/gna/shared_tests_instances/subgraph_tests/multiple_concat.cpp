@@ -28,7 +28,6 @@ std::vector<size_t> constant_sizes_unaligned = {
 std::map<std::string, std::string> additional_config = {
     {"GNA_COMPACT_MODE", "NO"},
     {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-    {"GNA_SCALE_FACTOR_0", "3276.8"},
 };
 } // namespace
 

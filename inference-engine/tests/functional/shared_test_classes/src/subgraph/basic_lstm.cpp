@@ -122,7 +122,7 @@ std::vector<std::vector<std::uint8_t>> Basic_LSTM_S::CalculateRefs() {
     manager.run_passes(reference_model);
 
     auto refCnnNetwork = InferenceEngine::CNNNetwork{ reference_model };
-    auto refExecutableNetwork = core->LoadNetwork(refCnnNetwork, targetDevice);
+    auto refExecutableNetwork = core->LoadNetwork(refCnnNetwork, targetDevice, configuration);
 
     auto refInferRequest = refExecutableNetwork.CreateInferRequest();
     std::vector<InferenceEngine::InputInfo::Ptr> refInfos;

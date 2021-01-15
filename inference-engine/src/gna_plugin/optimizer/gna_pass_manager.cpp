@@ -188,9 +188,20 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
                 THROW_GNA_EXCEPTION << "Eltwise Layer of type: " << eltwise->_operation << " not supported";
         }
     } else if (concat != nullptr) {
+        bool sameInput = true;
+        auto firstInput = CNNNetHasPrevLayer(l.get(), 0)? PrevFunctionalLayer(l, 0): nullptr;
         for (int i = 0; CNNNetHasPrevLayer(l.get(), i); ++i) {
             auto prev = PrevFunctionalLayer(l, i);
-            if (LayerInfo(prev).has32BOutput()) {
+            if (firstInput != prev) {
+                sameInput = false;
+                break;
+            }
+        }
+
+        for (int i = 0; CNNNetHasPrevLayer(l.get(), i); ++i) {
+            auto prev = PrevFunctionalLayer(l, i);
+            if (LayerInfo(prev).has32BOutput() ||
+                (!sameInput && !LayerInfo(prev).isActivation() && !LayerInfo(prev).isConst())) {
                 prevLayers.push_back(CNNNetPrevLayer(l, i));
             }
         }
