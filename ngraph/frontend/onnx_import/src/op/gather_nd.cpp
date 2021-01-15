@@ -17,8 +17,8 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "default_opset.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
