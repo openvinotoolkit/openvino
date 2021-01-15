@@ -15,15 +15,14 @@
 """
 import copy
 
+from extensions.front.onnx.loop_ext import connect_body_input, connect_body_output
 from extensions.ops.loop import Loop
 from extensions.ops.parameter import Parameter
-from mo.front.extractor import FrontExtractorOp
-from mo.graph.graph import Graph, Node, add_opoutput
-from extensions.front.onnx.loop_ext import connect_body_input, connect_body_output
-from mo.front.extractor import extract_node_attrs
 from mo.front.common.register_custom_ops import check_for_duplicates
+from mo.front.extractor import extract_node_attrs, FrontExtractorOp
 from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors
 from mo.front.tf.extractors.utils import tf_dtype_extractor
+from mo.graph.graph import add_opoutput, Graph, Node
 from mo.ops.op import PermuteAttrs
 
 

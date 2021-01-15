@@ -15,7 +15,6 @@
 """
 import logging as log
 from collections import defaultdict
-from copy import copy
 
 import numpy as np
 
@@ -126,9 +125,10 @@ class RemoveConstToResult(BackReplacementPattern):
     enabled = True
     force_clean_up = True
     # TODO: remove this transformation once all plugins support constant value network.
-    # Now it avoids to be run recursively since Const->Result sub-graph can be encountered in a body graph of Loop node
+    # Do not run recursively since Const->Result sub-graph can be encountered in a body graph of Loop node
+    # and this sub-graph is needed to avoid dynamism created by Loop node
+    # in case using axis in output port map
     run_not_recursively = True
-
 
     @staticmethod
     def pattern():

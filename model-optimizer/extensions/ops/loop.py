@@ -320,8 +320,22 @@ class Loop(TensorIterator):
             if record[attr] == original_value:
                 record[attr] = new_value
                 matched += 1
-        assert matched == 1, 'More than one record in the portmap for attr "{}" wil original value "{}"' \
+        assert matched == 1, 'More than one record in the portmap for attr "{}" with original value "{}"' \
                              ''.format(attr, original_value)
+
+    @staticmethod
+    def update_port_map_value_ext(port_map: dict, layer_id_attr: str, layer_id_value: int,
+                                   updated_attr: str, new_attr_value: int):
+        """
+        Updates a value of requested attribute for a certain layer id in a port map
+        """
+        matched = 0
+        for record in port_map:
+            if record[layer_id_attr] == layer_id_value:
+                record[updated_attr] = new_attr_value
+                matched += 1
+        assert matched == 1, 'More than one record in the portmap for attr "{}" with original value "{}"' \
+                             ''.format(layer_id_attr, layer_id_value)
 
     @staticmethod
     def re_numerate_input_ports(loop_node: Node):
