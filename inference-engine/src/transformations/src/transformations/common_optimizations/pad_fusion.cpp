@@ -258,8 +258,8 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
 
         auto conv_pads_begin = conv->get_pads_begin();
         auto conv_pads_end = conv->get_pads_end();
-        auto pads_begin_val = pads_begin->cast_vector<size_t>();
-        auto pads_end_val = pads_end->cast_vector<size_t>();
+        auto pads_begin_val = pads_begin->cast_vector<std::ptrdiff_t>();
+        auto pads_end_val = pads_end->cast_vector<std::ptrdiff_t>();
         for (size_t i = 0; i < conv_pads_begin.size(); i++) {
             if (conv_pads_begin[i] < pads_begin_val[i + 2] ||
                 conv_pads_end[i] < pads_end_val[i + 2])
@@ -353,8 +353,8 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
 
         auto conv_pads_begin = conv->get_pads_begin();
         auto conv_pads_end = conv->get_pads_end();
-        auto pads_begin_val = pads_begin->cast_vector<size_t>();
-        auto pads_end_val = pads_end->cast_vector<size_t>();
+        auto pads_begin_val = pads_begin->cast_vector<std::ptrdiff_t>();
+        auto pads_end_val = pads_end->cast_vector<std::ptrdiff_t>();
         for (size_t i = 0; i < conv_pads_begin.size(); i++) {
             if (conv_pads_begin[i] < pads_begin_val[i + 2] ||
                 conv_pads_end[i] < pads_end_val[i + 2])
