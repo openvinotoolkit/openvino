@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ class NormalizeToNormalizeL2(BackReplacementPattern):
     enabled = True
     force_clean_up = True
 
-    id = 'NormalizeToNormalizeL2_transformg'
+    id = 'NormalizeToNormalizeL2_transform'
 
     def run_after(self):
         return [CompatibilityL2NormalizationPattern]
