@@ -52,5 +52,7 @@ void ngraph::pass::ReshapeFullyConnectedFusion::construct_reshape_fc() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_fc, "ReshapeFullyConnectedFusion");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

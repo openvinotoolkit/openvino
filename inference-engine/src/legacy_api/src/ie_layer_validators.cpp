@@ -146,7 +146,7 @@ void ConvolutionValidator::parseParams(CNNLayer* layer) {
         convLayer->_dilation.insert(Y_AXIS, convLayer->GetParamAsUInt("dilation-y", 1u));
     } else {
         // IR_v > 2
-        for (int i = 1; i <= kernels.size(); i++) {
+        for (size_t i = 1; i <= kernels.size(); i++) {
             convLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
@@ -154,7 +154,7 @@ void ConvolutionValidator::parseParams(CNNLayer* layer) {
         vector<unsigned int> default_1 = vector<unsigned int>(convLayer->_kernel.size(), 1u);
 
         vector<unsigned int> strides = convLayer->GetParamAsUInts("strides", default_1);
-        for (int i = 1; i <= strides.size(); i++) {
+        for (size_t i = 1; i <= strides.size(); i++) {
             if (strides[strides.size() - i] == 0) {
                 THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << convLayer->name;
             }
@@ -162,17 +162,17 @@ void ConvolutionValidator::parseParams(CNNLayer* layer) {
         }
 
         vector<unsigned int> pads_begin = convLayer->GetParamAsUInts("pads_begin", default_0);
-        for (int i = 1; i <= pads_begin.size(); i++) {
+        for (size_t i = 1; i <= pads_begin.size(); i++) {
             convLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
         vector<unsigned int> pads_end = convLayer->GetParamAsUInts("pads_end", pads_begin);
-        for (int i = 1; i <= pads_end.size(); i++) {
+        for (size_t i = 1; i <= pads_end.size(); i++) {
             convLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
 
         vector<unsigned int> dilations = convLayer->GetParamAsUInts("dilations", default_1);
-        for (int i = 1; i <= dilations.size(); i++) {
+        for (size_t i = 1; i <= dilations.size(); i++) {
             convLayer->_dilation.insert(i - 1, dilations[dilations.size() - i]);
         }
     }
@@ -284,7 +284,7 @@ void PoolingValidator::parseParams(CNNLayer* layer) {
             }
         }
     } else {
-        for (int i = 1; i <= kernels.size(); i++) {
+        for (size_t i = 1; i <= kernels.size(); i++) {
             poolLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
@@ -292,7 +292,7 @@ void PoolingValidator::parseParams(CNNLayer* layer) {
         vector<unsigned int> default_1 = vector<unsigned int>(poolLayer->_kernel.size(), 1u);
 
         vector<unsigned int> strides = poolLayer->GetParamAsUInts("strides", default_1);
-        for (int i = 1; i <= strides.size(); i++) {
+        for (size_t i = 1; i <= strides.size(); i++) {
             if (strides[strides.size() - i] == 0) {
                 THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << poolLayer->name;
             }
@@ -300,12 +300,12 @@ void PoolingValidator::parseParams(CNNLayer* layer) {
         }
 
         vector<unsigned int> pads_begin = poolLayer->GetParamAsUInts("pads_begin", default_0);
-        for (int i = 1; i <= pads_begin.size(); i++) {
+        for (size_t i = 1; i <= pads_begin.size(); i++) {
             poolLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
         vector<unsigned int> pads_end = poolLayer->GetParamAsUInts("pads_end", pads_begin);
-        for (int i = 1; i <= pads_end.size(); i++) {
+        for (size_t i = 1; i <= pads_end.size(); i++) {
             poolLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
 
@@ -557,7 +557,7 @@ void SplitValidator::parseParams(CNNLayer* layer) {
     std::string out_sizes;
     for (auto& i : layer->outData) {
         if (!out_sizes.empty()) out_sizes += ",";
-        if (static_cast<int>(i->getTensorDesc().getDims().size()) <= casted->_axis) {
+        if (static_cast<unsigned>(i->getTensorDesc().getDims().size()) <= casted->_axis) {
             THROW_IE_EXCEPTION << "Internal error - dimensions are empty";
         }
         out_sizes += std::to_string(i->getTensorDesc().getDims()[casted->_axis]);
@@ -725,11 +725,11 @@ void SpaceToBatchValidator::parseParams(CNNLayer* layer) {
         dst.resize(blob->size());
         if (dataPtr->getTensorDesc().getPrecision() == Precision::I32) {
             int* data = blob->buffer().as<int*>();
-            for (int i = 0; i < blob->size(); i++)
+            for (size_t i = 0; i < blob->size(); i++)
                 dst[i] = data[i];
         } else if (dataPtr->getTensorDesc().getPrecision() == Precision::I64) {
             int64_t* data = blob->buffer().as<int64_t*>();
-            for (int i = 0; i < blob->size(); i++)
+            for (size_t i = 0; i < blob->size(); i++)
                 dst[i] = data[i];
         }
     };
@@ -772,11 +772,11 @@ void BatchToSpaceValidator::parseParams(CNNLayer* layer) {
         dst.resize(blob->size());
         if (dataPtr->getTensorDesc().getPrecision() == Precision::I32) {
             int* data = blob->buffer().as<int*>();
-            for (int i = 0; i < blob->size(); i++)
+            for (size_t i = 0; i < blob->size(); i++)
                 dst[i] = data[i];
         } else if (dataPtr->getTensorDesc().getPrecision() == Precision::I64) {
             int64_t* data = blob->buffer().as<int64_t*>();
-            for (int i = 0; i < blob->size(); i++)
+            for (size_t i = 0; i < blob->size(); i++)
                 dst[i] = data[i];
         }
     };
@@ -932,19 +932,32 @@ void DetectionOutputValidator::parseParams(CNNLayer* layer) {
         THROW_IE_EXCEPTION << "nms_threshold parameter of DetectionOutput layer can't be less then zero";
     }
     int _keep_top_k = layer->GetParamAsInt("keep_top_k", -1);
+    (void)_keep_top_k;
 
-    if (layer->CheckParamPresence("background_label_id"))
+    if (layer->CheckParamPresence("background_label_id")) {
         int _background_label_id = layer->GetParamAsInt("background_label_id", -1);
-    if (layer->CheckParamPresence("top_k"))
+        (void)_background_label_id;
+    }
+    if (layer->CheckParamPresence("top_k")) {
         int _top_k = layer->GetParamAsInt("top_k", -1);
-    if (layer->CheckParamPresence("variance_encoded_in_target"))
+        (void)_top_k;
+    }
+    if (layer->CheckParamPresence("variance_encoded_in_target")) {
         bool _variance_encoded_in_target = static_cast<bool>(layer->GetParamAsUInt("variance_encoded_in_target", 0));
-    if (layer->CheckParamPresence("num_orient_classes"))
+        (void)_variance_encoded_in_target;
+    }
+    if (layer->CheckParamPresence("num_orient_classes")) {
         int _num_orient_classes = layer->GetParamAsUInt("num_orient_classes");
-    if (layer->CheckParamPresence("share_location"))
+        (void)_num_orient_classes;
+    }
+    if (layer->CheckParamPresence("share_location")) {
         bool _share_location = static_cast<bool>(layer->GetParamAsUInt("share_location", 1));
-    if (layer->CheckParamPresence("interpolate_orientation"))
+        (void)_share_location;
+    }
+    if (layer->CheckParamPresence("interpolate_orientation")) {
         int _interpolate_orientation = layer->GetParamAsInt("interpolate_orientation");
+        (void)_interpolate_orientation;
+    }
     if (layer->CheckParamPresence("confidence_threshold")) {
         float _confidence_threshold = layer->GetParamAsFloat("confidence_threshold");
         if (_confidence_threshold < 0) {
@@ -1083,7 +1096,7 @@ void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
         binConvLayer->_dilation.insert(Y_AXIS, binConvLayer->GetParamAsUInt("dilation-y", 1u));
     } else {
         // IR_v > 2
-        for (int i = 1; i <= kernels.size(); i++) {
+        for (size_t i = 1; i <= kernels.size(); i++) {
             binConvLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
@@ -1091,7 +1104,7 @@ void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
         vector<unsigned int> default_1 = vector<unsigned int>(binConvLayer->_kernel.size(), 1u);
 
         vector<unsigned int> strides = binConvLayer->GetParamAsUInts("strides", default_1);
-        for (int i = 1; i <= strides.size(); i++) {
+        for (size_t i = 1; i <= strides.size(); i++) {
             if (strides[strides.size() - i] == 0) {
                 THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << binConvLayer->name;
             }
@@ -1099,17 +1112,17 @@ void BinaryConvolutionValidator::parseParams(CNNLayer* layer) {
         }
 
         vector<unsigned int> pads_begin = binConvLayer->GetParamAsUInts("pads_begin", default_0);
-        for (int i = 1; i <= pads_begin.size(); i++) {
+        for (size_t i = 1; i <= pads_begin.size(); i++) {
             binConvLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
         vector<unsigned int> pads_end = binConvLayer->GetParamAsUInts("pads_end", pads_begin);
-        for (int i = 1; i <= pads_end.size(); i++) {
+        for (size_t i = 1; i <= pads_end.size(); i++) {
             binConvLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
 
         vector<unsigned int> dilations = binConvLayer->GetParamAsUInts("dilations", default_1);
-        for (int i = 1; i <= dilations.size(); i++) {
+        for (size_t i = 1; i <= dilations.size(); i++) {
             binConvLayer->_dilation.insert(i - 1, dilations[dilations.size() - i]);
         }
     }

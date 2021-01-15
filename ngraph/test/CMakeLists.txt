@@ -73,6 +73,7 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/bucketize.cpp
     op_eval/floor_mod.cpp
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
@@ -255,6 +256,7 @@ set(MULTI_TEST_SRC
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
+    backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/comparison.in.cpp
