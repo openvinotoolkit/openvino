@@ -13,19 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-
 
 #include <boost/type_index.hpp>
 
 #include <string>
 #include <vector>
 
-#include <cpp/ie_infer_request.hpp>
+// #include <cpp/ie_infer_request.hpp> // in "pyopenvino/inference_engine/ie_infer_request.hpp"
 
 #include "../../../pybind11/include/pybind11/pybind11.h"
-#include "pyopenvino/inference_engine/ie_executable_network.hpp"
+#include "pyopenvino/inference_engine/ie_infer_request.hpp"
+// #include "pyopenvino/inference_engine/ie_executable_network.hpp"
 
 namespace py = pybind11;
 
@@ -34,38 +35,66 @@ void regclass_InferRequest(py::module m)
     py::class_<InferenceEngine::InferRequest, std::shared_ptr<InferenceEngine::InferRequest>> cls(
         m, "InferRequest");
 
-    cls.def("infer", &InferenceEngine::InferRequest::Infer);
     cls.def("get_blob", &InferenceEngine::InferRequest::GetBlob);
     cls.def("set_input", [](InferenceEngine::InferRequest& self, const py::dict& inputs) {
-        for (auto&& input : inputs) {
+        for (auto&& input : inputs)
+        {
             auto name = input.first.cast<std::string>().c_str();
-            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob = input.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
+            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob =
+                input.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
             self.SetBlob(name, blob);
         }
     });
     cls.def("set_output", [](InferenceEngine::InferRequest& self, const py::dict& results) {
-        for (auto&& result : results) {
+        for (auto&& result : results)
+        {
             auto name = result.first.cast<std::string>().c_str();
-            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob = result.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
+            const std::shared_ptr<InferenceEngine::TBlob<float>>& blob =
+                result.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
             self.SetBlob(name, blob);
         }
     });
-//    cls.def_property_readonly("input_blobs", [](){
-//
-//    });
-//    cls.def_property_readonly("output_blobs", [](){
-//
-//    });
-//    cls.def("set_batch", );
-//    cls.def("get_perf_counts", );
-//    cls.def("wait");
-//    cls.def("set_completion_callback")
-//    cls.def("async_infer",);
-//    latency
-//    cls.def_property_readonly("preprocess_info", [](){
-//
-//    });
-//   set_blob
+    cls.def("set_batch", &InferenceEngine::InferRequest::SetBatch);
+    cls.def(
+        "set_completion_callback",
+        &InferenceEngine::InferRequest::SetCompletionCallback<std::function<void(
+            InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>); // py::object and cast
+                                                                            // to std::function?
 
-    //&InferenceEngine::InferRequest::SetOutput);
+    cls.def("infer", [](InferenceEngine::InferRequest& self) {
+        // TODO: add InferenceEngine::ResponseDesc response and IE_CHECK_CALL
+        // self.start_time = std::chrono::high_resolution_clock::now();
+        self.Infer();
+        // self.end_time = std::chrono::high_resolution_clock::now();
+    });
+    // &PyInferRequest::InferRequest::Infer);
+    cls.def("async_infer", [](InferenceEngine::InferRequest& self) {
+        // TODO: add InferenceEngine::ResponseDesc response and IE_CHECK_CALL
+        // self.start_time = std::chrono::high_resolution_clock::now();
+        self.StartAsync();
+    });
+    // &PyInferRequest::InferRequest::StartAsync);
+    cls.def("wait",
+            &InferenceEngine::InferRequest::Wait,
+            py::arg("millis_timeout") = InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+
+    // Same as old latency
+    // cls.def("get_execution_time", [](PyInferRequest::InferRequest& self) {
+    //     auto _time = static_cast<double>(
+    //         std::chrono::duration_cast<std::chrono::nanoseconds>(self.end_time - self.start_time)
+    //             .count());
+    //     return _time * 0.000001;
+    // });
+    //    cls.def_property_readonly("input_blobs", [](){
+    //
+    //    });
+    //    cls.def_property_readonly("output_blobs", [](){
+    //
+    //    });
+    //    cls.def("get_perf_counts", ); // TODO: add map of std::map<std::string,
+    //    InferenceEngineProfileInfo> perfmap
+    //    cls.def_property_readonly("preprocess_info", [](){
+    //
+    //    });
+    //   cls.def("set_blob", );
 }

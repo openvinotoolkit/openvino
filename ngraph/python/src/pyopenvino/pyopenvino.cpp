@@ -30,7 +30,7 @@
 #include <string>
 #include <ie_common.h>
 #include <ie_version.hpp>
-
+#include <ie_iinfer_request.hpp>
 
 namespace py = pybind11;
 
@@ -62,6 +62,10 @@ PYBIND11_MODULE(pyopenvino, m) {
     .value("NETWORK_NOT_READ", InferenceEngine::StatusCode::NETWORK_NOT_READ)
     .export_values();
 
+    py::enum_<InferenceEngine::IInferRequest::WaitMode>(m, "WaitMode")
+    .value("RESULT_READY", InferenceEngine::IInferRequest::WaitMode::RESULT_READY)
+    .value("STATUS_ONLY", InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY)
+    .export_values();
 
     regclass_IECore(m);
 
