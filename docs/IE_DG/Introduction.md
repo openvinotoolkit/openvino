@@ -123,6 +123,3 @@ The open source version is available in the [OpenVINO™ toolkit GitHub reposito
 
 
 [scheme]: img/workflow_steps.png
-
-#### Optimization Notice
-<sup>For complete information about compiler optimizations, see our [Optimization Notice](https://software.intel.com/en-us/articles/optimization-notice#opt-en).</sup>

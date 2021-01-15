@@ -33,7 +33,7 @@ Prerequisite | Linux* | Windows* | macOS*
 Operating system|Ubuntu\* 18.04. Other Linux distributions, such as Ubuntu\* 16.04 and CentOS\* 7, are not validated.|Windows\* 10 | macOS\* 10.15 Catalina
 CPU | Intel® Core™ i5| Intel® Core™ i5 | Intel® Core™ i5
 GPU| Intel® Pentium® processor N4200/5 with Intel® HD Graphics | Not supported| Not supported
-HDDL, Myriad| Intel® Neural Compute Stick 2 <br> Intel® Vision Accelerator Design with Intel® Movidius™ VPUs| Not supported | Not supported
+HDDL, MYRIAD| Intel® Neural Compute Stick 2 <br> Intel® Vision Accelerator Design with Intel® Movidius™ VPUs| Not supported | Not supported
 Available RAM space| 4 GB| 4 GB| 4 GB
 Available storage space   | 8 GB + space for imported artifacts| 8 GB + space for imported artifacts| 8 GB + space for imported artifacts
 Docker\*| Docker CE 18.06.1 | Docker Desktop 2.1.0.1|Docker CE 18.06.1
