@@ -104,8 +104,13 @@ jobs:
   - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
     displayName: Stop IncrediBuild
     continueOnError: true
+
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List files'
+
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(WORK_DIR)\install_pkg -P cmake_install.cmake
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install'
 
   - script: |
       set PATH=$(TEST_ENV_PATH)

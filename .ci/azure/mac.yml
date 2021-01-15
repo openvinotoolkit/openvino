@@ -99,6 +99,10 @@ jobs:
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List files'
 
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(WORK_DIR)\install_pkg -P cmake_install.cmake
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install'
+
   - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
