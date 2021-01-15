@@ -5,61 +5,41 @@
 #pragma once
 
 #include <ie_layouts.h>
-#include <set>
 
 namespace MKLDNNPlugin {
 
-enum class TensorDescCreatorTypes {
-    nspc,
-    nCsp8c,
-    nCsp16c,
-    ncsp
+enum class TensorDescCreatorTypes : unsigned {
+    nspc,       // general per channels format
+    nCsp8c,     // general channels blocked by 8
+    nCsp16c,    // general channels blocked by 16
+    ncsp        // general planar
 };
 
-class CreatorsMapFilterIterator;
+class CreatorsMapFilterConstIterator;
 
 class TensorDescCreator {
 public:
     typedef std::shared_ptr<TensorDescCreator> CreatorPtr;
     typedef std::shared_ptr<const TensorDescCreator> CreatorConstPtr;
     typedef std::map<TensorDescCreatorTypes, CreatorConstPtr> CreatorsMap;
+    typedef std::function<bool(const CreatorsMap::value_type&)> Predicate;
 
 public:
-    static CreatorsMap getCommonCreators();
-    static std::pair<CreatorsMapFilterIterator, CreatorsMapFilterIterator>
-    makeFilteredRange(CreatorsMap& map, unsigned rank);
-    static std::pair<CreatorsMapFilterIterator, CreatorsMapFilterIterator>
-    makeFilteredRange(CreatorsMap& map, unsigned rank, std::set<TensorDescCreatorTypes> supportedTypes);
+    static const CreatorsMap& getCommonCreators();
+    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
+    makeFilteredRange(const CreatorsMap &map, unsigned rank);
+    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
+    makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<TensorDescCreatorTypes>& supportedTypes);
+    static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
+    makeFilteredRange(const CreatorsMap& map, Predicate predicate);
     virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const = 0;
     virtual size_t getMinimalRank() const = 0;
-    virtual ~TensorDescCreator() {}
+    virtual ~TensorDescCreator() = default;
 };
 
-class PlainFormatCreator : public TensorDescCreator {
+class CreatorsMapFilterConstIterator {
 public:
-    virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const;
-    virtual size_t getMinimalRank() const { return 0lu; }
-};
-
-class PerChannelCreator : public TensorDescCreator {
-public:
-    virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const;
-    virtual size_t getMinimalRank() const { return 3lu; }
-};
-
-class ChannelBlockedCreator : public TensorDescCreator {
-public:
-    ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-    virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const;
-    virtual size_t getMinimalRank() const { return 2lu; }
-
-private:
-    size_t _blockSize;
-};
-
-class CreatorsMapFilterIterator {
-public:
-    typedef TensorDescCreator::CreatorsMap::iterator Iterator;
+    typedef TensorDescCreator::CreatorsMap::const_iterator Iterator;
     typedef std::iterator_traits<Iterator>::value_type value_type;
     typedef std::iterator_traits<Iterator>::reference reference;
     typedef std::iterator_traits<Iterator>::pointer pointer;
@@ -68,20 +48,24 @@ public:
     typedef std::function<bool(const value_type&)> predicate_type;
 
 public:
-    CreatorsMapFilterIterator(predicate_type filter, Iterator begin, Iterator end) : _filter(std::move(filter)), _iter(begin), _end(end)  {}
-    CreatorsMapFilterIterator& operator++() {
+    CreatorsMapFilterConstIterator(predicate_type filter, Iterator begin, Iterator end) : _filter(std::move(filter)), _iter(begin), _end(end)  {
+        while (_iter != _end && !_filter(*_iter)) {
+            ++_iter;
+        }
+    }
+    CreatorsMapFilterConstIterator& operator++() {
         do {
             ++_iter;
         } while (_iter != _end && !_filter(*_iter));
         return *this;
     }
 
-    CreatorsMapFilterIterator end() const {
-        return CreatorsMapFilterIterator(predicate_type(), _end, _end);
+    CreatorsMapFilterConstIterator end() const {
+        return CreatorsMapFilterConstIterator(predicate_type(), _end, _end);
     }
 
-    CreatorsMapFilterIterator operator++(int) {
-        CreatorsMapFilterIterator temp(*this);
+    CreatorsMapFilterConstIterator operator++(int) {
+        CreatorsMapFilterConstIterator temp(*this);
         ++*this;
         return temp;
     }
@@ -94,11 +78,11 @@ public:
         return std::addressof(*_iter);
     }
 
-    friend bool operator==(const CreatorsMapFilterIterator& lhs, const CreatorsMapFilterIterator& rhs) {
+    friend bool operator==(const CreatorsMapFilterConstIterator& lhs, const CreatorsMapFilterConstIterator& rhs) {
         return lhs._iter == rhs._iter;
     }
 
-    friend bool operator!=(const CreatorsMapFilterIterator& lhs, const CreatorsMapFilterIterator& rhs) {
+    friend bool operator!=(const CreatorsMapFilterConstIterator& lhs, const CreatorsMapFilterConstIterator& rhs) {
         return !(lhs == rhs);
     }
 
