@@ -636,7 +636,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         { "LogicalOr", std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr") },
         { "LogicalXor", std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor") },
         { "LogicalNot", std::make_shared<LayerCreator<ngraph::op::v1::LogicalNot>>("LogicalNot") },
-        { "LogicalNot", std::make_shared<LayerCreator<ngraph::op::v0::Constant>>("Const") },
+        { "Const", std::make_shared<LayerCreator<ngraph::op::v0::Constant>>("Const") },
     };
 
     // Check that operation in default opsets
