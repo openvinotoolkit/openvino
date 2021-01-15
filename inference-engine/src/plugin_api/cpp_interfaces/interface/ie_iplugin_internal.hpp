@@ -54,7 +54,7 @@ static void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
  * @param      _networkInputs   The network inputs to copy to
  * @param      _networkOutputs  The network outputs to copy to
  */
-static void copyInputOutputInfo(const InputsDataMap & networkInputs, const OutputsDataMap & networkOutputs,
+inline void copyInputOutputInfo(const InputsDataMap & networkInputs, const OutputsDataMap & networkOutputs,
                                 InputsDataMap & _networkInputs, OutputsDataMap & _networkOutputs) {
     _networkInputs.clear();
     _networkOutputs.clear();

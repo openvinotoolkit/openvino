@@ -16,11 +16,11 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/expand.hpp"
+#include "op/expand.hpp"
 
 namespace ngraph
 {
