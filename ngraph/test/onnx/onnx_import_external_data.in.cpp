@@ -14,10 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "default_opset.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/default_opset.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"

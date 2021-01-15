@@ -380,8 +380,6 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
             variable_id_to_read_value.at(std::dynamic_pointer_cast<ngraph::op::Assign>(assign)->get_variable_id()));
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructCNNNetwork");
-
     return function;
 }
 
@@ -422,11 +420,11 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
 }
 
 std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
-    OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
-
     std::shared_ptr<ngraph::Function> function;
     XmlDeserializer visitor(root, weights, opsets);
     visitor.on_attribute("net", function);
+
+    OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
 
     CNNNetwork net(function, _exts);
     parsePreProcess(net, root, weights);
@@ -1074,7 +1072,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::RegionYolo>::c
     auto axis = GetIntAttr(dn, "axis");
     auto classes = GetUIntAttr(dn, "classes");
     auto coords = GetUIntAttr(dn, "coords");
-    auto do_softmax = GetIntAttr(dn, "do_softmax");
+    auto do_softmax = GetBoolAttr(dn, "do_softmax");
     auto end_axis = GetIntAttr(dn, "end_axis");
     auto num = GetUIntAttr(dn, "num");
     auto mask = getParameters<int64_t>(dn, "mask", {});

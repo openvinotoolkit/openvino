@@ -19,7 +19,7 @@
 
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/node.hpp"
-#include "onnx_import/op/transpose.hpp"
+#include "op/transpose.hpp"
 
 namespace ngraph
 {
