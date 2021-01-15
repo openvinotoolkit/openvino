@@ -64,8 +64,8 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
 }
 
 template <typename T>
-ngraph::graph_rewrite_callback get_callback() {
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
+ngraph::matcher_pass_callback get_callback() {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         static_assert(std::is_same<T, ngraph::opset1::Add>() || std::is_same<T, ngraph::opset1::Subtract>() || std::is_same<T, ngraph::opset1::Multiply>(),
                       "Unsupported template parameter. Only Add or Multiply allowed!");
 
