@@ -33,6 +33,7 @@ template <typename T, typename P>
 inline bool one_of(T val, P item) {
     return val == item;
 }
+
 template <typename T, typename P, typename... Args>
 inline bool one_of(T val, P item, Args... item_others) {
     return val == item || one_of(val, item_others...);
@@ -132,7 +133,7 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
     for (const auto& old : all_orig) {
         auto& new_one = old2new_l[old.get()];
         // remap output data
-        for (int i = 0; i < old->outData.size(); i++) {
+        for (size_t i = 0; i < old->outData.size(); i++) {
             auto old_data = old->outData[i];
             auto new_data = new_one->outData[i];
             getCreatorLayer(new_data) = CNNLayerWeakPtr(new_one);
@@ -141,7 +142,7 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
             for (auto& to : getInputTo(new_data)) to.second = old2new_l[to.second.get()];
         }
         // remap input data
-        for (int i = 0; i < old->insData.size(); i++) {
+        for (size_t i = 0; i < old->insData.size(); i++) {
             auto old_data = old->insData[i].lock();
             auto new_data = old2new_d.at(old_data.get());
             new_one->insData[i] = new_data;
@@ -421,7 +422,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     IE_ASSERT(cell);
     IE_ASSERT(rsp2);
 
-    int NS = (cell->cellType == RNNSequenceLayer::LSTM) ? 2 : 1;  // number of states
+    size_t NS = (cell->cellType == RNNSequenceLayer::LSTM) ? 2 : 1;  // number of states
 
     IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
     IE_ASSERT(cell->outData.size() == NS);      // {state1, [state2]}
@@ -434,7 +435,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
 
     // Check port mapping
     auto _indx_in = [&](const std::vector<DataPtr>& scope, const DataPtr& data) {
-        int indx = static_cast<int>(std::find(scope.begin(), scope.end(), data) - scope.begin());
+        size_t indx = static_cast<size_t>(std::find(scope.begin(), scope.end(), data) - scope.begin());
         return indx == scope.size() ? -1 : indx;
     };
 
@@ -455,7 +456,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     for (auto& m : ti->output_port_map) o2map[m.to] = m;
     for (auto& m : ti->back_edges) be2map[m.to] = m;
 
-    if (!one_of(i2map.size(), NS + 1, 1) || !one_of(o2map.size(), NS + 1, 1) || !one_of(be2map.size(), NS))
+    if (!one_of(i2map.size(), NS + 1, 1u) || !one_of(o2map.size(), NS + 1, 1u) || !one_of(be2map.size(), NS))
         return false;
 
     auto in_iter_rule = i2map[in_dt_idx];
@@ -557,7 +558,7 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
     for (auto& outs : ti->outData) getCreatorLayer(outs).reset();
 
     /** FIRST class comes */
-    for (int i = 0; i < first_class.size(); i++) {
+    for (size_t i = 0; i < first_class.size(); i++) {
         auto& rule = first_class[i];
         auto in_data = ti->insData[rule.from].lock();
 
@@ -607,7 +608,7 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
     std::tie(first_class, second_class, third_class) = classifyOutputRules(*ti);
 
     /** FIRST class comes */
-    for (int i = 0; i < first_class.size(); i++) {
+    for (size_t i = 0; i < first_class.size(); i++) {
         auto& rule = first_class[i];
         auto out_data = ti->outData[rule.from];
 

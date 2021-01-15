@@ -60,8 +60,6 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     }
 
     const bool acrossChannels = mvn->get_reduction_axes().count(1) > 0;
-    const bool normalizeVariance = mvn->get_normalize_variance();
-
     if (!NetworkHelper::isScalarLike(scalesConst) && acrossChannels) {
         return false;
     }
@@ -89,7 +87,6 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
         scalesConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
     }
 
-    const bool acrossChannels = mvn->get_reduction_axes().count(1) > 0;
     const bool normalizeVariance = mvn->get_normalize_variance();
 
     auto newScalesConst = scalesConst;

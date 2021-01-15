@@ -86,13 +86,13 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
 #endif  // HAVE_SSE
 
     if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW) {
-        for (int n = 0; n < N; n++) {
-            for (int c = 0; c < C; c++) {
+        for (size_t n = 0; n < N; n++) {
+            for (size_t c = 0; c < C; c++) {
                 data_t* dst_ptr_l = dst_ptr + n * N_dst_stride + c * C_dst_stride;
                 data_t* src_ptr_l = src_ptr + n * N_src_stride + c * C_src_stride;
-                for (int h = 0; h < H; h++) {
+                for (size_t h = 0; h < H; h++) {
                     data_t* src_ptr_l_l = src_ptr_l + h * H_src_stride;
-                    for (int w = 0; w < W; w++) {
+                    for (size_t w = 0; w < W; w++) {
                         *dst_ptr_l = *src_ptr_l_l;
                         src_ptr_l_l += W_src_stride;
                         dst_ptr_l++;
@@ -101,13 +101,13 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
             }
         }
     } else if (src->getTensorDesc().getLayout() == NCHW && dst->getTensorDesc().getLayout() == NHWC) {
-        for (int n = 0; n < N; n++) {
-            for (int c = 0; c < C; c++) {
+        for (size_t n = 0; n < N; n++) {
+            for (size_t c = 0; c < C; c++) {
                 data_t* src_ptr_l = src_ptr + n * N_src_stride + c * C_src_stride;
                 data_t* dst_ptr_l = dst_ptr + n * N_dst_stride + c;
-                for (int h = 0; h < H; h++) {
+                for (size_t h = 0; h < H; h++) {
                     data_t* src_ptr_l_l = src_ptr_l + h * H_src_stride;
-                    for (int w = 0; w < W; w++) {
+                    for (size_t w = 0; w < W; w++) {
                         *dst_ptr_l = *src_ptr_l_l;
                         dst_ptr_l += W_dst_stride;
                         src_ptr_l_l++;
@@ -116,7 +116,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
             }
         }
     } else {
-        for (int i = 0; i < N * C * H * W; i++) {
+        for (size_t i = 0; i < N * C * H * W; i++) {
             dst_ptr[i] = src_ptr[i];
         }
     }
@@ -220,14 +220,14 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
     }
 #endif  // HAVE_SSE
     if (src->getTensorDesc().getLayout() == NDHWC && dst->getTensorDesc().getLayout() == NCDHW) {
-        for (int n = 0; n < N; n++) {
-            for (int c = 0; c < C; c++) {
-                for (int d = 0; d < D; d++) {
+        for (size_t n = 0; n < N; n++) {
+            for (size_t c = 0; c < C; c++) {
+                for (size_t d = 0; d < D; d++) {
                     data_t* dst_ptr_l = dst_ptr + n * N_dst_stride + c * C_dst_stride + d * D_dst_stride;
                     data_t* src_ptr_l = src_ptr + n * N_src_stride + c * C_src_stride + d * D_src_stride;
-                    for (int h = 0; h < H; h++) {
+                    for (size_t h = 0; h < H; h++) {
                         data_t* src_ptr_l_l = src_ptr_l + h * H_src_stride;
-                        for (int w = 0; w < W; w++) {
+                        for (size_t w = 0; w < W; w++) {
                             *dst_ptr_l = *src_ptr_l_l;
                             src_ptr_l_l += W_src_stride;
                             dst_ptr_l++;
@@ -237,14 +237,14 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
             }
         }
     } else if (src->getTensorDesc().getLayout() == NCDHW && dst->getTensorDesc().getLayout() == NDHWC) {
-        for (int n = 0; n < N; n++) {
-            for (int c = 0; c < C; c++) {
-                for (int d = 0; d < D; d++) {
+        for (size_t n = 0; n < N; n++) {
+            for (size_t c = 0; c < C; c++) {
+                for (size_t d = 0; d < D; d++) {
                     data_t* src_ptr_l = src_ptr + n * N_src_stride + c * C_src_stride + d * D_src_stride;
                     data_t* dst_ptr_l = dst_ptr + n * N_dst_stride + c + d * D_dst_stride;
-                    for (int h = 0; h < H; h++) {
+                    for (size_t h = 0; h < H; h++) {
                         data_t* src_ptr_l_l = src_ptr_l + h * H_src_stride;
-                        for (int w = 0; w < W; w++) {
+                        for (size_t w = 0; w < W; w++) {
                             *dst_ptr_l = *src_ptr_l_l;
                             dst_ptr_l += W_dst_stride;
                             src_ptr_l_l++;
@@ -254,7 +254,7 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
             }
         }
     } else {
-        for (int i = 0; i < N * C * D * H * W; i++) {
+        for (size_t i = 0; i < N * C * D * H * W; i++) {
             dst_ptr[i] = src_ptr[i];
         }
     }

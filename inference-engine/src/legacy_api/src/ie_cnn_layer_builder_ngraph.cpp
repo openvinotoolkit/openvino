@@ -109,19 +109,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GenericIE>::createLayer(const std::share
 }
 
 CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
-    auto find_input_idx = [](const CNNLayerPtr& where, const DataPtr& what) {
-        auto it = std::find_if(where->insData.begin(), where->insData.end(), [&](const DataWeakPtr& wk_ptr) {
-            auto layer_data = wk_ptr.lock();
-            IE_ASSERT(layer_data != nullptr);
-            return what->getName() == layer_data->getName();
-        });
-        if (it == where->insData.end()) {
-            THROW_IE_EXCEPTION << "Input layer not found.";
-        }
-
-        return it - where->insData.begin();
-    };
-
     auto tensor_iterator = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
     if (!tensor_iterator) {
         THROW_IE_EXCEPTION << "Cannot cast layer to TensorIterator.";
@@ -239,7 +226,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         //       to FP32. However Loop body has strong requirements for continue_condition
         //       port, it should be BOOL(U8).
         //
-        for (int i = 0; i < results.size(); i++) {
+        for (size_t i = 0; i < results.size(); i++) {
             auto result = results[i];
             auto output = body.outputs[i];
             if (result->get_element_type() == ngraph::element::u8) {

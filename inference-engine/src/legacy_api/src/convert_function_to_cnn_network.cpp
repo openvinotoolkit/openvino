@@ -190,7 +190,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         //       to FP32. However Loop body has strong requirements for continue_condition
         //       port, it should be BOOL(U8).
         //
-        for (int i = 0; i < results.size(); i++) {
+        for (size_t i = 0; i < results.size(); i++) {
             auto result = results[i];
             auto output = body.outputs[i];
             if (result->get_element_type() == ngraph::element::u8) {
@@ -383,8 +383,10 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         params[name] = joinVec(data);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<std::shared_ptr<
     ngraph::op::util::SubGraphOp::InputDescription>>>>(& adapter)) {
+        (void)a;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<std::shared_ptr<
     ngraph::op::util::SubGraphOp::OutputDescription>>>>(& adapter)) {
+        (void)a;
     } else {
         THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";

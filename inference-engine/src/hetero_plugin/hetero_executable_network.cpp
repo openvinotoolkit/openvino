@@ -263,7 +263,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         for (auto&& node : orderedOps) {
             auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
             if (!nodeSubgraphCyclicInputDependency.empty()) {
-                auto& nodeSubgraphInputDependency = nodeSubgraphInputDependencies[node.get()];
                 // Collect all subgraph inputs that cyclic subgraph output depends on
                 InputSet cyclicInputsDependencies;
                 for (auto&& cyclicInput : nodeSubgraphCyclicInputDependency) {
@@ -339,7 +338,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 
     std::vector<Subgraph> orderedSubgraphs;
     NodeSet prevResults;
-    int subgraphTopoSortsStep = 0;
+    size_t subgraphTopoSortsStep = 0;
     do {
         IE_ASSERT(subgraphTopoSortsStep++ < subgraphs.size());
         std::vector<Subgraph> nextSubgraphs;

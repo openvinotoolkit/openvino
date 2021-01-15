@@ -128,7 +128,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
         return false;
     }
 
-    for (int i = 2; i < constShape.size(); ++i) {
+    for (size_t i = 2; i < constShape.size(); ++i) {
         if (constShape[i] != 1) {
             return false;
         }

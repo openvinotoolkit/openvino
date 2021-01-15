@@ -93,14 +93,14 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
         }
 
         auto pads_begin = interpAttrs.pads_begin;
-        for (int i = 0; i < pads_begin.size(); ++i) {
+        for (size_t i = 0; i < pads_begin.size(); ++i) {
             if (pads_begin[i] != 0) {
                 return false;
             }
         }
 
         auto pads_end = interpAttrs.pads_end;
-        for (int i = 0; i < pads_end.size(); ++i) {
+        for (size_t i = 0; i < pads_end.size(); ++i) {
             if (pads_end[i] != 0) {
                 return false;
             }

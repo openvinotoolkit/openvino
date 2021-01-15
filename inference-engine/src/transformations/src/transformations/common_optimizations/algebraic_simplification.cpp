@@ -181,7 +181,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
     };
     std::vector<DimensionToPosition> dims;
     for (size_t i = 0; i < input_shape_rank; ++i) {
-        if (order_value[i] != i) {
+        if (order_value[i] != static_cast<int64_t>(i)) {
             dims.push_back({input_shape[order_value[i]], i});
         }
     }

@@ -40,14 +40,14 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
     bool is_power = false;
     auto in_it = const_shape.rbegin();
     auto out_it = input_shape.rbegin();
-    for (int idx = 0; in_it != const_shape.rend() && out_it != input_shape.rend(); ++in_it, ++out_it, ++idx) {
+    for (size_t idx = 0; in_it != const_shape.rend() && out_it != input_shape.rend(); ++in_it, ++out_it, ++idx) {
         if (idx != feature_index && *in_it != 1) {
             return CONVERSION_RESULT::NONE;
         }
 
         if (idx == feature_index && *in_it == 1) {
             is_power = true;
-        } else if (idx == feature_index && (out_it->is_dynamic() || *in_it != out_it->get_length())) {
+        } else if (idx == feature_index && (out_it->is_dynamic() || static_cast<int64_t>(*in_it) != out_it->get_length())) {
             return CONVERSION_RESULT::NONE;
         }
     }

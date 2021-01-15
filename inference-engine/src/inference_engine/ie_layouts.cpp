@@ -197,7 +197,7 @@ size_t TensorDesc::offset(const SizeVector& v) const {
         off_v[order[n_blocked_dims - i]] /= blockedDims[n_blocked_dims - i];
     }
     size_t offset = blockingDesc.getOffsetPadding();
-    for (int d = 0; d < n_blocked_dims; ++d) {
+    for (size_t d = 0; d < n_blocked_dims; ++d) {
         const size_t p = blockedShift[d] + blockingDesc.getOffsetPaddingToData()[d];
         offset += p * strides[d];
     }
@@ -207,7 +207,7 @@ size_t TensorDesc::offset(const SizeVector& v) const {
 size_t TensorDesc::offset(size_t l) const {
     size_t n_dims = dims.size();
     SizeVector pos(n_dims);
-    for (int rd = 1; rd <= n_dims; ++rd) {
+    for (size_t rd = 1; rd <= n_dims; ++rd) {
         const size_t d = n_dims - rd;
         const size_t cur_dim = dims[d];
         pos[d] = l % cur_dim;

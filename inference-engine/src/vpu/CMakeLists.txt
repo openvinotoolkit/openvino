@@ -6,6 +6,10 @@
 # Build common part
 #
 
+if(CMAKE_COMPILER_IS_GNUCC)
+    ie_add_compiler_flags(-Wno-all)
+endif()
+
 add_subdirectory(common)
 
 if(ENABLE_MYRIAD)

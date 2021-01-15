@@ -240,7 +240,7 @@ std::string get_opset_name(
         return special_opset;
     }
     // return the oldest opset name where node type is present
-    for (int idx = 0; idx < opsets.size(); idx++) {
+    for (size_t idx = 0; idx < opsets.size(); idx++) {
         if (opsets[idx].get().contains_op_type(n)) {
             return "opset" + std::to_string(idx + 1);
         }
@@ -359,7 +359,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
                 return shape;
             }
             auto out_shape = PartialShape::dynamic(shape.rank());
-            for (size_t i = 0; i < shape.rank().get_length(); ++i) {
+            for (int64_t i = 0; i < shape.rank().get_length(); ++i) {
                 const auto & in_dim = shape[i];
                 out_shape[i] = (in_dim.is_dynamic() ? Dimension(in_dim.get_max_length()) : in_dim);
             }

@@ -70,7 +70,7 @@ namespace {
         return squeezed_nodes;
     }
 
-    bool should_enable_mask(const ngraph::Output<ngraph::Node> &seq_lengths, size_t max_seq_len) {
+    bool should_enable_mask(const ngraph::Output<ngraph::Node> &seq_lengths, int64_t max_seq_len) {
         // disable the mask if all values of seq_lengths input are equal to max_seq_len (X_shape[1])
         if (const auto &seq_len_const = std::dynamic_pointer_cast<ngraph::opset5::Constant>(
                 seq_lengths.get_node_shared_ptr())) {

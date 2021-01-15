@@ -41,7 +41,6 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             const std::vector<float> scales = multiplyConst->cast_vector<float>();
             for (size_t group = 0; group < groupsCount; ++group) {
                 for (size_t i = 0; i < inputChannelsInGroup; ++i) {
-                    size_t index = group * inputChannelsInGroup + i;
                     if (scales[group * inputChannelsInGroup] != scales[group * inputChannelsInGroup + i]) {
                         return false;
                     }

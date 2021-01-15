@@ -254,7 +254,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         auto currentLayer = (*rit);
         std::string currentLayerName = currentLayer->name;
         bool isCurrentConst = mapConstLayers.find(currentLayerName) != mapConstLayers.end();
-        for (int i = 0; i < currentLayer->insData.size(); i++) {
+        for (size_t i = 0; i < currentLayer->insData.size(); i++) {
             std::string creatorName;
             if (currentLayer->insData[i].lock() != nullptr) {
                 auto creator = getCreatorLayer(currentLayer->insData[i].lock()).lock();
@@ -297,37 +297,6 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
 const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& constLayers,
                                              const std::vector<CNNLayerPtr>& sortedLayers) {
     BlobMap constData;
-    auto getInputBlobs = [&constData](const std::vector<DataWeakPtr>& insData,
-                                      bool isForShape) -> std::vector<Blob::CPtr> {
-        std::vector<Blob::CPtr> inputBlobs;
-        // special case of Const layers: no inputs, no input blobs
-        if (insData.empty()) {
-            return {};
-        }
-        for (const auto& data : insData) {
-            std::string dataName = data.lock()->getName();
-            if (constData.find(dataName) != constData.end()) {
-                // get blobs, inferred before
-                inputBlobs.push_back(constData.at(dataName));
-            } else {
-                // special case of Shape layer: no input data, but blob contains info about dimensions, layout and
-                // etc...
-                auto blob = make_blob_with_precision(data.lock()->getTensorDesc());
-                inputBlobs.push_back(blob);
-            }
-        }
-        return inputBlobs;
-    };
-
-    auto getOutputBlobs = [](const std::vector<DataPtr>& outData) -> std::vector<Blob::Ptr> {
-        std::vector<Blob::Ptr> outputBlobs;
-        for (const auto& data : outData) {
-            auto blob = make_blob_with_precision(data->getTensorDesc());
-            blob->allocate();
-            outputBlobs.push_back(blob);
-        }
-        return outputBlobs;
-    };
 
     for (const auto& layer : sortedLayers) {
         if (constLayers.find(layer->name) != constLayers.end()) {

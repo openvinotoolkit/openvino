@@ -144,7 +144,7 @@ private:
             return result;
         }
 
-        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs) {
+        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, size_t numInputs) {
             if (numInputs >= 0 && inputs.size() != numInputs) {
                 THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
                                    << " has incorrect number of inputs! Expected: " << numInputs << ", actual: " << inputs.size();

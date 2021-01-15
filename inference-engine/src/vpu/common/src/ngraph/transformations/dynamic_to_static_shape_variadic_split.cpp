@@ -49,7 +49,7 @@ void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
     if (axis + 1 < data_rank_value) {
         second_shape_part.push_back(gatherShapeElements(data_shape, axis + 1, data_rank_value - axis - 1));
     }
-    for (auto i = 0; i < split_lengths.size(); ++i) {
+    for (size_t i = 0; i < split_lengths.size(); ++i) {
         const auto dim = ngraph::opset3::Constant::create(data_shape->get_element_type(), {1}, {split_lengths[i]});
         auto dsrShapeInput = dim->shared_from_this();
 

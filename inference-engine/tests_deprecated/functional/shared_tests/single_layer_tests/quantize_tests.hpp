@@ -46,10 +46,10 @@ void ref_quantize(const std::vector<Blob::Ptr> &srcs, std::vector<Blob::Ptr> &ds
     size_t W = prm.in.w;
     size_t ICB = prm.ic_const_blobs;
 
-    for (int n = 0; n < N; n++) {
-        for (int c = 0; c < C; c++) {
-            for (int h = 0; h < H; h++) {
-                for (int w = 0; w < W; w++) {
+    for (size_t n = 0; n < N; n++) {
+        for (size_t c = 0; c < C; c++) {
+            for (size_t h = 0; h < H; h++) {
+                for (size_t w = 0; w < W; w++) {
                     size_t idx = n*C*H*W + c*H*W + h*W + w;
 
                     if (src_data[idx] <= input_low_data[c % ICB])

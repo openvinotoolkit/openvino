@@ -29,7 +29,6 @@ bool ConvertTransformation::transform(TransformationContext& context, ngraph::pa
     }
 
     const ngraph::element::Type precisionBefore = convert->get_input_element_type(0);
-    const ngraph::element::Type precisionAfter = convert->get_output_element_type(0);
 
     std::shared_ptr<opset1::Subtract> subtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
         convert->get_input_node_shared_ptr(0),

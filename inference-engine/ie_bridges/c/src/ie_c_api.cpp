@@ -279,7 +279,7 @@ IEStatusCode ie_core_get_versions(const ie_core_t *core, const char *device_name
 
 void ie_core_versions_free(ie_core_versions_t *vers) {
     if (vers) {
-        for (int i = 0; i < vers->num_vers; ++i) {
+        for (size_t i = 0; i < vers->num_vers; ++i) {
             delete[] const_cast<char *>(vers->versions[i].device_name);
             vers->versions[i].device_name = NULL;
         }
@@ -533,7 +533,7 @@ IEStatusCode ie_core_get_available_devices(const ie_core_t *core, ie_available_d
 
 void ie_core_available_devices_free(ie_available_devices_t *avai_devices) {
     if (avai_devices->devices) {
-        for (int i = 0; i < avai_devices->num_devices; ++i) {
+        for (size_t i = 0; i < avai_devices->num_devices; ++i) {
             if (avai_devices->devices[i]) {
                 delete[] avai_devices->devices[i];
                 avai_devices->devices[i] = NULL;
