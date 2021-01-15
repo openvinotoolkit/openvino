@@ -221,7 +221,7 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         }
 
         ngraph::Shape crop_shape(reshape_pattern);
-        for (int i = 0; i < axes.size(); ++i) {
+        for (size_t i = 0; i < axes.size(); ++i) {
             crop_shape[axes[i]] = dim[i];
         }
 

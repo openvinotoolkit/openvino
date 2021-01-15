@@ -30,11 +30,11 @@ LayerTransformation::LayerTransformation(const Params& params) :
     supportAsymmetricQuantization(params.supportAsymmetricQuantization),
     precisionsOnActivations(params.precisionsOnActivations),
     precisionsOnWeights(params.precisionsOnWeights),
-    layerTransformationsManager(nullptr),
-    paramsManager(nullptr),
     quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
-    minQuantizationLevels(2ul) {}
+    minQuantizationLevels(2ul),
+    paramsManager(nullptr),
+    layerTransformationsManager(nullptr) {}
 
 void LayerTransformation::setParamsManager(IParamsManager* paramsManager) noexcept {
     this->paramsManager = paramsManager;
@@ -477,6 +477,7 @@ void LayerTransformation::updateOutput(
 void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const {
     ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
         const bool result = transform(context, m);
+        (void)result;
 #ifdef LPT_DISPLAY_PRECISION
         if (result) {
             auto operationNode = m.get_match_root();

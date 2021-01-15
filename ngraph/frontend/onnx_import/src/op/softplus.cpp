@@ -16,9 +16,9 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/softplus.hpp"
+#include "op/softplus.hpp"
 
 namespace ngraph
 {

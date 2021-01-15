@@ -239,8 +239,9 @@ void WatchdogImpl::waitFor(const milliseconds sleepInterval) {
 #else
     clock_gettime(CLOCK_MONOTONIC, &timeToWait);
     const auto secondInNanoSeconds = 1000000000L;
-    const auto nsecSum = std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
-                         std::chrono::nanoseconds(sec).count() + timeToWait.tv_nsec;
+    const auto nsecSum = static_cast<long long>(
+                            std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
+                            std::chrono::nanoseconds(sec).count() + timeToWait.tv_nsec);
     timeToWait.tv_sec += sec.count() + nsecSum / secondInNanoSeconds;
     timeToWait.tv_nsec = nsecSum % secondInNanoSeconds;
 #endif // (defined(__APPLE__) || defined(_WIN32))
