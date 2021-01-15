@@ -356,9 +356,9 @@ std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
 std::shared_ptr<ngraph::Node> makeScatterUpdate(const ngraph::Output<Node> &in,
                                                 const element::Type& indicesType,
                                                 const std::vector<size_t>& indicesShape,
-                                                const std::vector<size_t>& indices,
+                                                const std::vector<int64_t>& indices,
                                                 const ngraph::Output<Node> &update,
-                                                std::size_t axis);
+                                                int64_t axis);
 
 std::shared_ptr<ngraph::Node> makeScatterElementsUpdate(const ngraph::Output<Node> &in,
                                                         const element::Type& indicesType,

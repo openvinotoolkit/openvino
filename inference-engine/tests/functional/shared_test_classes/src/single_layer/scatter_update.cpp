@@ -11,8 +11,8 @@ std::string ScatterUpdateLayerTest::getTestCaseName(const testing::TestParamInfo
     std::vector<size_t> inShape;
     std::vector<size_t> indicesShape;
     std::vector<size_t> updateShape;
-    int axis;
-    std::vector<size_t> indicesValue;
+    int64_t axis;
+    std::vector<int64_t> indicesValue;
     InferenceEngine::Precision inputPrecision;
     InferenceEngine::Precision indicesPrecision;
     std::string targetName;
@@ -63,8 +63,8 @@ void ScatterUpdateLayerTest::SetUp() {
     InferenceEngine::SizeVector inShape;
     InferenceEngine::SizeVector indicesShape;
     InferenceEngine::SizeVector updateShape;
-    int axis;
-    InferenceEngine::SizeVector indicesValue;
+    int64_t axis;
+    std::vector<int64_t> indicesValue;
     InferenceEngine::Precision inputPrecision;
     InferenceEngine::Precision indicesPrecision;
     std::tie(shapeDescript, indicesValue, inputPrecision, indicesPrecision, targetDevice) = this->GetParam();
