@@ -139,7 +139,6 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
                                   "; input_scores batch: ",
                                   num_batches_scores);
         }
-        return;
     }
 }
 
