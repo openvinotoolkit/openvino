@@ -130,30 +130,13 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
     auto featmap_height = featmap_shape[2];
     auto featmap_width = featmap_shape[3];
 
-    if (num_priors.is_dynamic() || featmap_height.is_dynamic() || featmap_width.is_dynamic())
-    {
-        if (!m_attrs.flatten)
-        {
-            out_shape[0] = featmap_height;
-            out_shape[1] = featmap_width;
-            out_shape[2] = num_priors;
-        }
-
-        set_output_type(0, input_et, out_shape);
-        return;
-    }
-
-    const size_t priors_num = static_cast<size_t>(num_priors.get_length());
-    const size_t grid_height = static_cast<size_t>(featmap_height.get_length());
-    const size_t grid_width = static_cast<size_t>(featmap_width.get_length());
-
     if (m_attrs.flatten)
     {
-        out_shape = Shape{grid_height * grid_width * priors_num, 4};
+        out_shape = Shape{featmap_height * featmap_width * num_priors, 4};
     }
     else
     {
-        out_shape = Shape{grid_height, grid_width, priors_num, 4};
+        out_shape = Shape{featmap_height, featmap_width, num_priors, 4};
     }
     set_output_type(0, input_et, out_shape);
 }
