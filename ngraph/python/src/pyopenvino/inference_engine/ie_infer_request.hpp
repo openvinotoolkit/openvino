@@ -18,6 +18,19 @@
 
 #include <pybind11/pybind11.h>
 
+#include <chrono>
+
+#include <cpp/ie_infer_request.hpp>
+
 namespace py = pybind11;
+
+class PyInferRequest : public InferenceEngine::InferRequest
+{
+public:
+    using InferenceEngine::InferRequest::InferRequest;
+
+    std::chrono::high_resolution_clock::time_point start_time;
+    std::chrono::high_resolution_clock::time_point end_time;
+};
 
 void regclass_InferRequest(py::module m);
