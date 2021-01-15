@@ -36,10 +36,13 @@ namespace ngraph
                 /// \brief Structure that specifies attributes of the operation
                 struct Attributes
                 {
+                    // minimum box width & height
                     float min_size;
                     // specifies NMS threshold
                     float nms_threshold;
+                    // number of top-n proposals after NMS
                     int64_t post_nms_count;
+                    // number of top-n proposals before NMS
                     int64_t pre_nms_count;
                 };
 
