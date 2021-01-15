@@ -183,3 +183,35 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_string_cast)
         FAIL() << "AutoBroadcastType checking failed for unexpected reason";
     }
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_string_cast_lowercase_attrs)
+{
+    auto a = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::Parameter>(element::f32, Shape{1});
+
+    auto add = make_shared<op::v1::Add>(a, b, "numpy");
+    ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NUMPY);
+
+    add = make_shared<op::v1::Add>(a, b, "none");
+    ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NONE);
+
+    add = make_shared<op::v1::Add>(a, b, "pdpd");
+    ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::PDPD);
+
+    add = make_shared<op::v1::Add>(a, b, "explicit");
+    ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::EXPLICIT);
+
+    try
+    {
+        add = make_shared<op::v1::Add>(a, b, "unknown");
+        FAIL() << "Unknown AutoBroadcastType not detected.";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Invalid 'type' value passed in."));
+    }
+    catch (...)
+    {
+        FAIL() << "AutoBroadcastType checking failed for unexpected reason";
+    }
+}

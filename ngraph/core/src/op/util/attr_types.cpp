@@ -31,10 +31,10 @@ namespace ngraph
     NGRAPH_API EnumNames<op::PadMode>& EnumNames<op::PadMode>::get()
     {
         static auto enum_names = EnumNames<op::PadMode>("op::PadMode",
-                                                        {{"CONSTANT", op::PadMode::CONSTANT},
-                                                         {"EDGE", op::PadMode::EDGE},
-                                                         {"REFLECT", op::PadMode::REFLECT},
-                                                         {"SYMMETRIC", op::PadMode::SYMMETRIC}});
+                                                        {{"constant", op::PadMode::CONSTANT},
+                                                         {"edge", op::PadMode::EDGE},
+                                                         {"reflect", op::PadMode::REFLECT},
+                                                         {"symmetric", op::PadMode::SYMMETRIC}});
         return enum_names;
     }
 
@@ -95,11 +95,11 @@ namespace ngraph
     {
         static auto enum_names =
             EnumNames<op::BroadcastType>("op::BroadcastType",
-                                         {{"NONE", op::BroadcastType::NONE},
-                                          {"NUMPY", op::BroadcastType::NUMPY},
-                                          {"EXPLICIT", op::BroadcastType::EXPLICIT},
-                                          {"PDPD", op::BroadcastType::PDPD},
-                                          {"BIDIRECTIONAL", op::BroadcastType::BIDIRECTIONAL}});
+                                         {{"none", op::BroadcastType::NONE},
+                                          {"numpy", op::BroadcastType::NUMPY},
+                                          {"explicit", op::BroadcastType::EXPLICIT},
+                                          {"pdpd", op::BroadcastType::PDPD},
+                                          {"bidirectional", op::BroadcastType::BIDIRECTIONAL}});
         return enum_names;
     }
 
@@ -162,15 +162,21 @@ namespace ngraph
 
     op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string& type) const
     {
+        auto lowercase_type = type;
+        std::transform(lowercase_type.begin(),
+                       lowercase_type.end(),
+                       lowercase_type.begin(),
+                       [](char c) { return std::tolower(c); });
+
         static const std::map<std::string, AutoBroadcastType> allowed_values = {
-            {"NONE", AutoBroadcastType::NONE},
-            {"NUMPY", AutoBroadcastType::NUMPY},
-            {"PDPD", AutoBroadcastType::PDPD},
-            {"EXPLICIT", AutoBroadcastType::EXPLICIT}};
+            {"none", AutoBroadcastType::NONE},
+            {"numpy", AutoBroadcastType::NUMPY},
+            {"pdpd", AutoBroadcastType::PDPD},
+            {"explicit", AutoBroadcastType::EXPLICIT}};
 
-        NGRAPH_CHECK(allowed_values.count(type) > 0, "Invalid 'type' value passed in.");
+        NGRAPH_CHECK(allowed_values.count(lowercase_type) > 0, "Invalid 'type' value passed in.");
 
-        return allowed_values.at(type);
+        return allowed_values.at(lowercase_type);
     }
 
     bool AttributeAdapter<op::AutoBroadcastSpec>::visit_attributes(AttributeVisitor& visitor)
