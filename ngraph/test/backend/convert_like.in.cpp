@@ -169,3 +169,21 @@ NGRAPH_TEST(${BACKEND_NAME}, convert_like_bfloat16_float32)
         shape_data, {0.5, 1.5, 0.5, 2.5, 1.5, 0.5, 3.5, 2.5, 0.5, 0.5, 2.5, 0.5, 0.5, 0.5, 1.5});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, convert_like_dyn_float16_to_int64)
+{
+    PartialShape pshape_data{Dimension::dynamic(), 2, 2, Dimension::dynamic()};
+    Shape shape_like{};
+    const auto data = make_shared<op::Parameter>(element::f16, pshape_data);
+    const auto like = op::Constant::create(element::i64, Shape{}, {0});
+    auto f =
+        make_shared<Function>(make_shared<op::v1::ConvertLike>(data, like), ParameterVector{data});
+
+    vector<float16> data_vect = {-3.21f, 0.1f, 2.6f, 4.99f};
+    Shape shape_data{1, 2, 2, 1};
+
+    auto test_case = test::TestCase<TestEngine, ngraph::test::TestCaseType::DYNAMIC>(f);
+    test_case.add_input<float16>(shape_data, data_vect);
+    test_case.add_expected_output<int64_t>(shape_data, vector<int64_t>{-3, 0, 2, 4});
+    test_case.run();
+}
