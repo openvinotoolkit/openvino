@@ -753,7 +753,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
             </output>
         </layer>
         <layer name="in1" type="Parameter" id="1" version="opset1">
-            <data shape="1201600000,4" element_type="f32"/>
+            <data shape="201600,4" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>201600</dim>
@@ -772,7 +772,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
             </output>
         </layer>
         <layer name="in3" type="Parameter" id="3" version="opset1">
-            <data shape="1,3" element_type="f32"/>
+            <data shape="3,200,336" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>
@@ -860,7 +860,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage_opset6) {
             </output>
         </layer>
         <layer name="in1" type="Parameter" id="1" version="opset1">
-            <data shape="1201600000,4" element_type="f32"/>
+            <data shape="201600,4" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>201600</dim>
@@ -879,7 +879,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage_opset6) {
             </output>
         </layer>
         <layer name="in3" type="Parameter" id="3" version="opset1">
-            <data shape="1,3" element_type="f32"/>
+            <data shape="3,200,336" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>
