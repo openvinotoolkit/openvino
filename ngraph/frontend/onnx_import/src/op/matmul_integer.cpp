@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/matmul_integer.hpp"
+#include "op/matmul_integer.hpp"
 #include "ngraph/builder/matmul_factory.hpp"
 #include "ngraph/log.hpp"
 
