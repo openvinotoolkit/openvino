@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,37 @@ const std::vector<std::vector<size_t>> inputShapesW1 = {{1, 1, 32, 1},
                                                         {1, 1, 64, 1}};
 const std::vector<size_t> numOutCannels = {4, 8, 12};
 
+const std::vector<std::vector<size_t >> kernels2D = {
+                                                          {4, 1},
+                                                          {1, 4},
+                                                          {2, 2},
+                                                          {2, 3},
+                                                          {3, 2},
+                                                          // {4, 2}, TODO: fix sporadic accuracy failures, see issue 45303
+                                                          // {3, 3}, TODO: fix sporadic accuracy failures, see issue 45303
+};
+const std::vector<std::vector<size_t >> strides2D = {
+                                                          {1, 1},
+};
+const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {0, 0},
+};
+const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {0, 0},
+};
+const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
+};
+const std::vector<size_t> numOutCannels2D = { 1, 2, 5 };
+
+const std::vector<size_t> input2DNCHW = { 1, 2, 20, 15 };
+
+const auto conv2DParams_Kernels2D = ::testing::Combine(
+    ::testing::ValuesIn(kernels2D),
+    ::testing::ValuesIn(strides2D),
+    ::testing::ValuesIn(padBegins2D),
+    ::testing::ValuesIn(padEnds2D),
+    ::testing::ValuesIn(dilations2D),
+    ::testing::ValuesIn(numOutCannels2D),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
 const auto conv2DParams_ExplicitPadding_Height1 = ::testing::Combine(
         ::testing::ValuesIn(kernelsH1),
         ::testing::ValuesIn(stridesH1),
@@ -132,4 +163,17 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_Width1, ConvolutionLaye
                                 ::testing::ValuesIn(inputShapesW1),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
+
+// TODO: Enable for GNA 2.1 library
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_Kernels2D, ConvolutionLayerTest,
+    ::testing::Combine(
+        conv2DParams_Kernels2D,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(input2DNCHW),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+    ConvolutionLayerTest::getTestCaseName);
 }  // namespace
