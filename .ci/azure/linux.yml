@@ -52,10 +52,10 @@ jobs:
     displayName: 'System info'
 
   - script: |
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+      echo TargetBranch: $(System.PullRequest.TargetBranch)
+      echo SourceBranch: $(Build.SourceBranch)
     displayName: 'Make dir'
 
   - checkout: self
@@ -112,7 +112,7 @@ jobs:
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List files'
 
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(WORK_DIR)\install_pkg -P cmake_install.cmake
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(WORK_DIR)/install_pkg -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
