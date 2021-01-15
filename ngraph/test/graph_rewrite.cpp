@@ -8,6 +8,8 @@
 #include <ngraph/pass/manager.hpp>
 #include <util/test_tools.hpp>
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ::testing;
 using namespace std;
 using namespace ngraph;
