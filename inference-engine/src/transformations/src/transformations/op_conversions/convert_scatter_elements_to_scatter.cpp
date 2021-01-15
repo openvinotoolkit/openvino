@@ -16,7 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertScatterElementsToScatter, "ConvertScatterElementsToScatter", 0);
 
 void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_scatter() {
-    MATCHER_SCOPE(ConvertScatterElementsToScatter_convert_scatter_elements_to_scatter);
+    MATCHER_SCOPE();
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto indices = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
     auto updates = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -210,7 +210,7 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, get_type_info().name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END

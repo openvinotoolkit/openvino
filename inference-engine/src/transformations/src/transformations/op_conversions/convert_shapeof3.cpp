@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShapeOf3, "ConvertShapeOf3", 0);
 
 void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
-    MATCHER_SCOPE(ConvertShapeOf3_convert_shapeof3);
+    MATCHER_SCOPE();
     auto input = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input);
 
@@ -44,7 +44,7 @@ void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, get_type_info().name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END

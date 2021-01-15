@@ -44,8 +44,7 @@ OV_CC_DOMAINS(internal_op);
  */
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #define RUN_ON_FUNCTION_SCOPE(region) OV_SCOPE(ngraph_pass, OV_CC_CAT(region, _run_on_function))
-#define MATCHER_SCOPE(region)                                                                   \
-    std::string matcher_name(OV_CC_TOSTRING(region))
+#define MATCHER_SCOPE()
 
 #define INTERNAL_OP_SCOPE(region) OV_SCOPE(internal_op, region)
 
@@ -56,16 +55,14 @@ OV_CC_DOMAINS(internal_op);
     throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(scope, _, region))) +      \
                                " is disabled!")
 
-#define MATCHER_SCOPE(region)                                                                   \
-    std::string matcher_name(OV_CC_TOSTRING(region));                                           \
-    if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(ngraph_pass, _, region)) == 0)                        \
+#define MATCHER_SCOPE()                                                                         \
+    if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(ngraph_pass, _, get_type_info().name)) == 0)          \
         return
 #define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(internal_op, region)
 #define RUN_ON_FUNCTION_SCOPE(region) MATCHER_SCOPE_(ngraph_pass, OV_CC_CAT(region, _run_on_function))
 
 #else
-#define MATCHER_SCOPE(region)                                                                   \
-    std::string matcher_name(OV_CC_TOSTRING(region))
+#define MATCHER_SCOPE()
 #define INTERNAL_OP_SCOPE(region)
 #define RUN_ON_FUNCTION_SCOPE(region)
 #endif

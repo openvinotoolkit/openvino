@@ -85,7 +85,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
 
 void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
-    MATCHER_SCOPE(DepthToSpaceFusion_depth_to_space_fusion);
+    MATCHER_SCOPE();
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
@@ -161,7 +161,7 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, get_type_info().name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END

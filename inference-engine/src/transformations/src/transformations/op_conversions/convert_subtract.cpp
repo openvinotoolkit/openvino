@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSubtract, "ConvertSubtract", 0);
 
 ngraph::pass::ConvertSubtract::ConvertSubtract() {
-    MATCHER_SCOPE(ConvertSubtract);
+    MATCHER_SCOPE();
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
@@ -65,6 +65,6 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, get_type_info().name);
     this->register_matcher(m, callback);
 }

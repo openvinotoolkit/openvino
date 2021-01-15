@@ -58,7 +58,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertQuantizeDequantize, "ConvertQuantizeDequantize", 0);
 
 ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
-    MATCHER_SCOPE(ConvertQuantizeDequantize);
+    MATCHER_SCOPE();
     auto data_pattern = ngraph::pattern::any_input();
     auto input_low_pattern = ngraph::pattern::any_input();
     auto input_high_pattern = ngraph::pattern::any_input();
@@ -151,6 +151,6 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, get_type_info().name);
     this->register_matcher(m, callback);
 }

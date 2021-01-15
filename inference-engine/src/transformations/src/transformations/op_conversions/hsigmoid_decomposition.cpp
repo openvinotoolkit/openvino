@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidDecomposition, "HSigmoidDecomposition", 0);
 
 ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
-    MATCHER_SCOPE(HSigmoidDecomposition);
+    MATCHER_SCOPE();
     // Decomposes HSigmoid(x) op into sub-graph (min(Relu(x + 3), 6) * const(1/6)
     auto hsigmoid = ngraph::pattern::wrap_type<opset5::HSigmoid>();
 
@@ -42,6 +42,6 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(hsigmoid, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(hsigmoid, get_type_info().name);
     register_matcher(m, callback);
 }

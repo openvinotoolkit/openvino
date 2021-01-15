@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveFilteringBoxesBySize, "RemoveFilteringBoxesBySize", 0);
 
 void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() {
-    MATCHER_SCOPE(RemoveFilteringBoxesBySize_remove_filtering_boxes_by_size);
+    MATCHER_SCOPE();
     // variadic split
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1000, 4});
     auto sizes = opset3::Constant::create(element::i64, Shape{4}, std::vector<int64_t >({1, 1, 1, 1}));
@@ -105,6 +105,6 @@ void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(cast, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(cast, get_type_info().name);
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcastToTiles, "ConvertBroadcastToTiles", 0);
 
 ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
-    MATCHER_SCOPE(ConvertBroadcastToTiles);
+    MATCHER_SCOPE();
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
@@ -98,6 +98,6 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, get_type_info().name);
     this->register_matcher(m, callback);
 }

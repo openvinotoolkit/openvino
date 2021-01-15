@@ -17,7 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalGRUSequenceDecomposition, "Bid
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalRNNSequenceDecomposition, "BidirectionalRNNSequenceDecomposition", 0);
 
 ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
-    MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition_BidirectionalLSTMSequenceDecomposition);
+    MATCHER_SCOPE();
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -81,12 +81,12 @@ ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceD
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_sequence_ngraph, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_sequence_ngraph, get_type_info().name);
     this->register_matcher(m, callback);
 }
 
 ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecomposition() {
-    MATCHER_SCOPE(BidirectionalGRUSequenceDecomposition_BidirectionalGRUSequenceDecomposition);
+    MATCHER_SCOPE();
     auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::GRUSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -146,12 +146,12 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_sequence_ngraph, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_sequence_ngraph, get_type_info().name);
     this->register_matcher(m, callback);
 }
 
 ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecomposition() {
-    MATCHER_SCOPE(BidirectionalRNNSequenceDecomposition_BidirectionalRNNSequenceDecomposition);
+    MATCHER_SCOPE();
     auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::RNNSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -209,6 +209,6 @@ ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDec
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_sequence_ngraph, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_sequence_ngraph, get_type_info().name);
     this->register_matcher(m, callback);
 }

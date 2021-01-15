@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeReshapeFusion, "FakeQuantizeReshapeFusion", 0);
 
 ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
-    MATCHER_SCOPE(FakeQuantizeReshapeFusion);
+    MATCHER_SCOPE();
     const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
             {ngraph::pattern::wrap_type<opset4::Constant>(), // for weights only
              ngraph::pattern::any_input(),
@@ -76,6 +76,6 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, get_type_info().name);
     this->register_matcher(m, callback);
 }
