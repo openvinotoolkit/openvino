@@ -38,5 +38,5 @@ Framework-specific parameters for:
 ## See Also
 * [Configuring the Model Optimizer](../Config_Model_Optimizer.md)
 * [IR Notation Reference](../../IR_and_opsets.md)
-* [Custom Layers in Model Optimizer](../customize_model_optimizer/Customize_Model_Optimizer.md) 
+* [Model Optimizer Extensibility](../customize_model_optimizer/Customize_Model_Optimizer.md)
 * [Model Cutting](Cutting_Model.md)
