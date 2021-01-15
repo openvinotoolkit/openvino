@@ -300,6 +300,72 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::MVN>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        AxisSet reduction_axes;
+        auto rank = inputs[0]->get_shape().size();
+        if (inputs[1]->get_element_type() == element::i64)
+        {
+            int64_t* a = inputs[1]->get_data_ptr<int64_t>();
+            auto v = std::vector<int64_t>(a, a + inputs[1]->get_shape()[0]);
+            std::vector<size_t> axes(v.size(), 0);
+            for (int i = 0; i < v.size(); i++)
+            {
+                if (v[i] < 0)
+                {
+                    if (rank + v[i] < 0)
+                    {
+                        throw ngraph_error("Unexpected axis");
+                    }
+                    axes[i] = (size_t)(rank + v[i]);
+                }
+                else
+                {
+                    axes[i] = (size_t)(v[i]);
+                }
+            }
+            reduction_axes = AxisSet(axes);
+        }
+        else if (inputs[1]->get_element_type() == element::i32)
+        {
+            int32_t* a = inputs[1]->get_data_ptr<int32_t>();
+            auto v = std::vector<int32_t>(a, a + inputs[1]->get_shape()[0]);
+            std::vector<size_t> axes(v.size(), 0);
+            for (int i = 0; i < v.size(); i++)
+            {
+                if (v[i] < 0)
+                {
+                    if (rank + v[i] < 0)
+                    {
+                        throw ngraph_error("Unexpected axis");
+                    }
+                    axes[i] = (size_t)(rank + v[i]);
+                }
+                else
+                {
+                    axes[i] = (size_t)(v[i]);
+                }
+            }
+            reduction_axes = AxisSet(axes);
+        }
+        else
+        {
+            throw ngraph_error("Unexpected indices type");
+        }
+        runtime::reference::mvn_6<T>(inputs[0]->get_data_ptr<ET>(),
+                                     outputs[0]->get_data_ptr<ET>(),
+                                     inputs[0]->get_shape(),
+                                     reduction_axes,
+                                     op->get_normalize_variance(),
+                                     op->get_eps(),
+                                     op->get_eps_mode());
+        return true;
+    }
+
     namespace nms_v5
     {
         using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;

@@ -1568,3 +1568,15 @@ IE_GPU.evaluate_1D_gather_elements_negative_test
 IE_GPU.evaluate_2D_gather_elements_negative_test
 IE_GPU.evaluate_2D_gather_elements_2x2x1_data_float32
 IE_GPU.evaluate_4D_gather_elements_3x2x2x2_indices_int64
+
+# not implemented in CPU and GPU
+IE_CPU.evaluate_mvn_6_no_variance
+IE_CPU.evaluate_mvn_6
+IE_CPU.evaluate_mvn_6_inside_sqrt
+IE_CPU.evaluate_mvn_6_across_chanells
+IE_CPU.evaluate_mvn_6_across_batch
+IE_GPU.evaluate_mvn_6_no_variance
+IE_GPU.evaluate_mvn_6
+IE_GPU.evaluate_mvn_6_inside_sqrt
+IE_GPU.evaluate_mvn_6_across_chanells
+IE_GPU.evaluate_mvn_6_across_batch
