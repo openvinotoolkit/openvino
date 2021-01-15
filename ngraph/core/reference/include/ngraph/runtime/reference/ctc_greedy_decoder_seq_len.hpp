@@ -42,8 +42,7 @@ namespace ngraph
                 CoordinateTransform out_transform = CoordinateTransform(out_shape);
                 CoordinateTransform data_transform = CoordinateTransform(data_shape);
 
-                std::vector<TF> tmp_out(shape_size(out_shape));
-                std::fill(tmp_out.begin(), tmp_out.end(), static_cast<TF>(-1.0));
+                std::vector<TCI> tmp_out(shape_size(out_shape), -1);
 
                 for (unsigned int batch_ind = 0; batch_ind < batch_size; batch_ind++)
                 {

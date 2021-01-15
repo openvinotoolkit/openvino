@@ -1573,18 +1573,8 @@ namespace
                   const HostTensorVector& inputs)
     {
         using TF = typename element_type_traits<T>::value_type;
-
         using TCI = int32_t;
-        if (op->get_classes_index_type() == element::i64)
-        {
-            using TCI = int64_t;
-        }
-
         using TSL = int32_t;
-        if (op->get_sequence_length_type() == element::i64)
-        {
-            using TSL = int64_t;
-        }
 
         if (op->get_sequence_length_type() == element::i32)
         {
