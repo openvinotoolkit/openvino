@@ -32,7 +32,8 @@ public:
                   const std::vector<float> &activations_alpha,
                   const std::vector<float> &activations_beta,
                   float clip,
-                  bool linear_before_reset);
+                  bool linear_before_reset,
+                  int64_t seq_axis = 1);
 
     GRUSequenceIE() = delete;
 
@@ -55,6 +56,7 @@ public:
 protected:
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;
+    int64_t m_seq_axis;
 };
 
     }  // namespace op

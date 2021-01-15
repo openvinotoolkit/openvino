@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/cosh.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
+#include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 #include "ngraph/op/ctc_loss.hpp"
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/deformable_convolution.hpp"
@@ -51,7 +52,6 @@
 #include "ngraph/op/depth_to_space.hpp"
 #include "ngraph/op/detection_output.hpp"
 #include "ngraph/op/divide.hpp"
-#include "ngraph/op/dot.hpp"
 #include "ngraph/op/elu.hpp"
 #include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
@@ -64,6 +64,7 @@
 #include "ngraph/op/floor.hpp"
 #include "ngraph/op/floor_mod.hpp"
 #include "ngraph/op/gather.hpp"
+#include "ngraph/op/gather_elements.hpp"
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/op/gather_tree.hpp"
 #include "ngraph/op/gelu.hpp"
@@ -112,7 +113,6 @@
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/quantize.hpp"
-#include "ngraph/op/quantized_dot.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/reduce_l1.hpp"

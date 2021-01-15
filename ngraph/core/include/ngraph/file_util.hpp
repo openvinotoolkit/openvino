@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,5 +77,10 @@ namespace ngraph
         /// \param str A null-terminated string
         /// \return A wide-char string
         NGRAPH_API std::wstring multi_byte_char_to_wstring(const char* str);
+
+        /// \brief Remove path components which would allow traversing up a directory tree.
+        /// \param path A path to file
+        /// \return A sanitiazed path
+        NGRAPH_API std::string sanitize_path(const std::string& path);
     }
 }

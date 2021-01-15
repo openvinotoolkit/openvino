@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -83,16 +83,6 @@ const Shape& descriptor::Tensor::get_shape() const
         throw std::invalid_argument(
             "get_shape was called on a descriptor::Tensor with dynamic shape");
     }
-}
-
-void descriptor::Tensor::set_pool_offset(size_t offset)
-{
-    m_pool_offset = offset;
-}
-
-size_t descriptor::Tensor::get_pool_offset() const
-{
-    return m_pool_offset;
 }
 
 size_t descriptor::Tensor::size() const

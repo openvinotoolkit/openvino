@@ -31,21 +31,8 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();
+    auto output_format = desc->output_format;
     auto output_shape = desc->output_shape;
-    auto output_format = input_layout.format;
-
-    int spatialNum = 0;
-    for (auto i : node.input(1).get_output_layout().size.raw)
-         spatialNum += (i > 1) ? 1 : 0;
-
-    // change output format if input indeces > 1
-    if (spatialNum == 2 && output_format == cldnn::format::bfzyx) {
-        output_format = cldnn::format::bfwzyx;
-    } else if (spatialNum == 2 && output_format == cldnn::format::bfyx) {
-        output_format = cldnn::format::bfzyx;
-    } else if (spatialNum == 3 && output_format == cldnn::format::bfyx) {
-        output_format = cldnn::format::bfwzyx;
-    }
 
     auto output_type = input_layout.data_type;
     if (node.has_fused_primitives()) {

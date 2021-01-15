@@ -41,7 +41,7 @@ public:
      *
      * @return CNNNetwork
      */
-    virtual CNNNetwork read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const = 0;
+    virtual CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const = 0;
 
     /**
      * @brief Returns all supported extensions for data files

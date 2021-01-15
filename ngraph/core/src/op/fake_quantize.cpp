@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,14 +15,15 @@
 //*****************************************************************************
 
 #include <memory>
+#include "itt.hpp"
 
-#include "fake_quantize.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/op/maximum.hpp"
@@ -40,6 +41,12 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::FakeQuantize, "FakeQuantize", 0);
 
+op::FakeQuantize::FakeQuantize()
+    : FusedOp()
+    , m_levels()
+{
+}
+
 op::FakeQuantize::FakeQuantize(const Output<Node>& data,
                                const Output<Node>& input_low,
                                const Output<Node>& input_high,
@@ -56,6 +63,7 @@ op::FakeQuantize::FakeQuantize(const Output<Node>& data,
 
 void op::FakeQuantize::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_validate_and_infer_types);
     PartialShape data_pshape = get_input_partial_shape(0);
 
     for (auto i = 1; i <= 4; i++)
@@ -84,6 +92,7 @@ void op::FakeQuantize::validate_and_infer_types()
 
 bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_visit_attributes);
     visitor.on_attribute("levels", m_levels);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
@@ -130,19 +139,21 @@ OutputVector op::FakeQuantize::decompose_op() const
                          vector<size_t>(shape_size(input_data_shape), m_levels - 1));
 
     // map the number of quantization levels to the nGraph's quantization and dequantization scales
-    const auto quant_scale = (input_high - input_low) / levels_minus_one;
-    const auto dequant_scale = (output_high - output_low) / levels_minus_one;
+    const auto quant_scale = std::make_shared<op::v1::Divide>(
+        std::make_shared<op::v1::Subtract>(input_high, input_low), levels_minus_one);
+    const auto dequant_scale = std::make_shared<op::v1::Divide>(
+        std::make_shared<op::v1::Subtract>(output_high, output_low), levels_minus_one);
 
     // zero_point type needs to match the quantization output type
     const auto zero_point = Constant::create(element::i32, data.get_shape(), {0.0});
     const auto axes = get_default_order(input_data_shape);
 
     // clip the input data to the range <input_low;input_high>
-    data =
-        std::make_shared<op::Minimum>(input_high, std::make_shared<op::Maximum>(input_low, data));
+    data = std::make_shared<op::v1::Minimum>(input_high,
+                                             std::make_shared<op::v1::Maximum>(input_low, data));
 
     // shift the input data so that it contains only positive values (and zeros)
-    data = data - input_low;
+    data = std::make_shared<op::v1::Subtract>(data, input_low);
 
     shared_ptr<Node> quantized_data =
         make_shared<op::Quantize>(data,
@@ -155,14 +166,15 @@ OutputVector op::FakeQuantize::decompose_op() const
     quantized_data = make_shared<op::Convert>(quantized_data, input_data_type);
 
     // dequantization without using the Dequantize op (just a multiplication by the dequant_scale)
-    const auto dequantized_data = quantized_data * dequant_scale;
+    const auto dequantized_data = make_shared<op::v1::Multiply>(quantized_data, dequant_scale);
 
     // shift the results so that they fall into the <output_low;output_high> range
-    return {dequantized_data + output_low};
+    return {std::make_shared<op::v1::Add>(dequantized_data, output_low)};
 }
 
 shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_FakeQuantize_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<FakeQuantize>(new_args.at(0), // X
                                      new_args.at(1), // input_low

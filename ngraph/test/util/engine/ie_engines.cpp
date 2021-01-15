@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,6 +87,9 @@ namespace
         {
         case InferenceEngine::Precision::FP32:
             return compare_blobs<float>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::FP64:
+            return compare_blobs<double>(computed, expected, tolerance_bits);
             break;
         case InferenceEngine::Precision::I8:
             return compare_blobs<int8_t>(computed, expected, tolerance_bits);

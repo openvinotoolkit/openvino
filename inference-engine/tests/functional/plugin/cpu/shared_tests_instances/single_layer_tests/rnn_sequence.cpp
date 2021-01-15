@@ -10,6 +10,10 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
+    std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
+                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
+                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ};
     // output values increase rapidly without clip, so use only seq_lenghts = 2
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
@@ -21,13 +25,13 @@ namespace {
     std::vector<float> clip_non_zeros{0.7f};
     std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD,
                                                            ngraph::op::RecurrentSequenceDirection::REVERSE,
-                                                           ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL
+                                                           ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL,
     };
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16};
+    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
     INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonZeroClip, RNNSequenceTest,
                             ::testing::Combine(
+                                    ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),
@@ -41,6 +45,7 @@ namespace {
 
     INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
                             ::testing::Combine(
+                                    ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),

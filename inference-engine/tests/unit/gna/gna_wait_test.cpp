@@ -31,7 +31,7 @@ class GNAPluginForGNAWaitTest : public GNAPlugin {
         fakeInfo->setInputData(fakePtr);
         outputsDataMap["fakeOut"] = fakePtr;
         inputsDataMap["fakeIn"] = fakeInfo;
-        gnaRequestConfigToRequestIdMap.push_back({ 0, 0, {} });
+        gnaRequestConfigToRequestIdMap.push_back(std::tuple<uint32_t, int64_t, InferenceEngine::BlobMap>{ 0, 0, {} });
         InitGNADevice();
     }
 };

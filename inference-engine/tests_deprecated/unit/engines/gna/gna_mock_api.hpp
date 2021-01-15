@@ -185,5 +185,9 @@ class GNACppApi {
     MOCK_METHOD2(Gna2InstrumentationConfigAssignToRequestConfig, Gna2Status (
         uint32_t instrumentationConfigId,
         uint32_t requestConfigId));
+
+    MOCK_METHOD2(Gna2GetLibraryVersion, Gna2Status(
+        char* versionBuffer,
+        uint32_t versionBufferSize));
 #endif
 };

@@ -54,7 +54,7 @@ static void copyPreProcess(const PreProcessInfo& from, PreProcessInfo& to) {
  * @param      _networkInputs   The network inputs to copy to
  * @param      _networkOutputs  The network outputs to copy to
  */
-static void copyInputOutputInfo(const InputsDataMap & networkInputs, const OutputsDataMap & networkOutputs,
+inline void copyInputOutputInfo(const InputsDataMap & networkInputs, const OutputsDataMap & networkOutputs,
                                 InputsDataMap & _networkInputs, OutputsDataMap & _networkOutputs) {
     _networkInputs.clear();
     _networkOutputs.clear();
@@ -163,18 +163,18 @@ public:
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                           const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from network object, on specified remote context
-     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
+     * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
+     * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @return Created Executable Network object
      */
-    virtual ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network,
                                           const std::map<std::string, std::string>& config,
                                           RemoteContext::Ptr context) = 0;
     /**
@@ -270,7 +270,7 @@ public:
      * @param[in]  config   The map of configuration parameters
      * @return     The result of query operator containing supported layers map
      */
-    virtual QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
 };
 
 }  // namespace InferenceEngine
@@ -280,16 +280,16 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                       \
-    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                \
-            InferenceEngine::IInferencePlugin *&plugin,                                  \
-            InferenceEngine::ResponseDesc *resp) noexcept {                              \
-        try {                                                                            \
-            plugin = new PluginType(__VA_ARGS__);                                        \
-            plugin->SetVersion(version);                                                 \
-            return OK;                                                                   \
-        }                                                                                \
-        catch (std::exception &ex) {                                                     \
-            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what(); \
-        }                                                                                \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                          \
+    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                                   \
+            InferenceEngine::IInferencePlugin *&plugin,                                                     \
+            InferenceEngine::ResponseDesc *resp) noexcept {                                                 \
+        try {                                                                                               \
+            plugin = new PluginType(__VA_ARGS__);                                                           \
+            plugin->SetVersion(version);                                                                    \
+            return InferenceEngine::OK;                                                                     \
+        }                                                                                                   \
+        catch (std::exception &ex) {                                                                        \
+            return InferenceEngine::DescriptionBuffer(InferenceEngine::GENERAL_ERROR, resp) << ex.what();   \
+        }                                                                                                   \
     }

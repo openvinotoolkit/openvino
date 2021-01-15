@@ -25,6 +25,8 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -32,7 +34,6 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
-#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -44,8 +45,15 @@
 #include <transformations/op_conversions/softplus_decomposition.hpp>
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/rnn_cell_decomposition.hpp>
+#include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
+#include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -95,20 +103,30 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
+    manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+    manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+    manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+    manager.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+    manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+    manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+    manager.register_pass<ngraph::pass::RNNCellDecomposition>();
 
-    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
-            {ngraph::element::i64, ngraph::element::i32},
-            {ngraph::element::u64, ngraph::element::i32},
-            {ngraph::element::u16, ngraph::element::i32},
-            {ngraph::element::u32, ngraph::element::i32},
-            {ngraph::element::f16, ngraph::element::f32},
+    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
+            {ngraph::element::i64,     ngraph::element::i32},
+            {ngraph::element::u64,     ngraph::element::i32},
+            {ngraph::element::u16,     ngraph::element::i32},
+            {ngraph::element::u32,     ngraph::element::i32},
+            {ngraph::element::f16,     ngraph::element::f32},
             {ngraph::element::boolean, ngraph::element::u8},
     };
 
-    for (auto & precision : convert_precision_list) {
+    for (auto &precision : convert_precision_list) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
     }
 
@@ -118,7 +136,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
-                              ngraph::pass::ConvertDepthToSpace>(
+            ngraph::pass::ConvertDepthToSpace>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_shape().size() <= 5lu &&
                        node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
@@ -137,6 +155,44 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
                 return rank == 4lu || rank == 5lu;
             });
 
+    auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+        if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+            return rnn_cell->get_clip() == 0.0f;
+        } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+                node)) {
+            return gru_cell->get_clip() == 0.0f
+                   && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                node)) {
+            return lstm_cell->get_clip() == 0.0f &&
+                   lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+        } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
+                node)) {
+            return lstm_cell_v1->get_clip() == 0.0f &&
+                   lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+        }
+        return false;
+    };
+
+    pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
+            ngraph::pass::LSTMCellDecomposition>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                return isCellPrimitiveSupported(node);
+            });
+
+    pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
+                              ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                              ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
+                    size_t count_rnn = 0;
+                    for (const auto &op : ti_op->get_body()->get_ops())
+                        count_rnn += isCellPrimitiveSupported(op);
+                    return count_rnn != 1;
+                }
+                return true;
+            });
+
     // List of enabled/disabled transformations
     pass_config->disable<ngraph::pass::ConvertGELU>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
@@ -146,8 +202,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMod>();
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+    pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
 
-    pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
+    pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
     manager.run_passes(nGraphFunc);
 
@@ -205,17 +262,18 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
     for (auto & precision : convert_precision_list) {
-        NetPass::ConvertIOPrecision(*clonedNetwork, convertPrecision(precision.first), convertPrecision(precision.second));
+        NetPass::ConvertIOPrecision(*clonedNetwork,
+            InferenceEngine::details::convertPrecision(precision.first),
+            InferenceEngine::details::convertPrecision(precision.second));
     }
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
-Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
+Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
-    InferenceEngine::InputsDataMap _networkInputs;
-    network.getInputsInfo(_networkInputs);
+    InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     for (const auto &ii : _networkInputs) {
         auto input_precision = ii.second->getPrecision();
         if (input_precision != InferenceEngine::Precision::FP32 &&
@@ -224,6 +282,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::I8 &&
             input_precision != InferenceEngine::Precision::U8 &&
+            input_precision != InferenceEngine::Precision::BF16 &&
             input_precision != InferenceEngine::Precision::BOOL &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::U64) {
@@ -242,7 +301,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    std::shared_ptr<ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(network);
 
     bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
@@ -363,7 +422,7 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
     extensionManager->AddExtension(extension);
 }
 
-QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
+QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
     MKLDNNWeightsSharing::Ptr fake_w_cache;
     auto function = network.getFunction();
@@ -381,7 +440,7 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
             conf.batchLimit = static_cast<int>(network.getBatchSize());
         }
 
-        auto clonedNetwork = cloneNetwork(network);
+        auto clonedNetwork = InferenceEngine::cloneNetwork(network);
         Transformation(clonedNetwork, conf);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
@@ -396,7 +455,7 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
                 return true;
             } ();
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector((*itLayer)->getNode())) {
-                if (contains(originalOps, fusedLayerName)) {
+                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (layerIsSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
@@ -405,11 +464,13 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
                 }
             }
         }
-
+        for (auto&& unsupportedNode : unsupported) {
+            supported.erase(unsupportedNode);
+        }
         for (auto&& node : function->get_ops()) {
-            if (!contains(unsupported, node->get_friendly_name())) {
+            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
                 for (auto&& inputNodeOutput : node->input_values()) {
-                    if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
                     }
                 }
@@ -421,15 +482,23 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
                     }
                 }
             }
+
+            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            } else if (ngraph::op::is_output(node)) {
+                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            }
         }
 
         for (auto&& layerName : supported) {
-            if (!contains(unsupported, layerName)) {
-                res.supportedLayersMap.emplace(layerName, GetName());
-            }
+            res.supportedLayersMap.emplace(layerName, GetName());
         }
     } else {
-        details::CNNNetworkIterator i(&network);
+        details::CNNNetworkIterator i(network);
         while (i != details::CNNNetworkIterator()) {
             try {
                 mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));

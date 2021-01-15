@@ -35,6 +35,8 @@ Inference Engine sample applications include the following:
    - [Object Detection for SSD C Sample](../../inference-engine/ie_bridges/c/samples/object_detection_sample_ssd/README.md)
    - [Object Detection for SSD Python* Sample](../../inference-engine/ie_bridges/python/sample/object_detection_sample_ssd/README.md)
  
+> **NOTE**: All samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
+
 ## Media Files Available for Samples
 
 To run the sample applications, you can use images and videos from the media files collection available at https://github.com/intel-iot-devkit/sample-videos.
@@ -53,7 +55,7 @@ The officially supported Linux* build environment is the following:
 * GCC* 7.5.0 (for Ubuntu* 18.04) or GCC* 4.8.5 (for CentOS* 7.6)
 * CMake* version 3.10 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md).
+> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh

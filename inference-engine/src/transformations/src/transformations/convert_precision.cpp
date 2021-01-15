@@ -164,7 +164,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         // If output type mismatch given type we try to fuse type into this operation
         // otherwise we insert Convert operation.
         for (auto &node : f->get_ordered_ops()) {
-            m_transformation_callback(node);
+            transformation_callback(node);
             // Recursively apply transformation for sub-graph based operations
             if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
                 if (auto sub_graph = sub_graph_node->get_function()) {
@@ -349,6 +349,8 @@ static std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::C
 
     auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
     auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
+    if (dst_data == nullptr)
+        throw ngraph_error("Can't get destination data pointer");
 
     std::vector<dst_type> final_data;
     for (size_t i = 0; i < size; ++i) {

@@ -100,9 +100,7 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
 
 void op::ConvolutionIE::validate_and_infer_types() {
     PartialShape data_batch_shape = get_input_partial_shape(0);
-    element::Type data_batch_et = get_input_element_type(0);
     PartialShape filters_shape = get_input_partial_shape(1);
-    element::Type filters_et = get_input_element_type(1);
 
     PartialShape result_shape{PartialShape::dynamic()};
 
@@ -171,4 +169,14 @@ shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVe
     }
 
     throw ngraph_error("Unsupported number of arguments for ConvolutionIE operation");
+}
+
+bool op::ConvolutionIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("strides", m_strides);
+    visitor.on_attribute("dilations", m_dilations);
+    visitor.on_attribute("pads_begin", m_pads_begin);
+    visitor.on_attribute("pads_end", m_pads_end);
+    visitor.on_attribute("auto_pad", m_auto_pad);
+    visitor.on_attribute("group", m_group);
+    return true;
 }

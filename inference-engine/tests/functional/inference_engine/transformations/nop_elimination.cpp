@@ -57,22 +57,6 @@ TEST(nop_elimination, convert_type_agnostic) {
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
 }
 
-TEST(nop_elimination, eliminate_strided_slice) {
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto begin_node = op::Constant::create(element::i64, {2}, {0, 0});
-    auto end_node = op::Constant::create(element::i64, {2}, {2, 2});
-    std::vector<int64_t> mask(2, 0);
-    auto s = make_shared<op::v1::StridedSlice>(A, begin_node, end_node, mask, mask);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(s), ParameterVector{A});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(f), 0);
-}
-
 TEST(nop_elimination, eliminate_broadcast) {
     Shape shape{1};
     auto A = make_shared<op::Parameter>(element::f32, shape);

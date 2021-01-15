@@ -10,13 +10,14 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    // output values increase rapidly without clip, so use only seq_lenghts = 2
     std::vector<bool> should_decompose = {true, false};
+    // output values increase rapidly without clip, so use only seq_lenghts = 2
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
     std::vector<size_t> batch{1, 10};
     std::vector<size_t> hidden_size{1, 10};
-    std::vector<size_t> input_size{10};
+    // std::vector<size_t> input_size{10};
+    std::vector<size_t> sequence_axis{0, 1};
     std::vector<ngraph::helpers::TensorIteratorBody> body_type
         = {ngraph::helpers::TensorIteratorBody::LSTM, ngraph::helpers::TensorIteratorBody::RNN,
            ngraph::helpers::TensorIteratorBody::GRU};
@@ -33,7 +34,8 @@ namespace {
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),
-                                    ::testing::ValuesIn(input_size),
+                                    //::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
+                                    ::testing::ValuesIn(sequence_axis),
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(body_type),
                                     ::testing::ValuesIn(direction),
@@ -47,7 +49,8 @@ namespace {
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),
-                                    ::testing::ValuesIn(input_size),
+                                    //::testing::ValuesIn(input_size), // hardcoded to 10 due to Combine supports up to 10 args
+                                    ::testing::ValuesIn(sequence_axis),
                                     ::testing::ValuesIn(clip_non_zeros),
                                     ::testing::ValuesIn(body_type),
                                     ::testing::ValuesIn(direction),

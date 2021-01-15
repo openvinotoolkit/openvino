@@ -39,8 +39,8 @@ public:
             max_rois_num_ = layer->GetParamAsInt("max_rois", 0);
 
             addConfig(layer,
-                      {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                      {DataConfigurator(ConfLayout::PLN)});
+                      {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                      {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

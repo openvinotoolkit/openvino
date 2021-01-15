@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <atomic>
 
 namespace MKLDNNPlugin {
 
@@ -29,7 +30,7 @@ public:
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)) {}
+    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)), cancelation_requested(false) {}
 
     Status GetStatus() {
         return status;
@@ -37,6 +38,10 @@ public:
 
     bool IsReady() {
         return (GetStatus() == Ready);
+    }
+
+    void Cancel() {
+        cancelation_requested.store(true);
     }
 
     void setConfig(const Config &cfg);
@@ -92,6 +97,28 @@ public:
     void DropNode(const MKLDNNNodePtr& node);
     void DropDWConvNode(const MKLDNNNodePtr& node);
 
+    /**
+     * @brief Insert Reorder node at the edge-specified location.
+     * The Reorder node must be inserted in case when there are inplace conflicts or the input and output tensor descriptors do not match.
+     * The Reorder node rearranges the elements in memory according to inDesc and outDesc, or reinterprets memory descriptor without
+     * rearrangement of elements if isOptimized is true.
+     * @param edge
+     * pointer to the edge in the graph where Reorder node will be inserted
+     * @param layerName
+     * Reorder layer name
+     * @param inDesc
+     * input tensor descriptor
+     * @param outDesc
+     * output tensor descriptor
+     * @param isOptimized
+     * optimization flag; if isOptimized is true then Reorder node does nothing
+     * @param scales
+     * pointer to the blob containing scales
+     * @return pointer to the new Reorder node.
+     */
+    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc,
+            const InferenceEngine::TensorDesc& outDesc, bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
+
     InferenceEngine::CNNNetwork dump() const;
 
     template<typename NET>
@@ -102,6 +129,14 @@ public:
     void SortTopologically();
 
 protected:
+    bool IsCancellationRequested() const {
+        return cancelation_requested.load();
+    }
+
+    void ResetCancellationRequest() {
+        cancelation_requested.store(false);
+    }
+
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
     void ForgetGraphData() {
@@ -163,6 +198,8 @@ private:
         InferenceEngine::CNNLayerPtr cnnLayer;
         size_t outIdx;
     };
+
+    std::atomic<bool> cancelation_requested;
 };
 
 }  // namespace MKLDNNPlugin

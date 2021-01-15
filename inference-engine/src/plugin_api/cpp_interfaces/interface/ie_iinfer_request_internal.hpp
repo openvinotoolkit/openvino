@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_preprocess.hpp>
@@ -38,6 +38,11 @@ public:
      * @note blocks all method of IInferRequest while request is ongoing (running or waiting in queue)
      */
     virtual void Infer() = 0;
+
+    /**
+     * @brief Cancel current inference request execution
+     */
+    virtual StatusCode Cancel() = 0;
 
     /**
      * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer.

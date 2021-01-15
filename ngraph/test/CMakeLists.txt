@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -49,11 +49,15 @@ set(SRC
     build_graph.cpp
     builder_autobroadcast.cpp
     check.cpp
+    conditional_compilation/ngraph_cc_collect.cpp
+    conditional_compilation/ngraph_cc_off.cpp
+    conditional_compilation/ngraph_cc_on.cpp
     constant.cpp
     constant_folding.cpp
     control_dependencies.cpp
     convert_u1_to_string.cpp
     coordinate.cpp
+    coordinate_range.cpp
     copy.cpp
     element_type.cpp
     eval.cpp
@@ -79,6 +83,7 @@ set(SRC
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/roi_align.cpp
+    op_eval/roi_pooling.cpp
     op_eval/round.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
@@ -98,6 +103,7 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
+    type_prop/abs.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -111,11 +117,13 @@ set(SRC
     type_prop/constant.cpp
     type_prop/convert.cpp
     type_prop/convolution.cpp
+    type_prop/ctc_greedy_decoder.cpp
+    type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
+    type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
-    type_prop/dot.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
@@ -125,6 +133,7 @@ set(SRC
     type_prop/embedding_segments_sum.cpp
     type_prop/fake_quantize.cpp
     type_prop/gather.cpp
+    type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
     type_prop/grn.cpp
@@ -152,8 +161,8 @@ set(SRC
     type_prop/parameter.cpp
     type_prop/prelu.cpp
     type_prop/proposal.cpp
+    type_prop/psroi_pooling.cpp
     type_prop/quantize.cpp
-    type_prop/quantized_dot.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -163,6 +172,7 @@ set(SRC
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
+    type_prop/roi_pooling.cpp
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
@@ -173,6 +183,7 @@ set(SRC
     type_prop/select.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
@@ -187,37 +198,12 @@ set(SRC
     type_prop/top_k.cpp
     type_prop/transpose.cpp
     type_prop/unary_elementwise.cpp
+    type_prop/unary_ops.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
     util.cpp
 )
-
-# This code generates one source file per header file under ngraph/src where the source file
-# has just a single #include statement. This checks that each header in the source tree is
-# complete and self-contained so it can be included without requiring any other includes.
-set(DIRECTORIES_IGNORED runtime frontend)
-set(NGRAPH_MAIN_SRC_DIR "${CMAKE_SOURCE_DIR}/src/ngraph")
-file(GLOB_RECURSE LIST_RECURSE
-    "${NGRAPH_MAIN_SRC_DIR}/builder/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/codegen/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/descriptor/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/distributed/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/op/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/pass/*.hpp"
-    "${NGRAPH_MAIN_SRC_DIR}/state*.hpp")
-file(GLOB LIST
-    "${NGRAPH_MAIN_SRC_DIR}/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp")
-set(NGRAPH_HEADER_LIST ${LIST_RECURSE} ${LIST})
-list(APPEND NGRAPH_HEADER_LIST ${LIST})
-foreach(HEADER ${NGRAPH_HEADER_LIST})
-    file(RELATIVE_PATH OUT_PATH ${NGRAPH_MAIN_SRC_DIR} ${HEADER})
-    string(REGEX REPLACE "hpp$" "cpp" OUT_PATH ${OUT_PATH})
-    set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/include_test/${OUT_PATH}")
-    configure_file("header_standalone.in.cpp" ${OUT_FILE})
-    list(APPEND SRC ${OUT_FILE})
-endforeach()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -225,15 +211,17 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (ENABLE_MKL_DNN)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
+    list(APPEND UNIT_TESTS_DEPENDENCIES MKLDNNPlugin)
 endif()
+
 if (ENABLE_CLDNN)
     message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
+    list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
 endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
     list(APPEND SRC
-        backend_debug_api.cpp
         builder.cpp
         backend_api.cpp)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
@@ -264,6 +252,7 @@ set(MULTI_TEST_SRC
     backend/atan.in.cpp
     backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
+    backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -277,8 +266,8 @@ set(MULTI_TEST_SRC
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/cum_sum.in.cpp
+    backend/detection_output.in.cpp
     backend/divide.in.cpp
-    backend/dot.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
@@ -288,9 +277,11 @@ set(MULTI_TEST_SRC
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
+    backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
+    backend/hard_sigmoid.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
@@ -301,6 +292,7 @@ set(MULTI_TEST_SRC
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/maximum.in.cpp
+    backend/max_pool.in.cpp
     backend/minimum.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -315,8 +307,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
-    backend/quantize_dequantize.in.cpp
-    backend/quantized_dot.in.cpp
+    backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
@@ -329,6 +320,7 @@ set(MULTI_TEST_SRC
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
+    backend/roi_pooling.in.cpp
     backend/round.in.cpp
     backend/select.in.cpp
     backend/shape_of.in.cpp
@@ -364,7 +356,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
-            onnx/onnx_import_library.cpp)
+            onnx/onnx_import_library.cpp
+            onnx/onnx_editor.cpp)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
@@ -396,11 +389,17 @@ target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
 
+if(UNIT_TESTS_DEPENDENCIES)
+    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
+endif()
+
 if(NGRAPH_ADDRESS_SANITIZER)
     add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
+                                        openvino::conditional_compilation
+                                        openvino::itt
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend
@@ -412,6 +411,9 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test
         SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
     target_link_libraries(unit-test PRIVATE ${Protobuf_LIBRARIES} ${ONNX_LIBRARIES})
+
+    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
 target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")

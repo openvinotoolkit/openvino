@@ -16,6 +16,8 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{1, 10, 100}},
         {{4, 4, 16}},
         {{1, 1, 1, 3}},
+        {{2, 17, 5, 4}, {1, 17, 1, 1}},
+        {{2, 17, 5, 1}, {1, 17, 1, 4}},
         {{1, 2, 4}},
         {{1, 4, 4}},
         {{1, 4, 4, 1}},
@@ -26,6 +28,7 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
 std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {

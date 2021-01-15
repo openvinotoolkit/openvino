@@ -77,9 +77,12 @@ protected:
             SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
             configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
             const auto testedOp = createTestedOp();
-
+            const auto identity_0 = std::make_shared<ngraph::opset5::Multiply>(testedOp->output(0),
+                ngraph::opset5::Constant::create(testedOp->output(0).get_element_type(), ngraph::Shape{1}, {1}));
+            const auto identity_2 = std::make_shared<ngraph::opset5::Multiply>(testedOp->output(2),
+                ngraph::opset5::Constant::create(testedOp->output(2).get_element_type(), ngraph::Shape{1}, {1}));
             function = std::make_shared<ngraph::Function>(
-                ngraph::OutputVector{testedOp->output(0), testedOp->output(2)},
+                ngraph::OutputVector{identity_0, identity_2},
                 m_parameterVector);
     }
 };

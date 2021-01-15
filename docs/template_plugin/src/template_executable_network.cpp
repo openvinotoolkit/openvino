@@ -25,7 +25,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     try {
         CompileNetwork(function);
         InitExecutor(); // creates thread-based executor using for async requests
-    } catch (const InferenceEngineException&) {
+    } catch (const InferenceEngine::details::InferenceEngineException&) {
         throw;
     } catch (const std::exception & e) {
         THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
@@ -83,9 +83,9 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
-    _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of inference request pipeline
-    // _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
+    // _callbackExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
 }
 // ! [executable_network:init_executor]
 
@@ -98,8 +98,8 @@ InferenceEngine::InferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::Cr
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
-IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
-    IInferRequest::Ptr asyncRequest;
+InferenceEngine::IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
+    InferenceEngine::IInferRequest::Ptr asyncRequest;
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     auto asyncThreadSafeImpl = std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                                            _taskExecutor, _plugin->_waitExecutor, _callbackExecutor);
@@ -111,7 +111,7 @@ IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
 // ! [executable_network:create_infer_request]
 
 // ! [executable_network:get_config]
-Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name) const {
+InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name) const {
     return _cfg.Get(name);
 }
 // ! [executable_network:get_config]
@@ -130,7 +130,7 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
             CONFIG_KEY(DEVICE_ID),
             CONFIG_KEY(PERF_COUNT),
             TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) };
-        auto streamExecutorConfigKeys = IStreamsExecutor::Config{}.SupportedKeys();
+        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configKeys.emplace_back(configKey);
         }

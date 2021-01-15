@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                FakeQuantize() = default;
+                FakeQuantize();
                 ///
                 /// \brief      Constructs a FakeQuantize operation node.
                 ///
@@ -85,7 +85,7 @@ namespace ngraph
 
             private:
                 std::size_t m_levels;
-                AutoBroadcastSpec m_auto_broadcast;
+                AutoBroadcastSpec m_auto_broadcast = op::AutoBroadcastType::NUMPY;
             };
         }
         using v0::FakeQuantize;

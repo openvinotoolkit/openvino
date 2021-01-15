@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #include "ngraph/visibility.hpp"
 
-#ifdef ONNX_IMPORTER_DLL_EXPORTS // defined if we are building the ONNX_IMPORTER
+#ifdef onnx_importer_EXPORTS // defined if we are building the ONNX_IMPORTER
 #define ONNX_IMPORTER_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #define ONNX_IMPORTER_API NGRAPH_HELPER_DLL_IMPORT

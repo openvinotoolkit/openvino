@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -152,6 +152,10 @@ namespace ngraph
                                  float length_resized,
                                  float length_original) const
                 {
+                    if (x_scale == 1.0f || (length_resized == length_original))
+                    {
+                        return x_resized;
+                    }
                     return m_func(x_resized, x_scale, length_resized, length_original);
                 }
 

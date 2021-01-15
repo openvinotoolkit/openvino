@@ -25,11 +25,6 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
             }
 
-            Precision input_indices_precision = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_indices_precision != Precision::FP32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32 is supported!";
-            }
-
             // check dimensions of input tensors
             SizeVector input_indices_dims = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getDims();
             if (input_indices_dims.size() != 2 || input_indices_dims[1] != 2) {
@@ -75,8 +70,10 @@ public:
 
             // TODO: check that dense shape value is set
             addConfig(layer,
-                {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)});
+                {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         }
         catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
