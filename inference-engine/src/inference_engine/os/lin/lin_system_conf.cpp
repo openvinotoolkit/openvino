@@ -72,7 +72,7 @@ int getNumberOfCPUCores() {
 
     sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet);
 
-    for (int processorId = 0; processorId < numberOfProcessors; processorId++) {
+    for (unsigned processorId = 0u; processorId < numberOfProcessors; processorId++) {
         if (CPU_ISSET(processorId, &currentCpuSet)) {
             unsigned coreId = processorId % totalNumberOfCpuCores;
             if (!CPU_ISSET(coreId, &usedCoreSet)) {
