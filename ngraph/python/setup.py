@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ packages = [
     "ngraph.opset3",
     "ngraph.opset4",
     "ngraph.opset5",
+    "ngraph.opset6",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",

@@ -1500,6 +1500,11 @@ static void initScratchArea(const cv::GMatDesc& in, const Size& outSz,
     *maxdf = maxdif;
 }
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
+
 template<typename T, typename Mapper>
 static void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer& out,
                               cv::gapi::fluid::Buffer& scratch) {
@@ -1671,6 +1676,10 @@ static void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer
         }
     }
 }
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif
 
 //----------------------------------------------------------------------
 

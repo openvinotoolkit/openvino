@@ -119,7 +119,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
                                       "expected >0, actual: " << desc.d.C;
             }
             const auto planeType = CV_MAKETYPE(cv_depth, 1);
-            for (size_t ch = 0; ch < desc.d.C; ch++) {
+            for (int ch = 0; ch < desc.d.C; ch++) {
                 cv::gapi::own::Mat plane(planeSize.height, planeSize.width, planeType,
                     curr_data_ptr + ch*desc.s.C*blob->element_size(), stride);
                 planes.emplace_back(plane);
@@ -142,7 +142,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const NV12Blob::Ptr& i
 
     // combine corresponding Y and UV mats into 2-element vectors of (Y, UV) pairs
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
-    for (size_t i = 0; i < batch_size; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
         auto& input = batched_input_plane_mats[i];
         input.emplace_back(std::move(batched_y_plane_mats[i][0]));
         input.emplace_back(std::move(batched_uv_plane_mats[i][0]));
@@ -165,7 +165,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const I420Blob::Ptr& i
 
     // combine corresponding Y and UV mats into 2-element vectors of (Y, U, V) triple
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
-    for (size_t i = 0; i < batch_size; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
         auto& input = batched_input_plane_mats[i];
         input.emplace_back(std::move(batched_y_plane_mats[i][0]));
         input.emplace_back(std::move(batched_u_plane_mats[i][0]));
@@ -416,7 +416,7 @@ class PlanarColorConversions {
         // if there's no resize after color convert && output is planar, we have to copy input to
         // output by doing actual G-API operation. otherwise, the graph will be empty (no
         // operations)
-        if (algorithm == NO_RESIZE && in_layout == out_layout == NCHW) {
+        if (algorithm == NO_RESIZE && in_layout == out_layout && out_layout == NCHW) {
             std::vector<cv::GMat> reversed(3);
             reversed[0] = gapi::ChanToPlane::on(planes[2], 0);
             reversed[1] = gapi::ChanToPlane::on(planes[1], 0);

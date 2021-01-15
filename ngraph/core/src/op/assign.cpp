@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 //*****************************************************************************
 
 #include "ngraph/op/assign.hpp"
-#include <ops.hpp>
 #include "itt.hpp"
 #include "ngraph/op/read_value.hpp"
+#include "ngraph/ops.hpp"
 
 using namespace std;
 using namespace ngraph;

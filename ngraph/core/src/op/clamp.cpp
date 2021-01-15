@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -92,6 +92,13 @@ bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVe
 }
 
 NGRAPH_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
+
+op::Clamp::Clamp()
+    : FusedOp()
+    , m_min()
+    , m_max()
+{
+}
 
 op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
     : FusedOp({data})

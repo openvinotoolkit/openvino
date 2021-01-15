@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #include <iterator>
 #include "itt.hpp"
 
-#include "grn.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
@@ -26,6 +25,7 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/grn.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
@@ -34,6 +34,11 @@ using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::GRN::type_info;
+
+op::GRN::GRN()
+    : FusedOp()
+{
+}
 
 op::GRN::GRN(const Output<Node>& data, float bias)
     : FusedOp({data})
