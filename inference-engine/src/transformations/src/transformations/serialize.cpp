@@ -102,17 +102,14 @@ public:
     std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
         const std::string& map_type) {
         std::vector<std::string> output;
-        if (map_type == "Result" || map_type == "Parameter") {
-            for (pugi::xml_node node : xml_node.child("body").child("layers")) {
-                auto param = map_type.compare(node.attribute("type").value());
-                if (!param) {
-                    output.push_back(node.attribute("id").value());
-                }
+        for (pugi::xml_node node : xml_node.child("body").child("layers")) {
+            if (!map_type.compare(node.attribute("type").value())) {
+                output.push_back(node.attribute("id").value());
             }
-
-            // parameters/results for serialized body function are provided in reversed order
-            std::reverse(output.begin(), output.end());
         }
+
+        // ops for serialized body function are provided in reversed order
+        std::reverse(output.begin(), output.end());
 
         return output;
     }
@@ -131,10 +128,10 @@ public:
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
             // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_irv10() layer (here "m_xml_node")
             // with empty attributes is removed.
-            if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+            if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                         <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
-                pugi::xml_node port_map = m_xml_node.parent().find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
-                if (!port_map) {
+                pugi::xml_node port_map = m_xml_node.parent().child("port_map");
+                if (!m_xml_node.parent().child("port_map")) {
                     port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
                 }
 
@@ -158,7 +155,7 @@ public:
                             input.append_attribute("part_size").set_value(slice_input->m_part_size);
                         }
                     } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
-                        pugi::xml_node back_edges = m_xml_node.find_child([](pugi::xml_node node) {return strcmp(node.name(), "back_edges") == 0;});
+                        pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
                         if (!back_edges) {
                             back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
                         }
@@ -167,7 +164,7 @@ public:
                         edge.append_attribute("to-layer").set_value(parameter_mapping[merged_input->m_body_parameter_index].c_str());
                     }
                 }
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                         <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
                 pugi::xml_node port_map = m_xml_node.parent().find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
                 if (!port_map) {
