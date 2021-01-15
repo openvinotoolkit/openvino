@@ -13,7 +13,7 @@ static const char *help_message = "Print a usage message.";
 static const char* model_message = "Required. Path to an .xml file with a trained model.";
 
 /// @brief message for images argument
-static const char *image_message = "Required. Path to an .bmp image.";
+static const char *image_message = "Required. Path to one or more .bmp images.";
 
 /// @brief message for plugin argument
 static const char *plugin_message = "Plugin name. For example MKLDNNPlugin. If this parameter is pointed, " \
