@@ -1037,6 +1037,9 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
             return;
         }
     }
+    #else
+    (void)tmp;
+    (void)clone;
     #endif
 
     #ifdef HAVE_AVX2
@@ -1175,6 +1178,9 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
             }
         }
     }
+#else
+    (void)tmp;
+    (void)clone;
 #endif
 
 #ifdef HAVE_AVX2
