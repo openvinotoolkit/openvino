@@ -143,7 +143,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
 
-ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
+ModelPtr FrontEnd::buildInitialModel(const ie::CNNNetwork& network) {
     VPU_PROFILE(buildInitialModel);
 
     const auto& env = CompileEnv::get();
@@ -153,7 +153,7 @@ ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
     return runCommonPasses(network);
 }
 
-ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
+ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     // disable transformations for some cases
     const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         const bool casesWithDynamicOrStaticUsage =
@@ -207,7 +207,7 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     return InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
 }
 
-std::set<std::string> FrontEnd::checkSupportedLayers(const ie::ICNNNetwork& network) {
+std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network) {
     VPU_PROFILE(checkSupportedLayers);
 
     const auto& env = CompileEnv::get();
@@ -385,13 +385,13 @@ void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::C
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 
-ModelPtr FrontEnd::runCommonPasses(const ie::ICNNNetwork& network) {
+ModelPtr FrontEnd::runCommonPasses(const ie::CNNNetwork& network) {
     return runCommonPasses(cloneNetwork(network),
         [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs, const std::string& extraMessage) {
             defaultOnUnsupportedLayerCallback(model, layer, inputs, outputs, extraMessage);});
 }
 
-ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork::Ptr network,
+ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     const UnsupportedLayerCallback& unsupportedLayer, const SupportedLayerCallback& supportedLayer) {
     const auto& env = CompileEnv::get();
 
@@ -426,7 +426,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork::Ptr network,
     // Create new VPU model
     //
 
-    auto model = std::make_shared<ModelObj>(network->getName());
+    auto model = std::make_shared<ModelObj>(network.getName());
 
     model->attrs().set<int>("index", g_counter.fetch_add(1));
     model->attrs().set<Resources>("resources", env.resources);
@@ -439,31 +439,31 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork::Ptr network,
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
 
-        if (network->getFunction() && env.config.forceDeprecatedCnnConversion) {
-            network = convertNetwork(*network);
+        if (network.getFunction() && env.config.forceDeprecatedCnnConversion) {
+            network = convertNetwork(network);
         }
 
-        detectNetworkBatch(*network, model);
+        detectNetworkBatch(network, model);
 
-        if (network->getFunction()) {
-            network = convertNetwork(*network);
+        if (network.getFunction()) {
+            network = convertNetwork(network);
         }
 
-        ie::NetPass::ConvertPrecision(*network, ie::Precision::I64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*network, ie::Precision::U32, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*network, ie::Precision::U64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(*network, ie::Precision::BOOL, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(network, ie::Precision::I64, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(network, ie::Precision::U32, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(network, ie::Precision::U64, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(network, ie::Precision::BOOL, ie::Precision::I32);
 
-        removeConstLayers(*network);
+        removeConstLayers(network);
 
-        unrollLoops(*network);
+        unrollLoops(network);
     }
 
     //
     // Parse IR Network
     //
 
-    _ieParsedNetwork = parseNetwork(*network);
+    _ieParsedNetwork = parseNetwork(network);
 
     //
     // Process internal VPU Model

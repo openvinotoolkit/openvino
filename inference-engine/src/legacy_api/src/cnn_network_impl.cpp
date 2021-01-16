@@ -110,6 +110,14 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
+CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & ngraphImpl) :
+    CNNNetworkImpl(static_cast<const ICNNNetwork&>(ngraphImpl)) {
+}
+
+IE_SUPPRESS_DEPRECATED_END
+
 CNNNetworkImpl::~CNNNetworkImpl() {
     // In case of cycles, memory leaks occur: Layer holds shared_ptr<Data>, and vice versa.
     // Added additional check on cycles.
