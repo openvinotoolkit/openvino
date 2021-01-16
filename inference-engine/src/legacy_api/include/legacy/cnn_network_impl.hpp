@@ -25,7 +25,8 @@ using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
 
 namespace details {
 
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
+class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork,
+    public std::enable_shared_from_this<CNNNetworkImpl> {
 public:
     CNNNetworkImpl();
     explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl); 

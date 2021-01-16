@@ -39,7 +39,7 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
+std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
     std::map<CNNLayer*, bool> result;
 
     const std::vector<CNNLayerPtr> layers = CNNNetSortTopologically(network);
@@ -115,7 +115,7 @@ CNNNetworkImpl::~CNNNetworkImpl() {
     // Added additional check on cycles.
     bool res = false;
     try {
-        res = CNNNetForestDFS(CNNNetGetAllInputLayers(*this), [&](CNNLayerPtr layer) {}, false);
+        res = CNNNetForestDFS(CNNNetGetAllInputLayers(CNNNetwork(shared_from_this())), [&](CNNLayerPtr layer) {}, false);
     } catch (...) {
         // Exception means that network was invalid. Reset all data.
     }
@@ -228,7 +228,7 @@ void CNNNetworkImpl::validate(int version) {
     }
 
     bool res = CNNNetForestDFS(
-        CNNNetGetAllInputLayers(*this),
+        CNNNetGetAllInputLayers(CNNNetwork(shared_from_this())),
         [&](CNNLayerPtr layer) {
             std::string layerName = layer->name;
 
@@ -390,7 +390,7 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     noexcept {
     try {
 #ifdef ENABLE_V7_SERIALIZE
-        Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+        Serialization::Serialize(xmlPath, binPath, CNNNetwork(shared_from_this()));
         return OK;
 #endif
     } catch (const InferenceEngineException& e) {
@@ -418,7 +418,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
-        const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(*this);
+        const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(CNNNetwork(shared_from_this()));
         for (auto& layer : _data) {
             SizeVector dims = layer.second->getDims();
             CNNLayerPtr layerT = getCreatorLayer(layer.second).lock();
