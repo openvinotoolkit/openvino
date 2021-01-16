@@ -204,7 +204,9 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
 
     vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 
-    return InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
+    IE_SUPPRESS_DEPRECATED_START
+    return ie::CNNNetwork(ie::details::convertFunctionToICNNNetwork(nGraphFunc, network));
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network) {

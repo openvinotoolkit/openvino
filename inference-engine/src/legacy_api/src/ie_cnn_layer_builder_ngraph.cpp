@@ -127,12 +127,12 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     {
         CNNNetwork body_net(tensor_iterator->get_function());
         IE_SUPPRESS_DEPRECATED_START
-        // TODO: CNNNetGetAllInputLayers, convertFunctionToICNNNetwork to accept CNNNetwork
+        // TODO: convertFunctionToICNNNetwork to accept CNNNetwork
         CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
+        IE_SUPPRESS_DEPRECATED_END
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);
-        IE_SUPPRESS_DEPRECATED_END
         if (!res) {
             THROW_IE_EXCEPTION << "Loop detected. TensorIterator body should not contain loops.";
         }

@@ -69,7 +69,7 @@ void FrontEnd::detectNetworkBatch(
 
     env.log->trace("Remove batch from inputs");
 
-    ie::CNNNetwork::InputShapes inputShapes;
+    ie::ICNNNetwork::InputShapes inputShapes;
 
     for (const auto& p : inputsInfo) {
         VPU_LOGGER_SECTION(env.log);
@@ -178,12 +178,7 @@ void FrontEnd::detectNetworkBatch(
 
     env.log->trace("Reshape the network");
 
-    ie::ResponseDesc desc;
-    const auto status = network.reshape(inputShapes, &desc);
-
-    VPU_THROW_UNLESS(
-        status == ie::StatusCode::OK,
-        "Failed to reshape Network: %v", desc.msg);
+    network.reshape(inputShapes);
 
     //
     // Checks outputs that doesn't change their shape.
