@@ -54,24 +54,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph,
-                       const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetwork::CNNNetwork");
-
-    if (graph == nullptr) {
-        THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
-    }
-
-    // Create CNNNetworkNGraphImpl
-    network = std::make_shared<CNNNetworkNGraphImpl>(graph, exts);
-    actual = network.get();
-    if (actual == nullptr) {
-        THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-    }
-}
-
-ICNNNetwork::~ICNNNetwork() {}
-
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](size_t size, const Layout& l) -> bool {
