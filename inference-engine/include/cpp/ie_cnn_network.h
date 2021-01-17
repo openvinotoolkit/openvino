@@ -120,7 +120,7 @@ public:
      *
      * @return A shared pointer of the current network
      */
-    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
     operator ICNNNetwork::Ptr();
 
     /**
@@ -129,7 +129,7 @@ public:
      *
      * @return An instance of the current network
      */
-    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
     operator ICNNNetwork&();
 
     /**
@@ -138,7 +138,7 @@ public:
      *
      * @return A const reference of the current network
      */
-    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
     operator const ICNNNetwork&() const;
     IE_SUPPRESS_DEPRECATED_END
 

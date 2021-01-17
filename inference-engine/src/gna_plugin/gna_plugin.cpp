@@ -352,14 +352,13 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & network) {
+void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork & network) {
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
 
     // search for FQ layers
     // only supports cases of int16 or int8
-    auto it = details::CNNNetworkIterator(&network);
-    auto end = details::CNNNetworkIterator();
+    auto it = details::CNNNetworkIterator(network), end = details::CNNNetworkIterator();
     for (; it != end; it++) {
         if (!LayerInfo(*it).isFakeQuantize()) {
             continue;
@@ -388,14 +387,13 @@ void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & net
     }
 }
 
-void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & network) {
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & network) {
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
 
     // search for FQ layers
     // only supports cases of int16 or int8
-    InputsDataMap  inputs;
-    network.getInputsInfo(inputs);
+    InputsDataMap inputs = network.getInputsInfo();
     for (auto && input : inputs) {
         auto data = input.second->getInputData();
         size_t inputIdx = 0;
@@ -436,8 +434,8 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & netwo
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
-        std::shared_ptr<ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(_network);
-        const auto& graph = clonedNetwork->getFunction();
+        CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
+        const auto& graph = clonedNetwork.getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(graph);
         ngraph::pass::Manager manager;
@@ -458,7 +456,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
                     return node->get_rt_info().count("UNROLL_TI") == 0;
             });
         manager.run_passes(graph);
-        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *clonedNetwork);
+        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
 
@@ -559,7 +557,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         }
     }
 
-    auto inputLayers = CNNNetGetAllInputLayers(*newNet);
+    auto inputLayers = CNNNetGetAllInputLayers(newNet);
 
 #ifdef PLOT
     std::ofstream file("gna_passes.dot");

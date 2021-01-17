@@ -24,21 +24,21 @@ namespace GNAPluginNS {
 template<class T>
 class ModelQuantizer {
  public:
-    InferenceEngine::ICNNNetwork::Ptr quantize(InferenceEngine::ICNNNetwork &model, float scaleFactor) const {
+    InferenceEngine::CNNNetwork quantize(InferenceEngine::CNNNetwork &model, float scaleFactor) const {
         return quantize(model, [](InferenceEngine::CNNNetPtr &, bool runBeforeCopy){}, std::vector<float>({scaleFactor}));
     }
 
     template <class PreQuantisationCb>
-    InferenceEngine::ICNNNetwork::Ptr quantize(InferenceEngine::ICNNNetwork &model, const PreQuantisationCb &cb, float scaleFactor) const {
+    InferenceEngine::CNNNetwork quantize(InferenceEngine::CNNNetwork &model, const PreQuantisationCb &cb, float scaleFactor) const {
         return quantize(model, cb, std::vector<float>({scaleFactor}));
     }
 
-    InferenceEngine::ICNNNetwork::Ptr quantize(InferenceEngine::ICNNNetwork &model, std::vector<float> scaleFactor) const {
+    InferenceEngine::CNNNetwork quantize(InferenceEngine::CNNNetwork &model, std::vector<float> scaleFactor) const {
         return quantize(model, [](InferenceEngine::CNNNetPtr &, bool runBeforeCopy){}, scaleFactor);
     }
 
     template <class PreQuantisationCb>
-    InferenceEngine::ICNNNetwork::Ptr quantize(InferenceEngine::ICNNNetwork &model, const PreQuantisationCb &cb, std::vector<float> scaleFactor) const {
+    InferenceEngine::CNNNetwork quantize(InferenceEngine::CNNNetwork &model, const PreQuantisationCb &cb, std::vector<float> scaleFactor) const {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
             transformLayer(newLayer, WeightsConverter());

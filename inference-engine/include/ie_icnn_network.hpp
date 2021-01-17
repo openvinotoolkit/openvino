@@ -19,7 +19,7 @@
 #include "ie_input_info.hpp"
 #include "details/ie_irelease.hpp"
 
-#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN || 1
 # define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
 #else
 # define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...)                                 \

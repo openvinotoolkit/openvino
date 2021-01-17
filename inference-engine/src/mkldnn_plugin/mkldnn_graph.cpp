@@ -84,7 +84,7 @@ void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
 }
 
 template void MKLDNNGraph::ApplyUnrollPasses(TensorIterator::Body&);
-template void MKLDNNGraph::ApplyUnrollPasses(ICNNNetwork&);
+template void MKLDNNGraph::ApplyUnrollPasses(CNNNetwork&);
 
 template<typename NET>
 void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr& extMgr,

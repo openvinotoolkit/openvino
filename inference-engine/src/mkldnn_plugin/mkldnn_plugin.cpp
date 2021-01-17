@@ -255,7 +255,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
 
-    clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork);
+    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork));
 
     OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 
@@ -304,7 +304,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(network);
 
     bool is_transformed = false;
-    if (clonedNetwork->getFunction()) {
+    if (clonedNetwork.getFunction()) {
         Transformation(clonedNetwork, conf);
         is_transformed = true;
     }
@@ -318,12 +318,13 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
         if (!is_transformed) {
-            NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+            InferenceEngine::CNNNetwork implNetworkWrapper;
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::I64, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U64, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U32, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::FP16, Precision::FP32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::BOOL, Precision::U8);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U16, Precision::I32);
         }
     }
 
