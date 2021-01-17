@@ -34,7 +34,7 @@ class ModelQuantizer {
     }
 
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, std::vector<float> scaleFactor) const {
-        return quantize(model, [](InferenceEngine::CNNNetPtr &, bool runBeforeCopy){}, scaleFactor);
+        return quantize(model, [](InferenceEngine::CNNNetwork &, bool runBeforeCopy){}, scaleFactor);
     }
 
     template <class PreQuantisationCb>

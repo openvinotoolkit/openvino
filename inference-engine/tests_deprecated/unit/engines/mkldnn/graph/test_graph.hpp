@@ -261,15 +261,15 @@ public:
         }
     }
 
-    void CreateGraph(InferenceEngine::ICNNNetwork &network, const MKLDNNPlugin::MKLDNNExtensionManager::Ptr& extMgr,
+    void CreateGraph(InferenceEngine::CNNNetwork &network, const MKLDNNPlugin::MKLDNNExtensionManager::Ptr& extMgr,
             MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache = {}) {
         if (network.getFunction()) {
             auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
             MoveInternalBlobsToConstLayers(convertedNetwork.get());
-            MKLDNNGraph::CreateGraph(static_cast<InferenceEngine::ICNNNetwork&>(*convertedNetwork),
-                extMgr, cache);
+            MKLDNNGraph::CreateGraph(InferenceEngine::CNNNetwork(convertedNetwork), extMgr, cache);
         } else {
-            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&network);
+            auto & icnnnet = static_cast<InferenceEngine::ICNNNetwork&>(network);
+            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&icnnnet);
             if (netImpl == nullptr) {
                 THROW_IE_EXCEPTION << "unexpected network type";
             }
@@ -278,15 +278,15 @@ public:
         }
     }
 
-    void CreateGraph(InferenceEngine::ICNNNetwork &network) {
+    void CreateGraph(InferenceEngine::CNNNetwork &network) {
         MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
         if (network.getFunction()) {
             auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
             MoveInternalBlobsToConstLayers(convertedNetwork.get());
-            MKLDNNGraph::CreateGraph(static_cast<InferenceEngine::ICNNNetwork&>(*convertedNetwork),
-                extensionManager, cache);            
+            MKLDNNGraph::CreateGraph(InferenceEngine::CNNNetwork(convertedNetwork), extensionManager, cache);
         } else {
-            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&network);
+            auto & icnnnet = static_cast<InferenceEngine::ICNNNetwork&>(network);
+            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&icnnnet);
             if (netImpl == nullptr) {
                 THROW_IE_EXCEPTION << "unexpected network type";
             }
