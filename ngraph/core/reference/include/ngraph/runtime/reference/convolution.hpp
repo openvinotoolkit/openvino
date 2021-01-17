@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cfenv>
 #include <cmath>
 #include <functional>
@@ -35,229 +36,327 @@ namespace ngraph
     {
         namespace reference
         {
-            // in: NC_I...
-            // filter: C_OC_I...
-            // out: NC_O...
-            template <typename INPUT,
-                      typename FILTER,
-                      typename OUTPUT,
-                      typename ACCUMULATION = typename widen<OUTPUT>::type>
-            void convolution_impl(const INPUT* in,
-                                  const FILTER* filter,
-                                  OUTPUT* out,
-                                  const Shape& in_shape,
-                                  const Shape& filter_shape,
-                                  const Shape& out_shape,
-                                  const Strides& stride,
-                                  const Strides& filter_dilation,
-                                  const CoordinateDiff& in_pad_below,
-                                  const CoordinateDiff& in_pad_above,
-                                  const Strides& in_dilation,
-                                  size_t in_batch_axis,
-                                  size_t in_channel_axis,
-                                  size_t filter_out_channel_axis,
-                                  size_t filter_in_channel_axis,
-                                  size_t out_batch_axis,
-                                  size_t out_channel_axis)
+            namespace
             {
-                auto old_mode = std::fegetround();
-                std::fesetround(FE_TONEAREST);
-                // Comments throughout assume without loss of generality that:
-                //
-                // * batch axes for both in and out are 0
-                // * in channel axes for both in and filter are 1
-                // * out channel axes for filter is 0
-                // * out channel axis for out is 1
+                constexpr size_t in_batch_axis = 0;
+                constexpr size_t in_channel_axis = 1;
+                constexpr size_t filter_out_ch_axis = 0;
+                constexpr size_t filter_in_ch_axis = 1;
+                constexpr size_t out_batch_axis = 0;
+                constexpr size_t out_channel_axis = 1;
+                constexpr size_t spatial_axis = 2;
 
-                // At the outermost level we will walk over every out coordinate O.
-                CoordinateTransform out_transform(out_shape);
-
-                for (const Coordinate& out_coord : out_transform)
+                template <typename T>
+                struct Tensor
                 {
-                    // Our out coordinate O will have the form:
-                    //
-                    //   (N,chan_out,i_1,...,i_n)
+                    T buffer;
+                    const Shape shape;
+                    Tensor(T buf, Shape s)
+                        : buffer{buf}
+                        , shape{s} {};
+                };
 
-                    size_t batch_index = out_coord[out_batch_axis];
-                    size_t out_channel = out_coord[out_channel_axis];
+                enum class ConvolutionType
+                {
+                    Conv1D,
+                    Conv2D,
+                    Conv3D
+                };
 
-                    // For the in we need to iterate the coordinate:
-                    //
-                    //   I:
-                    //
-                    // over the range (noninclusive on the right):
-                    //
-                    //   (N,0,s_1*i_1,s_2*i_2,...,s_n*i_n) ->
-                    //
-                    //     (N+1,
-                    //      chans_in_count,
-                    //      s_1*i_1+ l_1*filter_dims_1,
-                    ///       ...,
-                    ///     s_n*i_n +l_n*filter_dims_n)
-                    //
-                    // with strides:
-                    //
-                    //   (1,l_1,...,l_n).
-                    //
-                    // Note that we are iterating within the *padded* and *dilated* in batch, so
-                    // further down we must check the current coordinate is in the pad or dilation
-                    // gap.
+                struct ConvolutionParams
+                {
+                    std::vector<int> strides;
+                    std::vector<int> dilation;
+                    std::vector<int> pads_begin;
+                    std::vector<int> pads_end;
 
-                    size_t n_spatial_dimensions = in_shape.size() - 2;
-                    size_t n_in_channels = in_shape[in_channel_axis];
+                    ConvolutionParams(const Strides& strides_,
+                                      const Strides& dilation_,
+                                      const CoordinateDiff& pads_begin_,
+                                      const CoordinateDiff& pads_end_)
+                        : strides{strides_.begin(), strides_.end()}
+                        , dilation{dilation_.begin(), dilation_.end()}
+                        , pads_begin{pads_begin_.begin(), pads_begin_.end()}
+                        , pads_end{pads_end_.begin(), pads_end_.end()} {};
+                };
 
-                    Coordinate in_transform_start(2 + n_spatial_dimensions);
-                    Coordinate in_transform_end(2 + n_spatial_dimensions);
-                    Strides in_transform_movement_strides(2 + n_spatial_dimensions, 1);
-                    CoordinateDiff in_transform_pad_below(2 + n_spatial_dimensions, 0);
-                    CoordinateDiff in_transform_pad_above(2 + n_spatial_dimensions, 0);
-                    Strides in_transform_dilation_strides(2 + n_spatial_dimensions, 1);
-
-                    in_transform_start[in_batch_axis] = batch_index;
-                    in_transform_end[in_batch_axis] = batch_index + 1;
-                    in_transform_start[in_channel_axis] = 0;
-                    in_transform_end[in_channel_axis] = 1;
-
-                    for (size_t i = 2; i < n_spatial_dimensions + 2; i++)
+                size_t compute_size(ngraph::Shape shape, size_t start_axis)
+                {
+                    size_t size = 1;
+                    for (size_t i = start_axis; i < shape.size(); i++)
                     {
-                        size_t filter_dilation_stride = filter_dilation[i - 2];
-                        size_t filter_movement_stride = stride[i - 2];
-                        std::ptrdiff_t below_pad = in_pad_below[i - 2];
-                        std::ptrdiff_t above_pad = in_pad_above[i - 2];
-                        size_t in_dilation_stride = in_dilation[i - 2];
-
-                        in_transform_start[i] = filter_movement_stride * out_coord[i];
-                        in_transform_end[i] = in_transform_start[i] +
-                                              (filter_shape[i] - 1) * filter_dilation_stride + 1;
-                        in_transform_movement_strides[i] = filter_dilation_stride;
-                        in_transform_pad_below[i] = below_pad;
-                        in_transform_pad_above[i] = above_pad;
-                        in_transform_dilation_strides[i] = in_dilation_stride;
+                        size *= shape[i];
                     }
+                    return size;
+                }
 
-                    AxisVector in_transform_axis_order(2 + n_spatial_dimensions);
-                    for (size_t i = 0; i < in_transform_axis_order.size(); i++)
+                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
+                void convolve_1D_channels(const ConvolutionParams& p,
+                                          const Tensor<const INPUT*>& in,
+                                          const Tensor<const FILTER*>& f,
+                                          Tensor<OUTPUT*>& out)
+                {
+                    const int input_spatial_size = compute_size(in.shape, spatial_axis);
+                    const int filter_spatial_size = compute_size(f.shape, spatial_axis);
+                    const int input_size_x = in.shape[spatial_axis];
+                    const int filter_size_x = f.shape[spatial_axis];
+                    const int dilated_filter_size_x =
+                        filter_size_x + (filter_size_x - 1) * (p.dilation[0] - 1);
+
+                    for (int i_x = -p.pads_begin[0];
+                         i_x <= (p.pads_end[0] + input_size_x - dilated_filter_size_x);
+                         i_x += p.strides[0])
                     {
-                        in_transform_axis_order[i] = i;
-                    }
-                    CoordinateTransform in_transform(in_shape,
-                                                     in_transform_start,
-                                                     in_transform_end,
-                                                     in_transform_movement_strides,
-                                                     in_transform_axis_order,
-                                                     in_transform_pad_below,
-                                                     in_transform_pad_above,
-                                                     in_transform_dilation_strides);
-
-                    // Simultaneously with iterating I, for the filter we need to iterate the
-                    // coordinate:
-                    //
-                    //   F
-                    //
-                    // over the range (noninclusive on the right):
-                    //
-                    //   (chan_out,0,0,...,0) ->
-                    //     (chan_out+1,
-                    //      chans_in_count,
-                    //      filter_dims_1,
-                    //        ...,
-                    //      filter_dims_n)
-                    //
-                    // with unit stride.
-
-                    Shape filter_transform_start(2 + n_spatial_dimensions);
-                    Shape filter_transform_end(2 + n_spatial_dimensions);
-
-                    filter_transform_start[filter_out_channel_axis] = out_channel;
-                    filter_transform_end[filter_out_channel_axis] = out_channel + 1;
-                    filter_transform_start[filter_in_channel_axis] = 0;
-                    filter_transform_end[filter_in_channel_axis] = 1;
-
-                    for (size_t i = 2; i < n_spatial_dimensions + 2; i++)
-                    {
-                        filter_transform_start[i] = 0;
-                        filter_transform_end[i] = filter_shape[i];
-                    }
-
-                    CoordinateTransform filter_transform(
-                        filter_shape, filter_transform_start, filter_transform_end);
-
-                    // As we go, we sum up:
-                    //
-                    //   out[O] += in[I] * filter[F].
-
-                    ACCUMULATION result = 0;
-
-                    CoordinateTransform::Iterator in_it = in_transform.begin();
-                    CoordinateTransform::Iterator filter_it = filter_transform.begin();
-                    CoordinateTransform::Iterator in_it_end = in_transform.end();
-                    CoordinateTransform::Iterator filter_it_end = filter_transform.end();
-
-                    size_t in_channel_stride = row_major_strides(in_shape).at(in_channel_axis);
-                    size_t filter_in_channel_stride =
-                        row_major_strides(filter_shape).at(filter_in_channel_axis);
-
-                    while (in_it != in_it_end && filter_it != filter_it_end)
-                    {
-                        const Coordinate& in_coord = *in_it;
-                        if (in_transform.has_source_coordinate(in_coord))
+                        ACCU sum = 0;
+                        Tensor<const INPUT*> ch_input = in;
+                        Tensor<const INPUT*> ch_filter = f;
+                        for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis]; ++ch_idx)
                         {
-                            size_t in_idx = in_transform.index(in_coord);
-                            const Coordinate& filter_coord = *filter_it;
-                            size_t filter_idx = filter_transform.index(filter_coord);
-                            for (size_t in_channel = 0; in_channel < n_in_channels; ++in_channel)
+                            for (int f_x = 0; f_x < filter_size_x; ++f_x)
                             {
-                                ACCUMULATION in_v = static_cast<ACCUMULATION>(in[in_idx]);
-                                ACCUMULATION f_v = static_cast<ACCUMULATION>(filter[filter_idx]);
+                                int rel_i_x = i_x + (f_x * p.dilation[0]);
+                                bool padding = (rel_i_x < 0) || (rel_i_x >= input_size_x);
+                                if (padding)
+                                    continue;
 
-                                result += in_v * f_v;
-                                in_idx += in_channel_stride;
-                                filter_idx += filter_in_channel_stride;
+                                int f_buf_idx = f_x;
+                                int i_buf_idx = rel_i_x;
+
+                                sum += static_cast<ACCU>(ch_input.buffer[i_buf_idx]) *
+                                       static_cast<ACCU>(ch_filter.buffer[f_buf_idx]);
+                            }
+                            ch_input.buffer += input_spatial_size;
+                            ch_filter.buffer += filter_spatial_size;
+                        }
+                        *out.buffer = sum;
+                        ++out.buffer;
+                    }
+                }
+
+                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
+                void convolve_2D_channels(const ConvolutionParams& p,
+                                          const Tensor<const INPUT*>& in,
+                                          const Tensor<const FILTER*>& f,
+                                          Tensor<OUTPUT*>& out)
+                {
+                    const int input_spatial_size = compute_size(in.shape, spatial_axis);
+                    const int filter_spatial_size = compute_size(f.shape, spatial_axis);
+                    const int input_size_y = in.shape[spatial_axis];
+                    const int input_size_x = in.shape[spatial_axis + 1];
+                    const int filter_size_y = f.shape[spatial_axis];
+                    const int filter_size_x = f.shape[spatial_axis + 1];
+                    const int dilated_filter_size_y =
+                        filter_size_y + (filter_size_y - 1) * (p.dilation[0] - 1);
+                    const int dilated_filter_size_x =
+                        filter_size_x + (filter_size_x - 1) * (p.dilation[1] - 1);
+
+                    for (int i_y = -p.pads_begin[0];
+                         i_y <= (p.pads_end[0] + input_size_y - dilated_filter_size_y);
+                         i_y += p.strides[0])
+                    {
+                        for (int i_x = -p.pads_begin[1];
+                             i_x <= (p.pads_end[1] + input_size_x - dilated_filter_size_x);
+                             i_x += p.strides[1])
+                        {
+                            ACCU sum = 0;
+                            Tensor<const INPUT*> ch_input = in;
+                            Tensor<const INPUT*> ch_filter = f;
+                            for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis]; ++ch_idx)
+                            {
+                                for (int f_y = 0; f_y < filter_size_y; ++f_y)
+                                {
+                                    for (int f_x = 0; f_x < filter_size_x; ++f_x)
+                                    {
+                                        int rel_i_y = i_y + (f_y * p.dilation[0]);
+                                        int rel_i_x = i_x + (f_x * p.dilation[1]);
+
+                                        bool padding = (rel_i_y < 0) || (rel_i_x < 0) ||
+                                                       (rel_i_y >= input_size_y) ||
+                                                       (rel_i_x >= input_size_x);
+                                        if (padding)
+                                            continue;
+
+                                        int f_buf_idx = (f_y * filter_size_x) + f_x;
+                                        int i_buf_idx = (rel_i_y * input_size_x) + rel_i_x;
+                                        sum += static_cast<ACCU>(ch_input.buffer[i_buf_idx]) *
+                                               static_cast<ACCU>(ch_filter.buffer[f_buf_idx]);
+                                    }
+                                }
+                                ch_input.buffer += input_spatial_size;
+                                ch_filter.buffer += filter_spatial_size;
+                            }
+                            *out.buffer = sum;
+                            ++out.buffer;
+                        }
+                    }
+                }
+
+                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
+                void convolve_3D_channels(const ConvolutionParams& p,
+                                          const Tensor<const INPUT*>& in,
+                                          const Tensor<const FILTER*>& f,
+                                          Tensor<OUTPUT*>& out)
+                {
+                    const int input_spatial_size = compute_size(in.shape, spatial_axis);
+                    const int filter_spatial_size = compute_size(f.shape, spatial_axis);
+                    const int input_size_z = in.shape[spatial_axis];
+                    const int input_size_y = in.shape[spatial_axis + 1];
+                    const int input_size_x = in.shape[spatial_axis + 2];
+                    const int filter_size_z = f.shape[spatial_axis];
+                    const int filter_size_y = f.shape[spatial_axis + 1];
+                    const int filter_size_x = f.shape[spatial_axis + 2];
+                    const int dilated_filter_size_z =
+                        filter_size_z + (filter_size_z - 1) * (p.dilation[0] - 1);
+                    const int dilated_filter_size_y =
+                        filter_size_y + (filter_size_y - 1) * (p.dilation[1] - 1);
+                    const int dilated_filter_size_x =
+                        filter_size_x + (filter_size_x - 1) * (p.dilation[2] - 1);
+
+                    for (int i_z = -p.pads_begin[0];
+                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z);
+                         i_z += p.strides[0])
+                    {
+                        for (int i_y = -p.pads_begin[1];
+                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y);
+                             i_y += p.strides[1])
+                        {
+                            for (int i_x = -p.pads_begin[2];
+                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x);
+                                 i_x += p.strides[2])
+                            {
+                                ACCU sum = 0;
+                                Tensor<const INPUT*> ch_input = in;
+                                Tensor<const INPUT*> ch_filter = f;
+                                for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis];
+                                     ++ch_idx)
+                                {
+                                    for (int f_z = 0; f_z < filter_size_z; ++f_z)
+                                    {
+                                        for (int f_y = 0; f_y < filter_size_y; ++f_y)
+                                        {
+                                            for (int f_x = 0; f_x < filter_size_x; ++f_x)
+                                            {
+                                                int rel_i_z = i_z + (f_z * p.dilation[0]);
+                                                int rel_i_y = i_y + (f_y * p.dilation[1]);
+                                                int rel_i_x = i_x + (f_x * p.dilation[2]);
+
+                                                bool padding = (rel_i_z < 0) || (rel_i_y < 0) ||
+                                                               (rel_i_x < 0) ||
+                                                               (rel_i_z >= input_size_z) ||
+                                                               (rel_i_y >= input_size_y) ||
+                                                               (rel_i_x >= input_size_x);
+                                                if (padding)
+                                                    continue;
+
+                                                int f_buf_idx =
+                                                    (f_z * filter_size_y * filter_size_x) +
+                                                    (f_y * filter_size_x) + f_x;
+                                                int i_buf_idx =
+                                                    (rel_i_z * input_size_y * input_size_x) +
+                                                    (rel_i_y * input_size_x) + rel_i_x;
+                                                sum +=
+                                                    static_cast<ACCU>(ch_input.buffer[i_buf_idx]) *
+                                                    static_cast<ACCU>(ch_filter.buffer[f_buf_idx]);
+                                            }
+                                        }
+                                    }
+                                    ch_input.buffer += input_spatial_size;
+                                    ch_filter.buffer += filter_spatial_size;
+                                }
+                                *out.buffer = sum;
+                                ++out.buffer;
                             }
                         }
-                        ++in_it;
-                        ++filter_it;
                     }
-
-                    out[out_transform.index(out_coord)] = result;
                 }
-                std::fesetround(old_mode);
+
+                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
+                void convolve_channels(const ConvolutionType& type,
+                                       const ConvolutionParams& p,
+                                       const Tensor<const INPUT*>& in,
+                                       const Tensor<const FILTER*>& f,
+                                       Tensor<OUTPUT*>& out)
+                {
+                    switch (type)
+                    {
+                    case ConvolutionType::Conv1D:
+                        convolve_1D_channels<INPUT, FILTER, OUTPUT, ACCU>(p, in, f, out);
+                        break;
+                    case ConvolutionType::Conv2D:
+                        convolve_2D_channels<INPUT, FILTER, OUTPUT, ACCU>(p, in, f, out);
+                        break;
+                    case ConvolutionType::Conv3D:
+                        convolve_3D_channels<INPUT, FILTER, OUTPUT, ACCU>(p, in, f, out);
+                        break;
+                    }
+                }
+
+                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
+                void conv_impl(const ConvolutionType& type,
+                               const ConvolutionParams& params,
+                               const Tensor<const INPUT*> in,
+                               const Tensor<const FILTER*> f,
+                               Tensor<OUTPUT*> out)
+                {
+                    const size_t batch_size = compute_size(in.shape, in_channel_axis);
+                    const size_t filter_size = compute_size(f.shape, filter_in_ch_axis);
+
+                    Tensor<const INPUT*> batch = in;
+                    for (size_t batch_idx = 0; batch_idx < in.shape[in_batch_axis]; ++batch_idx)
+                    {
+                        Tensor<const FILTER*> filter = f;
+                        for (size_t f_idx = 0; f_idx < f.shape[filter_out_ch_axis]; ++f_idx)
+                        {
+                            convolve_channels<INPUT, FILTER, OUTPUT, ACCU>(
+                                type, params, batch, filter, out);
+                            filter.buffer += filter_size;
+                        }
+                        batch.buffer += batch_size;
+                    }
+                }
             }
 
             template <typename INPUT,
                       typename FILTER,
                       typename OUTPUT,
-                      typename ACCUMULATION = typename widen<OUTPUT>::type>
+                      typename ACCU = typename widen<OUTPUT>::type>
             void convolution(const INPUT* in,
-                             const FILTER* filter,
+                             const FILTER* f,
                              OUTPUT* out,
                              const Shape& in_shape,
                              const Shape& filter_shape,
                              const Shape& out_shape,
-                             const Strides& stride,
-                             const Strides& filter_dilation,
-                             const CoordinateDiff& in_pad_below,
-                             const CoordinateDiff& in_pad_above,
-                             const Strides& in_dilation)
+                             const Strides& strides,
+                             const Strides& dilation,
+                             const CoordinateDiff& pads_begin,
+                             const CoordinateDiff& pads_end,
+                             const Strides&)
 
             {
-                convolution_impl<INPUT, FILTER, OUTPUT, ACCUMULATION>(in,
-                                                                      filter,
-                                                                      out,
-                                                                      in_shape,
-                                                                      filter_shape,
-                                                                      out_shape,
-                                                                      stride,
-                                                                      filter_dilation,
-                                                                      in_pad_below,
-                                                                      in_pad_above,
-                                                                      in_dilation,
-                                                                      0,
-                                                                      1,
-                                                                      0,
-                                                                      1,
-                                                                      0,
-                                                                      1);
+                const ConvolutionType type = [&]() {
+                    switch (filter_shape.size())
+                    {
+                    case 3: return ConvolutionType::Conv1D;
+                    case 4: return ConvolutionType::Conv2D;
+                    case 5: return ConvolutionType::Conv3D;
+                    default: NGRAPH_UNREACHABLE("Unsupported kernel rank: ", filter_shape);
+                    }
+                }();
+
+                auto old_mode = std::fegetround();
+                std::fesetround(FE_TONEAREST);
+
+                // here we are converting all param types to int's to avoid arithmetic issues
+                // (e.g signed + unsigned) in indexes calculation later
+                const ConvolutionParams params{strides, dilation, pads_begin, pads_end};
+
+                const Tensor<const INPUT*> input{in, in_shape};
+                const Tensor<const FILTER*> filter{f, filter_shape};
+                const Tensor<OUTPUT*> output{out, out_shape};
+
+                conv_impl<INPUT, FILTER, OUTPUT, ACCU>(type, params, input, filter, output);
+
+                std::fesetround(old_mode);
             }
         } // namespace reference
     }     // namespace runtime
