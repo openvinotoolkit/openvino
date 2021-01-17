@@ -19,7 +19,7 @@ using namespace InferenceEngine;
 IE_SUPPRESS_DEPRECATED_START
 
 class TestsCommonFunc {
-    static CNNLayerPtr getLayer(const ICNNNetwork& network, const std::string& layerName) {
+    static CNNLayerPtr getLayer(const CNNNetwork& network, const std::string& layerName) {
         std::vector<CNNLayerPtr> layers = InferenceEngine::details::CNNNetSortTopologically(network);
         for (CNNLayerPtr layer : layers) {
             if (layer->name == layerName) {
@@ -34,7 +34,7 @@ public:
     InferenceEngine::Blob::Ptr readInput(std::string path, int batch = 1);
 
     static void checkLayerOuputPrecision(
-        const ICNNNetwork& network,
+        const CNNNetwork& network,
         const std::vector<std::string>& layerNames,
         const Precision expectedPrecision,
         const std::string& type = "") {
@@ -53,7 +53,7 @@ public:
         }
     }
 
-    static void checkLayerOuputPrecision(const ICNNNetwork& network, const std::string& layerName, Precision expectedPrecision) {
+    static void checkLayerOuputPrecision(const CNNNetwork& network, const std::string& layerName, Precision expectedPrecision) {
         CNNLayerPtr layer = getLayer(network, layerName);
         if (layer == nullptr) {
             THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";
@@ -63,7 +63,7 @@ public:
         }
     }
 
-    static void checkLayerOuputPrecision(const ICNNNetwork& network, const std::string& layerName, std::vector<Precision> expectedPrecisions) {
+    static void checkLayerOuputPrecision(const CNNNetwork& network, const std::string& layerName, std::vector<Precision> expectedPrecisions) {
         CNNLayerPtr layer = getLayer(network, layerName);
         if (layer == nullptr) {
             THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";

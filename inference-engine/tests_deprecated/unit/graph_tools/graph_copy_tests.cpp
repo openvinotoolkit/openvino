@@ -57,7 +57,7 @@ protected:
 };
 
 TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
 
     //network was copied not just assigned
     ASSERT_NE(clone.get(), mockNet.get());
@@ -67,7 +67,7 @@ TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
 
 
 TEST_F(GraphCopyTests, canPreserveInputs) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
 
     InputsDataMap inputs, inputsTarget;
     InputsDataMap heads, headsTarget;
@@ -78,8 +78,7 @@ TEST_F(GraphCopyTests, canPreserveInputs) {
 }
 
 TEST_F(GraphCopyTests, canPreserveOutputs) {
-
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
 
     OutputsDataMap outTarget, outSource;
     clone->getOutputsInfo(outTarget);
@@ -89,7 +88,7 @@ TEST_F(GraphCopyTests, canPreserveOutputs) {
 }
 
 TEST_F(GraphCopyTests, canPreserveAttributes) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
     ADD_ATTR(1, "id", "r-1-2-3");
     ADD_ATTR(2, "id", "r-1-2-3");
     CNNNetwork cloned (clone);

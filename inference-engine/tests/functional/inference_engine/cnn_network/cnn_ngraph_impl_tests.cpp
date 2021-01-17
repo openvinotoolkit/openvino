@@ -87,10 +87,10 @@ TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet);
+    auto convertedNet = InferenceEngine::CNNNetwork(std::make_shared<details::CNNNetworkImpl>(cnnNet));
     // Remove convert layer
-    InferenceEngine::NetPass::ConvertPrecision(*convertedNet, Precision::I64, Precision::I32);
-    ASSERT_NO_THROW(cloneNet(*convertedNet));
+    InferenceEngine::NetPass::ConvertPrecision(convertedNet, Precision::I64, Precision::I32);
+    ASSERT_NO_THROW(cloneNet(convertedNet));
 }
 
 TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {

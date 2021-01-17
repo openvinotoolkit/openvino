@@ -242,7 +242,8 @@ public:
             layer->insData.push_back(newEdgeAfterLayer);
         };
 
-        auto all_layers = InferenceEngine::details::CNNNetSortTopologically(*netImpl);
+        auto all_layers = InferenceEngine::details::CNNNetSortTopologically(
+            InferenceEngine::CNNNetwork(netImpl->shared_from_this()));
         for (auto &layer : all_layers) {
             if (layer->type == "ScaleShift" && layer->insData.size() == 1) {
                 InferenceEngine::Blob::Ptr scalesBlob = layer->blobs["weights"];

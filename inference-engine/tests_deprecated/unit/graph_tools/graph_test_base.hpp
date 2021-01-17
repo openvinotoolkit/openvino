@@ -65,7 +65,8 @@ class GraphTestsBase : public ::testing::Test {
     }
 
     CNNLayerPtr layerByName(std::string name) {
-        auto sorted = InferenceEngine::details::CNNNetSortTopologically(*mockNet);
+        auto sorted = InferenceEngine::details::CNNNetSortTopologically(
+            InferenceEngine::CNNNetwork(mockNet));
 
         auto i = std::find_if(sorted.begin(), sorted.end(), [&](CNNLayerPtr l){
             return l->name == name;
