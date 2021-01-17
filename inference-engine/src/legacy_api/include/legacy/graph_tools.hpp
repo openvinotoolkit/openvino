@@ -470,7 +470,7 @@ using CNNNetCPtr = std::shared_ptr<const ICNNNetwork>;
  * @return copied network
  */
 template <class Copier>
-inline CNNNetPtr CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
+inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     net->setName(input.getName());
@@ -614,7 +614,7 @@ inline CNNNetPtr CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
         THROW_IE_EXCEPTION << dsc.msg;
     }
 
-    return net;
+    return CNNNetwork(net);
 }
 
 /**
@@ -622,7 +622,7 @@ inline CNNNetPtr CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
  * @param input
  * @return
  */
-inline CNNNetPtr CNNNetCopy(const CNNNetwork& input) {
+inline CNNNetwork CNNNetCopy(const CNNNetwork& input) {
     struct EmptyStruct {};
     auto copier = [](CNNLayerPtr lp) {
         return injectData<EmptyStruct>(lp);

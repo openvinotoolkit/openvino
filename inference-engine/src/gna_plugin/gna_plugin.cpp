@@ -476,7 +476,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // network optimisation phases
     int passIdx = 0;
-    auto run_passes = [&] (const CNNNetPtr& network, bool runBeforeCopy) {
+    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy) {
         auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
@@ -519,7 +519,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passIdx = passes->run(passIdx);
     };
 
-    ICNNNetwork::Ptr newNet;
+    InferenceEngine::CNNNetwork newNet;
     if (gnaFlags->sw_fp32) {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             transformLayer(lp, WeightsConverter());
@@ -574,7 +574,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     });
 #endif
 
-    auto sortedNet = CNNNetSortTopologicallyEx(*newNet, make_fuzed_order);
+    auto sortedNet = CNNNetSortTopologicallyEx(newNet, make_fuzed_order);
 
     // passing policy to compiler
     graphCompiler.setPolicy(policy);
@@ -622,13 +622,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // keep inputs information and create input primitives
-    newNet->getInputsInfo(inputsDataMap);
+    inputsDataMap = newNet.getInputsInfo();
     if (inputsDataMap.empty()) {
         THROW_GNA_EXCEPTION << " No inputs for the topology";
     }
 
     // keep output dims
-    newNet->getOutputsInfo(outputsDataMap);
+    outputsDataMap = newNet.getOutputsInfo();
     if (outputsDataMap.empty()) {
         THROW_GNA_EXCEPTION << "No outputs for the topology";
     }
