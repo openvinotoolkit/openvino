@@ -131,9 +131,12 @@ class Computation(object):
         request = executable_network.requests[0]
         request.infer(dict(zip(param_names, input_values)))
 
+        output_names = [result.get_friendly_name() for result in self.results]
+        # Set order of output blobs compatible with nG Function
+        result_buffers = [request.output_blobs[output_name].buffer for output_name in output_names]
+
         # Since OV overwrite result data type we have to convert results to the original one.
         original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
-        result_buffers = [blob.buffer for blob in request.output_blobs.values()]
         converted_buffers = [buffer.astype(original_dtype) for buffer, original_dtype in
                              zip(result_buffers, original_dtypes)]
         return converted_buffers
