@@ -276,7 +276,7 @@ TEST(CNNNGraphImplTests, TestSaveAffinity) {
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
     auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet);
-    auto cnnLayer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "testReLU");
+    auto cnnLayer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "testReLU");
     ASSERT_NE(nullptr, cnnLayer);
     ASSERT_EQ(cnnLayer->affinity, testAffinity);
 }
