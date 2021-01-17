@@ -38,6 +38,8 @@ add_subdirectory(inference_engine)
 
 add_subdirectory(low_precision_transformations)
 
+add_subdirectory(offline_transformations)
+
 # add a custom target to build all Inference Engine Core libraries
 
 add_custom_target(ie_libraries ALL
