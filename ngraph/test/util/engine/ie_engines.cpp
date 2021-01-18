@@ -214,17 +214,16 @@ testing::AssertionResult test::IE_Engine::compare_results(const size_t tolerance
     return comparison_result;
 }
 
-std::string test::IE_Engine::get_output_name(const std::shared_ptr<op::v0::Result>& result)
+std::string test::IE_Engine::get_output_name(const std::shared_ptr<op::v0::Result>& ng_result)
 {
     if (m_function->get_results().size() == 1)
     {
-        // result input is ignored
+        // ng_result argument is ignored
         return m_network_outputs.begin()->first;
     }
     else
     {
-        // TODO assert
-        const auto& prev_layer = result->input_value(0);
+        const auto& prev_layer = ng_result->input_value(0);
         auto network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
         if (prev_layer.get_node_shared_ptr()->get_output_size() != 1)
         {

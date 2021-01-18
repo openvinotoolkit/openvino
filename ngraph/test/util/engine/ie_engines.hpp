@@ -133,7 +133,8 @@ namespace ngraph
             /// Retrieves a set of all ops IE can execute
             std::set<NodeTypeInfo> get_ie_ops() const;
 
-            std::string get_output_name(const std::shared_ptr<op::v0::Result>& result = nullptr);
+            // Get IE blob which corresponds to result of nG Function
+            std::string get_output_name(const std::shared_ptr<op::v0::Result>& ng_result);
         };
 
         class IE_CPU_Engine final : public IE_Engine
