@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -559,7 +559,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDDetectionOutput) {
             </output>
         </layer>
        <layer name="in2" type="Parameter" id="2" version="opset1">
-            <data shape="1000,324" element_type="f32"/>
+            <data shape="1000,81" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1000</dim>

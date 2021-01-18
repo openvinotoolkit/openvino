@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,8 +133,7 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
         }
 
         // WA: shape infer has to know number of outputs
-        if ((type == "ExperimentalDetectronROIFeatureExtractor" || type == "ExperimentalDetectronDetectionOutput")
-                && parameters.find("num_outputs") == parameters.end()) {
+        if (type == "ExperimentalDetectronROIFeatureExtractor" && parameters.find("num_outputs") == parameters.end()) {
             parameters["num_outputs"] = std::to_string(outputs.size());
         }
 
@@ -152,8 +151,7 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
     // Extensions are not loaded when we create nGraph function
     // First call: create node
     if (initialized < 1) {
-        if ((type == "ExperimentalDetectronROIFeatureExtractor" || type == "ExperimentalDetectronDetectionOutput")
-                && outputs.size() < 2) {
+        if (type == "ExperimentalDetectronROIFeatureExtractor" && outputs.size() < 2) {
             // Add fake port
             PortIE port;
             port.precision = InferenceEngine::Precision::FP32;
