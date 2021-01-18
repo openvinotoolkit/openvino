@@ -113,7 +113,6 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes)
     }
 }
 
-
 TEST(type_prop, detectron_grid_generator_dynamic_shapes_intervals)
 {
     Attrs attrs;
