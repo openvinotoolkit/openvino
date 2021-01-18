@@ -63,7 +63,7 @@
   * **Type**: string
   * **Default value**: *explicit*
   * **Required**: *no*
-  * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
+  * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is not equal to explicit.
 
 **Inputs**:
 
@@ -104,9 +104,9 @@ Outputshape calculation based on `auto_pad` and `rounding_type`:
         `W_out = W`    
         `D_out = D`  
 
-If `(H + pads_begin[i] + pads_end[i] - kernel[i]` is not divided by `strides[i]` evenly then the result is rounded with the respect to `rounding_type` attribute. 
+If `H + pads_begin[i] + pads_end[i] - kernel[i]` is not divided by `strides[i]` evenly then the result is rounded with the respect to `rounding_type` attribute. 
 
-Example 1 shows how *MaxPool* operates with `auto_pad = explicit`
+Example 1 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = explicit`
 
 ```
 input = [[[[-1, 2, 3],
@@ -124,28 +124,24 @@ output = [[[[-1, 2, 3, 3],
             [-7, 8, 9, 9]]]]
 ```
 
-Example 2 shows how *MaxPool* operates with `auto_pad = valid`
+Example 2 shows how *MaxPool* operates with 3D input using 1D kernel and `auto_pad = valid`
 
 ```
 input = [[[-1, 2, 3, 5, -7, 9, 1]]]
 strides = [1]
-pads_begin = [1]
-pads_end = [1]
 kernel = [3]
 rounding_type = "floor"
 auto_pad = "valid"
 output = [[[3, 5, 5, 9, 9]]]
 ```
 
-Example 3 shows how *MaxPool* operates with `auto_pad = same_lower`
+Example 3 shows how *MaxPool* operates with 4D input using 2D kernel `auto_pad = same_lower`
 
 ```
-input = [[[-1, 2, 3],
+input = [[[[-1, 2, 3],
          [4, 5, -6],
-         [-7, 8, 9]]]
+         [-7, 8, 9]]]]
 strides = [1, 1]
-pads_begin = [1, 1]
-pads_end = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_lower"
@@ -154,7 +150,7 @@ output = [[[[-1, 2, 3],
             [4, 8, 9]]]]
 ```
 
-Example 4 shows how *MaxPool* operates with `auto_pad = same_upper`
+Example 4 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = same_upper`
 
 ```
 input = [[[[-1, 2, 3],
@@ -164,8 +160,6 @@ input = [[[[-1, 2, 3],
            [6, -7, 1],
            [8, 2, -3]]]]
 strides = [1, 1]
-pads_begin = [1, 1]
-pads_end = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_upper"
@@ -184,8 +178,6 @@ input = [[[[-1, 2, 3],
            [4, 5, -6],
            [-7, 8, 9]]]]
 strides = [2, 2]
-pads_begin = [1, 1]
-pads_end = [1, 1]
 kernel = [2, 2]
 rounding_type = "ceil"
 auto_pad = "valid"
@@ -197,7 +189,7 @@ output = [[[[5, 3],
 
 ```xml
 <layer ... type="MaxPool" ... >
-        <data auto_pad="same_upper" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+        <data auto_pad="same_upper" kernel="2,2" strides="2,2"/>
         <input> 
           <port id="0">
             <dim>1</dim>
@@ -237,7 +229,7 @@ output = [[[[5, 3],
 </layer>
 
 <layer ... type="MaxPool" ... >
-        <data auto_pad="valid" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+        <data auto_pad="valid" kernel="2,2" strides="2,2"/>
         <input> 
           <port id="0">
             <dim>1</dim>
