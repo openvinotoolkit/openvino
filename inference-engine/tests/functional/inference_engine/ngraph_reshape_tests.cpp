@@ -577,38 +577,38 @@ TEST_F(NGraphReshapeTests, ReshapeEDDetectionOutput) {
             </output>
         </layer>
         <layer id="4" name="DO" type="ExperimentalDetectronDetectionOutput" version="experimental">
-			<data class_agnostic_box_regression="0" deltas_weights="10.0,10.0,5.0,5.0" max_delta_log_wh="4.135166645050049" max_detections_per_image="100" nms_threshold="0.5" num_classes="81" post_nms_count="2000" score_threshold="0.05000000074505806"/>
-			<input>
-				<port id="0">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>1000</dim>
-					<dim>324</dim>
-				</port>
-				<port id="2">
-					<dim>1000</dim>
-					<dim>81</dim>
-				</port>
-				<port id="3">
-					<dim>1</dim>
-					<dim>3</dim>
-				</port>
-			</input>
-			<output>
-				<port id="4" precision="FP32">
-					<dim>100</dim>
-					<dim>4</dim>
-				</port>
-				<port id="5" precision="I32">
-					<dim>100</dim>
-				</port>
-				<port id="6" precision="FP32">
-					<dim>100</dim>
-				</port>
-			</output>
-		</layer>
+            <data class_agnostic_box_regression="0" deltas_weights="10.0,10.0,5.0,5.0" max_delta_log_wh="4.135166645050049" max_detections_per_image="100" nms_threshold="0.5" num_classes="81" post_nms_count="2000" score_threshold="0.05000000074505806"/>
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1000</dim>
+                    <dim>324</dim>
+                </port>
+                <port id="2">
+                    <dim>1000</dim>
+                    <dim>81</dim>
+                </port>
+                <port id="3">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="4" precision="FP32">
+                    <dim>100</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="5" precision="I32">
+                    <dim>100</dim>
+                </port>
+                <port id="6" precision="FP32">
+                    <dim>100</dim>
+                </port>
+            </output>
+        </layer>
         <layer name="out_0" type="Result" id="5" version="opset1">
             <input>
                 <port id="0" precision="FP32">
@@ -688,37 +688,37 @@ TEST_F(NGraphReshapeTests, ReshapeEDPriorGridGenerator) {
             </output>
         </layer>
         <layer id="3" name="1117" type="ExperimentalDetectronPriorGridGenerator" version="experimental">
-			<data flatten="1" h="0" stride_x="4.0" stride_y="4.0" w="0"/>
-			<input>
-				<port id="0">
-					<dim>3</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-				<port id="2">
-					<dim>1</dim>
-					<dim>3</dim>
-					<dim>800</dim>
-					<dim>1344</dim>
-				</port>
-			</input>
-			<output>
-				<port id="3" precision="FP32">
-					<dim>201600</dim>
-					<dim>4</dim>
-				</port>
-			</output>
-		</layer>
+            <data flatten="1" h="0" stride_x="4.0" stride_y="4.0" w="0"/>
+            <input>
+                <port id="0">
+                    <dim>3</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>800</dim>
+                    <dim>1344</dim>
+                </port>
+            </input>
+            <output>
+                <port id="3" precision="FP32">
+                    <dim>201600</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
         <layer name="out_0" type="Result" id="4" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>201600</dim>
-					<dim>4</dim>
+                    <dim>4</dim>
                 </port>
             </input>
         </layer>
@@ -757,7 +757,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
             <output>
                 <port id="0" precision="FP32">
                     <dim>201600</dim>
-					<dim>4</dim>
+                    <dim>4</dim>
                 </port>
             </output>
         </layer>
@@ -766,8 +766,8 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
             <output>
                 <port id="0" precision="FP32">
                     <dim>12</dim>
-					<dim>200</dim>
-					<dim>336</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
                 </port>
             </output>
         </layer>
@@ -776,47 +776,47 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>
-					<dim>200</dim>
-					<dim>336</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
                 </port>
             </output>
         </layer>
         <layer id="4" name="1133" type="ExperimentalDetectronGenerateProposalsSingleImage" version="experimental">
-			<data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>
-			<input>
-				<port id="0">
-					<dim>3</dim>
-				</port>
-				<port id="1">
-					<dim>201600</dim>
-					<dim>4</dim>
-				</port>
-				<port id="2">
-					<dim>12</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-				<port id="3">
-					<dim>3</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-			</input>
-			<output>
-				<port id="4" precision="FP32">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="5" precision="FP32">
-					<dim>1000</dim>
-				</port>
-			</output>
-		</layer>
+            <data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>
+            <input>
+                <port id="0">
+                    <dim>3</dim>
+                </port>
+                <port id="1">
+                    <dim>201600</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="2">
+                    <dim>12</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+                <port id="3">
+                    <dim>3</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </input>
+            <output>
+                <port id="4" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="5" precision="FP32">
+                    <dim>1000</dim>
+                </port>
+            </output>
+        </layer>
         <layer name="out_0" type="Result" id="5" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1000</dim>
-					<dim>4</dim>
+                    <dim>4</dim>
                 </port>
             </input>
         </layer>
@@ -872,35 +872,35 @@ TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
             </output>
         </layer>
         <layer id="2" name="1190" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
-			<data aligned="0" output_size="7" pyramid_scales="4" sampling_ratio="2"/>
-			<input>
-				<port id="0">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
-				</port>
-			</output>
-		</layer>
+            <data aligned="0" output_size="7" pyramid_scales="4" sampling_ratio="2"/>
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
+                </port>
+            </output>
+        </layer>
         <layer name="out_0" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </input>
         </layer>
@@ -946,35 +946,35 @@ TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractorOpset6) {
             </output>
         </layer>
         <layer id="2" name="1190" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
-			<data aligned="0" output_size="7" pyramid_scales="4" sampling_ratio="2"/>
-			<input>
-				<port id="0">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
-				</port>
-			</output>
-		</layer>
+            <data aligned="0" output_size="7" pyramid_scales="4" sampling_ratio="2"/>
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
+                </port>
+            </output>
+        </layer>
         <layer name="out_0" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </input>
         </layer>
@@ -1017,28 +1017,28 @@ TEST_F(NGraphReshapeTests, ReshapeEDTopKROIs) {
             </output>
         </layer>
         <layer id="2" name="1189" type="ExperimentalDetectronTopKROIs" version="experimental">
-			<data max_rois="1000"/>
-			<input>
-				<port id="0">
-					<dim>5000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>5000</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-			</output>
-		</layer>
+            <data max_rois="1000"/>
+            <input>
+                <port id="0">
+                    <dim>5000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>5000</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
         <layer name="out_0" type="Result" id="3" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1000</dim>
-					<dim>4</dim>
+                    <dim>4</dim>
                 </port>
             </input>
         </layer>
