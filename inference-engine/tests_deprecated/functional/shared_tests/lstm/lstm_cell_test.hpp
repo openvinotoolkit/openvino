@@ -161,16 +161,16 @@ class LSTMCellTestBase : public PlgTest<lstm_cell_param> {
             assert(blob->size() == N*S);
             auto ptr = blob->buffer().as<float*>();
 
-            for (int n = 0; n < N; n++)
-                for (int s = 0; s < S; s++) *ptr++ = val;
+            for (size_t n = 0; n < N; n++)
+                for (size_t s = 0; s < S; s++) *ptr++ = val;
         };
 
         auto data_filler = [&](Blob::Ptr blob) {
             assert(blob->size() == N*T*D);
             auto ptr = blob->buffer().as<float*>();
 
-            for (int n = 0; n < N; n++)
-                for (int d = 0; d < D; d++) *ptr++ = X[1];
+            for (size_t n = 0; n < N; n++)
+                for (size_t d = 0; d < D; d++) *ptr++ = X[1];
         };
 
         /*****  Output blob checkers  ************************/
@@ -180,11 +180,11 @@ class LSTMCellTestBase : public PlgTest<lstm_cell_param> {
 
             bool passed = true;
             float maxDiff = 0;
-            for (int n = 0; n < N; n++)
-                for (int s = 0; s < S; s++) {
+            for (size_t n = 0; n < N; n++)
+                for (size_t s = 0; s < S; s++) {
 
                     if (!cmp_near(*ptr, val, eq_threshold)) {
-                        printf("float eq %dx%d fail: %f : %f\n", n, s, *ptr, val);
+                        printf("float eq %zux%zu fail: %f : %f\n", n, s, *ptr, val);
                         passed = false;
                     }
                     maxDiff = std::max(std::abs(*ptr - val), maxDiff);
