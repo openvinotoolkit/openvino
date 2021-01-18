@@ -375,13 +375,14 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     }
 
     auto ieOutPrc = outPrc;
-    const auto &actualOutputs = GetOutputs();
-    std::vector<ngraph::element::Type_t> convertType(actualOutputs.size(),
+    const auto &&outputsInfo = executableNetwork.GetOutputsInfo();
+    std::vector<ngraph::element::Type_t> convertType(outputsInfo.size(),
                                                      FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ieOutPrc));
     if (ieOutPrc == InferenceEngine::Precision::UNSPECIFIED) {
-        for (size_t i = 0; i < convertType.size(); i++) {
-            convertType[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
-                    actualOutputs[i]->getTensorDesc().getPrecision());
+        size_t i = 0;
+        for (const auto &output : outputsInfo) {
+                convertType[i++] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
+                    output.second->getTensorDesc().getPrecision());
         }
     }
 
