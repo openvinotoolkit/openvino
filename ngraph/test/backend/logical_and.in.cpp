@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, logical_and)
 {
     Shape shape{3, 4};
-    auto A = make_shared<op::Parameter>(element::Type_t::boolean, shape);
-    auto B = make_shared<op::Parameter>(element::Type_t::boolean, shape);
+    auto A = make_shared<op::Parameter>(element::boolean, shape);
+    auto B = make_shared<op::Parameter>(element::boolean, shape);
     auto f =
         make_shared<Function>(std::make_shared<op::v1::LogicalAnd>(A, B), ParameterVector{A, B});
 

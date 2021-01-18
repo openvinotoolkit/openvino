@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ namespace ngraph
                 Branch()
                     : Pattern(OutputVector{})
                 {
-                    set_output_type(0, element::Type_t::f32, Shape{});
+                    set_output_type(0, element::f32, Shape{});
                 }
 
                 void set_destination(const Output<Node>& destination)

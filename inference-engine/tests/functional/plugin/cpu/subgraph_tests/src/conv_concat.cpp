@@ -7,7 +7,7 @@
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj) {
     std::ostringstream result;
@@ -38,7 +38,7 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
 
     result << CPUTestsBase::getTestCaseName(cpuParams);
 
-    result << "axis=" << axis;
+    result << "_axis=" << axis;
 
     return result.str();
 }
@@ -422,4 +422,4 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolutionBackpropData3D, ConvConcatSubgraph
 
 }  // namespace GroupConvolutionBackpropDataConcat
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/opsets/opset3.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "scatter_elements.hpp"
+#include "op/scatter_elements.hpp"
 
 namespace ngraph
 {
@@ -36,7 +36,7 @@ namespace ngraph
 
                     const auto axis = node.get_attribute_value<std::int64_t>("axis", 0);
                     const auto axis_node =
-                        default_opset::Constant::create(element::Type_t::i64, Shape{}, {axis});
+                        default_opset::Constant::create(element::i64, Shape{}, {axis});
 
                     return {std::make_shared<ngraph::opset3::ScatterElementsUpdate>(
                         data, indices, updates, axis_node)};

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ namespace
 NGRAPH_TEST(${BACKEND_NAME}, unhandled_op)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto unhandled = make_shared<UnhandledOp>(A);
     auto f = make_shared<Function>(unhandled, ParameterVector{A});
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

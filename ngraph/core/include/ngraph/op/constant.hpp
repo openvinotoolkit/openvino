@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -273,31 +273,31 @@ namespace ngraph
                 }
 
                 /// \brief Returns the value of the constant node as a Shape object
-                ///        Can only be used on element::Type_t::i64 nodes and interprets
+                ///        Can only be used on element::i64 nodes and interprets
                 ///        negative values as zeros.
                 Shape get_shape_val() const;
                 /// \brief Returns the value of the constant node as a Strides
                 ///        object
-                ///        Can only be used on element::Type_t::i64 nodes and interprets
+                ///        Can only be used on element::i64 nodes and interprets
                 ///        negative values as zeros.
                 Strides get_strides_val() const;
                 /// \brief Returns the value of the constant node as a Coordinate
                 ///        object
-                ///        Can only be used on element::Type_t::i64 nodes and interprets
+                ///        Can only be used on element::i64 nodes and interprets
                 ///        negative values as zeros.
                 Coordinate get_coordinate_val() const;
                 /// \brief Returns the value of the constant node as a
                 ///        CoordinateDiff object
-                ///        Can only be used on element::Type_t::i64 nodes.
+                ///        Can only be used on element::i64 nodes.
                 CoordinateDiff get_coordinate_diff_val() const;
                 /// \brief Returns the value of the constant node as an AxisVector
                 ///        object
-                ///        Can only be used on element::Type_t::i64 nodes and interprets
+                ///        Can only be used on element::i64 nodes and interprets
                 ///        negative values as zeros.
                 AxisVector get_axis_vector_val() const;
                 /// \brief Returns the value of the constant node as an AxisSet
                 ///        object
-                ///        Can only be used on element::Type_t::i64 nodes and interprets
+                ///        Can only be used on element::i64 nodes and interprets
                 ///        negative values as zeros.
                 ///        Repeated values are allowed.
                 AxisSet get_axis_set_val() const;
@@ -479,8 +479,7 @@ namespace ngraph
                                    [](IN_T c) { return static_cast<OUT_T>(c); });
                 }
 
-                /// \brief Allocate a buffer and return a pointer to it
-                void* allocate_buffer();
+                void allocate_buffer();
 
                 void* get_data_ptr_nc() { return (m_data ? m_data->get_ptr() : nullptr); }
                 template <element::Type_t ET>
@@ -507,7 +506,7 @@ namespace ngraph
                 }
 
                 template <typename T, typename U>
-                void write_buffer(void* target, const std::vector<U>& source, size_t count)
+                static void write_buffer(void* target, const std::vector<U>& source, size_t count)
                 {
                     T* p = reinterpret_cast<T*>(target);
                     for (size_t i = 0; i < count; i++)
@@ -517,11 +516,11 @@ namespace ngraph
                 }
 
                 template <typename T>
-                void write_to_buffer(const element::Type& target_type,
-                                     const Shape& /* target_shape */,
-                                     const std::vector<T>& source,
-                                     void* target,
-                                     size_t target_element_count)
+                static void write_to_buffer(const element::Type& target_type,
+                                            const Shape& /* target_shape */,
+                                            const std::vector<T>& source,
+                                            void* target,
+                                            size_t target_element_count)
                 {
                     if (source.size() != target_element_count)
                     {

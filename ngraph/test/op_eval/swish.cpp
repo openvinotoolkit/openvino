@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ using namespace ngraph;
 
 TEST(op_eval, swish_with_beta1)
 {
-    auto p = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
-    auto beta = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    auto p = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto beta = make_shared<op::Parameter>(element::f32, Shape{});
     auto swish = make_shared<op::v4::Swish>(p, beta);
     auto fun = make_shared<Function>(OutputVector{swish}, ParameterVector{p, beta});
 
@@ -42,7 +42,7 @@ TEST(op_eval, swish_with_beta1)
     ASSERT_TRUE(fun->evaluate({result},
                               {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs),
                                make_host_tensor<element::Type_t::f32>(Shape{}, {1.0})}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < inputs.size(); i++)
@@ -51,8 +51,8 @@ TEST(op_eval, swish_with_beta1)
 
 TEST(op_eval, swish_with_beta0_75)
 {
-    auto p = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
-    auto beta = make_shared<op::Parameter>(element::Type_t::f32, Shape{});
+    auto p = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto beta = make_shared<op::Parameter>(element::f32, Shape{});
     auto swish = make_shared<op::v4::Swish>(p, beta);
     auto fun = make_shared<Function>(OutputVector{swish}, ParameterVector{p, beta});
 
@@ -63,7 +63,7 @@ TEST(op_eval, swish_with_beta0_75)
     ASSERT_TRUE(fun->evaluate({result},
                               {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs),
                                make_host_tensor<element::Type_t::f32>(Shape{}, {0.75})}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < inputs.size(); i++)
@@ -72,7 +72,7 @@ TEST(op_eval, swish_with_beta0_75)
 
 TEST(op_eval, swish_without_beta)
 {
-    auto p = make_shared<op::Parameter>(element::Type_t::f32, Shape{3});
+    auto p = make_shared<op::Parameter>(element::f32, Shape{3});
     auto swish = make_shared<op::v4::Swish>(p);
     auto fun = make_shared<Function>(OutputVector{swish}, ParameterVector{p});
 
@@ -82,7 +82,7 @@ TEST(op_eval, swish_without_beta)
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(
         fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < inputs.size(); i++)

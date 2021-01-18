@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ namespace ngraph
                 ///                          edge of interval. default true = includes right edge
                 Bucketize(const Output<Node>& data,
                           const Output<Node>& buckets,
-                          const element::Type output_type = element::Type_t::i64,
+                          const element::Type output_type = element::i64,
                           const bool with_right_bound = true);
 
                 virtual void validate_and_infer_types() override;

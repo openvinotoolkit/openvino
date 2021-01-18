@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@
 #include <iterator>
 #include <numeric>
 
+#include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "reshape.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -126,10 +126,8 @@ namespace ngraph
                     // reshape the node with shape {C} to {1, C, 1, 1, ..., 1}
                     std::vector<size_t> reshape_pattern_values(expected_rank, 1U);
                     reshape_pattern_values[1] = node.get_shape().front();
-                    const auto reshape_pattern =
-                        default_opset::Constant::create(element::Type_t::u64,
-                                                        Shape{reshape_pattern_values.size()},
-                                                        reshape_pattern_values);
+                    const auto reshape_pattern = default_opset::Constant::create(
+                        element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
                     return std::make_shared<default_opset::Reshape>(node, reshape_pattern, false);
                 }
                 return node;

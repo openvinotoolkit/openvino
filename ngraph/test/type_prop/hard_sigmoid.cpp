@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,10 +25,10 @@ TEST(type_prop, hardsigmoid)
 {
     const Shape data_shape{3, 5};
 
-    const auto P = make_shared<op::Parameter>(element::Type_t::f32, data_shape);
+    const auto P = make_shared<op::Parameter>(element::f32, data_shape);
     const auto alpha = op::Constant::create<float>(P->get_element_type(), Shape{}, {0.1f});
     const auto beta = op::Constant::create<float>(P->get_element_type(), Shape{}, {1.2f});
     const auto H = make_shared<op::HardSigmoid>(P, alpha, beta);
-    ASSERT_EQ(H->get_element_type(), element::Type_t::f32);
+    ASSERT_EQ(H->get_element_type(), element::f32);
     ASSERT_EQ(H->get_shape(), data_shape);
 }

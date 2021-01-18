@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,33 +23,31 @@ using namespace ngraph;
 
 TEST(type_prop, mish)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 3, 6});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
     auto mish_func = make_shared<op::v4::Mish>(data);
-    EXPECT_EQ(mish_func->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(mish_func->get_element_type(), element::f32);
     EXPECT_EQ(mish_func->get_shape(), (Shape{1, 3, 6}));
 }
 
 TEST(type_prop, mish_partial)
 {
-    auto data =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto mish_func = make_shared<op::v4::Mish>(data);
-    EXPECT_EQ(mish_func->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(mish_func->get_element_type(), element::f32);
     ASSERT_TRUE(mish_func->get_output_partial_shape(0).same_scheme(
         (PartialShape{1, Dimension::dynamic(), 6})));
 
     // rank unknown
     auto mish_partial = make_shared<op::v4::Mish>(
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic()));
+        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
     ASSERT_TRUE(mish_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
 TEST(type_prop, mish_partial_static_rank)
 {
-    auto data =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 6});
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
     auto mish_func = make_shared<op::v4::Mish>(data);
-    EXPECT_EQ(mish_func->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(mish_func->get_element_type(), element::f32);
     ASSERT_TRUE(mish_func->get_output_partial_shape(0).same_scheme(
         (PartialShape{1, Dimension::dynamic(), 6})));
     ASSERT_TRUE(mish_func->get_output_partial_shape(0).rank().is_static());

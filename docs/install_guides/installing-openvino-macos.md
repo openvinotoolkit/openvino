@@ -66,6 +66,7 @@ The following steps will be covered:
 2. <a href="#set-the-environment-variables">Set the OpenVINO environment variables and (optional) Update to <code>.bash_profile</code></a>.
 4. <a href="#configure-the-model-optimizer">Configure the Model Optimizer</a>.
 5. <a href="#Run-Demos">Run verification scripts to verify installation and compile samples</a>.
+6. <a href="#uninstall">Uninstall the Intel® Distribution of OpenVINO™ Toolkit</a>.
 
 ## <a name="Install-Core"></a>Install the Intel® Distribution of OpenVINO™ toolkit Core Components
 
@@ -104,13 +105,12 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 8. The **Installation summary** screen shows you the default component set to install:
    ![](../img/openvino-install-macos-03.png)
 
-   - If you used **root** or **administrator** privileges to run the installer, it installs the OpenVINO toolkit to `/opt/intel/openvino_<version>/`
+  By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
 
-     For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`
+* For root or administrator: `/opt/intel/openvino_<version>/`
+* For regular users: `/home/<USER>/intel/openvino_<version>/`
 
-   - If you used **regular user** privileges to run the installer, it installs the OpenVINO toolkit to `/home/<user>/intel/openvino_<version>/`
-
-     For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`
+For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`.
 
 9. If needed, click **Customize** to change the installation directory or the components you want to install:
     ![](../img/openvino-install-macos-04.png)
@@ -294,6 +294,14 @@ brew install libusb
 ## <a name="Hello-World-Tutorial"></a>Hello World Tutorials
 
 Visit the Intel Distribution of OpenVINO Toolkit [Inference Tutorials for Face Detection and Car Detection Exercises](https://github.com/intel-iot-devkit/inference-tutorials-generic/tree/openvino_toolkit_r3_0)
+
+## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
+
+Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
+
+1. From the `<INSTALL_DIR>`, locate and open `openvino_toolkit_uninstaller.app`.
+2. Follow the uninstallation wizard instructions.
+3. When uninstallation is complete, click **Finish**. 
 
 
 ## Additional Resources

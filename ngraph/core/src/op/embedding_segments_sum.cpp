@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/embedding_segments_sum.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/opsets/opset3.hpp"
 
@@ -55,19 +56,20 @@ op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table
 
 void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_EmbeddingSegmentsSum_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(SEGMENT_IDS) == element::Type_t::i64 ||
-                              get_input_element_type(SEGMENT_IDS) == element::Type_t::i32,
+                          get_input_element_type(SEGMENT_IDS) == element::i64 ||
+                              get_input_element_type(SEGMENT_IDS) == element::i32,
                           "SEGMENT_IDS type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(INDICES) == element::Type_t::i64 ||
-                              get_input_element_type(INDICES) == element::Type_t::i32,
+                          get_input_element_type(INDICES) == element::i64 ||
+                              get_input_element_type(INDICES) == element::i32,
                           "INDICES type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(NUM_SEGMENTS) == element::Type_t::i64 ||
-                              get_input_element_type(NUM_SEGMENTS) == element::Type_t::i32,
+                          get_input_element_type(NUM_SEGMENTS) == element::i64 ||
+                              get_input_element_type(NUM_SEGMENTS) == element::i32,
                           "NUM_SEGMENTS type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(
@@ -110,8 +112,8 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
     if (get_input_size() >= 5)
     {
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(DEFAULT_INDEX) == element::Type_t::i64 ||
-                                  get_input_element_type(DEFAULT_INDEX) == element::Type_t::i32,
+                              get_input_element_type(DEFAULT_INDEX) == element::i64 ||
+                                  get_input_element_type(DEFAULT_INDEX) == element::i32,
                               "DEFAULT_INDEX type must be i32 or i64");
 
         NODE_VALIDATION_CHECK(
@@ -182,6 +184,7 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
 shared_ptr<Node>
     op::v3::EmbeddingSegmentsSum::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_EmbeddingSegmentsSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4)
     {

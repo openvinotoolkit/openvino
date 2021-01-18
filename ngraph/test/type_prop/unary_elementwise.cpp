@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ using namespace ngraph;
 
 TEST(type_prop, unary_arithmetic_bad_argument_element_types)
 {
-    auto tv0_2_4_param = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto tv0_2_4_param = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
     try
     {
         auto bc = make_shared<op::Negative>(tv0_2_4_param);

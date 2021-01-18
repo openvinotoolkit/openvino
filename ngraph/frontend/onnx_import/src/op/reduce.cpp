@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 #include <functional>
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -61,7 +61,7 @@ namespace ngraph
                     }
 
                     return default_opset::Constant::create(
-                        element::Type_t::i64, Shape{reduction_axes.size()}, reduction_axes);
+                        element::i64, Shape{reduction_axes.size()}, reduction_axes);
                 }
 
                 template <typename OpType>

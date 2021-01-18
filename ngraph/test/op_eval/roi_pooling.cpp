@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,8 +43,8 @@ NGRAPH_TEST(op_eval, roi_pooling_invalid_roi_batch_id)
     Shape pooled_shape{pooled_h, pooled_w};
     Shape output_shape{num_rois, channels, pooled_h, pooled_w};
 
-    const auto feat_maps = make_shared<op::Parameter>(element::Type_t::f32, feat_maps_shape);
-    const auto rois = make_shared<op::Parameter>(element::Type_t::f32, rois_shape);
+    const auto feat_maps = make_shared<op::Parameter>(element::f32, feat_maps_shape);
+    const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
     const auto roi_pooling =
         make_shared<op::v0::ROIPooling>(feat_maps, rois, pooled_shape, spatial_scale, "max");
     const auto f = make_shared<Function>(roi_pooling, ParameterVector{feat_maps, rois});

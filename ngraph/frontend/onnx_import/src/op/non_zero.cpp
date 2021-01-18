@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "non_zero.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "default_opset.hpp"
+#include "op/non_zero.hpp"
 
 namespace ngraph
 {
@@ -30,7 +30,7 @@ namespace ngraph
                 OutputVector non_zero(const Node& node)
                 {
                     const auto data = node.get_ng_inputs().at(0);
-                    return {std::make_shared<default_opset::NonZero>(data, element::Type_t::i64)};
+                    return {std::make_shared<default_opset::NonZero>(data, element::i64)};
                 }
 
             } // namespace set_1

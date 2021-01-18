@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/logical_reduction.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -28,7 +29,7 @@ op::util::LogicalReduction::LogicalReduction()
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
     : Op({arg,
           op::Constant::create(
-              element::Type_t::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
+              element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
               ->output(0)})
 {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
@@ -57,14 +58,14 @@ const AxisSet op::util::LogicalReduction::get_reduction_axes() const
 
 void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axes)
 {
-    this->input(1).replace_source_output(op::Constant::create(element::Type_t::i64,
-                                                              Shape{reduction_axes.size()},
-                                                              reduction_axes.to_vector())
-                                             ->output(0));
+    this->input(1).replace_source_output(
+        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
+            ->output(0));
 }
 
 void op::util::LogicalReduction::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0);
     auto input_rank = input_shape.rank();
 
@@ -112,8 +113,8 @@ void op::util::LogicalReduction::validate_and_infer_types()
     set_input_is_relevant_to_shape(1);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).compatible(element::Type_t::boolean),
+                          get_input_element_type(0).compatible(element::boolean),
                           "Input element type must be boolean.");
 
-    set_output_type(0, element::Type_t::boolean, result_shape);
+    set_output_type(0, element::boolean, result_shape);
 }

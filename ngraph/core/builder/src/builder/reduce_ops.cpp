@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 #include <numeric>
 
-#include "builder/autobroadcast.hpp"
-#include "builder/reduce_ops.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
+#include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
@@ -49,10 +49,10 @@ namespace ngraph
             const auto dim_values = std::make_shared<ngraph::opset1::Gather>(
                 value_shape,
                 reduction_axes,
-                ngraph::opset1::Constant::create(element::Type_t::i64, {}, {0}));
+                ngraph::opset1::Constant::create(element::i64, {}, {0}));
 
             return std::make_shared<ngraph::opset1::ReduceProd>(
-                dim_values, ngraph::opset1::Constant::create(element::Type_t::i64, {}, {0}));
+                dim_values, ngraph::opset1::Constant::create(element::i64, {}, {0}));
         }
 
         std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value,
@@ -62,7 +62,7 @@ namespace ngraph
             std::shared_ptr<Node> elems_number;
             const auto value_elem_type = value.get_element_type();
             const auto reduction_axes_const = ngraph::opset1::Constant::create(
-                element::Type_t::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector());
+                element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector());
             const auto value_elems_sum =
                 std::make_shared<ngraph::opset1::ReduceSum>(value, reduction_axes_const, keep_dims);
             if (value.get_partial_shape().is_static())
@@ -109,7 +109,7 @@ namespace ngraph
             diff = std::make_shared<ngraph::opset1::ReduceSum>(
                 std::make_shared<ngraph::opset1::Multiply>(diff, diff),
                 ngraph::opset1::Constant::create(
-                    element::Type_t::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector()),
+                    element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector()),
                 false);
 
             const auto& et = value.get_element_type();

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "cum_sum.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "default_opset.hpp"
+#include "op/cum_sum.hpp"
 
 namespace ngraph
 {
@@ -41,8 +41,8 @@ namespace ngraph
                     }
                     else
                     {
-                        axis = default_opset::Constant::create(
-                            element::Type_t::i64, Shape{}, {0}); // default
+                        axis =
+                            default_opset::Constant::create(element::i64, Shape{}, {0}); // default
                     }
                     return OutputVector{
                         std::make_shared<default_opset::CumSum>(data, axis, exclusive, reverse)};

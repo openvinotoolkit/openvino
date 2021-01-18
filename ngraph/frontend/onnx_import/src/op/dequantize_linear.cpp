@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,15 +17,15 @@
 #include <cstdint>
 #include <memory>
 
-#include "dequantize_linear.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "op/dequantize_linear.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -41,17 +41,17 @@ namespace ngraph
                     {
                         auto zero_point = inputs[2];
 
-                        if (zero_point.get_element_type() != element::Type_t::f32)
+                        if (zero_point.get_element_type() != element::f32)
                         {
-                            zero_point = std::make_shared<default_opset::Convert>(
-                                zero_point, element::Type_t::f32);
+                            zero_point =
+                                std::make_shared<default_opset::Convert>(zero_point, element::f32);
                         }
 
                         return zero_point;
                     }
                     else
                     {
-                        return default_opset::Constant::create(element::Type_t::f32, Shape{}, {0});
+                        return default_opset::Constant::create(element::f32, Shape{}, {0});
                     }
                 }
             }
@@ -70,13 +70,12 @@ namespace ngraph
                     const auto scale = inputs[1];
                     const auto zero_point = get_zero_point(inputs);
 
-                    common::validate_scalar_input("Dequantization scale",
-                                                  scale.get_node_shared_ptr(),
-                                                  {element::Type_t::f32});
+                    common::validate_scalar_input(
+                        "Dequantization scale", scale.get_node_shared_ptr(), {element::f32});
                     common::validate_scalar_input("Zero point", zero_point.get_node_shared_ptr());
 
                     const auto converted_x =
-                        std::make_shared<default_opset::Convert>(x, element::Type_t::f32);
+                        std::make_shared<default_opset::Convert>(x, element::f32);
 
                     return {std::make_shared<default_opset::Multiply>(
                         std::make_shared<default_opset::Subtract>(converted_x, zero_point), scale)};
@@ -164,7 +163,7 @@ namespace ngraph
                         }
 
                         const auto target_shape = default_opset::Constant::create(
-                            element::Type_t::i64, Shape{target_dims.size()}, target_dims);
+                            element::i64, Shape{target_dims.size()}, target_dims);
 
                         return std::make_shared<default_opset::Reshape>(input, target_shape, true);
                     }
@@ -199,7 +198,7 @@ namespace ngraph
                     zero_point = reshape_input(zero_point, axis, x_shape);
 
                     const auto converted_x =
-                        std::make_shared<default_opset::Convert>(x, element::Type_t::f32);
+                        std::make_shared<default_opset::Convert>(x, element::f32);
 
                     return {std::make_shared<default_opset::Multiply>(
                         std::make_shared<default_opset::Subtract>(converted_x, zero_point), scale)};

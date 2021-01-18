@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 #include "ngraph/op/non_max_suppression.hpp"
 #include <cstring>
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -52,9 +53,9 @@ op::v1::NonMaxSuppression::NonMaxSuppression(
     const bool sort_result_descending)
     : Op({boxes,
           scores,
-          op::Constant::create(element::Type_t::i64, Shape{}, {0}),
-          op::Constant::create(element::Type_t::f32, Shape{}, {.0f}),
-          op::Constant::create(element::Type_t::f32, Shape{}, {.0f})})
+          op::Constant::create(element::i64, Shape{}, {0}),
+          op::Constant::create(element::f32, Shape{}, {.0f}),
+          op::Constant::create(element::f32, Shape{}, {.0f})})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
 {
@@ -64,6 +65,7 @@ op::v1::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v1::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 5,
@@ -71,13 +73,13 @@ std::shared_ptr<Node>
 
     const auto& arg2 = new_args.size() > 2
                            ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::Type_t::i32, Shape{}, {0});
+                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
                            ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::Type_t::f32, Shape{}, {.0f});
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
     const auto& arg4 = new_args.size() > 4
                            ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::Type_t::f32, Shape{}, {.0f});
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v1::NonMaxSuppression>(
         new_args.at(0), new_args.at(1), arg2, arg3, arg4, m_box_encoding, m_sort_result_descending);
@@ -85,6 +87,7 @@ std::shared_ptr<Node>
 
 bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     return true;
@@ -92,13 +95,15 @@ bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 
 void op::v1::NonMaxSuppression::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
     // the spec doesn't say what exact type should be used for the output of this op
-    // that's why we're setting it to 64-bit integer to provide the maximum range of values support
+    // that's why we're setting it to 64-bit integer to provide the maximum range of values
+    // support
     // this will be changed (configurable) in the next version of this op
-    const auto& output_element_type = element::Type_t::i64;
+    const auto& output_element_type = element::i64;
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
@@ -249,9 +254,9 @@ op::v3::NonMaxSuppression::NonMaxSuppression(
     const element::Type& output_type)
     : Op({boxes,
           scores,
-          op::Constant::create(element::Type_t::i64, Shape{}, {0}),
-          op::Constant::create(element::Type_t::f32, Shape{}, {.0f}),
-          op::Constant::create(element::Type_t::f32, Shape{}, {.0f})})
+          op::Constant::create(element::i64, Shape{}, {0}),
+          op::Constant::create(element::f32, Shape{}, {.0f}),
+          op::Constant::create(element::f32, Shape{}, {.0f})})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -262,6 +267,7 @@ op::v3::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v3::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 5,
@@ -269,13 +275,13 @@ std::shared_ptr<Node>
 
     const auto& arg2 = new_args.size() > 2
                            ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::Type_t::i32, Shape{}, {0});
+                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
                            ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::Type_t::f32, Shape{}, {.0f});
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
     const auto& arg4 = new_args.size() > 4
                            ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::Type_t::f32, Shape{}, {.0f});
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -289,6 +295,7 @@ std::shared_ptr<Node>
 
 bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -301,8 +308,7 @@ void op::v3::NonMaxSuppression::validate()
     const auto scores_ps = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::Type_t::i64 ||
-                              m_output_type == element::Type_t::i32,
+                          m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
 
     if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
@@ -376,6 +382,7 @@ void op::v3::NonMaxSuppression::validate()
 
 void op::v3::NonMaxSuppression::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -469,9 +476,9 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     const element::Type& output_type)
     : op::v3::NonMaxSuppression(boxes,
                                 scores,
-                                op::Constant::create(element::Type_t::i64, Shape{}, {0}),
-                                op::Constant::create(element::Type_t::f32, Shape{}, {.0f}),
-                                op::Constant::create(element::Type_t::f32, Shape{}, {.0f}),
+                                op::Constant::create(element::i64, Shape{}, {0}),
+                                op::Constant::create(element::f32, Shape{}, {.0f}),
+                                op::Constant::create(element::f32, Shape{}, {.0f}),
                                 box_encoding,
                                 sort_result_descending,
                                 output_type)
@@ -482,6 +489,7 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 5,
@@ -489,13 +497,13 @@ std::shared_ptr<Node>
 
     const auto& arg2 = new_args.size() > 2
                            ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::Type_t::i32, Shape{}, {0});
+                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
                            ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::Type_t::f32, Shape{}, {.0f});
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
     const auto& arg4 = new_args.size() > 4
                            ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::Type_t::f32, Shape{}, {.0f});
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v4::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -509,6 +517,7 @@ std::shared_ptr<Node>
 
 void op::v4::NonMaxSuppression::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -628,6 +637,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
 std::shared_ptr<Node>
     op::v5::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 6,
@@ -694,7 +704,7 @@ namespace
 
     inline bool is_float_type_admissible(const element::Type& t)
     {
-        return t == element::Type_t::f32 || t == element::Type_t::f16 || t == element::Type_t::bf16;
+        return t == element::f32 || t == element::f16 || t == element::bf16;
     }
 
     inline bool is_scalar_or_1d_tensor_with_1_element(const PartialShape& p)
@@ -716,8 +726,7 @@ void op::v5::NonMaxSuppression::validate()
     const auto scores_ps = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::Type_t::i64 ||
-                              m_output_type == element::Type_t::i32,
+                          m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
 
     if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
@@ -887,6 +896,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
 
 bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -895,6 +905,7 @@ bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 
 void op::v5::NonMaxSuppression::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -922,7 +933,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types()
     }
 
     set_output_type(0, m_output_type, out_shape);
-    set_output_type(1, element::Type_t::f32, out_shape);
+    set_output_type(1, element::f32, out_shape);
     set_output_type(2, m_output_type, Shape{1});
 }
 

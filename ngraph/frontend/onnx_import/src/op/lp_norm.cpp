@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@
 #include <memory>
 #include <numeric>
 
-#include "lp_norm.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
+#include "op/lp_norm.hpp"
 
 namespace ngraph
 {
@@ -58,14 +58,12 @@ namespace ngraph
                                      "Only normalization of 1st or 2nd order is supported.");
 
                     const auto normalize_axis_const =
-                        default_opset::Constant::create(element::Type_t::i64, {}, {normalize_axis});
+                        default_opset::Constant::create(element::i64, {}, {normalize_axis});
                     std::shared_ptr<ngraph::Node> norm = ngraph::builder::opset1::lp_norm(
                         data, normalize_axis_const, static_cast<std::size_t>(p_norm));
 
-                    const auto target_shape =
-                        default_opset::Constant::create(element::Type_t::i64,
-                                                        Shape{size_t(data_rank_value)},
-                                                        data_shape.to_shape());
+                    const auto target_shape = default_opset::Constant::create(
+                        element::i64, Shape{size_t(data_rank_value)}, data_shape.to_shape());
 
                     // Create a default axes order matching the data tensor rank and erase the
                     // element at the 'normalize_axis' position. The erased element indicates the
@@ -76,7 +74,7 @@ namespace ngraph
                     axes_values.erase(axes_values.begin() + normalize_axis);
 
                     const auto axes_mapping = default_opset::Constant::create(
-                        element::Type_t::i64, Shape{axes_values.size()}, axes_values);
+                        element::i64, Shape{axes_values.size()}, axes_values);
 
                     norm = std::make_shared<default_opset::Broadcast>(
                         norm, target_shape, axes_mapping);

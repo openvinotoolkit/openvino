@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "upsample.hpp"
+#include "op/upsample.hpp"
 
 namespace ngraph
 {
@@ -111,26 +111,24 @@ namespace ngraph
                                 std::floor(data_static_shape.at(i) * scales.at(i)));
                         }
                         auto output_shape_const = default_opset::Constant::create(
-                            element::Type_t::u64, Shape({output_shape.size()}), output_shape);
+                            element::u64, Shape({output_shape.size()}), output_shape);
 
                         const auto scales_const = default_opset::Constant::create(
-                            ngraph::element::Type_t::f32, Shape({scales.size()}), scales);
+                            ngraph::element::f32, Shape({scales.size()}), scales);
 
                         return {std::make_shared<default_opset::Interpolate>(
                             data, output_shape_const, scales_const, attrs)};
                     }
 
                     const auto scales_const = default_opset::Constant::create(
-                        ngraph::element::Type_t::f32, Shape({scales.size()}), scales);
+                        ngraph::element::f32, Shape({scales.size()}), scales);
 
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data),
-                        ngraph::element::Type_t::f32);
+                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
                     auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
                     auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply),
-                        ngraph::element::Type_t::i64);
+                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
                     return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales_const, attrs)};
@@ -190,20 +188,18 @@ namespace ngraph
                                 std::floor(data_static_shape.at(i) * scales_vector.at(i)));
                         }
                         auto output_shape_const = default_opset::Constant::create(
-                            element::Type_t::u64, Shape({output_shape.size()}), output_shape);
+                            element::u64, Shape({output_shape.size()}), output_shape);
 
                         return {std::make_shared<default_opset::Interpolate>(
                             data, output_shape_const, scales, attrs)};
                     }
 
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data),
-                        ngraph::element::Type_t::f32);
+                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
                     auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
                     auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply),
-                        ngraph::element::Type_t::i64);
+                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
 
                     return {std::make_shared<default_opset::Interpolate>(
                         data, output_shape, scales, attrs)};

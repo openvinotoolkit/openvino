@@ -2,27 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_VERSION VERSION_GREATER 3.9.6)
-    include_guard(GLOBAL)
-else()
-    if(__CURRENT_FILE_VAR__)
-      return()
-    endif()
-    set(__CURRENT_FILE_VAR__ TRUE)
-endif()
-
-include(dependency_solver)
+include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "becaeea32805cc59a59fced0ed08235255a43a3c8535a36fa376351607b24ad6"
-    "fa0303c0c073c68076190cb71ce8bf1cc04ade74ca9a7b5a538ceb99d24d3289")
+    "ed5a91aba906485b5159ba646a1b38d22ecc891d00912741a6ae9185ed4ddbfa"
+    "ea1e10b93b8c49999d95add29b302b6a657e94190ffc8b9a6ec499de2bc99465")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1521)
+set(FIRMWARE_PACKAGE_VERSION 1574)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #

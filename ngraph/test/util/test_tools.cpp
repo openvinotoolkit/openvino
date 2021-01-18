@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,21 +62,21 @@ bool validate_list(const vector<shared_ptr<Node>>& nodes)
 
 shared_ptr<Function> make_test_graph()
 {
-    auto arg_0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
-    auto arg_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
-    auto arg_2 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
-    auto arg_3 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
-    auto arg_4 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
-    auto arg_5 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 2});
+    auto arg_0 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_1 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_3 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_4 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_5 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
 
-    auto t0 = make_shared<op::Add>(arg_0, arg_1);
+    auto t0 = make_shared<op::v1::Add>(arg_0, arg_1);
     auto t1 = make_shared<op::MatMul>(t0, arg_2);
-    auto t2 = make_shared<op::Multiply>(t0, arg_3);
+    auto t2 = make_shared<op::v1::Multiply>(t0, arg_3);
 
-    auto t3 = make_shared<op::Add>(t1, arg_4);
-    auto t4 = make_shared<op::Add>(t2, arg_5);
+    auto t3 = make_shared<op::v1::Add>(t1, arg_4);
+    auto t4 = make_shared<op::v1::Add>(t2, arg_5);
 
-    auto r0 = make_shared<op::Add>(t3, t4);
+    auto r0 = make_shared<op::v1::Add>(t3, t4);
 
     auto f0 = make_shared<Function>(r0, ParameterVector{arg_0, arg_1, arg_2, arg_3, arg_4, arg_5});
 
@@ -141,47 +141,47 @@ void init_int_tv<uint8_t>(ngraph::runtime::Tensor* tv,
 void random_init(ngraph::runtime::Tensor* tv, std::default_random_engine& engine)
 {
     element::Type et = tv->get_element_type();
-    if (et == element::Type_t::boolean)
+    if (et == element::boolean)
     {
         init_int_tv<char>(tv, engine, 0, 1);
     }
-    else if (et == element::Type_t::f32)
+    else if (et == element::f32)
     {
         init_real_tv<float>(tv, engine, numeric_limits<float>::min(), 1.0f);
     }
-    else if (et == element::Type_t::f64)
+    else if (et == element::f64)
     {
         init_real_tv<double>(tv, engine, numeric_limits<double>::min(), 1.0);
     }
-    else if (et == element::Type_t::i8)
+    else if (et == element::i8)
     {
         init_int_tv<int8_t>(tv, engine, -1, 1);
     }
-    else if (et == element::Type_t::i16)
+    else if (et == element::i16)
     {
         init_int_tv<int16_t>(tv, engine, -1, 1);
     }
-    else if (et == element::Type_t::i32)
+    else if (et == element::i32)
     {
         init_int_tv<int32_t>(tv, engine, 0, 1);
     }
-    else if (et == element::Type_t::i64)
+    else if (et == element::i64)
     {
         init_int_tv<int64_t>(tv, engine, 0, 1);
     }
-    else if (et == element::Type_t::u8)
+    else if (et == element::u8)
     {
         init_int_tv<uint8_t>(tv, engine, 0, 1);
     }
-    else if (et == element::Type_t::u16)
+    else if (et == element::u16)
     {
         init_int_tv<uint16_t>(tv, engine, 0, 1);
     }
-    else if (et == element::Type_t::u32)
+    else if (et == element::u32)
     {
         init_int_tv<uint32_t>(tv, engine, 0, 1);
     }
-    else if (et == element::Type_t::u64)
+    else if (et == element::u64)
     {
         init_int_tv<uint64_t>(tv, engine, 0, 1);
     }

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
@@ -44,21 +45,23 @@ void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
 
     NODE_VALIDATION_CHECK(
         this,
-        args_et.is_dynamic() || args_et == element::Type_t::boolean,
+        args_et.is_dynamic() || args_et == element::boolean,
         "Operands for logical operators must have boolean element type but have element type ",
         args_et,
         ".");
 
-    set_output_type(0, element::Type_t::boolean, args_pshape);
+    set_output_type(0, element::boolean, args_pshape);
 }
 
 void op::util::BinaryElementwiseLogical::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_validate_and_infer_types);
     validate_and_infer_elementwise_logical(m_autob);
 }
 
 bool op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
 }

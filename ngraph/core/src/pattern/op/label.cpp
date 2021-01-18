@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,6 +68,5 @@ std::shared_ptr<Node> pattern::any_input()
 
 std::shared_ptr<Node> pattern::any_input(const pattern::op::ValuePredicate& pred)
 {
-    return std::make_shared<pattern::op::Label>(
-        element::Type_t::dynamic, PartialShape::dynamic(), pred);
+    return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), pred);
 }

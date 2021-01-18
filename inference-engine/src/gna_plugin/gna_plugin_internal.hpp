@@ -34,9 +34,9 @@ public:
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
-        auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
+        auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
         plgPtr = plg;
-        InferenceEngine::CNNNetwork clonedNetwork(cloneNetwork(network));
+        InferenceEngine::CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
         return std::make_shared<GNAExecutableNetwork>(clonedNetwork, plg);
     }
 
@@ -49,17 +49,17 @@ public:
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
-        auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
+        auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
         plgPtr = plg;
 
         return make_executable_network(std::make_shared<GNAExecutableNetwork>(modelFileName, plg));
     }
 
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const std::map<std::string, std::string>& config) override {
+    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                                     const std::map<std::string, std::string>& config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
-        auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
+        auto plg = std::make_shared<GNAPlugin>(updated_config.keyConfigMap);
         plgPtr = plg;
         return make_executable_network(std::make_shared<GNAExecutableNetwork>(networkModel, plg));
     }

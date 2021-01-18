@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "reverse_sequence.hpp"
+#include "op/reverse_sequence.hpp"
 
 namespace ngraph
 {
@@ -38,7 +38,7 @@ namespace ngraph
                     const auto sequence_lengths = node.get_ng_inputs().at(1);
                     // nGraph supports only int32 type of sequence_lengths
                     const auto sequence_lengths_i32 = std::make_shared<default_opset::Convert>(
-                        node.get_ng_inputs().at(1), element::Type_t::i32);
+                        node.get_ng_inputs().at(1), element::i32);
                     const auto data_rank = data.get_partial_shape().rank();
 
                     const auto batch_axis = node.get_attribute_value<int64_t>("batch_axis", 1);

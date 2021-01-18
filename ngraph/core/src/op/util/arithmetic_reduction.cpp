@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/arithmetic_reduction.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -29,7 +30,7 @@ op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg,
                                                    const AxisSet& reduction_axes)
     : Op({arg,
           op::Constant::create(
-              element::Type_t::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
+              element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
               ->output(0)})
 {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
@@ -62,14 +63,14 @@ const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const
 
 void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes)
 {
-    this->input(1).replace_source_output(op::Constant::create(element::Type_t::i64,
-                                                              Shape{reduction_axes.size()},
-                                                              reduction_axes.to_vector())
-                                             ->output(0));
+    this->input(1).replace_source_output(
+        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
+            ->output(0));
 }
 
 void op::util::ArithmeticReduction::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0);
     const auto input_rank = input_shape.rank();
 

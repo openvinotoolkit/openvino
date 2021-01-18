@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,17 +42,16 @@ NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear)
     attrs.axes = AxisSet{0, 1, 2, 3};
     attrs.mode = "linear";
     attrs.align_corners = false;
-    const auto input = make_shared<op::Parameter>(element::Type_t::f32, input_shape);
-    const auto output_shape_input =
-        op::v0::Constant::create(element::Type_t::i64, {4}, {1, 1, 1, 2});
+    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
+    const auto output_shape_input = op::v0::Constant::create(element::i64, {4}, {1, 1, 1, 2});
     std::vector<float> intput_data{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
 
     auto interpolate = make_shared<op::v0::Interpolate>(input, output_shape_input, attrs);
     auto f = make_shared<Function>(interpolate, ParameterVector{input});
 
     auto backend = runtime::Backend::create("IE_CPU");
-    auto input_tensor = backend->create_tensor(element::Type_t::f32, input_shape);
-    auto result_tensor = backend->create_tensor(element::Type_t::f32, output_shape);
+    auto input_tensor = backend->create_tensor(element::f32, input_shape);
+    auto result_tensor = backend->create_tensor(element::f32, output_shape);
     auto handle = backend->compile(f);
     copy_data(input_tensor, intput_data);
 

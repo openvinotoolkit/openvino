@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ using namespace ngraph;
 
 TEST(type_prop, lrn_invalid_axes_rank)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3, 4});
-    auto axes = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto axes = make_shared<op::Parameter>(element::f32, Shape{1, 2});
     double alpha = 0.1, beta = 0.2, bias = 0.3;
     size_t size = 3;
     try
@@ -42,7 +42,7 @@ TEST(type_prop, lrn_invalid_axes_rank)
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 
-    axes = make_shared<op::Parameter>(element::Type_t::f32, Shape{5});
+    axes = make_shared<op::Parameter>(element::f32, Shape{5});
     try
     {
         auto lrn = make_shared<op::LRN>(data, axes, alpha, beta, bias, size);
@@ -63,8 +63,8 @@ TEST(type_prop, lrn_invalid_axes_rank)
 
 TEST(type_prop, lrn_incorrect_axes_value)
 {
-    auto data = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
-    auto axes = make_shared<op::Constant>(element::Type_t::i64, Shape{2}, vector<int64_t>{3, 4});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+    auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{3, 4});
     double alpha = 0.1, beta = 0.2, bias = 0.3;
     size_t size = 3;
     try

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -103,12 +103,14 @@ op::v3::GRUCell::GRUCell(const Output<Node>& X,
 
 bool op::v3::GRUCell::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_GRUCell_visit_attributes);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 void op::v3::GRUCell::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_GRUCell_validate_and_infer_types);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -119,7 +121,7 @@ void op::v3::GRUCell::validate_and_infer_types()
     }
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
-    element::Type result_et = element::Type_t::dynamic;
+    auto result_et = element::dynamic;
 
     // Get input partial shape for all inputs
     const auto& x_pshape = get_input_partial_shape(0);
@@ -216,6 +218,7 @@ void op::v3::GRUCell::add_default_bias_input()
 
 shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_GRUCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4)
     {

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "runtime/reference/loop.hpp"
-#include "runtime/reference/concat.hpp"
-#include "runtime/reference/function.hpp"
-#include "runtime/reference/split.hpp"
+#include "ngraph/runtime/reference/loop.hpp"
+#include "ngraph/runtime/reference/concat.hpp"
+#include "ngraph/runtime/reference/function.hpp"
+#include "ngraph/runtime/reference/split.hpp"
 
 namespace ngraph
 {
@@ -49,8 +49,8 @@ namespace ngraph
                     input_descs.size() + (cur_iter_idx >= 0 ? !cur_iter_initial_value_exist : 0);
                 HostTensorVector inputs_to_body;
                 for (int64_t i = 0; i < inputs_count; ++i)
-                    inputs_to_body.push_back(std::make_shared<HostTensor>(element::Type_t::dynamic,
-                                                                          PartialShape::dynamic()));
+                    inputs_to_body.push_back(
+                        std::make_shared<HostTensor>(element::dynamic, PartialShape::dynamic()));
                 if (cur_iter_idx >= 0 && !cur_iter_initial_value_exist)
                 {
                     const auto& cur_iter = func->get_parameters().at(cur_iter_idx);
@@ -90,12 +90,12 @@ namespace ngraph
 
                 // Get TripCount
                 int64_t trip_count = 0;
-                if (args[0]->get_element_type() == ngraph::element::Type_t::i32)
+                if (args[0]->get_element_type() == ngraph::element::i32)
                 {
                     auto* trip_count_p = args[0]->get_data_ptr<int32_t>();
                     trip_count = trip_count_p[0];
                 }
-                else if (args[0]->get_element_type() == ngraph::element::Type_t::i64)
+                else if (args[0]->get_element_type() == ngraph::element::i64)
                 {
                     auto* trip_count_p = args[0]->get_data_ptr<int64_t>();
                     trip_count = trip_count_p[0];
@@ -204,10 +204,10 @@ namespace ngraph
                         {
                             const auto& cur_iter_param = func->get_parameters().at(cur_iter_idx);
                             int64_t iter_num = cur_iter + 1;
-                            if (cur_iter_param->get_element_type() == element::Type_t::i64)
+                            if (cur_iter_param->get_element_type() == element::i64)
                                 inputs_to_body.at(cur_iter_idx)
                                     ->write(&iter_num, cur_iter_param->get_element_type().size());
-                            else if (cur_iter_param->get_element_type() == element::Type_t::i32)
+                            else if (cur_iter_param->get_element_type() == element::i32)
                             {
                                 int32_t iter_num_i32 = static_cast<int32_t>(iter_num);
                                 inputs_to_body.at(cur_iter_idx)

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -30,10 +28,10 @@ void test_binary(std::string /* node_type */,
                  shared_ptr<Node>(f)(const shared_ptr<Node>& x, const shared_ptr<Node>& y))
 {
     // Check for bad arguments
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 4});
-    auto tv0_4_2_param = make_shared<op::Parameter>(element::Type_t::f32, Shape{4, 2});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::i32, Shape{2, 4});
+    auto tv0_4_2_param = make_shared<op::Parameter>(element::f32, Shape{4, 2});
 
     auto test_binary_bad_arguments_view_shapes = [&](const shared_ptr<Node>& x,
                                                      const shared_ptr<Node>& y) {
@@ -86,7 +84,7 @@ TEST(type_prop, add_bad_arguments)
 {
     test_binary("Add",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::Add>(x, y);
+                    return make_shared<op::v1::Add>(x, y);
                 });
 }
 
@@ -94,7 +92,7 @@ TEST(type_prop, divide_bad_arguments)
 {
     test_binary("Divide",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::Divide>(x, y);
+                    return make_shared<op::v1::Divide>(x, y);
                 });
 }
 
@@ -102,7 +100,7 @@ TEST(type_prop, multiply_bad_arguments)
 {
     test_binary("Multiply",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::Multiply>(x, y);
+                    return make_shared<op::v1::Multiply>(x, y);
                 });
 }
 
@@ -110,7 +108,7 @@ TEST(type_prop, subtract_bad_arguments)
 {
     test_binary("Subtract",
                 [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-                    return make_shared<op::Subtract>(x, y);
+                    return make_shared<op::v1::Subtract>(x, y);
                 });
 }
 
@@ -121,11 +119,11 @@ void test_binary_logical(std::string /* node_type */,
                          shared_ptr<Node>(f)(const shared_ptr<Node>& x, const shared_ptr<Node>& y))
 {
     // Check for bad arguments
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
-    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 4});
-    auto tv0_2_4_param_3 = make_shared<op::Parameter>(element::Type_t::i32, Shape{2, 4});
-    auto tv0_4_2_param = make_shared<op::Parameter>(element::Type_t::boolean, Shape{4, 2});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
+    auto tv0_2_4_param_2 = make_shared<op::Parameter>(element::i32, Shape{2, 4});
+    auto tv0_2_4_param_3 = make_shared<op::Parameter>(element::i32, Shape{2, 4});
+    auto tv0_4_2_param = make_shared<op::Parameter>(element::boolean, Shape{4, 2});
 
     auto test_binary_bad_arguments_view_shapes = [&](const shared_ptr<Node>& x,
                                                      const shared_ptr<Node>& y) {
@@ -229,40 +227,39 @@ void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastS
 
 TEST(type_prop, eltwise_auto_bcast)
 {
-    test_binary_eltwise_numpy<op::v1::Add>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Divide>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Equal>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Greater>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::GreaterEq>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Less>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::LessEq>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Maximum>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Minimum>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Multiply>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::NotEqual>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::v1::LogicalOr>(element::Type_t::boolean,
-                                                 op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Power>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Subtract>(element::Type_t::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::Xor>(element::Type_t::boolean, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Add>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Divide>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Equal>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Greater>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::GreaterEqual>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Less>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::LessEqual>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Maximum>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Minimum>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Multiply>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::NotEqual>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::LogicalOr>(element::boolean, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Power>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Subtract>(element::f32, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::Xor>(element::boolean, op::AutoBroadcastType::NUMPY);
 }
 
 TEST(type_prop, comparison_good)
 {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::f32, Shape{2, 4});
-    auto eq = make_shared<op::Equal>(tv0_2_4_param_0, tv0_2_4_param_1);
-    EXPECT_EQ(eq->get_element_type(), element::Type_t::boolean);
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto eq = make_shared<op::v1::Equal>(tv0_2_4_param_0, tv0_2_4_param_1);
+    EXPECT_EQ(eq->get_element_type(), element::boolean);
     EXPECT_EQ(eq->get_shape(), (Shape{2, 4}));
 }
 
 TEST(type_prop, binary_arithmetic_bad_argument_element_types)
 {
-    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
-    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::Type_t::boolean, Shape{2, 4});
+    auto tv0_2_4_param_0 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
+    auto tv0_2_4_param_1 = make_shared<op::Parameter>(element::boolean, Shape{2, 4});
     try
     {
-        auto bc = make_shared<op::Add>(tv0_2_4_param_0, tv0_2_4_param_1);
+        auto bc = make_shared<op::v1::Add>(tv0_2_4_param_0, tv0_2_4_param_1);
         // Should have thrown, so fail if it didn't
         FAIL() << "Did not detect incorrect element types for arithmetic operator";
     }
@@ -279,67 +276,19 @@ TEST(type_prop, binary_arithmetic_bad_argument_element_types)
 
 TEST(type_prop, binary_elementwise_arithmetic_both_dynamic)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto add = make_shared<op::Add>(a, b);
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).rank().is_dynamic());
-}
-
-TEST(type_prop, binary_elementwise_arithmetic_left_rank_dynamic_right_static)
-{
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
-    auto add = make_shared<op::Add>(a, b);
-
-    ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(add->get_shape(), (Shape{1, 2, 3}));
-}
-
-TEST(type_prop, binary_elementwise_arithmetic_left_static_right_rank_dynamic)
-{
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, Shape{1, 2, 3});
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto add = make_shared<op::Add>(a, b);
-
-    ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
-    ASSERT_EQ(add->get_shape(), (Shape{1, 2, 3}));
-}
-
-TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_right_rank_dynamic)
-{
-    auto a =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 3});
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto add = make_shared<op::Add>(a, b);
-
-    ASSERT_TRUE(add->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(add->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(
-        add->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3}));
-}
-
-TEST(type_prop, binary_elementwise_arithmetic_left_rank_dynamic_right_rank_static_dynamic)
-{
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, PartialShape::dynamic());
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 3});
-    auto add = make_shared<op::Add>(a, b);
-
-    ASSERT_TRUE(add->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(add->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(
-        add->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3}));
 }
 
 TEST(type_prop,
      binary_elementwise_arithmetic_left_rank_static_dynamic_right_rank_static_dynamic_result_static)
 {
-    auto a =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, Dimension::dynamic(), 3});
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
-    auto add = make_shared<op::Add>(a, b);
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 3});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
     ASSERT_EQ(add->get_shape(), (Shape{1, 2, 3}));
@@ -350,10 +299,9 @@ TEST(
     binary_elementwise_arithmetic_left_rank_static_dynamic_right_rank_static_dynamic_result_rank_static_dynamic)
 {
     auto a = make_shared<op::Parameter>(
-        element::Type_t::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic()});
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
-    auto add = make_shared<op::Add>(a, b);
+        element::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic()});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(add->get_output_partial_shape(0).is_dynamic());
@@ -363,10 +311,9 @@ TEST(
 
 TEST(type_prop, binary_elementwise_arithmetic_left_static_right_rank_static_dynamic)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, 3});
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
-    auto add = make_shared<op::Add>(a, b);
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
     ASSERT_EQ(add->get_shape(), (Shape{1, 2, 3}));
@@ -374,10 +321,9 @@ TEST(type_prop, binary_elementwise_arithmetic_left_static_right_rank_static_dyna
 
 TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_right_static)
 {
-    auto a =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, 3});
-    auto add = make_shared<op::Add>(a, b);
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3});
+    auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_partial_shape(0).is_static());
     ASSERT_EQ(add->get_shape(), (Shape{1, 2, 3}));
@@ -385,13 +331,12 @@ TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_right_sta
 
 TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_inconsistent)
 {
-    auto a =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 3, 3});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 3});
 
     try
     {
-        auto add = make_shared<op::Add>(a, b);
+        auto add = make_shared<op::v1::Add>(a, b);
         FAIL() << "Inconsistent partial shapes not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -406,13 +351,12 @@ TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_inconsist
 
 TEST(type_prop, binary_elementwise_arithmetic_right_rank_static_dynamic_inconsistent)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 3, 3});
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 3});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
 
     try
     {
-        auto add = make_shared<op::Add>(a, b);
+        auto add = make_shared<op::v1::Add>(a, b);
         FAIL() << "Inconsistent partial shapes not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -427,14 +371,12 @@ TEST(type_prop, binary_elementwise_arithmetic_right_rank_static_dynamic_inconsis
 
 TEST(type_prop, binary_elementwise_arithmetic_both_rank_static_dynamic_inconsistent)
 {
-    auto a =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{Dimension::dynamic(), 3, 3});
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 3, 3});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
 
     try
     {
-        auto add = make_shared<op::Add>(a, b);
+        auto add = make_shared<op::v1::Add>(a, b);
         FAIL() << "Inconsistent partial shapes not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -449,13 +391,12 @@ TEST(type_prop, binary_elementwise_arithmetic_both_rank_static_dynamic_inconsist
 
 TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_different_rank)
 {
-    auto a =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, 3, 4});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
 
     try
     {
-        auto add = make_shared<op::Add>(a, b);
+        auto add = make_shared<op::v1::Add>(a, b);
         FAIL() << "Inconsistent partial shapes not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -470,13 +411,12 @@ TEST(type_prop, binary_elementwise_arithmetic_left_rank_static_dynamic_different
 
 TEST(type_prop, binary_elementwise_arithmetic_right_rank_static_dynamic_different_rank)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, 3, 4});
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
 
     try
     {
-        auto add = make_shared<op::Add>(a, b);
+        auto add = make_shared<op::v1::Add>(a, b);
         FAIL() << "Inconsistent partial shapes not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -491,14 +431,12 @@ TEST(type_prop, binary_elementwise_arithmetic_right_rank_static_dynamic_differen
 
 TEST(type_prop, binary_elementwise_arithmetic_both_rank_static_dynamic_different_rank)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::f32,
-                                        PartialShape{1, Dimension::dynamic(), 3, 4});
-    auto b =
-        make_shared<op::Parameter>(element::Type_t::f32, PartialShape{1, 2, Dimension::dynamic()});
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 3, 4});
+    auto b = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, Dimension::dynamic()});
 
     try
     {
-        auto add = make_shared<op::Add>(a, b);
+        auto add = make_shared<op::v1::Add>(a, b);
         FAIL() << "Inconsistent partial shapes not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -513,29 +451,29 @@ TEST(type_prop, binary_elementwise_arithmetic_both_rank_static_dynamic_different
 
 TEST(type_prop, binary_elementwise_arithmetic_both_et_dynamic)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{1, 2, 3, 4});
-    auto b = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{1, 2, 3, 4});
-    auto add = make_shared<op::Add>(a, b);
+    auto a = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
+    auto b = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
+    auto add = make_shared<op::v1::Add>(a, b);
 
     ASSERT_TRUE(add->get_output_element_type(0).is_dynamic());
 }
 
 TEST(type_prop, binary_elementwise_arithmetic_left_et_dynamic)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{1, 2, 3, 4});
-    auto b = make_shared<op::Parameter>(element::Type_t::u32, Shape{1, 2, 3, 4});
-    auto add = make_shared<op::Add>(a, b);
+    auto a = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
+    auto b = make_shared<op::Parameter>(element::u32, Shape{1, 2, 3, 4});
+    auto add = make_shared<op::v1::Add>(a, b);
 
-    ASSERT_EQ(add->get_output_element_type(0), element::Type_t::u32);
+    ASSERT_EQ(add->get_output_element_type(0), element::u32);
 }
 
 TEST(type_prop, binary_elementwise_arithmetic_right_et_dynamic)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::i64, Shape{1, 2, 3, 4});
-    auto b = make_shared<op::Parameter>(element::Type_t::dynamic, Shape{1, 2, 3, 4});
-    auto add = make_shared<op::Add>(a, b);
+    auto a = make_shared<op::Parameter>(element::i64, Shape{1, 2, 3, 4});
+    auto b = make_shared<op::Parameter>(element::dynamic, Shape{1, 2, 3, 4});
+    auto add = make_shared<op::v1::Add>(a, b);
 
-    ASSERT_EQ(add->get_output_element_type(0), element::Type_t::i64);
+    ASSERT_EQ(add->get_output_element_type(0), element::i64);
 }
 
 TEST(type_prop, logic_arith_compare_partial_et)
@@ -543,13 +481,13 @@ TEST(type_prop, logic_arith_compare_partial_et)
     auto test_arith = [](element::Type et0, element::Type et1) -> std::shared_ptr<Node> {
         auto param0 = std::make_shared<op::Parameter>(et0, Shape{1, 2, 3});
         auto param1 = std::make_shared<op::Parameter>(et1, Shape{1, 2, 3});
-        return std::make_shared<op::Add>(param0, param1);
+        return std::make_shared<op::v1::Add>(param0, param1);
     };
 
     auto test_compare = [](element::Type et0, element::Type et1) -> std::shared_ptr<Node> {
         auto param0 = std::make_shared<op::Parameter>(et0, Shape{1, 2, 3});
         auto param1 = std::make_shared<op::Parameter>(et1, Shape{1, 2, 3});
-        return std::make_shared<op::Greater>(param0, param1);
+        return std::make_shared<op::v1::Greater>(param0, param1);
     };
 
     auto test_logical_not = [](element::Type et) -> std::shared_ptr<Node> {
@@ -568,19 +506,15 @@ TEST(type_prop, logic_arith_compare_partial_et)
     // dyn int -> int
     // dyn boo -> !
     // dyn dyn -> dyn
-    ASSERT_EQ(test_arith(element::Type_t::i32, element::Type_t::i32)->get_element_type(),
-              element::Type_t::i32);
-    ASSERT_ANY_THROW({ test_arith(element::Type_t::i32, element::Type_t::boolean); });
-    ASSERT_EQ(test_arith(element::Type_t::i32, element::Type_t::dynamic)->get_element_type(),
-              element::Type_t::i32);
-    ASSERT_ANY_THROW({ test_arith(element::Type_t::boolean, element::Type_t::i32); });
-    ASSERT_ANY_THROW({ test_arith(element::Type_t::boolean, element::Type_t::boolean); });
-    ASSERT_ANY_THROW({ test_arith(element::Type_t::boolean, element::Type_t::dynamic); });
-    ASSERT_EQ(test_arith(element::Type_t::dynamic, element::Type_t::i32)->get_element_type(),
-              element::Type_t::i32);
-    ASSERT_ANY_THROW({ test_arith(element::Type_t::dynamic, element::Type_t::boolean); });
-    ASSERT_EQ(test_arith(element::Type_t::dynamic, element::Type_t::dynamic)->get_element_type(),
-              element::Type_t::dynamic);
+    ASSERT_EQ(test_arith(element::i32, element::i32)->get_element_type(), element::i32);
+    ASSERT_ANY_THROW({ test_arith(element::i32, element::boolean); });
+    ASSERT_EQ(test_arith(element::i32, element::dynamic)->get_element_type(), element::i32);
+    ASSERT_ANY_THROW({ test_arith(element::boolean, element::i32); });
+    ASSERT_ANY_THROW({ test_arith(element::boolean, element::boolean); });
+    ASSERT_ANY_THROW({ test_arith(element::boolean, element::dynamic); });
+    ASSERT_EQ(test_arith(element::dynamic, element::i32)->get_element_type(), element::i32);
+    ASSERT_ANY_THROW({ test_arith(element::dynamic, element::boolean); });
+    ASSERT_EQ(test_arith(element::dynamic, element::dynamic)->get_element_type(), element::dynamic);
 
     // Comparison ops:
     //
@@ -593,22 +527,19 @@ TEST(type_prop, logic_arith_compare_partial_et)
     // dyn int -> boo
     // dyn boo -> boo
     // dyn dyn -> boo
-    ASSERT_EQ(test_compare(element::Type_t::i32, element::Type_t::i32)->get_element_type(),
-              element::Type_t::boolean);
-    ASSERT_ANY_THROW({ test_compare(element::Type_t::i32, element::Type_t::boolean); });
-    ASSERT_EQ(test_compare(element::Type_t::i32, element::Type_t::dynamic)->get_element_type(),
-              element::Type_t::boolean);
-    ASSERT_ANY_THROW({ test_compare(element::Type_t::boolean, element::Type_t::i32); });
-    ASSERT_EQ(test_compare(element::Type_t::boolean, element::Type_t::boolean)->get_element_type(),
-              element::Type_t::boolean);
-    ASSERT_EQ(test_compare(element::Type_t::boolean, element::Type_t::dynamic)->get_element_type(),
-              element::Type_t::boolean);
-    ASSERT_EQ(test_compare(element::Type_t::dynamic, element::Type_t::i32)->get_element_type(),
-              element::Type_t::boolean);
-    ASSERT_EQ(test_compare(element::Type_t::dynamic, element::Type_t::boolean)->get_element_type(),
-              element::Type_t::boolean);
-    ASSERT_EQ(test_compare(element::Type_t::dynamic, element::Type_t::dynamic)->get_element_type(),
-              element::Type_t::boolean);
+    ASSERT_EQ(test_compare(element::i32, element::i32)->get_element_type(), element::boolean);
+    ASSERT_ANY_THROW({ test_compare(element::i32, element::boolean); });
+    ASSERT_EQ(test_compare(element::i32, element::dynamic)->get_element_type(), element::boolean);
+    ASSERT_ANY_THROW({ test_compare(element::boolean, element::i32); });
+    ASSERT_EQ(test_compare(element::boolean, element::boolean)->get_element_type(),
+              element::boolean);
+    ASSERT_EQ(test_compare(element::boolean, element::dynamic)->get_element_type(),
+              element::boolean);
+    ASSERT_EQ(test_compare(element::dynamic, element::i32)->get_element_type(), element::boolean);
+    ASSERT_EQ(test_compare(element::dynamic, element::boolean)->get_element_type(),
+              element::boolean);
+    ASSERT_EQ(test_compare(element::dynamic, element::dynamic)->get_element_type(),
+              element::boolean);
 
     // Logical negation op:
     //
@@ -621,9 +552,7 @@ TEST(type_prop, logic_arith_compare_partial_et)
     // int -> !
     // boo -> boo
     // dyn -> boo
-    ASSERT_EQ(test_logical_not(element::Type_t::i32)->get_element_type(), element::Type_t::i32);
-    ASSERT_EQ(test_logical_not(element::Type_t::boolean)->get_element_type(),
-              element::Type_t::boolean);
-    ASSERT_EQ(test_logical_not(element::Type_t::dynamic)->get_element_type(),
-              element::Type_t::dynamic);
+    ASSERT_EQ(test_logical_not(element::i32)->get_element_type(), element::i32);
+    ASSERT_EQ(test_logical_not(element::boolean)->get_element_type(), element::boolean);
+    ASSERT_EQ(test_logical_not(element::dynamic)->get_element_type(), element::dynamic);
 }

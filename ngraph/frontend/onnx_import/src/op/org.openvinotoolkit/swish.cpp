@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "default_opset.hpp"
+#include "default_opset.hpp"
 #include "ngraph/op/normalize_l2.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
-#include "onnx_import/utils/common.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "op/org.openvinotoolkit/normalize.hpp"
+#include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -40,8 +40,7 @@ namespace ngraph
                     }
                     else
                     {
-                        beta =
-                            default_opset::Constant::create(element::Type_t::f32, Shape{}, {1.0});
+                        beta = default_opset::Constant::create(element::f32, Shape{}, {1.0});
                     }
 
                     return {std::make_shared<default_opset::Swish>(ng_inputs.at(0), beta)};

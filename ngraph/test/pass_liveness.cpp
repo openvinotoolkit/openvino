@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ namespace ng = ngraph;
 TEST(liveness, constant)
 {
     Shape shape{1};
-    auto c = op::Constant::create(element::Type_t::i32, shape, {5});
+    auto c = op::Constant::create(element::i32, shape, {5});
     auto f = make_shared<Function>(make_shared<op::Negative>(c), ParameterVector{});
 
     pass::Manager pass_manager;

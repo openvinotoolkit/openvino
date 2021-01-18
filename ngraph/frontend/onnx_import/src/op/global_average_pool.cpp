@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 #include <numeric>
 #include <vector>
 
-#include "global_average_pool.hpp"
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "op/global_average_pool.hpp"
 
 namespace ngraph
 {
@@ -57,7 +57,7 @@ namespace ngraph
                     auto reduce_axes_vector = std::vector<std::int64_t>(data_spatial_rank);
                     std::iota(reduce_axes_vector.begin(), reduce_axes_vector.end(), 2);
                     auto reduce_axes = default_opset::Constant::create(
-                        element::Type_t::i64, Shape{data_spatial_rank}, reduce_axes_vector);
+                        element::i64, Shape{data_spatial_rank}, reduce_axes_vector);
 
                     return {std::make_shared<default_opset::ReduceMean>(data, reduce_axes, true)};
                 }

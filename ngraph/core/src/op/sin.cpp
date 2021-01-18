@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,11 +36,13 @@ op::Sin::Sin(const Output<Node>& arg)
 
 bool ngraph::op::v0::Sin::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Sin_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Sin::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Sin_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sin>(new_args.at(0));
 }
@@ -62,20 +64,13 @@ namespace sinop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_sin, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sin, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -84,6 +79,6 @@ namespace sinop
 
 bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sin::evaluate");
+    NGRAPH_OP_SCOPE(v0_Sin_evaluate);
     return sinop::evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

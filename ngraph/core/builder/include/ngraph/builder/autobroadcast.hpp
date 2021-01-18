@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -169,7 +169,7 @@ namespace ngraph
                                                          std::size_t start_match_axis)
         {
             auto shape_const =
-                op::Constant::create(element::Type_t::u64, Shape{new_shape.size()}, new_shape);
+                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape);
             return std::make_shared<op::v1::Broadcast>(
                 value,
                 shape_const,

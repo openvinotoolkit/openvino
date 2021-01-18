@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
+#include "op/org.openvinotoolkit/normalize.hpp"
+#include "default_opset.hpp"
 #include "ngraph/op/normalize_l2.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -66,7 +66,7 @@ namespace ngraph
                             weights_shape.push_back(1);
                         }
                         auto new_shape = std::make_shared<default_opset::Constant>(
-                            element::Type_t::i64, Shape{weights_shape.size()}, weights_shape);
+                            element::i64, Shape{weights_shape.size()}, weights_shape);
                         weights =
                             std::make_shared<default_opset::Reshape>(inputs[1], new_shape, true);
                     }
@@ -75,7 +75,7 @@ namespace ngraph
                     if (!across_spatial)
                     {
                         axes = std::make_shared<default_opset::Constant>(
-                            element::Type_t::i64, Shape{1}, std::vector<int64_t>{1});
+                            element::i64, Shape{1}, std::vector<int64_t>{1});
                     }
                     else
                     {

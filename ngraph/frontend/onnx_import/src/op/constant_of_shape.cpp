@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "constant.hpp"
+#include "core/tensor.hpp"
+#include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
-#include "onnx_import/core/tensor.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "op/constant.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -39,8 +39,7 @@ namespace ngraph
                     }
                     else
                     {
-                        constant_value =
-                            default_opset::Constant::create(element::Type_t::f32, {}, {0});
+                        constant_value = default_opset::Constant::create(element::f32, {}, {0});
                     }
                     return {std::make_shared<default_opset::Broadcast>(constant_value,
                                                                        node.get_ng_inputs().at(0))};

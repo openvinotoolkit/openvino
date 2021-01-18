@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
@@ -36,14 +37,16 @@ op::util::BinaryElementwiseComparison::BinaryElementwiseComparison(const Output<
 
 void op::util::BinaryElementwiseComparison::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseComparison_validate_and_infer_types);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, m_autob);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
-    set_output_type(0, element::Type_t::boolean, args_pshape);
+    set_output_type(0, element::boolean, args_pshape);
 }
 
 bool op::util::BinaryElementwiseComparison::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseComparison_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
 }

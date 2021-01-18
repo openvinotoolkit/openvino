@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
-#include "conv_integer.hpp"
+#include "op/conv_integer.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset0.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/convpool.hpp"
+#include "utils/convpool.hpp"
 
 using namespace ngraph::builder;
 
@@ -63,11 +63,10 @@ namespace ngraph
                                                   padding_above);
 
                     const Strides default_data_dilation_strides(input.get_shape().size() - 2, 1);
-                    auto scale_one = make_constant(ngraph::element::Type_t::f32, Shape{}, 1);
+                    auto scale_one = make_constant(ngraph::element::f32, Shape{}, 1);
                     auto input_zero_point = make_constant(input.get_element_type(), Shape{}, 0);
                     auto filters_zero_point = make_constant(filters.get_element_type(), Shape{}, 0);
-                    auto output_zero_point =
-                        make_constant(ngraph::element::Type_t::i32, Shape{}, 0);
+                    auto output_zero_point = make_constant(ngraph::element::i32, Shape{}, 0);
 
                     if (num_inputs == 2)
                     {
@@ -85,7 +84,7 @@ namespace ngraph
                             filters_zero_point,
                             scale_one,
                             output_zero_point,
-                            ngraph::element::Type_t::i32,
+                            ngraph::element::i32,
                             ngraph::AxisSet{},
                             ngraph::AxisSet{},
                             ngraph::AxisSet{})};
@@ -111,7 +110,7 @@ namespace ngraph
                         filters_zero_point,
                         scale_one,
                         output_zero_point,
-                        ngraph::element::Type_t::i32,
+                        ngraph::element::i32,
                         ngraph::AxisSet{},
                         ngraph::AxisSet{},
                         ngraph::AxisSet{})};

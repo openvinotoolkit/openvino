@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reorg_yolo_stride_2)
 {
     // in_shape [N,C,H,W]
     const auto in_shape = Shape{1, 8, 4, 4};
-    auto p = make_shared<op::Parameter>(element::Type_t::f32, in_shape);
+    auto p = make_shared<op::Parameter>(element::f32, in_shape);
     size_t stride = 2;
     auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, Strides{stride});
     auto fun = make_shared<Function>(OutputVector{reorg_yolo}, ParameterVector{p});
@@ -78,7 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reorg_yolo_stride_3)
 {
     // in_shape [N,C,H,W]
     const auto in_shape = Shape{1, 9, 3, 3};
-    auto p = make_shared<op::Parameter>(element::Type_t::f32, in_shape);
+    auto p = make_shared<op::Parameter>(element::f32, in_shape);
     size_t stride = 3;
     auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, Strides{stride});
     auto fun = make_shared<Function>(OutputVector{reorg_yolo}, ParameterVector{p});

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 #include <memory>
 
-#include "log_softmax.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "op/log_softmax.hpp"
 
 namespace ngraph
 {
@@ -32,8 +32,7 @@ namespace ngraph
             {
                 const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
 
-                const auto axis_1 =
-                    default_opset::Constant::create(element::Type_t::i64, Shape{1}, {1});
+                const auto axis_1 = default_opset::Constant::create(element::i64, Shape{1}, {1});
                 const auto max =
                     std::make_shared<default_opset::ReduceMax>(coerced_data, axis_1, true);
 

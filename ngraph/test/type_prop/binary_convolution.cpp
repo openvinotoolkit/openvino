@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,8 +33,8 @@ TEST(type_prop, binary_conv_v1_partial_auto_padding_same)
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -56,8 +56,8 @@ TEST(type_prop, binary_conv_v1_partial_auto_padding_same_nc_dims_dynamic_same_lo
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -79,8 +79,8 @@ TEST(type_prop, binary_conv_v1_partial_auto_padding_same_nc_dims_dynamic_same_up
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_UPPER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -102,14 +102,13 @@ TEST(type_prop, binary_conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::SAME_LOWER;
 
-    auto data_batch = make_shared<op::Parameter>(element::Type_t::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::Type_t::f32, filters_shape);
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
-        {1, 1, Dimension::dynamic(), Dimension::dynamic()}));
-    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{}));
-    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({1, 1, Dimension::dynamic(), 5}));
+    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 1}));
+    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 1}));
 }

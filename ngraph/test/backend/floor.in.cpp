@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, floor)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::f32, shape);
+    auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Floor>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);
@@ -58,7 +58,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor)
 NGRAPH_TEST(${BACKEND_NAME}, floor_int32)
 {
     Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::Type_t::i32, shape);
+    auto A = make_shared<op::Parameter>(element::i32, shape);
     auto f = make_shared<Function>(make_shared<op::Floor>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);
@@ -71,7 +71,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_int64)
 {
     // This tests large numbers that will not fit in a double
     Shape shape{3};
-    auto A = make_shared<op::Parameter>(element::Type_t::i64, shape);
+    auto A = make_shared<op::Parameter>(element::i64, shape);
     auto f = make_shared<Function>(make_shared<op::Floor>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);

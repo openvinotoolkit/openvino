@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
             protected:
-                element::Type m_output_type = element::Type_t::i64;
+                element::Type m_output_type = element::i64;
             };
         }
         using v3::NonZero;

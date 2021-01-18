@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@
 #include "util/type_prop.hpp"
 
 #include "ngraph/ngraph.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -63,27 +61,25 @@ using namespace ngraph;
 //
 TEST(replace_node, replace_nodes)
 {
-    auto x = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
-    auto y = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
-    auto z = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
+    auto x = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto y = make_shared<op::Parameter>(element::f32, Shape{2});
+    auto z = make_shared<op::Parameter>(element::f32, Shape{2});
 
-    auto add = x + y;
-    auto k = make_shared<op::Constant>(element::Type_t::f32, Shape{2}, vector<float>{1, 2});
-    auto mul = add * k;
-    auto sub = mul - z;
+    auto add = make_shared<op::v1::Add>(x, y);
+    auto k = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{1, 2});
+    auto mul = make_shared<op::v1::Multiply>(add, k);
+    auto sub = make_shared<op::v1::Subtract>(mul, z);
 
     auto f = make_shared<Function>(NodeVector{sub}, ParameterVector{x, y, z});
 
     unordered_map<shared_ptr<op::Parameter>, shared_ptr<op::Parameter>> parameter_replacement_map;
-    auto x_replacement = make_shared<op::Parameter>(element::Type_t::f32, Shape{2});
+    auto x_replacement = make_shared<op::Parameter>(element::f32, Shape{2});
     parameter_replacement_map[x] = x_replacement;
 
     unordered_map<shared_ptr<Node>, shared_ptr<Node>> body_replacement_map;
-    auto y_replacement =
-        make_shared<op::Constant>(element::Type_t::f32, Shape{2}, vector<float>{3, 4});
-    auto k_replacement =
-        make_shared<op::Constant>(element::Type_t::f32, Shape{2}, vector<float>{5, 6});
-    auto z_replacement = x_replacement + mul;
+    auto y_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{3, 4});
+    auto k_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{5, 6});
+    auto z_replacement = make_shared<op::v1::Add>(x_replacement, mul);
     body_replacement_map[y] = y_replacement;
     body_replacement_map[k] = k_replacement;
     body_replacement_map[z] = z_replacement;

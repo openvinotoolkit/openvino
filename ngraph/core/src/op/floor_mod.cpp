@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ op::v1::FloorMod::FloorMod(const Output<Node>& arg0,
 
 shared_ptr<Node> op::v1::FloorMod::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_FloorMod_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<FloorMod>(new_args.at(0), new_args.at(1), this->get_autob());
 }
@@ -64,24 +65,15 @@ namespace floor_mod
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u8)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, i8, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, i32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, i64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, u8, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, u32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, u64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, bf16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, f16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, f32, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
@@ -91,6 +83,12 @@ namespace floor_mod
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::FloorMod::evaluate");
+    NGRAPH_OP_SCOPE(v1_FloorMod_evaluate);
     return floor_mod::evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
+}
+
+bool op::v1::FloorMod::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v1_FloorMod_visit_attributes);
+    return true;
 }

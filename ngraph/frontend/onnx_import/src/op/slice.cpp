@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@
 #include <memory>
 #include <vector>
 
-#include "gather.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "op/gather.hpp"
+#include "utils/common.hpp"
 
 namespace
 {
@@ -139,16 +139,15 @@ namespace ngraph
                     // expected_output_shape: {3, 3, 1, 1}
                     OutputVector adjusted_indices(slice_indices_length);
                     std::vector<uint64_t> target_axes(axes);
-                    const auto gather_axis =
-                        default_opset::Constant::create(element::Type_t::i64, {}, {0});
+                    const auto gather_axis = default_opset::Constant::create(element::i64, {}, {0});
 
                     int added_indices_number = 0;
                     for (int i = 0; i < slice_indices_length; ++i)
                     {
                         if (std::find(std::begin(axes), std::end(axes), i) == axes.end())
                         {
-                            adjusted_indices[i] = default_opset::Constant::create(
-                                element::Type_t::i64, {1}, {fill_in_value});
+                            adjusted_indices[i] =
+                                default_opset::Constant::create(element::i64, {1}, {fill_in_value});
                             target_axes.insert(std::next(target_axes.begin(), i), i);
                             ++added_indices_number;
                         }
@@ -157,7 +156,7 @@ namespace ngraph
                             adjusted_indices[i] = std::make_shared<default_opset::Gather>(
                                 indices,
                                 default_opset::Constant::create(
-                                    element::Type_t::i64, {1}, {i - added_indices_number}),
+                                    element::i64, {1}, {i - added_indices_number}),
                                 gather_axis);
                         }
                     }
@@ -203,7 +202,7 @@ namespace ngraph
                             "Data rank must be static when axes input is not provided");
                         const size_t data_rank_value = data_rank.get_length();
                         axes = default_opset::Constant::create(
-                            element::Type_t::i64,
+                            element::i64,
                             {data_rank_value},
                             common::get_monotonic_range<int64_t>(data_rank_value));
                     }
@@ -226,7 +225,7 @@ namespace ngraph
                     else
                     {
                         steps = default_opset::Constant::create(
-                            element::Type_t::i64,
+                            element::i64,
                             {slice_indices_length},
                             std::vector<int64_t>(slice_indices_length, 1));
                     }
@@ -253,9 +252,9 @@ namespace ngraph
 
                     std::shared_ptr<ngraph::Node> starts =
                         std::make_shared<default_opset::Constant>(
-                            element::Type_t::i64, Shape{starts_atr.size()}, starts_atr);
+                            element::i64, Shape{starts_atr.size()}, starts_atr);
                     std::shared_ptr<ngraph::Node> ends = std::make_shared<default_opset::Constant>(
-                        element::Type_t::i64, Shape{ends_atr.size()}, ends_atr);
+                        element::i64, Shape{ends_atr.size()}, ends_atr);
 
                     auto axes = node.get_attribute_value<std::vector<int64_t>>(
                         "axes", std::vector<int64_t>());
@@ -278,7 +277,7 @@ namespace ngraph
                     const auto begin_end_mask = axes_to_mask(normalized_axes, slice_indices_length);
 
                     std::shared_ptr<ngraph::Node> strides = default_opset::Constant::create(
-                        element::Type_t::i64,
+                        element::i64,
                         Shape{slice_indices_length},
                         std::vector<int64_t>(slice_indices_length, 1));
 

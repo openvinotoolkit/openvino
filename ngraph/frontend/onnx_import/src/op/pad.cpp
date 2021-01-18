@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/constant.hpp"
@@ -23,10 +25,8 @@
 #include "ngraph/op/pad.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/convpool.hpp"
-#include "pad.hpp"
+#include "op/pad.hpp"
+#include "utils/convpool.hpp"
 
 namespace
 {
@@ -83,13 +83,9 @@ namespace ngraph
                     return {std::make_shared<default_opset::Pad>(
                         data,
                         std::make_shared<default_opset::Constant>(
-                            element::Type_t::i64,
-                            ngraph::Shape{padding_below.size()},
-                            padding_below),
+                            element::i64, ngraph::Shape{padding_below.size()}, padding_below),
                         std::make_shared<default_opset::Constant>(
-                            element::Type_t::i64,
-                            ngraph::Shape{padding_above.size()},
-                            padding_above),
+                            element::i64, ngraph::Shape{padding_above.size()}, padding_above),
                         std::make_shared<default_opset::Constant>(
                             data.get_element_type(), ngraph::Shape{}, std::vector<double>{value}),
                         pad_mode)};
@@ -129,20 +125,20 @@ namespace ngraph
                             pads_vector.begin() + half_size, pads_vector.end());
 
                         padding_begin = default_opset::Constant::create(
-                            element::Type_t::i64, ngraph::Shape{half_size}, padding_begin_values);
+                            element::i64, ngraph::Shape{half_size}, padding_begin_values);
                         padding_end = default_opset::Constant::create(
-                            element::Type_t::i64, ngraph::Shape{half_size}, padding_end_values);
+                            element::i64, ngraph::Shape{half_size}, padding_end_values);
                     }
                     else
                     {
-                        auto axis = default_opset::Constant::create(
-                            element::Type_t::i64, ngraph::Shape{}, {0});
+                        auto axis =
+                            default_opset::Constant::create(element::i64, ngraph::Shape{}, {0});
                         OutputVector padding = builder::opset1::split(pads, 2, 0);
 
-                        padding_begin = std::make_shared<default_opset::Convert>(
-                            padding.at(0), element::Type_t::i64);
-                        padding_end = std::make_shared<default_opset::Convert>(
-                            padding.at(1), element::Type_t::i64);
+                        padding_begin =
+                            std::make_shared<default_opset::Convert>(padding.at(0), element::i64);
+                        padding_end =
+                            std::make_shared<default_opset::Convert>(padding.at(1), element::i64);
                     }
 
                     const std::string mode =

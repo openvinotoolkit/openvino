@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ using namespace ngraph;
 
 TEST(op_eval, floor_mod)
 {
-    auto a = make_shared<op::Parameter>(element::Type_t::f32, Shape{4});
-    auto b = make_shared<op::Parameter>(element::Type_t::f32, Shape{4});
+    auto a = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto b = make_shared<op::Parameter>(element::f32, Shape{4});
     auto floor_mod = make_shared<op::v1::FloorMod>(a, b);
     auto fun = make_shared<Function>(OutputVector{floor_mod}, ParameterVector{a, b});
 
@@ -43,7 +43,7 @@ TEST(op_eval, floor_mod)
     ASSERT_TRUE(fun->evaluate({result},
                               {make_host_tensor<element::Type_t::f32>(Shape{4}, a_value),
                                make_host_tensor<element::Type_t::f32>(Shape{4}, b_value)}));
-    EXPECT_EQ(result->get_element_type(), element::Type_t::f32);
+    EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{4});
     auto result_data = read_vector<float>(result);
     for (size_t i = 0; i < expected_result.size(); i++)
