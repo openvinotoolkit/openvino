@@ -735,7 +735,8 @@ to enable or disable execution of the transformation during a model conversion. 
 2. Attribute `id` specifies a unique transformation string identifier. This transformation identified can be used to
 enable (disable) the transformation by setting environment variable `MO_ENABLED_TRANSFORMS` (`MO_DISABLED_TRANSFORMS`)
 with a comma separated list of `id`s. The environment variables override the value of the `enabled` attribute of the
-transformation. Optional attribute.
+transformation. Instead of using `id` attribute value you can add fully defined class name to `MO_ENABLED_TRANSFORMS` 
+(`MO_DISABLED_TRANSFORMS`) variable, `extensions.back.NonmalizeToNormalizeL2.NormalizeToNormalizeL2` for example. Optional attribute.
 3. Attribute `run_not_recursively` specifies whether the transformation should be executed in the sub-graphs, for
 example, body of the [TensorIterator](../../../ops/infrastructure/TensorIterator_1.md) and
 [Loop](../../../ops/infrastructure/Loop_5.md). Default value is `True`.

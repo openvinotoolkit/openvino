@@ -16,7 +16,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNegative, "ConvertNegative", 0);
 ngraph::pass::ConvertNegative::ConvertNegative() {
     auto neg = ngraph::pattern::wrap_type<ngraph::opset1::Negative>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto neg = std::dynamic_pointer_cast<ngraph::opset1::Negative> (m.get_match_root());
         if (!neg) {
             return false;
