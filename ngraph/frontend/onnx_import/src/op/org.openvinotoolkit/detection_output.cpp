@@ -15,10 +15,10 @@
 //*****************************************************************************
 
 #include "ngraph/op/detection_output.hpp"
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/org.openvinotoolkit/detection_output.hpp"
+#include "op/org.openvinotoolkit/detection_output.hpp"
 
 namespace ngraph
 {

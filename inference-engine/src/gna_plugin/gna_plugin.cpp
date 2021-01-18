@@ -1045,8 +1045,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for (" << input.first << " at inferRequest #"
                                 << idx << " not set";
         }
-
-        if (inputsDesc->getOrientation(input.first) == kDnnUnknownOrientation) {
+        const auto inputOrientation = inputsDesc->getOrientation(input.first);
+        if (inputOrientation == kDnnUnknownOrientation) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input orientation for " << input.first << " not set";
         }
@@ -1075,16 +1075,18 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
-                     inputsDesc->getOrientation(input.first),
+                     inputOrientation,
                      importedFrames,
                      targetGroups,
                      importedElements,
                      importedElements);
 
+        bool CNN2DAtInput = input.second->getTensorDesc().getLayout() == Layout::NCHW && inputOrientation == kDnnNonInterleavedOrientation;
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
-        if (do_rotate_input && ((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
-            != (inputsDesc->getOrientation(input.first) == kDnnInterleavedOrientation))
-            && !isOneChannel) {
+        if (do_rotate_input && ((inputLayout == Layout::NC)
+            != (inputOrientation == kDnnInterleavedOrientation))
+            && !isOneChannel
+            && !CNN2DAtInput) {
             RotateFeatures(reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
                            gnadevice ? 2 : 4,
                            // TODO: only works for cnn4a and google command so far
@@ -1093,9 +1095,21 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                            num_rotate_rows,
                            num_rotate_columns);
         }
+        if (CNN2DAtInput) {
+            auto dims = input.second->getTensorDesc().getDims();
+            auto layout = input.second->getTensorDesc().getLayout();
+            auto hwDim = dims[2] * dims[3];
+            auto chanelsDim = dims[1];
+            RotateFeatures(reinterpret_cast<uint8_t*>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
+                gnadevice ? 2 : 4,
+                dims[0],
+                chanelsDim* hwDim,
+                chanelsDim,
+                hwDim);
+        }
         ++inputNum;
     }
-
+    // If there is no gnadevice infer using reference FP32 transforamtions
     if (!gnadevice) {
         auto runtime = runtime::FP(dnn);
         runtime.infer();

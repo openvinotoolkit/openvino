@@ -65,8 +65,8 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
 }
 
 template <class Conv>
-ngraph::graph_rewrite_callback get_callback() {
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
+ngraph::matcher_pass_callback get_callback() {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto eltwise = m.get_match_root();
 
         std::shared_ptr<ngraph::opset1::Constant> m_const;

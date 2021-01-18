@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/add.hpp"
+#include "op/add.hpp"
+#include "default_opset.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
 
 namespace ngraph
 {
