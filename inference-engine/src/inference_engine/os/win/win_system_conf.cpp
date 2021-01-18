@@ -33,8 +33,9 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         phys_cores++;
     } while (offset < sz);
 
+    // TODO: REMOVE THE DEBUG PRINTF
     printf("original getNumberOfCPUCores: %d \n", phys_cores);
-    #if TBB_INTERFACE_VERSION >= 12010// TBB has hybrid CPU aware task_arena api
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION >= 12010) // TBB has hybrid CPU aware task_arena api
     auto core_types = oneapi::tbb::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         const auto little_cores = core_types.front();
@@ -42,6 +43,7 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         if (oneapi::tbb::info::efficiency(little_cores) != -1) {
             // assuming the Little cores feature no hyper-threading
             phys_cores -= oneapi::tbb::info::default_concurrency(little_cores);
+            // TODO: REMOVE THE DEBUG PRINTF
             printf("patched getNumberOfCPUCores: %d \n", phys_cores);
         }
     }

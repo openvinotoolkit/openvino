@@ -67,47 +67,28 @@ struct CPUStreamsExecutor::Impl {
                 }
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+            const auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
             #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
-            const auto core_types = oneapi::tbb::info::core_types();
-            if (ThreadBindingType::NONE != _impl->_config._threadBindingType && core_types.size() > 1 /*Hybrid CPU*/
-                 && oneapi::tbb::info::efficiency(*core_types.begin()) != -1 /* hwloc recognized relative cores efficiency */) {
-
-                const auto concurrency = _impl->_config._threadsPerStream;
-                tbb::core_type_id selected_core_type = core_types.back(); // default is runing on Big cores only
-                if (ThreadBindingType::BIG_CORES == _impl->_config._threadBindingType) {
-                    selected_core_type = core_types.back(); // runing on Big cores only
-                    printf("%s, EXPLICIT BINDING, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
-                        _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
-                        static_cast<int>(selected_core_type), concurrency);
-                } else if (ThreadBindingType::LITTLE_CORES == _impl->_config._threadBindingType) {
-                    selected_core_type = core_types.front(); // runing on Little cores only
+            if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
+               if (_impl->_config._threadUseBigCoresOnly) {
+                    const auto selected_core_type = oneapi::tbb::info::core_types().back(); // runing on Big cores only
+                    _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{selected_core_type, concurrency} });
+                    // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s, EXPLICIT BINDING, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
                         _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
                         static_cast<int>(selected_core_type), concurrency);
                 } else {
-                    // populating streams in the round-robin fashion with respect to core types
-                    const int total_streams = std::accumulate(impl->streams_per_core_types.begin(), impl->streams_per_core_types.end(),
-                        0, [](int sum, const auto& type) {return sum + type.second; });
-                    printf("total_concurrency (in streams) %d \n", total_streams);
-
-                    // wrap around total_streams
-                    const int _streamId_wrapped = _streamId % total_streams;
-                    int sum = 0;
-                    // reversed order (so the big cores are populated first)
-                    for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
-                        selected_core_type = *iter;
-                        const int concurrency_in_streams = impl->streams_per_core_types[selected_core_type];
-                        sum += concurrency_in_streams;
-                        printf("%s THROUGHPUT CASE, StreamId: %d (wrapped %d), current sum: %d) \n",
-                            _impl->_config._name.c_str(), _streamId, _streamId_wrapped, sum);
-                        if (_streamId_wrapped < sum) {
-                            printf("%s THROUGHPUT CASE, StreamId: %d assigned CORE TYPE : %d (CONCURRENCY in streams: %d) \n",
-                                _impl->_config._name.c_str(), _streamId, static_cast<int>(selected_core_type), concurrency_in_streams);
-                            break;
-                        }
-                    }
+                    // assigning the stream to the core type in the round-robin fashion
+                    // wrapping around total_streams (which is last value in the map) first
+                    const int total_streams = _impl->total_streams_on_core_types.rbegin()->second;
+                    const auto streamId_wrapped = _streamId % total_streams;
+                    const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.begin(), _impl->total_streams_on_core_types.end(),
+                        [streamId_wrapped](const auto& p) { return p.second > streamId_wrapped; })->first;
+                    _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{selected_core_type, concurrency} });
+                    // TODO: REMOVE THE DEBUG PRINTF
+                    printf("%s StreamId: %d (wrapped %d) assigned CORE TYPE : %d (total #streams: %d) \n",
+                        _impl->_config._name.c_str(), _streamId, streamId_wrapped, static_cast<int>(selected_core_type), total_streams);
                 }
-                _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{selected_core_type, concurrency} });
             } else {
             #endif
                 _numaNodeId = _impl->_config._streams
@@ -115,8 +96,8 @@ struct CPUStreamsExecutor::Impl {
                         (_streamId % _impl->_config._streams)/
                         ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
-                auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+                    // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
                     #if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
@@ -124,6 +105,8 @@ struct CPUStreamsExecutor::Impl {
                     _taskArena.reset(new tbb::task_arena{concurrency});
                     #endif
                 } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
+                    // TODO: REMOVE THE DEBUG PRINTF
+                    printf("%s, conventional ThreadBindingType::CORES codepath \n", _impl->_config._name.c_str());
                     _taskArena.reset(new tbb::task_arena{concurrency});
                     if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                         CpuSet processMask;
@@ -142,7 +125,7 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
-            } // closing the if-clause on the hybrid cores
+            } // closing the if-else-clause on the hybrid cores
             #endif
 #elif IE_THREAD == IE_THREAD_OMP
             omp_set_num_threads(_impl->_config._threadsPerStream);
@@ -198,6 +181,7 @@ struct CPUStreamsExecutor::Impl {
         _streams([this] {
             return std::make_shared<Impl::Stream>(this);
         }) {
+        // TODO: REMOVE THE DEBUG PRINTF
         printf("INIT (%s), STREAMS: %d, THREADS_PER_STREAM: %d \n", _config._name.c_str(), _config._streams, _config._threadsPerStream);
         auto numaNodes = getAvailableNUMANodes();
         if (_config._streams != 0) {
@@ -210,12 +194,22 @@ struct CPUStreamsExecutor::Impl {
 
         #if defined(TBB_INTERFACE_VERSION) && (TBB_INTERFACE_VERSION >= 12010) // TBB with hybrid CPU aware task_arena api
         const auto core_types = oneapi::tbb::info::core_types();
+        const int threadsPerStream = (0 == config._threadsPerStream) ? std::thread::hardware_concurrency() : config._threadsPerStream;
+        int sum = 0;
         for (auto iter = core_types.begin(); iter < core_types.end(); iter++) {
             const auto& type = *iter;
-            streams_per_core_types[type] = std::max(1, oneapi::tbb::info::default_concurrency(type) / config._threadsPerStream);
+            // calculating the #streams per core type
+            const int num_streams_for_core_type = std::max(1, oneapi::tbb::info::default_concurrency(type) / threadsPerStream);
+            sum += num_streams_for_core_type;
+            // prefix sum, so the core type for a given stream id will be deduced just as a upper_bound
+            // (notice that the map keeps the elements in the descending order, so the big cores are populated first)
+            total_streams_on_core_types[type] = sum;
         }
+        // TODO: REMOVE THE DEBUG PRINTF
+        printf("%s total_streams_on_core_types: [%d core_type, %d #streams], [%d core_type, %d #streams]) \n",
+            _config._name.c_str(), static_cast<int>(total_streams_on_core_types.begin()->first), total_streams_on_core_types.begin()->second,
+            static_cast<int>(total_streams_on_core_types.rbegin()->first), total_streams_on_core_types.rbegin()->second);
         #endif
-
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
@@ -285,7 +279,10 @@ struct CPUStreamsExecutor::Impl {
     std::vector<int>                        _usedNumaNodes;
     ThreadLocal<std::shared_ptr<Stream>>    _streams;
     #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
-    std::map<oneapi::tbb::core_type_id, int> streams_per_core_types;
+    // streams mapping to the core types
+    // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)
+    using MapStreamIdToCoreTypes = std::map<oneapi::tbb::core_type_id, int, std::greater<int>>;
+    MapStreamIdToCoreTypes total_streams_on_core_types;
     #endif
 };
 

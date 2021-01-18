@@ -195,15 +195,21 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  * @brief The name for setting CPU affinity per thread option.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
- * PluginConfigParams::YES (pinning threads to cores, best for static benchmarks),
- * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
- * this is TBB-specific knob, and the only pinning option (beyond 'NO', below) on the Windows*
  * PluginConfigParams::NO (no pinning for CPU inference threads)
- * All settings are ignored, if the OpenVINO compiled with OpenMP threading and any affinity-related OpenMP's
+ * PluginConfigParams::YES, which is default on the conventional CPUs (pinning threads to cores, best for static benchmarks),
+ *
+ * the following options are implemented only for the TBB as a threading option
+ * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
+ *      on the Windows and MacOS* this option behaves as YES
+ * PluginConfigParams::HYBRID_AWARE (let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency tasks)
+ *      on the hybrid CPUs this option is default
+ *
+ * Also, the settings are ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
 DECLARE_CONFIG_KEY(CPU_BIND_THREAD);
 DECLARE_CONFIG_VALUE(NUMA);
+DECLARE_CONFIG_VALUE(HYBRID_AWARE);
 
 /**
  * @brief Optimize CPU execution to maximize throughput.

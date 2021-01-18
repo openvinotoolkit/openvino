@@ -36,14 +36,14 @@ public:
     using Ptr = std::shared_ptr<IStreamsExecutor>;
 
     /**
-     * @brief Defines thread binding type
+     * @brief Defines inference thread binding type
      */
     enum ThreadBindingType : std::uint8_t {
-        NONE,    //!< Don't bind threads
-        CORES,   //!< Bind threads to cores (linearly)
-        NUMA,    //!< Bind threads to NUMA nodes
-        LITTLE_CORES,  //!< Bind threads to "LITTLE" core only
-        BIG_CORES      //!< Bind threads to "BIG" cores only
+        NONE,    //!< Don't bind the inference threads
+        CORES,   //!< Bind inference threads to the CPU cores (round-robin)
+        // the following modes are implemented only for the TBB code-path:
+        NUMA,    //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on the Win/MacOS, where the 'CORES' is not implemeneted)
+        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on the cores type (default mode for the hybrid CPUs)
     };
 
     /**
@@ -84,6 +84,7 @@ public:
         ThreadBindingType  _threadBindingType       = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type. No binding by default
         int                _threadBindingStep       = 1;  //!< In case of @ref CORES binding offset type thread binded to cores with defined step
         int                _threadBindingOffset     = 0;  //!< In case of @ref CORES binding offset type thread binded to cores starting from offset
+        bool               _threadUseBigCoresOnly   = false; //!< In case of @ref HYBRID_AWARE explicitly limits the execution the "big" cores
         int                _threads                 = 0;  //!< Number of threads distributed between streams. Reserved. Should not be used.
 
         /**
@@ -96,6 +97,7 @@ public:
          * @param[in]  threadBindingStep    @copybrief Config::_threadBindingStep
          * @param[in]  threadBindingOffset  @copybrief Config::_threadBindingOffset
          * @param[in]  threads              @copybrief Config::_threads
+         * @param[in]  threadUseBigCoresOnly   @copybrief Config::_threadUseBigCoresOnly
          */
         Config(
             std::string        name                    = "StreamsExecutor",
@@ -104,14 +106,15 @@ public:
             ThreadBindingType  threadBindingType       = ThreadBindingType::NONE,
             int                threadBindingStep       = 1,
             int                threadBindingOffset     = 0,
-            int                threads                 = 0) :
+            int                threads                 = 0,
+            bool               bUseBigCoresOnly        = false) :
         _name{name},
         _streams{streams},
         _threadsPerStream{threadsPerStream},
         _threadBindingType{threadBindingType},
         _threadBindingStep{threadBindingStep},
         _threadBindingOffset{threadBindingOffset},
-        _threads{threads} {
+        _threads{threads}, _threadUseBigCoresOnly(bUseBigCoresOnly){
         }
     };
 

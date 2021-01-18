@@ -38,34 +38,29 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
 #endif
 
 #if (defined(__APPLE__) || defined(_WIN32))
-                // on the Windows and Apple the CORES and NUMA pinning options are the same
                 _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
 #else
                 _threadBindingType = (value == CONFIG_VALUE(YES))
                         ? IStreamsExecutor::ThreadBindingType::CORES : IStreamsExecutor::ThreadBindingType::NUMA;
 #endif
+            } else if (value == CONFIG_VALUE(HYBRID_AWARE)) {
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION < 12010)
+                THROW_IE_EXCEPTION << CONFIG_KEY(CPU_BIND_THREAD) << " property value was set to HYBRID_AWARE. But IE was built with "
+                << "TBB version without Hybrid-aware API. Current TBB API version is " << TBB_INTERFACE_VERSION
+                << ", required API version 12010 or greater.";
+#endif
+                _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
             } else if (value == CONFIG_VALUE(NO)) {
                 _threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
             } else {
                 THROW_IE_EXCEPTION << "Wrong value for property key " << CONFIG_KEY(CPU_BIND_THREAD)
-                                   << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes)";
+                                   << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes) / "
+                                                        "HYBRID_AWARE (let the runtime recognize and use the hybrid cores)";
             }
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
                 _streams = static_cast<int>(getAvailableNUMANodes().size());
             } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
-                //#if defined(TBB_INTERFACE_VERSION) && (TBB_INTERFACE_VERSION >= 12010) // TBB with hybrid CPU aware task_arena api
-                //const auto core_types = oneapi::tbb::info::core_types();
-                //if ( 1 /*hybrid CPU*/) {
-                //    std::map<oneapi::tbb::core_type_id, int> streams_per_core_types;
-                //    for (auto iter = core_types.begin(); iter < core_types.end(); iter++) {
-                //        const auto& type = *iter;
-                //        streams_per_core_types[type] = std::max(1, oneapi::tbb::info::default_concurrency(type) / 2 /* threads per stream as hybrid's default*/);
-                //    }
-                //    _streams = std::accumulate(streams_per_core_types.begin(), streams_per_core_types.end(),
-                //        0, [](int sum, const auto& type) {return sum + type.second; });
-                //}
-                //#endif
                 const int sockets = static_cast<int>(getAvailableNUMANodes().size());
                 // bare minimum of streams (that evenly divides available number of core)
                 const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
@@ -130,11 +125,13 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) {
                 return {CONFIG_VALUE(NO)};
             break;
             case IStreamsExecutor::ThreadBindingType::CORES:
-            case IStreamsExecutor::ThreadBindingType::BIG_CORES:
-                return { CONFIG_VALUE(YES) };
-                break;
+                return {CONFIG_VALUE(YES)};
+            break;
             case IStreamsExecutor::ThreadBindingType::NUMA:
                 return {CONFIG_VALUE(NUMA)};
+            break;
+            case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+                return {CONFIG_VALUE(HYBRID_AWARE)};
             break;
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
@@ -154,16 +151,20 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     const auto& numaNodes = getAvailableNUMANodes();
     const auto numaNodesNum = numaNodes.size();
     auto streamExecutorConfig = initial;
+    const bool latencyCase = streamExecutorConfig._streams <= numaNodesNum;
     const auto hwCores = streamExecutorConfig._streams > 1 && numaNodesNum == 1
         // throughput case on a single-NUMA node machine uses all available cores
         ? parallel_get_max_threads()
         // on multi-NUMA node do not use hyper-threading (to reduce memory pressure)
         // additionally, any latency case (stream per node, or less) runs on the Big cores only
-        : getNumberOfCPUCores(streamExecutorConfig._streams <= numaNodesNum);
+        : getNumberOfCPUCores(latencyCase);
     const auto threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams
                                             ? std::max(1, threads/streamExecutorConfig._streams)
                                             : threads;
+    // by default the latency case uses (faster) Big cores only
+    if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType && latencyCase)
+        streamExecutorConfig._threadUseBigCoresOnly = true;
     return streamExecutorConfig;
 }
 
