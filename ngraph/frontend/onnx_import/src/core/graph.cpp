@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,14 +19,14 @@
 #include <numeric>
 #include <sstream>
 
+#include "core/graph.hpp"
+#include "exceptions.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/provenance.hpp"
-#include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
-#include "onnx_import/utils/provenance_tag.hpp"
+#include "utils/common.hpp"
+#include "utils/provenance_tag.hpp"
 
 namespace ngraph
 {
@@ -66,6 +66,25 @@ namespace ngraph
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model)
             : Graph(graph_proto, model, std::unique_ptr<GraphCache>(new GraphCache()))
         {
+            // Remove dangling Parameters
+            for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();)
+            {
+                if ((*param_it)->get_output_target_inputs(0).size() == 0)
+                {
+                    const auto& name = (*param_it)->get_friendly_name();
+                    auto out_it = std::find_if(
+                        m_outputs.begin(), m_outputs.end(), [&name](const ValueInfo& info) {
+                            return info.get_name() == name;
+                        });
+                    if (out_it == m_outputs.end())
+                    {
+                        m_cache->remove_node(name);
+                        param_it = m_parameters.erase(param_it);
+                        continue;
+                    }
+                }
+                param_it++;
+            }
         }
 
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto,

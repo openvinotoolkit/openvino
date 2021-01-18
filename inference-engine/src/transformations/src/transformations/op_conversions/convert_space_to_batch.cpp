@@ -30,7 +30,6 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         if (data.get_partial_shape().is_dynamic()) {
             return false;
         }
-        const auto& data_shape = data.get_shape();
 
         const auto block_const = std::dynamic_pointer_cast<opset3::Constant>(block.get_node_shared_ptr());
         const auto pads_begin_const = std::dynamic_pointer_cast<opset3::Constant>(pads_begin.get_node_shared_ptr());

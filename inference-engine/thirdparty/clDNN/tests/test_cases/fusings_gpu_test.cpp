@@ -1492,38 +1492,40 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
                  data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
                  data("shift_data", get_mem(get_per_channel_layout(p), 1)),
                  convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
-                 scale("scale0", "conv_prim", "scale_data", "shift_data"),
-                 scale("scale1", "conv_prim", "scale_data", "shift_data"),
-                 activation("sigmoid", "scale0", activation_func::logistic),
-                 eltwise("mul", {"scale1", "sigmoid"}, eltwise_mode::prod),
+                 eltwise("scale0", {"conv_prim", "scale_data"}, eltwise_mode::prod),
+                 eltwise("scale1", {"conv_prim", "scale_data"}, eltwise_mode::prod),
+                 eltwise("shift0", {"scale0", "shift_data"}, eltwise_mode::sum),
+                 eltwise("shift1", {"scale1", "shift_data"}, eltwise_mode::sum),
+                 activation("sigmoid", "shift0", activation_func::logistic),
+                 eltwise("mul", {"shift1", "sigmoid"}, eltwise_mode::prod),
                  reorder("reorder_bfyx", "mul", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1e-4f;
     execute(p);
 }
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_shift_swish,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
-                                bc_test_params{CASE_CONV_U8S8_1, 2, 6},
-                                bc_test_params{CASE_CONV_U8S8_2, 2, 6},
-                                bc_test_params{CASE_CONV_U8S8_3, 2, 6},
-                                bc_test_params{CASE_CONV_U8S8_4, 2, 6},
-                                bc_test_params{CASE_CONV_S8S8_1, 2, 6},
-                                bc_test_params{CASE_CONV_S8S8_2, 2, 6},
-                                bc_test_params{CASE_CONV_S8S8_3, 2, 6},
-                                bc_test_params{CASE_CONV_S8S8_4, 2, 6},
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 8},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 8},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 8},
+                                bc_test_params{CASE_CONV_U8S8_4, 2, 8},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 8},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 8},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 8},
+                                bc_test_params{CASE_CONV_S8S8_4, 2, 8},
 
-                                bc_test_params{CASE_CONV3D_U8S8_1, 2, 6},
-                                bc_test_params{CASE_CONV3D_U8S8_2, 2, 6},
-                                bc_test_params{CASE_CONV3D_U8S8_3, 2, 6},
-                                bc_test_params{CASE_CONV3D_U8S8_4, 2, 6},
-                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 6},
-                                bc_test_params{CASE_CONV3D_S8S8_1, 2, 6},
-                                bc_test_params{CASE_CONV3D_S8S8_2, 2, 6},
-                                bc_test_params{CASE_CONV3D_S8S8_3, 2, 6},
-                                bc_test_params{CASE_CONV3D_S8S8_4, 2, 6},
-                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 6},
+                                bc_test_params{CASE_CONV3D_U8S8_1, 2, 8},
+                                bc_test_params{CASE_CONV3D_U8S8_2, 2, 8},
+                                bc_test_params{CASE_CONV3D_U8S8_3, 2, 8},
+                                bc_test_params{CASE_CONV3D_U8S8_4, 2, 8},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 8},
+                                bc_test_params{CASE_CONV3D_S8S8_1, 2, 8},
+                                bc_test_params{CASE_CONV3D_S8S8_2, 2, 8},
+                                bc_test_params{CASE_CONV3D_S8S8_3, 2, 8},
+                                bc_test_params{CASE_CONV3D_S8S8_4, 2, 8},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 8},
                         }), );
 
 class conv_int8_prelu_eltwise : public ConvFusingTest {};
@@ -2988,53 +2990,55 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize,
                         // resample_test_params{ CASE_RESAMPLE_FP16_9, 2, 3 },
 }), );
 
-class resample_scale_activation : public ResamplePrimitiveFusingTest {};
-TEST_P(resample_scale_activation, basic) {
+class resample_scale_activation_eltwise : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_scale_activation_eltwise, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("eltwise_data", get_mem(get_output_layout(p), -10, 10)),
         resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
         scale("scale", "resample_prim", "scale_data"),
         activation("activation", "scale", activation_func::abs),
-        reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { "activation", "eltwise_data"}, eltwise_mode::sum),
+        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_activation,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_activation_eltwise,
     ::testing::ValuesIn(std::vector<resample_test_params>{
-                        resample_test_params{ CASE_RESAMPLE_FP32_1, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP32_2, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP32_3, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP32_4, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP32_5, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP32_6, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP32_7, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP32_8, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP32_9, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_1, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_2, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_3, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_4, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_5, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_6, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_7, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_8, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_9, 2, 5 },
 
-                        resample_test_params{ CASE_RESAMPLE_FP16_1, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_2, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_3, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_4, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_5, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_6, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_7, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_9, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_FP16_10, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_1, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_2, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_3, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_4, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_5, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_6, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_7, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_9, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_10, 2, 5 },
 
-                        resample_test_params{ CASE_RESAMPLE_I8_1, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_I8_2, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_I8_3, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_I8_4, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_I8_1, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_I8_2, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_I8_3, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_I8_4, 2, 5 },
 
-                        resample_test_params{ CASE_RESAMPLE_U8_1, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_U8_2, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_U8_3, 2, 4 },
-                        resample_test_params{ CASE_RESAMPLE_U8_4, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_U8_1, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_U8_2, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_U8_3, 2, 5 },
+                        resample_test_params{ CASE_RESAMPLE_U8_4, 2, 5 },
 }), );
 
 class resample_quantize_concat : public ResamplePrimitiveFusingTest {};
