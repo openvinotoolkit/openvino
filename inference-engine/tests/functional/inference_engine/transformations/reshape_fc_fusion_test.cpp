@@ -34,8 +34,10 @@ TEST(TransformationTests, ReshapeFCFusiuonTest1) {
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{1, 6});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ReshapeFullyConnectedFusion().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
     ASSERT_EQ(f->get_ops().size(), 5);
@@ -53,8 +55,10 @@ TEST(TransformationTests, ReshapeFCFusiuonTest2) {
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{1, 6});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ReshapeFullyConnectedFusion().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
     ASSERT_EQ(f->get_ops().size(), 5);
@@ -72,8 +76,10 @@ TEST(TransformationTests, ReshapeFCFusiuonTest3) {
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{2, 6});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ReshapeFullyConnectedFusion().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
     ASSERT_EQ(f->get_ops().size(), 7);
