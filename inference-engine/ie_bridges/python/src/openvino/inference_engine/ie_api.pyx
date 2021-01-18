@@ -173,7 +173,8 @@ cdef class Blob:
                 fp64_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[double](c_tensor_desc, &fp64_array_memview[0], fp64_array_memview.shape[0])
             elif precision == "FP16":
-                raise RuntimeError("Currently, it's impossible to set_blob with FP16 precision")
+                I16_array_memview = self._array_data.view(dtype=np.int16)
+                self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
             elif precision == "I16":
                 I16_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
