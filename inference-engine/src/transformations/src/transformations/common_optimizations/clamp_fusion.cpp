@@ -17,7 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ClampFusion, "ClampFusion", 0);
 
 ngraph::pass::ClampFusion::ClampFusion() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ClampFusion);
     auto data_pattern = ngraph::pattern::any_input();
     auto min_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();

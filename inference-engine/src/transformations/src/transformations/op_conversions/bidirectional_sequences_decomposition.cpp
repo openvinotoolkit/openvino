@@ -17,7 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalGRUSequenceDecomposition, "Bid
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalRNNSequenceDecomposition, "BidirectionalRNNSequenceDecomposition", 0);
 
 ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
-    MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition_BidirectionalLSTMSequenceDecomposition);
+    MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition);
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -86,7 +86,7 @@ ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceD
 }
 
 ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecomposition() {
-    MATCHER_SCOPE(BidirectionalGRUSequenceDecomposition_BidirectionalGRUSequenceDecomposition);
+    MATCHER_SCOPE(BidirectionalGRUSequenceDecomposition);
     auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::GRUSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -151,7 +151,7 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
 }
 
 ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecomposition() {
-    MATCHER_SCOPE(BidirectionalRNNSequenceDecomposition_BidirectionalRNNSequenceDecomposition);
+    MATCHER_SCOPE(BidirectionalRNNSequenceDecomposition);
     auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::RNNSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
