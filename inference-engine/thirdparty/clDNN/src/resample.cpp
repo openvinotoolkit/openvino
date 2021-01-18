@@ -64,6 +64,8 @@ std::string resample_inst::to_string(resample_node const& node) {
         resample_info.add("resample_type:", "caffe_bilinear_interp");
     else if (desc->operation_type == resample_type::cubic)
         resample_info.add("resample_type:", "cubic");
+    else if (desc->operation_type == resample_type::linear_onnx)
+        resample_info.add("resample_type:", "linear_onnx");
     else
         resample_info.add("resample_type:", "not supported sample type");
 
