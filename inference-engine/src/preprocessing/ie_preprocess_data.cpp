@@ -79,7 +79,6 @@ void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &
 }
 
 void PreProcessData::isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
-
     PreprocEngine::checkApplicabilityGAPI(src, dst);
 }
 

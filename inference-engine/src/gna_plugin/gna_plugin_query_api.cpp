@@ -46,6 +46,7 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
             auto deviceName = options.at(KEY_DEVICE_ID).as<std::string>();
             return deviceName;
         }},
+        {METRIC_KEY(GNA_LIBRARY_FULL_VERSION), [this]() {return GNADeviceHelper::GetGnaLibraryVersion();}},
         {METRIC_KEY(SUPPORTED_METRICS), [&queryApiSupported, this]() {
             std::vector<std::string> availablesMetrics;
             for (auto && supportedAPI : queryApiSupported) {

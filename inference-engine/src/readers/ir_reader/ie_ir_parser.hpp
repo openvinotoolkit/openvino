@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,7 +144,7 @@ private:
             return result;
         }
 
-        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs) {
+        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, size_t numInputs) {
             if (numInputs >= 0 && inputs.size() != numInputs) {
                 THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
                                    << " has incorrect number of inputs! Expected: " << numInputs << ", actual: " << inputs.size();

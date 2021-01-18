@@ -183,6 +183,52 @@ void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t r
     fill_data_random(rawBlobDataPtr, blob->size(), range, start_from, k, seed);
 }
 
+/** @brief Fill blob with a sorted sequence of unique elements randomly generated.
+ *
+ *  This function generates and fills a blob of a certain precision, with a
+ *  sorted sequence of unique elements.
+ *
+ * @param blob Target blob
+ * @param range Values range
+ * @param start_from Value from which range should start
+ * @param k Resolution of floating point numbers.
+ * - With k = 1 every random number will be basically integer number.
+ * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
+ * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
+ */
+template<InferenceEngine::Precision::ePrecision PRC>
+void inline fill_random_unique_sequence(InferenceEngine::Blob::Ptr& blob,
+                                        uint32_t range,
+                                        int32_t start_from = 0,
+                                        const int32_t k = 1,
+                                        const int32_t seed = 1) {
+    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
+
+    if (start_from < 0 && !std::is_signed<dataType>::value) {
+        start_from = 0;
+    }
+
+    if (range < blob->size()) {
+        range = blob->size() * 2;
+    }
+
+    std::mt19937 generator(seed);
+    std::uniform_int_distribution<int32_t> dist(k * start_from, k * (start_from + range));
+
+    std::set<dataType> elems;
+    while (elems.size() != blob->size()) {
+        auto value = static_cast<float>(dist(generator));
+        value /= static_cast<float>(k);
+        if (PRC == InferenceEngine::Precision::FP16) {
+            elems.insert(ngraph::float16(value).to_bits());
+        } else {
+            elems.insert(static_cast<dataType>(value));
+        }
+    }
+    std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
+}
+
 template<InferenceEngine::Precision::ePrecision PRC>
 void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;

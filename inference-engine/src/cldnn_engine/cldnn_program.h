@@ -71,7 +71,7 @@ public:
 class Program {
 public:
     Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<const cldnn::engine> engine, const Config& config);
-    Program() : m_config({}), m_engine(nullptr), m_curBatch(-1), queryMode(false) {}
+    Program() : m_config({}), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
 
     static const cldnn::primitive_id m_preProcessTag;
     static const cldnn::primitive_id m_meanValuesTag;
