@@ -360,17 +360,17 @@ static inline void horizontalPass_anylpi_8U(const short alpha[], const short map
 }
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(        uint8_t* dst[],
-                          const uint8_t* src0[],
-                          const uint8_t* src1[],
-                          const short    alpha[],
-                          const short    clone[],  // 4 clones of alpha
-                          const short    mapsx[],
-                          const short    beta[],
-                              uint8_t    tmp[],
-                          const Size&    inSz,
-                          const Size&    outSz,
-                                  int    lpi) {
+void calcRowLinear_8UC1(uint8_t      * dst[],
+                        const uint8_t* src0[],
+                        const uint8_t* src1[],
+                        const short    alpha[],
+                        const short    clone[],  // 4 clones of alpha
+                        const short    mapsx[],
+                        const short    beta[],
+                        uint8_t        tmp[],
+                        const Size&    inSz,
+                        const Size&    outSz,
+                        int            lpi) {
     bool xRatioEq = inSz.width == outSz.width;
     bool yRatioEq = inSz.height == outSz.height;
 

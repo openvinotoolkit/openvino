@@ -51,7 +51,7 @@ namespace gapi {
 namespace kernels {
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(      uint8_t *dst[],
+void calcRowLinear_8UC1(uint8_t       *dst[],
                         const uint8_t *src0[],
                         const uint8_t *src1[],
                         const short    alpha[],

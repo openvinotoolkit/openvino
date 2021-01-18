@@ -433,52 +433,51 @@ void splitRow(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length) {
 }
 
 namespace {
-    template<typename type>
-    struct cv_type_to_depth;
 
-    template<> struct cv_type_to_depth<std::uint8_t>    { enum { depth = CV_8U  }; };
-    template<> struct cv_type_to_depth<std::int8_t>     { enum { depth = CV_8S  }; };
-    template<> struct cv_type_to_depth<std::uint16_t>   { enum { depth = CV_16U }; };
-    template<> struct cv_type_to_depth<std::int16_t>    { enum { depth = CV_16S }; };
-    template<> struct cv_type_to_depth<std::int32_t>    { enum { depth = CV_32S }; };
-    template<> struct cv_type_to_depth<float>           { enum { depth = CV_32F }; };
+template<typename type>
+struct cv_type_to_depth;
 
-    template<typename ... types>
-    struct typelist {};
+template<> struct cv_type_to_depth<std::uint8_t>    { enum { depth = CV_8U  }; };
+template<> struct cv_type_to_depth<std::int8_t>     { enum { depth = CV_8S  }; };
+template<> struct cv_type_to_depth<std::uint16_t>   { enum { depth = CV_16U }; };
+template<> struct cv_type_to_depth<std::int16_t>    { enum { depth = CV_16S }; };
+template<> struct cv_type_to_depth<std::int32_t>    { enum { depth = CV_32S }; };
+template<> struct cv_type_to_depth<float>           { enum { depth = CV_32F }; };
 
-    template<typename type_list>
-    struct head;
+template<typename ... types>
+struct typelist {};
 
-    template<template<typename ...> class list, typename head_t, typename ... types>
-    struct head<list<head_t, types...>> { using type = head_t;};
+template<typename type_list>
+struct head;
 
-    template<typename typelist>
-    using head_t = typename head<typelist>::type;
+template<template<typename ...> class list, typename head_t, typename ... types>
+struct head<list<head_t, types...>> { using type = head_t;};
 
-    template<typename type>
-    struct type_to_type {};
-}
+template<typename typelist>
+using head_t = typename head<typelist>::type;
 
-namespace {
-    template <typename typelist>
-    struct type_dispatch_impl;
+template<typename type>
+struct type_to_type {};
 
-    template <template<typename ...> class typelist, typename... type>
-    struct type_dispatch_impl<typelist<type...>> {
+template <typename typelist>
+struct type_dispatch_impl;
 
-        template <typename result_t, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t>
-        static result_t dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value) {
-            result_t res = default_value;
+template <template<typename ...> class typelist, typename... type>
+struct type_dispatch_impl<typelist<type...>> {
+    template <typename result_t, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t>
+    static result_t dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value) {
+        result_t res = default_value;
 
-            std::initializer_list<int> ({(type_id == type_to_id(type_to_type<type>{}) ? (res = type_to_value(type_to_type<type>{})), 0 : 0)...});
-            return res;
-        }
-    };
-}
+        std::initializer_list<int> ({(type_id == type_to_id(type_to_type<type>{}) ? (res = type_to_value(type_to_type<type>{})), 0 : 0)...});
+        return res;
+    }
+};
 
-template<typename typelist, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t,
-         typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
-result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value = {}){
+}  // namespace
+
+template <typename typelist, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t,
+          typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
+result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value = {}) {
     return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<type_id_t>(type_id),
                                                                      std::forward<type_to_id_t>(type_to_id),
                                                                      std::forward<type_to_value_t>(type_to_value),
@@ -486,28 +485,32 @@ result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_val
 }
 
 namespace {
-    struct cv_type_id {
-        template <typename type>
-        const int operator()(type_to_type<type> ){ return cv_type_to_depth<type>::depth;}
-    };
 
-}
-template<typename typelist>
-bool is_cv_type_in_list(const int type_id){
+struct cv_type_id {
+    template <typename type>
+    const int operator()(type_to_type<type> ) { return cv_type_to_depth<type>::depth;}
+};
+
+}  // namespace
+
+template <typename typelist>
+bool is_cv_type_in_list(const int type_id) {
     return type_dispatch<typelist>(type_id, cv_type_id{}, [](...){ return true;}, false);
 }
 
 namespace {
-    using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float>;
 
-    template<int chs>
-    struct typed_merge_row {
-        using p_f = void (*)(const std::array<const uint8_t*, chs>& ins, uint8_t* out, int length);
+using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float>;
 
-        template <typename type>
-        p_f operator()(type_to_type<type> ){ return mergeRow<type,chs>;}
-    };
-}
+template<int chs>
+struct typed_merge_row {
+    using p_f = void (*)(const std::array<const uint8_t*, chs>& ins, uint8_t* out, int length);
+
+    template <typename type>
+    p_f operator()(type_to_type<type> ) { return mergeRow<type, chs>; }
+};
+
+}  // namespace
 
 GAPI_FLUID_KERNEL(FMerge2, Merge2, false) {
     static const int LPI = 4;
@@ -515,7 +518,6 @@ GAPI_FLUID_KERNEL(FMerge2, Merge2, false) {
     static void run(const cv::gapi::fluid::View& a,
                     const cv::gapi::fluid::View& b,
                           cv::gapi::fluid::Buffer& out) {
-
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
         const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<2>{}, nullptr);
@@ -532,7 +534,6 @@ GAPI_FLUID_KERNEL(FMerge3, Merge3, false) {
                     const cv::gapi::fluid::View& b,
                     const cv::gapi::fluid::View& c,
                           cv::gapi::fluid::Buffer& out) {
-
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
         const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<3>{}, nullptr);
@@ -550,7 +551,6 @@ GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
                     const cv::gapi::fluid::View& c,
                     const cv::gapi::fluid::View& d,
                           cv::gapi::fluid::Buffer& out) {
-
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
         const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<4>{}, nullptr);
@@ -562,6 +562,7 @@ GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
 
 
 namespace {
+
 using split_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float>;
 
 template<int chs>
@@ -569,10 +570,11 @@ struct typed_split_row {
     using p_f = void (*)(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length);
 
     template <typename type>
-    p_f operator()(type_to_type<type> ){ return splitRow<type,chs>;}
+    p_f operator()(type_to_type<type> ) { return splitRow<type, chs>; }
 };
 
-}
+}  // namespace
+
 GAPI_FLUID_KERNEL(FSplit2, Split2, false) {
     static const int LPI = 4;
     static const int Window = 1;
@@ -2339,16 +2341,18 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
 };
 
 namespace {
-    template <typename src_t, typename dst_t>
-    void convert_precision(const uint8_t* src, uint8_t* dst, const int width) {
-        const auto *in  = reinterpret_cast<const src_t *>(src);
-              auto *out = reinterpret_cast<dst_t *>(dst);
 
-        for (int i = 0; i < width; i++) {
-            out[i] = saturate_cast<dst_t>(in[i]);
-        }
+template <typename src_t, typename dst_t>
+void convert_precision(const uint8_t* src, uint8_t* dst, const int width) {
+    const auto *in  = reinterpret_cast<const src_t *>(src);
+            auto *out = reinterpret_cast<dst_t *>(dst);
+
+    for (int i = 0; i < width; i++) {
+        out[i] = saturate_cast<dst_t>(in[i]);
     }
 }
+
+}  // namespace
 
 GAPI_FLUID_KERNEL(FConvertDepth, ConvertDepth, false) {
     static const int Window = 1;

@@ -61,7 +61,7 @@ shared_ptr<Node> op::ProposalIE::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<ProposalIE>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
-bool op::ProposalIE::visit_attributes(AttributeVisitor& visitor){
+bool op::ProposalIE::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("ratio", m_attrs.ratio);
     visitor.on_attribute("scale", m_attrs.scale);
     visitor.on_attribute("base_size", m_attrs.base_size);

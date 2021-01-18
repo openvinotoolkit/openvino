@@ -49,6 +49,8 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
+add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
+
 # Create shared library
 
 add_library(${TARGET_NAME} SHARED 
@@ -65,8 +67,6 @@ target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} EXCLUDE_PATTERNS ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

@@ -181,8 +181,8 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         if (is_constant_holder(holder)) {
             auto& holder_map = getInputTo(holder);
             // remove_if
-            for( auto it = holder_map.begin(); it != holder_map.end(); ) {
-                if( it->second->type == "Input")
+            for (auto it = holder_map.begin(); it != holder_map.end(); ) {
+                if (it->second->type == "Input")
                     it = holder_map.erase(it);
                 else
                     ++it;

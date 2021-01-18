@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #ifndef IE_PREPROCESS_GAPI_KERNELS_SIMD_IMPL_H
 #define IE_PREPROCESS_GAPI_KERNELS_SIMD_IMPL_H
 
@@ -818,14 +822,14 @@ static inline void calcRowLinear_32FC1(float *dst[],
 
                 //  v_float32 res0 = s00*alpha0 + s01*alpha1;
                 v_float32 res0 = v_fma(s00 - s01, alpha0, s01);
-                
+
                 v_float32 low2, high2, s10, s11;
                 v_gather_pairs(src1[line], mapsx, x, low2, high2);
                 v_deinterleave(low2, high2, s10, s11);
 
                 //  v_float32 res1 = s10*alpha0 + s11*alpha1;
                 v_float32 res1 = v_fma(s10 - s11, alpha0, s11);
-                
+
                 //  v_float32 d = res0*beta0 + res1*beta1;
                 v_float32 d = v_fma(res0 - res1, beta0, res1);
 
@@ -854,14 +858,14 @@ static inline void calcRowLinear_32FC1(float *dst[],
             for (; x <= outSz.width - nlanes; x += nlanes) {
                 v_float32 alpha0 = vx_load(&alpha[x]);
                 //  v_float32 alpha1 = 1.f - alpha0;
-                                
+
                 v_float32 low, high, s00, s01;
                 v_gather_pairs(src0[line], mapsx, x, low, high);
                 v_deinterleave(low, high, s00, s01);
 
                 //  v_float32 d = s00*alpha0 + s01*alpha1;
                 v_float32 d = v_fma(s00 - s01, alpha0, s01);
-                
+
                 vx_store(&dst[line][x], d);
             }
 #endif
