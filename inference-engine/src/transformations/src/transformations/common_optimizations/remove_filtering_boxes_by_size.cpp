@@ -12,7 +12,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveFilteringBoxesBySize, "RemoveFilteringBoxesBySize", 0);
 
-void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() {
+ngraph::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
     // variadic split
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1000, 4});
     auto sizes = opset3::Constant::create(element::i64, Shape{4}, std::vector<int64_t >({1, 1, 1, 1}));
@@ -79,7 +79,7 @@ void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() 
 
     auto cast = std::make_shared<ngraph::opset3::Convert>(squeeze_3, ngraph::element::i64);
 
-    ngraph::graph_rewrite_callback callback = [data](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [data](pattern::Matcher& m) {
         auto start = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({0}));
         auto step = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({1}));
 
@@ -104,7 +104,5 @@ void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() 
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(cast, "RemoveFilteringBoxesBySize");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    register_matcher(m, callback);
 }
