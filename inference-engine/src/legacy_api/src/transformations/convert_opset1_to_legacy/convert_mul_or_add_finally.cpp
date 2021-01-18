@@ -6,7 +6,7 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulOrAddFinally, "ConvertMulOrAddFinally", 0);
 
-ngraph::pass::ConvertMulOrAddFinally::ConvertMulOrAddFinally() : GraphRewrite() {
+ngraph::pass::ConvertMulOrAddFinally::ConvertMulOrAddFinally() {
     convert_mul_or_add_finally<ngraph::opset1::Add>();
     convert_mul_or_add_finally<ngraph::opset1::Subtract>();
     convert_mul_or_add_finally<ngraph::opset1::Multiply>();
