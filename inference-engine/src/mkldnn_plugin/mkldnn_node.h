@@ -55,9 +55,11 @@ enum Type {
     ROIAlign,
     ROIPooling,
     BatchNormalization,
+    DepthToSpace,
     Flatten,
     Pad,
     Permute,
+    SpaceToDepth,
     Copy,
     MemoryOutput,
     MemoryInput,
@@ -136,12 +138,16 @@ static std::string NameFromType(Type type) {
             return "ROIPooling";
         case BatchNormalization:
             return "BatchNormalization";
+        case DepthToSpace:
+            return "DepthToSpace";
         case Flatten:
             return "Flatten";
         case Pad:
             return "Pad";
         case Permute:
             return "Permute";
+        case SpaceToDepth:
+            return "SpaceToDepth";
         case Copy:
             return "Copy";
         case MemoryOutput:
