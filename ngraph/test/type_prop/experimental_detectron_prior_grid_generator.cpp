@@ -96,7 +96,6 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes)
         {{dyn_dim, 4}, {1, 256, 200, dyn_dim}, {200, dyn_dim, dyn_dim, 4}, false},
         {{dyn_dim, 4}, {1, 256, dyn_dim, 336}, {dyn_dim, 336, dyn_dim, 4}, false},
         {{dyn_dim, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, dyn_dim, dyn_dim, 4}, false}
-
     };
 
     for (const auto& s : shapes)
@@ -127,14 +126,28 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes_intervals)
 
     struct ShapesAndAttrs
     {
-        PartialShape im_data_shape;
         PartialShape priors_shape;
         PartialShape feature_map_shape;
         PartialShape ref_out_shape;
         bool flatten;
     };
 
-    std::vector<ShapesAndAttrs> shapes = {};
+    const Shape im_data_shape = Shape{1, 3, 800, 1344};
+
+    std::vector<ShapesAndAttrs> shapes = {
+        {{3, 4}, {1, 256, 200, Dimension(0, 100)}, {Dimension(0, 60000), 4}, true},
+        {{3, 4}, {1, 256, Dimension(0, 150), 336}, {Dimension(0, 151200), 4}, true},
+        {{3, 4}, {1, 256, Dimension(0, 150), Dimension(0, 100)}, {Dimension(0, 45000), 4}, true},
+        {{Dimension(0, 3), 4}, {1, 256, 200, Dimension(0, 150)}, {Dimension(0, 90000), 4}, true},
+        {{Dimension(0, 3), 4}, {1, 256, Dimension(0, 150), 336}, {Dimension(0, 151200), 4}, true},
+        {{Dimension(0, 3), 4}, {1, 256, Dimension(0, 150), Dimension(0, 100)}, {Dimension(0, 45000), 4}, true},
+        {{3, 4}, {1, 256, 200, Dimension(0, 100)}, {200, Dimension(0, 100), 3, 4}, false},
+        {{3, 4}, {1, 256, Dimension(0, 150), 336}, {Dimension(0, 150), 336, 3, 4}, false},
+        {{3, 4}, {1, 256, Dimension(0, 150), Dimension(0, 100)}, {Dimension(0, 150), Dimension(0, 100), 3, 4}, false},
+        {{Dimension(0, 3), 4}, {1, 256, 200, Dimension(0, 100)}, {200, Dimension(0, 100), Dimension(0, 3), 4}, false},
+        {{Dimension(0, 3), 4}, {1, 256, Dimension(0, 150), 336}, {Dimension(0, 150), 336, Dimension(0, 3), 4}, false},
+        {{Dimension(0, 3), 4}, {1, 256, Dimension(0, 150), Dimension(0, 100)}, {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4}, false}
+    };
 
     for (const auto& s : shapes)
     {
@@ -143,7 +156,7 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes_intervals)
 
         auto priors = std::make_shared<op::Parameter>(element::f32, s.priors_shape);
         auto feature_map = std::make_shared<op::Parameter>(element::f32, s.feature_map_shape);
-        auto im_data = std::make_shared<op::Parameter>(element::f32, s.im_data_shape);
+        auto im_data = std::make_shared<op::Parameter>(element::f32, im_data_shape);
 
         auto grid_gen = std::make_shared<GridGenerator>(priors, feature_map, im_data, grid_attrs);
 
