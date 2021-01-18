@@ -2247,13 +2247,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_select_last_index)
             file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_select_last_index.prototxt"));
         FAIL() << "Expected exception was not thrown";
     }
-    catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure& e)
+    catch (const ngraph::ngraph_error& e)
     {
-        std::string what{e.what()};
-        EXPECT_NE(
-            what.find(
-                "Mode 'select_last_index=1' is not supported by current implementation of ArgMax"),
-            std::string::npos);
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "Mode 'select_last_index=1' is not supported by current implementation of ArgMax"));
     }
     catch (...)
     {
@@ -2269,13 +2268,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_select_last_index)
             file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_select_last_index.prototxt"));
         FAIL() << "Expected exception was not thrown";
     }
-    catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure& e)
+    catch (const ngraph::ngraph_error& e)
     {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "Mode 'select_last_index=1' is not supported by current implementation of ArgMin"));
         std::string what{e.what()};
-        EXPECT_NE(
-            what.find(
-                "Mode 'select_last_index=1' is not supported by current implementation of ArgMin"),
-            std::string::npos);
     }
     catch (...)
     {
