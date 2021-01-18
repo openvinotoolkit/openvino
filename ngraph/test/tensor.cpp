@@ -23,10 +23,10 @@
 #include "gtest/gtest.h"
 #include "ngraph/function.hpp"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset6.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "pass/liveness.hpp"
 #include "util/test_tools.hpp"
-#include "ngraph/opsets/opset6.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -105,7 +105,10 @@ TEST(tensor, tensor_names)
     auto f0 = make_shared<Function>(relu, ParameterVector{arg0});
 
     ASSERT_EQ(arg0->get_output_tensor(0).get_names(), relu->get_input_tensor(0).get_names());
-    ASSERT_EQ(arg0->get_output_tensor(0).get_names(), relu->input_value(0).get_tensor().get_names());
-    ASSERT_EQ(f0->get_result()->get_input_tensor(0).get_names(), relu->get_output_tensor(0).get_names());
-    ASSERT_EQ(f0->get_result()->input_value(0).get_tensor().get_names(), relu->get_output_tensor(0).get_names());
+    ASSERT_EQ(arg0->get_output_tensor(0).get_names(),
+              relu->input_value(0).get_tensor().get_names());
+    ASSERT_EQ(f0->get_result()->get_input_tensor(0).get_names(),
+              relu->get_output_tensor(0).get_names());
+    ASSERT_EQ(f0->get_result()->input_value(0).get_tensor().get_names(),
+              relu->get_output_tensor(0).get_names());
 }

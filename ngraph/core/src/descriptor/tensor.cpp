@@ -97,12 +97,12 @@ const std::string& descriptor::Tensor::get_name() const
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
-const std::unordered_set<std::string>& descriptor::Tensor::get_names() const 
+const std::unordered_set<std::string>& descriptor::Tensor::get_names() const
 {
     return m_names;
 }
 
-void descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) 
+void descriptor::Tensor::set_names(const std::unordered_set<std::string>& names)
 {
     m_names = names;
 }
@@ -110,13 +110,15 @@ void descriptor::Tensor::set_names(const std::unordered_set<std::string>& names)
 ostream& operator<<(ostream& out, const descriptor::Tensor& tensor)
 {
     std::string names;
-    for (const auto& name : tensor.get_names()) {
+    for (const auto& name : tensor.get_names())
+    {
         if (!names.empty())
             names += ", ";
         names += name;
     }
     NGRAPH_SUPPRESS_DEPRECATED_START
-    if (names.empty()) names = tensor.get_name();
+    if (names.empty())
+        names = tensor.get_name();
     NGRAPH_SUPPRESS_DEPRECATED_END
     out << "Tensor(" << names << ")";
     return out;

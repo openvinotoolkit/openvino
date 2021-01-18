@@ -45,9 +45,7 @@ TEST_P(TensorNamesTest, CheckTensorNames) {
 
     for (const auto& result : function->get_results()) {
         ASSERT_NO_THROW(inferRequest.GetBlob(cnnNetwork.getOVNameForOperation(result->get_friendly_name())));
-        std::cout << "AAAA AAAAA AAAAA" << std::endl;
         for (const auto& name : result->get_input_tensor(0).get_names()) {
-            std::cout << "BBB BBB " << name << std::endl;
             ASSERT_NO_THROW(inferRequest.GetBlob(cnnNetwork.getOVNameForTensor(name)));
         }
     }
@@ -76,9 +74,7 @@ TEST_P(TensorNamesTest, CheckTensorNamesAfterClone) {
     for (const auto& result : function->get_results()) {
         ASSERT_TRUE(outNames.count(clonedNet.getOVNameForOperation(result->get_friendly_name())));
 
-        std::cout << "AAAA22 AAAAA AAAAA" << std::endl;
         for (const auto& name : result->get_input_tensor(0).get_names()) {
-            std::cout << "BBB BBB 222 " << name << std::endl;
             ASSERT_TRUE(outNames.count(clonedNet.getOVNameForTensor(name)));
         }
     }
@@ -162,7 +158,6 @@ TEST_P(TensorNamesTest, CheckAddOutput) {
     for (const auto& result : cnnNetwork.getFunction()->get_results()) {
         ASSERT_NO_THROW(inferRequest.GetBlob(cnnNetwork.getOVNameForOperation(result->get_friendly_name())));
         for (const auto& name : result->get_input_tensor(0).get_names()) {
-            std::cout << "3333333333 " << name << std::endl;
             ASSERT_NO_THROW(inferRequest.GetBlob(cnnNetwork.getOVNameForTensor(name)));
         }
     }

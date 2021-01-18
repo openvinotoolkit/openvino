@@ -75,15 +75,15 @@ TEST_F(NGraphReaderTests, ReadNetworkWithTensorNames) {
 
     for (const auto& param : function->get_parameters()) {
         ASSERT_TRUE(inNames.count(network.getOVNameForOperation(param->get_friendly_name())));
-        ASSERT_TRUE(!param->output(0).get_names().empty());
-        for (const auto& name : param->output(0).get_names())
+        ASSERT_TRUE(!param->get_output_tensor(0).get_names().empty());
+        for (const auto& name : param->get_output_tensor(0).get_names())
             ASSERT_TRUE(inNames.count(network.getOVNameForTensor(name)));
     }
 
     for (const auto& result : function->get_results()) {
         ASSERT_TRUE(outNames.count(network.getOVNameForOperation(result->get_friendly_name())));
-        ASSERT_TRUE(!result->input_value(0).get_names().empty());
-        for (const auto& name : result->input_value(0).get_names())
+        ASSERT_TRUE(!result->get_input_tensor(0).get_names().empty());
+        for (const auto& name : result->get_input_tensor(0).get_names())
             ASSERT_TRUE(outNames.count(network.getOVNameForTensor(name)));
     }
 }
