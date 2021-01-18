@@ -19,13 +19,93 @@ from extensions.ops.loop import Loop
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
+from mo.graph.graph import Graph, Node, rename_nodes
+from mo.middle.pattern_match import find_pattern_matches, inverse_dict
 from mo.ops.const import Const
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
 
 
-def process_keras_rnn(graph: Graph, ext_match: dict, strided_slice_port: int):
+def find_intergraph_match(graph: Graph, ext_match: dict, reserve_port: int, unstack_port: int, stack_port: int):
+    """
+    The function checks that logic using TensorList operations corresponds to subsequent slicing of input and
+    concatenation of intermediate results for output.
+    If pattern is successfully found, it returns matching dictionary.
+    """
+    def back_edge_exists(back_edges_map, from_layer, to_layer, from_port=0, to_port=0):
+        for back_edge in back_edges_map:
+            if back_edge['from_layer'] == from_layer and back_edge['to_layer'] == to_layer \
+                    and back_edge['from_port'] == from_port and back_edge['to_port'] == to_port:
+                return True
+        return False
+
+    def inter_edge_exists(input_port_map, external_port_id, internal_layer_id):
+        for input_port in input_port_map:
+            if input_port['external_port_id'] == external_port_id and \
+                    input_port['internal_layer_id'] == internal_layer_id:
+                return True
+        return False
+
+    loop_node = ext_match['while']
+    body_graph = loop_node['body']
+
+    # check that a list of tensors are iterated subsequently in the body graph
+    # that is functionally equivalent to slicing a tensor through a certain dimension
+    body_pattern = dict(
+        nodes=[('container', dict(op='Parameter')),
+               ('tensor_list', dict(op='Parameter')),
+               ('current_iteration', dict(op='Parameter')),
+               ('slicing', dict(op='TensorListGetItem')),
+               ('const_increment', dict(op='Const')),
+               ('increment_iteration', dict(op='Add')),
+               ('increment_iteration_identity', dict(op='Identity')),
+               ('increment_iteration_result', dict(op='Result')),
+               ('concatenation', dict(op='TensorListSetItem')),
+               ('concatenation_identity', dict(op='Identity')),
+               ('concatenation_result', dict(op='Result')),
+               ],
+        edges=[('tensor_list', 'slicing', {'in': 0}),
+               ('current_iteration', 'slicing', {'in': 1}),
+               ('const_increment', 'increment_iteration', {'in': 1}),
+               ('current_iteration', 'increment_iteration', {'in': 0}),
+               ('container', 'concatenation', {'in': 0}),
+               ('current_iteration', 'concatenation', {'in': 1}),
+               ('concatenation', 'concatenation_identity', {'in': 0}),
+               ('concatenation_identity', 'concatenation_result', {'in': 0}),
+               ('increment_iteration', 'increment_iteration_identity', {'in': 0}),
+               ('increment_iteration_identity', 'increment_iteration_result', {'in': 0}),
+               ]
+    )
+    int_matches = []
+    for match in find_pattern_matches(body_graph, **body_pattern):
+        match = inverse_dict(match)
+        for k in match:
+            match[k] = Node(body_graph, match[k])
+        int_matches.append(match)
+
+    if len(int_matches) == 1:
+        int_match = int_matches[0]
+        # check that back edges connect correct Parameter and Result nodes in the body
+        # check connections between body input ports and external inputs ports of Loop node
+        # check connections between body output ports and external output ports of Loop node
+        if not back_edge_exists(loop_node.back_edges, int_match['concatenation_result'].internal_layer_id,
+                                int_match['container'].internal_layer_id) or \
+                not back_edge_exists(loop_node.back_edges, int_match['increment_iteration_result'].internal_layer_id,
+                                     int_match['current_iteration'].internal_layer_id) or \
+                not inter_edge_exists(loop_node.input_port_map, reserve_port,
+                                      int_match['container'].internal_layer_id) or \
+                not inter_edge_exists(loop_node.input_port_map, unstack_port,
+                                      int_match['tensor_list'].internal_layer_id) or \
+                not inter_edge_exists(loop_node.output_port_map, stack_port,
+                                      int_match['concatenation_result'].internal_layer_id):
+            return None
+
+        return int_match
+
+    return None
+
+
+def process_keras_rnn(graph: Graph, ext_match: dict, int_match: dict, strided_slice_port: int):
     """
     The function transforms the sub-graph so that no list of tensors presents, axis for Loop input ports performs slicing
     (TensorListFromTensor->TensorListGetItem), axis for Loop output port for concatenation of outputs generated on each
@@ -37,14 +117,12 @@ def process_keras_rnn(graph: Graph, ext_match: dict, strided_slice_port: int):
     list_reserve_node = ext_match['reserve']
     body_graph = loop_node['body']
 
-    # TODO: use int_match for TensorListGetItem and TensorListSetItem
-    tensor_list_get_item_node = body_graph.get_op_nodes(op='TensorListGetItem')[0]
-    unstack_placeholder = tensor_list_get_item_node.in_port(0).get_connection().get_source().node
+    tensor_list_get_item_node = int_match['slicing']
+    unstack_placeholder = int_match['tensor_list']
     tensor_list_get_item_node_name = tensor_list_get_item_node.soft_get('name', tensor_list_get_item_node.id)
-    tensor_list_set_item_node = body_graph.get_op_nodes(op='TensorListSetItem')[0]
+    tensor_list_set_item_node = int_match['concatenation']
     tensor_list_set_item_node_name = tensor_list_set_item_node.soft_get('name', tensor_list_set_item_node.id)
-    list_result_node = tensor_list_set_item_node.out_port(0).get_connection().get_destination().node
-    list_result_node = list_result_node.out_port(0).get_connection().get_destination().node  # bypass identity node
+    list_result_node = int_match['concatenation_result']
 
     # 1. process the body graph to avoid unsupported operations: TensorListGetItem and TensorListSetItem
     # replace TensorListGetItem with Squeeze node and iterate through slices using axis for input port
@@ -119,9 +197,10 @@ class KerasLSTMReplacer(FrontReplacementSubgraph):
                    ('while', 'stack', {'out': 3})]
         )
 
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        # TODO: add a step for pattern matching in a body graph
-        process_keras_rnn(graph, match, 6)
+    def replace_sub_graph(self, graph: Graph, ext_match: dict):
+        int_match = find_intergraph_match(graph, ext_match, 3, 7, 3)
+        if int_match is not None:
+            process_keras_rnn(graph, ext_match, int_match, 6)
 
 
 class KerasGRUReplacer(FrontReplacementSubgraph):
@@ -152,6 +231,7 @@ class KerasGRUReplacer(FrontReplacementSubgraph):
                    ('while', 'stack', {'out': 3})]
         )
 
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        # TODO: add a step for pattern matching in a body graph
-        process_keras_rnn(graph, match, 5)
+    def replace_sub_graph(self, graph: Graph, ext_match: dict):
+        int_match = find_intergraph_match(graph, ext_match, 3, 6, 3)
+        if int_match is not None:
+            process_keras_rnn(graph, ext_match, int_match, 5)
