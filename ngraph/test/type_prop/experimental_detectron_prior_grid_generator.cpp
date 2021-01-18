@@ -95,8 +95,7 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes)
         {{3, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, dyn_dim, 3, 4}, false},
         {{dyn_dim, 4}, {1, 256, 200, dyn_dim}, {200, dyn_dim, dyn_dim, 4}, false},
         {{dyn_dim, 4}, {1, 256, dyn_dim, 336}, {dyn_dim, 336, dyn_dim, 4}, false},
-        {{dyn_dim, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, dyn_dim, dyn_dim, 4}, false}
-    };
+        {{dyn_dim, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, dyn_dim, dyn_dim, 4}, false}};
 
     for (const auto& s : shapes)
     {
@@ -140,14 +139,28 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes_intervals)
         {{3, 4}, {1, 256, Dimension(0, 150), Dimension(0, 100)}, {Dimension(0, 45000), 4}, true},
         {{Dimension(0, 3), 4}, {1, 256, 200, Dimension(0, 150)}, {Dimension(0, 90000), 4}, true},
         {{Dimension(0, 3), 4}, {1, 256, Dimension(0, 150), 336}, {Dimension(0, 151200), 4}, true},
-        {{Dimension(0, 3), 4}, {1, 256, Dimension(0, 150), Dimension(0, 100)}, {Dimension(0, 45000), 4}, true},
+        {{Dimension(0, 3), 4},
+         {1, 256, Dimension(0, 150), Dimension(0, 100)},
+         {Dimension(0, 45000), 4},
+         true},
         {{3, 4}, {1, 256, 200, Dimension(0, 100)}, {200, Dimension(0, 100), 3, 4}, false},
         {{3, 4}, {1, 256, Dimension(0, 150), 336}, {Dimension(0, 150), 336, 3, 4}, false},
-        {{3, 4}, {1, 256, Dimension(0, 150), Dimension(0, 100)}, {Dimension(0, 150), Dimension(0, 100), 3, 4}, false},
-        {{Dimension(0, 3), 4}, {1, 256, 200, Dimension(0, 100)}, {200, Dimension(0, 100), Dimension(0, 3), 4}, false},
-        {{Dimension(0, 3), 4}, {1, 256, Dimension(0, 150), 336}, {Dimension(0, 150), 336, Dimension(0, 3), 4}, false},
-        {{Dimension(0, 3), 4}, {1, 256, Dimension(0, 150), Dimension(0, 100)}, {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4}, false}
-    };
+        {{3, 4},
+         {1, 256, Dimension(0, 150), Dimension(0, 100)},
+         {Dimension(0, 150), Dimension(0, 100), 3, 4},
+         false},
+        {{Dimension(0, 3), 4},
+         {1, 256, 200, Dimension(0, 100)},
+         {200, Dimension(0, 100), Dimension(0, 3), 4},
+         false},
+        {{Dimension(0, 3), 4},
+         {1, 256, Dimension(0, 150), 336},
+         {Dimension(0, 150), 336, Dimension(0, 3), 4},
+         false},
+        {{Dimension(0, 3), 4},
+         {1, 256, Dimension(0, 150), Dimension(0, 100)},
+         {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4},
+         false}};
 
     for (const auto& s : shapes)
     {
