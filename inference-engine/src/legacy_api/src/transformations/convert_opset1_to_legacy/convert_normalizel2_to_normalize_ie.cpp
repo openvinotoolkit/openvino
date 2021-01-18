@@ -22,7 +22,7 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
     auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0.0f, ngraph::op::EpsMode::ADD);
     auto mul = std::make_shared<ngraph::opset1::Multiply> (normalize, input_1);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto mul = std::dynamic_pointer_cast<ngraph::opset1::Multiply> (m.get_match_root());
         if (!mul) return false;
 
