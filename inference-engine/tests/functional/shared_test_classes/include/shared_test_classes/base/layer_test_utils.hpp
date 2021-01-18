@@ -68,7 +68,7 @@ struct PassRate {
         if (passed + failed == 0) {
             return 0.f;
         } else {
-            return passed * 100.f / (passed + failed);
+            return passed * 100.f / (passed + failed + skipped);
         }
     }
 };
