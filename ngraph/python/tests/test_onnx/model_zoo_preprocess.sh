@@ -2,7 +2,7 @@
 set -e
 
 # provide ONNX Model Zoo commit hash ID to update:
-ONNX_SHA=7d9ae32726d872fe9143b7aede149508bdf0b30f
+ONNX_SHA=5f39d2534225a6f25012e578daf41ffd84bc00a1
 
 MODELS_DIR="$HOME/.onnx/model_zoo"
 ENABLE_MSFT=false
