@@ -139,7 +139,7 @@ namespace
         case element::Type_t::f16: return InferenceEngine::Precision::FP16; break;
         case element::Type_t::f32: return InferenceEngine::Precision::FP32; break;
         case element::Type_t::f64: return InferenceEngine::Precision::FP64; break;
-        case element::Type_t::i8: return InferenceEngine::Precision::FP16; break;
+        case element::Type_t::i8: return InferenceEngine::Precision::I8; break;
         case element::Type_t::i16: return InferenceEngine::Precision::I16; break;
         case element::Type_t::i32: return InferenceEngine::Precision::I32; break;
         case element::Type_t::i64: return InferenceEngine::Precision::I64; break;
