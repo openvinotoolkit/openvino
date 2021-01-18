@@ -1575,3 +1575,6 @@ IE_GPU.evaluate_1D_gather_elements_negative_test
 IE_GPU.evaluate_2D_gather_elements_negative_test
 IE_GPU.evaluate_2D_gather_elements_2x2x1_data_float32
 IE_GPU.evaluate_4D_gather_elements_3x2x2x2_indices_int64
+
+# incorrect result for Minimum if u16 type is unsupported
+minimum_u16
