@@ -30,6 +30,8 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
+    INSTALL_DIR: $(WORK_DIR)/install_pkg
+    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
 
   steps:
   - script: |
@@ -116,7 +118,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: . $(SETUPVARS) && $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
 
