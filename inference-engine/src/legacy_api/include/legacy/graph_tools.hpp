@@ -413,6 +413,11 @@ inline CNNLayerSet CNNNetGetAllInputLayers(const CNNNetwork& network) {
     return inputLayers;
 }
 
+inline CNNLayerSet CNNNetGetAllInputLayers(ICNNNetwork * network) {
+    std::shared_ptr<ICNNNetwork> pointer(network, [](ICNNNetwork* p) { });
+    return CNNNetGetAllInputLayers(CNNNetwork(pointer));
+}
+
 /**
  * @brief returns all layers that are input or memory , search started from arbitrary location in network
  * @param start layer

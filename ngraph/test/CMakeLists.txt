@@ -129,6 +129,8 @@ set(SRC
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
     type_prop/embeddingbag_offsetssum.cpp
+    type_prop/experimental_detectron_detection_output.cpp
+    type_prop/experimental_detectron_prior_grid_generator.cpp
     type_prop/extractimagepatches.cpp
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp

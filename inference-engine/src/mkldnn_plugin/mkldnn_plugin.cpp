@@ -318,7 +318,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
         if (!is_transformed) {
-            InferenceEngine::CNNNetwork implNetworkWrapper;
+            InferenceEngine::CNNNetwork implNetworkWrapper(implNetwork);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::I64, Precision::I32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::U64, Precision::I32);
             NetPass::ConvertPrecision(implNetworkWrapper, Precision::U32, Precision::I32);

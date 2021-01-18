@@ -123,8 +123,9 @@ CNNNetworkImpl::~CNNNetworkImpl() {
     // Added additional check on cycles.
     bool res = false;
     try {
-        res = CNNNetForestDFS(CNNNetGetAllInputLayers(CNNNetwork(shared_from_this())), [&](CNNLayerPtr layer) {}, false);
-    } catch (...) {
+        res = CNNNetForestDFS(CNNNetGetAllInputLayers(this), [&](CNNLayerPtr layer) {}, false);
+    } catch (const std::exception & ex) {
+        std::cout << ex.what() << std::endl;
         // Exception means that network was invalid. Reset all data.
     }
 
