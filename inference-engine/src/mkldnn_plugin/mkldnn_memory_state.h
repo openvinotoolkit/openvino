@@ -7,6 +7,7 @@
 #include "cpp_interfaces/impl/ie_variable_state_internal.hpp"
 #include "blob_factory.hpp"
 #include "mkldnn_memory.h"
+#include "nodes/common/cpu_memcpy.h"
 
 #include <string>
 
@@ -18,7 +19,7 @@ public:
             name(name) {
         this->storage = make_blob_with_precision(MKLDNNMemoryDesc(storage->GetDescriptor()));
         this->storage->allocate();
-        std::memcpy(this->storage->buffer(), storage->GetData(), storage->GetSize());
+        cpu_memcpy(this->storage->buffer(), storage->GetData(), storage->GetSize());
     }
 
     std::string GetName() const override;
