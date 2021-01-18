@@ -15,13 +15,13 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnectedFusion, "ReshapeFullyConnectedFusion", 0);
 
-void ngraph::pass::ReshapeFullyConnectedFusion::construct_reshape_fc() {
+ngraph::pass::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
     auto m_reshape = pattern::wrap_type<opset1::Reshape>(pattern::has_static_shape());
     auto m_fc = pattern::wrap_type<op::FullyConnected>({m_reshape,
                                                         pattern::any_input(),
                                                         pattern::any_input()});
 
-    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto & pattern_to_output = m.get_pattern_value_map();
         auto fc = pattern_to_output[m_fc].get_node_shared_ptr();
         auto reshape = pattern_to_output[m_reshape].get_node_shared_ptr();
@@ -52,7 +52,5 @@ void ngraph::pass::ReshapeFullyConnectedFusion::construct_reshape_fc() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_fc, "ReshapeFullyConnectedFusion");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    register_matcher(m, callback);
 }
