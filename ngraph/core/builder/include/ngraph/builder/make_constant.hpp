@@ -116,5 +116,18 @@ namespace ngraph
 
             return val->add_provenance_group_members_above({});
         }
+
+        /// \brief      Create constant filled with double value
+        ///
+        /// \note       If num value exeeds capacity of type, the value is clamped.
+        ///
+        /// \param[in]  type           The type of produced Constant node.
+        /// \param[in]  shape          The shape of produced Constant node.
+        /// \param[in]  num            The value used to fill Constant node.
+        ///
+        /// \return     The Constant node which have expected type, shape and value.
+        ///
+        std::shared_ptr<Node>
+            make_constant_from_double(const element::Type& type, const Shape& shape, double num);
     }
 }

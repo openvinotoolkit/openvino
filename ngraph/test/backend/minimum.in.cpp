@@ -90,3 +90,26 @@ NGRAPH_TEST(${BACKEND_NAME}, minimum_int64)
     test_case.add_expected_output<int64_t>(shape, {1, 2, -8, 8, -5, 18448, 1, 280592});
     test_case.run();
 }
+
+// TODO Refactor to use TestCase if u16 will be handled correctly
+NGRAPH_TEST(${BACKEND_NAME}, minimum_u16)
+{
+    const Shape shape{3};
+    const auto A = make_shared<op::Parameter>(element::u16, shape);
+    const auto B = make_shared<op::Parameter>(element::u16, shape);
+    auto f = make_shared<Function>(make_shared<op::v1::Minimum>(A, B), ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::u16, shape);
+    copy_data(a, std::vector<uint16_t>{3, 2, 1});
+    auto b = backend->create_tensor(element::u16, shape);
+    copy_data(b, std::vector<uint16_t>{1, 4, 4});
+    auto result = backend->create_tensor(element::u16, shape);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close((std::vector<uint16_t>{1, 2, 1}), read_vector<uint16_t>(result)));
+}

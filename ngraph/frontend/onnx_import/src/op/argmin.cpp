@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "exceptions.hpp"
 #include "onnx_import/core/node.hpp"
 #include "utils/arg_min_max_factory.hpp"
 
@@ -32,6 +33,23 @@ namespace ngraph
                 }
 
             } // namespace set_1
+
+            namespace set_12
+            {
+                OutputVector argmin(const Node& node)
+                {
+                    const auto select_last_index =
+                        node.get_attribute_value<std::int64_t>("select_last_index", 0);
+                    CHECK_VALID_NODE(node,
+                                     select_last_index == 0,
+                                     "Mode 'select_last_index=1' is not supported by current "
+                                     "implementation of ArgMin");
+
+                    const utils::ArgMinMaxFactory arg_factory(node);
+                    return {arg_factory.make_arg_min()};
+                }
+
+            } // namespace set_12
 
         } // namespace op
 

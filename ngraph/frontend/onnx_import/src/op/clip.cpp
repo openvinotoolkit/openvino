@@ -63,7 +63,7 @@ namespace ngraph
                     }
                     else
                     {
-                        min = builder::make_constant(
+                        min = builder::make_constant_from_double(
                             data_type, Shape{}, std::numeric_limits<double>::lowest());
                     }
 
@@ -75,7 +75,7 @@ namespace ngraph
                     }
                     else
                     {
-                        max = builder::make_constant(
+                        max = builder::make_constant_from_double(
                             data_type, Shape{}, std::numeric_limits<double>::max());
                     }
 
