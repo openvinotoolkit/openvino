@@ -199,7 +199,6 @@ public:
     }
 
 private:
-
     /**
      * @brief implementation based on BFS
      */

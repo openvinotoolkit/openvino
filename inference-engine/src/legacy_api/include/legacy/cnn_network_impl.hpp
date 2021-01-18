@@ -29,8 +29,8 @@ class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork,
     public std::enable_shared_from_this<CNNNetworkImpl> {
 public:
     CNNNetworkImpl();
-    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl); 
-    explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl); 
+    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
+    explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);
     ~CNNNetworkImpl() override;
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
