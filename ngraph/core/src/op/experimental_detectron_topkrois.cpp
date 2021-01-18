@@ -50,25 +50,6 @@ shared_ptr<Node>
         new_args.at(0), new_args.at(1), m_max_rois);
 }
 
-void op::v6::ExperimentalDetectronTopKROIs::validate_input_rois_shape(const PartialShape& shape)
-{
-    NODE_VALIDATION_CHECK(this,
-                          shape.rank().get_length() == 2,
-                          "The 'input_rois' input is expected to be a 2D. Got: ",
-                          shape);
-
-    NODE_VALIDATION_CHECK(
-        this, shape[1] == 4, "The second dimension of 'input_rois' should be 4. Got: ", shape[1]);
-}
-
-void op::v6::ExperimentalDetectronTopKROIs::validate_rois_probs_shape(const PartialShape& shape)
-{
-    NODE_VALIDATION_CHECK(this,
-                          shape.rank().get_length() == 1,
-                          "The 'rois_probs' input is expected to be a 1D. Got: ",
-                          shape);
-}
-
 void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_validate_and_infer_types);
@@ -77,19 +58,27 @@ void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types()
 
     set_output_type(0, get_input_element_type(0), Shape{m_max_rois, 4});
 
-    if (input_rois_shape.rank().is_static() && rois_probs_shape.rank().is_dynamic())
+    if (input_rois_shape.rank().is_static())
     {
-        validate_input_rois_shape(input_rois_shape);
-    }
-    else if (input_rois_shape.rank().is_dynamic() && rois_probs_shape.rank().is_static())
-    {
-        validate_rois_probs_shape(rois_probs_shape);
-    }
-    else if (input_rois_shape.rank().is_static() && rois_probs_shape.rank().is_static())
-    {
-        validate_input_rois_shape(input_rois_shape);
-        validate_rois_probs_shape(rois_probs_shape);
+        NODE_VALIDATION_CHECK(this,
+                              input_rois_shape.rank().get_length() == 2,
+                              "The 'input_rois' input is expected to be a 2D. Got: ",
+                              input_rois_shape);
 
+        NODE_VALIDATION_CHECK(this,
+                              input_rois_shape[1] == 4,
+                              "The second dimension of 'input_rois' should be 4. Got: ",
+                              input_rois_shape[1]);
+    }
+    if (rois_probs_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              rois_probs_shape.rank().get_length() == 1,
+                              "The 'rois_probs' input is expected to be a 1D. Got: ",
+                              rois_probs_shape);
+    }
+    if (input_rois_shape.rank().is_static() && rois_probs_shape.rank().is_static())
+    {
         NODE_VALIDATION_CHECK(this,
                               input_rois_shape[0] == rois_probs_shape[0],
                               "Number of rois and number of probabilities should be equal. Got: ",

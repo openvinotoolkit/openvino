@@ -52,9 +52,6 @@ namespace ngraph
                 size_t get_max_rois() const { return m_max_rois; }
             private:
                 size_t m_max_rois;
-
-                void validate_input_rois_shape(const PartialShape& p);
-                void validate_rois_probs_shape(const PartialShape& p);
             };
         }
     }
