@@ -385,6 +385,7 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
     ngraph::op::util::SubGraphOp::InputDescription>>>>(& adapter)) {
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<std::shared_ptr<
     ngraph::op::util::SubGraphOp::OutputDescription>>>>(& adapter)) {
+    } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(& adapter)) {
     } else {
         THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";
@@ -1560,6 +1561,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->type = "TensorIterator";
         return res;
     });
+
+    addSpecificCreator({"Loop"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        auto res = createSubGraphLayer(node);
+        res->type = "Loop";
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -1601,7 +1608,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SquaredDifference>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::opset5::Loop>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v4::Interpolate>>(),
                 std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
