@@ -13,13 +13,15 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopK3, "ConvertTopK3", 0);
 
-void ngraph::pass::ConvertTopK3::convert_topk3() {
+ngraph::pass::ConvertTopK3::ConvertTopK3() {
     MATCHER_SCOPE();
-    auto topk = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::TopK>());
+    auto topk = pattern::wrap_type<opset3::TopK>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto topk = std::dynamic_pointer_cast<ngraph::opset3::TopK> (m.get_match_root());
         if (!topk) {
             return false;
@@ -62,7 +64,5 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(topk, get_type_info().name);
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    register_matcher(m, callback);
 }

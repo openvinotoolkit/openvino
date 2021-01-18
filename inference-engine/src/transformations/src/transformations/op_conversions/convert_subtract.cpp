@@ -18,7 +18,7 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
     MATCHER_SCOPE();
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract> (m.get_match_root());
         if (!sub) {
             return false;
