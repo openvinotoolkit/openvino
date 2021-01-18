@@ -2719,8 +2719,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_1D)
         file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_1D.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({1, 2, 3});
-    test_case.add_input<int64_t>({1});
+    test_case.add_input<float>(Shape{3}, {1, 2, 3});
+    test_case.add_input<int64_t>(Shape{1}, {1});
     test_case.add_expected_output<float>(Shape{1}, {2});
 
     test_case.run();
@@ -2732,8 +2732,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_int8_axis_1)
         file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_int8_axis_1.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<int8_t>({1, 2, 3, 4});
-    test_case.add_input<int32_t>({0, 0, 1, 0});
+    test_case.add_input<int8_t>(Shape{2, 2}, {1, 2, 3, 4});
+    test_case.add_input<int32_t>(Shape{2, 2}, {0, 0, 1, 0});
     test_case.add_expected_output<int8_t>(Shape{2, 2}, {1, 1, 4, 3});
 
     test_case.run();
@@ -2745,8 +2745,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_int32_axis_0)
         file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_int32_axis_0.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9});
-    test_case.add_input<int64_t>({1, 2, 0, 2, 0, 0});
+    test_case.add_input<int32_t>(Shape{3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9});
+    test_case.add_input<int64_t>(Shape{2, 3}, {1, 2, 0, 2, 0, 0});
     test_case.add_expected_output<int32_t>(Shape{2, 3}, {4, 8, 3, 7, 2, 3});
 
     test_case.run();
@@ -2758,8 +2758,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_negative_axis)
         file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_negative_axis.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({1, 2, 3, 4});
-    test_case.add_input<int64_t>({1, 1, 1, 0});
+    test_case.add_input<float>(Shape{2, 2}, {1, 2, 3, 4});
+    test_case.add_input<int64_t>(Shape{2, 2}, {1, 1, 1, 0});
     test_case.add_expected_output<float>(Shape{2, 2}, {2, 2, 4, 3});
 
     test_case.run();
@@ -2771,8 +2771,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_3D_axis_2)
         file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_3D_axis_2.prototxt"));
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({1, 2, 3, 4, 5, 6, 7, 8});
-    test_case.add_input<int64_t>({0, 1, 0, 1});
+    test_case.add_input<float>(Shape{2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8});
+    test_case.add_input<int64_t>(Shape{2, 2, 1}, {0, 1, 0, 1});
     test_case.add_expected_output<float>(Shape{2, 2, 1}, {1, 4, 5, 8});
 
     test_case.run();
