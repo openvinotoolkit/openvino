@@ -44,7 +44,7 @@ std::string generate_model_path(std::string dir, std::string filename) {
 }
 
 std::string generate_image_path(std::string dir, std::string filename) {
-    return get_data_path() + kPathSeparator +"validation_set" + kPathSeparator + dir + kPathSeparator + filename;
+    return get_data_path() + kPathSeparator + "validation_set" + kPathSeparator + dir + kPathSeparator + filename;
 }
 
 std::string generate_ieclass_xml_path(std::string filename) {

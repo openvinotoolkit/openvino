@@ -36,11 +36,11 @@ class InferReqWrap:
 
     def callback(self, statusCode, userdata):
         if (userdata != self.id):
-            log.error("Request ID {} does not correspond to user data {}".format(self.id, userdata))
+            log.error(f"Request ID {self.id} does not correspond to user data {userdata}")
         elif statusCode != 0:
-            log.error("Request {} failed with status code {}".format(self.id, statusCode))
+            log.error(f"Request {self.id} failed with status code {statusCode}")
         self.cur_iter += 1
-        log.info("Completed {} Async request execution".format(self.cur_iter))
+        log.info(f"Completed {self.cur_iter} Async request execution")
         if self.cur_iter < self.num_iter:
             # here a user can read output containing inference results and put new input
             # to repeat async request again
@@ -53,7 +53,7 @@ class InferReqWrap:
 
     def execute(self, mode, input_data):
         if (mode == "async"):
-            log.info("Start inference ({} Asynchronous executions)".format(self.num_iter))
+            log.info(f"Start inference ({self.num_iter} Asynchronous executions)")
             self.input = input_data
             # Start async request for the first time. Wait all repetitions of the async request
             self.request.async_infer(input_data)
@@ -61,12 +61,12 @@ class InferReqWrap:
             self.cv.wait()
             self.cv.release()
         elif (mode == "sync"):
-            log.info("Start inference ({} Synchronous executions)".format(self.num_iter))
+            log.info(f"Start inference ({self.num_iter} Synchronous executions)")
             for self.cur_iter in range(self.num_iter):
                 # here we start inference synchronously and wait for
                 # last inference request execution
                 self.request.infer(input_data)
-                log.info("Completed {} Sync request execution".format(self.cur_iter + 1))
+                log.info(f"Completed {self.cur_iter + 1} Sync request execution")
         else:
             log.error("wrong inference mode is chosen. Please use \"sync\" or \"async\" mode")
             sys.exit(1)
@@ -122,11 +122,11 @@ def main():
     for i in range(n):
         image = cv2.imread(args.input[i])
         if image.shape[:-1] != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            log.warning(f"Image {args.input[i]} is resized from {image.shape[:-1]} to {(h, w)}")
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
-    log.info("Batch size is {}".format(n))
+    log.info(f"Batch size is {n}")
 
     # Loading model to the plugin
     log.info("Loading model to the plugin")
@@ -144,7 +144,7 @@ def main():
     # Processing output blob
     log.info("Processing output blob")
     res = infer_request.output_blobs[out_blob]
-    log.info("Top {} results: ".format(args.number_top))
+    log.info(f"Top {args.number_top} results: ")
     if args.labels:
         with open(args.labels, 'r') as f:
             labels_map = [x.split(sep=' ', maxsplit=1)[-1].strip() for x in f]
@@ -155,18 +155,16 @@ def main():
     for i, probs in enumerate(res.buffer):
         probs = np.squeeze(probs)
         top_ind = np.argsort(probs)[-args.number_top:][::-1]
-        print("Image {}\n".format(args.input[i]))
+        print(f"Image {args.input[i]}\n")
         print(classid_str, probability_str)
-        print("{} {}".format('-' * len(classid_str), '-' * len(probability_str)))
+        print(f"{'-' * len(classid_str)} {'-' * len(probability_str)}")
         for id in top_ind:
-            det_label = labels_map[id] if labels_map else "{}".format(id)
+            det_label = labels_map[id] if labels_map else f"{id}"
             label_length = len(det_label)
             space_num_before = (7 - label_length) // 2
             space_num_after = 7 - (space_num_before + label_length) + 2
-            space_num_before_prob = (11 - len(str(probs[id]))) // 2
-            print("{}{}{}{}{:.7f}".format(' ' * space_num_before, det_label,
-                                          ' ' * space_num_after, ' ' * space_num_before_prob,
-                                          probs[id]))
+            print(f"{' ' * space_num_before}{det_label}"
+                  f"{' ' * space_num_after}{probs[id]:.7f}")
         print("\n")
     log.info("This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n")
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -679,7 +679,9 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     // Try to create operation from loaded opsets
     auto version = params.version;
-    static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronROIFeatureExtractor"};
+    static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
+                                                                            "ExperimentalDetectronPriorGridGenerator",
+                                                                            "ExperimentalDetectronROIFeatureExtractor"};
     if (experimental_detectrons.count(params.type)) {
         version = "opset6";
     }
@@ -905,7 +907,6 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
         output_map[ext_port_id] = _output;
     }
 
-    int i = 0;
     for (const auto& output : output_map) {
         auto& _output = output.second;
         auto axis_attr = _output.attribute("axis");
