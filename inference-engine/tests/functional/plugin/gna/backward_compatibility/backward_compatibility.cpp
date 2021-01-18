@@ -66,18 +66,12 @@ public:
             configuration[configItem.first] = configItem.second;
         }
         std::string inputTensorBinary = BINARY_EXPORT_MODELS_PATH + nameExportModel;
-        std::fstream inputStream(inputTensorBinary, std::ios_base::in | std::ios_base::binary);
-        if (inputStream.fail()) {
-            FAIL() << "Cannot open file to import model: " << inputTensorBinary;
-        }
-        auto importedNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+        auto importedNetwork = core->ImportNetwork(inputTensorBinary, targetDevice, configuration);
         auto importedOutputs = CalculateImportedNetwork(importedNetwork);
         Compare(importedOutputs, actualOutputs);
     }
 
 protected:
-    std::string test_name =
-            ::testing::UnitTest::GetInstance()->current_test_info()->name();
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
         std::tie(netPrecision, targetDevice, nameExportModel, exportConfiguration, importConfiguration) = this->GetParam();
