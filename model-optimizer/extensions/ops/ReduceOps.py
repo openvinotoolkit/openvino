@@ -101,7 +101,8 @@ class ReduceOp(Op):
             'force_precision_in_ports': {
                 1: 'int64'},
         }, attrs)
-        assert isinstance(self.attrs['keep_dims'], int) or isinstance(self.attrs['keep_dims'], bool)
+        assert isinstance(self.attrs['keep_dims'], int) or isinstance(self.attrs['keep_dims'], bool) or\
+               self.attrs['keep_dims'] in ['true', 'false']
         self.attrs['keep_dims'] = bool(self.attrs['keep_dims'])
 
     def supported_attrs(self):
