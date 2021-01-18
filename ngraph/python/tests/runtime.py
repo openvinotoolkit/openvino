@@ -93,6 +93,7 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return "<Computation: {}({})>".format(self.function.get_name(), params_string)
 
+    # flake8: noqa: C901
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
         input_values = [np.array(input_value) for input_value in input_values]
@@ -131,9 +132,14 @@ class Computation(object):
         request = executable_network.requests[0]
         request.infer(dict(zip(param_names, input_values)))
 
-        output_names = [result.get_friendly_name() for result in self.results]
-        # Set order of output blobs compatible with nG Function
-        result_buffers = [request.output_blobs[output_name].buffer for output_name in output_names]
+        # Set order of output blobs compatible with nG Function if possible
+        result_buffers = []
+        output_blobs_it = iter(request.output_blobs.values())
+        for result in self.results:
+            if result.get_friendly_name() == result.get_name():
+                result_buffers.append(next(output_blobs_it).buffer)
+            else:
+                result_buffers.append(request.output_blobs[result.get_friendly_name()].buffer)
 
         # Since OV overwrite result data type we have to convert results to the original one.
         original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
