@@ -59,24 +59,6 @@ bool op::v6::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes
     return true;
 }
 
-void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_deltas_shape(
-    const PartialShape& shape)
-{
-    NODE_VALIDATION_CHECK(this,
-                          shape.rank().get_length() == 3,
-                          "The 'input_deltas' input is expected to be a 3D. Got: ",
-                          shape);
-}
-
-void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_scores_shape(
-    const PartialShape& shape)
-{
-    NODE_VALIDATION_CHECK(this,
-                          shape.rank().get_length() == 3,
-                          "The 'input_scores' input is expected to be a 3D. Got: ",
-                          shape);
-}
-
 void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
@@ -117,19 +99,22 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
                               anchors_shape[1]);
     }
 
-    if (deltas_shape.rank().is_static() && scores_shape.rank().is_dynamic())
+    if (deltas_shape.rank().is_static())
     {
-        validate_deltas_shape(deltas_shape);
+        NODE_VALIDATION_CHECK(this,
+                              deltas_shape.rank().get_length() == 3,
+                              "The 'input_deltas' input is expected to be a 3D. Got: ",
+                              deltas_shape);
     }
-    else if (deltas_shape.rank().is_dynamic() && scores_shape.rank().is_static())
+    if (scores_shape.rank().is_static())
     {
-        validate_scores_shape(scores_shape);
+        NODE_VALIDATION_CHECK(this,
+                              scores_shape.rank().get_length() == 3,
+                              "The 'input_scores' input is expected to be a 3D. Got: ",
+                              scores_shape);
     }
-    else if (deltas_shape.rank().is_static() && scores_shape.rank().is_static())
+    if (deltas_shape.rank().is_static() && scores_shape.rank().is_static())
     {
-        validate_deltas_shape(deltas_shape);
-        validate_scores_shape(scores_shape);
-
         NODE_VALIDATION_CHECK(this,
                               deltas_shape[1] == scores_shape[1],
                               "Heights for inputs 'input_deltas' and 'input_scores' should be "

@@ -70,9 +70,6 @@ namespace ngraph
                 const Attributes& get_attrs() const { return m_attrs; }
             private:
                 Attributes m_attrs;
-
-                void validate_deltas_shape(const PartialShape& shape);
-                void validate_scores_shape(const PartialShape& shape);
             };
         }
     }
