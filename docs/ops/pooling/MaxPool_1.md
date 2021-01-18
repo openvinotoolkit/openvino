@@ -73,7 +73,7 @@
   * **1**: Input shape can be either [N,C,H], [N,C,H,W] or [N,C,H,W,D]. Then the corresponding output shape will be [N,C,H_out], [N,C,H_out,W_out] or [N,C,H_out,W_out,D_out]
 
 **Mathematical Formulation**
-Outputs hape calculation based on `auto_pad` and `rounding_type`:  
+Output shape calculation based on `auto_pad` and `rounding_type`:  
   * `auto_pad = explicit` and `rounding_type = floor`   
           `H_out = floor(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`  
           `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
