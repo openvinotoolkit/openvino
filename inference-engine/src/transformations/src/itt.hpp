@@ -45,7 +45,7 @@ OV_CC_DOMAINS(internal_op);
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #define RUN_ON_FUNCTION_SCOPE(region) OV_SCOPE(ngraph_pass, OV_CC_CAT(region, _run_on_function))
 #define MATCHER_SCOPE(region)                                                                   \
-    std::string matcher_name(OV_CC_TOSTRING(region))
+    const std::string matcher_name(OV_CC_TOSTRING(region))
 
 #define INTERNAL_OP_SCOPE(region) OV_SCOPE(internal_op, region)
 
@@ -57,7 +57,7 @@ OV_CC_DOMAINS(internal_op);
                                " is disabled!")
 
 #define MATCHER_SCOPE(region)                                                                   \
-    std::string matcher_name(OV_CC_TOSTRING(region));                                           \
+    const std::string matcher_name(OV_CC_TOSTRING(region));                                           \
     if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(ngraph_pass, _, region)) == 0)                        \
         return
 #define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(internal_op, region)
@@ -65,7 +65,7 @@ OV_CC_DOMAINS(internal_op);
 
 #else
 #define MATCHER_SCOPE(region)                                                                   \
-    std::string matcher_name(OV_CC_TOSTRING(region))
+    const std::string matcher_name(OV_CC_TOSTRING(region))
 #define INTERNAL_OP_SCOPE(region)
 #define RUN_ON_FUNCTION_SCOPE(region)
 #endif
