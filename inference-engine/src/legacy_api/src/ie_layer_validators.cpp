@@ -967,8 +967,7 @@ void DetectionOutputValidator::parseParams(CNNLayer* layer) {
 
     if (layer->CheckParamPresence("code_type")) {
         std::string _code_type = layer->GetParamAsString("code_type");
-        for (auto& c: _code_type)
-        {
+        for (auto& c : _code_type) {
             c = std::tolower(c);
         }
         std::vector<std::string> code_types = {"caffe.priorboxparameter.center_size", "caffe.priorboxparameter.corner"};
