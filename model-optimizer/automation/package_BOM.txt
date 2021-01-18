@@ -543,7 +543,6 @@ extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputReshape.py
 extensions/middle/FakeSplitOutputs.py
-extensions/middle/FusedBatchNormNonConstant.py
 extensions/middle/FusedBatchNormTraining.py
 extensions/middle/FuseReshapesSequence.py
 extensions/middle/fusings.py
@@ -616,6 +615,7 @@ extensions/ops/assert_op.py
 extensions/ops/aten.py
 extensions/ops/axpy.py
 extensions/ops/BatchNormInference.py
+extensions/ops/BatchNormInferenceMultipleOutputs.py
 extensions/ops/BatchNormTraining.py
 extensions/ops/binarization.py
 extensions/ops/BlockLSTM.py

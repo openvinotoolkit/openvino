@@ -18,7 +18,6 @@ import unittest
 import numpy as np
 
 from extensions.front.caffe.bn import BNToScaleShift
-from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.extractors import FakeParam
 from mo.utils.unittest.graph import build_graph_with_edge_attrs, build_graph_with_attrs
@@ -47,7 +46,7 @@ class TestBNReplacer(unittest.TestCase):
                                  FakeParam('data', shift)])
         nodes = [
             ('input', {'kind': 'op', 'type': 'Identity', 'op': 'Identity'}),
-            ('bn', {'type': None, 'kind': 'op', 'op': 'batchNormInference', 'pb': bn_pb, 'model_pb': bn_bin}),
+            ('bn', {'type': None, 'kind': 'op', 'op': 'BatchNormInference', 'pb': bn_pb, 'model_pb': bn_bin}),
             ('output', {'kind': 'op', 'type': 'Identity', 'op': 'Identity'}),
         ]
         edges = [
@@ -55,7 +54,6 @@ class TestBNReplacer(unittest.TestCase):
             ('bn', 'output', {'in': 0, 'out': 0}),
         ]
         graph = build_graph_with_attrs(nodes, edges)
-        node = Node(graph, 'bn')
         graph.stage = 'front'
 
         BNToScaleShift().find_and_replace_pattern(graph)

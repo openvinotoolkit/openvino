@@ -19,12 +19,11 @@ from mo.ops.op import Op
 import numpy as np
 
 
-class BatchNormTraining(Op):
+class BatchNormInferenceMO(Op):
     """
-    BatchNormInference will be replaced by BatchNormInference after 
-        FusedBatchNormTraining transformation
+    BatchNormInference with Multiple outputs
     """
-    op = 'batchNormTraining'
+    op = 'BatchNormInferenceMO'
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
@@ -32,7 +31,7 @@ class BatchNormTraining(Op):
             'type': None,
             'op': self.op,
             'in_ports_count': 5,
-            'out_ports_count': 1,
+            'out_ports_count': 6,
             'infer': self.infer
         }, attrs)
 

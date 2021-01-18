@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -305,8 +305,8 @@ class ScaleShiftToMulAdd(unittest.TestCase):
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'op_output')
                                  ],
-                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])}}
-                                ,nodes_with_edges_only=True)
+                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])}},
+                                nodes_with_edges_only=True)
 
         graph.graph['layout'] = 'NHWC'
         convert_scale_shift_to_mul_add(graph)
@@ -411,13 +411,13 @@ class BatchNormDecomposition(unittest.TestCase):
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'const_mul_1_w': {'shape': np.array([3]),
-                                             'value': np.array([0.67419986, 0.55901699, 0.48795004])},
+                                                   'value': np.array([0.67419986, 0.55901699, 0.48795004])},
                                  'mul_1_w': {'shape': np.array([3]),
                                              'value': np.array([0.67419986, 0.55901699, 0.48795004])},
                                  'const_mul_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                                  'mul_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                                  'const_add_1_w': {'shape': np.array([3]),
-                                             'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
+                                                   'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
                                  'add_1_w': {'shape': np.array([3]),
                                              'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
                                  'const_add_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
@@ -489,13 +489,13 @@ class BatchNormDecomposition(unittest.TestCase):
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                                  'const_mul_1_w': {'shape': np.array([3]),
-                                             'value': np.array([0.67419986, 0.55901699, 0.48795004])},
+                                                   'value': np.array([0.67419986, 0.55901699, 0.48795004])},
                                  'mul_1_w': {'shape': np.array([3]),
                                              'value': np.array([0.67419986, 0.55901699, 0.48795004])},
                                  'const_mul_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                                  'mul_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
                                  'const_add_1_w': {'shape': np.array([3]),
-                                             'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
+                                                   'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
                                  'add_1_w': {'shape': np.array([3]),
                                              'value': np.array([-0.67419986, -1.11803399, -1.46385011])},
                                  'const_add_2_w': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},

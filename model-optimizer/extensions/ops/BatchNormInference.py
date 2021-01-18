@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 from mo.graph.graph import Graph
 from mo.ops.op import Op
-import numpy as np
 
 
 class BatchNormInference(Op):
@@ -24,7 +23,7 @@ class BatchNormInference(Op):
     BatchNormInference will be replaced by BNToScaleShift FrontReplacer for Caffe or convert_batch_norm 
     function for other frameworks
     """
-    op = 'batchNormInference'
+    op = 'BatchNormInference'
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
@@ -35,8 +34,7 @@ class BatchNormInference(Op):
             'out_ports_count': 1,
             'infer': self.infer
         }, attrs)
+
     @staticmethod
     def infer(node):
-        output_shape = np.array(node.in_node(0).shape)
-        for port, out_node in node.out_nodes().items():
-            out_node.shape = output_shape
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())

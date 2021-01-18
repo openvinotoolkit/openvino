@@ -27,7 +27,7 @@ class BNToScaleShift(FrontReplacementOp):
     """
     Replaces BN layer with ScaleShift.
     """
-    op = "batchNormInference"
+    op = 'BatchNormInference'
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,8 +17,7 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
-from mo.graph.graph import Graph as gr
+from generator import generator
 
 from extensions.middle.FusedBatchNormTraining import FusedBatchNormTraining
 from mo.front.common.partial_infer.utils import int64_array
@@ -48,11 +47,11 @@ nodes_attributes = {
     'variance_data': {'value': None, 'shape': int64_array([]), 'kind': 'data'},
 
     'batchnorm_train': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'type': None, 'kind': 'op',
-                  'op': 'batchNormTraining', 'eps': 1e-3},
+                        'op': 'batchNormTraining', 'eps': 1e-3},
     'batchnorm_train_data': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'kind': 'data'},
-    
+
     'batchnorm': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'type': None, 'kind': 'op',
-                  'op': 'batchNormInference', 'eps': 1e-3},
+                  'op': 'BatchNormInference', 'eps': 1e-3},
     'batchnorm_data': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'kind': 'data'},
 
     'result': {'kind': 'op', 'op': 'Result'},

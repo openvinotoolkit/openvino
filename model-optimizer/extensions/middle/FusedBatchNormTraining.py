@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,12 +19,13 @@ import numpy as np
 from extensions.ops.mvn import MVN
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
 from extensions.ops.BatchNormInference import BatchNormInference
+from extensions.ops.BatchNormInferenceMultipleOutputs import BatchNormInferenceMO
 
 batchNormAttrList = ['data_format', 'data_type', 'eps', 'fix_gamma', 'shape', 'value']
 
@@ -58,22 +59,22 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
             if bn_train_node.has(batchNormAttr):
                 additional_attrs[batchNormAttr] = bn_train_node[batchNormAttr]
 
-        additional_attrs['name'] = bn_train_node.name + '/batchNormInference'
-        node = BatchNormInference(bn_train_node.graph, additional_attrs).create_node()
+        if len(bn_train_node.out_nodes().items()) > 1:
+            additional_attrs['name'] = bn_train_node.name + '/batchNormInferenceMO'
+            node = BatchNormInference(bn_train_node.graph, additional_attrs).create_node()
+            for port_id, out_node in bn_train_node.out_nodes().items():
+                bn_train_node.out_port(port_id).get_connection().set_source(node.out_port(port_id))
+
+        elif len(bn_train_node.out_nodes().items()) == 1:
+            additional_attrs['name'] = bn_train_node.name + '/batchNormInference'
+            node = BatchNormInference(bn_train_node.graph, additional_attrs).create_node()
+            bn_train_node.out_port(0).get_connection().set_source(node.out_port(0))
+
+        else:
+            assert False, 'Node  {} has not out nodes'.format(bn_train_node.name)
 
         for port_id, _ in bn_train_node.in_nodes().items():
-            bn_train_node.in_port(port_id).get_connection(). \
-                set_destination(node.in_port(port_id))
-
-        for port_id, out_node in bn_train_node.out_nodes().items():
-            if port_id == 0:
-                bn_train_node.out_port(port_id).get_connection().\
-                    set_source(node.out_port(port_id))
-                continue
-            in_connected_ports = out_node.input_ports_with(bn_train_node)
-            pass
-
-
+            bn_train_node.in_port(port_id).get_connection().set_destination(node.in_port(port_id))
 
         shape = node.in_port(1).data.get_shape()
         assert shape is not None, 'The shape of scale input of the BatchNorm node {} is not defined'.format(node.name)

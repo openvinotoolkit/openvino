@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -39,8 +39,8 @@ def convert_batch_norm(graph: Graph):
     """
     nodes = graph.get_op_nodes()
     for node in nodes:
-        if node.has_valid('op') and (node.op in ['BatchNorm', 'BatchNormalization', 
-                                        'batchNormInference']):
+        if node.has_valid('op') and (node.op in ['BatchNorm', 'BatchNormalization',
+                                                 'BatchNormInference', 'BatchNormInferenceMO']):
 
             if any([node.in_port(i).data.get_value() is None for i in range(1, len(node.in_ports()))]):
                 log.warning('Cannot translate FusedBatchNorm {} node with non-constant weights'.format(
@@ -80,7 +80,8 @@ def convert_batch_norm(graph: Graph):
                 scale = np.expand_dims(scale, axis=-1)
                 shift = np.expand_dims(shift, axis=-1)
 
-            _fused_batch_norm_decomposition(graph, node.in_port(0), node.out_port(0), const, beta, scale, shift, can_be_fused)
+            _fused_batch_norm_decomposition(graph, node.in_port(0), node.out_port(0), const, beta, scale, shift,
+                                            can_be_fused)
 
 
 def _fused_batch_norm_decomposition(graph: Graph, tinput: Port, toutput: Port, gamma: Port, beta: Port,
@@ -142,11 +143,13 @@ def convert_scale_shift_to_mul_add(graph: Graph):
         has_weights = True
 
         # We don't need zero biases
-        if shift_port is None or (shift_port.data.get_value() is not None and all([x == 0 for x in shift_port.data.get_value()])):
+        if shift_port is None or (
+                shift_port.data.get_value() is not None and all([x == 0 for x in shift_port.data.get_value()])):
             has_biases = False
 
         # We don't need weights with ones
-        if scale_port is None or (scale_port.data.get_value() is not None and all([x == 1 for x in scale_port.data.get_value()])):
+        if scale_port is None or (
+                scale_port.data.get_value() is not None and all([x == 1 for x in scale_port.data.get_value()])):
             has_weights = False
 
         mul_op = Mul(graph, dict(name=node.name + "/Mul_"))

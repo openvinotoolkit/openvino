@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,48 +17,55 @@
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 from extensions.ops.BatchNormInference import BatchNormInference
+from extensions.ops.BatchNormInferenceMultipleOutputs import BatchNormInferenceMO
 from extensions.ops.BatchNormTraining import BatchNormTraining
 from mo.front.tf.common import tf_data_type_decode
+
 
 def tf_dtype_extractor(pb_dtype, default=None):
     return tf_data_type_decode[pb_dtype][0] if pb_dtype in tf_data_type_decode else default
 
 
-
-def tf_fused_batch_norm_extract(cls, node: Node):
+def tf_fused_batch_norm_extract(node: Node):
     pb = node.pb
-    is_training = pb.attr['is_training'].b
     attrs = {
         'data_format': pb.attr["data_format"].s,
         'data_type': tf_dtype_extractor(pb.attr["T"].type),
         'eps': pb.attr['epsilon'].f
     }
-    (BatchNormTraining if is_training else BatchNormInference)\
-    .update_node_stat(node, attrs)
+    if pb.attr['is_training'].b:
+        BatchNormTraining.update_node_stat(node, attrs)
+    elif len(node.out_nodes().items()) > 1:
+        BatchNormInferenceMO.update_node_stat(node, attrs)
+    else:
+        BatchNormInference.update_node_stat(node, attrs)
 
 
 class FusedBatchNormExtractor(FrontExtractorOp):
     op = "FusedBatchNorm"
     enabled = True
+
     @classmethod
     def extract(cls, node: Node):
-        tf_fused_batch_norm_extract(cls, node)
+        tf_fused_batch_norm_extract(node)
         return cls.enabled
 
 
 class FusedBatchNormV2Extractor(FrontExtractorOp):
     op = "FusedBatchNormV2"
     enabled = True
+
     @classmethod
     def extract(cls, node: Node):
-        tf_fused_batch_norm_extract(cls, node)
+        tf_fused_batch_norm_extract(node)
         return cls.enabled
 
 
 class FusedBatchNormV3Extractor(FrontExtractorOp):
     op = "FusedBatchNormV3"
     enabled = True
+
     @classmethod
     def extract(cls, node: Node):
-        tf_fused_batch_norm_extract(cls, node)
+        tf_fused_batch_norm_extract(node)
         return cls.enabled
