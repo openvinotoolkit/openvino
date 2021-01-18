@@ -61,7 +61,7 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
 
         ngraph::NodeVector dims;
 
-        for (int i = 0; i < maxRank - minRank; i++) {
+        for (size_t i = 0; i < maxRank - minRank; i++) {
             dims.push_back(
                 std::make_shared<ngraph::opset5::Gather>(
                     maxRankNode,
@@ -69,7 +69,7 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
                     ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {0})));
         }
 
-        for (int i = 0; i < minRank; i++) {
+        for (size_t i = 0; i < minRank; i++) {
             const auto minRankDim = std::make_shared<ngraph::opset5::Gather>(
                 minRankNode,
                 ngraph::opset5::Constant::create(shapeElementType, ngraph::Shape{1}, {i}),
