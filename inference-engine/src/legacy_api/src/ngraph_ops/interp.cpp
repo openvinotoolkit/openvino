@@ -67,8 +67,7 @@ shared_ptr<Node> op::Interp::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<Interp>(new_args.at(0), m_attrs);
 }
 
-bool op::Interp::visit_attributes(AttributeVisitor& visitor)
-{
+bool op::Interp::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("align_corners", m_attrs.align_corners);
     visitor.on_attribute("width", m_attrs.width);
     visitor.on_attribute("height", m_attrs.height);

@@ -19,8 +19,8 @@
 
 #include <memory>
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/scatter_nd.hpp"
+#include "default_opset.hpp"
+#include "op/scatter_nd.hpp"
 
 namespace ngraph
 {
