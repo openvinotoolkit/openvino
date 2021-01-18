@@ -45,7 +45,7 @@ namespace ngraph
             };
 
         } // namespace v1
-        using v1::ConvertLike;
+
     } // namespace op
 
 } // namespace ngraph
