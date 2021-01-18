@@ -21,7 +21,7 @@ ngraph::pass::MishFusion::MishFusion() {
     auto tanh = std::make_shared<ngraph::opset4::Tanh>(log);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 

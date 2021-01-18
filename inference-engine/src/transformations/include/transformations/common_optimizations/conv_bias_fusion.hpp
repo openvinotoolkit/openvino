@@ -34,16 +34,6 @@ class TRANSFORMATIONS_API DeconvAddFusion;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvFusion: public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvFusion() : GraphRewrite() {
-        add_matcher<ngraph::pass::ConvAddFusion>();
-        add_matcher<ngraph::pass::ConvMultiplyFusion>();
-        add_matcher<ngraph::pass::DeconvAddFusion>();
-    }
-};
-
 class ngraph::pass::ConvAddFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -60,4 +50,14 @@ class ngraph::pass::DeconvAddFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     DeconvAddFusion();
+};
+
+class ngraph::pass::ConvFusion: public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvFusion() {
+        add_matcher<ngraph::pass::ConvAddFusion>();
+        add_matcher<ngraph::pass::ConvMultiplyFusion>();
+        add_matcher<ngraph::pass::DeconvAddFusion>();
+    }
 };

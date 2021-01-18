@@ -19,13 +19,8 @@ class TRANSFORMATIONS_API ConvertShapeOf3;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertShapeOf3: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertShapeOf3: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertShapeOf3() : GraphRewrite() {
-        convert_shapeof3();
-    }
-
-private:
-    void convert_shapeof3();
+    ConvertShapeOf3();
 };

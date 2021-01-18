@@ -140,7 +140,10 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
 
     // List of final conversion transformations that must to be executed
     // after previous group of transformations
-    manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+
+    if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(f)) {
+        manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+    }
     manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
     manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();

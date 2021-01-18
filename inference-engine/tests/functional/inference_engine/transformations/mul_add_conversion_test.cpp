@@ -132,8 +132,10 @@ public:
 class MulOrAddConversionTests: public MulAddConversionTests {};
 
 TEST_P(MulAddConversionTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertMulAddToScaleShiftOrPower().run_on_function(f);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+    manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
