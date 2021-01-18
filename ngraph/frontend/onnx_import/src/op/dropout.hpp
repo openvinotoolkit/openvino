@@ -18,9 +18,9 @@
 
 #include <memory>
 
+#include "core/null_node.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/core/null_node.hpp"
 
 namespace ngraph
 {

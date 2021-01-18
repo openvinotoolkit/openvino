@@ -103,9 +103,8 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    if ((constOutputShape.size() < 2ul) ||
-        // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
-        (shape_size(constOutputShape) != constOutputShape[0]) ||
+    // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
+    if ((shape_size(constOutputShape) != constOutputShape[0]) ||
         ((constOutputShape[0] != 1ul) && (fqFromWeights->get_output_shape(0)[0] != constOutputShape[0]))) {
         return false;
     }

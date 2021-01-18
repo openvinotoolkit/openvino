@@ -54,6 +54,14 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         "output_original",
         "I8"
     },
+    {
+        { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
+        true,
+        { 255ul, ngraph::Shape { 1 }, { 0.f }, { 254.f }, { -18.7f }, { 18.7f } },
+        false,
+        "output_original",
+        "I8"
+    },
 };
 
 const std::vector<ngraph::Shape> shapes = {
