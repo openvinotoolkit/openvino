@@ -492,7 +492,9 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
     };
     // TODO: better name for matcher? required?
     auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, "SingleNodeMatcher");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace low_precision

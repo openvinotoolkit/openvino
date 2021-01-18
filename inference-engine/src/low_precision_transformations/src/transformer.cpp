@@ -302,7 +302,9 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 TypeRelaxedReplacer::TypeRelaxedReplacer() {
