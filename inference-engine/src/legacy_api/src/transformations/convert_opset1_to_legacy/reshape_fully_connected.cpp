@@ -22,7 +22,7 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
                                                       pattern::any_input()},
                                                       pattern::has_static_shape());
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected> (m.get_match_root());
         if (!fc || transformation_callback(fc)) {
             return false;
