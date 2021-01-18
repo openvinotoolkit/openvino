@@ -19,11 +19,7 @@ from mo.graph.graph import Node
 from extensions.ops.BatchNormInference import BatchNormInference
 from extensions.ops.BatchNormInferenceMultipleOutputs import BatchNormInferenceMO
 from extensions.ops.BatchNormTraining import BatchNormTraining
-from mo.front.tf.common import tf_data_type_decode
-
-
-def tf_dtype_extractor(pb_dtype, default=None):
-    return tf_data_type_decode[pb_dtype][0] if pb_dtype in tf_data_type_decode else default
+from mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 def tf_fused_batch_norm_extract(node: Node):

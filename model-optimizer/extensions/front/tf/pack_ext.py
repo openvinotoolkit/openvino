@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
 """
 from extensions.ops.pack import PackOp
 from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor
-
 from mo.graph.graph import Node
 
 
@@ -27,7 +25,7 @@ class PackFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node: Node):
         pb = node.pb
-        attrs= {
+        attrs = {
             'axis': pb.attr["axis"].i,
             'N': pb.attr["N"].i
         }

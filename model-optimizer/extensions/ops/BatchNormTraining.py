@@ -32,7 +32,7 @@ class BatchNormTraining(Op):
             'type': None,
             'op': self.op,
             'in_ports_count': 5,
-            'out_ports_count': 1,
+            'out_ports_count': 6,
             'infer': self.infer
         }, attrs)
 
