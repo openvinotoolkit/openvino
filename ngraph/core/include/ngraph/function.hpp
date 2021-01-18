@@ -175,9 +175,9 @@ namespace ngraph
         /// \param params new Parameter nodes
         void add_parameters(const ParameterVector& params);
 
-        /// \brief Delete Parameter node from the list of parameters. Method will not delete node from
-        /// graph. Attention: Indexing of parameters will be changed.
-        /// \param param Parameter node to delete
+        /// \brief Delete Parameter node from the list of parameters. Method will not delete node
+        /// from graph. Attention: Indexing of parameters will be changed. \param param Parameter
+        /// node to delete
         void remove_parameter(const std::shared_ptr<op::Parameter>& param);
 
     private:
@@ -213,4 +213,4 @@ namespace ngraph
                                                     0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph
