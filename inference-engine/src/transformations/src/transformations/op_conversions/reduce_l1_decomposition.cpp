@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReduceL1Decomposition, "ReduceL1Decomposition", 0);
 
 ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ReduceL1Decomposition);
     // decomposes ReduceL1 operations into ReduceSum(abs(x))
     auto reduce_l1 = ngraph::pattern::wrap_type<opset4::ReduceL1>();
 
@@ -36,7 +36,7 @@ ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_l1, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_l1, matcher_name);
     register_matcher(m, callback);
 }
 

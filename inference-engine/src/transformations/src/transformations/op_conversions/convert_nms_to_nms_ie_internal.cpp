@@ -18,7 +18,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMSToNMSIEInternal, "ConvertNMSToNMSIEInternal", 0);
 
 ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvertNMSToNMSIEInternal);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -120,6 +120,6 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

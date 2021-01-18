@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNegative, "ConvertNegative", 0);
 
 ngraph::pass::ConvertNegative::ConvertNegative() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvertNegative);
     auto neg = ngraph::pattern::wrap_type<ngraph::opset1::Negative>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -32,6 +32,6 @@ ngraph::pass::ConvertNegative::ConvertNegative() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, matcher_name);
     this->register_matcher(m, callback);
 }

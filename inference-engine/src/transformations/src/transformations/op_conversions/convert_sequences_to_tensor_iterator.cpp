@@ -85,7 +85,7 @@ namespace {
 } // namespace
 
 ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvertRNNSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::RNNSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
@@ -239,12 +239,12 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, matcher_name);
     register_matcher(m, callback);
 }
 
 ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvertGRUSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::GRUSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
@@ -398,12 +398,12 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, matcher_name);
     register_matcher(m, callback);
 }
 
 ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvertLSTMSequenceToTensorIterator);
     // X, H, C, seq_lengths - static, W,R,B - any
     auto rnn_seq = ngraph::pattern::wrap_type<opset5::LSTMSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                      pattern::any_input(pattern::has_static_shape()),
@@ -585,6 +585,6 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, matcher_name);
     register_matcher(m, callback);
 }

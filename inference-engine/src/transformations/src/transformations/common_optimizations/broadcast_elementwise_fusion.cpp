@@ -52,7 +52,7 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
 }
 
 ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
     auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()});
     auto eltwise_input = pattern::any_input();
@@ -78,6 +78,6 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, matcher_name);
     register_matcher(m, callback);
 }

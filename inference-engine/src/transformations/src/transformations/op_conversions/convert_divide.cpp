@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
 
 ngraph::pass::ConvertDivide::ConvertDivide() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvertDivide);
     auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -36,6 +36,6 @@ ngraph::pass::ConvertDivide::ConvertDivide() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MishFusion, "MishFusion", 0);
 
 ngraph::pass::MishFusion::MishFusion() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(MishFusion);
     auto input = ngraph::pattern::any_input();
     auto exp = std::make_shared<ngraph::opset4::Exp>(input);
     auto add = std::make_shared<ngraph::opset4::Add>(exp, ngraph::pattern::wrap_type<ngraph::opset4::Constant>());
@@ -39,6 +39,6 @@ ngraph::pass::MishFusion::MishFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

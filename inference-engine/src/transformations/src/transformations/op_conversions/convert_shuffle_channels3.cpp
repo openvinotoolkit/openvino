@@ -17,7 +17,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleChannels3", 0);
 
 ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvertShuffleChannels3);
     auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input);
 
@@ -99,6 +99,6 @@ ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, matcher_name);
     register_matcher(m, callback);
 }

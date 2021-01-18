@@ -162,7 +162,7 @@ bool conv_callback(ngraph::pattern::Matcher &m) {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvAddFusion, "ConvAddFusion", 0);
 
 ngraph::pass::ConvAddFusion::ConvAddFusion() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvAddFusion);
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
@@ -170,14 +170,14 @@ ngraph::pass::ConvAddFusion::ConvAddFusion() {
         return conv_callback<op::ConvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
 
 ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(ConvMultiplyFusion);
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, std::make_shared<pattern::op::Label>()});
 
@@ -185,14 +185,14 @@ ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
         return conv_callback<op::ConvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DeconvAddFusion, "DeconvAddFusion", 0);
 
 ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(DeconvAddFusion);
     auto conv = ngraph::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));
     auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
@@ -200,6 +200,6 @@ ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
         return conv_callback<op::DeconvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }

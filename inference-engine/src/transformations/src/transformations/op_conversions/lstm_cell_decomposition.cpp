@@ -17,7 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LSTMCellDecomposition, "LSTMCellDecomposition", 0);
 
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(LSTMCellDecomposition);
     auto is_supported_lstm_cell = [](const std::shared_ptr<Node>& n) {
         return pattern::has_class<ngraph::opset1::LSTMCell>()(n) || pattern::has_class<ngraph::opset4::LSTMCell>()(n);
     };
@@ -88,6 +88,6 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, matcher_name);
     register_matcher(m, callback);
 }

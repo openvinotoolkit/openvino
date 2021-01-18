@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PullTransposeThroughFQUp, "PullTransposeThroughFQUp", 0);
 
 ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(PullTransposeThroughFQUp);
     auto m_fq = pattern::wrap_type<opset1::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank()),
                                                           pattern::any_input(pattern::has_static_rank()),
@@ -59,6 +59,6 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_transpose, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_transpose, matcher_name);
     this->register_matcher(m, callback);
 }

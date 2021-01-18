@@ -17,7 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusion, "HSwishFusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithReluDiv, "HSwishFusionWithReluDiv", 0);
 
 ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(HSwishFusionWithReluDiv);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -62,14 +62,14 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithReluMul, "HSwishFusionWithReluMul", 0);
 
 ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(HSwishFusionWithReluMul);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -114,14 +114,14 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithoutRelu, "HSwishFusionWithoutRelu", 0);
 
 ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(HSwishFusionWithoutRelu);
     // Replaces a sub-graph x * (min(max(x + 3, 0), 6) / 6) with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -170,14 +170,14 @@ ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithClamp, "HSwishFusionWithClamp", 0);
 
 ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
-    MATCHER_SCOPE();
+    MATCHER_SCOPE(HSwishFusionWithClamp);
     // Replaces a sub-graph x * (Clamp(x + 3, 0, 6) * const(1/6)) with a HSwish op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -216,6 +216,6 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }
