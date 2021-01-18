@@ -98,8 +98,7 @@ namespace ngraph
         : public DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>
     {
     public:
-        AttributeAdapter(
-            op::v5::Loop::SpecialBodyPorts& value)
+        AttributeAdapter(op::v5::Loop::SpecialBodyPorts& value)
             : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value)
         {
         }

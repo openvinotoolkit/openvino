@@ -168,10 +168,12 @@ void op::v5::Loop::validate_and_infer_types()
             m_num_iterations = val[0];
     }
 
-    // WA: first input description with index 0 or 1 means that Loop consructor will duplicate it in the inputs.
+    // WA: first input description with index 0 or 1 means that Loop consructor will duplicate it in
+    // the inputs.
     // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
     size_t input_offset = 2;
-    if (m_input_descriptions[0].get()->m_input_index == 0 || m_input_descriptions[0].get()->m_input_index == 1)
+    if (m_input_descriptions[0].get()->m_input_index == 0 ||
+        m_input_descriptions[0].get()->m_input_index == 1)
         input_offset--;
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions.size() + input_offset,
@@ -308,10 +310,12 @@ void op::v5::Loop::validate_and_infer_types()
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v5_Loop_clone_with_new_inputs);
-    // WA: first input description with index 0 or 1 means that Loop consructor will duplicate it in the inputs.
+    // WA: first input description with index 0 or 1 means that Loop consructor will duplicate it in
+    // the inputs.
     // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
     size_t input_offset = 2;
-    if (m_input_descriptions[0].get()->m_input_index == 0 || m_input_descriptions[0].get()->m_input_index == 1)
+    if (m_input_descriptions[0].get()->m_input_index == 0 ||
+        m_input_descriptions[0].get()->m_input_index == 1)
         input_offset--;
     // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body
     // params
