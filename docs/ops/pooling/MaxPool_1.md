@@ -135,7 +135,7 @@ auto_pad = "valid"
 output = [[[3, 5, 5, 9, 9]]]
 ```
 
-Example 3 shows how *MaxPool* operates with 4D input using 2D kernel `auto_pad = same_lower`
+Example 3 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = same_lower`
 
 ```
 input = [[[[-1, 2, 3],
@@ -171,7 +171,7 @@ output = [[[[5, 5, -6],
             [8, 2, -3]]]]
 ```
 
-Example 5 shows how *MaxPool* operates with `auto_pad = valid` and `rounding_type = ceil`
+Example 5 shows how *MaxPool* operates with 4D input using 2D kernel, `auto_pad = valid` and `rounding_type = ceil`
 
 ```
 input = [[[[-1, 2, 3],
