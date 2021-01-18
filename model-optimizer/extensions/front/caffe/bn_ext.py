@@ -28,7 +28,7 @@ class BatchNormalizationExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         eps = node.pb.batch_norm_param.eps
-        attrs= {
+        attrs = {
            'eps': eps,
         }
         pb_model = None if not node.has('pb_model') else node.pb_model
