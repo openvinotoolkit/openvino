@@ -1,4 +1,4 @@
-# Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
+C:\Documents and Settings\myshevts\Documents\!Work\IE\dldt\inference-engine\samples\benchmark_app\README.md# Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
 
 This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
 
@@ -96,8 +96,12 @@ Options:
                               estimations the number of streams should be set to 1.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
-    -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
-
+    -pin "YES"/"HYBRID_AWARE"
+	 "NUMA"/"NO"          Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
+					enabling threads->cores pinning ("YES", which is already default for a conventional CPU),  
+			                letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
+			                threads->(NUMA)nodes ("NUMA") or 
+			      	        completely disable ("NO") CPU inference threads pinning.
 
   Statistics dumping options:
     -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
