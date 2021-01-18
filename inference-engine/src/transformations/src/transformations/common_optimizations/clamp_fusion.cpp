@@ -55,6 +55,6 @@ ngraph::pass::ClampFusion::ClampFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(min_pattern, get_type_info().name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(min_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
