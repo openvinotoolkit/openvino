@@ -20,8 +20,17 @@ private:
         std::streampos seekoff(std::streamoff off, std::ios_base::seekdir way, std::ios_base::openmode which) override;
     };
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wreorder"
+#endif
+
     BlobBuffer buffer;
     Blob::CPtr blob;
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif
 
 public:
     BlobStream(const Blob::CPtr& blob);

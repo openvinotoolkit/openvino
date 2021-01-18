@@ -10,14 +10,14 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShapeOf3, "ConvertShapeOf3", 0);
 
-void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
-    auto input = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
-    auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input);
+ngraph::pass::ConvertShapeOf3::ConvertShapeOf3() {
+    auto shapeof = pattern::wrap_type<ngraph::opset3::ShapeOf>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto shapeof = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf> (m.get_match_root());
         if (!shapeof) {
             return false;
@@ -43,7 +43,5 @@ void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, "ConvertShapeOf3");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    register_matcher(m, callback);
 }

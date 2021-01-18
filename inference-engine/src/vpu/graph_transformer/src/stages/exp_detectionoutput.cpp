@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ void FrontEnd::parseExpDetectionOutput(const Model& model, const ie::CNNLayerPtr
     params.max_detections_per_image = layer->GetParamAsInt("max_detections_per_image", 0);
     params.num_classes = layer->GetParamAsInt("num_classes", 0);
     params.post_nms_count = layer->GetParamAsInt("post_nms_count", 0);
-    params.class_agnostic_box_regression = layer->GetParamAsFloat("class_agnostic_box_regression", 0) ? 1 : 0;
+    params.class_agnostic_box_regression = layer->GetParamAsBool("class_agnostic_box_regression", false);
 
     auto inputBoxes    = inputs[0];   // [numRois][4]
     auto inputDeltas   = inputs[1];   // [numRois]([numClasses][4])

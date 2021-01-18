@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -380,8 +380,6 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
             variable_id_to_read_value.at(std::dynamic_pointer_cast<ngraph::op::Assign>(assign)->get_variable_id()));
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructCNNNetwork");
-
     return function;
 }
 
@@ -422,11 +420,11 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
 }
 
 std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
-    OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
-
     std::shared_ptr<ngraph::Function> function;
     XmlDeserializer visitor(root, weights, opsets);
     visitor.on_attribute("net", function);
+
+    OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
 
     CNNNetwork net(function, _exts);
     parsePreProcess(net, root, weights);
@@ -680,7 +678,15 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     }
 
     // Try to create operation from loaded opsets
-    if (!ngraphNode && opsetIt != opsets.end()) {
+    auto version = params.version;
+    static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
+                                                                            "ExperimentalDetectronPriorGridGenerator"};
+    if (experimental_detectrons.count(params.type)) {
+        version = "opset6";
+    }
+
+    if (!ngraphNode && opsets.count(version)) {
+        auto opset = opsets.at(version);
         auto const & type = params.type == "Const"
                                 ? "Constant"
                                 : params.type;
@@ -693,10 +699,9 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
                         << " from unsupported opset: " << params.version;
                 }
+                opset = opsetIt->second;
             }
         }
-
-        auto const & opset = opsetIt->second;
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         if (!ngraphNode) {
@@ -901,7 +906,6 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
         output_map[ext_port_id] = _output;
     }
 
-    int i = 0;
     for (const auto& output : output_map) {
         auto& _output = output.second;
         auto axis_attr = _output.attribute("axis");
@@ -1074,7 +1078,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::RegionYolo>::c
     auto axis = GetIntAttr(dn, "axis");
     auto classes = GetUIntAttr(dn, "classes");
     auto coords = GetUIntAttr(dn, "coords");
-    auto do_softmax = GetIntAttr(dn, "do_softmax");
+    auto do_softmax = GetBoolAttr(dn, "do_softmax");
     auto end_axis = GetIntAttr(dn, "end_axis");
     auto num = GetUIntAttr(dn, "num");
     auto mask = getParameters<int64_t>(dn, "mask", {});
