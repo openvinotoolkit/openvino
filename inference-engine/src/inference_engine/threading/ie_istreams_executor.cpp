@@ -54,6 +54,18 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
                 _streams = static_cast<int>(getAvailableNUMANodes().size());
             } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
+                //#if defined(TBB_INTERFACE_VERSION) && (TBB_INTERFACE_VERSION >= 12010) // TBB with hybrid CPU aware task_arena api
+                //const auto core_types = oneapi::tbb::info::core_types();
+                //if ( 1 /*hybrid CPU*/) {
+                //    std::map<oneapi::tbb::core_type_id, int> streams_per_core_types;
+                //    for (auto iter = core_types.begin(); iter < core_types.end(); iter++) {
+                //        const auto& type = *iter;
+                //        streams_per_core_types[type] = std::max(1, oneapi::tbb::info::default_concurrency(type) / 2 /* threads per stream as hybrid's default*/);
+                //    }
+                //    _streams = std::accumulate(streams_per_core_types.begin(), streams_per_core_types.end(),
+                //        0, [](int sum, const auto& type) {return sum + type.second; });
+                //}
+                //#endif
                 const int sockets = static_cast<int>(getAvailableNUMANodes().size());
                 // bare minimum of streams (that evenly divides available number of core)
                 const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
@@ -118,8 +130,9 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) {
                 return {CONFIG_VALUE(NO)};
             break;
             case IStreamsExecutor::ThreadBindingType::CORES:
-                return {CONFIG_VALUE(YES)};
-            break;
+            case IStreamsExecutor::ThreadBindingType::BIG_CORES:
+                return { CONFIG_VALUE(YES) };
+                break;
             case IStreamsExecutor::ThreadBindingType::NUMA:
                 return {CONFIG_VALUE(NUMA)};
             break;

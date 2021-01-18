@@ -22,6 +22,14 @@ namespace MKLDNNPlugin {
 using namespace InferenceEngine;
 
 Config::Config() {
+// TODO:
+//#if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
+//    // Hybrid CPUs are subject to the heavy core-parking, so we shall disable any threads' binding
+//    const auto core_types = oneapi::tbb::info::core_types();
+//    if (core_types.size() > 1 /*Hybrid CPU*/)
+//        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+//#endif
+
 #if (defined(__APPLE__) || defined(_WIN32))
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION >= 11100)
     // If we sure that TBB has NUMA aware API part.

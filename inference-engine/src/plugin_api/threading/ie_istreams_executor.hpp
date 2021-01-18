@@ -40,8 +40,10 @@ public:
      */
     enum ThreadBindingType : std::uint8_t {
         NONE,    //!< Don't bind threads
-        CORES,   //!< Bind threads to cores
-        NUMA     //!< Bind threads to NUMA nodes
+        CORES,   //!< Bind threads to cores (linearly)
+        NUMA,    //!< Bind threads to NUMA nodes
+        LITTLE_CORES,  //!< Bind threads to "LITTLE" core only
+        BIG_CORES      //!< Bind threads to "BIG" cores only
     };
 
     /**
