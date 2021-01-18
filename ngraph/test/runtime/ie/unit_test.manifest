@@ -1168,6 +1168,13 @@ IE_CPU.roi_pooling_1x1_bilinear
 
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs
+IE_CPU.onnx_model_reduce_sum_13_axes_as_input
+IE_CPU.onnx_model_reduce_sum_13_input_dynamic
+IE_CPU.onnx_model_reduce_sum_13_axes_empty_dynamic_rank_input
+IE_CPU.onnx_model_reduce_sum_dynamic_rank_input
+
+# Axes has zero dimension which is not allowed
+IE_CPU.onnx_model_reduce_sum_13_axes_as_0_dim_input
 
 # output mismatch
 IE_CPU.gather_nd_batch_1d_from_3d_negative

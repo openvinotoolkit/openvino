@@ -17,9 +17,12 @@ import numpy as np
 import onnx
 import pytest
 
-from tests.test_onnx.utils import run_node
-from tests import (xfail_issue_35925,
-                   xfail_issue_43523)
+from tests.runtime import get_runtime
+from tests.test_onnx.utils import (
+    run_node,
+    import_onnx_model,
+)
+from tests import xfail_issue_35925
 
 reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
 reduce_axis_parameters = [
@@ -32,12 +35,15 @@ reduce_axis_parameters = [
     (0, 1, 2)
 ]
 
-reduce_operation_parameters = [
+reduce_operation_parameters_as_attr = [
     ("ReduceMax", np.max),
     ("ReduceMin", np.min),
     ("ReduceMean", np.mean),
-    pytest.param("ReduceSum", np.sum, marks=xfail_issue_43523),
     ("ReduceProd", np.prod)
+]
+
+reduce_operation_parameters_as_const = [
+    ("ReduceSum", np.sum),
 ]
 
 
@@ -47,22 +53,56 @@ def import_and_compute(op_type, input_data, **node_attrs):
     return run_node(node, data_inputs).pop()
 
 
-@pytest.mark.parametrize("operation, ref_operation", [
-    ("ReduceMax", np.max),
-    ("ReduceMin", np.min),
-    ("ReduceMean", np.mean),
-    ("ReduceSum", np.sum),
-    ("ReduceProd", np.prod)
-])
+def import_and_compute_with_axes_as_const(op_type, data, axes, **node_attrs):
+    data_input = np.array(data)
+    axes_input = np.array(axes, dtype=int)
+    axes_const_node = onnx.helper.make_node(
+        "Constant",
+        inputs=[],
+        outputs=["const_axes"],
+        value=onnx.helper.make_tensor(
+            name="const_axes",
+            data_type=onnx.TensorProto.INT64,
+            dims=axes_input.shape,
+            vals=axes_input.flatten(),
+        ),
+    )
+    node = onnx.helper.make_node(
+        op_type, inputs=["x", "const_axes"], outputs=["y"], **node_attrs
+    )
+    graph = onnx.helper.make_graph(
+        [axes_const_node, node],
+        "test_graph",
+        [onnx.helper.make_tensor_value_info("x", onnx.TensorProto.FLOAT, data_input.shape)],
+        [onnx.helper.make_tensor_value_info("y", onnx.TensorProto.FLOAT, ())],
+    )
+
+    model = onnx.helper.make_model(graph, producer_name="ngraph ONNX Importer")
+    model.opset_import[0].version = 13
+    ng_model_function = import_onnx_model(model)
+    runtime = get_runtime()
+    computation = runtime.computation(ng_model_function)
+    return computation(data_input)[0]
+
+
+@pytest.mark.parametrize("operation, ref_operation",
+                         reduce_operation_parameters_as_attr + reduce_operation_parameters_as_const)
 def test_reduce_operation_keepdims_none_axes(operation, ref_operation):
     assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=True),
                           ref_operation(reduce_data, keepdims=True))
 
 
-@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
+@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters_as_attr)
 @pytest.mark.parametrize("axes", reduce_axis_parameters)
-def test_reduce_operation_keepdims(operation, ref_operation, axes):
+def test_reduce_operation_keepdims_with_axes_as_attr(operation, ref_operation, axes):
     assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=True),
+                          ref_operation(reduce_data, keepdims=True, axis=axes))
+
+
+@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters_as_const)
+@pytest.mark.parametrize("axes", reduce_axis_parameters)
+def test_reduce_operation_keepdims_with_axes_as_const(operation, ref_operation, axes):
+    assert np.array_equal(import_and_compute_with_axes_as_const(operation, reduce_data, axes, keepdims=True),
                           ref_operation(reduce_data, keepdims=True, axis=axes))
 
 
@@ -75,10 +115,32 @@ def test_reduce_operation_keepdims(operation, ref_operation, axes):
     (0, 2),
     (1, 2),
     pytest.param((0, 1, 2), marks=xfail_issue_35925)])
-@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
-def test_reduce_operation_no_keepdims(operation, ref_operation, axes):
+@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters_as_attr)
+def test_reduce_operation_no_keepdims_axes_as_attr(operation, ref_operation, axes):
     if axes:
         assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=False),
+                              ref_operation(reduce_data, keepdims=False, axis=axes))
+    else:
+        assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=False),
+                              ref_operation(reduce_data, keepdims=False))
+
+
+@pytest.mark.parametrize("axes", [
+    pytest.param(None, marks=xfail_issue_35925),
+    (0,),
+    (1,),
+    (2,),
+    (0, 1),
+    (0, 2),
+    (1, 2),
+    pytest.param((0, 1, 2), marks=xfail_issue_35925)])
+@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters_as_const)
+def test_reduce_operation_no_keepdims_axes_as_const(operation, ref_operation, axes):
+    if axes:
+        assert np.array_equal(import_and_compute_with_axes_as_const(operation,
+                                                                    reduce_data,
+                                                                    axes,
+                                                                    keepdims=False),
                               ref_operation(reduce_data, keepdims=False, axis=axes))
     else:
         assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=False),
