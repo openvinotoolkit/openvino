@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -678,7 +678,15 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     }
 
     // Try to create operation from loaded opsets
-    if (!ngraphNode && opsetIt != opsets.end()) {
+    auto version = params.version;
+    static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
+                                                                            "ExperimentalDetectronPriorGridGenerator"};
+    if (experimental_detectrons.count(params.type)) {
+        version = "opset6";
+    }
+
+    if (!ngraphNode && opsets.count(version)) {
+        auto opset = opsets.at(version);
         auto const & type = params.type == "Const"
                                 ? "Constant"
                                 : params.type;
@@ -691,10 +699,9 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
                         << " from unsupported opset: " << params.version;
                 }
+                opset = opsetIt->second;
             }
         }
-
-        auto const & opset = opsetIt->second;
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         if (!ngraphNode) {
