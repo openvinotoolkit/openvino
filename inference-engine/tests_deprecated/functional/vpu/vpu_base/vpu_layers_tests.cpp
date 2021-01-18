@@ -240,8 +240,7 @@ void vpuLayersTests::readNetwork(const std::string& modelFilename, const std::st
 }
 
 bool vpuLayersTests::Infer() {
-    if (_inputMap.empty() ||
-        _outputMap.empty()) {}
+    if (_inputMap.empty() || _outputMap.empty())
         return false;
 
     _inferRequest.Infer();
