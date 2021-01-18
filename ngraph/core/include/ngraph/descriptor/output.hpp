@@ -72,9 +72,6 @@ namespace ngraph
             /// \return the element type of the output
             const element::Type& get_element_type() const;
 
-            const std::unordered_set<std::string>& get_names() const;
-            void set_names(const std::unordered_set<std::string>& names);
-
             Output(const Output&) = default;
             Output(Output&&) = default;
             Output& operator=(const Output&) = default;
@@ -84,7 +81,6 @@ namespace ngraph
             size_t m_index;
             std::shared_ptr<Tensor> m_tensor;
             std::vector<Input*> m_inputs;
-            std::unordered_set<std::string> m_names;
         };
     }
 }

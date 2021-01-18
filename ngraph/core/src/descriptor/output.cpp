@@ -78,13 +78,3 @@ const element::Type& descriptor::Output::get_element_type() const
 {
     return m_tensor->get_element_type();
 }
-
-const std::unordered_set<std::string>& descriptor::Output::get_names() const
-{
-    return m_names;
-}
-
-void descriptor::Output::set_names(const std::unordered_set<std::string>& names)
-{
-    m_names = names;
-}

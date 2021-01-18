@@ -780,7 +780,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     ngraphNode->set_friendly_name(params.name);
     for (size_t i = 0; i < params.outputPorts.size() && i < ngraphNode->get_output_size(); ++i) {
         if (!params.outputPorts[i].names.empty())
-            ngraphNode->output(i).set_names(params.outputPorts[i].names);
+            ngraphNode->get_output_tensor(i).set_names(params.outputPorts[i].names);
     }
 
     return ngraphNode;

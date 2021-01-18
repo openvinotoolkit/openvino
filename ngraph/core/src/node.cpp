@@ -145,7 +145,7 @@ std::shared_ptr<Node>
     }
     for (size_t i = 0; i < get_output_size(); i++)
     {
-        clone->output(i).set_names(output(i).get_names());
+        clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
     }
     return clone;
 }

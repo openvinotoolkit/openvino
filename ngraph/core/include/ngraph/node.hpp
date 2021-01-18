@@ -327,7 +327,7 @@ namespace ngraph
         descriptor::Tensor& get_input_tensor(size_t i) const;
 
         /// Returns the tensor name for output i
-        NGRAPH_DEPRECATED("Tensor names were deprecated. Please use output names instead.")
+        NGRAPH_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
         const std::string& get_output_tensor_name(size_t i) const;
 
         std::set<Input<Node>> get_output_target_inputs(size_t i) const;
@@ -348,7 +348,7 @@ namespace ngraph
         const PartialShape& get_input_partial_shape(size_t i) const;
 
         /// Returns the tensor name for input i
-        NGRAPH_DEPRECATED("Tensor names were deprecated.")
+        NGRAPH_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
         const std::string& get_input_tensor_name(size_t i) const;
 
         std::unordered_set<descriptor::Tensor*> liveness_new_list;

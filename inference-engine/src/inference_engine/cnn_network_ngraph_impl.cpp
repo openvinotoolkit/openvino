@@ -142,7 +142,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
 
         // map original names to OpenVINO name
         _opNames[outName] = outName;
-        for (const auto& name : layer->output(0).get_names()) {
+        for (const auto& name : layer->get_output_tensor(0).get_names()) {
             _tensorNames[name] = outName;
         }
 
@@ -266,7 +266,7 @@ void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & ou
     _outputData[dataName] = data;
 
     // Save original framework names
-    for (const auto& name : output.get_names()) {
+    for (const auto& name : output.get_tensor().get_names()) {
         _tensorNames[name] = dataName;
     }
     for (const auto consumerInput : output.get_target_inputs()) {
