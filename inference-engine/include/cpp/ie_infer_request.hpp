@@ -267,6 +267,7 @@ public:
      * @return A vector of Memory State objects
      */
     std::vector<VariableState> QueryState() {
+        IE_SUPPRESS_DEPRECATED_START
         if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
         IVariableState::Ptr pState = nullptr;
         auto res = OK;
@@ -281,6 +282,7 @@ public:
                 controller.push_back(VariableState(pState, plg));
             }
         }
+        IE_SUPPRESS_DEPRECATED_END
 
         return controller;
     }
