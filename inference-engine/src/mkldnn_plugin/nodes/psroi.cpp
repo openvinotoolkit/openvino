@@ -137,8 +137,8 @@ public:
         const int outBlockCount = outputChannelsPadding / outBlockSize;
 
         int hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
-        auto outOrder = dstDesc.getBlockingDesc().getOrder();
-        auto inOrder = srcDesc.getBlockingDesc().getOrder();
+        const auto& outOrder = dstDesc.getBlockingDesc().getOrder();
+        const auto& inOrder = srcDesc.getBlockingDesc().getOrder();
         for (int i = 0; i < outOrder.size(); i++) {
             if (outOrder[i] == 2) hOutStrIndex = i;
             if (outOrder[i] == 3) wOutStrIndex = i;
@@ -155,8 +155,7 @@ public:
 
         int realRois = 0;
         for (; realRois < nn; realRois++) {
-            const float *bottomRois = bottomRoisBeginning + realRois * 5;
-            int roiBatchInd = static_cast<int>(bottomRois[0]);
+            int roiBatchInd = static_cast<int>(bottomRoisBeginning[realRois * 5]);
             if (roiBatchInd == -1) {
                 break;
             }
@@ -205,9 +204,9 @@ public:
                 if (binArea) {
                     float outSum = 0.0f;
                     const int heightIndexBound = hEnd * hInputStride;
-                    const int weightIndexBound = wEnd * wInputStride;
+                    const int widthIndexBound = wEnd * wInputStride;
                     for (int hh = hStart * hInputStride; hh < heightIndexBound; hh += hInputStride) {
-                        for (int ww = wStart * wInputStride; ww < weightIndexBound; ww += wInputStride) {
+                        for (int ww = wStart * wInputStride; ww < widthIndexBound; ww += wInputStride) {
                             outSum += srcData[binOffIn_ + hh + ww + inBlkRes_];
                         }
                     }
@@ -221,6 +220,10 @@ public:
                 dstData[dstIndex] = 0;
 
                 for (size_t binY = 0; binY < spatialBinsY; binY++) {
+                    const float boxYmin = roiStartH + (binY + 0) * (roiHeight / spatialBinsY);
+                    const float boxYmax = roiStartH + (binY + 1) * (roiHeight / spatialBinsY);
+                    const float heightScale = nh > 1 ? (boxYmax - boxYmin) * (height - 1) / (pooledHeight - 1) : 0.0f;
+                    const float inY = nh > 1 ? (h_ * heightScale + boxYmin * (height - 1)) : 0.5f * (boxYmin + boxYmax) * (height - 1);
                     for (size_t binX = 0; binX < spatialBinsX; binX++) {
                         size_t gc = c_ + (binY * spatialBinsX + binX) * nc;
                         if (inFmt == Layout::NHWC) {
@@ -235,13 +238,8 @@ public:
 
                         const float boxXmin = roiStartW + (binX + 0) * (roiWidth / spatialBinsX);
                         const float boxXmax = roiStartW + (binX + 1) * (roiWidth / spatialBinsX);
-                        const float boxYmin = roiStartH + (binY + 0) * (roiHeight / spatialBinsY);
-                        const float boxYmax = roiStartH + (binY + 1) * (roiHeight / spatialBinsY);
 
-                        const float heightScale = nh > 1 ? (boxYmax - boxYmin) * (height - 1) / (pooledHeight - 1) : 0.0f;
                         const float widthScale = nw > 1 ? (boxXmax - boxXmin) * (width - 1) / (pooledWidth - 1) : 0.0f;
-
-                        const float inY = nh > 1 ? (h_ * heightScale + boxYmin * (height - 1)) : 0.5f * (boxYmin + boxYmax) * (height - 1);
                         const float inX = nw > 1 ? (w_ * widthScale + boxXmin * (width - 1)) : 0.5f * (boxXmin + boxXmax) * (width - 1);
 
                         if (!(inY < 0 || inY > height - 1 || inX < 0 || inX > width - 1)) {
@@ -283,11 +281,11 @@ public:
                 roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
                 if (inFmt == Layout::NHWC) {
                     parallel_for2d(nh, nw, [&](int h, int w) {
+                        const int binOffsetOutput = n * nc * nh * nw;
+                        const int binOffsetInput = roiBatchInd * channels * height * width;
                         for (int c = 0; c < nc; c++) {
                             const int gc = (c * groupSize + h) * groupSize + w;
-                            const int binOffsetInput = roiBatchInd * channels * height * width + gc;
-                            const int binOffsetOutput = n * nc * nh * nw + c;
-                            avgPsroi(c, h, w, 0, 0, binOffsetInput, binOffsetOutput);
+                            avgPsroi(c, h, w, 0, 0, binOffsetInput + gc, binOffsetOutput + c);
                         }
                     });
                 } else {  // nchw, nChw16c, nChw8c
@@ -316,10 +314,10 @@ public:
 
                 int outputBlockIdx, binOffsetOutput, outputBlockResidual;
                 if (inFmt == Layout::NHWC) {
+                    binOffsetOutput = n * nc * nh * nw;
                     parallel_for2d(nh, nw, [&](int h, int w) {
                         for (int c = 0; c < nc; c++) {
-                            binOffsetOutput = n * nc * nh * nw + c;
-                            bilinearPsroi(c, h, w, 0, binOffsetOutput);
+                            bilinearPsroi(c, h, w, 0, binOffsetOutput + c);
                         }
                     });
                 } else {  // nchw, nChw16c, nChw8c
@@ -400,34 +398,37 @@ public:
             }
         });
 
-        for (int n = realRois; n < nn; n++) {
-            parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
-                // we don't care about blocked format, because data is filled per batch
-                int index = n * nc * nh * nw + c * nh * nw + h * nw + w;
-                dstData[index] = 0;
-            });
-        }
+        memset(dstData + realRois * nc * nh * nw, 0, (nn - realRois) * nc * nh * nw * sizeof(outputType));
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
-        auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
-        auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
+        try {
+            auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
+            auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
 
-        if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
-              (inputPrec == Precision::FP32 && outputPrec == Precision::FP32)))
-            return NOT_IMPLEMENTED;
+            if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
+                  (inputPrec == Precision::FP32 && outputPrec == Precision::FP32)))
+                return NOT_IMPLEMENTED;
 
-        PSROIPoolingContext ctx = {
-                *this,
-                inputs,
-                outputs
-        };
+            PSROIPoolingContext ctx = {
+                    *this,
+                    inputs,
+                    outputs
+            };
 
-        OV_SWITCH(MKLDNNPlugin, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
-                  OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-                  OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
+            OV_SWITCH(MKLDNNPlugin, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
+                      OV_CASE2(Precision::FP32, Precision::FP32, float, float),
+                      OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
 
-        return OK;
+            return OK;
+        }
+        catch (const std::exception& excp) {
+            snprintf(resp->msg, sizeof(resp->msg), "%s", excp.what());
+            return GENERAL_ERROR;
+        }
+        catch(...) {
+            return GENERAL_ERROR;
+        }
     }
 
     template <typename inputType>

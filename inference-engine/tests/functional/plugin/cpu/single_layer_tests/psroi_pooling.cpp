@@ -41,12 +41,12 @@ typedef std::tuple<
 
 typedef std::tuple<
         CPULayerTestsDefinitions::PSROIPoolingLayerTestParams,
-        CPUSpecificParams> ROIAlignLayerCPUTestParamsSet;
+        CPUSpecificParams> PSROIPoolingLayerCPUTestParamsSet;
 
-class PSROIPoolingLayerCPUTest : public testing::WithParamInterface<ROIAlignLayerCPUTestParamsSet>,
+class PSROIPoolingLayerCPUTest : public testing::WithParamInterface<PSROIPoolingLayerCPUTestParamsSet>,
                              virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ROIAlignLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<PSROIPoolingLayerCPUTestParamsSet> obj) {
         CPULayerTestsDefinitions::PSROIPoolingLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
@@ -64,7 +64,7 @@ public:
         result << "spatialScale=" << spatialScale << "_";
         result << "outputD=" << outputDim << "_";
         result << "groupS=" << groupSize << "_";
-        result << (netPr == Precision::FP32 ? "FP32" : "BF16") << "_";
+        result << netPr.name() << "_";
         result << mode << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
@@ -109,17 +109,11 @@ TEST_P(PSROIPoolingLayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* CPU PARAMS */
-std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    std::vector<CPUSpecificParams> resCPUParams;
-    resCPUParams.push_back(CPUSpecificParams{{nchw, nc}, {nchw}, {}, {}});
-    resCPUParams.push_back(CPUSpecificParams{{nhwc, nc}, {nhwc}, {}, {}});
-    if (with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw16c, nc}, {blocked}, {}, {}});
-    } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc}, {blocked}, {}, {}});
-    }
-    return resCPUParams;
-}
+std::vector<CPUSpecificParams> resCPUParams {
+    CPUSpecificParams{{nchw, nc}, {nchw}, {}, {}},
+    CPUSpecificParams{{nhwc, nc}, {nhwc}, {}, {}},
+    CPUSpecificParams{{nChw16c, nc}, {blocked}, {}, {}}
+};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -173,7 +167,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PSROIPoolingAverageLayoutTest, PSROIPoolingLayerCP
                                         psroiPoolingAverageParams,
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice())),
+                                ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_PSROIPoolingBilinearLayoutTest, PSROIPoolingLayerCPUTest,
@@ -182,7 +176,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PSROIPoolingBilinearLayoutTest, PSROIPoolingLayerC
                                         psroiPoolingBilinearParams,
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice())),
+                                ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
