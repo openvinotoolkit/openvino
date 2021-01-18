@@ -83,6 +83,8 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
             return;
         }
     }
+#else
+    (void)H_dst_stride;
 #endif  // HAVE_SSE
 
     if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW) {
@@ -218,6 +220,8 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
             return;
         }
     }
+#else
+    (void)H_dst_stride;
 #endif  // HAVE_SSE
     if (src->getTensorDesc().getLayout() == NDHWC && dst->getTensorDesc().getLayout() == NCDHW) {
         for (size_t n = 0; n < N; n++) {
