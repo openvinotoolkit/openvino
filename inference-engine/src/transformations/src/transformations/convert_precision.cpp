@@ -327,7 +327,7 @@ inline dst_type convert_value(src_type val) {
 // and we don't need to compare and clamp the input to std::numeric_limits<int32_t>::lowest()
 template <>
 inline int32_t convert_value<uint64_t, int32_t>(uint64_t val) {
-    if (val > std::numeric_limits<int32_t>::max()) {
+    if (val > static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
         return std::numeric_limits<int32_t>::max();
     }
     return static_cast<int32_t>(val);

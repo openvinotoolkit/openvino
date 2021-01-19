@@ -134,6 +134,15 @@ f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, 
 #pragma warning(disable : 4018)
 #endif
 
+namespace details {
+
+// To overcame syntax parse error, when `>` comparison operator is threated as template closing bracket
+constexpr inline bool Greater(size_t v1, size_t v2) {
+    return v1 > v2;
+}
+
+}  // namespace details
+
 /**
  * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
  *             into destination type range
@@ -148,15 +157,29 @@ template <class OutT, class InT, typename std::enable_if<
         !std::is_same<OutT, InT>::value
         >::type* = nullptr>
 inline OutT saturate_cast(const InT& value) {
-    if (std::numeric_limits<OutT>::max() > std::numeric_limits<InT>::max() &&
-        std::numeric_limits<OutT>::min() < std::numeric_limits<InT>::min()) {
+    using MaxT = typename std::conditional<
+            details::Greater(sizeof(OutT), sizeof(InT)),
+            typename std::make_unsigned<OutT>::type,
+            typename std::make_unsigned<InT>::type
+        >::type;
+    using MinT = typename std::conditional<
+            details::Greater(sizeof(OutT), sizeof(InT)),
+            typename std::make_signed<OutT>::type,
+            typename std::make_signed<InT>::type
+        >::type;
+
+    static const MaxT OUT_MAX = static_cast<MaxT>(std::numeric_limits<OutT>::max());
+    static const MaxT IN_MAX = static_cast<MaxT>(std::numeric_limits<InT>::max());
+
+    static const MinT OUT_MIN = static_cast<MinT>(std::numeric_limits<OutT>::min());
+    static const MinT IN_MIN = static_cast<MinT>(std::numeric_limits<InT>::min());
+
+    if (OUT_MAX > IN_MAX && OUT_MIN < IN_MIN) {
         return static_cast<OutT>(value);
     }
 
-    const InT max = std::numeric_limits<OutT>::max() < std::numeric_limits<InT>::max() ? std::numeric_limits<OutT>::max() :
-                    std::numeric_limits<InT>::max();
-    const InT min = std::numeric_limits<OutT>::min() > std::numeric_limits<InT>::min() ? std::numeric_limits<OutT>::min() :
-                    std::numeric_limits<InT>::min();
+    const InT max = static_cast<InT>(OUT_MAX < IN_MAX ? OUT_MAX : IN_MAX);
+    const InT min = static_cast<InT>(OUT_MIN > IN_MIN ? OUT_MIN : IN_MIN);
 
     return static_cast<OutT>(std::min(std::max(value, min), max));
 }
@@ -175,12 +198,20 @@ template <class OutT, class InT, typename std::enable_if<
         !std::is_same<OutT, InT>::value
         >::type* = nullptr>
 inline OutT saturate_cast(const InT& value) {
-    if (std::numeric_limits<OutT>::max() > std::numeric_limits<InT>::max()) {
+    using MaxT = typename std::conditional<
+            details::Greater(sizeof(OutT), sizeof(InT)),
+            typename std::make_unsigned<OutT>::type,
+            typename std::make_unsigned<InT>::type
+        >::type;
+
+    static const MaxT OUT_MAX = static_cast<MaxT>(std::numeric_limits<OutT>::max());
+    static const MaxT IN_MAX = static_cast<MaxT>(std::numeric_limits<InT>::max());
+
+    if (OUT_MAX > IN_MAX) {
         return static_cast<OutT>(value);
     }
 
-    const InT max = std::numeric_limits<OutT>::max() < std::numeric_limits<InT>::max() ? std::numeric_limits<OutT>::max() :
-                    std::numeric_limits<InT>::max();
+    const InT max = static_cast<InT>(OUT_MAX < IN_MAX ? OUT_MAX : IN_MAX);
 
     return static_cast<OutT>(std::min(value, max));
 }
