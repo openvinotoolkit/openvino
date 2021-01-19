@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -16,6 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
 
 bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(op);
         if (!ti || transformation_callback(ti)) {
