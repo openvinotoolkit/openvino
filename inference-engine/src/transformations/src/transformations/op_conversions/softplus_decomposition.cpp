@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/softplus_decomposition.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusDecomposition, "SoftPlusDecomposition", 0);
 
 ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
+    MATCHER_SCOPE(SoftPlusDecomposition);
     // decomposes SoftPlus(x) operation into ln(exp(x) + 1.0)
     auto input = ngraph::pattern::any_input();
     auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input);
@@ -38,6 +40,6 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(softplus, "SoftPlusDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(softplus, matcher_name);
     register_matcher(m, callback);
 }

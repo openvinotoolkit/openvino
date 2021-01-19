@@ -4,6 +4,8 @@
 
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 
+#include "itt.hpp"
+
 #include <memory>
 #include <vector>
 
@@ -14,6 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGather0D, "ConvertGather0D", 0);
 
 ngraph::pass::ConvertGather0D::ConvertGather0D() {
+    MATCHER_SCOPE(ConvertGather0D);
     auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -47,6 +50,6 @@ ngraph::pass::ConvertGather0D::ConvertGather0D() {
         return true;
     };
 
-    auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, "ConvertGather0D");
+    auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
     this->register_matcher(m1, callback);
 }

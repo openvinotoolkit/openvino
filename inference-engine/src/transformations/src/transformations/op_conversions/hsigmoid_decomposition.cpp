@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 
 #include <memory>
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidDecomposition, "HSigmoidDecomposition", 0);
 
 ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
+    MATCHER_SCOPE(HSigmoidDecomposition);
     // Decomposes HSigmoid(x) op into sub-graph (min(Relu(x + 3), 6) * const(1/6)
     auto hsigmoid = ngraph::pattern::wrap_type<opset5::HSigmoid>();
 
@@ -40,6 +42,6 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(hsigmoid, "HSigmoidDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(hsigmoid, matcher_name);
     register_matcher(m, callback);
 }

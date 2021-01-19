@@ -9,10 +9,12 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MVN6Decomposition, "MVN6Decomposition", 0);
 
 ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
+    MATCHER_SCOPE(MVN6Decomposition);
     // Decomposes MVN(x, axes) op if normalize_variance is false into sub-graph
     // x - ReduceMean(x, axes), if normalize_variance is true into sub-graph
     // (x - ReduceMean(x, axes)) / Sqrt(ReduceSum((x - ReduceMean(x, axes)) ^ 2))
@@ -67,6 +69,6 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mvn, "MVN6Decomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mvn, matcher_name);
     register_matcher(m, callback);
 }

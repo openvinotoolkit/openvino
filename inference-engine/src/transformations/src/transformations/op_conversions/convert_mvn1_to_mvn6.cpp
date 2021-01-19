@@ -12,9 +12,12 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+#include "itt.hpp"
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMVN1ToMVN6, "ConvertMVN1ToMVN6", 0);
 
 ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
+    MATCHER_SCOPE(ConvertMVN1ToMVN6);
     auto mvn = pattern::wrap_type<ngraph::opset2::MVN>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -47,6 +50,6 @@ ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(mvn, "ConvertMVN1ToMVN6");
+    auto m = std::make_shared<pattern::Matcher>(mvn, matcher_name);
     register_matcher(m, callback);
 }

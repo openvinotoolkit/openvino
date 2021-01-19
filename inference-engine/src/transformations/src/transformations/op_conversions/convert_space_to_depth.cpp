@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSpaceToDepth, "ConvertSpaceToDepth", 0);
 
 ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
+    MATCHER_SCOPE(ConvertSpaceToDepth);
     auto dts = ngraph::pattern::wrap_type<ngraph::opset1::SpaceToDepth>({pattern::any_input(pattern::has_static_shape())});
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
@@ -89,6 +91,6 @@ ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(dts, "ConvertSpaceToDepth");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(dts, matcher_name);
     this->register_matcher(m, callback);
 }

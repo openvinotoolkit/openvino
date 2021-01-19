@@ -38,16 +38,23 @@ namespace ngraph
     }
 }
 OV_CC_DOMAINS(ngraph_op);
+OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #define NGRAPH_OP_SCOPE(region) OV_SCOPE(ngraph_op, region)
+#define NGRAPH_PASS_CALLBACK(matcher)                                                              \
+    openvino::itt::handle_t m_callback_handle;                                                     \
+    m_callback_handle = openvino::itt::handle(matcher->get_name());                                \
+    OV_ITT_SCOPED_TASK(SIMPLE_ngraph_pass, m_callback_handle)
 #elif defined(SELECTIVE_BUILD)
 #define NGRAPH_OP_SCOPE(region)                                                                    \
     if (OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(ngraph_op, _, region)) == 0)                             \
     throw ngraph::ngraph_error(std::string(OV_CC_TOSTRING(OV_CC_CAT3(ngraph_op, _, region))) +     \
                                " is disabled!")
+#define NGRAPH_PASS_CALLBACK(matcher)
 #else
 #define NGRAPH_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ngraph::itt::domains::ngraph_op, #region)
+#define NGRAPH_PASS_CALLBACK(matcher)
 #endif
 
 #define NGRAPH_TYPE_CASE(region, a, ...)                                                           \
