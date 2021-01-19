@@ -84,7 +84,7 @@ public:
         ThreadBindingType  _threadBindingType       = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type. No binding by default
         int                _threadBindingStep       = 1;  //!< In case of @ref CORES binding offset type thread binded to cores with defined step
         int                _threadBindingOffset     = 0;  //!< In case of @ref CORES binding offset type thread binded to cores starting from offset
-        bool               _threadUseBigCoresOnly   = false; //!< In case of @ref HYBRID_AWARE explicitly limits the execution the "big" cores
+        bool               _threadPreferBigCores    = false; //!< In case of @ref HYBRID_AWARE give the TBB a hint to limit the execution the "big" cores
         int                _threads                 = 0;  //!< Number of threads distributed between streams. Reserved. Should not be used.
 
         /**
@@ -97,7 +97,7 @@ public:
          * @param[in]  threadBindingStep    @copybrief Config::_threadBindingStep
          * @param[in]  threadBindingOffset  @copybrief Config::_threadBindingOffset
          * @param[in]  threads              @copybrief Config::_threads
-         * @param[in]  threadUseBigCoresOnly   @copybrief Config::_threadUseBigCoresOnly
+         * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
          */
         Config(
             std::string        name                    = "StreamsExecutor",
@@ -107,14 +107,14 @@ public:
             int                threadBindingStep       = 1,
             int                threadBindingOffset     = 0,
             int                threads                 = 0,
-            bool               bUseBigCoresOnly        = false) :
+            bool               bPreferBigCores         = false) :
         _name{name},
         _streams{streams},
         _threadsPerStream{threadsPerStream},
         _threadBindingType{threadBindingType},
         _threadBindingStep{threadBindingStep},
         _threadBindingOffset{threadBindingOffset},
-        _threads{threads}, _threadUseBigCoresOnly(bUseBigCoresOnly){
+        _threads{threads}, _threadPreferBigCores(bPreferBigCores){
         }
     };
 

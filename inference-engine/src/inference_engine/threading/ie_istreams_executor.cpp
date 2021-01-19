@@ -62,7 +62,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                 _streams = static_cast<int>(getAvailableNUMANodes().size());
             } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
                 const int sockets = static_cast<int>(getAvailableNUMANodes().size());
-                // bare minimum of streams (that evenly divides available number of core)
+                // bare minimum of streams (that evenly divides available number of cores)
                 const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
                 if (0 == num_cores % 4)
                     _streams = std::max(4, num_cores / 4);
@@ -152,7 +152,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     const auto numaNodesNum = numaNodes.size();
     auto streamExecutorConfig = initial;
     const bool latencyCase = streamExecutorConfig._streams <= numaNodesNum;
-    const auto hwCores = streamExecutorConfig._streams > 1 && numaNodesNum == 1
+    const auto hwCores = !latencyCase && numaNodesNum == 1
         // throughput case on a single-NUMA node machine uses all available cores
         ? parallel_get_max_threads()
         // on multi-NUMA node do not use hyper-threading (to reduce memory pressure)
@@ -164,7 +164,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                                             : threads;
     // by default the latency case uses (faster) Big cores only
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType && latencyCase)
-        streamExecutorConfig._threadUseBigCoresOnly = true;
+        streamExecutorConfig._threadPreferBigCores = true;
     return streamExecutorConfig;
 }
 
