@@ -193,13 +193,12 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
-    pass_config->disable<ngraph::pass::ConvertMatMulToFC>();
-    pass_config->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
 
-    const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+    auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
     };
-    pass_config->set_callback(transformationsPredicate);
+    pass_config->set_callback<ngraph::pass::ConvertMatMulToFC,
+                              ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
 
     manager.run_passes(nGraphFunc);
 
