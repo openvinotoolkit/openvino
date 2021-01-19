@@ -17,7 +17,6 @@
 #include <cstring>
 #include <memory>
 
-#include "ngraph/chrome_trace.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/util.hpp"
@@ -140,7 +139,6 @@ const void* runtime::HostTensor::get_data_ptr() const
 
 void runtime::HostTensor::write(const void* source, size_t n)
 {
-    event::Duration d1("write", "HostTensor");
     void* target = get_data_ptr();
     if (n != m_buffer_size)
     {
@@ -158,7 +156,6 @@ void runtime::HostTensor::write(const void* source, size_t n)
 
 void runtime::HostTensor::read(void* target, size_t n) const
 {
-    event::Duration d1("read", "HostTensor");
     const void* source = get_data_ptr();
     if (n != m_buffer_size)
     {
