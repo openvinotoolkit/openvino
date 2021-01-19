@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,25 @@ from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
+
+
+class PoolingV2(Op):
+    op = 'PoolingV2'
+    enabled = True
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'type': None,
+            'op': self.op,
+            'version': None,
+            'infer': self.infer,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
+        }, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        Pooling.pool_infer(node, is_pool_v2=True)
 
 
 class Pooling(Op):
@@ -53,7 +72,15 @@ class Pooling(Op):
 
     @staticmethod
     def infer(node: Node):
-        assert (len(node.in_nodes()) == 1)
+        Pooling.pool_infer(node)
+
+    @staticmethod
+    def pool_infer(node: Node, is_pool_v2=False):
+        if is_pool_v2:
+            assert (len(node.in_nodes()) == 3)
+        else:
+            assert (len(node.in_nodes()) == 1)
+
         input_shape = node.in_node(0).shape
         if input_shape is None:
             return
@@ -69,7 +96,11 @@ class Pooling(Op):
             node['pad'] = int64_array([[0, 0] for x in range(len(input_shape))])
         if not node.has_valid('pad_spatial_shape'):
             node['pad_spatial_shape'] = node.pad[node.spatial_dims]
-        if not node.has_valid('stride'):
+
+        if is_pool_v2:
+            node['window'] = node.in_port(1).data.get_value()
+            node['stride'] = node.in_port(2).data.get_value()
+        elif not node.has_valid('stride'):
             node['stride'] = int64_array([1 for x in range(len(input_shape))])
 
         if node.has_and_set('global_pool'):

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 from mo.front.common.partial_infer.utils import convert_tf_padding_to_str
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_data_format_spatial, tf_int_list
-from mo.ops.pooling import Pooling
+from mo.ops.pooling import Pooling, PoolingV2
 
 
 class AvgPoolFrontExtractor(FrontExtractorOp):
@@ -72,19 +72,43 @@ class AvgPool3DFrontExtractor(FrontExtractorOp):
         return cls.enabled
 
 
-def create_pooling_attrs(node, pool_method):
+class AvgPoolV2FrontExtractor(FrontExtractorOp):
+    op = 'AvgPoolV2'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        attrs = create_pooling_attrs(node, 'avg')
+        attrs.update({'op': __class__.op})
+        PoolingV2.update_node_stat(node, attrs)
+        return cls.enabled
+
+
+class MaxPoolV2FrontExtractor(FrontExtractorOp):
+    op = 'MaxPoolV2'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        attrs = create_pooling_attrs(node, 'max')
+        attrs.update({'op': __class__.op})
+        PoolingV2.update_node_stat(node, attrs)
+        return cls.enabled
+
+
+def create_pooling_attrs(node, pool_method, is_pooling_v2=False):
     data_format = node.pb.attr["data_format"]
 
     attrs = {
         'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding'].s.decode()),
-        'window': tf_int_list(node.pb.attr["ksize"].list),
+        'window': tf_int_list(node.pb.attr["ksize"].list) if not is_pooling_v2 else None,
         'spatial_dims': tf_data_format_spatial(data_format),
         'pad': None,  # will be inferred when input shape is known
-        'stride': tf_int_list(node.pb.attr["strides"].list),
+        'stride': tf_int_list(node.pb.attr["strides"].list) if not is_pooling_v2 else None,
         'pad_spatial_shape': None,
         'output_spatial_shape': None,
         'pool_method': pool_method,
-        'type': 'Pooling',
+        'type': 'Pooling' if not is_pooling_v2 else 'PoolingV2',
         'layout': data_format.s.decode(),
         'exclude_pad': 'true',
     }
