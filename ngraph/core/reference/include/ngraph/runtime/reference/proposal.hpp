@@ -423,7 +423,8 @@ namespace ngraph
                     std::partial_sort(proposals.begin(),
                                       proposals.begin() + pre_nms_topn,
                                       proposals.end(),
-                                      [](const details::ProposalBox<T>& box1, const details::ProposalBox<T>& box2) {
+                                      [](const details::ProposalBox<T>& box1,
+                                         const details::ProposalBox<T>& box2) {
                                           return (box1.score > box2.score);
                                       });
                     details::nms(pre_nms_topn,
