@@ -121,7 +121,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 }
 
                 newMultiplyAfterConst = std::make_shared<opset1::Constant>(
-                    dequantization.multiply->get_output_element_type(0),
+                    dequantization.multiply->get_input_element_type(1),
                     newMulShape,
                     outputScales);
             }
