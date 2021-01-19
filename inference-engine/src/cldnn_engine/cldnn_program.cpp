@@ -327,7 +327,7 @@ void Program::InitProfileInfo(const std::string& layerName,
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
     std::list<std::shared_ptr<ngraph::Node>> nodes_to_process = { node };
     while (!nodes_to_process.empty()) {
-        auto& current_node = nodes_to_process.front();
+        auto current_node = nodes_to_process.front();
         nodes_to_process.pop_front();
 
         for (size_t i = 0; i < current_node->get_input_size(); i++) {

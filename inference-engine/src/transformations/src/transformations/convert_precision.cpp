@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/convert_precision.hpp"
 
 #include <memory>
@@ -77,6 +78,7 @@ bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::e
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
 
 bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(ConvertPrecision);
     static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
         {opset4::Parameter::type_info, fuse_type_to_parameter},
         {opset4::Convert::type_info, fuse_type_to_convert},
@@ -325,7 +327,7 @@ inline dst_type convert_value(src_type val) {
 // and we don't need to compare and clamp the input to std::numeric_limits<int32_t>::lowest()
 template <>
 inline int32_t convert_value<uint64_t, int32_t>(uint64_t val) {
-    if (val > std::numeric_limits<int32_t>::max()) {
+    if (val > static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
         return std::numeric_limits<int32_t>::max();
     }
     return static_cast<int32_t>(val);

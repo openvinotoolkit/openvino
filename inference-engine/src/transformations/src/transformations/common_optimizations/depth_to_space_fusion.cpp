@@ -3,6 +3,7 @@
 //
 
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -84,6 +85,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
 
 ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
+    MATCHER_SCOPE(DepthToSpaceFusion);
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
@@ -159,6 +161,6 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, "DepthToSpaceFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, matcher_name);
     register_matcher(m, callback);
 }
