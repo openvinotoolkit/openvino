@@ -19,8 +19,10 @@ class TestConversion(TestCase):
 
     @staticmethod
     def validate(var: list, inp_dict: dict):
+        import paddle
         from paddle import fluid
 
+        paddle.enable_static()
         exe = fluid.Executor(fluid.CPUPlace())
         exe.run(fluid.default_startup_program())
         res_pdpd = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
@@ -34,7 +36,9 @@ class TestConversion(TestCase):
         return np.all(np.isclose(res_pdpd[0], list(res_ie.values())[0], rtol=1e-4, atol=1e-5))
 
     def test_convert_pure_conv_model(self):
+        import paddle
         from paddle import fluid
+        paddle.enable_static()
 
         inp_blob = np.random.randn(1, 3, 224, 224).astype(np.float32)
 
@@ -47,7 +51,9 @@ class TestConversion(TestCase):
         self.assertTrue(result)
 
     def test_convert_conv_model(self):
+        import paddle
         from paddle import fluid
+        paddle.enable_static()
 
         inp_blob = np.random.randn(1, 3, 224, 224).astype(np.float32)
 
@@ -78,7 +84,9 @@ class TestConversion(TestCase):
 
         model_path = module.directory + '/model'
 
+        import paddle
         from paddle import fluid
+        paddle.enable_static()
 
         exe = fluid.Executor(fluid.CPUPlace())
         exe.run(fluid.default_startup_program())

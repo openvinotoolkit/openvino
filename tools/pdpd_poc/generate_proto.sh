@@ -1,3 +1,3 @@
 #!/bin/bash
 
-protoc --python_out=. framework.proto
+protoc --python_out=. --cpp_out=. framework.proto

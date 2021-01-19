@@ -209,8 +209,6 @@ def convert_model(model_dir):
 
 
 if __name__ == "__main__":
-    download_pdpd_resnet50()
-
     import cv2
 
     img = cv2.imread("cat3.bmp")
@@ -224,8 +222,10 @@ if __name__ == "__main__":
 
     model_path = download_pdpd_resnet50() + '/model'
 
+    import paddle
     from paddle import fluid
 
+    paddle.enable_static()
     exe = fluid.Executor(fluid.CPUPlace())
     exe.run(fluid.default_startup_program())
     [program, feed, fetchs] = fluid.io.load_inference_model(model_path, exe)
