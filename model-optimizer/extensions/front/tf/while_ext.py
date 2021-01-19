@@ -68,10 +68,11 @@ def update_body_graph(body_graph: Graph, subgraph_proto: dict,
 
     # create Result nodes in the loop body graph
     for output in subgraph_proto['output_arg']:
-        orig_src_id = subgraph_proto['ret'][output.name].split(":")[0]
+        output_name = subgraph_proto['ret'][output.name]
+        orig_src_id = output_name.split(":")[0]
         src_id = map_original_name[orig_src_id]
-        src_port = 0 if len(subgraph_proto['ret'][output.name].split(":")) == 1\
-            else int(subgraph_proto['ret'][output.name].split(":")[-1])
+        src_port = 0 if len(output_name.split(":")) == 1\
+            else int(output_name.split(":")[-1])
         assert body_graph.has_node(src_id), 'The body graph does not contain output with name "{}"'.format(
             src_id)
         body_results.append(Node(body_graph, add_opoutput(body_graph, src_id, src_port, False)))

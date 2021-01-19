@@ -328,10 +328,15 @@ class Loop(TensorIterator):
                                    updated_attr: str, new_attr_value: int):
         """
         Updates a value of requested attribute for a certain layer id in a port map
+        :param port_map: a map of external ports to internal layer ids
+        :param layer_id_attr: layer id attribute for which to update attribute
+        :param layer_id_value: layer id value for which to update attribute
+        :param updated_attr: a name of attribute which to update
+        :param new_attr_value: new value of attribute
         """
         matched = 0
         for record in port_map:
-            if record[layer_id_attr] == layer_id_value:
+            if record.get(layer_id_attr) == layer_id_value:
                 record[updated_attr] = new_attr_value
                 matched += 1
         assert matched == 1, 'More than one record in the portmap for attr "{}" with original value "{}"' \

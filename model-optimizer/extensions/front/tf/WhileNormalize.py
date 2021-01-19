@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from extensions.ops.loop import Loop
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph, Node
@@ -44,7 +46,8 @@ class WhileNormalize(FrontReplacementSubgraph):
 
         # connect execution condition port
         loop_node.in_port(1).disconnect()
-        exec_cond_node = Const(graph, {'name': loop_name + '/ExecutionConditionValue', 'value': True}).create_node()
+        exec_cond_node = Const(graph, {'name': loop_name + '/ExecutionConditionValue',
+                                       'value': np.array(True, dtype=np.bool)}).create_node()
         loop_node.in_port(1).get_connection().set_source(exec_cond_node.out_port(0))
 
         loop_node.body.clean_up()
