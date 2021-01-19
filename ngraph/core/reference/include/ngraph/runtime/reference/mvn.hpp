@@ -36,9 +36,9 @@ namespace ngraph
             void mvn(const T* arg,
                      T* out,
                      const Shape& in_shape,
-                     bool normalize_variance,
-                     AxisSet reduction_axes,
-                     double eps)
+                     const bool normalize_variance,
+                     const AxisSet& reduction_axes,
+                     const double eps)
             {
                 auto reduced_shape = reduce(in_shape, reduction_axes, true);
                 std::vector<T> tmp_buffer(shape_size(in_shape));
