@@ -75,6 +75,14 @@ void op::v0::Proposal::validate_and_infer_types()
             image_shape_shape[0],
             ").");
 
+        NODE_VALIDATION_CHECK(this,
+                              class_probs_shape[1] * 2 == class_bbox_deltas_shape[1],
+                              "Anchor number inconsistent between class_probs (",
+                              class_probs_shape[1] / 2,
+                              "), and bbox_deltas (",
+                              class_bbox_deltas_shape[1] / 4,
+                              ").");
+
         auto batch_size = class_probs_shape[0];
         set_output_type(0, get_input_element_type(0), Shape{batch_size * m_attrs.post_nms_topn, 5});
     }

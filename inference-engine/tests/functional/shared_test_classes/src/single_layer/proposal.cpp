@@ -98,7 +98,8 @@ void ProposalLayerTest::SetUp() {
     std::vector<size_t> imageInfoShape = {3};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP16);
-    auto params = ngraph::builder::makeParams(ngPrc, {{"scores", scoresShape}, {"boxes", boxesShape}});
+        // a_ and b_ are a workaround to solve alphabetic param sorting that destroys ordering
+    auto params = ngraph::builder::makeParams(ngPrc, {{"a_scores", scoresShape}, {"b_boxes", boxesShape}});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(
@@ -126,15 +127,12 @@ InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngin
     InferenceEngine::Blob::Ptr blobPtr;
 
     const std::string name = info.name();
-    if (name == "scores") {
+    if (name == "a_scores") {
         blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
-    } else if (name == "boxes") {
+    } else if (name == "b_boxes") {
         blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
     }
 
     return blobPtr;
 }
-
-// TODO: for validation, reference version is required (#28373)
-void ProposalLayerTest::Validate() {}
 }  // namespace LayerTestsDefinitions
