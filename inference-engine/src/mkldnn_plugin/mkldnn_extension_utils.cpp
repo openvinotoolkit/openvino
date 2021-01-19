@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,4 +136,16 @@ std::string MKLDNNExtensionUtils::getReorderArgs(const InferenceEngine::TensorDe
         outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(childDesc).getFormat());
     }
     return inArgs + "_" + outArgs;
+}
+
+InferenceEngine::Precision MKLDNNExtensionUtils::getMaxPrecision(std::vector<InferenceEngine::Precision> precisions) {
+    if (!precisions.empty()) {
+        std::sort(precisions.begin(), precisions.end(),
+                  [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
+                      return lhs.size() > rhs.size();
+                  });
+        return precisions[0];
+    }
+
+    return InferenceEngine::Precision::UNSPECIFIED;
 }
