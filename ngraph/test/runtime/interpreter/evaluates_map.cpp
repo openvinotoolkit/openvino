@@ -195,7 +195,7 @@ namespace
         const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
         const auto& out_shape = outputs[0]->get_shape();
         const auto& in_shape = inputs[0]->get_shape();
-        const auto& filter_shape = inputs[1]->get_shape();        
+        const auto& filter_shape = inputs[1]->get_shape();
         runtime::reference::convolution<typename element_type_traits<ET>::value_type>(
             in_data_ptr,
             filter_data,
