@@ -89,9 +89,7 @@ namespace
         const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
         const auto& out_shape = outputs[0]->get_shape();
         const auto& in_shape = inputs[0]->get_shape();
-        const auto& filter_shape = inputs[1]->get_shape();
-        Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
-        std::fill(in_dilation.begin(), in_dilation.end(), 1);
+        const auto& filter_shape = inputs[1]->get_shape();        
         runtime::reference::convolution<typename element_type_traits<ET>::value_type>(
             in_data_ptr,
             filter_data,
@@ -102,8 +100,7 @@ namespace
             op->get_strides(),
             op->get_dilations(),
             op->get_pads_begin(),
-            op->get_pads_end(),
-            in_dilation);
+            op->get_pads_end());
         return true;
     }
 
