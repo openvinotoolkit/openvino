@@ -1177,7 +1177,8 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
             if (i == 0) {
                 dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, fmt);
             } else {
-                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), memory::f32, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), memory::data_type::f32,
+                                                   MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
             }
             config.inConfs.push_back(dataConfig);
         }
