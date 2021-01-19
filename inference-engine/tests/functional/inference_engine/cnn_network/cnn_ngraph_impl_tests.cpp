@@ -939,136 +939,136 @@ TEST(CNNNGraphImplTests, AddOutputToExperimentalOpOpset6) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
-		<layer id="0" name="in0" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1000,4"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="in1" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,200,336"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="in2" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,100,168"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>100</dim>
-					<dim>168</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="in3" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,50,84"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>50</dim>
-					<dim>84</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="4" name="in4" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,25,42"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>25</dim>
-					<dim>42</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
-			<data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
-			<input>
-				<port id="0">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-				<port id="2">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>100</dim>
-					<dim>168</dim>
-				</port>
-				<port id="3">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>50</dim>
-					<dim>84</dim>
-				</port>
-				<port id="4">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>25</dim>
-					<dim>42</dim>
-				</port>
-			</input>
-			<output>
-				<port id="5" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
-				</port>
-			</output>
-		</layer>
+        <layer id="0" name="in0" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1000,4"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="in1" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,200,336"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="in2" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,100,168"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>100</dim>
+                    <dim>168</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="in3" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,50,84"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="in4" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,25,42"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>25</dim>
+                    <dim>42</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
+            <data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>100</dim>
+                    <dim>168</dim>
+                </port>
+                <port id="3">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+                <port id="4">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>25</dim>
+                    <dim>42</dim>
+                </port>
+            </input>
+            <output>
+                <port id="5" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
+                </port>
+            </output>
+        </layer>
         <layer name="activation" id="6" type="ReLU" version="opset1">
             <input>
                 <port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </input>
             <output>
                 <port id="1" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </output>
         </layer>
         <layer name="output" type="Result" id="7" version="opset1">
             <input>
                 <port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </input>
         </layer>
     </layers>
     <edges>
-		<edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
-		<edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
-		<edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
-		<edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
-		<edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
-		<edge from-layer="5" from-port="5" to-layer="6" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
+        <edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
+        <edge from-layer="5" from-port="5" to-layer="6" to-port="0"/>
         <edge from-layer="6" from-port="1" to-layer="7" to-port="0"/>
     </edges>
 </net>
@@ -1084,136 +1084,136 @@ TEST(CNNNGraphImplTests, AddOutputToExperimentalOp) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
-		<layer id="0" name="in0" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1000,4"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="in1" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,200,336"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="in2" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,100,168"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>100</dim>
-					<dim>168</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="in3" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,50,84"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>50</dim>
-					<dim>84</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="4" name="in4" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,25,42"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>25</dim>
-					<dim>42</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
-			<data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
-			<input>
-				<port id="0">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-				<port id="2">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>100</dim>
-					<dim>168</dim>
-				</port>
-				<port id="3">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>50</dim>
-					<dim>84</dim>
-				</port>
-				<port id="4">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>25</dim>
-					<dim>42</dim>
-				</port>
-			</input>
-			<output>
-				<port id="5" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
-				</port>
-			</output>
-		</layer>
+        <layer id="0" name="in0" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1000,4"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="in1" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,200,336"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="in2" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,100,168"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>100</dim>
+                    <dim>168</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="in3" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,50,84"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="in4" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,25,42"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>25</dim>
+                    <dim>42</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
+            <data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>100</dim>
+                    <dim>168</dim>
+                </port>
+                <port id="3">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+                <port id="4">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>25</dim>
+                    <dim>42</dim>
+                </port>
+            </input>
+            <output>
+                <port id="5" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
+                </port>
+            </output>
+        </layer>
         <layer name="activation" id="6" type="ReLU" version="opset1">
             <input>
                 <port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </input>
             <output>
                 <port id="1" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </output>
         </layer>
         <layer name="output" type="Result" id="7" version="opset1">
             <input>
                 <port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </input>
         </layer>
     </layers>
     <edges>
-		<edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
-		<edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
-		<edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
-		<edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
-		<edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
-		<edge from-layer="5" from-port="5" to-layer="6" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
+        <edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
+        <edge from-layer="5" from-port="5" to-layer="6" to-port="0"/>
         <edge from-layer="6" from-port="1" to-layer="7" to-port="0"/>
     </edges>
 </net>
@@ -1229,100 +1229,100 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
     std::string  model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
-		<layer id="0" name="in0" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1000,4"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="in1" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,200,336"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="in2" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,100,168"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>100</dim>
-					<dim>168</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="in3" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,50,84"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>50</dim>
-					<dim>84</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="4" name="in4" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,25,42"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>25</dim>
-					<dim>42</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
-			<data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
-			<input>
-				<port id="0">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-				<port id="2">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>100</dim>
-					<dim>168</dim>
-				</port>
-				<port id="3">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>50</dim>
-					<dim>84</dim>
-				</port>
-				<port id="4">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>25</dim>
-					<dim>42</dim>
-				</port>
-			</input>
-			<output>
-				<port id="5" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
-				</port>
-			</output>
-		</layer>
+        <layer id="0" name="in0" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1000,4"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="in1" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,200,336"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="in2" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,100,168"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>100</dim>
+                    <dim>168</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="in3" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,50,84"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="in4" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,25,42"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>25</dim>
+                    <dim>42</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
+            <data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>100</dim>
+                    <dim>168</dim>
+                </port>
+                <port id="3">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+                <port id="4">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>25</dim>
+                    <dim>42</dim>
+                </port>
+            </input>
+            <output>
+                <port id="5" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
+                </port>
+            </output>
+        </layer>
         <layer id="6" name="fake_const" type="Const" version="opset1">
             <data offset="0" size="4" shape="1,1,1,1" element_type="f32"/>
             <output>
@@ -1337,10 +1337,10 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
         <layer id="7" name="text_features" type="Add" version="opset1">
             <input>
                 <port id="0">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
                 <port id="1">
                     <dim>1</dim>
@@ -1351,31 +1351,31 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
             </input>
             <output>
                 <port id="2" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </output>
         </layer>
         <layer name="output" type="Result" id="8" version="opset1">
             <input>
                 <port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </input>
         </layer>
     </layers>
     <edges>
-		<edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
-		<edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
-		<edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
-		<edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
-		<edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
-		<edge from-layer="5" from-port="5" to-layer="7" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
+        <edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
+        <edge from-layer="5" from-port="5" to-layer="7" to-port="0"/>
         <edge from-layer="6" from-port="1" to-layer="7" to-port="1"/>
         <edge from-layer="7" from-port="2" to-layer="8" to-port="0"/>
     </edges>
@@ -1421,100 +1421,100 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
     std::string  model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
-		<layer id="0" name="in0" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1000,4"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="in1" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,200,336"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="in2" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,100,168"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>100</dim>
-					<dim>168</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="in3" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,50,84"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>50</dim>
-					<dim>84</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="4" name="in4" type="Parameter" version="opset1">
-			<data element_type="f32" shape="1,256,25,42"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>25</dim>
-					<dim>42</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
-			<data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
-			<input>
-				<port id="0">
-					<dim>1000</dim>
-					<dim>4</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>200</dim>
-					<dim>336</dim>
-				</port>
-				<port id="2">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>100</dim>
-					<dim>168</dim>
-				</port>
-				<port id="3">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>50</dim>
-					<dim>84</dim>
-				</port>
-				<port id="4">
-					<dim>1</dim>
-					<dim>256</dim>
-					<dim>25</dim>
-					<dim>42</dim>
-				</port>
-			</input>
-			<output>
-				<port id="5" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
-				</port>
-			</output>
-		</layer>
+        <layer id="0" name="in0" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1000,4"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="in1" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,200,336"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="in2" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,100,168"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>100</dim>
+                    <dim>168</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="in3" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,50,84"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="in4" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,256,25,42"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>25</dim>
+                    <dim>42</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="exp" type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
+            <data aligned="0" output_size="7" pyramid_scales="4,8,16,32" sampling_ratio="2"/>
+            <input>
+                <port id="0">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>100</dim>
+                    <dim>168</dim>
+                </port>
+                <port id="3">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>50</dim>
+                    <dim>84</dim>
+                </port>
+                <port id="4">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>25</dim>
+                    <dim>42</dim>
+                </port>
+            </input>
+            <output>
+                <port id="5" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
+                </port>
+            </output>
+        </layer>
         <layer id="6" name="fake_const" type="Const" version="opset1">
             <data offset="0" size="4" shape="1,1,1,1" element_type="f32"/>
             <output>
@@ -1529,10 +1529,10 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
         <layer id="7" name="text_features" type="Add" version="opset1">
             <input>
                 <port id="0">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
                 <port id="1">
                     <dim>1</dim>
@@ -1543,31 +1543,31 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
             </input>
             <output>
                 <port id="2" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </output>
         </layer>
         <layer name="output" type="Result" id="8" version="opset1">
             <input>
                 <port id="0" precision="FP32">
-					<dim>1000</dim>
-					<dim>256</dim>
-					<dim>7</dim>
-					<dim>7</dim>
+                    <dim>1000</dim>
+                    <dim>256</dim>
+                    <dim>7</dim>
+                    <dim>7</dim>
                 </port>
             </input>
         </layer>
     </layers>
     <edges>
-		<edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
-		<edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
-		<edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
-		<edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
-		<edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
-		<edge from-layer="5" from-port="5" to-layer="7" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
+        <edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
+        <edge from-layer="5" from-port="5" to-layer="7" to-port="0"/>
         <edge from-layer="6" from-port="1" to-layer="7" to-port="1"/>
         <edge from-layer="7" from-port="2" to-layer="8" to-port="0"/>
     </edges>
