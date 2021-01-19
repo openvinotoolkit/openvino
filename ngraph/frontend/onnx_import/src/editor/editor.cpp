@@ -16,6 +16,7 @@
 
 #include <fstream>
 #include <onnx/onnx_pb.h>
+#include <onnx/shape_inference/implementation.h>
 
 #include "onnx_import/editor/editor.hpp"
 #include "utils/parser.hpp"
@@ -142,6 +143,12 @@ namespace
             *(tensor_type->mutable_shape()) = std::move(new_onnx_shape);
         }
     }
+
+    template <typename T>
+    std::string extract_name(const T& input_or_initializer)
+    {
+        return input_or_initializer.name();
+    };
 } // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
@@ -155,6 +162,18 @@ struct onnx_import::ONNXModelEditor::Impl
         : m_model_proto{std::move(parse_from_file(model_path))}
     {
     }
+
+    void infer_shapes()
+    {
+        if (!m_shapes_inferred)
+        {
+            ONNX_NAMESPACE::shape_inference::InferShapes(m_model_proto);
+            m_shapes_inferred = true;
+        }
+    }
+
+private:
+    bool m_shapes_inferred = false;
 };
 
 onnx_import::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
@@ -231,4 +250,42 @@ void onnx_import::ONNXModelEditor::set_input_shapes(
                                ". Such input was not found in the original ONNX model.");
         }
     }
+}
+
+void onnx_import::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
+                                                      const std::vector<InputEdge>& outputs)
+{
+    if (inputs.empty() && outputs.empty())
+    {
+        return;
+    }
+
+    m_pimpl->infer_shapes();
+
+    SubgraphExtractor editor{*(m_pimpl->m_model_proto.mutable_graph())};
+
+    editor.add_new_inputs(inputs);
+    editor.add_new_outputs(outputs);
+
+    editor.extract_subgraph(outputs);
+}
+
+std::vector<std::string> onnx_import::ONNXModelEditor::model_inputs() const
+{
+    const auto& graph = m_pimpl->m_model_proto.graph();
+
+    std::vector<std::string> inputs_and_initializers;
+    inputs_and_initializers.reserve(graph.input_size() + graph.initializer_size());
+
+    std::transform(graph.input().begin(),
+                   graph.input().end(),
+                   std::back_inserter(inputs_and_initializers),
+                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+
+    std::transform(graph.initializer().begin(),
+                   graph.initializer().end(),
+                   std::back_inserter(inputs_and_initializers),
+                   extract_name<ONNX_NAMESPACE::TensorProto>);
+
+    return inputs_and_initializers;
 }

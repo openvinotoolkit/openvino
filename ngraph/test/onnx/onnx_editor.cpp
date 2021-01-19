@@ -15,18 +15,24 @@
 //*****************************************************************************
 
 #include <algorithm>
+#include <onnx/onnx_pb.h>
+#include <queue>
+
 #include "gtest/gtest.h"
 
 #include "default_opset.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/opsets/opset1.hpp"
 #include "onnx_import/editor/editor.hpp"
 #include "onnx_import/onnx.hpp"
+#include "util/onnx_test_util.hpp"
 #include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
+using namespace ngraph::onnx_import;
 
 static std::string s_manifest = "${MANIFEST}";
 
@@ -283,4 +289,246 @@ NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution)
     {
         EXPECT_TRUE(input->get_partial_shape().same_scheme(new_shape));
     }
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge(1, "conv1/7x7_s2_1")}}, {});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge(1, "conv1/7x7_s2_1")}},
+                              {{OutputEdge(2, "pool1/3x3_s2_1")}});
+
+    // expected to behave the same way as subgraph__linear_model_head_cut
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge(2, "conv1/7x7_s2_2")}}, {});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__linear_model_deeper_head_cut.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+
+    editor.cut_graph_fragment({}, {{OutputEdge{1, "conv1/7x7_s2_2"}}});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_tail_cut.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{0, "data_0"}}}, {{OutputEdge{1, "conv1/7x7_s2_2"}}});
+
+    // expected to behave the same way as subgraph__linear_model_tail_cut
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_tail_cut.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head_with_initializer.prototxt")};
+
+    editor.cut_graph_fragment({}, {{OutputEdge{1, "conv1/7x7_s2_2"}}});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__linear_model_with_initializer_tail_cut.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__initializer_without_matching_input.prototxt")};
+
+    editor.cut_graph_fragment({}, {{OutputEdge{1, "conv1/7x7_s2_2"}}});
+
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__initializer_without_matching_input_tail_cut.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+
+    editor.cut_graph_fragment({}, {{OutputEdge{0, "conv1/7x7_s2_1"}}});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__linear_model_deeper_tail_cut.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__no_input_params)
+{
+    const auto model_path =
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt");
+
+    onnx_import::ONNXModelEditor editor{model_path};
+
+    editor.cut_graph_fragment({}, {});
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), model_path);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head_with_initializer.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{0, "conv1/7x7_s2_b_0"}}},
+                              {{OutputEdge{0, "conv1/7x7_s2_1"}}});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__initializer_without_matching_input.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{0, "conv1/7x7_s2_b_0"}}},
+                              {{OutputEdge{0, "conv1/7x7_s2_1"}}});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__multiout_op_output_edge)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    editor.cut_graph_fragment({}, {{OutputEdge{5, "split2"}}});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__multiout_op_output_edge.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extraction)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{1, "in2"}, InputEdge{2, "in3"}}},
+                              {{OutputEdge{4, "mul2"}}});
+
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__existing_inputs_and_outputs_based_extraction.prototxt");
+
+    const auto res = test::compare_onnx_graphs(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__invalid_edge_idx)
+{
+    const auto model_path =
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt");
+
+    onnx_import::ONNXModelEditor editor{model_path};
+
+    EXPECT_THROW(editor.cut_graph_fragment({{InputEdge{15, "x"}}}, {}), ngraph::ngraph_error);
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__invalid_edge_name)
+{
+    const auto model_path =
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt");
+
+    onnx_import::ONNXModelEditor editor{model_path};
+
+    EXPECT_THROW(editor.cut_graph_fragment({{InputEdge{0, "x"}}}, {}), ngraph::ngraph_error);
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__inputs_getter)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
+
+    EXPECT_EQ(editor.model_inputs(),
+              (std::vector<std::string>{"data_0", "conv1/7x7_s2_w_0", "conv1/7x7_s2_b_0"}));
+
+    editor.cut_graph_fragment({{InputEdge(1, "conv1/7x7_s2_1")}}, {});
+
+    EXPECT_EQ(editor.model_inputs(), (std::vector<std::string>{"conv1/7x7_s2_2:conv1/7x7_s2_1"}));
 }

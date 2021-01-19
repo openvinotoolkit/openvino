@@ -23,6 +23,7 @@ set (SRC
     engine/ie_engines.cpp
     engine/interpreter_engine.cpp
     float_util.cpp
+    onnx_test_util.cpp
     test_tools.cpp
     test_control.cpp
     visitor.hpp
@@ -43,3 +44,6 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
 endif()
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest)
+
+target_include_directories(ngraph_test_util SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR})
+target_link_libraries(ngraph_test_util PRIVATE ${ONNX_LIBRARIES})
