@@ -142,7 +142,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             dataPrecision.min,
             dataPrecision.max);
 
-        for (int index = 0; index < subgraph.quantizationLayers.size(); index++) {
+        for (size_t index = 0; index < subgraph.quantizationLayers.size(); index++) {
             std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeLayer = as_type_ptr<ngraph::opset1::FakeQuantize>(
                 subgraph.quantizationLayers[index]->shared_from_this());
 
@@ -243,7 +243,7 @@ void ConcatTransformation::addDequantizationLayers(
 
         std::vector<FakeQuantizeDequantization> layerDequantizations;
 
-        for (int i = 0; i < layer->get_output_size(); ++i) {
+        for (size_t i = 0; i < layer->get_output_size(); ++i) {
             const auto childInputs = layer->get_output_target_inputs(i);
             for (const auto childInput : childInputs) {
                 ngraph::Node& child = *childInput.get_node();
@@ -417,7 +417,7 @@ size_t ConcatTransformation::getMinQuantizationLevels(
             (quantizationDetails.outputHighValues[0] / outputHighValue) * dataPrecision.max :
             (quantizationDetails.outputHighValues[0] / outputLowValue) * dataPrecision.min;
 
-        const int levels = static_cast<int>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
+        const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
         if (minLevels > levels) {
             minLevels = levels;
         }

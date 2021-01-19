@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <memory>
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/onehot.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "default_opset.hpp"
+#include "op/onehot.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
