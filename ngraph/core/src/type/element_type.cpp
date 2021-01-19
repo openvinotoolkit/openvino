@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,23 +25,6 @@
 
 using namespace ngraph;
 using namespace std;
-
-const element::Type element::undefined(element::Type_t::undefined);
-const element::Type element::dynamic(element::Type_t::dynamic);
-const element::Type element::boolean(element::Type_t::boolean);
-const element::Type element::bf16(element::Type_t::bf16);
-const element::Type element::f16(element::Type_t::f16);
-const element::Type element::f32(element::Type_t::f32);
-const element::Type element::f64(element::Type_t::f64);
-const element::Type element::i8(element::Type_t::i8);
-const element::Type element::i16(element::Type_t::i16);
-const element::Type element::i32(element::Type_t::i32);
-const element::Type element::i64(element::Type_t::i64);
-const element::Type element::u1(element::Type_t::u1);
-const element::Type element::u8(element::Type_t::u8);
-const element::Type element::u16(element::Type_t::u16);
-const element::Type element::u32(element::Type_t::u32);
-const element::Type element::u64(element::Type_t::u64);
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type>::type_info;
 
@@ -143,16 +126,6 @@ element::Type::Type(size_t bitwidth,
 const std::string& element::Type::c_type_string() const
 {
     return get_type_info_map().at(m_type).m_cname;
-}
-
-bool element::Type::operator==(const element::Type& other) const
-{
-    return m_type == other.m_type;
-}
-
-bool element::Type::operator<(const Type& other) const
-{
-    return m_type < other.m_type;
 }
 
 size_t element::Type::size() const

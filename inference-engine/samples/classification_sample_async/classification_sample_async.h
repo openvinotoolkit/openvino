@@ -12,12 +12,12 @@
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
+/// @brief message for model argument
+static const char model_message[] = "Required. Path to an .xml file with a trained model.";
+
 /// @brief message for images argument
 static const char image_message[] = "Required. Path to a folder with images or path to an image files: a .ubyte file for LeNet"\
                                     "and a .bmp file for the other networks.";
-
-/// @brief message for model argument
-static const char model_message[] = "Required. Path to an .xml file with a trained model.";
 
 /// @brief message for assigning cnn calculation to device
 static const char target_device_message[] = "Optional. Specify the target device to infer on (the list of available devices is shown below). " \
@@ -72,8 +72,8 @@ static void showUsage() {
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
     std::cout << "    -h                      " << help_message << std::endl;
-    std::cout << "    -i \"<path>\"             " << image_message << std::endl;
     std::cout << "    -m \"<path>\"             " << model_message << std::endl;
+    std::cout << "    -i \"<path>\"             " << image_message << std::endl;
     std::cout << "      -l \"<absolute_path>\"  " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "      -c \"<absolute_path>\"  " << custom_cldnn_message << std::endl;

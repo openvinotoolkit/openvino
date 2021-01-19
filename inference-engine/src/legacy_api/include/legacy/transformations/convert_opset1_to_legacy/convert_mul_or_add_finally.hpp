@@ -32,12 +32,9 @@ class INFERENCE_ENGINE_API_CLASS(ConvertMulOrAddFinally);
 
 class ngraph::pass::ConvertMulOrAddFinally: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     // This pass finally converts single Multiply and Add operations to ScaleShift or Power operation
-    ConvertMulOrAddFinally() : GraphRewrite() {
-        convert_mul_or_add_finally<ngraph::opset1::Add>();
-        convert_mul_or_add_finally<ngraph::opset1::Subtract>();
-        convert_mul_or_add_finally<ngraph::opset1::Multiply>();
-    }
+    ConvertMulOrAddFinally();
 
 private:
     template<typename T>
@@ -67,8 +64,8 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
 }
 
 template <typename T>
-ngraph::graph_rewrite_callback get_callback() {
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
+ngraph::matcher_pass_callback get_callback() {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         static_assert(std::is_same<T, ngraph::opset1::Add>() || std::is_same<T, ngraph::opset1::Subtract>() || std::is_same<T, ngraph::opset1::Multiply>(),
                       "Unsupported template parameter. Only Add or Multiply allowed!");
 
@@ -302,5 +299,7 @@ void ngraph::pass::ConvertMulOrAddFinally::convert_mul_or_add_finally() {
     auto lin_op = std::make_shared<T>(data_batch_1, data_batch_2);
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(lin_op);
+    NGRAPH_SUPPRESS_DEPRECATED_START
     this->add_matcher(m, get_callback<T>(), PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

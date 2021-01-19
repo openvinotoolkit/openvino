@@ -844,11 +844,7 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = cnn_network_ngraph_impl.hpp \
-                         ie_imemory_state_internal.hpp \
-                         ie_memory_state_internal.hpp \
-                         ie_memory_state_base.hpp \
-                         generic_ie.hpp \
+EXCLUDE_PATTERNS       = generic_ie.hpp \
                          function_name.hpp \
                          macro_overload.hpp
 

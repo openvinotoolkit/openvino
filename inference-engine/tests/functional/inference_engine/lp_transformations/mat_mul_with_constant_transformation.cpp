@@ -15,10 +15,10 @@
 #include <low_precision/mat_mul.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/mat_mul_function.hpp"
+#include "lpt_ngraph_functions/mat_mul_function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace {
 
@@ -140,11 +140,8 @@ public:
 };
 
 TEST_P(MatMulWithConstantTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
-
     actualFunction->validate_nodes_and_infer_types();
-
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -314,7 +311,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    smoke_LPT,
     MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

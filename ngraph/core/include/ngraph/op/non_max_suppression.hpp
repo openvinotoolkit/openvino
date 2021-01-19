@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -374,15 +374,16 @@ namespace ngraph
                 }
                 using Node::set_output_type;
 
+                int64_t max_boxes_output_from_input() const;
+                float iou_threshold_from_input() const;
+                float score_threshold_from_input() const;
+                float soft_nms_sigma_from_input() const;
+
             protected:
                 BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
                 bool m_sort_result_descending = true;
                 ngraph::element::Type m_output_type = ngraph::element::i64;
                 void validate();
-                int64_t max_boxes_output_from_input() const;
-                float iou_threshold_from_input() const;
-                float score_threshold_from_input() const;
-                float soft_nms_sigma_from_input() const;
             };
         } // namespace v5
     }     // namespace op

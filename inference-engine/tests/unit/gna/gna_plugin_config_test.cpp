@@ -51,7 +51,7 @@ protected:
 };
 
 TEST_F(GNAPluginConfigTest, GnaConfigDefaultConfigIsExpected) {
-    ASSERT_EQ(config.key_config_map, supportedConfigKeysWithDefaults);
+    ASSERT_EQ(config.keyConfigMap, supportedConfigKeysWithDefaults);
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {

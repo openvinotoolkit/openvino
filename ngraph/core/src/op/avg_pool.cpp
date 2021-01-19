@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/avg_pool.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/validation_util.hpp"
@@ -45,31 +46,14 @@ op::v1::AvgPool::AvgPool(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-op::v1::AvgPool::AvgPool(const Output<Node>& arg,
-                         const Strides& strides,
-                         const Shape& pads_begin,
-                         const Shape& pads_end,
-                         const Shape& kernel,
-                         bool exclude_pad,
-                         op::RoundingType rounding_type)
-    : AvgPool(arg,
-              strides,
-              pads_begin,
-              pads_end,
-              kernel,
-              exclude_pad,
-              rounding_type,
-              op::PadType::EXPLICIT)
-{
-}
-
 bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_AvgPool_visit_attributes);
     visitor.on_attribute("kernel", m_kernel);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
-    visitor.on_attribute("exclude_pad", m_exclude_pad);
+    visitor.on_attribute("exclude-pad", m_exclude_pad);
     visitor.on_attribute("auto_pad", m_auto_pad);
     visitor.on_attribute("rounding_type", m_rounding_type);
     return true;
@@ -77,6 +61,7 @@ bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::AvgPool::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_AvgPool_validate_and_infer_types);
     if (0 == m_strides.size())
     {
         m_strides = Strides(m_kernel.size(), 1);
@@ -93,24 +78,53 @@ void op::v1::AvgPool::validate_and_infer_types()
     }
 
     const PartialShape& arg_shape = get_input_partial_shape(0);
+
+    NODE_VALIDATION_CHECK(this,
+                          arg_shape.rank().compatible(3) || arg_shape.rank().compatible(4) ||
+                              arg_shape.rank().compatible(5),
+                          "Expected a 3D, 4D or 5D tensor for the input. Got: ",
+                          arg_shape);
+
+    if (arg_shape.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              m_pads_end.size() == arg_shape.rank().get_max_length() - 2,
+                              "Expected pads_end size to be equal to input size - 2. Got: ",
+                              m_pads_end.size());
+
+        NODE_VALIDATION_CHECK(this,
+                              m_pads_begin.size() == arg_shape.rank().get_max_length() - 2,
+                              "Expected pads_begin size to be equal to input size - 2. Got: ",
+                              m_pads_begin.size());
+        NODE_VALIDATION_CHECK(this,
+                              m_kernel.size() == arg_shape.rank().get_max_length() - 2,
+                              "Expected kernel size to be equal to input size - 2. Got: ",
+                              m_kernel.size());
+        NODE_VALIDATION_CHECK(this,
+                              m_strides.size() == arg_shape.rank().get_max_length() - 2,
+                              "Expected strides size to be equal to input size - 2. Got: ",
+                              m_kernel.size());
+    }
+
     auto output_shape = PartialShape::dynamic();
     if (arg_shape.rank().is_static())
     {
-        output_shape = std::vector<Dimension>(arg_shape.rank().get_length(), Dimension::dynamic());
-        if (arg_shape.rank().get_length() > 1)
+        output_shape =
+            std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
+        if (arg_shape[0].is_static())
         {
             output_shape[0] = arg_shape[0]; // batch size
         }
-        if (arg_shape.rank().get_length() > 2)
+        if (arg_shape[1].is_static())
         {
             output_shape[1] = arg_shape[1]; // channel size
         }
     }
-
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        CoordinateDiff pads_end, pads_begin;
+        CoordinateDiff pads_end;
+        CoordinateDiff pads_begin;
         update_auto_padding_succeed =
             try_apply_auto_padding(arg_shape,
                                    m_kernel,
@@ -122,12 +136,15 @@ void op::v1::AvgPool::validate_and_infer_types()
         m_pads_end = Shape(pads_end.begin(), pads_end.end());
         m_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
     }
-
+    if (m_auto_pad == PadType::VALID)
+    {
+        m_pads_end = Shape(m_pads_end.size(), 0);
+        m_pads_begin = Shape(m_pads_begin.size(), 0);
+    }
     // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
     // now still take Shape (no negative padding).
     CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
     CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
-
     set_output_type(0,
                     get_input_element_type(0),
                     update_auto_padding_succeed
@@ -214,6 +231,7 @@ void op::v1::AvgPool::set_rounding_type(op::RoundingType rounding_type)
 
 shared_ptr<Node> op::v1::AvgPool::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_AvgPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::AvgPool>(new_args.at(0),
                                     m_strides,

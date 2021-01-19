@@ -29,7 +29,7 @@ def build_argparser():
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument("-m", "--model", help="Required. Path to an .xml or .onnx file with a trained model.", required=True, type=str)
-    args.add_argument("-i", "--input", help="Required. Path to a folder with images or path to an image files", required=True,
+    args.add_argument("-i", "--input", help="Required. Path to an image files", required=True,
                       type=str, nargs="+")
     args.add_argument("-l", "--cpu_extension",
                       help="Optional. Required for CPU custom layers. "
@@ -41,13 +41,13 @@ def build_argparser():
                       type=str)
     args.add_argument("-nt", "--number_top", help="Optional. Number of top results", default=10, type=int)
     args.add_argument("--mean_val_r", "-mean_val_r",
-                      help="Optional. Mean value of red chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of red channel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     args.add_argument("--mean_val_g", "-mean_val_g",
-                      help="Optional. Mean value of green chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of green channel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     args.add_argument("--mean_val_b", "-mean_val_b",
-                      help="Optional. Mean value of blue chanel for mean value subtraction in postprocessing ", default=0,
+                      help="Optional. Mean value of blue channel for mean value subtraction in postprocessing ", default=0,
                       type=float)
     return parser
 
@@ -81,11 +81,11 @@ def main():
     for i in range(n):
         image = cv2.imread(args.input[i])
         if image.shape[:-1] != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            log.warning(f"Image {args.input[i]} is resized from {image.shape[:-1]} to {(h, w)}")
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
-    log.info("Batch size is {}".format(n))
+    log.info(f"Batch size is {n}")
 
     # Loading model to the plugin
     log.info("Loading model to the plugin")
@@ -107,9 +107,9 @@ def main():
         data[data < 0] = 0
         data[data > 255] = 255
         data = data[::] - (args.mean_val_r, args.mean_val_g, args.mean_val_b)
-        out_img = os.path.join(os.path.dirname(__file__), "out_{}.bmp".format(batch))
+        out_img = os.path.join(os.path.dirname(__file__), f"out_{batch}.bmp")
         cv2.imwrite(out_img, data)
-        log.info("Result image was saved to {}".format(out_img))
+        log.info(f"Result image was saved to {out_img}")
     log.info("This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n")
 
 

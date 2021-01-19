@@ -101,4 +101,12 @@ DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
 */
 DECLARE_GNA_CONFIG_KEY(LIB_N_THREADS);
 }  // namespace GNAConfigParams
+
+namespace Metrics {
+    /**
+    * @brief Metric to get a std::string of GNA Library version, usually in the form <API_REVISION>.<RELEASE_LINE>.<RELEASE>.<BUILD>
+    */
+    DECLARE_METRIC_KEY(GNA_LIBRARY_FULL_VERSION, std::string);
+}  // namespace Metrics
+
 }  // namespace InferenceEngine

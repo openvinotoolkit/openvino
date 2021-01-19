@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,4 +123,29 @@ bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc
     }
     return !(in1Block.getOffsetPadding() != in2Block.getOffsetPadding() &&
         in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
+}
+
+std::string MKLDNNExtensionUtils::getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc) {
+    std::string inArgs, outArgs;
+    if (parentDesc.getPrecision() != childDesc.getPrecision()) {
+        inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
+        outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
+    }
+    if (MKLDNNMemoryDesc(parentDesc).getFormat() != MKLDNNMemoryDesc(childDesc).getFormat()) {
+        inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(parentDesc).getFormat());
+        outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(childDesc).getFormat());
+    }
+    return inArgs + "_" + outArgs;
+}
+
+InferenceEngine::Precision MKLDNNExtensionUtils::getMaxPrecision(std::vector<InferenceEngine::Precision> precisions) {
+    if (!precisions.empty()) {
+        std::sort(precisions.begin(), precisions.end(),
+                  [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
+                      return lhs.size() > rhs.size();
+                  });
+        return precisions[0];
+    }
+
+    return InferenceEngine::Precision::UNSPECIFIED;
 }

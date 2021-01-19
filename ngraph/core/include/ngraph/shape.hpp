@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -85,7 +85,7 @@ namespace ngraph
         std::vector<size_t> strides(shape.size());
         size_t s = 1;
         auto st = strides.rbegin();
-        for (auto d = shape.rbegin(); d != shape.rend(); d++, st++)
+        for (auto d = shape.rbegin(); d != shape.rend() && st != strides.rend(); d++, st++)
         {
             *st = s;
             s *= *d;

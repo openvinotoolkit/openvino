@@ -189,7 +189,7 @@ protected:
                         </output>
                     </layer>
                     <layer id="1" name="topk_k" type="Const" version="opset1">
-                        <data element_type="f16" offset="0" shape="__K_DIMS_SHAPE__" size="__K_SIZE__"/>
+                        <data element_type="i32" offset="0" shape="__K_DIMS_SHAPE__" size="__K_SIZE__"/>
                         <output>
                             <port id="1" precision="__INDEX_PRECISION__" />
                         </output>
@@ -251,7 +251,7 @@ protected:
         REPLACE_WITH_STR(model, "__INDEX_PRECISION__", indexPrecision.name());
         REPLACE_WITH_STR(model, "__INPUT_DIMS__", inputDimsStr);
         REPLACE_WITH_NUM_VECTOR(model, "__INPUT_DIMS_SHAPE__", inputDims);
-        REPLACE_WITH_STR(model, "__K_DIMS_SHAPE__", "1");
+        REPLACE_WITH_STR(model, "__K_DIMS_SHAPE__", "");
         REPLACE_WITH_NUM(model, "__K_SIZE__", kSize);
         REPLACE_WITH_STR(model, "__OUTPUT_DIMS__", outputDimsStr);
         REPLACE_WITH_NUM(model, "__AXIS__", axis);

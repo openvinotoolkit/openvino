@@ -146,3 +146,4 @@ ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell_ngraph, "ConvertRNNCellToRNNCellIE");
     this->register_matcher(m, callback);
 }
+

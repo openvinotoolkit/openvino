@@ -15,6 +15,7 @@
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <vpu/utils/error.hpp>
+#include <vpu/ngraph/utilities.hpp>
 
 namespace {
 
@@ -102,22 +103,13 @@ protected:
 
         ngraph::OutputVector first_shape_part, second_shape_part;
         if (variadic_split_setup.first_split_point) {
-            std::vector<int64_t> idxs(variadic_split_setup.first_split_point);
-            std::iota(idxs.begin(), idxs.end(), 0);
-            first_shape_part.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            first_shape_part.push_back(vpu::gatherShapeElements(dims, 0, variadic_split_setup.first_split_point));
         }
         if (variadic_split_setup.first_split_point + 1 < variadic_split_setup.data_shape.size()) {
-            std::vector<int64_t> idxs(variadic_split_setup.data_shape.size() - variadic_split_setup.second_split_point);
-            std::iota(idxs.begin(), idxs.end(), variadic_split_setup.second_split_point);
-            second_shape_part.push_back(
-                    std::make_shared<ngraph::opset3::Gather>(
-                            dims,
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {idxs.size()}, idxs),
-                            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0})));
+            second_shape_part.push_back(vpu::gatherShapeElements(
+                dims,
+                variadic_split_setup.second_split_point,
+                variadic_split_setup.data_shape.size() - variadic_split_setup.second_split_point));
         }
         ngraph::NodeVector results;
         for (auto i = 0; i < variadic_split_setup.split_lengths.size(); ++i) {

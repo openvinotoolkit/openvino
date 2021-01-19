@@ -60,8 +60,8 @@ protected:
         explicit DataConfigurator(ConfLayout l):
             layout(l) {}
 
-        DataConfigurator(ConfLayout l, bool constant, int inplace = -1):
-            layout(l), constant(constant), inplace(inplace) {}
+        DataConfigurator(ConfLayout l, bool constant, int inplace = -1, Precision::ePrecision prc = Precision::UNSPECIFIED):
+            layout(l), constant(constant), inplace(inplace), prc(prc) {}
 
         DataConfigurator(ConfLayout l, Precision::ePrecision prc):
             layout(l), prc(prc) {}
@@ -128,14 +128,7 @@ protected:
                 conf.layout = ConfLayout::PLN;
             }
 
-            // All extension layers support only FP32 precision!
-            // fixing of BF16 precisions where they are - layers naturally support only FP32
-            // if we see BF16, that means another floating point format which will be converted by reorder
-            // added by current mkl-dnn cpu plugin when it figure out diff in data types on input and output of edges
             InferenceEngine::Precision precision = (conf.prc == Precision::UNSPECIFIED) ? data_desc.getPrecision() : Precision(conf.prc);
-            if (precision == Precision::BF16) {
-                precision = Precision::FP32;
-            }
             if (conf.layout == ConfLayout::ANY) {
                 dataConfig.desc = TensorDesc(precision, data_dims, InferenceEngine::Layout::ANY);
             } else {
@@ -176,17 +169,10 @@ protected:
     InferenceEngine::CNNLayerPtr cnnLayer;
 };
 
-template <typename __prim>
-inline void extRegister(MKLDNNExtensions * extInstance, const char * __type) {
-    extInstance->AddExt(__type,
-                [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                    return new __prim(layer);
-                });
-}
-
 #define REG_FACTORY_FOR(__prim, __type) \
     void __prim ## __type(MKLDNNExtensions * extInstance) { \
-        extRegister<ImplFactory<__prim>>(extInstance, #__type); \
+        using namespace MKLDNNPlugin; \
+        extInstance->layersFactory.registerNodeIfRequired(MKLDNNPlugin, __type, OV_CC_TOSTRING(__type), ImplFactory<__prim>); \
     }
 
 }  // namespace Cpu

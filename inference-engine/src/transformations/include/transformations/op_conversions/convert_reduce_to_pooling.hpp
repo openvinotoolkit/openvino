@@ -37,6 +37,7 @@ public:
 
 class ngraph::pass::ConvertReduceToPooling: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertReduceToPooling() {
         add_matcher<ConvertReduceMeanToPooling>();
         add_matcher<ConvertReduceMaxToPooling>();
@@ -46,35 +47,20 @@ public:
 
 class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
 public:
-    ConvertReduceMeanToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceMean>({pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::wrap_type<opset1::Constant>()},
-                                                                pattern::has_static_shape()), "ConvertReduceMean");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMean>());
-    }
+    NGRAPH_RTTI_DECLARATION;
+    ConvertReduceMeanToPooling();
 };
 
 class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
 public:
-    ConvertReduceMaxToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceMax>({pattern::any_input(pattern::has_static_shape()),
-                                                               pattern::wrap_type<opset1::Constant>()},
-                                                               pattern::has_static_shape()), "ConvertReduceMax");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMax>());
-    }
+    NGRAPH_RTTI_DECLARATION;
+    ConvertReduceMaxToPooling();
 };
 
 class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
 public:
-    ConvertReduceSumToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceSum>({pattern::any_input(pattern::has_static_shape()),
-                                                               pattern::wrap_type<opset1::Constant>()},
-                                                               pattern::has_static_shape()), "ConvertReduceSum");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceSum>());
-    }
+    NGRAPH_RTTI_DECLARATION;
+    ConvertReduceSumToPooling();
 };
 
 template <class T>
@@ -82,7 +68,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
     return [&](ngraph::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
 
-        if (!reduce || m_transformation_callback(reduce)) {
+        if (!reduce || transformation_callback(reduce)) {
             return false;
         }
 

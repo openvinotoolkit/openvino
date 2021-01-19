@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,9 +53,6 @@ namespace ngraph
             const element::Type& get_element_type() const { return m_element_type; }
             const Shape& get_shape() const;
             const PartialShape& get_partial_shape() const { return m_partial_shape; }
-            void set_pool_offset(size_t);
-            size_t get_pool_offset() const;
-
             size_t size() const;
 
         protected:
@@ -71,7 +68,6 @@ namespace ngraph
             size_t m_node_output_number{0};
 
             std::string m_name;
-            size_t m_pool_offset{0};
         };
 
         NGRAPH_API

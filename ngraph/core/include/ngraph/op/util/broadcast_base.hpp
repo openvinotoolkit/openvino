@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,7 +71,6 @@ namespace ngraph
                                         const std::pair<bool, AxisSet> pair_broadcast_axes,
                                         const Shape output_shape) const;
 
-                template <element::Type_t ET>
                 bool evaluate(const HostTensorPtr& arg0,
                               const HostTensorPtr& out,
                               const AxisSet& broadcast_axes) const;

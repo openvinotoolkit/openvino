@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "broadcast_base.hpp"
+#include "ngraph/op/util/broadcast_base.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
@@ -92,7 +92,7 @@ void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& ar
         return;
     }
     const auto arg_rank_length = arg_shape.rank().get_length();
-    auto start_axis = target_shape.size() - arg_rank_length;
+    const int64_t start_axis = target_shape.size() - arg_rank_length;
     NODE_VALIDATION_CHECK(this,
                           start_axis >= 0,
                           "Broadcast target_shape has smaller rank ",
@@ -130,6 +130,14 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
                           axes_mapping_val,
                           " not in sorted order");
 
+    if (arg_shape.size() == 0 && axes_mapping_val.size() > 0)
+    {
+        NODE_VALIDATION_CHECK(this,
+                              target_shape[axes_mapping_val[0]] == 1,
+                              "Broadcast target[axes_mapping[0]]. Expected 1. Got ",
+                              target_shape[axes_mapping_val[0]]);
+    }
+
     for (size_t i = 0; i < axes_mapping_val.size(); i++)
     {
         NODE_VALIDATION_CHECK(this,
@@ -141,20 +149,24 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
                               " exceeds target rank ",
                               target_shape.size());
 
-        NODE_VALIDATION_CHECK(this,
-                              target_shape[axes_mapping_val[i]] == arg_shape[i],
-                              "Broadcast target[axes_mapping[",
-                              i,
-                              "]]",
-                              " Expected ",
-                              arg_shape[i],
-                              ". Got ",
-                              target_shape[axes_mapping_val[i]]);
+        if (arg_shape.size() > 0)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  target_shape[axes_mapping_val[i]] == arg_shape[i],
+                                  "Broadcast target[axes_mapping[",
+                                  i,
+                                  "]]",
+                                  " Expected ",
+                                  arg_shape[i],
+                                  ". Got ",
+                                  target_shape[axes_mapping_val[i]]);
+        }
     }
 }
 
 void op::util::BroadcastBase::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_BroadcastBase_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto shape_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
@@ -245,14 +257,16 @@ void op::util::BroadcastBase::validate_and_infer_types()
         {
             auto arg_shape = get_input_shape(0);
             auto axes_shape = get_input_shape(2);
+            auto input_rank =
+                (arg_shape.size() == 0 && shape_size(axes_shape) > 0) ? 1 : arg_shape.size();
 
             // Rank(arg_shape) == shape_size(axes_mapping)
             NODE_VALIDATION_CHECK(this,
-                                  shape_size(axes_shape) == arg_shape.size(),
+                                  shape_size(axes_shape) == input_rank,
                                   "Broadcast axes_mapping shape ",
                                   axes_shape,
                                   " doesn't match rank of input tensor ",
-                                  arg_shape.size());
+                                  input_rank);
 
             if (shape_constant && op::is_constant(input_value(2).get_node()))
             {
@@ -357,18 +371,22 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
     return std::make_pair(axes_known, broadcast_axes);
 }
 
-template <element::Type_t ET>
 bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate<ET>");
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::broadcast<T>((arg0->get_data_ptr<ET>()),
-                                     (out->get_data_ptr<ET>()),
-                                     arg0->get_shape(),
-                                     out->get_shape(),
-                                     broadcast_axes);
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes);
+    auto arg0_shape = arg0->get_shape();
+    if (arg0_shape.size() == 0)
+    {
+        arg0_shape = Shape{1};
+    }
+    runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
+                                  out->get_data_ptr<char>(),
+                                  arg0_shape,
+                                  out->get_shape(),
+                                  broadcast_axes,
+                                  arg0->get_element_type().size());
     return true;
 }
 
@@ -475,37 +493,11 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
         // broadcast_axes not known deterministically
         return false;
     }
-    bool rc = true;
     Shape in_shape = arg0->get_shape();
     out->set_shape(output_shape);
     out->set_element_type(arg0->get_element_type());
-    switch (arg0->get_element_type())
-    {
-        TYPE_CASE(boolean)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i8)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i32)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(i64)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u8)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u32)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(u64)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(f16)(arg0, out, pair_broadcast_axes.second);
-        break;
-        TYPE_CASE(f32)(arg0, out, pair_broadcast_axes.second);
-        break;
-    default: rc = false; break;
-    }
-    return rc;
+
+    return evaluate(arg0, out, pair_broadcast_axes.second);
 }
 
 Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const
@@ -526,8 +518,7 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) con
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate");
-
+    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate);
     Shape target_shape = get_target_shape(inputs[1]);
 
     PartialShape result_shape;

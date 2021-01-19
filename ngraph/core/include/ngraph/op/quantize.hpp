@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -112,9 +112,9 @@ namespace ngraph
                 RoundMode m_round_mode;
                 NGRAPH_SUPPRESS_DEPRECATED_END
             };
-        }
+        } // namespace v0
         NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Quantize;
         NGRAPH_SUPPRESS_DEPRECATED_END
-    }
-}
+    } // namespace op
+} // namespace ngraph

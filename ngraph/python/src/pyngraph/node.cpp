@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,27 +41,27 @@ void regclass_pyngraph_Node(py::module m)
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def("__add__",
              [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return a + b;
+                 return std::make_shared<ngraph::op::v1::Add>(a, b);
              },
              py::is_operator());
     node.def("__sub__",
              [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return a - b;
+                 return std::make_shared<ngraph::op::v1::Subtract>(a, b);
              },
              py::is_operator());
     node.def("__mul__",
              [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return a * b;
+                 return std::make_shared<ngraph::op::v1::Multiply>(a, b);
              },
              py::is_operator());
     node.def("__div__",
              [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return a / b;
+                 return std::make_shared<ngraph::op::v1::Divide>(a, b);
              },
              py::is_operator());
     node.def("__truediv__",
              [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
-                 return a / b;
+                 return std::make_shared<ngraph::op::v1::Divide>(a, b);
              },
              py::is_operator());
 

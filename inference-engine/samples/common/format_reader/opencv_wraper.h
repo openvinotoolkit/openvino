@@ -20,7 +20,7 @@
 namespace FormatReader {
 /**
  * \class OCVMAT
- * \brief OpenCV Wraper
+ * \brief OpenCV Wrapper
  */
 class OCVReader : public Reader {
 private:

@@ -175,19 +175,22 @@ public:
      * Wraps IExecutableNetwork::QueryState
      * @return A vector of Memory State objects
      */
-    std::vector<MemoryState> QueryState() {
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<VariableState> QueryState() {
         if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
-        IMemoryState::Ptr pState = nullptr;
+        IVariableState::Ptr pState = nullptr;
         auto res = OK;
-        std::vector<MemoryState> controller;
+        std::vector<VariableState> controller;
         for (size_t idx = 0; res == OK; ++idx) {
             ResponseDesc resp;
+            IE_SUPPRESS_DEPRECATED_START
             res = actual->QueryState(pState, idx, &resp);
+            IE_SUPPRESS_DEPRECATED_END
             if (res != OK && res != OUT_OF_BOUNDS) {
                 THROW_IE_EXCEPTION << resp.msg;
             }
             if (res != OUT_OF_BOUNDS) {
-                controller.push_back(MemoryState(pState));
+                controller.push_back(VariableState(pState, plg));
             }
         }
 

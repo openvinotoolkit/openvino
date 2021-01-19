@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
@@ -54,11 +55,13 @@ void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
 
 void op::util::BinaryElementwiseLogical::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_validate_and_infer_types);
     validate_and_infer_elementwise_logical(m_autob);
 }
 
 bool op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseLogical_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
 }

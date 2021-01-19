@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,9 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
+# include <ngraph/opsets/opset.hpp>
 # include <ie_ngraph_utils.hpp>
+# include <ngraph/opsets/opset.hpp>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>
@@ -18,6 +20,7 @@
 #include <cctype>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -30,14 +33,14 @@ class IParser {
 public:
     using Ptr = std::shared_ptr<IParser>;
     virtual ~IParser() = default;
-    virtual std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) = 0;
+    virtual std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
 };
 
 class IRParser {
 public:
     explicit IRParser(size_t version);
     IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts);
-    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream);
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights);
     virtual ~IRParser() = default;
 
 private:
@@ -47,18 +50,17 @@ private:
 class CNNParser : public IParser {
 public:
     CNNParser() = default;
-    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) override;
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights) override;
 };
 
 #ifdef IR_READER_V10
-
 class V10Parser : public IParser {
 public:
     explicit V10Parser(const std::vector<IExtensionPtr>& exts);
-    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) override;
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights) override;
 
 private:
-    std::map<std::string, ngraph::OpSet> opsets;
+    std::unordered_map<std::string, ngraph::OpSet> opsets;
     const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
@@ -75,7 +77,7 @@ private:
         std::vector<LayerPortData> inputPorts;
         std::vector<LayerPortData> outputPorts;
 
-        size_t getRealInputPortId(size_t id) {
+        size_t getRealInputPortId(size_t id) const {
             size_t real_id = 0;
             for (auto& it : inputPorts) {
                 if (it.portId == id) {
@@ -86,7 +88,7 @@ private:
             THROW_IE_EXCEPTION << "Can not find input port with id " << id << " in layer " << name;
         }
 
-        size_t getRealOutputPortId(size_t id) {
+        size_t getRealOutputPortId(size_t id) const {
             size_t real_id = 0;
             for (auto& it : outputPorts) {
                 if (it.portId == id) {
@@ -104,7 +106,7 @@ private:
 
     protected:
         static std::shared_ptr<ngraph::Node> fillSubGraphLayer(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
-                                                        std::istream& binStream,
+                                                        const Blob::CPtr& weights,
                                                         const GenericLayerParams& layerParsePrms,
                                                         std::shared_ptr<ngraph::op::util::SubGraphOp> subgraph_op);
         explicit LayerBaseCreator(const std::string& type): type(type) {}
@@ -142,7 +144,7 @@ private:
             return result;
         }
 
-        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs) {
+        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, size_t numInputs) {
             if (numInputs >= 0 && inputs.size() != numInputs) {
                 THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
                                    << " has incorrect number of inputs! Expected: " << numInputs << ", actual: " << inputs.size();
@@ -152,7 +154,7 @@ private:
     public:
         virtual ~LayerBaseCreator() {}
         virtual std::shared_ptr<ngraph::Node> createLayer(const ngraph::OutputVector& inputs,
-                                                          const pugi::xml_node& node, std::istream& binStream,
+                                                          const pugi::xml_node& node, const Blob::CPtr& weights,
                                                           const GenericLayerParams& layerParsePrms) = 0;
 
         bool shouldCreate(const std::string& nodeType) const;
@@ -164,25 +166,22 @@ private:
     public:
         explicit LayerCreator(const std::string& type): LayerBaseCreator(type) {}
         std::shared_ptr<ngraph::Node> createLayer(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
-                                                  std::istream& binStream,
+                                                  const Blob::CPtr& weights,
                                                   const GenericLayerParams& layerParsePrms) override;
         ngraph::NodeTypeInfo getNodeType() const override {
             return T::type_info;
         }
     };
 
-    std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
-                                             std::istream& binStream, const GenericLayerParams& params);
-
-    GenericLayerParams parseGenericParams(const pugi::xml_node& node);
-    void parsePreProcess(CNNNetwork& network, const pugi::xml_node& root, std::istream& binStream);
+    void parsePreProcess(CNNNetwork& network, const pugi::xml_node& root, const Blob::CPtr& weights);
 
     std::map<std::string, DataPtr> portsToData;
     std::map<std::string, GenericLayerParams> layersParseInfo;
 
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
-        explicit XmlDeserializer(const pugi::xml_node& node): node(node) {}
+        explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights,
+        const std::unordered_map<std::string, ngraph::OpSet>& opsets) : node(node), weights(weights), opsets(opsets) {}
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -203,51 +202,7 @@ private:
             if (!is_true && !is_false) return;
             value.set(is_true);
         }
-        void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-            std::string val;
-            if (!getStrAttribute(node.child("data"), name, val)) return;
-            if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::Type>>(&adapter)) {
-                static_cast<ngraph::element::Type&>(*a) = details::convertPrecision(val);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::PartialShape>>(&adapter)) {
-                std::vector<int64_t> shape;
-                std::vector<ngraph::Dimension> dims;
-                if (!getParameters<int64_t>(node.child("data"), name, shape)) return;
-                for (const auto& dim : shape) dims.emplace_back(dim);
-                static_cast<ngraph::PartialShape&>(*a) = ngraph::PartialShape(dims);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Shape>>(&adapter)) {
-                std::vector<size_t> shape;
-                if (!getParameters<size_t>(node.child("data"), name, shape)) return;
-                static_cast<ngraph::Shape&>(*a) = ngraph::Shape(shape);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Strides>>(&adapter)) {
-                std::vector<size_t> shape;
-                if (!getParameters<size_t>(node.child("data"), name, shape)) return;
-                static_cast<ngraph::Strides&>(*a) = ngraph::Strides(shape);
-#ifdef __APPLE__
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
-                std::vector<size_t> result;
-                if (!getParameters<size_t>(node.child("data"), name, result)) return;
-                static_cast<std::vector<size_t>&>(*a) = result;
-#else
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
-                std::vector<size_t> result;
-                if (!getParameters<size_t>(node.child("data"), name, result)) return;
-                a->set(result);
-#endif
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::AxisSet>>(&adapter)) {
-                std::vector<size_t> axes;
-                if (!getParameters<size_t>(node.child("data"), name, axes)) return;
-                static_cast<ngraph::AxisSet&>(*a) = ngraph::AxisSet(axes);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKSortType>>(&adapter)) {
-                if (!getStrAttribute(node.child("data"), name, val)) return;
-                static_cast<ngraph::op::TopKSortType&>(*a) = ngraph::as_enum<ngraph::op::TopKSortType>(val);
-            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
-                if (!getStrAttribute(node.child("data"), name, val)) return;
-                static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
-            }  else {
-                THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
-                                   << " parameter";
-            }
-        }
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
         void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val))
@@ -255,6 +210,43 @@ private:
             double value;
             stringToType<double>(val, value);
             adapter.set(value);
+        }
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override  {
+            std::string value;
+            pugi::xml_node dn = node.child("data");
+            auto type = XMLParseUtils::GetStrAttr(node, "type");
+
+            if (dn.empty())
+                THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
+
+            if (getStrAttribute(dn, name, value)) {
+                auto data = static_cast<char*>(adapter.get_ptr());
+                size_t length = std::min(value.size(), adapter.size());
+                value.copy(data, length);
+            } else if (name == "value" && type == "Const") {
+                std::vector<int64_t> shape;
+                std::string el_type_str;
+
+                size_t offset = XMLParseUtils::GetUInt64Attr(dn, "offset");
+                size_t size = XMLParseUtils::GetUInt64Attr(dn, "size");
+                if (!getStrAttribute(dn, "element_type", el_type_str)) return;
+                if (!getParameters<int64_t>(dn, "shape", shape)) return;
+
+                ngraph::element::Type el_type = details::convertPrecision(el_type_str);
+
+                size_t length = weights->byteSize();
+                if (!length)
+                    THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
+                if (length < offset + size)
+                    THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
+                if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
+                    THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
+
+                auto data = static_cast<char*>(adapter.get_ptr());
+                char* weights_data = weights->cbuffer().as<char*>() + offset;
+
+                std::memcpy(data, weights_data, size);
+            }
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
             std::string val;
@@ -265,9 +257,17 @@ private:
             adapter.set(value);
         }
 
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override;
+
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
             std::vector<int32_t> value;
             if (!getParameters<int32_t>(node.child("data"), name, value)) return;
+            adapter.set(value);
+        }
+
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+            std::vector<int64_t> value;
+            if (!getParameters<int64_t>(node.child("data"), name, value)) return;
             adapter.set(value);
         }
 
@@ -285,6 +285,33 @@ private:
 
     private:
         const pugi::xml_node node;
+        const Blob::CPtr& weights;
+        const std::unordered_map<std::string, ngraph::OpSet>& opsets;
+        /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
+        /// Shall be used only for ops which have port_map attribute.
+        /// \param node xml op representation
+        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> parseInputDescription(
+            const pugi::xml_node& node);
+        /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
+        /// Shall be used only for ops which have port_map attribute.
+        /// \param node xml op representation
+        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
+            const pugi::xml_node& node);
+        /// \brief Traverses nGraph body function for specified op type and creates a map of all
+        ///  op iterations. Map constains type id and assigned to it consecutive number starting from 0.
+        /// \param node xml op representation
+        /// \param type op type name to find
+        /// \param type_id_in_function map container
+        void map_type_in_function(const pugi::xml_node& node, std::string type, std::map<uint64_t, uint64_t>& type_id_in_function);
+        /// \brief Traverses xml node representation in order to create nGraph function for it.
+        /// \param node xml node representation
+        /// \param weights weights attached to current node
+        /// \return shared pointer to function representing input node
+        std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root, const Blob::CPtr& weights);
+
+        GenericLayerParams parseGenericParams(const pugi::xml_node& node);
+        std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
+                                             const Blob::CPtr& weights, const GenericLayerParams& params);
 
         bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
             if (!node) return false;

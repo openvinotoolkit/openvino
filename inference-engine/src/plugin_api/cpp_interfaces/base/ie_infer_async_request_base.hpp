@@ -10,6 +10,7 @@
 
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
+#include <cpp_interfaces/base/ie_variable_state_base.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
 #include "ie_profiling.hpp"
@@ -28,13 +29,18 @@ class InferRequestBase : public IInferRequest {
 public:
     /**
      * @brief Constructor with actual underlying implementation.
-     * @param impl Underplying implementation of type IAsyncInferRequestInternal
+     * @param impl Underlying implementation of type IAsyncInferRequestInternal
      */
     explicit InferRequestBase(std::shared_ptr<T> impl): _impl(impl) {}
 
     StatusCode Infer(ResponseDesc* resp) noexcept override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Infer");
         TO_STATUS(_impl->Infer());
+    }
+
+    StatusCode Cancel(ResponseDesc* resp) noexcept override {
+        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Cancel");
+        NO_EXCEPT_CALL_RETURN_STATUS(_impl->Cancel());
     }
 
     StatusCode GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap,
@@ -87,6 +93,23 @@ public:
     StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetBatch(batch_size));
     }
+
+    IE_SUPPRESS_DEPRECATED_START
+    StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
+        try {
+            auto v = _impl->QueryState();
+            if (idx >= v.size()) {
+                return OUT_OF_BOUNDS;
+            }
+            pState = std::make_shared<VariableStateBase<IVariableStateInternal>>(v[idx]);
+            return OK;
+        } catch (const std::exception& ex) {
+            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
+        } catch (...) {
+            return InferenceEngine::DescriptionBuffer(UNEXPECTED);
+        }
+    }
+    IE_SUPPRESS_DEPRECATED_END
 
 private:
     ~InferRequestBase() = default;

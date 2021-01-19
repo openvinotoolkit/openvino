@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,12 +52,15 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 void validate_and_infer_types() override;
 
+                virtual bool evaluate(const HostTensorVector& output_values,
+                                      const HostTensorVector& input_values) const override;
+
                 /// \return The index of the one-hot axis.
                 int64_t get_axis() const { return m_axis; }
                 void set_axis(int64_t axis) { m_axis = axis; }
             protected:
                 int64_t m_axis;
             };
-        }
-    }
-}
+        } // namespace v1
+    }     // namespace op
+} // namespace ngraph
