@@ -18,7 +18,6 @@
 #include <cstring>
 #include "backend_manager.hpp"
 #include "evaluates_map.hpp"
-#include "ngraph/chrome_trace.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/type/bfloat16.hpp"
@@ -116,8 +115,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
 bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::Tensor>>& outputs,
                                                const vector<shared_ptr<runtime::Tensor>>& inputs)
 {
-    event::Duration d1("call", "Interpreter");
-
     // convert inputs to HostTensor
     vector<shared_ptr<HostTensor>> func_inputs;
     for (const auto& tensor : inputs)
@@ -165,7 +162,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     // for each ordered op in the graph
     for (const auto& op : m_nodes)
     {
-        event::Duration d2(op->description(), "Interpreter");
         if (dynamic_pointer_cast<op::Parameter>(op) != nullptr)
         {
             continue;

@@ -90,6 +90,7 @@ void pre_replace_deconv::run(program_impl& p) {
                     bias_vec.push_back(bias_id);
                 auto input_offset = deconv_prim->input_offset;
                 auto output_padding = deconv_prim->output_padding;
+                auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
                 // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized
                 // list
@@ -136,6 +137,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                                                    stride,
                                                                    input_offset,
                                                                    tensor{ 1, 1, 1, 1 },
+                                                                   grouped_weights_shape,
                                                                    output_padding);
                     p.get_or_create(conv_prim);
                 } else {
@@ -146,6 +148,7 @@ void pre_replace_deconv::run(program_impl& p) {
                                                                    stride,
                                                                    input_offset,
                                                                    tensor{ 1, 1, 1, 1 },
+                                                                   grouped_weights_shape,
                                                                    output_padding);
                     p.get_or_create(conv_prim);
                 }
@@ -231,6 +234,7 @@ void pre_replace_deconv::run(program_impl& p) {
                 tensor stride = { 1, 1, 1, 1 };
                 tensor input_offset = { 0, 0, -scale_factor, -scale_factor };
                 auto output_padding = deconv_prim->output_padding;
+                auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
                 // remove deconvolution node and its connections to weights and biases,
                 // rename it and move to the optimized list
@@ -309,6 +313,7 @@ void pre_replace_deconv::run(program_impl& p) {
                     stride,
                     input_offset,
                     tensor{ 1, 1, 1, 1 },
+                    grouped_weights_shape,
                     output_padding);
                 p.get_or_create(conv_prim);
 
