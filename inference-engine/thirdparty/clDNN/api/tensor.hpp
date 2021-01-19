@@ -390,6 +390,12 @@ struct format {
         }
         return false;
     }
+    /// @brief Checks if @p format is simple data format
+    static bool is_simple_data_format(type fmt) {
+        return (fmt == yxfb || fmt == byxf ||
+                fmt == bfyx || fmt == fyxb ||
+                fmt == bfzyx || fmt == bfwzyx);
+    }
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
     /// @brief Checks if @p format is of image type
