@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 
 #include <memory>
@@ -15,6 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertScatterElementsToScatter, "ConvertScatterElementsToScatter", 0);
 
 ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
+    MATCHER_SCOPE(ConvertScatterElementsToScatter);
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto indices = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
     auto updates = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -208,7 +210,7 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, "ConvertScatterElementsToScatter");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, matcher_name);
     register_matcher(m, callback);
 }
 
