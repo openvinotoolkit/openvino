@@ -73,7 +73,7 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Normalize");
+    CheckPluginRelatedResults(executableNetwork, "Normalize");
 }
 
 namespace {

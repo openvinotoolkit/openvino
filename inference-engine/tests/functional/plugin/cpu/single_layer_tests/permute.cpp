@@ -76,7 +76,7 @@ TEST_P(PermuteLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Permute");
+    CheckPluginRelatedResults(executableNetwork, "Permute");
 }
 
 namespace {
