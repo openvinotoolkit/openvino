@@ -78,7 +78,7 @@ class AvgPoolV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = create_pooling_attrs(node, 'avg')
+        attrs = create_pooling_attrs(node, 'avg', is_pooling_v2=True)
         attrs.update({'op': __class__.op})
         PoolingV2.update_node_stat(node, attrs)
         return cls.enabled
@@ -90,7 +90,7 @@ class MaxPoolV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = create_pooling_attrs(node, 'max')
+        attrs = create_pooling_attrs(node, 'max', is_pooling_v2=True)
         attrs.update({'op': __class__.op})
         PoolingV2.update_node_stat(node, attrs)
         return cls.enabled
