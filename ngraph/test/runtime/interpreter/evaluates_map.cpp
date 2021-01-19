@@ -1674,7 +1674,7 @@ namespace
 
     namespace ctc_greedy_decoder_v6
     {
-        template<element::Type_t T1, element::Type_t T2>
+        template <element::Type_t T1, element::Type_t T2>
         inline void evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
                              const HostTensorVector& outputs,
                              const HostTensorVector& inputs)
@@ -1735,7 +1735,7 @@ namespace
             }
         }
     }
-    template<element::Type_t ET>
+    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
