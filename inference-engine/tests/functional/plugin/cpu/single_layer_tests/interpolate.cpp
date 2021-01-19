@@ -85,9 +85,7 @@ protected:
                                                                          scalesInput,
                                                                          axesInput,
                                                                          interpolateAttributes);
-        interpolate->get_rt_info() = getCPUInfo();
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
-        function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+        function = makeNgraphFunction(ngPrc, params, interpolate, "interpolate");
         selectedType = getPrimitiveType() + "_" + inPrc.name();
     }
 };
@@ -96,7 +94,7 @@ TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Interpolate");
+    CheckPluginRelatedResults(executableNetwork, "Interpolate");
 }
 
 namespace {
