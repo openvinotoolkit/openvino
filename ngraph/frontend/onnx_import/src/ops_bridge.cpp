@@ -309,7 +309,9 @@ namespace ngraph
             REGISTER_OPERATOR("Add", 7, add);
             REGISTER_OPERATOR("And", 1, logical_and);
             REGISTER_OPERATOR("ArgMin", 1, argmin);
+            REGISTER_OPERATOR("ArgMin", 12, argmin);
             REGISTER_OPERATOR("ArgMax", 1, argmax);
+            REGISTER_OPERATOR("ArgMax", 12, argmax);
             REGISTER_OPERATOR("Asin", 1, asin);
             REGISTER_OPERATOR("Asinh", 1, asinh);
             REGISTER_OPERATOR("Atan", 1, atan);
@@ -404,6 +406,7 @@ namespace ngraph
             REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
             REGISTER_OPERATOR("ReduceProd", 1, reduce_prod);
             REGISTER_OPERATOR("ReduceSum", 1, reduce_sum);
+            REGISTER_OPERATOR("ReduceSum", 13, reduce_sum);
             REGISTER_OPERATOR("ReduceSumSquare", 1, reduce_sum_square);
             REGISTER_OPERATOR("Relu", 1, relu);
             REGISTER_OPERATOR("Reshape", 1, reshape);
