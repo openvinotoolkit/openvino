@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,7 +129,8 @@ class CustomAbsExtension : public InferenceEngine::IExtension {
         }
 };
 
-void infer_model(InferenceEngine::Core& ie, const std::string& model, const std::vector<float>& input_values, const std::vector<float>& expected) {
+void infer_model(InferenceEngine::Core& ie, const std::string& model,
+                 const std::vector<float>& input_values, const std::vector<float>& expected) {
     InferenceEngine::Blob::CPtr weights;
     auto network = ie.ReadNetwork(model, weights);
     auto function = network.getFunction();
@@ -269,8 +270,7 @@ TEST(Extension, XmlModelWithCustomAbs) {
 
 
 static std::string get_extension_path() {
-    return FileUtils::makePluginLibraryName<char>({},
-            std::string("template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>({}, std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 
