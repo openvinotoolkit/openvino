@@ -11,11 +11,13 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
 
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ClampFusion, "ClampFusion", 0);
 
 ngraph::pass::ClampFusion::ClampFusion() {
+    MATCHER_SCOPE(ClampFusion);
     auto data_pattern = ngraph::pattern::any_input();
     auto min_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
@@ -53,6 +55,6 @@ ngraph::pass::ClampFusion::ClampFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(min_pattern, "ClampFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(min_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
