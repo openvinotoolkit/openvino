@@ -49,6 +49,31 @@ TEST(type_prop, proposal_v0_invalid_class_probs_rank)
     }
 }
 
+TEST(type_prop, proposal_v0_invalid_anchor_count)
+{
+    op::ProposalAttrs attrs;
+    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    try
+    {
+        auto proposal =
+            make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Invalid input tensor rank.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(), std::string("Anchor number inconsistent between"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, proposal_v0_invalid_class_bbox_deltas_rank)
 {
     op::ProposalAttrs attrs;
