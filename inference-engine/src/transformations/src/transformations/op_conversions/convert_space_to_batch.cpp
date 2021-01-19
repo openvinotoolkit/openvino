@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSpaceToBatch, "ConvertSpaceToBatch", 0);
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
+    MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch);
     auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
@@ -112,11 +114,12 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, "ConvertSpaceToBatch");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, matcher_name);
     this->register_matcher(m, callback);
 }
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
+    MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch_by_elements);
     auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
@@ -203,7 +206,6 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, "ConvertSpaceToBatch");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, matcher_name);
     this->register_matcher(m, callback);
 }
-
