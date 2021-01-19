@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -185,7 +185,7 @@ namespace ngraph
                              Strides(source_shape.size(), 1));
             }
 
-            /// \brief Class allows to iterate over Tensor with reverted axies part by part.
+            /// \brief Class allows to iterate over Tensor with reverted axes part by part.
             ///
             /// To create ReverseRange use _reverse_ function.
             ///
@@ -213,8 +213,14 @@ namespace ngraph
                 return ReverseRange(source_shape, reversed_axis);
             }
 
+            inline ReverseRange index(const Shape& source_shape)
+            {
+                return reverse(source_shape, {});
+            }
+
         } // namespace impl
         using impl::Direction;
+        using impl::index;
         using impl::reverse;
         using impl::slice;
     } // namespace coordinates

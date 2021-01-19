@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support dif
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
 xfail_issue_33606 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Det")
-xfail_issue_33616 = xfail_test(reason="Add ceil_mode for Max and Avg pooling (reference implementation)")
+xfail_issue_45486 = xfail_test(reason="Dilations attribute for MaxPool operator is not supported")
 xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -92,7 +92,6 @@ xfail_issue_40319 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input ima
                                       "supported yet...")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
-xfail_issue_40485 = xfail_test(reason="Computation missmatch")
 xfail_issue_36476 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U32 is "
                                "not supported yet...")
 xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U64 is "
@@ -137,10 +136,8 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "Argument element types are inconsistent.")
 xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "If")
-xfail_issue_43439 = xfail_test(reason="Check 'tensor_rank.is_static()' failed at "
-                                      "ngraph/core/src/validation_util.cpp:884:"
-                                      "map_1/while/select_bboxes/sort_bboxes_10/TopKV2 "
-                                      "Rank must be static in order to normalize negative axis=-1")
+xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop"
+                                      "Not constant termination condition body output is not supported")
 xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
                                       "While validating node 'v1::OneHot OneHot_<number>"
                                       "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
@@ -169,8 +166,8 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "NegativeLogLikelihoodLoss")
-xfail_issue_43523 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError:"
-                                      " Unrecognized attribute: axes for operator ReduceSum")
+xfail_issue_45177 = xfail_test(reason="RuntimeError: axes has zero dimension which is not allowed")
+xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
@@ -185,14 +182,8 @@ xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
 xfail_issue_44970 = xfail_test(reason="Assertion error")
 xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
                                       "FakeQuantize_xxx has non const input on 1 port")
-
-
-# Model ONNX Zoo issues:
-xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
-                                      "('Expected %s parameters, received %s.', 1, 3)")
-xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315,"
-                                      "Constant_9353 -> (f32{?,?,?,?})' with friendly_name '315':"
-                                      "Input order must have shape [n], where n is the rank of arg.")
+xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if u16 data type is used")
+xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not supported by ArgMin and ArgMax")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -217,8 +208,6 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
                                       "NonMaxSuppressionIE operation.")
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
-xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
-xfail_issue_43380 = xfail_test(reason="RuntimeError: Sorting not possible, due to existed loop")
 xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
 
 

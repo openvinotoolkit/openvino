@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "default_opset.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
@@ -1129,6 +1129,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2)
     test_case.add_input<float>(input);
 
     test_case.add_expected_output<float>(
+        Shape{3, 4, 5},
         {0.80619486, 0.03075257, 0.1161086,  0.027393,   0.01955098, 0.07012682, 0.22670066,
          0.18689779, 0.4614171,  0.05485763, 0.04486172, 0.72286838, 0.10286818, 0.07356265,
          0.05583908, 0.01280724, 0.02448298, 0.08096658, 0.11509768, 0.76664552,
@@ -1141,7 +1142,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2)
          0.01439711, 0.70979614, 0.16515835, 0.06798343, 0.2957175,  0.17468555, 0.34994439,
          0.11166912, 0.03615172, 0.07108136, 0.08527994, 0.44775794, 0.35972905});
 
-    test_case.run(4);
+    test_case.run(3);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step)

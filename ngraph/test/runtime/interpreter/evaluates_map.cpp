@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
+#include <ngraph/runtime/reference/bucketize.hpp>
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
 #include <ngraph/runtime/reference/convolution.hpp>
@@ -36,6 +37,7 @@
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
+#include <ngraph/runtime/reference/gather_elements.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
 #include <ngraph/runtime/reference/gelu.hpp>
@@ -77,6 +79,110 @@ namespace
                   const HostTensorVector& inputs)
     {
         return false;
+    }
+
+    namespace bucketize_v3
+    {
+        template <element::Type_t t1, element::Type_t t2, element::Type_t t3>
+        inline void evaluate(const shared_ptr<op::v3::Bucketize>& op,
+                             const HostTensorVector& outputs,
+                             const HostTensorVector& inputs)
+        {
+            using T1 = typename element_type_traits<t1>::value_type;
+            using T2 = typename element_type_traits<t2>::value_type;
+            using T3 = typename element_type_traits<t3>::value_type;
+
+            runtime::reference::bucketize<T1, T2, T3>(inputs[0]->get_data_ptr<T1>(),
+                                                      inputs[1]->get_data_ptr<T2>(),
+                                                      outputs[0]->get_data_ptr<T3>(),
+                                                      op->get_input_shape(0),
+                                                      op->get_input_shape(1),
+                                                      op->get_with_right_bound());
+        }
+
+        static inline constexpr uint16_t getElementMask(element::Type_t type1,
+                                                        element::Type_t type2)
+        {
+            return (static_cast<uint8_t>(type1)) | (static_cast<uint8_t>(type2) << 8);
+        }
+
+    } // namespace bucketize_v3
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        switch (bucketize_v3::getElementMask(op->get_input_element_type(0),
+                                             op->get_input_element_type(1)))
+        {
+        case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::f32):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::f32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::f16):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::f16, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i32):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i64):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::f32):
+            bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::f32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::f16):
+            bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::f16, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i32):
+            bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i64):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::f32):
+            bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::f32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::f16):
+            bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::f16, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i32):
+            bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i64):
+            bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::f32):
+            bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::f32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::f16):
+            bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::f16, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i32):
+            bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i64):
+            bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+            break;
+        default: return false;
+        }
+        return true;
     }
 
     template <element::Type_t ET>
@@ -1575,6 +1681,45 @@ namespace
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
                                                   ngraph::op::AutoBroadcastSpec::NUMPY);
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::GatherElements>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        Shape params_shape = inputs[0]->get_shape();
+        Shape indices_shape = inputs[1]->get_shape();
+
+        outputs[0]->set_shape(indices_shape);
+
+        if (inputs[1]->get_element_type() == element::i64)
+        {
+            runtime::reference::gather_elements<T, int64_t>(inputs[0]->get_data_ptr<ET>(),
+                                                            inputs[1]->get_data_ptr<int64_t>(),
+                                                            outputs[0]->get_data_ptr<ET>(),
+                                                            inputs[0]->get_shape(),
+                                                            inputs[1]->get_shape(),
+                                                            outputs[0]->get_shape(),
+                                                            op->get_axis());
+        }
+        else if (inputs[1]->get_element_type() == element::i32)
+        {
+            runtime::reference::gather_elements<T, int32_t>(inputs[0]->get_data_ptr<ET>(),
+                                                            inputs[1]->get_data_ptr<int32_t>(),
+                                                            outputs[0]->get_data_ptr<ET>(),
+                                                            inputs[0]->get_shape(),
+                                                            inputs[1]->get_shape(),
+                                                            outputs[0]->get_shape(),
+                                                            op->get_axis());
+        }
+        else
+        {
+            throw ngraph_error("Unexpected indices type");
+        }
+
         return true;
     }
 

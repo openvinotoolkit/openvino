@@ -81,7 +81,7 @@ TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "RegionYolo");
+    CheckPluginRelatedResults(executableNetwork, "RegionYolo");
 }
 
 namespace {

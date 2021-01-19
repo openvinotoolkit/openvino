@@ -49,6 +49,8 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
 
+add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
+
 # Create shared library
 
 add_library(${TARGET_NAME} SHARED 
@@ -66,18 +68,12 @@ target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} EXCLUDE_PATTERNS ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
-
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-# export targets
-
-export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
 
 # developer package
 

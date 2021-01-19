@@ -347,6 +347,9 @@ void BF16Transformer::addLayerToCNNNetworkAfterData(
 void BF16Transformer::insertConvertAfterInput(InferenceEngine::CNNNetwork &network) {
     auto inputLayers = InferenceEngine::CNNNetGetAllInputLayers(network);
     for (auto inputIter : inputLayers) {
+        if (inputIter->type == "Const") {
+            continue;
+        }
         for (size_t o = 0; o < inputIter->outData.size(); o++) {
             for (auto bfInitIter : getInputTo(inputIter->outData[o])) {
                 if (inputIter->outData[o]->getPrecision() == Precision::BF16) {

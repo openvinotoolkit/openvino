@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 //*****************************************************************************
 #include <algorithm>
 #include <iterator>
+#include "itt.hpp"
 
-#include "grn.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
@@ -25,6 +25,7 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/grn.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
@@ -33,6 +34,11 @@ using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::GRN::type_info;
+
+op::GRN::GRN()
+    : FusedOp()
+{
+}
 
 op::GRN::GRN(const Output<Node>& data, float bias)
     : FusedOp({data})
@@ -43,6 +49,7 @@ op::GRN::GRN(const Output<Node>& data, float bias)
 
 bool ngraph::op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_GRN_visit_attributes);
     visitor.on_attribute("bias", m_bias);
     return true;
 }
@@ -96,6 +103,7 @@ OutputVector op::GRN::decompose_op() const
 
 shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_GRN_clone_with_new_inputs);
     if (new_args.size() != 1)
     {
         throw ngraph_error("Incorrect number of new arguments");

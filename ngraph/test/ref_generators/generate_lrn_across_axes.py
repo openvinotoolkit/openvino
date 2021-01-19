@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 import copy
 import numpy as np
-  
+
 def LRN(input, size=3, bias=1.0, alpha=3.0, beta=0.5):
     output = copy.deepcopy(input)
     N = input.shape[0]
@@ -45,4 +45,3 @@ input = np.arange(0, 12, 1).reshape(2, 3, 2, 1).astype(np.float32)
 result = LRN(input)
 for elem in np.nditer(result):
     print("{:.7f}f,".format(elem))
-

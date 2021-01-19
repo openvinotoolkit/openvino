@@ -9,6 +9,8 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
+
 
 using namespace ngraph::pass::low_precision;
 
@@ -42,8 +44,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     const bool updatePrecisions,
     const FakeQuantizeOnData& fakeQuantizeOnData,
     const ngraph::element::Type fakeQuantizeOutputPrecision,
-    const std::vector<float>& expectedSubtractValues,
-    const std::vector<float>& expectedMultiplyValues) {
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
@@ -60,47 +61,27 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     auto& rtInfo = fakeQuantize->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
 
+    auto updateDequantization = dequantization;
+    if (!updateDequantization.subtract.empty()) {
+        updateDequantization.subtract.constantPrecision = element::f32;
+    }
+    if (!updateDequantization.multiply.empty()) {
+        updateDequantization.multiply.constantPrecision = element::f32;
+    }
+
+    std::shared_ptr<Node> deq;
     if (updatePrecisions) {
-        const std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<DequantizationConvert>(parent, element::f32);
-        ngraph::copy_runtime_info({ fakeQuantize, convert }, convert);
-        parent = convert;
+        deq = makeDequantization(fakeQuantize, updateDequantization);
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, fakeQuantizeOutputPrecision);
     } else {
-        if (fakeQuantize->get_output_element_type(0) != element::f32) {
-            const std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<DequantizationConvert>(parent, element::f32);
-            ngraph::copy_runtime_info({ fakeQuantize, convert }, convert);
-            parent = convert;
+        if (precision == element::f32) {
+            updateDequantization.convert = {};
         }
+        deq = makeDequantization(fakeQuantize, updateDequantization);
     }
 
-    const std::shared_ptr<ngraph::opset1::Subtract> subtract = expectedSubtractValues.empty() ?
-        nullptr :
-        std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
-            parent,
-            ngraph::opset1::Constant::create(
-                element::f32,
-                expectedSubtractValues.size() == 1ul ? ngraph::Shape{ } : ngraph::Shape{ expectedSubtractValues.size() },
-                expectedSubtractValues),
-            ngraph::op::AutoBroadcastSpec::NUMPY);
-    if (subtract != nullptr) {
-        ngraph::copy_runtime_info({ fakeQuantize, subtract }, subtract);
-        parent = subtract;
-    }
-
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply = expectedMultiplyValues.empty() ?
-        nullptr :
-        std::make_shared<DequantizationMultiply>(
-            parent,
-            ngraph::opset1::Constant::create(
-                element::f32,
-                expectedMultiplyValues.size() == 1ul ? ngraph::Shape{ } : ngraph::Shape{ expectedMultiplyValues.size() },
-                expectedMultiplyValues));
-    if (multiply != nullptr) {
-        ngraph::copy_runtime_info({ fakeQuantize, multiply }, multiply);
-        parent = multiply;
-    }
-    parent->set_friendly_name("fakeQuantize");
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
+    deq->set_friendly_name("fakeQuantize");
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(deq) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
 }
 

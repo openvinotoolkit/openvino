@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,6 +79,10 @@ namespace ngraph
                 std::size_t m_blocksize;
                 DepthToSpaceMode m_mode;
                 DepthToSpaceMode mode_from_string(const std::string& mode) const;
+
+            private:
+                bool evaluate_depth_to_space(const HostTensorVector& outputs,
+                                             const HostTensorVector& inputs) const;
             };
         }
         using v0::DepthToSpace;

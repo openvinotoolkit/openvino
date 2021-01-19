@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,15 @@
 // limitations under the License.
 //*****************************************************************************
 #include <algorithm>
+#include "itt.hpp"
 
-#include "mvn.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/mvn.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
 
@@ -33,6 +34,14 @@ using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
+
+op::MVN::MVN()
+    : FusedOp()
+    , m_across_channels()
+    , m_normalize_variance()
+    , m_reduction_axes()
+{
+}
 
 op::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : FusedOp({data})
@@ -60,6 +69,7 @@ op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_va
 // instead of relying on op decomposition.
 void op::MVN::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_MVN_validate_and_infer_types);
     // if m_across_channels is true we should calculate mean and variance per batch
     // else we calculate these per channel
     if (m_reduction_axes.empty() && input_value(0).get_partial_shape().rank().is_static())
@@ -106,6 +116,7 @@ OutputVector op::MVN::decompose_op() const
 
 shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_MVN_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 1,
                           "Expected 1 element in new_args for the MVN op but got ",
@@ -115,6 +126,7 @@ shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) co
 
 bool op::MVN::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_MVN_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("across_channels", m_across_channels);
     visitor.on_attribute("normalize_variance", m_normalize_variance);
@@ -161,6 +173,7 @@ op::v6::MVN::MVN(const Output<Node>& data,
 
 void op::v6::MVN::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v6_MVN_validate_and_infer_types);
     const auto data = get_input_partial_shape(0);
     const auto axes = get_input_partial_shape(1);
 
@@ -183,6 +196,7 @@ void op::v6::MVN::validate_and_infer_types()
 
 shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v6_MVN_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 2,
                           "Expected 2 element in new_args for the MVN op but got ",
@@ -193,6 +207,7 @@ shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v6::MVN::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v6_MVN_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("normalize_variance", m_normalize_variance);
     visitor.on_attribute("eps_mode", m_eps_mode);

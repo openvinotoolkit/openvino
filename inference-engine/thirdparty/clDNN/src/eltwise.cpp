@@ -63,6 +63,8 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
                                                        eltwise_mode::le,
                                                        eltwise_mode::gt,
                                                        eltwise_mode::ge,
+                                                       eltwise_mode::squared_diff,
+                                                       eltwise_mode::floor_mod,
                                                        eltwise_mode::logic_and,
                                                        eltwise_mode::logic_or,
                                                        eltwise_mode::logic_xor};

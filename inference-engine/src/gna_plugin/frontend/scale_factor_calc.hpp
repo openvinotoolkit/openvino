@@ -297,8 +297,10 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         if (layerInfo.isActivation()) {
             // todo: calculate proper scale factor where we need to expand it a bit to be safe to stay in int16 weights
             // set the initial value
-            auto scale = getActivationScale(cnnLayer, layerInfo);
-            quant->_dst_quant.SetScale(scale);
+            if (!quant->_dst_quant.IsScaleSet()) {
+                auto scale = getActivationScale(cnnLayer, layerInfo);
+                quant->_dst_quant.SetScale(scale);
+            }
             return true;
         }
         quant->_dst_quant = inputQuant->_dst_quant;
@@ -470,12 +472,6 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         // - 1st candidate - input layer
         // - 2nd candidate - non-activation layer with non-1 scale factor
         // - 3rd candidate - 1st layer with non-1 scale factor
-        auto sourceLayerCheck = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
-            auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
-            LayerInfo info(inputLayer);
-            return !info.isActivation() && !fp32eq(quantParams->_dst_quant.GetScale(), 1.0f);
-        };
-
         static std::map<std::string, size_t> restarted_counter;
         auto restartedCountIt = restarted_counter.find(concatLayer->name);
         if (restartedCountIt == restarted_counter.end()) {
@@ -483,13 +479,22 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             restartedCountIt = pos.first;
         }
 
-        if (((restartedCountIt->second) / 2) % 2 == 1) {
-            std::reverse(inputLayers.begin(), inputLayers.end());
+        auto sourceLayerIt = firstInputIt;
+        if (sourceLayerIt == inputLayers.end()) {
+            if (((restartedCountIt->second) / 2) % 2 == 1) {
+                std::reverse(inputLayers.begin(), inputLayers.end());
+            }
+            if (((restartedCountIt->second) / 4) % 2 == 0) {
+                auto sourceLayerCheck = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
+                    auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
+                    LayerInfo info(inputLayer);
+                    return !info.isActivation() && !fp32eq(quantParams->_dst_quant.GetScale(), 1.0f);
+                };
+                sourceLayerIt = std::find_if(inputLayers.begin(), inputLayers.end(), sourceLayerCheck);
+            }
         }
         ++restartedCountIt->second;
 
-        auto sourceLayerIt = (firstInputIt != inputLayers.end()) ? firstInputIt
-                                                                 : std::find_if(inputLayers.begin(), inputLayers.end(), sourceLayerCheck);
         if (sourceLayerIt == inputLayers.end()) {
             auto nonDefaultScaleFactor = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
                 auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
@@ -552,7 +557,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     gnalog() << "[UFS] from : " << concatLayer->name << " reached: " << layer->name;
                     // found that direct input to concat is a indirect parent of align filter - so no link required
                     auto info = LayerInfo(layer);
-                    if (!info.isWeightable() && !info.isActivation() && !info.isConst()) {
+                    if (!info.isWeightable() && !info.isActivation() && !info.isConst() && !info.isMemory()) {
                         gnalog() << "... skipped\n";
                         return;
                     }
@@ -576,6 +581,11 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             }
             if (restarLayerInfo.isConst()) {
                 gnalog() << "... warning const layer will be requantized\n";
+                quantDataForConCatInput->_dst_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
+            }
+            if (restarLayerInfo.isMemory()) {
+                gnalog() << "... warning memory layer will be requantized\n";
+                quantDataForConCatInput->_src_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
                 quantDataForConCatInput->_dst_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
             }
             result = ScaleFactorUpdateResult(restartedLayer.get());

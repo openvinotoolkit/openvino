@@ -31,6 +31,9 @@
 
 namespace LayerTestsUtils {
 
+// filename length limitation due to Windows constraints (max 256 characters)
+constexpr std::size_t maxFileNameLength = 140;
+
 class Summary;
 
 class SummaryDestroyer {
@@ -168,7 +171,8 @@ protected:
             }
 
             const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
-            ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
+            float diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
+            ASSERT_TRUE(max != 0 && (diff <= static_cast<float>(threshold)))
                                         << "Relative comparison of values expected: " << ref << " and actual: " << res
                                         << " at index " << i << " with threshold " << threshold
                                         << " failed";
@@ -213,8 +217,6 @@ protected:
 
 private:
     RefMode refMode = RefMode::INTERPRETER;
-    static std::string GetTimestamp();
-    const std::string GetTestName();
 };
 
 }  // namespace LayerTestsUtils

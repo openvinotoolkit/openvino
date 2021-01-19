@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <fstream>
@@ -195,7 +195,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName() + "_" + GetTimestamp();
+    std::string output_name = GetTestName().substr(0, maxFileNameLength) + "_" + GetTimestamp();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -269,6 +269,10 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
         case InferenceEngine::Precision::BF16:
             Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
                     reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, ngraph::bfloat16(threshold));
+            break;
+        case InferenceEngine::Precision::FP16:
+            Compare(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
+                    reinterpret_cast<const ngraph::float16 *>(actualBuffer), size, ngraph::float16(threshold));
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
@@ -371,13 +375,14 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     }
 
     auto ieOutPrc = outPrc;
-    const auto &actualOutputs = GetOutputs();
-    std::vector<ngraph::element::Type_t> convertType(actualOutputs.size(),
+    const auto &&outputsInfo = executableNetwork.GetOutputsInfo();
+    std::vector<ngraph::element::Type_t> convertType(outputsInfo.size(),
                                                      FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ieOutPrc));
     if (ieOutPrc == InferenceEngine::Precision::UNSPECIFIED) {
-        for (size_t i = 0; i < convertType.size(); i++) {
-            convertType[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
-                    actualOutputs[i]->getTensorDesc().getPrecision());
+        size_t i = 0;
+        for (const auto &output : outputsInfo) {
+                convertType[i++] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
+                    output.second->getTensorDesc().getPrecision());
         }
     }
 
@@ -444,17 +449,10 @@ std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) 
             const auto& rtInfo = op->get_rt_info();
             const auto& it = rtInfo.find("runtimePrecision");
 
-            if (it == rtInfo.end()) {
-                // WA: CPU impl doesn't contain runtimePrecision attribute
-                const auto& it1 = rtInfo.find("primitiveType");
-                const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it1->second);
-                const std::string kernel = rtPrecisionPtr->get();
-                const std::string kernelPrecision = kernel.substr(kernel.find_last_of("_") + 1ul);
-                return kernelPrecision;
-            } else {
-                const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-                return rtPrecisionPtr->get();
-            }
+            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
+
+            const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+            return rtPrecisionPtr->get();
         }
     }
 
@@ -473,18 +471,4 @@ std::map<std::string, std::string> &LayerTestsCommon::GetConfiguration() {
     return configuration;
 }
 
-std::string LayerTestsCommon::GetTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    auto epoch = now.time_since_epoch();
-    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
-    return std::to_string(ns.count());
-}
-
-const std::string LayerTestsCommon::GetTestName() {
-    std::string test_name =
-            ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::replace_if(test_name.begin(), test_name.end(),
-                    [](char c) { return !std::isalnum(c); }, '_');
-    return test_name;
-}
 }  // namespace LayerTestsUtils

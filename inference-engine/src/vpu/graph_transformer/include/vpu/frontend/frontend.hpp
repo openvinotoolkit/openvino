@@ -160,6 +160,7 @@ public:
     void parseGatherND(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseHSwish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseCeiling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseRound(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
@@ -188,7 +189,6 @@ public:
 
     static CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr&cnnLayer);
     static ie::ICNNNetwork::Ptr convertNetwork(ie::ICNNNetwork& network);
-    bool isLayerSupported(const std::string& type);
 
 private:
     Data getVpuData(const ie::DataPtr& ieData) const;
