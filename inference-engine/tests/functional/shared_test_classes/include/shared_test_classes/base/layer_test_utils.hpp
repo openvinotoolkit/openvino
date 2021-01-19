@@ -31,6 +31,9 @@
 
 namespace LayerTestsUtils {
 
+// filename length limitation due to Windows constraints (max 256 characters)
+constexpr std::size_t maxFileNameLength = 140;
+
 class Summary;
 
 class SummaryDestroyer {
