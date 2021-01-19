@@ -79,14 +79,12 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
     {
         const std::shared_ptr<Node> multiplyConstant = dequantization.multiply->get_input_node_shared_ptr(1);
 
-        if (lastNewPrecision != precisionAfterDequantization) {
+        if (lastNewPrecision != deqPrecision) {
             lastNew = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
-                std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{precisionAfterDequantization},
+                std::vector<element::Type>{element::f32, element::f32},
+                std::vector<element::Type>{deqPrecision},
                 ngraph::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
                 ngraph::op::TemporaryReplaceOutputType(multiplyConstant, element::f32).get());
-
-            auto lastNewPtr = lastNew.get_node_shared_ptr();
-            NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Multiply>(lastNewPtr), precisionAfterDequantization);
         } else {
             lastNew = std::make_shared<DequantizationMultiply>(lastNew, multiplyConstant);
         }
@@ -95,7 +93,7 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
             NetworkHelper::copyInfo(dequantization.multiply, lastNewPtr);
         }
 
-        lastNewPrecision = precisionAfterDequantization;
+        lastNewPrecision = deqPrecision;
     }
 
     if (dequantization.subtract != nullptr) {
