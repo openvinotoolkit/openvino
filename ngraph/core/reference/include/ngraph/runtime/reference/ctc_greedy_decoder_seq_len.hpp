@@ -39,24 +39,24 @@ namespace ngraph
                 const auto batch_size = data_shape[0];
                 const auto class_count = data_shape[2];
 
-                CoordinateTransform out_transform = CoordinateTransform(out_shape);
-                CoordinateTransform data_transform = CoordinateTransform(data_shape);
+                const CoordinateTransform out_transform{out_shape};
+                const CoordinateTransform data_transform{data_shape};
 
                 std::vector<TCI> tmp_out(shape_size(out_shape), -1);
 
-                for (unsigned int batch_ind = 0; batch_ind < batch_size; batch_ind++)
+                for (std::size_t batch_ind = 0; batch_ind < batch_size; ++batch_ind)
                 {
                     TI previous_class_index = static_cast<TI>(-1);
                     auto out_index = out_transform.index({batch_ind, 0});
-                    auto seq_len = sequence_length[batch_ind];
-                    for (unsigned int seq_ind = 0; seq_ind < seq_len; seq_ind++)
+                    auto seq_len = static_cast<std::size_t>(sequence_length[batch_ind]);
+                    for (std::size_t seq_ind = 0; seq_ind < seq_len; seq_ind++)
                     {
                         auto data_index = data_transform.index({batch_ind, seq_ind, 0});
 
                         auto class_index = data + data_index;
                         auto class_max_element =
                             std::max_element(class_index, class_index + class_count);
-                        unsigned int max_class_ind = std::distance(class_index, class_max_element);
+                        const auto max_class_ind = std::distance(class_index, class_max_element);
                         if (!(previous_class_index == max_class_ind && ctc_merge_repeated) &&
                             max_class_ind < blank_index[0])
                         {

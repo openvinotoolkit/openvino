@@ -1567,38 +1567,69 @@ namespace
         return true;
     }
 
-    template <element::Type_t T>
-    bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using TF = typename element_type_traits<T>::value_type;
-        using TCI = int32_t;
-        using TSL = int32_t;
-
-        if (op->get_sequence_length_type() == element::i32)
-        {
-            runtime::reference::ctc_greedy_decoder_seq_len<TF>(
-                inputs[0]->get_data_ptr<const TF>(),
-                inputs[1]->get_data_ptr<const int32_t>(),
-                inputs[2]->get_data_ptr<const int32_t>(),
-                outputs[0]->get_data_ptr<TCI>(),
-                outputs[1]->get_data_ptr<TSL>(),
-                inputs[0]->get_shape(),
-                outputs[0]->get_shape(),
-                op->get_merge_repeated());
+    namespace ctc_greedy_decoder_v6 {
+        template<element::Type_t T1, element::Type_t T2>
+        inline void evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen> &op,
+                      const HostTensorVector &outputs,
+                      const HostTensorVector &inputs) {
+            using TF = typename element_type_traits<T1>::value_type;
+            using TI = typename element_type_traits<T2>::value_type;
+            if (op->get_sequence_length_type() == element::i32 && op->get_classes_index_type() == element::i32) {
+                runtime::reference::ctc_greedy_decoder_seq_len<TF>(
+                        inputs[0]->get_data_ptr<const TF>(),
+                        inputs[1]->get_data_ptr<const TI>(),
+                        inputs[2]->get_data_ptr<const TI>(),
+                        outputs[0]->get_data_ptr<int32_t>(),
+                        outputs[1]->get_data_ptr<int32_t>(),
+                        inputs[0]->get_shape(),
+                        outputs[0]->get_shape(),
+                        op->get_merge_repeated());
+            } else if (op->get_sequence_length_type() == element::i64 && op->get_classes_index_type() == element::i32) {
+                runtime::reference::ctc_greedy_decoder_seq_len<TF>(
+                        inputs[0]->get_data_ptr<const TF>(),
+                        inputs[1]->get_data_ptr<const TI>(),
+                        inputs[2]->get_data_ptr<const TI>(),
+                        outputs[0]->get_data_ptr<int32_t>(),
+                        outputs[1]->get_data_ptr<int64_t>(),
+                        inputs[0]->get_shape(),
+                        outputs[0]->get_shape(),
+                        op->get_merge_repeated());
+            } else if (op->get_sequence_length_type() == element::i32 && op->get_classes_index_type() == element::i64) {
+                runtime::reference::ctc_greedy_decoder_seq_len<TF>(
+                        inputs[0]->get_data_ptr<const TF>(),
+                        inputs[1]->get_data_ptr<const TI>(),
+                        inputs[2]->get_data_ptr<const TI>(),
+                        outputs[0]->get_data_ptr<int64_t>(),
+                        outputs[1]->get_data_ptr<int32_t>(),
+                        inputs[0]->get_shape(),
+                        outputs[0]->get_shape(),
+                        op->get_merge_repeated());
+            } else if (op->get_sequence_length_type() == element::i64 && op->get_classes_index_type() == element::i64) {
+                runtime::reference::ctc_greedy_decoder_seq_len<TF>(
+                        inputs[0]->get_data_ptr<const TF>(),
+                        inputs[1]->get_data_ptr<const TI>(),
+                        inputs[2]->get_data_ptr<const TI>(),
+                        outputs[0]->get_data_ptr<int64_t>(),
+                        outputs[1]->get_data_ptr<int64_t>(),
+                        inputs[0]->get_shape(),
+                        outputs[0]->get_shape(),
+                        op->get_merge_repeated());
+            }
         }
-        else if (op->get_sequence_length_type() == element::i64)
+    }
+    template<element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen> &op,
+                  const HostTensorVector &outputs,
+                  const HostTensorVector &inputs) {
+        switch (inputs[1]->get_element_type())
         {
-            runtime::reference::ctc_greedy_decoder_seq_len<TF>(
-                inputs[0]->get_data_ptr<const TF>(),
-                inputs[1]->get_data_ptr<const int64_t>(),
-                inputs[2]->get_data_ptr<const int64_t>(),
-                outputs[0]->get_data_ptr<int64_t>(),
-                outputs[1]->get_data_ptr<int64_t>(),
-                inputs[0]->get_shape(),
-                outputs[0]->get_shape(),
-                op->get_merge_repeated());
+            case element::Type_t::i64:
+                ctc_greedy_decoder_v6::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+                break;
+            case element::Type_t::i32:
+                ctc_greedy_decoder_v6::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+                break;
+            default: return false;
         }
         return true;
     }
