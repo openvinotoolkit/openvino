@@ -89,7 +89,8 @@ public:
         const float min,
         const float max,
         const bool hasZeroPoint,
-        const bool updatePrecision);
+        const bool updatePrecision,
+        const element::Type deqPrecision = element::f32);
 
     static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,

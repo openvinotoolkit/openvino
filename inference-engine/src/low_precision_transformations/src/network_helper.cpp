@@ -523,7 +523,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     const float min,
     const float max,
     const bool hasZeroPoint,
-    const bool updatePrecision) {
+    const bool updatePrecision,
+    const element::Type deqPrecision) {
     using std::make_shared;
 
     const auto outputLow = fq->input_value(3);
@@ -552,7 +553,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     }
 
     std::shared_ptr<Node> shift = hasZeroPoint ?
-        std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), shifts) :
+        std::make_shared<opset1::Constant>(deqPrecision, outputLow.get_shape(), shifts) :
         nullptr;
     std::shared_ptr<Node> scale = std::make_shared<opset1::Constant>(element::f32, outputLow.get_shape(), scales);
 
