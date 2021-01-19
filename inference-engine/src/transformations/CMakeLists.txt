@@ -19,6 +19,8 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+target_compile_options(${TARGET_NAME} PRIVATE -march=native)
+
 ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
