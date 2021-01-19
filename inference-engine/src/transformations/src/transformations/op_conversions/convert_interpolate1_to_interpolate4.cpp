@@ -28,15 +28,13 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         auto& out_shape = interpolationV0->get_output_shape(0);
         auto attrsV0 = interpolationV0->get_attrs();
 
-        std::vector<float> scales;
+        std::vector<float> scales(attrsV0.axes.size(), 1.0f);
         if (inp_partial_shape.is_static()) {
             auto inp_shape = inp_partial_shape.to_shape();
+            size_t i = 0;
             for (std::size_t axis : attrsV0.axes) {
-                scales.emplace_back(static_cast<float>(out_shape.at(axis))/inp_shape.at(axis));
-            }
-        } else {
-            for (std::size_t axis : attrsV0.axes) {
-                scales.emplace_back(1.0f);
+                scales[i] = static_cast<float>(out_shape.at(axis))/inp_shape.at(axis);
+                i++;
             }
         }
 
