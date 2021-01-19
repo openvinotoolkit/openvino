@@ -48,6 +48,7 @@ private:
 
     static void printTensorDesc(const std::string& name, const InferenceEngine::TensorDesc& desc);
     static void printConvolutionLayer(const InferenceEngine::ConvolutionLayer& layer);
+    static void assertConvolutionLayoutProper(const InferenceEngine::DataPtr&);
     std::vector<uint8_t> static transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
     std::vector<std::size_t> static getFromIRDimsOrderNCHW(InferenceEngine::Layout layout);
 
@@ -123,6 +124,15 @@ public:
     void PWLPrimitive(InferenceEngine::CNNLayerPtr);
     void FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr);
     void CopyPrimitive(InferenceEngine::CNNLayerPtr);
+
+    void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
+        uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
+        uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width);
+#if GNA_LIB_VER == 2
+    void finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerPtr,
+        uint32_t in_batch, uint32_t in_channels, uint32_t in_height, uint32_t in_width,
+        uint32_t out_batch, uint32_t out_channels, uint32_t out_height, uint32_t out_width);
+#endif
 
     void Reset();
 };

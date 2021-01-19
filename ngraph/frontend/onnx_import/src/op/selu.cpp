@@ -17,10 +17,10 @@
 #include <memory>
 #include <vector>
 
+#include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/selu.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/selu.hpp"
+#include "op/selu.hpp"
 
 namespace ngraph
 {

@@ -85,7 +85,7 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
             }
         }
     } else {
-        for (int i = 1; i <= kernels.size(); i++) {
+        for (size_t i = 1; i <= kernels.size(); i++) {
             poolLayer->_kernel.insert(i - 1, kernels[kernels.size() - i]);
         }
 
@@ -93,7 +93,7 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
         std::vector<unsigned int> default_1 = std::vector<unsigned int> (poolLayer->_kernel.size(), 1u);
 
         std::vector<unsigned int> strides = poolLayer->GetParamAsUInts("strides", default_1);
-        for (int i = 1; i <= strides.size(); i++) {
+        for (size_t i = 1; i <= strides.size(); i++) {
             if (strides[strides.size() - i] == 0) {
                 THROW_IE_EXCEPTION << "Stride could not be 0.\nIn layer " << poolLayer->name;
             }
@@ -101,12 +101,12 @@ void Pool_parseParams(InferenceEngine::CNNLayer* layer) {
         }
 
         std::vector<unsigned int> pads_begin = poolLayer->GetParamAsUInts("pads_begin", default_0);
-        for (int i = 1; i <= pads_begin.size(); i++) {
+        for (size_t i = 1; i <= pads_begin.size(); i++) {
             poolLayer->_padding.insert(i - 1, pads_begin[pads_begin.size() - i]);
         }
 
         std::vector<unsigned int> pads_end = poolLayer->GetParamAsUInts("pads_end", pads_begin);
-        for (int i = 1; i <= pads_end.size(); i++) {
+        for (size_t i = 1; i <= pads_end.size(); i++) {
             poolLayer->_pads_end.insert(i - 1, pads_end[pads_end.size() - i]);
         }
 

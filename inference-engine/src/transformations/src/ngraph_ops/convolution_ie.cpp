@@ -100,9 +100,7 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
 
 void op::ConvolutionIE::validate_and_infer_types() {
     PartialShape data_batch_shape = get_input_partial_shape(0);
-    element::Type data_batch_et = get_input_element_type(0);
     PartialShape filters_shape = get_input_partial_shape(1);
-    element::Type filters_et = get_input_element_type(1);
 
     PartialShape result_shape{PartialShape::dynamic()};
 
