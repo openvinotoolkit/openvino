@@ -66,27 +66,30 @@ public:
                     {ConfLayout::BLK8, ConfLayout::BLK8}
             };
 
-            for (auto conf : plainConfs) {
-                LayerConfig config;
-                DataConfig inConfig0, inConfig1, inConfig2;
-                SizeVector propDims = layer->insData[1].lock()->getTensorDesc().getDims();
-                inConfig0.desc = TensorDesc(supportedPrecision, inDims, conf.first);
-                inConfig1.desc = TensorDesc(Precision::FP32, propDims, NC);
-                config.inConfs.push_back(inConfig0);
-                config.inConfs.push_back(inConfig1);
-                if (!noTrans) {
-                    SizeVector offsetDims = layer->insData[2].lock()->getTensorDesc().getDims();
-                    auto blocks = layer->insData[2].lock()->getTensorDesc().getDims();
-                    std::vector<size_t> order(blocks.size());
-                    for (size_t i = 0; i < order.size(); i++) order[i] = i;
-                    inConfig2.desc = TensorDesc(Precision::UNSPECIFIED, offsetDims, {blocks, order});
-                    config.inConfs.push_back(inConfig2);
-                }
-                DataConfig outConfig;
-                outConfig.desc = TensorDesc(supportedPrecision, outDims, conf.second);
-                config.outConfs.push_back(outConfig);
-                confs.push_back(config);
-            }
+//            for (auto conf : plainConfs) {
+//                LayerConfig config;
+//                DataConfig inConfig0, inConfig1, inConfig2;
+//                SizeVector propDims = layer->insData[1].lock()->getTensorDesc().getDims();
+//                inConfig0.desc = TensorDesc(supportedPrecision, inDims, conf.first);
+//                inConfig1.desc = TensorDesc(Precision::FP32, propDims, NC);
+//                config.inConfs.push_back(inConfig0);
+//                config.inConfs.push_back(inConfig1);
+//                if (!noTrans) {
+//                    SizeVector offsetDims = layer->insData[2].lock()->getTensorDesc().getDims();
+//                    auto blocks = layer->insData[2].lock()->getTensorDesc().getDims();
+//                    std::vector<size_t> order(blocks.size());
+//                    for (size_t i = 0; i < order.size(); i++) order[i] = i;
+//                    inConfig2.desc = TensorDesc(Precision::UNSPECIFIED, offsetDims, {blocks, order});
+//                    config.inConfs.push_back(inConfig2);
+//                }
+//                DataConfig outConfig;
+//                outConfig.desc = TensorDesc(supportedPrecision, outDims, conf.second);
+//                config.outConfs.push_back(outConfig);
+//                confs.push_back(config);
+//            }
+
+            addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
+                              DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
 
             for (auto conf : blockConfs) {
                 if (noTrans) {
@@ -94,6 +97,7 @@ public:
                                       DataConfigurator(ConfLayout::PLN, Precision::FP32)},
                               {DataConfigurator(conf.second, supportedPrecision)});
                 } else {
+                    break;
                     addConfig(layer, {DataConfigurator(conf.first, supportedPrecision),
                                       DataConfigurator(ConfLayout::PLN, Precision::FP32),
                                       DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(conf.second, supportedPrecision)});
