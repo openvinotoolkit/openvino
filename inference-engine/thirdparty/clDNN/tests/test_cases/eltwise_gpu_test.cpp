@@ -3214,7 +3214,8 @@ class BaseEltwiseTest : public ::testing::TestWithParam<T> {
 
 class eltwise_test : public BaseEltwiseTest<eltwise_test_params> {
 public:
-    VF<float> eltwise_ref(VVVVVVF<float> input0, VVVVVVF<float> input1, tensor input0_size, tensor input1_size, eltwise_mode mode) {
+    template<typename T1, typename T2>
+    VF<float> eltwise_ref(VVVVVVF<T1> input0, VVVVVVF<T2> input1, tensor input0_size, tensor input1_size, eltwise_mode mode) {
         auto out_size = tensor::max(input0_size, input1_size);
 
         int output_b = out_size.batch[0];
@@ -3250,8 +3251,8 @@ public:
                                 int in1_y = y % input1_size.spatial[1];
                                 int in1_x = x % input1_size.spatial[0];
 
-                                auto in0 = input0[in0_b][in0_f][in0_w][in0_z][in0_y][in0_x];
-                                auto in1 = input1[in1_b][in1_f][in1_w][in1_z][in1_y][in1_x];
+                                auto in0 = static_cast<float>(input0[in0_b][in0_f][in0_w][in0_z][in0_y][in0_x]);
+                                auto in1 = static_cast<float>(input1[in1_b][in1_f][in1_w][in1_z][in1_y][in1_x]);
                                 output[b][f][w][z][y][x] = eltwise_execute<float>(mode, in0, in1);
                             }
                         }
@@ -3447,4 +3448,85 @@ INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_6d,
                                 ::testing::ValuesIn(modes),
                                 ::testing::ValuesIn(types),
                                 ::testing::ValuesIn(inputs_6d)
+                                ), );
+
+class eltwise_test_mixed_precision : public eltwise_test {};
+TEST_P(eltwise_test_mixed_precision, fsv16) {
+    auto p = GetParam();
+
+    ASSERT_EQ(std::get<2>(p).size(), 2);
+
+    auto mode = std::get<0>(p);
+    auto input0_dt = data_types::f16;
+    auto input1_dt = std::get<1>(p);
+    auto input0_size = std::get<2>(p)[0];
+    auto input1_size = std::get<2>(p)[1];
+
+    int b0 = input0_size[0];
+    int f0 = input0_size[1];
+    int z0 = input0_size.size() == 4 ? 1 : input0_size[2];
+    int y0 = input0_size[input0_size.size() == 4 ? 2 : 3];
+    int x0 = input0_size[input0_size.size() == 4 ? 3 : 4];
+
+    int b1 = input1_size[0];
+    int f1 = input1_size[1];
+    int z1 = input1_size.size() == 4 ? 1 : input1_size[2];
+    int y1 = input1_size[input1_size.size() == 4 ? 2 : 3];
+    int x1 = input1_size[input1_size.size() == 4 ? 3 : 4];
+
+    int min_random = input1_dt == data_types::u8 ? 0 : -2;
+    int max_random = input1_dt == data_types::u8 ? 4 : 2;
+    VVVVVVF<float> input1_rnd = generate_random_6d<float>(b0, f0, 1, z0, y0, x0, min_random, max_random);
+    VVVVVVF<int> input2_rnd = generate_random_6d<int>(b1, f1, 1, z1, y1, x1, min_random, max_random);
+    VF<float> input1_rnd_vec = flatten_6d<float>(format::bfwzyx, input1_rnd);
+    VF<int> input2_rnd_vec = flatten_6d<int>(format::bfwzyx, input2_rnd);
+
+    const auto& engine = get_test_engine();
+    auto fmt_pln = input0_size.size() == 4 ? format::bfyx : format::bfzyx;
+    auto fmt_fsv16 = input0_size.size() == 4 ? format::b_fs_yx_fsv16 : format::b_fs_zyx_fsv16;
+
+    auto in0_size = tensor(fmt_pln, input0_size);
+    auto in1_size = tensor(fmt_pln, input1_size);
+
+    auto input1 = memory::allocate(engine, { data_types::f32, fmt_pln, in0_size });
+    auto input2 = memory::allocate(engine, { data_types::i32, fmt_pln, in1_size });
+    set_values(input1, input1_rnd_vec);
+    set_values(input2, input2_rnd_vec);
+
+    topology topology;
+    topology.add(input_layout("input1", input1.get_layout()));
+    topology.add(input_layout("input2", input2.get_layout()));
+    topology.add(reorder("reorder1", "input1", fmt_fsv16, input0_dt));
+    topology.add(reorder("reorder2", "input2", fmt_fsv16, input1_dt));
+    topology.add(eltwise("eltwise", {"reorder1", "reorder2"}, mode));
+    topology.add(reorder("out", "eltwise", fmt_pln, data_types::f32));
+    primitive_id out_id = "out";
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, out_id);
+
+    auto output_memory = outputs.at(out_id).get_memory();
+    auto output_ptr = output_memory.pointer<float>();
+
+    VF<float> output_cpu_vec = eltwise_ref(input1_rnd, input2_rnd, in0_size, in1_size, mode);
+    for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
+        EXPECT_TRUE(!(std::isnan((float)output_cpu_vec[i]) && std::isnan((float)output_ptr[i])));
+        ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]);
+    }
+}
+
+static std::vector<data_types> mixed_types = {data_types::i8, data_types::u8};
+
+INSTANTIATE_TEST_CASE_P(eltwise, eltwise_test_mixed_precision,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(modes),
+                                ::testing::ValuesIn(mixed_types),
+                                ::testing::ValuesIn(inputs)
                                 ), );
