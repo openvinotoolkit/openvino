@@ -25,7 +25,8 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, LoadNetworkWithCorrectConfig) {
     DISABLE_IF(!hasAppropriateStick(config));
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    auto executable = _vpuPluginPtr->LoadNetwork(net, config);
+    InferenceEngine::ExecutableNetwork executable;
+    ASSERT_NO_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config));
 }
 
 TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithAvailableDevice) {
@@ -33,9 +34,11 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithAvailableD
     DISABLE_IF(!hasAppropriateStick(config));
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    auto executable = _vpuPluginPtr->LoadNetwork(net, config);
+    InferenceEngine::ExecutableNetwork executable;
+    ASSERT_NO_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config));
 
-    InferenceEngine::InferRequest request = executable.CreateInferRequest();
+    InferenceEngine::InferRequest request;
+    ASSERT_NO_THROW(request = executable.CreateInferRequest());
 }
 
 TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailableDevice) {
@@ -43,9 +46,12 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailabl
     DISABLE_IF(hasAppropriateStick(config));
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    auto executable = _vpuPluginPtr->LoadNetwork(net, config);
+    InferenceEngine::ExecutableNetwork executable;
+    ASSERT_NO_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config));
 
-    InferenceEngine::InferRequest request = executable.CreateInferRequest();
+    InferenceEngine::InferRequest request;
+    ASSERT_THROW(request = executable.CreateInferRequest(),
+        InferenceEngine::details::InferenceEngineException);
 }
 
 //------------------------------------------------------------------------------
@@ -56,7 +62,9 @@ TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig
     const auto &config = GetParam();
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    auto executable = _vpuPluginPtr->LoadNetwork(net, config);
+    InferenceEngine::ExecutableNetwork executable;
+    ASSERT_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config),
+        InferenceEngine::details::InferenceEngineException);
 }
 
 //------------------------------------------------------------------------------
