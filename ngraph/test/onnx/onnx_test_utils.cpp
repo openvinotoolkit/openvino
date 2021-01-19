@@ -48,7 +48,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission)
     const element::Type ng_type = element::from<DataType>();
 
     onnx_import::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_test.prototxt")};
+        file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_3d.prototxt")};
 
     editor.set_input_types({{"A", ng_type}, {"B", ng_type}, {"C", ng_type}});
 
