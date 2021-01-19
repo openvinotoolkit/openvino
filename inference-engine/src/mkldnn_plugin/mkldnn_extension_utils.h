@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@ public:
     static InferenceEngine::TensorDesc getUninitTensorDesc(const InferenceEngine::TensorDesc& desc);
     static bool initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2);
     static std::string getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc);
+    static InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions);
 };
 
 }  // namespace MKLDNNPlugin

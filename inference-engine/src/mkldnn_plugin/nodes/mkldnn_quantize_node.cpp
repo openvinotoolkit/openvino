@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -369,7 +369,7 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
             if (i == 0) {
                 dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, fmt);
             } else {
-                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), memory::f32, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
             }
             config.inConfs.push_back(dataConfig);
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1786,6 +1786,19 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
     }
 
     return false;
+}
+
+InferenceEngine::Precision MKLDNNEltwiseNode::getRuntimePrecision() const {
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    // Don't take bias precision into account
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        auto parentEdge = getParentEdgeAt(i);
+        if (parentEdge && parentEdge->getStatus() == MKLDNNEdge::Status::Validated && !parentEdge->getParent()->isConstant()) {
+            inputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+        }
+    }
+
+    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNEltwiseNode, Eltwise);

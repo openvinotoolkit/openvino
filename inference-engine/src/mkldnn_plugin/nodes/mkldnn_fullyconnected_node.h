@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,8 @@ public:
 
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;
+
+    InferenceEngine::Precision getRuntimePrecision() const override;
 
 protected:
     std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
