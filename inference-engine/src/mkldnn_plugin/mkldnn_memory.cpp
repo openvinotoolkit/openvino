@@ -19,6 +19,16 @@ using namespace InferenceEngine;
 using namespace mkldnn;
 
 namespace MKLDNNPlugin {
+namespace {
+    inline void setSubnormalsToZero(float *data, size_t size) {
+        uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
+        for (size_t i = 0; i < size; ++i) {
+            if ((u32data[i] & (0xFF << 23)) == 0) {
+                u32data[i] = 0.0f;
+            }
+        }
+    }
+}   // namespace
 
 MKLDNNMemory::MKLDNNMemory(const engine& eng) : eng(eng) {}
 
@@ -112,16 +122,14 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
         cpu_memcpy(dataPtr, data, size);
     }
 
-    if (ftz && dataType == mkldnn_f32) {
+    if (ftz
+        && dataType == mkldnn::memory::f32
+        && GetFormat() != mkldnn::memory::wino_fmt
+        && GetDataType() != mkldnn::memory::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
         memData += prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
-        size_t realSize = GetSize() / sizeof(float);
-        for (size_t i = 0; i < realSize; i++) {
-            if (memData[i] != 0 && (fabsf(memData[i]) < std::numeric_limits<float>::min())) {
-                memData[i] = 0.0f;
-            }
-        }
+        setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
 }
 
@@ -129,17 +137,14 @@ void MKLDNNMemory::SetData(const MKLDNNMemory& memory, bool ftz) const {
     mkldnn::reorder reorderPrim(memory.GetPrimitive(), GetPrimitive());
     mkldnn::stream(stream::kind::eager).submit({reorderPrim});
 
-    if (ftz && memory.GetDataType() == mkldnn::memory::f32 && GetFormat() != mkldnn::memory::wino_fmt &&
-        GetDataType() != mkldnn::memory::bf16) {
+    if (ftz
+        && memory.GetDataType() == mkldnn::memory::f32
+        && GetFormat() != mkldnn::memory::wino_fmt
+        && GetDataType() != mkldnn::memory::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
         memData += prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
-        size_t realSize = GetSize() / sizeof(float);
-        for (size_t i = 0; i < realSize; i++) {
-            if (memData[i] != 0 && (fabsf(memData[i]) < std::numeric_limits<float>::min())) {
-                memData[i] = 0.0f;
-            }
-        }
+        setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
 }
 
