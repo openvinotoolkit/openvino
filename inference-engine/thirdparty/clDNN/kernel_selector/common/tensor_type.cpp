@@ -810,6 +810,11 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
         vec[Channelndex(l, WeightsChannelName::Z)] = 1;
         vec[Channelndex(l, WeightsChannelName::IFM)] = IFM().v;
         vec[Channelndex(l, WeightsChannelName::OFM)] = OFM().v;
+    } else if (g > 1 && src_channels == 5 && dst_channels == 4) {
+        vec[Channelndex(l, WeightsChannelName::X)] = X().v;
+        vec[Channelndex(l, WeightsChannelName::Y)] = Y().v;
+        vec[Channelndex(l, WeightsChannelName::IFM)] = Z().v;
+        vec[Channelndex(l, WeightsChannelName::OFM)] = OFM().v * IFM().v;
     } else {
         assert(0);
     }

@@ -312,7 +312,8 @@ void prepare_primitive_fusing::fuse_bias(program_impl &p) {
                                                                      desc->input_offset,
                                                                      desc->dilation,
                                                                      conv.get_output_layout().size,
-                                                                     conv.get_output_layout().data_type);
+                                                                     conv.get_output_layout().data_type,
+                                                                     desc->grouped_weights_shape);
 
             conv_with_bias_prim->activations_zero_points = desc->activations_zero_points;
             conv_with_bias_prim->weights_zero_points = desc->weights_zero_points;
@@ -334,7 +335,8 @@ void prepare_primitive_fusing::fuse_bias(program_impl &p) {
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->input_offset,
-                                                                         deconv.get_output_layout().size);
+                                                                         deconv.get_output_layout().size,
+                                                                         desc->grouped_weights_shape);
 
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
             fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);

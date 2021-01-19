@@ -164,6 +164,12 @@ attach_quantize_gpu::attach_quantize_gpu() {
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
 
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), val_fw);
+
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), val_fw);
 

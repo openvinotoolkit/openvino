@@ -16,7 +16,7 @@
 #include "api/convolution.hpp"
 #include "api/deconvolution.hpp"
 #include "api/binary_convolution.hpp"
-#include "api/reshape.hpp"
+#include "api/permute.hpp"
 #include "api/reorder.hpp"
 
 namespace CLDNNPlugin {
@@ -71,40 +71,9 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::
     auto outDims = op->get_output_shape(0);
     auto outPrecision = op->get_output_element_type(0);
 
-    auto weightsName = inputs[1];
+    std::vector<cldnn::primitive_id> weights = {inputs[1]};
+    const bool weights_have_group_dim = true;
 
-    // WA: For the case with FakeQuantize op on weights that are not folderd by constant propagation pass for some reason.
-    // Dimensions order is GOIYZ, but
-    // the selected format is OIZYX by default.
-    if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1)) == nullptr) {
-        std::string reshapeName = layerName + "_cldnn_weights_reshape";
-        std::string reorderName = layerName + "_cldnn_weights_reorder";
-
-        auto weights_shape = op->get_input_shape(1);
-        std::vector<size_t> new_weights_shape;
-        new_weights_shape.push_back(weights_shape[0] * weights_shape[1]); // Merged G and O dims
-        for (size_t i = 2; i < weights_shape.size(); i++) {
-            new_weights_shape.push_back(weights_shape[i]);
-        }
-        auto reshapePrim = cldnn::reshape(reshapeName,
-                                          weightsName,
-                                          CldnnTensorFromIEDims(new_weights_shape));
-
-        p.AddPrimitive(reshapePrim);
-        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
-
-        auto reorderPrim = cldnn::reorder(reorderName,
-                                        reshapeName,
-                                        DefaultFormatForDims(new_weights_shape.size()),
-                                        DataTypeFromPrecision(op->get_input_element_type(1)));
-
-        p.AddPrimitive(reorderPrim);
-        p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
-
-        weightsName = reorderName;
-    }
-
-    std::vector<cldnn::primitive_id> weights = {weightsName};
     auto convPrim = cldnn::convolution(layerName,
                                        inputs[0],
                                        weights,
@@ -114,7 +83,8 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::
                                        params.padding,
                                        params.dilation,
                                        CldnnTensorFromIEDims(outDims),
-                                       DataTypeFromPrecision(outPrecision));
+                                       DataTypeFromPrecision(outPrecision),
+                                       weights_have_group_dim);
 
     p.AddPrimitive(convPrim);
     p.AddPrimitiveToProfiler(op);
@@ -130,6 +100,8 @@ void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convo
     auto outPrecision = op->get_output_element_type(0);
 
     std::vector<cldnn::primitive_id> weights = {inputs[1]};
+    const bool weights_have_group_dim = false;
+
     auto convPrim = cldnn::convolution(layerName,
                                        inputs[0],
                                        weights,
@@ -139,7 +111,8 @@ void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convo
                                        params.padding,
                                        params.dilation,
                                        CldnnTensorFromIEDims(outDims),
-                                       DataTypeFromPrecision(outPrecision));
+                                       DataTypeFromPrecision(outPrecision),
+                                       weights_have_group_dim);
 
     p.AddPrimitive(convPrim);
     p.AddPrimitiveToProfiler(op);
@@ -159,25 +132,30 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
     }
 
     auto weightsName = inputs[1];
-    // WA: For the case with FakeQuantize op on weights that are not folderd by constant propagation pass for some reason.
+    auto weights_node = op->get_input_node_shared_ptr(1);
+    // WA: For the cases like Const(weights)->Sub(zp)->Deconv.
     // Dimensions order of weights blob is IOYX, but
-    // the selected format is OIYX by default. So we need to swap I and O dimensions to match the format
-    if (IsNodeOnConstPath(op->get_input_node_shared_ptr(1))) {
-        std::string reshapeName = layerName + "_cldnn_weights_reshape";
-
-        auto weights_shape = op->get_input_shape(1);
-        std::swap(weights_shape[0], weights_shape[1]);
-        auto reshapePrim = cldnn::reshape(reshapeName,
+    // the selected format is OIYX by default. So we need to swap (and transpose) I and O dimensions to match the format
+    // For Constant node on input transpose is not needed, because the data is transposed on const node creation
+    if (IsNodeOnConstPath(weights_node) && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) {
+        std::string permuteName = layerName + "_cldnn_weights_permute";
+        auto weights_rank = op->get_input_shape(1).size();
+        std::vector<uint16_t> permute_order(weights_rank);
+        std::iota(std::begin(permute_order), std::end(permute_order), 0);
+        // Should be 1, 0, 2, 3 {, 4} to swap O and I
+        std::swap(permute_order[1], permute_order[0]);
+        auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          CldnnTensorFromIEDims(weights_shape));
+                                          ConvertPermuteOrder(permute_order, weights_rank));
 
-        p.AddPrimitive(reshapePrim);
-        p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+        p.AddPrimitive(permutePrim);
+        p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
 
-        weightsName = reshapeName;
+        weightsName = permuteName;
     }
 
     std::vector<cldnn::primitive_id> weights = {weightsName};
+    const bool weights_have_group_dim = false;
 
     auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
     auto deconvPrim = cldnn::deconvolution(layerName,
@@ -187,9 +165,10 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
         params.groups,
         params.stride,
         params.padding,
-        CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()));
-    p.AddPrimitive(deconvPrim);
+        CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+        weights_have_group_dim);
 
+    p.AddPrimitive(deconvPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
@@ -201,13 +180,38 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
     auto dilations = op->get_dilations();
     for (auto d : dilations) {
         if (d != 1) {
-            THROW_IE_EXCEPTION << "Unsupported dilation in ConvolutionBackpropData " << op->get_friendly_name();
+            THROW_IE_EXCEPTION << "Unsupported dilation in GroupConvolutionBackpropData " << op->get_friendly_name();
         }
     }
 
     uint32_t groups = op->get_input_shape(1)[0];
     auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), groups);
-    std::vector<cldnn::primitive_id> weights = {inputs[1]};
+
+    auto weightsName = inputs[1];
+    auto weights_node = op->get_input_node_shared_ptr(1);
+    // WA: For the cases like Const(weights)->Sub(zp)->Deconv.
+    // Dimensions order of weights blob is IOYX, but
+    // the selected format is OIYX by default. So we need to swap I and O dimensions to match the format.
+    // For Constant node on input transpose is not needed, because the data is transposed on const node creation
+    if (IsNodeOnConstPath(weights_node) && std::dynamic_pointer_cast<ngraph::op::v0::Constant>(weights_node) == nullptr) {
+        std::string permuteName = layerName + "_cldnn_weights_permute";
+        auto weights_rank = op->get_input_shape(1).size();
+        std::vector<uint16_t> permute_order(weights_rank);
+        std::iota(std::begin(permute_order), std::end(permute_order), 0);
+        // Should be 0, 2, 1, 3, 4 {, 5} to swap O and I
+        std::swap(permute_order[2], permute_order[1]);
+        auto permutePrim = cldnn::permute(permuteName,
+                                          weightsName,
+                                          ConvertPermuteOrder(permute_order, weights_rank));
+
+        p.AddPrimitive(permutePrim);
+        p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
+
+        weightsName = permuteName;
+    }
+
+    std::vector<cldnn::primitive_id> weights = {weightsName};
+    const bool weights_have_group_dim = true;
 
     auto deconvPrim = cldnn::deconvolution(layerName,
         inputs[0],
@@ -216,9 +220,10 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
         params.groups,
         params.stride,
         params.padding,
-        CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()));
-    p.AddPrimitive(deconvPrim);
+        CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+        weights_have_group_dim);
 
+    p.AddPrimitive(deconvPrim);
     p.AddPrimitiveToProfiler(op);
 }
 

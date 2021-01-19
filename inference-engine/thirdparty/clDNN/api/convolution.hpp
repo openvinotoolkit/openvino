@@ -48,6 +48,12 @@ struct convolution : public primitive_base<convolution> {
     /// @param with_activation Enable Relu activation.
     /// @param activation_slp Relu activation slope.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
+    /// @param output_type User-defined output data type of the primitive.
+    /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
+    /// This parameter affects how bfzyx and bfwzyx format on weights is converted:
+    /// bfzyx -> oizyx (grouped_weights_shape=false) or goiyx (grouped_weights_shape=true)
+    /// bfwzyx -> error (grouped_weights_shape=false) or goizyx (grouped_weights_shape=true)
+    /// If weights already have (g)oi(z)yx format, then this flag has no effect
     convolution(const primitive_id& id,
                 const primitive_id& input,
                 const std::vector<primitive_id>& weights,
@@ -58,6 +64,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor dilation,
                 tensor output_size,
                 data_types output_type,
+                bool grouped_weights_shape,
                 const padding& output_padding = padding())
             : primitive_base(id, {input}, output_padding, optional_data_type{output_type}),
               input_offset(input_offset),
@@ -70,6 +77,7 @@ struct convolution : public primitive_base<convolution> {
               padding_above(tensor(0)),
               padding_below(tensor(0)),
               deformable_mode(false),
+              grouped_weights_shape(grouped_weights_shape),
               weights(weights),
               bias(bias),
               weights_zero_points(std::vector<primitive_id>(0)),
@@ -107,6 +115,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor input_offset,
                 tensor dilation,
                 tensor output_size,
+                bool grouped_weights_shape,
                 const padding& output_padding = padding())
             : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
               input_offset(input_offset),
@@ -119,6 +128,7 @@ struct convolution : public primitive_base<convolution> {
               padding_above(tensor(0)),
               padding_below(tensor(0)),
               deformable_mode(false),
+              grouped_weights_shape(grouped_weights_shape),
               weights(weights),
               bias(bias),
               weights_zero_points(w_zero_point),
@@ -163,6 +173,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor input_offset,
                 tensor dilation,
                 tensor output_size,
+                bool grouped_weights_shape,
                 const padding& output_padding = padding())
             : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
               input_offset(input_offset),
@@ -175,6 +186,7 @@ struct convolution : public primitive_base<convolution> {
               padding_above(tensor(0)),
               padding_below(tensor(0)),
               deformable_mode(false),
+              grouped_weights_shape(grouped_weights_shape),
               weights(weights),
               bias(bias),
               weights_zero_points(w_zero_point),
@@ -220,6 +232,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(tensor(0)),
           padding_below(tensor(0)),
           deformable_mode(false),
+          grouped_weights_shape(false),
           weights(weights),
           bias(bias),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -264,6 +277,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(padding_above),
           padding_below(padding_below),
           deformable_mode(false),
+          grouped_weights_shape(false),
           weights(weights),
           bias(bias),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -310,6 +324,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(padding_above),
           padding_below(padding_below),
           deformable_mode(false),
+          grouped_weights_shape(false),
           weights(weights),
           bias(bias),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -343,6 +358,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor stride = {1, 1, 1, 1},
                 tensor input_offset = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
+                bool grouped_weights_shape = false,
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           input_offset(input_offset),
@@ -354,6 +370,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(tensor(0)),
           padding_below(tensor(0)),
           deformable_mode(false),
+          grouped_weights_shape(grouped_weights_shape),
           weights(weights),
           bias(bias),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -385,6 +402,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor stride = {1, 1, 1, 1},
                 tensor input_offset = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
+                bool grouped_weights_shape = false,
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           input_offset(input_offset),
@@ -396,6 +414,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(tensor(0)),
           padding_below(tensor(0)),
           deformable_mode(false),
+          grouped_weights_shape(grouped_weights_shape),
           weights(weights),
           bias(std::vector<primitive_id>(0)),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -437,6 +456,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(padding_above),
           padding_below(padding_below),
           deformable_mode(false),
+          grouped_weights_shape(false),
           weights(weights),
           bias(std::vector<primitive_id>(0)),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -480,6 +500,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(padding_above),
           padding_below(padding_below),
           deformable_mode(false),
+          grouped_weights_shape(false),
           weights(weights),
           bias(std::vector<primitive_id>(0)),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -508,6 +529,7 @@ struct convolution : public primitive_base<convolution> {
                 tensor stride = {1, 1, 1, 1},
                 tensor input_offset = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
+                bool grouped_weights_shape = false,
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           input_offset(input_offset),
@@ -519,6 +541,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(tensor(0)),
           padding_below(tensor(0)),
           deformable_mode(false),
+          grouped_weights_shape(grouped_weights_shape),
           weights(weights),
           bias(std::vector<primitive_id>(0)),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -561,6 +584,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(tensor(0)),
           padding_below(tensor(0)),
           deformable_mode(false),
+          grouped_weights_shape(false),
           weights(weights),
           bias(bias),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -604,6 +628,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(tensor(0)),
           padding_below(tensor(0)),
           deformable_mode(false),
+          grouped_weights_shape(false),
           weights(weights),
           bias(std::vector<primitive_id>(0)),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -651,6 +676,7 @@ struct convolution : public primitive_base<convolution> {
           padding_above(tensor(0)),
           padding_below(tensor(0)),
           deformable_mode(true),
+          grouped_weights_shape(false),
           weights(weights),
           bias(bias),
           weights_zero_points(std::vector<primitive_id>(0)),
@@ -756,6 +782,8 @@ struct convolution : public primitive_base<convolution> {
     tensor padding_below;
     /// @param deformable_mode.
     bool deformable_mode;
+    /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
+    bool grouped_weights_shape;
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
     /// @brief List of primitive ids containing bias data.

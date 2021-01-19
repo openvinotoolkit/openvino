@@ -139,7 +139,6 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
     }
 }
 
-
 inline cldnn::format DefaultFormatForDims(size_t dimensions) {
     switch (dimensions) {
     case 0:
@@ -157,6 +156,31 @@ inline cldnn::format DefaultFormatForDims(size_t dimensions) {
     }
 
     return cldnn::format::bfyx;  // Should not get here
+}
+
+// This helper function is needed to convert permute order from IE format (bfyx) into cldnn format (bfxy)
+inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie_order, size_t rank = 0) {
+    std::vector<uint16_t> ie_order_aligned = ie_order;
+    // if order size is less than 4 - fill the rest with just copy
+    rank = std::max(rank, (size_t)4);
+    for (auto o = ie_order_aligned.size(); o < rank; o++)
+        ie_order_aligned.push_back((uint16_t)o);
+
+    std::vector<uint16_t> cldnn_order;
+    // 1. Switch permute order values for spatial dims
+    for (auto const& o : ie_order_aligned) {
+        if (o >= 2)
+            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
+        else
+            cldnn_order.push_back(o);
+    }
+
+    // 2. Swap spatial positions
+    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
+        std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
+    }
+
+    return cldnn_order;
 }
 
 }  // namespace CLDNNPlugin

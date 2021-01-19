@@ -106,11 +106,11 @@ kernel_selector::weights_type to_weights_type(data_types dt);
 data_types from_weights_type(kernel_selector::weights_type dt);
 kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
-kernel_selector::weights_layout to_weights_layout(format f);
+kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
 kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode);
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
-kernel_selector::weights_tensor convert_weights_tensor(const layout& l);
+kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
@@ -192,10 +192,10 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 }
 
 template <typename params_t, typename arg_t>
-inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
+inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1, bool has_group_dimension = false) {
     params_t params = get_default_params<params_t>(arg, split);
     const auto& weights_layout = arg.weights().get_output_layout();
-    params.weights = convert_weights_tensor(weights_layout);
+    params.weights = convert_weights_tensor(weights_layout, has_group_dimension);
 
     if (arg.bias_term()) {
         auto bias_layout = arg.bias().get_output_layout();
@@ -210,8 +210,8 @@ inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split
 }
 
 template <typename params_t, typename arg_t>
-params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
-    params_t params = get_weights_bias_default_params<params_t>(arg, split, groups);
+params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1, bool has_group_dimension = false) {
+    params_t params = get_weights_bias_default_params<params_t>(arg, split, groups, has_group_dimension);
 
     if (arg.weights_zero_points_term()) {
         params.weights_zero_points.push_back(

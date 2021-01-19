@@ -33,25 +33,24 @@ static ConstProperties getConstProperties(const std::shared_ptr<ngraph::op::Cons
         for (auto& t : outTensors) {
             auto outOp = t.get_node();
             if (dynamic_cast<ngraph::op::v1::Convolution*>(outOp)) {
-                return {true, false, false};
+                return {t.get_index() == 1, false, false};
             } else if (dynamic_cast<ngraph::op::v1::BinaryConvolution*>(outOp)) {
-                return {true, false, false};
+                return {t.get_index() == 1, false, false};
             } else if (auto castedOp = dynamic_cast<ngraph::op::v1::DeformableConvolution*>(outOp)) {
-                return {true, castedOp->get_group() > 1, false};
+                return {t.get_index() == 2, castedOp->get_group() > 1, false};
             } else if (dynamic_cast<ngraph::op::v1::GroupConvolution*>(outOp)) {
-                return {true, true, false};
+                return {t.get_index() == 1, true, false};
             } else if (dynamic_cast<ngraph::op::v1::ConvolutionBackpropData*>(outOp)) {
-                return {true, false, true};
+                return {t.get_index() == 1, false, true};
             } else if (dynamic_cast<ngraph::op::v1::GroupConvolutionBackpropData*>(outOp)) {
-                return {true, true, true};
+                return {t.get_index() == 1, true, true};
             }
         }
     }
     return {false, false, false};
 }
 
-void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
-    auto constDims = op->get_shape();
+static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
     cldnn::tensor constTensor;
     switch (constDims.size()) {
     case 6: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
@@ -75,6 +74,12 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
         break;
     default: THROW_IE_EXCEPTION << "Invalid constant blob dimensions";
     }
+    return constTensor;
+}
+
+void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
+    auto constDims = op->get_shape();
+    cldnn::tensor constTensor = getConstTensor(constDims);
 
     // WA to inconsistency between input and const 1d tensors
     // For Concat along batch we go with batch interpretation
@@ -119,44 +124,36 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
 
     auto constFormat = DefaultFormatForDims(op->get_output_shape(0).size());
     auto prop = getConstProperties(op);
-    if (prop.isWeights) {
-        // Deconvolution has reversed channels order (io instead of oi)
-        if (prop.reversedChannelsOrder) {
-            if (prop.hasGroupDimension) {
-                switch (op->get_output_shape(0).size()) {
-                    case 5: constFormat = cldnn::format::gioyx; break;
-                    case 6: constFormat = cldnn::format::giozyx; break;
-                }
-            } else {
-                switch (op->get_output_shape(0).size()) {
-                    case 4: constFormat = cldnn::format::ioyx; break;
-                    case 5: constFormat = cldnn::format::iozyx; break;
-                }
-            }
-        } else {
-            if (prop.hasGroupDimension) {
-                switch (op->get_output_shape(0).size()) {
-                    case 5: constFormat = cldnn::format::goiyx; break;
-                    case 6: constFormat = cldnn::format::goizyx; break;
-                }
-            } else {
-                switch (op->get_output_shape(0).size()) {
-                    case 4: constFormat = cldnn::format::oiyx; break;
-                    case 5: constFormat = cldnn::format::oizyx; break;
-                }
-            }
-        }
-        std::vector<cldnn::tensor::value_type> dims(constDims.begin(), constDims.end());
-        for (size_t i = dims.size(); i < 4; i++) {
-            dims.push_back(1);
-        }
-        constTensor = cldnn::tensor(constFormat, dims);
-    }
 
     // If constDims has a dimension = 0, then create tensor with single value
     // TODO: check if dim=0 is a valid case
     if (std::accumulate(constDims.begin(), constDims.end(), 1, std::multiplies<size_t>()) == 0)
         constTensor = cldnn::tensor{1};
+
+    // Swap O and I dimensions to match expected deconvolution weights format
+    bool swap_oi = prop.isWeights && prop.reversedChannelsOrder;
+    size_t inputFeatureElements = 1;
+    size_t outputFeatureElements = 1;
+    size_t groups = 1;
+    if (swap_oi) {
+        size_t expected_min_rank = 2 + (prop.hasGroupDimension ? 1 : 0);
+        if (expected_min_rank > constDims.size())
+            THROW_IE_EXCEPTION << "Invalid constant properties or shape";
+
+        auto newDims = constDims;
+        if (prop.hasGroupDimension) {
+            std::swap(newDims[2], newDims[1]);
+            inputFeatureElements = newDims[2];
+            outputFeatureElements = newDims[1];
+            groups = newDims[0];
+        } else {
+            std::swap(newDims[1], newDims[0]);
+            inputFeatureElements = newDims[1];
+            outputFeatureElements = newDims[0];
+            groups = 1;
+        }
+        constTensor = getConstTensor(newDims);
+    }
 
     cldnn::layout constLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)),
                                               constFormat,
@@ -176,7 +173,30 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
         auto buf = tmpPointer.data();
         auto bufSize = constLayout.bytes_count();
 
-        std::memcpy(&buf[0], &data[0], bufSize);
+        // Do actual weights reorder and change O and I channels order
+        if (swap_oi) {
+            auto elementSize = cldnn::data_type_traits::size_of(constLayout.data_type);
+            size_t spatial_dim_off = prop.hasGroupDimension ? 3 : 2;
+            size_t featureSize = elementSize;
+            for (size_t i = spatial_dim_off; i < constDims.size(); i++) {
+                featureSize *= constDims[i];
+            }
+
+            for (size_t g = 0; g < groups; g++) {
+                for (size_t i = 0; i < inputFeatureElements; i++) {
+                    for (size_t o = 0; o < outputFeatureElements; o++) {
+                        size_t outputShift = ((g*outputFeatureElements + o)*inputFeatureElements + i)*featureSize;
+                        size_t inputShift = ((g*inputFeatureElements + i)*outputFeatureElements + o)*featureSize;
+
+                        for (size_t b = 0; b < featureSize; b++) {
+                            buf[outputShift + b] = data[inputShift + b];
+                        }
+                    }
+                }
+            }
+        } else {
+            std::memcpy(&buf[0], &data[0], bufSize);
+        }
         p.AddPrimitive(cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[data] = initialconstPrimID;
         constPrimID = initialconstPrimID;
