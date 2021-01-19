@@ -150,8 +150,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_ctc_greedy_decoder_seq_len_multiple_batche
 
     test_case.add_input<int32_t>({1, 1});
 
-    test_case.add_expected_output(Shape{N, T},
-            vector<int32_t>{1, -1, -1, 0, -1, -1});
+    test_case.add_expected_output(Shape{N, T}, vector<int32_t>{1, -1, -1, 0, -1, -1});
     test_case.add_expected_output(Shape{N}, vector<int32_t>{1, 1});
 
     test_case.run();
