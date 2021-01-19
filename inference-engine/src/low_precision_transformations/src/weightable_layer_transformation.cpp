@@ -41,7 +41,6 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             const std::vector<float> scales = multiplyConst->cast_vector<float>();
             for (size_t group = 0; group < groupsCount; ++group) {
                 for (size_t i = 0; i < inputChannelsInGroup; ++i) {
-                    size_t index = group * inputChannelsInGroup + i;
                     if (scales[group * inputChannelsInGroup] != scales[group * inputChannelsInGroup + i]) {
                         return false;
                     }
@@ -104,9 +103,8 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    if ((constOutputShape.size() < 2ul) ||
-        // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
-        (shape_size(constOutputShape) != constOutputShape[0]) ||
+    // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
+    if ((shape_size(constOutputShape) != constOutputShape[0]) ||
         ((constOutputShape[0] != 1ul) && (fqFromWeights->get_output_shape(0)[0] != constOutputShape[0]))) {
         return false;
     }

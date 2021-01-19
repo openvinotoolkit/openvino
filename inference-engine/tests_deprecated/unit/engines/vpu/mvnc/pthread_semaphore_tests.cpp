@@ -61,7 +61,7 @@ class PThreadBinSemaphoreTest : public ::testing::TestWithParam<int>{
             std::cerr << "clock_gettime";
         }
 
-        auto newNsec = (long)(spec.tv_nsec + timeout * 1000000000L);
+        auto newNsec = static_cast<long long>(spec.tv_nsec + timeout * 1000000000LL);
         spec.tv_sec   += newNsec / 1000000000L;
         spec.tv_nsec  =  newNsec % 1000000000L;
 

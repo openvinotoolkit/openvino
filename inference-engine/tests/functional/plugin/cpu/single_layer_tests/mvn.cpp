@@ -71,7 +71,7 @@ TEST_P(MvnLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "MVN");
+    CheckPluginRelatedResults(executableNetwork, "MVN");
 }
 
 namespace {
