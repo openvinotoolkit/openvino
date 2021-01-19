@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
 
 #include <memory>
@@ -14,9 +15,10 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSubtract, "ConvertSubtract", 0);
 
 ngraph::pass::ConvertSubtract::ConvertSubtract() {
+    MATCHER_SCOPE(ConvertSubtract);
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract> (m.get_match_root());
         if (!sub) {
             return false;
@@ -63,6 +65,6 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, "ConvertSubtract");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
     this->register_matcher(m, callback);
 }

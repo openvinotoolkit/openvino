@@ -34,7 +34,8 @@ def build_argparser() -> ArgumentParser:
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument('-i', '--input', help='Required. Path to a folder with images or path to an image files',
                       required=True, type=str, nargs="+")
-    args.add_argument('-m', '--model', help='Required. Path to file where weights for the network are located')
+    args.add_argument('-m', '--model', help='Required. Path to file where weights for the network are located',
+                      required=True)
     args.add_argument('-d', '--device',
                       help='Optional. Specify the target device to infer on; CPU, GPU, FPGA, HDDL, MYRIAD or HETERO: '
                            'is acceptable. The sample will look for a suitable plugin for device specified. Default '
@@ -218,13 +219,13 @@ def main():
     images = np.ndarray(shape=(n, c, h, w))
     for i in range(n):
         image = read_image(input_images[i])
-        assert image is not None, log.error("Can't open an image {}".format(input_images[i]))
+        assert image is not None, log.error(f"Can't open an image {input_images[i]}")
         assert len(image.shape) == 2, log.error('Sample supports images with 1 channel only')
         if image.shape[:] != (w, h):
-            log.warning("Image {} is resized from {} to {}".format(input_images[i], image.shape[:], (w, h)))
+            log.warning(f"Image {input_images[i]} is resized from {image.shape[:]} to {(w, h)}")
             image = cv2.resize(image, (w, h))
         images[i] = image
-    log.info("Batch size is {}".format(n))
+    log.info(f"Batch size is {n}")
 
     log.info("Creating Inference Engine")
     ie = IECore()
@@ -239,7 +240,7 @@ def main():
     # Processing results
     log.info("Processing output blob")
     res = res[out_blob]
-    log.info("Top {} results: ".format(args.number_top))
+    log.info(f"Top {args.number_top} results: ")
 
     # Read labels file if it is provided as argument
     labels_map = None
@@ -252,18 +253,16 @@ def main():
     for i, probs in enumerate(res):
         probs = np.squeeze(probs)
         top_ind = np.argsort(probs)[-args.number_top:][::-1]
-        print("Image {}\n".format(input_images[i]))
+        print(f"Image {input_images[i]}\n")
         print(classid_str, probability_str)
-        print("{} {}".format('-' * len(classid_str), '-' * len(probability_str)))
+        print(f"{'-' * len(classid_str)} {'-' * len(probability_str)}")
         for class_id in top_ind:
-            det_label = labels_map[class_id] if labels_map else "{}".format(class_id)
+            det_label = labels_map[class_id] if labels_map else f"{class_id}"
             label_length = len(det_label)
             space_num_before = (len(classid_str) - label_length) // 2
             space_num_after = len(classid_str) - (space_num_before + label_length) + 2
-            space_num_before_prob = (len(probability_str) - len(str(probs[class_id]))) // 2
-            print("{}{}{}{}{:.7f}".format(' ' * space_num_before, det_label,
-                                          ' ' * space_num_after, ' ' * space_num_before_prob,
-                                          probs[class_id]))
+            print(f"{' ' * space_num_before}{det_label}"
+                  f"{' ' * space_num_after}{probs[class_id]:.7f}")
         print("\n")
 
     log.info('This sample is an API example, for any performance measurements '

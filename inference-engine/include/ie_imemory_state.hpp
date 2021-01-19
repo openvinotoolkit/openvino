@@ -19,15 +19,18 @@
 namespace InferenceEngine {
 
 /**
+ * @deprecated Use VariableState C++ wrapper instead
  * @interface IVariableState
  * @brief Manages data for reset operations
  */
 class IVariableState : public details::no_copy {
 public:
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief A shared pointer to the IVariableState interface
      */
     using Ptr = std::shared_ptr<IVariableState>;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Gets name of current variable state, if length of array is not enough name is truncated by len, null
@@ -81,9 +84,13 @@ public:
     virtual StatusCode GetState(Blob::CPtr& state, ResponseDesc* resp) const noexcept = 0;
 };
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
  * @brief For compatibility reasons.
  */
 using IMemoryState = IVariableState;
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine
