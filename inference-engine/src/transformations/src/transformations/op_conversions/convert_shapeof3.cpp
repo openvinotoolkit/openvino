@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 
 #include <memory>
@@ -15,6 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShapeOf3, "ConvertShapeOf3", 0);
 
 ngraph::pass::ConvertShapeOf3::ConvertShapeOf3() {
+    MATCHER_SCOPE(ConvertShapeOf3);
     auto shapeof = pattern::wrap_type<ngraph::opset3::ShapeOf>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -42,6 +44,6 @@ ngraph::pass::ConvertShapeOf3::ConvertShapeOf3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, "ConvertShapeOf3");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, matcher_name);
     register_matcher(m, callback);
 }

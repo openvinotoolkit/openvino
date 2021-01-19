@@ -12,6 +12,8 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
  * @brief Default implementation for IVariableState
  * @tparam T Minimal CPP implementation of IVariableStateInternal (e.g. VariableStateInternal)
@@ -53,5 +55,7 @@ public:
         TO_STATUS(state = impl->GetState());
     }
 };
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine
