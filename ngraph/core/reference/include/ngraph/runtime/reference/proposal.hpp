@@ -449,10 +449,6 @@ namespace ngraph
                                            img_W,
                                            attrs.clip_after_nms);
                 }
-                proposals.clear();
-                is_dead.clear();
-                roi_indices.clear();
-                anchors.clear();
             }
         } // namespace reference
     }     // namespace runtime
