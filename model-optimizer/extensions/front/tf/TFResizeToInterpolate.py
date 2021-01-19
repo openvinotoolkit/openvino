@@ -75,10 +75,11 @@ def replace_tf_resize(graph: Graph, resize: Node, interpolation_mode: str):
     align_corners = resize.align_corners
     half_pixel_centers = resize.half_pixel_centers
 
-    nearest_mode = 'floor'
+    nearest_mode = 'floor' if interpolation_mode == 'nearest' else 'round_prefer_floor'
     if align_corners:
         coordinate_transformation_mode = 'align_corners'
-        nearest_mode = 'round_prefer_ceil'
+        if interpolation_mode == 'nearest':
+            nearest_mode = 'round_prefer_ceil'
     elif half_pixel_centers:
         coordinate_transformation_mode = 'tf_half_pixel_for_nn' if interpolation_mode == 'nearest' else 'half_pixel'
     else:
