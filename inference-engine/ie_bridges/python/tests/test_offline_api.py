@@ -1,5 +1,5 @@
 from openvino.inference_engine import IECore, IENetwork
-from openvino.inference_engine.offline_api import ApplyMOCTransformations
+from openvino.offline_transformations import ApplyMOCTransformations
 
 import ngraph as ng
 from ngraph.impl.op import Parameter
@@ -21,7 +21,7 @@ def test_offline_api():
     cnnNetwork = IENetwork(caps)
     assert cnnNetwork != None
 
-    ApplyMOCTransformations(cnnNetwork)
+    ApplyMOCTransformations(cnnNetwork, False)
 
     func2 = ng.function_from_cnn(cnnNetwork)
     assert func2 != None
