@@ -36,7 +36,11 @@ void op::v3::Assign::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v3_Assign_validate_and_infer_types);
     auto value = input_value(0);
     auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    auto output_pshape = get_input_partial_shape(0);
+
+    NODE_VALIDATION_CHECK(
+        this, m_variable_id != "", "Variable identifier may not be an empty string.");
+
     if (!m_variable)
     {
         NodeVector start_nodes;
@@ -64,18 +68,11 @@ void op::v3::Assign::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, arg_t == variable_info.data_type, "Variables types are inconsistent.");
 
-    if (output_shape.is_static() && variable_info.data_shape.is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              output_shape == variable_info.data_shape,
-                              "Variables output shapes are inconsistent.");
+    NODE_VALIDATION_CHECK(this,
+                          output_pshape.same_scheme(variable_info.data_shape),
+                          "Variables output shapes are inconsistent.");
 
-        set_output_type(0, arg_t, output_shape);
-    }
-    else
-    {
-        set_output_type(0, arg_t, PartialShape::dynamic());
-    }
+    set_output_type(0, arg_t, output_pshape);
 }
 
 shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_args) const
