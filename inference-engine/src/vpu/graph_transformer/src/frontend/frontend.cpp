@@ -197,7 +197,9 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.get_pass_config()->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     manager.set_callback(transformationsPredicate);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     manager.run_passes(nGraphFunc);
 
     vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
