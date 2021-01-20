@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include <unordered_set>
 #include <sstream>
 
-#include "cpp/ie_cnn_network.h"
 #include "caseless.hpp"
 #include "legacy/ie_layers.h"
 #include "xml_parse_utils.h"
@@ -256,7 +255,7 @@ void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     }
 }
 
-std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_document& doc,
+std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_document& doc,
                        const bool execGraphInfoSerialization, const bool dumpWeights) {
     const std::vector<CNNLayerPtr> ordered = InferenceEngine::details::CNNNetSortTopologically(network);
     pugi::xml_node netXml = doc.append_child("net");
@@ -379,7 +378,7 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
     return dataOffset;
 }
 
-void SerializeBlobs(std::ostream& stream, const InferenceEngine::CNNNetwork& network) {
+void SerializeBlobs(std::ostream& stream, const InferenceEngine::ICNNNetwork& network) {
     const std::vector<CNNLayerPtr> ordered = InferenceEngine::details::CNNNetSortTopologically(network);
     for (auto&& node : ordered) {
         if (!node->blobs.empty()) {
@@ -395,7 +394,9 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::CNNNetwork& net
         }
     }
 
-    InputsDataMap inputInfo = network.getInputsInfo();
+    InputsDataMap inputInfo;
+    network.getInputsInfo(inputInfo);
+
     for (auto ii : inputInfo) {
         const PreProcessInfo& pp = ii.second->getPreProcess();
         size_t nInChannels = pp.getNumberOfChannels();
@@ -418,7 +419,7 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::CNNNetwork& net
 }  // namespace
 
 void Serialize(const std::string& xmlPath, const std::string& binPath,
-               const InferenceEngine::CNNNetwork& network) {
+               const InferenceEngine::ICNNNetwork& network) {
     // A flag for serializing executable graph information (not complete IR)
     bool execGraphInfoSerialization = false;
     pugi::xml_document doc;

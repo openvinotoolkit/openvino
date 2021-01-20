@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -532,6 +532,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                 auto input = inputIt->second;
                 if (before != nullptr && input.get() != before.get())
                     continue;
+
                 // located data
                 for (auto input_port_idx : CNNLayerFindInsDataIdxes(data, input)) {
                     if (((size_t)inDataIndex != invalid_data_idx && (size_t)inDataIndex == input_port_idx) || (size_t)inDataIndex == invalid_data_idx)
@@ -543,11 +544,10 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
 
                 bLocated = true;
 
+                // erasing only one particular connection
                 // we must check if there is only one connection between after <=> before
-                if (number_of_connections_between_after_n_before == 1) {
-                    // erasing only one particular connection
+                if (number_of_connections_between_after_n_before == 1)
                     getInputTo(data).erase(inputIt->first);
-                }
 
                 if (before != nullptr) {
                     break;
