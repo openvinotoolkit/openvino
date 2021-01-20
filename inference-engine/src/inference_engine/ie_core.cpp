@@ -275,6 +275,10 @@ public:
         bool networkIsImported = false;
         std::string networkHash = cachingIsAvailable ? context.computeHash() : std::string{};
 
+        std::cout << "caching is available: " << (cachingIsAvailable ?
+            std::string("caching is available") :
+            std::string("caching is not available")) << std::endl;
+
         auto removeCacheEntry = [] (const std::string & blobFileName_) {
             std::remove(blobFileName_.c_str());
         };

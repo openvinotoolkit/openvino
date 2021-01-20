@@ -61,6 +61,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
         model.read(dataBlob->buffer(), dataSize);
     }
 
+    // TODO: implement Import / Export of configuration options
     // TODO: implement Import / Export of network precisions, layouts, preprocessing info
 
     auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
@@ -192,12 +193,11 @@ void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
     //     auto opset = extension->getOpSets();
     //     custom_opsets.insert(std::begin(opset), std::end(opset));
     // }
-    ngraph::pass::Serialize serializer(
-        "", "", ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+    ngraph::pass::Serialize serializer(ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
     serializer.run_on_function(_function);
 
-    auto m_constants = std::move(serializer.getWeights());
-    auto m_model = std::move(serializer.getModel());
+    auto m_constants = serializer.getWeights();
+    auto m_model = serializer.getModel();
 
     auto dataSize = static_cast<std::uint64_t>(m_model.size());
     modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));

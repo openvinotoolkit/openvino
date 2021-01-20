@@ -640,31 +640,45 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 // ! [function_pass:serialize_cpp]
 // serialize.cpp
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    RUN_ON_FUNCTION_SCOPE(Serialize);
-    // prepare data
     pugi::xml_document xml_doc;
-    std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
-    switch (m_version) {
-    case Version::IR_V10:
-        {
-            std::string name = "net";
-            pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-            XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
-            visitor.on_attribute(name, f);
-        }
-        break;
-    default:
-        NGRAPH_UNREACHABLE("Unsupported version");
-        break;
-    }
+    RUN_ON_FUNCTION_SCOPE(Serialize);
 
-    // create xml file
-    std::ofstream xml_file(m_xmlPath, std::ios::out);
-    NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
-    xml_doc.save(xml_file);
-    xml_file.flush();
-    bin_file.flush();
+    auto serializeFunc = [&] (std::ostream & bin_file) {
+        // prepare data
+        NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+        switch (m_version) {
+        case Version::IR_V10:
+            {
+                std::string name = "net";
+                pugi::xml_node net_node = xml_doc.append_child(name.c_str());
+                XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
+                visitor.on_attribute(name, f);
+            }
+            break;
+        default:
+            NGRAPH_UNREACHABLE("Unsupported version");
+            break;
+        }
+    };
+
+    if (m_xmlPath.empty()) {
+        std::stringstream bin_file(std::ios::out | std::ios::binary), xml_file;
+        serializeFunc(bin_file);
+
+        m_constants = bin_file.str();
+        xml_doc.save(xml_file);
+        m_model = xml_file.str();
+    } else {
+        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
+        serializeFunc(bin_file);
+
+        // create xml file
+        std::ofstream xml_file(m_xmlPath, std::ios::out);
+        NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+        xml_doc.save(xml_file);
+        xml_file.flush();
+        bin_file.flush();
+    }
 
     // Return false because we didn't change nGraph Function
     return false;
@@ -696,6 +710,15 @@ std::string provide_bin_path(const std::string &xmlPath, const std::string &binP
 }
 
 } // namespace
+
+pass::Serialize::Serialize(pass::Serialize::Version version,
+                           std::map<std::string, OpSet> custom_opsets)
+    : m_xmlPath{}
+    , m_binPath{}
+    , m_version{version}
+    , m_custom_opsets{custom_opsets}
+{
+}
 
 pass::Serialize::Serialize(const std::string& xmlPath,
                            const std::string& binPath,

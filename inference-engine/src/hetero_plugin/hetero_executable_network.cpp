@@ -463,6 +463,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         importedConfigs[config.first] = config.second;
     }
 
+    // save config to current imported executable network
+    _config = importedConfigs;
+
     std::vector<NetworkDesc> descs;
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
     for (auto subnetworkNode = subnetworksNode.child("subnetwork"); !subnetworkNode.empty();
@@ -612,12 +615,11 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
             //     auto opset = extension->getOpSets();
             //     custom_opsets.insert(std::begin(opset), std::end(opset));
             // }
-            ngraph::pass::Serialize serializer(
-                "", "", ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+            ngraph::pass::Serialize serializer(ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
             serializer.run_on_function(subnet.getFunction());
 
-            auto m_constants = std::move(serializer.getWeights());
-            auto m_model = std::move(serializer.getModel());
+            auto m_constants = serializer.getWeights();
+            auto m_model = serializer.getModel();
 
             auto dataSize = static_cast<std::uint64_t>(m_model.size());
             heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));

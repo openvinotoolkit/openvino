@@ -33,14 +33,18 @@ public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-    Serialize(const std::string& xmlPath, const std::string& binPath,
-              Version version = Version::IR_V10, std::map<std::string, ngraph::OpSet> custom_opsets = {});
+    Serialize(Version version = Version::IR_V10,
+              std::map<std::string, ngraph::OpSet> custom_opsets = {});
 
-    std::string getModel() const { return m_model; }
-    std::vector<uint8_t> getWeights() const { return m_constants; }
+    Serialize(const std::string& xmlPath, const std::string& binPath,
+              Version version = Version::IR_V10,
+              std::map<std::string, ngraph::OpSet> custom_opsets = {});
+
+    const std::string & getModel() const { return m_model; }
+    const std::string & getWeights() const { return m_constants; }
 
 private:
-    std::vector<uint8_t> m_constants;
+    std::string m_constants;
     std::string m_model;
 
     const std::string m_xmlPath;

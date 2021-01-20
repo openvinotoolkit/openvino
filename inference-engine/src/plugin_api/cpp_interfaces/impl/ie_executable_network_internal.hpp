@@ -64,6 +64,8 @@ public:
     }
 
     void Export(const std::string& modelFileName) override {
+        // we need to write to stringstream first
+        // because in case of exception in ExportImpl the file is not created
         std::stringstream strm;
         ExportImpl(strm);
         std::ofstream(modelFileName.c_str()) << strm.rdbuf();

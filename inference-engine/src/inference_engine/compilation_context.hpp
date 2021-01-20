@@ -31,19 +31,19 @@ public:
                 auto opset = extension->getOpSets();
                 custom_opsets.insert(std::begin(opset), std::end(opset));
             }
-            ngraph::pass::Serialize serializer(
-                "", "", ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+            ngraph::pass::Serialize serializer(ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
             serializer.run_on_function(ngraphImpl._ngraph_function);
 
-            m_constants = std::move(serializer.getWeights());
-            m_model = std::move(serializer.getModel());
+            m_constants = serializer.getWeights();
+            m_model = serializer.getModel();
         } catch (const std::bad_cast &) {
             // IR v7 or older is passed: cannot cast to CNNNetworkNGraphImpl
             m_cachingIsAvailable = false;
             std::cout << "IR v7 is passed; skip import and export" << std::endl;
-        } catch (const ngraph::ngraph_error &) {
+        } catch (const ngraph::ngraph_error & ex) {
             // failed to serialize the model - caching is not available
             m_cachingIsAvailable = false;
+            std::cout << ex.what() << std::endl;
             std::cout << "failed to serialize the model; skip import and export" << std::endl;
         }
 
@@ -112,7 +112,7 @@ private:
     bool m_cachingIsAvailable = true;
 
     // network structure (ngraph::Function description)
-    std::vector<uint8_t> m_constants;
+    std::string m_constants;
     std::string m_model;;
 
     // compile options
