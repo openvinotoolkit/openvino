@@ -129,10 +129,10 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
 
 bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const
 {
-    const auto & input = input_value(0);
+    const auto& input = input_value(0);
     if (evaluate_lower_bound(input))
     {
-        const auto & low_value = input.get_tensor().get_lower_value();
+        const auto& low_value = input.get_tensor().get_lower_value();
         auto input_maximum_value = get_constant_max_of_type(input.get_element_type());
         if (input_maximum_value == nullptr)
             return false;
@@ -157,10 +157,10 @@ bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) cons
 
 bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) const
 {
-    const auto & input = input_value(0);
+    const auto& input = input_value(0);
     if (evaluate_upper_bound(input))
     {
-        const auto & upper_value = input.get_tensor().get_upper_value();
+        const auto& upper_value = input.get_tensor().get_upper_value();
         auto input_maximum_value = get_constant_max_of_type(input.get_element_type());
         if (input_maximum_value == nullptr)
             return false;
@@ -168,7 +168,8 @@ bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) cons
         evaluate(output_values, {upper_value});
 
         // dynamic values saving
-        auto input_upper_dyn_mask = std::make_shared<HostTensor>(element::boolean, input.get_shape());
+        auto input_upper_dyn_mask =
+            std::make_shared<HostTensor>(element::boolean, input.get_shape());
         op::v1::Equal().evaluate({input_upper_dyn_mask},
                                  {upper_value, std::make_shared<HostTensor>(input_maximum_value)});
 

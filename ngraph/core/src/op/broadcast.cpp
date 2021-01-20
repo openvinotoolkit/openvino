@@ -21,8 +21,8 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 
-#include <numeric>
 #include <ngraph/validation_util.hpp>
+#include <numeric>
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
 

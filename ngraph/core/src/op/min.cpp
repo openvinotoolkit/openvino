@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <ngraph/validation_util.hpp>
 #include "ngraph/op/min.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/runtime/host_tensor.hpp"

@@ -1270,10 +1270,6 @@ HostTensorPtr ngraph::evaluate_bound(const Output<Node>& output, bool is_upper)
                         node->get_output_tensor(i).get_lower_value() == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
 
-                    // std::cout << (is_upper ? "UPP " : "LOW ") << node << " VALUE: ";
-                    // for (const auto v : std::make_shared<op::Constant>(outputs[i])->cast_vector<float>())
-                    //     std::cout << v << ", ";
-                    // std::cout << std::endl;
                 }
             }
             else
@@ -1447,7 +1443,7 @@ bool ngraph::interval_bound_evaluator(const Node* node,
 
     if (input_variants.size() == 1)
         return node->evaluate(upper_output_values, *input_variants.begin()) &&
-                node->evaluate(lower_output_values, *input_variants.begin());
+               node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
     std::vector<HostTensorVector> unsqueezed_output_variants;
@@ -1485,9 +1481,8 @@ bool ngraph::interval_bound_evaluator(const Node* node,
     auto input_1_low_dyn_mask = equality_mask(low_1, input_1_maximum_value);
     auto input_1_up_dyn_mask = equality_mask(up_1, input_1_maximum_value);
 
-    auto final_input_dyn_mask = or_tensor(
-            or_tensor(input_0_low_dyn_mask, input_0_up_dyn_mask),
-            or_tensor(input_1_low_dyn_mask, input_1_up_dyn_mask));
+    auto final_input_dyn_mask = or_tensor(or_tensor(input_0_low_dyn_mask, input_0_up_dyn_mask),
+                                          or_tensor(input_1_low_dyn_mask, input_1_up_dyn_mask));
 
     bool fully_defined = true;
     for (size_t i = 0; i < num_of_outputs; ++i)

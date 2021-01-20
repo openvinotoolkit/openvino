@@ -74,6 +74,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
+
             private:
                 AutoBroadcastSpec m_autob;
                 void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);

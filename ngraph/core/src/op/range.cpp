@@ -301,8 +301,7 @@ namespace rangeop
         return rc;
     }
 
-    bool evaluate_bound(const Node* range_node,
-                        const HostTensorVector& output_values)
+    bool evaluate_bound(const Node* range_node, const HostTensorVector& output_values)
     {
         HostTensorPtr start_lb, start_ub;
         std::tie(start_lb, start_ub) = evaluate_both_bounds(range_node->input_value(0));

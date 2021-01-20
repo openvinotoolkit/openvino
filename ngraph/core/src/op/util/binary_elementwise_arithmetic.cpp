@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <ngraph/validation_util.hpp>
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
@@ -67,23 +67,25 @@ bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& v
     return true;
 }
 
-bool op::util::BinaryElementwiseArithmetic::evaluate_upper(const HostTensorVector& output_values) const
+bool op::util::BinaryElementwiseArithmetic::evaluate_upper(
+    const HostTensorVector& output_values) const
 {
     HostTensorVector lower_output_tensors;
     for (const auto& output : output_values)
         lower_output_tensors.push_back(
-                std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
+            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
     if (!interval_bound_evaluator(this, lower_output_tensors, output_values))
         return false;
     return true;
 }
 
-bool op::util::BinaryElementwiseArithmetic::evaluate_lower(const HostTensorVector& output_values) const
+bool op::util::BinaryElementwiseArithmetic::evaluate_lower(
+    const HostTensorVector& output_values) const
 {
     HostTensorVector upper_output_tensors;
     for (const auto& output : output_values)
         upper_output_tensors.push_back(
-                std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
+            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
     if (!interval_bound_evaluator(this, output_values, upper_output_tensors))
         return false;
     return true;

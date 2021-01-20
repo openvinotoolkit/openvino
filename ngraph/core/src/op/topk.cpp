@@ -298,9 +298,8 @@ void op::v1::TopK::validate_and_infer_types()
                 const auto k_max = k_as_shape[0].get_max_length();
 
                 const auto lower = std::min<Dimension::value_type>(in_min, k_min);
-                const auto upper = in_max < 0
-                                   ? Dimension::dynamic().get_max_length()
-                                   : std::max<Dimension::value_type>(in_max, k_max);
+                const auto upper = in_max < 0 ? Dimension::dynamic().get_max_length()
+                                              : std::max<Dimension::value_type>(in_max, k_max);
                 output_shape[m_normalized_axis] = Dimension(lower, upper);
             }
         }
