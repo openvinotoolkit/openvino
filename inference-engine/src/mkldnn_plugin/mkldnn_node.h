@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,14 @@
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
 #include "mkldnn_descriptor.h"
+#include "mkldnn_selective_build.h"
 #include "mkldnn/iml_type_mapper.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_primitive.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
 #include <openvino/itt.hpp>
+#include <ngraph/node.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -50,6 +52,7 @@ enum Type {
     Reshape,
     Tile,
     SimplerNMS,
+    ROIAlign,
     ROIPooling,
     BatchNormalization,
     Flatten,
@@ -66,7 +69,6 @@ enum Type {
     TensorIterator,
     Convert,
     MVN,
-    Resample,
     Normalize,
     ScatterUpdate,
     ScatterElementsUpdate,
@@ -128,6 +130,8 @@ static std::string NameFromType(Type type) {
             return "Tile";
         case SimplerNMS:
             return "SimplerNMS";
+        case ROIAlign:
+            return "ROIAlign";
         case ROIPooling:
             return "ROIPooling";
         case BatchNormalization:
@@ -162,8 +166,6 @@ static std::string NameFromType(Type type) {
             return "TensorIterator";
         case Convert:
             return "Convert";
-        case Resample:
-            return "Resample";
         case Normalize:
             return "Normalize";
         case ScatterUpdate:
@@ -260,10 +262,6 @@ private:
 
 class MKLDNNNode : public InferenceEngine::details::no_copy {
 public:
-    class Factory;
-    template<typename To>
-    class Registrar;
-
     template<typename T, int N>
     struct Tag {};
 
@@ -297,7 +295,8 @@ public:
         openvino::itt::handle_t initOptimalPrimitiveDescriptor;
     };
 
-    static Factory & factory();
+    class NodesFactory;
+    static NodesFactory & factory();
 
     ~MKLDNNNode() override = default;
 
@@ -518,6 +517,12 @@ public:
         return profiling;
     }
 
+    /**
+     * @brief Returns runtime node precision based on input/output data types or data type used for computations
+     * @return Runtime node precision
+     */
+    virtual InferenceEngine::Precision getRuntimePrecision() const;
+
 protected:
     // TODO: It is necessary only in order to avoid modifications of cnnLayers and original topology
     std::vector<MKLDNNDims> outDims;
@@ -592,6 +597,18 @@ protected:
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
 
+    /**
+     * @brief Auxiliary function to get node input precisions
+     * @return Vector of precisions based on information from node input edges. Return empty vector in case edges are not initialized yet.
+     */
+    virtual std::vector<InferenceEngine::Precision> getInputPrecisions() const;
+
+    /**
+     * @brief Auxiliary function to get node output precisions
+     * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are not initialized yet.
+     */
+    virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
+
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
@@ -631,40 +648,36 @@ private:
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 };
 
-class MKLDNNNode::Factory : InferenceEngine::details::no_copy {
+class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
+                                            MKLDNNNode*(const InferenceEngine::CNNLayerPtr&,
+                                                        const mkldnn::engine &,
+                                                        MKLDNNWeightsSharing::Ptr &)> {
 public:
-    using builder_t = std::function<MKLDNNNode *(const InferenceEngine::CNNLayerPtr& layer,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)>;
+    NodesFactory()
+        : Factory("NodesFactory") {}
 
     MKLDNNNode* create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
-
-    void registerNode(Type type, builder_t builder);
-
-private:
-    using map_t = std::unordered_map<Type, builder_t,
-        std::hash<std::underlying_type<MKLDNNPlugin::Type>::type>>;
-    map_t builders;
 };
 
-template<typename To>
-class MKLDNNNode::Registrar {
-public:
-    explicit Registrar(Type type) {
-        MKLDNNNode::factory().registerNode(type,
-                [type](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                    MKLDNNWeightsSharing::Ptr &w_cache) -> MKLDNNNode* {
-                    MKLDNNNode *node = new To(layer, eng, w_cache);
-                    node->perfCounters().buildClassCounters<To>(NameFromType(type));
-                    return node;
-                });
+template<typename MKLDNNNodeType>
+struct MKLDNNNodeImpl : public MKLDNNNodeType {
+    MKLDNNNodeImpl(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNodeType(layer, eng, cache) {
+        MKLDNNNodeType::perfCounters().template buildClassCounters<MKLDNNNodeType>(NameFromType(MKLDNNNodeType::getType()));
     }
 };
 
-#define REG_MKLDNN_CONCAT2(X, Y) X ## Y
-#define REG_MKLDNN_CONCAT(X, Y) REG_MKLDNN_CONCAT2(X, Y)
-#define REG_MKLDNN_PRIM_FOR(__prim, __type) \
-static MKLDNNNode::Registrar<__prim> REG_MKLDNN_CONCAT(_reg_, __LINE__)(__type)
+#define REG_MKLDNN_CONCAT3_(X, Y, Z) X ## Y ## Z
+#define REG_MKLDNN_CONCAT3(X, Y, Z) REG_MKLDNN_CONCAT3_(X, Y, Z)
+
+#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                                 \
+static struct REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__) {                            \
+    REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__)() {                                    \
+        MKLDNNNode::factory()                                                               \
+            .registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>);  \
+    }                                                                                       \
+} REG_MKLDNN_CONCAT3(_reg_, __prim, __LINE__);
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {

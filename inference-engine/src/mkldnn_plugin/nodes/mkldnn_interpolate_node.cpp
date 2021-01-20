@@ -21,7 +21,7 @@
 #include "jit_uni_depthwise.hpp"
 #include "jit_uni_quantization.hpp"
 #include "common/cpu_memcpy.h"
-#include "ngraph/type/bfloat16.hpp"
+#include "utils/bfloat16.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -58,6 +58,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                         this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
 
@@ -133,6 +136,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         }
 
         this->postamble();
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -223,6 +229,8 @@ private:
 
     Xbyak::Label l_table_constant;
     Opmask k_mask = Xbyak::Opmask(1);
+
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -1278,12 +1286,11 @@ private:
                     movd(op, xmm_dst);
             }
         } else if (dst_dt == memory::bf16) {
-            if (mayiuse(avx512_core_bf16)) {
+            if (mayiuse(avx512_core_bf16))
                 vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
-            } else {
-                assert(!"data type of bf16 is only supported for ISA:avx512_core_bf16");
-            }
+            else
+                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+            vmovdqu16(op, ymm_dst);
         }
     }
 
@@ -1584,7 +1591,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     if ((inputPrecision != Precision::I8) && (inputPrecision != Precision::U8) && (inputPrecision != Precision::BF16)) {
         inputPrecision = Precision::FP32;
     }
-    if ((inputPrecision == Precision::BF16) && !mayiuse(avx512_core_bf16)) {
+    if ((inputPrecision == Precision::BF16) && !mayiuse(avx512_core)) {
         inputPrecision = Precision::FP32;
     }
     Precision outputPrecision = inputPrecision;
@@ -1872,7 +1879,6 @@ void MKLDNNInterpolateNode::buildTblLinearOnnx(SizeVector& srcDimPad5d, SizeVect
         size_t scratchLen = rnd_up(OW + OW + OH + OH, 16);
         int idxType = 2;
         indexTable.resize(idxType * scratchLen);
-        std::vector<int> index(scratchLen, 0);
         int *indexLeft = static_cast<int*>(&indexTable[0]);
         int *indexRight = static_cast<int*>(&indexTable[OW]);
         int *indexTop = static_cast<int*>(&indexTable[2 * OW]);
@@ -2320,7 +2326,7 @@ void MKLDNNInterpolateNode::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr
                     arg.src_ptr[0] = in_ptr_cbd + blk_size * IW * index_h[h] * srcDataSize;
                     arg.index = static_cast<int*>(&(index_w_kernel[0]));
                     arg.work_amount = static_cast<size_t>(OW);
-                    arg.oc_off = cb * blk_size;
+                    arg.oc_off = cb * blk_size * sizeof(float);
                     (*interpolateKernel)(&arg);
                 }
             });
@@ -2351,7 +2357,7 @@ void MKLDNNInterpolateNode::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, 
         arg.src_ptr[0] = in_ptr;
         arg.dst = out_ptr;
         arg.index = static_cast<int*>(&index_kernel[0]);  // need index_h and index_w in kernel, it's in continous memory so one param
-        arg.oc_off = static_cast<size_t>(c);
+        arg.oc_off = static_cast<size_t>(c * sizeof(float));
         // work_amount is OH(out loop) and OW(inner loop), can get in kernel from jcp.
         (*interpolateKernel)(&arg);
     });
@@ -2391,7 +2397,7 @@ void MKLDNNInterpolateNode::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *ou
         arg.weight_ptr[0] = static_cast<float*>(&weight[0]);
         arg.dst = out_ptr_nc;
         arg.work_amount = OW * OH;
-        arg.oc_off = c;
+        arg.oc_off = static_cast<size_t>(c * sizeof(float));
         (*interpolateKernel)(&arg);
     });
 }
@@ -2666,7 +2672,7 @@ void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr
         arg.weight_ptr[0] = xFactor;
         arg.weight_ptr[1] = yFactor;
         arg.work_amount = static_cast<size_t>(OW * OH);
-        arg.oc_off = static_cast<size_t>(C);
+        arg.oc_off = static_cast<size_t>(c * sizeof(float));
         (*interpolateKernel)(&arg);
     });
 }
@@ -2715,7 +2721,7 @@ float MKLDNNInterpolateNode::getValue(const uint8_t *base, size_t offset, Infere
         }
         case Precision::BF16: {
             const uint16_t *valuePtr = reinterpret_cast<const uint16_t *>(baseOffset);
-            return ngraph::bfloat16::from_bits(*valuePtr);
+            return bfloat16_t::from_bits(*valuePtr);
             break;
         }
         case Precision::FP32: {
@@ -2744,7 +2750,7 @@ void MKLDNNInterpolateNode::setValue(uint8_t *base, size_t offset, float value, 
             break;
         }
         case Precision::BF16: {
-            uint16_t data = ngraph::bfloat16(value).to_bits();
+            uint16_t data = bfloat16_t(value).to_bits();
             std::memcpy(baseOffset, &data, 2);
             break;
         }
@@ -2788,7 +2794,7 @@ inline float MKLDNNInterpolateNode::coordTransToInput(int outCoord, float scale,
         }
         case InterpolateCoordTransMode::align_corners: {
             if (outShape > 1)
-                return outCoord * static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1);
+                return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
             else
                 return 0;
             break;
@@ -2844,10 +2850,9 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
     };
 
-    if (!mayiuse(cpu::sse42))
+    if (!mayiuse(cpu::sse42) || mode == InterpolateMode::linear) {
         return false;
-    if (mode == InterpolateMode::linear || mode == InterpolateMode::cubic)
-        return false;
+    }
 
     if (node->getType() == Quantize) {
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
@@ -2858,10 +2863,9 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
         if (eltwiseNode == nullptr)
             THROW_IE_EXCEPTION << "Cannot get eltwise node " << node->getName();
-        return isOneOf(eltwiseNode->getOpType(), {MulAdd, Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp,
+        return isOneOf(eltwiseNode->getOpType(), {Prelu, Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp,
                                                   Tanh, Swish, Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt}) ||
-                ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
-                 (eltwiseNode->getOpType() == Prelu));
+                (eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2);
     }
 
     return false;

@@ -27,6 +27,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -37,6 +38,8 @@
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <legacy/ie_util_internal.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
+#include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 
 namespace vpu {
 
@@ -134,6 +137,8 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"GatherND",                                           LAYER_PARSER(parseGatherND)},
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
         {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
+        {"GatherElements",                                     LAYER_PARSER(parseGatherElements)},
+        {"Round",                                              LAYER_PARSER(parseRound)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -146,10 +151,6 @@ ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
     VPU_LOGGER_SECTION(env.log);
 
     return runCommonPasses(network);
-}
-
-bool FrontEnd::isLayerSupported(const std::string& type) {
-    return parsers.count(type) != 0;
 }
 
 ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
@@ -177,15 +178,28 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<::ngraph::pass::ConvertPriorBox>();
+    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
+
+    manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t>{
+        ngraph::opset5::MatMul::type_info,
+        ngraph::opset5::Convolution::type_info,
+        ngraph::opset5::GroupConvolution::type_info
+    });
+
     manager.register_pass<vpu::DynamicToStaticShape>();
     manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
     manager.register_pass<vpu::ConvertExtractImagePatchesToReorgYolo>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.get_pass_config()->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     manager.set_callback(transformationsPredicate);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     manager.run_passes(nGraphFunc);
 
     vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);

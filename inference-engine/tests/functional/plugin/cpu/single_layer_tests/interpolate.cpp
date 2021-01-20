@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/interpolate.hpp>
+#include <shared_test_classes/single_layer/interpolate.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -12,6 +12,7 @@ namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
         LayerTestsDefinitions::InterpolateLayerTestParams,
+        std::map<std::string, std::string>,  // Bf16 config
         CPUSpecificParams> InterpolateLayerCPUTestParamsSet;
 
 class InterpolateLayerCPUTest : public testing::WithParamInterface<InterpolateLayerCPUTestParamsSet>,
@@ -20,11 +21,15 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerCPUTestParamsSet> obj) {
         LayerTestsDefinitions::InterpolateLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        std::map<std::string, std::string> bf16config;
+        std::tie(basicParamsSet, bf16config, cpuParams) = obj.param;
 
         std::ostringstream result;
         result << LayerTestsDefinitions::InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::InterpolateLayerTestParams>(
                 basicParamsSet, 0));
+
+        result << "bf16Enforce=" << (bf16config.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) ?
+                                     bf16config.at(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) : InferenceEngine::PluginConfigParams::NO);
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -35,14 +40,15 @@ protected:
     void SetUp() {
         LayerTestsDefinitions::InterpolateLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        std::map<std::string, std::string> bf16config;
+        std::tie(basicParamsSet, bf16config, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         LayerTestsDefinitions::InterpolateSpecificParams interpolateParams;
         std::vector<size_t> inputShape;
         std::vector<size_t> targetShape;
-        auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
+        auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
         std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) = basicParamsSet;
 
         ngraph::op::v4::Interpolate::InterpolateMode mode;
@@ -54,8 +60,9 @@ protected:
         double cubeCoef;
         std::vector<int64_t> axes;
         std::vector<float> scales;
-        std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
-
+        std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+        inPrc = outPrc = netPrecision;
+        configuration.insert(bf16config.begin(), bf16config.end());
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -78,9 +85,8 @@ protected:
                                                                          scalesInput,
                                                                          axesInput,
                                                                          interpolateAttributes);
-        interpolate->get_rt_info() = getCPUInfo();
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
-        function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+        function = makeNgraphFunction(ngPrc, params, interpolate, "interpolate");
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
     }
 };
 
@@ -88,7 +94,7 @@ TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Interpolate");
+    CheckPluginRelatedResults(executableNetwork, "Interpolate");
 }
 
 namespace {
@@ -99,7 +105,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     if (with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512_FP32"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2_FP32"});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x}, {nChw8c}, {"jit_avx2"}, "jit_avx2_FP32"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2_FP32"});
@@ -115,7 +120,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
 /* ========== */
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::BF16
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
@@ -200,6 +206,23 @@ const auto interpolateCasesCubic = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
+const auto interpolateCasesBf16Enforced = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
+        ::testing::Values(ngraph::op::v4::Interpolate::ShapeCalcMode::scales),
+        ::testing::Values(ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn),
+        ::testing::Values(ngraph::op::v4::Interpolate::NearestMode::simple),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
+
+std::vector<std::map<std::string, std::string>> bf16EnforceFlags = {
+        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+};
+
 INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
@@ -212,6 +235,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest
                 ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
                 ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(std::map<std::string, std::string> {}),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
 
@@ -227,6 +251,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLaye
                 ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
                 ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(std::map<std::string, std::string> {}),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
 
@@ -242,8 +267,25 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUT
                 ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
                 ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(std::map<std::string, std::string> {}),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Enforced_Bf16_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            ::testing::Combine(
+                interpolateCasesBf16Enforced,
+                ::testing::Values(InferenceEngine::Precision::BF16),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::ValuesIn(bf16EnforceFlags),
+            ::testing::ValuesIn(filterCPUInfoForDevice())),
+        InterpolateLayerCPUTest::getTestCaseName);
 
 } // namespace
 

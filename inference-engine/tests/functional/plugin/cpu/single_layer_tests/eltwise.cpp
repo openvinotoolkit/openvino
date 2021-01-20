@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/eltwise.hpp>
+#include <shared_test_classes/single_layer/eltwise.hpp>
 #include <ngraph_functions/builders.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -90,8 +90,8 @@ protected:
         }
 
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
-        eltwise->get_rt_info() = getCPUInfo();
-        function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
+
+        function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");
     }
 };
 
@@ -99,7 +99,7 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Eltwise");
+    CheckPluginRelatedResults(executableNetwork, "Eltwise");
 }
 
 namespace {

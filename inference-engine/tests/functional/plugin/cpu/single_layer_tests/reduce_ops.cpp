@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/reduce_ops.hpp>
+#include <shared_test_classes/single_layer/reduce_ops.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -114,7 +114,7 @@ TEST_P(ReduceCPULayerTest, CompareWithRefs) {
     }
 
     Run();
-    CheckCPUImpl(executableNetwork, name);
+    CheckPluginRelatedResults(executableNetwork, name);
 }
 namespace {
 std::vector<Precision> inpOutPrc = {Precision::BF16, Precision::FP32};

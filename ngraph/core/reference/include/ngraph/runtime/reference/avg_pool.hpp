@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -223,8 +223,8 @@ namespace ngraph
 
                         if (in_bounds || include_padding_in_avg_computation)
                         {
-                            T v =
-                                in_bounds ? arg[input_batch_transform.index(input_batch_coord)] : 0;
+                            T v = in_bounds ? arg[input_batch_transform.index(input_batch_coord)]
+                                            : static_cast<T>(0);
                             result += v;
                             n_elements++;
                         }

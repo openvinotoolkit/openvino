@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -153,7 +153,7 @@ def avg_pool(
             "pads_begin": pads_begin,
             "pads_end": pads_end,
             "kernel": kernel_shape,
-            "exclude_pad": exclude_pad,
+            "exclude-pad": exclude_pad,
             "rounding_type": rounding_type.upper(),
             "auto_pad": auto_pad.upper(),
         },

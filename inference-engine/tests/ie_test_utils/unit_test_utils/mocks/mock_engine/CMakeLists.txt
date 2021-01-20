@@ -22,8 +22,8 @@ endif()
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
-# Create library file from sources.
-add_library(${TARGET_NAME} SHARED
+# Create module library file from sources.
+add_library(${TARGET_NAME} MODULE
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS})
 

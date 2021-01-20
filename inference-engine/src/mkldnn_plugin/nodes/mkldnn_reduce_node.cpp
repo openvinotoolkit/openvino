@@ -78,6 +78,9 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     : jit_uni_reduce_kernel(jcp), jit_generator() {
         exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
+
         this->preamble();
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -102,6 +105,9 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         reduce_tail();
 
         this->postamble();
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
 
         if (jcp_.reduce_mode == Reduce::And || jcp_.reduce_mode == Reduce::L1 || jcp_.reduce_mode == Reduce::Max ||
             jcp_.reduce_mode == Reduce::Min || jcp_.reduce_mode == Reduce::Prod || jcp_.reduce_mode == Reduce::Or) {
@@ -145,6 +151,8 @@ private:
     Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(7);
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
+
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     Xbyak::Label l_table;
 
@@ -605,8 +613,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case memory::bf16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
                 break;
             case memory::s8:
                 if (isa == avx512_common) {
@@ -806,6 +817,9 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     : jit_uni_reduce_post_kernel(jcp), jit_generator() {
         log_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_log, 0.f, 0.f));
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
+
         this->preamble();
 
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
@@ -822,6 +836,9 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
             reduce_post_tail();
 
         this->postamble();
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
 
         if (jcp_.reduce_mode == Reduce::LogSum || jcp_.reduce_mode == Reduce::LogSumExp) {
             log_injector->prepare_table();
@@ -854,6 +871,8 @@ private:
     Xbyak::Xmm xmm_aux1 = Xbyak::Xmm(4);
     Xbyak::Xmm xmm_aux2 = Xbyak::Xmm(5);
     Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(6);
+
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> log_injector;
 
@@ -1063,8 +1082,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case memory::bf16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
                 break;
             case memory::s8:
                 if (isa == avx512_common) {
@@ -1355,7 +1377,7 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
         // Since in jit mode we use the output memory as an intermediate accumulator for certain reduce modes, we can't use BF16 output precision due to
         // the possible accuracy loss. Therefore, for such mods, we will change the output precision to FP32.
         if (Precision::BF16 == outputPrecision) {
-            if (!mayiuse(avx512_core_bf16)) {
+            if (!mayiuse(avx512_core)) {
                     outputPrecision = Precision::FP32;
             } else if (reduceMode != Reduce::And && reduceMode != Reduce::Or &&
                        reduceMode != Reduce::Max && reduceMode != Reduce::Min) {

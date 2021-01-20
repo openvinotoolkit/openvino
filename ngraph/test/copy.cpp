@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -69,7 +67,7 @@ TEST(copy, acos)
 
 TEST(copy, add)
 {
-    ASSERT_TRUE(check_binary<op::Add>());
+    ASSERT_TRUE(check_binary<op::v1::Add>());
 }
 
 TEST(copy, asin)
@@ -177,12 +175,12 @@ TEST(copy, cosh)
 
 TEST(copy, divide)
 {
-    ASSERT_TRUE(check_binary<op::Divide>());
+    ASSERT_TRUE(check_binary<op::v1::Divide>());
 }
 
 TEST(copy, equal)
 {
-    ASSERT_TRUE(check_binary<op::Equal>());
+    ASSERT_TRUE(check_binary<op::v1::Equal>());
 }
 
 TEST(copy, exp)
@@ -197,22 +195,22 @@ TEST(copy, floor)
 
 TEST(copy, greater_eq)
 {
-    ASSERT_TRUE(check_binary<op::GreaterEq>());
+    ASSERT_TRUE(check_binary<op::v1::GreaterEqual>());
 }
 
 TEST(copy, greater)
 {
-    ASSERT_TRUE(check_binary<op::Greater>());
+    ASSERT_TRUE(check_binary<op::v1::Greater>());
 }
 
 TEST(copy, less_eq)
 {
-    ASSERT_TRUE(check_binary<op::LessEq>());
+    ASSERT_TRUE(check_binary<op::v1::LessEqual>());
 }
 
 TEST(copy, less)
 {
-    ASSERT_TRUE(check_binary<op::Less>());
+    ASSERT_TRUE(check_binary<op::v1::Less>());
 }
 
 TEST(copy, log)
@@ -222,17 +220,17 @@ TEST(copy, log)
 
 TEST(copy, maximum)
 {
-    ASSERT_TRUE(check_binary<op::Maximum>());
+    ASSERT_TRUE(check_binary<op::v1::Maximum>());
 }
 
 TEST(copy, minimum)
 {
-    ASSERT_TRUE(check_binary<op::Minimum>());
+    ASSERT_TRUE(check_binary<op::v1::Minimum>());
 }
 
 TEST(copy, multiply)
 {
-    ASSERT_TRUE(check_binary<op::Multiply>());
+    ASSERT_TRUE(check_binary<op::v1::Multiply>());
 }
 
 TEST(copy, negative)
@@ -242,7 +240,7 @@ TEST(copy, negative)
 
 TEST(copy, not_equal)
 {
-    ASSERT_TRUE(check_binary<op::NotEqual>());
+    ASSERT_TRUE(check_binary<op::v1::NotEqual>());
 }
 
 TEST(copy, parameter)
@@ -260,7 +258,7 @@ TEST(copy, parameter)
 
 TEST(copy, power)
 {
-    ASSERT_TRUE(check_binary<op::Power>());
+    ASSERT_TRUE(check_binary<op::v1::Power>());
 }
 
 TEST(copy, reduce_sum)
@@ -313,9 +311,9 @@ TEST(copy, select)
                           make_shared<op::Parameter>(element::f32, shape),
                           make_shared<op::Parameter>(element::f32, shape)};
 
-    auto node = make_shared<op::Select>(arg0, arg1, arg2);
+    auto node = make_shared<op::v1::Select>(arg0, arg1, arg2);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Select>(new_node);
+    auto node_cast = as_type_ptr<op::v1::Select>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -382,7 +380,7 @@ TEST(copy, strided_slice)
 
 TEST(copy, subtract)
 {
-    ASSERT_TRUE(check_binary<op::Subtract>());
+    ASSERT_TRUE(check_binary<op::v1::Subtract>());
 }
 
 TEST(copy, tan)

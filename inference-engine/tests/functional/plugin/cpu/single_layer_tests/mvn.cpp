@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/mvn.hpp>
+#include <shared_test_classes/single_layer/mvn.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -71,7 +71,7 @@ TEST_P(MvnLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "MVN");
+    CheckPluginRelatedResults(executableNetwork, "MVN");
 }
 
 namespace {

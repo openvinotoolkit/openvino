@@ -18,6 +18,8 @@
 
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 class MockIInferRequest : public IInferRequest {
 public:
     MOCK_QUALIFIED_METHOD1(StartAsync, noexcept, StatusCode(ResponseDesc*));
@@ -35,4 +37,7 @@ public:
     MOCK_QUALIFIED_METHOD4(SetBlob, noexcept, StatusCode(const char*, const Blob::Ptr&, const PreProcessInfo&, ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(SetBatch, noexcept, StatusCode(int batch, ResponseDesc*));
     MOCK_QUALIFIED_METHOD3(QueryState, noexcept, StatusCode(IVariableState::Ptr &, size_t, ResponseDesc *));
+    MOCK_QUALIFIED_METHOD1(Cancel, noexcept, InferenceEngine::StatusCode(ResponseDesc*));
 };
+
+IE_SUPPRESS_DEPRECATED_END

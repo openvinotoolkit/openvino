@@ -87,6 +87,7 @@ Parameter::Any::~Any() {}
 template struct InferenceEngine::Parameter::RealData<int>;
 template struct InferenceEngine::Parameter::RealData<bool>;
 template struct InferenceEngine::Parameter::RealData<float>;
+template struct InferenceEngine::Parameter::RealData<double>;
 template struct InferenceEngine::Parameter::RealData<uint32_t>;
 template struct InferenceEngine::Parameter::RealData<std::string>;
 template struct InferenceEngine::Parameter::RealData<unsigned long>;

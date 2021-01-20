@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #include <memory>
 
 #include "ngraph/opsets/opset3.hpp"
-#include "roi_align.hpp"
+#include "op/roi_align.hpp"
 
 namespace ngraph
 {

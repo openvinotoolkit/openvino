@@ -200,7 +200,7 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
     }
 }
 
-kernel_selector::weights_layout to_weights_layout(format f) {
+kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
     switch (f) {
         case format::bfyx:
         case format::oiyx:
@@ -238,8 +238,12 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_xfbyb;
         case format::os_is_yx_isa8_osv8_isv4:
             return kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv4;
+        case format::os_is_yx_isa8_osv16_isv4:
+            return kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv4;
         case format::os_is_zyx_isa8_osv8_isv4:
             return kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv4;
+        case format::os_is_zyx_isa8_osv16_isv4:
+            return kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv4;
         case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
@@ -267,6 +271,12 @@ kernel_selector::weights_layout to_weights_layout(format f) {
         case format::os_is_y_x8_osv8_isv4_swizzled_by_4:
             return kernel_selector::weights_layout::os_is_y_x8_osv8_isv4_swizzled_by_4;
         case format::bfzyx:
+            return is_grouped ? kernel_selector::weights_layout::goiyx : kernel_selector::weights_layout::oizyx;
+        case format::bfwzyx: {
+            if (!is_grouped)
+                throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
+            return kernel_selector::weights_layout::goizyx;
+        }
         case format::oizyx:
             return kernel_selector::weights_layout::oizyx;
         case format::iozyx:
@@ -390,6 +400,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_yx_isa8_osv8_isv4;
         case kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv4:
             return cldnn::format::os_is_zyx_isa8_osv8_isv4;
+        case kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv4:
+            return cldnn::format::os_is_yx_isa8_osv16_isv4;
+        case kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv4:
+            return cldnn::format::os_is_zyx_isa8_osv16_isv4;
         case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
         case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
@@ -585,10 +599,10 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
     return kernel_selector::data_tensor(vec, to_data_type(l.data_type), ks_layout);
 }
 
-kernel_selector::weights_tensor convert_weights_tensor(const layout& l) {
+kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped) {
     const auto& t = l.size.sizes(l.format);
     const auto ks_type = to_weights_type(l.data_type);
-    const auto ks_layout = to_weights_layout(l.format);
+    const auto ks_layout = to_weights_layout(l.format, is_grouped);
     std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
 
     for (size_t i = 0; i < vec.size(); i++) {
