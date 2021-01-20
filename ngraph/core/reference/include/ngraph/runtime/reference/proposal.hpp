@@ -346,7 +346,8 @@ namespace ngraph
                             rois[i] = static_cast<T>(0.f);
                         }
                         // marker at end of boxes list
-                        rois[num_rois * 5 + 0] = -1;
+                        //TODO: clarify clDNN not setting this marker
+                        //rois[num_rois * 5 + 0] = -1;
                     }
                 }
             } // namespace details
