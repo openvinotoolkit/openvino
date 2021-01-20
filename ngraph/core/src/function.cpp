@@ -407,6 +407,17 @@ void Function::remove_result(const std::shared_ptr<op::Result>& result)
 
 void Function::add_parameters(const ParameterVector& params)
 {
+    for (int i = 0; i < params.size(); i++)
+    {
+        for (int j = 0; j < m_parameters.size(); j++)
+        {
+            NGRAPH_CHECK(params[i] != m_parameters[j],
+                         "add_parameters(): Tried to add parameter (index in array ",
+                         i,
+                         ") but function already have the same parameter with index ",
+                         j);
+        }
+    }
     m_parameters.insert(m_parameters.end(), params.begin(), params.end());
 }
 
