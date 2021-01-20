@@ -578,7 +578,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
         auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
         auto outputInfo = subnet.getOutputsInfo();
         for (auto&& output : outputInfo) {
-            auto outputNode = subnetworkInputsNode.append_child("output");
+            auto outputNode = subnetworkOutputsNode.append_child("output");
             outputNode.append_attribute("name").set_value(output.first.c_str());
             outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
         }

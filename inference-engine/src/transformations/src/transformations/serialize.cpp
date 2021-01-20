@@ -643,26 +643,16 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
     // prepare data
     pugi::xml_document xml_doc;
-<<<<<<< HEAD
-    switch (m_version) {
-    case Version::IR_V10:
-        ngfunction_2_irv10(xml_doc, m_constants, *f, m_custom_opsets);
-=======
     std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
     NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
     switch (m_version) {
     case Version::IR_V10:
-<<<<<<< HEAD
-        ngfunction_2_irv10(xml_doc, bin_file, *f, m_custom_opsets);
->>>>>>> upstream/master
-=======
         {
             std::string name = "net";
             pugi::xml_node net_node = xml_doc.append_child(name.c_str());
             XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
             visitor.on_attribute(name, f);
         }
->>>>>>> upstream/master
         break;
     default:
         NGRAPH_UNREACHABLE("Unsupported version");
@@ -673,22 +663,8 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     std::ofstream xml_file(m_xmlPath, std::ios::out);
     NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
     xml_doc.save(xml_file);
-<<<<<<< HEAD
-
-    {
-        std::stringstream stream;
-        xml_doc.save(stream);
-        m_model = stream.str();
-    }
-
-    // create bin file
-    std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    bin_file.write(reinterpret_cast<const char*>(m_constants.data()),
-                   m_constants.size() * sizeof(m_constants[0]));
-=======
     xml_file.flush();
     bin_file.flush();
->>>>>>> upstream/master
 
     // Return false because we didn't change nGraph Function
     return false;
