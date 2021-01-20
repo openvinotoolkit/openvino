@@ -35,11 +35,13 @@ namespace ngraph
 
                 for (; i < n * step; i += 8)
                 {
-                    __m128i u8vec = _mm_loadl_epi64((__m128i const*)&arg[i]);   // SSE2: Load(u8[8])
-                    __m256i i32vec = _mm256_cvtepu8_epi32(u8vec);               // AVX2: Convert u8[8] -> i32[8]
-                    __m256 fvec = _mm256_cvtepi32_ps(i32vec);                   // AVX: Convert i32[8] -> float[8]
-                    __m128i f16vec = _mm256_cvtps_ph(fvec, 0);                  // FP16C: Convert float[8] -> float16[8]
-                    _mm_storeu_si128((__m128i*)&out[i], f16vec);                // SSE2: Store (Works only in LE architecture!)
+                    __m128i u8vec = _mm_loadl_epi64((__m128i const*)&arg[i]); // SSE2: Load(u8[8])
+                    __m256i i32vec = _mm256_cvtepu8_epi32(u8vec); // AVX2: Convert u8[8] -> i32[8]
+                    __m256 fvec = _mm256_cvtepi32_ps(i32vec);     // AVX: Convert i32[8] -> float[8]
+                    __m128i f16vec =
+                        _mm256_cvtps_ph(fvec, 0); // FP16C: Convert float[8] -> float16[8]
+                    _mm_storeu_si128((__m128i*)&out[i],
+                                     f16vec); // SSE2: Store (Works only in LE architecture!)
                 }
 
                 for (; i < count; ++i)
