@@ -25,9 +25,9 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 if(TARGET offline_transformations)
-    list(APPEND InferenceEngine_LIBRARIES offline_transformations)
+    list(APPEND InferenceEngine_LIBRARIES offline_transformations commonTestUtils)
 else()
-    list(APPEND InferenceEngine_LIBRARIES IE::offline_transformations)
+    list(APPEND InferenceEngine_LIBRARIES IE::offline_transformations IE::commonTestUtils)
 endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")

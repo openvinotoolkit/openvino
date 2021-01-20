@@ -4,12 +4,16 @@
 
 #include "offline_transformations_api_impl.hpp"
 
+#include <string>
+
 #include <moc_transformations.hpp>
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include <ngraph/pass/low_latency.hpp>
 #include <ngraph/pass/manager.hpp>
+
+#include <common_test_utils/ngraph_test_utils.hpp>
 
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
@@ -27,4 +31,9 @@ void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython:
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
     manager.run_passes(network.actual->getFunction());
+}
+
+std::pair<bool, std::string> InferenceEnginePython::CompareNetworks(InferenceEnginePython::IENetwork lhs,
+                                                                    InferenceEnginePython::IENetwork rhs) {
+    return compare_functions(lhs.actual->getFunction(), rhs.actual->getFunction(), true, true, false, true);
 }
