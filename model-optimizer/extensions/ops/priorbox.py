@@ -18,9 +18,9 @@ import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
 from mo.front.extractor import attr_getter
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.front.extractor import get_boolean_attr
 
 
 class PriorBoxOp(Op):
@@ -31,8 +31,9 @@ class PriorBoxOp(Op):
             'type': self.op,
             'op': self.op,
             'version': 'opset1',
-            'flip': 1,
-            'scale_all_sizes': 1,
+            'flip': True,
+            'clip': True,
+            'scale_all_sizes': True,
             'max_size': np.array([]),
             'min_size': np.array([]),
             'aspect_ratio': np.array([]),

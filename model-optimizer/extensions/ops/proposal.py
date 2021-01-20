@@ -33,9 +33,9 @@ class ProposalOp(Op):
             'infer': ProposalOp.proposal_infer,
             'in_ports_count': 3,
             'out_ports_count': 2,
-            'normalize': 0,
-            'clip_before_nms': 1,
-            'clip_after_nms': 0,
+            'normalize': False,
+            'clip_before_nms': True,
+            'clip_after_nms': False,
         }
         super().__init__(graph, mandatory_props, attrs)
 

@@ -18,9 +18,10 @@ import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
 from mo.front.extractor import attr_getter
+from mo.front.extractor import get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.front.extractor import get_boolean_attr
+
 
 class PriorBoxClusteredOp(Op):
     op = 'PriorBoxClustered'
@@ -34,7 +35,7 @@ class PriorBoxClusteredOp(Op):
             'out_ports_count': 1,
             'infer': self.priorbox_clustered_infer,
             'type_infer': self.type_infer,
-            'clip': 1,
+            'clip': True,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -56,9 +57,7 @@ class PriorBoxClusteredOp(Op):
 
     def backend_attrs(self):
         return [
-            'flip',
             ('clip', lambda node: get_boolean_attr(node, 'clip')),
-            'img_size',
             'img_h',
             'img_w',
             'step',

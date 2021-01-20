@@ -47,7 +47,7 @@ class GRUCell(Op):
             'version': 'opset3',
             'wr_input_id': 2,
             'gates_count': 3,
-            'linear_before_reset': 'false'
+            'linear_before_reset': False
         }
         super().__init__(graph, mandatory_props, attrs)
 

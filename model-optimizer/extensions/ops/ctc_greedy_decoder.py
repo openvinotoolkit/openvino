@@ -35,7 +35,7 @@ class CTCGreedyDecoderOp(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
 
-            'ctc_merge_repeated': 1     # We use int value because we extract this attr as int
+            'ctc_merge_repeated': True
         }
         super().__init__(graph, mandatory_props, attrs)
 
