@@ -33,6 +33,8 @@ jobs:
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     TEST_ENV_PATH: $(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.1\opencv\bin;%PATH%
+    INSTALL_DIR: $(WORK_DIR)\install_pkg
+    SETUPVARS: $(INSTALL_DIR)\bin\setupvars.bat
 
   steps:
   - script: |
@@ -102,6 +104,10 @@ jobs:
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List files'
+
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install'
 
   - script: |
       set PATH=$(TEST_ENV_PATH)

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <fstream>
@@ -195,7 +195,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName() + "_" + GetTimestamp();
+    std::string output_name = GetTestName().substr(0, maxFileNameLength) + "_" + GetTimestamp();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -449,17 +449,10 @@ std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) 
             const auto& rtInfo = op->get_rt_info();
             const auto& it = rtInfo.find("runtimePrecision");
 
-            if (it == rtInfo.end()) {
-                // WA: CPU impl doesn't contain runtimePrecision attribute
-                const auto& it1 = rtInfo.find("primitiveType");
-                const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it1->second);
-                const std::string kernel = rtPrecisionPtr->get();
-                const std::string kernelPrecision = kernel.substr(kernel.find_last_of("_") + 1ul);
-                return kernelPrecision;
-            } else {
-                const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-                return rtPrecisionPtr->get();
-            }
+            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
+
+            const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+            return rtPrecisionPtr->get();
         }
     }
 
