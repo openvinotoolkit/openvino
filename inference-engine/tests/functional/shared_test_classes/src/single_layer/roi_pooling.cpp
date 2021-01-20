@@ -41,8 +41,11 @@ namespace LayerTestsDefinitions {
         inputs.clear();
 
         auto feat_map_shape = cnnNetwork.getInputShapes().begin()->second;
-        const int height = pool_method == ngraph::helpers::ROIPoolingTypes::ROI_MAX ? feat_map_shape[2] / spatial_scale : 1;
-        const int width = pool_method == ngraph::helpers::ROIPoolingTypes::ROI_MAX ? feat_map_shape[3] / spatial_scale : 1;
+
+        const auto is_roi_max_mode = (pool_method == ngraph::helpers::ROIPoolingTypes::ROI_MAX);
+
+        const int height = is_roi_max_mode ? feat_map_shape[2] / spatial_scale : 1;
+        const int width  = is_roi_max_mode ? feat_map_shape[3] / spatial_scale : 1;
 
         size_t it = 0;
         for (const auto &input : cnnNetwork.getInputsInfo()) {
@@ -53,7 +56,7 @@ namespace LayerTestsDefinitions {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
                 CommonTestUtils::fill_data_roi(blob->buffer(), blob->size(), feat_map_shape[0] - 1,
-                                               height, width, 1.0f);
+                                               height, width, 1.0f, is_roi_max_mode);
             } else {
                 blob = GenerateInput(*info);
             }
@@ -69,7 +72,8 @@ namespace LayerTestsDefinitions {
         InferenceEngine::SizeVector coordsShape;
         InferenceEngine::SizeVector poolShape;
         InferenceEngine::Precision netPrecision;
-        float spatial_scale;
+
+        threshold = 0.08f;
 
         std::tie(inputShape, coordsShape, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = this->GetParam();
 
