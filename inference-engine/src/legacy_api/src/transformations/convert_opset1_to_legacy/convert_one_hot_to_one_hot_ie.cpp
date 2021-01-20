@@ -12,10 +12,12 @@
 #include <legacy/ngraph_ops/onehot_ie.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOneHotToOneHotIEMatcher, "ConvertOneHotToOneHotIEMatcher", 0);
 
 ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
+    MATCHER_SCOPE(ConvertOneHotToOneHotIEMatcher);
     auto input = std::make_shared<pattern::op::Label>(element::i32, Shape{1, 1, 1, 1});
     auto depth = std::make_shared<pattern::op::Label>(element::i64, Shape{});
     auto on_value = std::make_shared<pattern::op::Label>(element::f32, Shape{});
@@ -57,7 +59,7 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(one_hot, "ConvertOneHotToOneHotIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(one_hot, matcher_name);
     this->register_matcher(m, callback);
 }
 

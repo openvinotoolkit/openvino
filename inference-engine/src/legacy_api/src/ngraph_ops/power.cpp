@@ -8,6 +8,7 @@
 
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -20,6 +21,7 @@ op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch, const float power, 
 }
 
 std::shared_ptr<Node> op::PowerIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(PowerIE_clone_with_new_inputs);
     if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -28,5 +30,6 @@ std::shared_ptr<Node> op::PowerIE::clone_with_new_inputs(const OutputVector& new
 }
 
 void op::PowerIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(PowerIE_validate_and_infer_types);
     set_output_type(0, m_output_type == element::undefined ? get_input_element_type(0) : m_output_type, get_input_partial_shape(0));
 }

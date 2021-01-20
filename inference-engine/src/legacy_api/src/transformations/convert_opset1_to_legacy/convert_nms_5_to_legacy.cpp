@@ -12,12 +12,14 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
+#include "../../itt.hpp"
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
 
 ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_i32_output_type) {
+    MATCHER_SCOPE(ConvertNMS5ToLegacyMatcher);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
     ngraph::matcher_pass_callback callback = [force_i32_output_type](pattern::Matcher &m) {
@@ -120,6 +122,6 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS5ToNMSLegacy");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

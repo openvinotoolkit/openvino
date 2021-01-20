@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -21,12 +22,14 @@ op::GatherTreeIE::GatherTreeIE(const Output<Node>& step_ids,
 }
 
 shared_ptr<Node> op::GatherTreeIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(GatherTreeIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<GatherTreeIE>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
 void op::GatherTreeIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(GatherTreeIE_validate_and_infer_types);
     const auto& step_ids_rank = get_input_partial_shape(0);
     const auto& parent_idx_rank = get_input_partial_shape(1);
     const auto& max_seq_len_rank = get_input_partial_shape(2);

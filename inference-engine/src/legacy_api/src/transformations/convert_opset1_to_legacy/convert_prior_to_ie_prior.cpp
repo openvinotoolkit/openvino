@@ -13,12 +13,14 @@
 #include <legacy/ngraph_ops/prior_box_ie.hpp>
 #include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBox, "ConvertPriorBox", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBoxToLegacy, "ConvertPriorBoxToLegacy", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBoxClusteredToLegacy, "ConvertPriorBoxClusteredToLegacy", 0);
 
 ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
+    MATCHER_SCOPE(ConvertPriorBoxToLegacy);
     auto data = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto axes = ngraph::opset1::Constant::create(element::i64, Shape{1}, {0});
     auto image = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
@@ -155,11 +157,12 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "ConvertPriorBoxToLegacy");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, matcher_name);
     register_matcher(m, callback);
 }
 
 ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy() {
+    MATCHER_SCOPE(ConvertPriorBoxClusteredToLegacy);
     auto data = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto axes = ngraph::opset1::Constant::create(element::i64, Shape{1}, {0});
     auto image = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
@@ -293,6 +296,6 @@ ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "ConvertPriorBoxClusteredToLegacy");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, matcher_name);
     register_matcher(m, callback);
 }

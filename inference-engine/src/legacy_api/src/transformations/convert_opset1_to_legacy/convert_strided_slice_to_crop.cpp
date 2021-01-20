@@ -12,10 +12,12 @@
 
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertStridedSliceToCropMatcher, "ConvertStridedSliceToCropMatcher", 0);
 
 ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher() {
+    MATCHER_SCOPE(ConvertStridedSliceToCropMatcher);
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto m_begin = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
     auto m_end = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
@@ -228,6 +230,6 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_slice, "ConvertStridedSliceToCrop");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_slice, matcher_name);
     this->register_matcher(m, callback);
 }

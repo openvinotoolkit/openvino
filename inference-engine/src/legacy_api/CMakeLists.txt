@@ -53,7 +53,7 @@ add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library
 
-add_library(${TARGET_NAME} SHARED 
+add_library(${TARGET_NAME} SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
@@ -63,7 +63,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
-                                     PRIVATE pugixml openvino::itt
+                                     PRIVATE pugixml openvino::itt openvino::conditional_compilation
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})

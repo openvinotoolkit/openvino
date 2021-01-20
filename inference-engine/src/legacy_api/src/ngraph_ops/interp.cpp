@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "ngraph/op/constant.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -20,6 +21,7 @@ op::Interp::Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs)
 }
 
 void op::Interp::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(Interp_validate_and_infer_types);
     if (get_input_partial_shape(0).is_static()) {
         Shape input_shape = get_input_partial_shape(0).to_shape();
         Shape output_shape(4);
@@ -63,11 +65,13 @@ void op::Interp::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::Interp::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(Interp_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Interp>(new_args.at(0), m_attrs);
 }
 
 bool op::Interp::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(Interp_visit_attributes);
     visitor.on_attribute("align_corners", m_attrs.align_corners);
     visitor.on_attribute("width", m_attrs.width);
     visitor.on_attribute("height", m_attrs.height);
@@ -90,6 +94,7 @@ op::ResampleV2::ResampleV2(const Output<Node>& image, const ResampleIEAttrs& att
 }
 
 void op::ResampleV2::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(ResampleV2_validate_and_infer_types);
     if (m_attrs.factor != 0) {
         Shape output_shape(get_input_shape(0));
         for (size_t i = 2; i < output_shape.size(); ++i) {
@@ -112,6 +117,7 @@ void op::ResampleV2::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::ResampleV2::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(ResampleV2_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ResampleV2>(new_args.at(0), new_args.at(1), m_attrs);
 }

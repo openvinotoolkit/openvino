@@ -12,10 +12,12 @@
 
 #include <transformations/utils/utils.hpp>
 #include <legacy/ngraph_ops/hard_sigmoid_ie.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertHardSigmoidToLegacyMatcher, "ConvertHardSigmoidToLegacyMatcher", 0);
 
 ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatcher() {
+    MATCHER_SCOPE(ConvertHardSigmoidToLegacyMatcher);
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
@@ -52,6 +54,6 @@ ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatch
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(node, "ConvertHardSigmoidToLegacy");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(node, matcher_name);
     this->register_matcher(m, callback);
 }

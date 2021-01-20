@@ -9,6 +9,7 @@
 
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -21,11 +22,13 @@ op::TileIE::TileIE(const Output<ngraph::Node>& data1, const int64_t axis, const 
 }
 
 std::shared_ptr<Node> op::TileIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(TileIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<TileIE>(new_args.at(0), axis, tiles);
 }
 
 void op::TileIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(TileIE_validate_and_infer_types);
     const auto & input_pshape = get_input_partial_shape(0);
     auto output_pshape = PartialShape::dynamic();
     if (input_pshape.rank().is_static()) {
@@ -43,6 +46,7 @@ void op::TileIE::validate_and_infer_types() {
 }
 
 bool op::TileIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(TileIE_visit_attributes);
     visitor.on_attribute("axis", axis);
     visitor.on_attribute("tiles", tiles);
     return true;

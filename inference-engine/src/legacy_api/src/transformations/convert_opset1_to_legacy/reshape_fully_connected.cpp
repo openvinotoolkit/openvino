@@ -13,10 +13,12 @@
 
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
 
 ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
+    MATCHER_SCOPE(ReshapeFullyConnected);
     auto fc = pattern::wrap_type<op::FullyConnected>({pattern::any_input(pattern::has_static_shape()),
                                                       pattern::any_input(),
                                                       pattern::any_input()},
@@ -73,6 +75,6 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fc, "ReshapeFullyConnected");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(fc, matcher_name);
     this->register_matcher(m, callback);
 }

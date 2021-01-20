@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "ngraph/op/constant.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -20,6 +21,7 @@ op::ProposalIE::ProposalIE(const Output<Node>& class_probs, const Output<Node>& 
 }
 
 void op::ProposalIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(ProposalIE_validate_and_infer_types);
     const auto& class_probs_pshape = get_input_partial_shape(0);
     const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
     const auto& image_shape_pshape = get_input_partial_shape(2);
@@ -57,11 +59,13 @@ void op::ProposalIE::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::ProposalIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(ProposalIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ProposalIE>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
 bool op::ProposalIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(ProposalIE_visit_attributes);
     visitor.on_attribute("ratio", m_attrs.ratio);
     visitor.on_attribute("scale", m_attrs.scale);
     visitor.on_attribute("base_size", m_attrs.base_size);

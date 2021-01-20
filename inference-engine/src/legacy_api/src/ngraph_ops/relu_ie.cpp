@@ -9,6 +9,7 @@
 
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -21,11 +22,13 @@ op::ReLUIE::ReLUIE(const Output<Node>& data, const float& negative_slope, const 
 }
 
 std::shared_ptr<Node> op::ReLUIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(ReLUIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ReLUIE>(new_args.at(0), m_negative_slope, m_output_type);
 }
 
 void op::ReLUIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(ReLUIE_validate_and_infer_types);
     set_output_type(
         0,
         m_output_type == element::undefined ? get_input_element_type(0) : m_output_type,

@@ -15,6 +15,7 @@
 
 #include "legacy/ngraph_ops/power.hpp"
 #include "legacy/ngraph_ops/scaleshift.hpp"
+#include "../../itt.hpp"
 
 CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>& constant,
                                  const ngraph::PartialShape& shape) {
@@ -58,6 +59,7 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulAddToScaleShiftOrPower, "ConvertMulAddToScaleShiftOrPower", 0);
 
 ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower() {
+    MATCHER_SCOPE(ConvertMulAddToScaleShiftOrPower);
     auto data_batch = std::make_shared<pattern::op::Label>(element::f32, Shape {1});
 
     auto weights = std::make_shared<ngraph::opset1::Constant>(element::f32, Shape {1}, std::vector<float> {0});
@@ -209,6 +211,6 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "MulAddToScaleShiftOrPower");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }

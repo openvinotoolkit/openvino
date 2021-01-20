@@ -12,10 +12,12 @@
 #include <legacy/ngraph_ops/relu_ie.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPReLUToReLUIE, "ConvertPReLUToReLUIE", 0);
 
 ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
+    MATCHER_SCOPE(ConvertPReLUToReLUIE);
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto prelu = std::make_shared<ngraph::opset1::PRelu>(input_0, input_1);
@@ -42,6 +44,6 @@ ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, "ConvertPReLUToReLUIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, matcher_name);
     this->register_matcher(m, callback);
 }

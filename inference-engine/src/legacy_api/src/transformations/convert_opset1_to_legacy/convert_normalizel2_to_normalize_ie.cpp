@@ -11,10 +11,12 @@
 #include <ngraph/rt_info.hpp>
 
 #include "legacy/ngraph_ops/normalize_ie.hpp"
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE, "ConvertNormalizeL2WithMulToNormalizeIE", 0);
 
 ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulToNormalizeIE() {
+    MATCHER_SCOPE(ConvertNormalizeL2WithMulToNormalizeIE);
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
@@ -71,13 +73,14 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "CPUFusion.ConvertNormalizeL2WithMulToNormalizeIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNormalizeL2ToLegacyMatcher, "ConvertNormalizeL2ToLegacyMatcher", 0);
 
 ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatcher() {
+    MATCHER_SCOPE(ConvertNormalizeL2ToLegacyMatcher);
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
     auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0.0f, ngraph::op::EpsMode::ADD);
@@ -109,6 +112,6 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(normalize, "ConvertNormalizeL2ToNormalizeIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(normalize, matcher_name);
     this->register_matcher(m, callback);
 }

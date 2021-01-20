@@ -10,6 +10,7 @@
 
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -23,6 +24,7 @@ op::CropIE::CropIE(const Output<Node>& data, std::vector<int64_t> axes, std::vec
 }
 
 std::shared_ptr<Node> op::CropIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(CropIE_clone_with_new_inputs);
     if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -31,6 +33,7 @@ std::shared_ptr<Node> op::CropIE::clone_with_new_inputs(const OutputVector& new_
 }
 
 void op::CropIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(CropIE_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0).to_shape();
     NODE_VALIDATION_CHECK(this, axes.size() == dim.size(), "axes and dim needs to have same number of values");
 

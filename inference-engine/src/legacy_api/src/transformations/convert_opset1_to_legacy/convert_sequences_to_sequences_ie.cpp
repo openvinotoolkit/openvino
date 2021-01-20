@@ -13,6 +13,7 @@
 #include <legacy/ngraph_ops/lstm_sequence_ie.hpp>
 #include <legacy/ngraph_ops/gru_sequence_ie.hpp>
 #include <legacy/ngraph_ops/rnn_sequence_ie.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMSequenceMatcher, "ConvertLSTMSequenceMatcher", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUSequenceMatcher, "ConvertGRUSequenceMatcher", 0);
@@ -54,6 +55,7 @@ namespace {
 } // namespace
 
 ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
+    MATCHER_SCOPE(ConvertLSTMSequenceMatcher);
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -122,11 +124,12 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_sequence_ngraph, "ConvertLSTMSequenceToLSTMSequenceIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_sequence_ngraph, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
+    MATCHER_SCOPE(ConvertGRUSequenceMatcher);
     auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::GRUSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -192,11 +195,12 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_sequence_ngraph, "ConvertGRUSequenceToGRUSequenceIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_sequence_ngraph, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
+    MATCHER_SCOPE(ConvertRNNSequenceMatcher);
     auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::RNNSequence>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -263,6 +267,6 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_sequence_ngraph, "ConvertRNNSequenceToRNNSequenceIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_sequence_ngraph, matcher_name);
     this->register_matcher(m, callback);
 }

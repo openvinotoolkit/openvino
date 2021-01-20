@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -34,6 +35,7 @@ op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node> &X,
 }
 
 void op::LSTMSequenceIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(LSTMSequenceIE_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
@@ -80,12 +82,14 @@ void op::LSTMSequenceIE::validate_and_infer_types() {
 }
 
 bool ngraph::op::LSTMSequenceIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(LSTMSequenceIE_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     visitor.on_attribute("axis", m_seq_axis);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node> op::LSTMSequenceIE::clone_with_new_inputs(const OutputVector &new_args) const {
+    INTERNAL_OP_SCOPE(LSTMSequenceIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::LSTMSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
             new_args.at(4), new_args.at(5), m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta,

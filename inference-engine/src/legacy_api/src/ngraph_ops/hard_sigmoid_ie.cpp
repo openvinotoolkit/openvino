@@ -10,6 +10,7 @@
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -26,12 +27,14 @@ op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node> &arg,
 }
 
 void op::HardSigmoid_IE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(HardSigmoid_IE_validate_and_infer_types);
     element::Type arg_type = get_input_element_type(0);
     PartialShape arg_shape = get_input_partial_shape(0);
     set_output_type(0, arg_type, arg_shape);
 }
 
 shared_ptr<Node> op::HardSigmoid_IE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(HardSigmoid_IE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::HardSigmoid_IE>(new_args.at(0), m_alpha, m_beta);
 }

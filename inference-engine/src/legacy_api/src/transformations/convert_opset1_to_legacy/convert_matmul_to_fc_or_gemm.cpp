@@ -17,11 +17,13 @@
 
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/utils/utils.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFCorGemm, "ConvertMatMulToFCorGemm", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
 
 ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
+    MATCHER_SCOPE(ConvertMatMulToFC);
     auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
                                                       pattern::any_input(pattern::has_static_shape())},
                                                       pattern::has_static_shape());
@@ -158,13 +160,14 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatMulToFC");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToGemm, "ConvertMatMulToGemm", 0);
 
 ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
+    MATCHER_SCOPE(ConvertMatMulToGemm);
     auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
                                                       pattern::any_input(pattern::has_static_shape())},
                                                       pattern::has_static_shape());
@@ -231,6 +234,6 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatMulToGemm");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, matcher_name);
     this->register_matcher(m, callback);
 }

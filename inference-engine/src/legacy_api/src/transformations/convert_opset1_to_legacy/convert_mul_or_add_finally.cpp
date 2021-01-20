@@ -3,10 +3,12 @@
 //
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp"
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulOrAddFinally, "ConvertMulOrAddFinally", 0);
 
 ngraph::pass::ConvertMulOrAddFinally::ConvertMulOrAddFinally() {
+    RUN_ON_FUNCTION_SCOPE(ConvertMulOrAddFinally);
     convert_mul_or_add_finally<ngraph::opset1::Add>();
     convert_mul_or_add_finally<ngraph::opset1::Subtract>();
     convert_mul_or_add_finally<ngraph::opset1::Multiply>();

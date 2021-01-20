@@ -11,10 +11,12 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
 
 ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
+    MATCHER_SCOPE(FullyConnectedBiasFusion);
     auto m_fc = ngraph::pattern::wrap_type<op::FullyConnected>([](Output<Node> output) {
         return pattern::consumers_count(1)(output) &&
                pattern::has_static_shape()(output);
@@ -70,6 +72,6 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add, "FullyConnectedBiasFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add, matcher_name);
     this->register_matcher(m, callback);
 }

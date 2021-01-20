@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "ngraph/op/constant.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -20,6 +21,7 @@ op::PriorBoxClusteredIE::PriorBoxClusteredIE(const Output<Node>& input, const Ou
 }
 
 void op::PriorBoxClusteredIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(PriorBoxClusteredIE_validate_and_infer_types);
     if (get_input_partial_shape(0).is_dynamic() || get_input_partial_shape(1).is_dynamic()) {
         set_output_type(0, element::f32, PartialShape::dynamic(3));
         return;
@@ -34,11 +36,13 @@ void op::PriorBoxClusteredIE::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> op::PriorBoxClusteredIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(PriorBoxClusteredIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBoxClusteredIE>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
 bool op::PriorBoxClusteredIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(PriorBoxClusteredIE_visit_attributes);
     float step = 0.0f;
 
     visitor.on_attribute("step", step);

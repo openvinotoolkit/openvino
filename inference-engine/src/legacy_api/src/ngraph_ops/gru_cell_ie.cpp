@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -28,6 +29,7 @@ op::GRUCellIE::GRUCellIE(const Output<Node>& X, const Output<Node>& H_t,
 }
 
 void op::GRUCellIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(GRUCellIE_validate_and_infer_types);
     element::Type arg_type = get_input_element_type(0);
 
     PartialShape output_shape{PartialShape::dynamic(2)};
@@ -41,6 +43,7 @@ void op::GRUCellIE::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::GRUCellIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(GRUCellIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::GRUCellIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                       m_hidden_size, m_activations, m_activations_alpha, m_activations_beta, m_clip,
@@ -48,6 +51,7 @@ shared_ptr<Node> op::GRUCellIE::clone_with_new_inputs(const OutputVector& new_ar
 }
 
 bool op::GRUCellIE::visit_attributes(AttributeVisitor &visitor) {
+    INTERNAL_OP_SCOPE(GRUCellIE_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);

@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -27,6 +28,7 @@ op::LSTMCellIE::LSTMCellIE(const Output<Node>& X, const Output<Node>& H_t, const
 }
 
 void op::LSTMCellIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(LSTMCellIE_validate_and_infer_types);
     element::Type arg_type = get_input_element_type(0);
     PartialShape output_shape{PartialShape::dynamic(2)};
     if (get_input_partial_shape(0).is_static()) {
@@ -38,6 +40,7 @@ void op::LSTMCellIE::validate_and_infer_types() {
 }
 
 bool ngraph::op::LSTMCellIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(ngraph::op::LSTMCellIE::visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -47,6 +50,7 @@ bool ngraph::op::LSTMCellIE::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::LSTMCellIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(LSTMCellIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::LSTMCellIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4),
                                        m_hidden_size, m_activations, m_activations_alpha, m_activations_beta, m_clip);

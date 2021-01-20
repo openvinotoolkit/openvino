@@ -13,10 +13,12 @@
 #include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMSToNMSIEMatcher, "ConvertNMSToNMSIEMatcher", 0);
 
 ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
+    MATCHER_SCOPE(ConvertNMSToNMSIEMatcher);
     auto nms = ngraph::pattern::wrap_type<opset3::NonMaxSuppression>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -99,6 +101,6 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMSToNMSIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

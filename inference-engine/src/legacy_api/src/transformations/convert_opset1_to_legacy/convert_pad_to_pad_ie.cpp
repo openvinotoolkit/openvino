@@ -10,10 +10,12 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToLegacyMatcher, "ConvertPadToLegacyMatcher", 0);
 
 ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
+    MATCHER_SCOPE(ConvertPadToLegacyMatcher);
     auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>(pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -29,6 +31,6 @@ ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_pad, "ConvertPadToLegacy");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(m_pad, matcher_name);
     this->register_matcher(m, callback);
 }

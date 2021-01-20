@@ -12,10 +12,12 @@
 #include <legacy/ngraph_ops/selu_ie.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSeluToSeluIEMatcher, "ConvertSeluToSeluIEMatcher", 0);
 
 ngraph::pass::ConvertSeluToSeluIEMatcher::ConvertSeluToSeluIEMatcher() {
+    MATCHER_SCOPE(ConvertSeluToSeluIEMatcher);
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -49,6 +51,6 @@ ngraph::pass::ConvertSeluToSeluIEMatcher::ConvertSeluToSeluIEMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(selu, "ConvertSeluToSeluIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(selu, matcher_name);
     this->register_matcher(m, callback);
 }

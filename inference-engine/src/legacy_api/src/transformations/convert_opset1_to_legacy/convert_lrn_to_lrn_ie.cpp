@@ -11,12 +11,14 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "../../itt.hpp"
 
 #include <legacy/ngraph_ops/lrn_ie.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLRNToLegacyMatcher, "ConvertLRNToLegacyMatcher", 0);
 
 ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
+    MATCHER_SCOPE(ConvertLRNToLegacyMatcher);
     auto lrn = pattern::wrap_type<opset1::LRN>({pattern::any_input(),
                                                 pattern::wrap_type<opset1::Constant>()},
                                                 pattern::has_static_rank());
@@ -65,6 +67,6 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lrn, "ConvertLRNToLegacy");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(lrn, matcher_name);
     this->register_matcher(m, callback);
 }

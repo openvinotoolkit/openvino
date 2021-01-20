@@ -12,10 +12,12 @@
 #include <legacy/ngraph_ops/power.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPowerToPowerIEMatcher, "ConvertPowerToPowerIEMatcher", 0);
 
 ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
+    MATCHER_SCOPE(ConvertPowerToPowerIEMatcher);
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto power = std::make_shared<ngraph::opset1::Power>(input_0, input_1);
@@ -47,6 +49,6 @@ ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(power, "ConvertPowerToPowerIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(power, matcher_name);
     this->register_matcher(m, callback);
 }

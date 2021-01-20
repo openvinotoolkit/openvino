@@ -10,10 +10,12 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGatherToGatherIEMatcher, "ConvertGatherToGatherIEMatcher", 0);
 
 ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
+    MATCHER_SCOPE(ConvertGatherToGatherIEMatcher);
     auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -65,6 +67,6 @@ ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
         return true;
     };
 
-    auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, "ConvertGatherToGatherIE");
+    auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
     this->register_matcher(m1, callback);
 }

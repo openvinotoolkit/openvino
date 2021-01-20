@@ -9,10 +9,12 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher, "ConvertGatherTreeToGatherTreeIEMatcher", 0);
 
 ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher::ConvertGatherTreeToGatherTreeIEMatcher() {
+    MATCHER_SCOPE(ConvertGatherTreeToGatherTreeIEMatcher);
     auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1});
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
@@ -35,6 +37,6 @@ ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher::ConvertGatherTreeToGatherT
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gt, "ConvertGatherTreeToGatherTreeIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gt, matcher_name);
     this->register_matcher(m, callback);
 }

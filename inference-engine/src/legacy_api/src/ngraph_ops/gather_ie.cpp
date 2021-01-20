@@ -12,6 +12,7 @@
 
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -25,11 +26,13 @@ op::GatherIE::GatherIE(const Output<Node>& params, const Output<Node>& indices, 
 }
 
 shared_ptr<Node> op::GatherIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+    INTERNAL_OP_SCOPE(GatherIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<GatherIE>(new_args.at(0), new_args.at(1), m_axis);
 }
 
 void op::GatherIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(GatherIE_validate_and_infer_types);
     // Use opset1::Gather to calculate output shape
     auto gather = std::make_shared<opset1::Gather>(input_value(0), input_value(1), opset1::Constant::create(element::i64, Shape{1}, {m_axis}));
     set_output_type(0, gather->output(0).get_element_type(), gather->output(0).get_partial_shape());

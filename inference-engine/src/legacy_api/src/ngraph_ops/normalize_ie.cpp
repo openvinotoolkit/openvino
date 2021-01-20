@@ -8,6 +8,7 @@
 #include <string>
 
 #include "ngraph/op/constant.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -21,6 +22,7 @@ op::NormalizeIE::NormalizeIE(const Output<Node>& data, const Output<Node>& weigh
 }
 
 void op::NormalizeIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(NormalizeIE_validate_and_infer_types);
     PartialShape arg_shape = get_input_partial_shape(0);
     set_output_type(0, m_output_type, arg_shape);
 
@@ -32,11 +34,13 @@ void op::NormalizeIE::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::NormalizeIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(NormalizeIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::NormalizeIE>(new_args.at(0), new_args.at(1), m_eps, m_across_spatial, m_channel_shared, m_output_type);
 }
 
 bool op::NormalizeIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(NormalizeIE_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("channel_shared", m_channel_shared);
     visitor.on_attribute("across_spatial", m_across_spatial);

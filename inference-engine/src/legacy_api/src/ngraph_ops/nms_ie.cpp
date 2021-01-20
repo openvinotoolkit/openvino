@@ -8,6 +8,7 @@
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -29,12 +30,14 @@ op::NonMaxSuppressionIE::NonMaxSuppressionIE(const Output<Node> &boxes,
 
 
 std::shared_ptr<Node> op::NonMaxSuppressionIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+    INTERNAL_OP_SCOPE(NonMaxSuppressionIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<NonMaxSuppressionIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                             new_args.at(4), m_center_point_box, m_sort_result_descending, m_output_type);
 }
 
 void op::NonMaxSuppressionIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(NonMaxSuppressionIE_validate_and_infer_types);
     auto squeeze_input = [](const Output<Node> &input) -> std::shared_ptr<Node> {
         return std::make_shared<opset3::Squeeze>(input, opset3::Constant::create(element::i64, Shape{1}, {0}));
     };
@@ -54,6 +57,7 @@ void op::NonMaxSuppressionIE::validate_and_infer_types() {
 }
 
 bool op::NonMaxSuppressionIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(NonMaxSuppressionIE_visit_attributes);
     visitor.on_attribute("center_point_box", m_center_point_box);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -78,12 +82,14 @@ op::NonMaxSuppressionIE2::NonMaxSuppressionIE2(const Output<Node> &boxes,
 
 
 std::shared_ptr<Node> op::NonMaxSuppressionIE2::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+    INTERNAL_OP_SCOPE(NonMaxSuppressionIE2_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<NonMaxSuppressionIE2>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                              new_args.at(4), m_center_point_box, m_sort_result_descending, m_output_type);
 }
 
 void op::NonMaxSuppressionIE2::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(NonMaxSuppressionIE2_validate_and_infer_types);
     auto squeeze_input = [](const Output<Node> &input) -> std::shared_ptr<Node> {
         return std::make_shared<opset4::Squeeze>(input, opset4::Constant::create(element::i64, Shape{1}, {0}));
     };
@@ -132,6 +138,7 @@ op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
 }
 
 std::shared_ptr<Node> op::NonMaxSuppressionIE3::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+    INTERNAL_OP_SCOPE(NonMaxSuppressionIE3_clone_with_new_inputs);
     if (new_args.size() == 6) {
         return make_shared<NonMaxSuppressionIE3>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                              new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
@@ -145,6 +152,7 @@ std::shared_ptr<Node> op::NonMaxSuppressionIE3::clone_with_new_inputs(const ngra
 }
 
 bool op::NonMaxSuppressionIE3::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(NonMaxSuppressionIE3_visit_attributes);
     visitor.on_attribute("center_point_box", m_center_point_box);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -171,6 +179,7 @@ int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const {
 }
 
 void op::NonMaxSuppressionIE3::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(NonMaxSuppressionIE3_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(boxes_port);
     const auto scores_ps = get_input_partial_shape(scores_port);
 

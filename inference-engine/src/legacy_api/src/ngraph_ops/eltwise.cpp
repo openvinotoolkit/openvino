@@ -9,6 +9,7 @@
 
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -21,6 +22,7 @@ op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const
 }
 
 std::shared_ptr<Node> op::Eltwise::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(Eltwise_clone_with_new_inputs);
     if (new_args.size() != 2) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -29,6 +31,7 @@ std::shared_ptr<Node> op::Eltwise::clone_with_new_inputs(const OutputVector& new
 }
 
 void op::Eltwise::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(Eltwise_validate_and_infer_types);
     //  Check that weights and biases has the same type
     element::Type data1_et = get_input_element_type(0);
     element::Type data2_et = get_input_element_type(1);

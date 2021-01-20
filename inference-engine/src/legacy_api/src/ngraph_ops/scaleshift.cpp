@@ -8,6 +8,7 @@
 
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -37,6 +38,7 @@ op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node
 }
 
 std::shared_ptr<Node> op::ScaleShiftIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(ScaleShiftIE_clone_with_new_inputs);
     if (new_args.size() != 3) {
         throw ngraph_error("Incorrect number of new arguments");
     }
@@ -45,6 +47,7 @@ std::shared_ptr<Node> op::ScaleShiftIE::clone_with_new_inputs(const OutputVector
 }
 
 void op::ScaleShiftIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(ScaleShiftIE_validate_and_infer_types);
     //  Check that weights and biases has the same type
     element::Type data_et = output_type == element::undefined ? get_input_element_type(0) : output_type;
     element::Type weights_et = get_input_element_type(1);

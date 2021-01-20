@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <ngraph/opsets/opset1.hpp>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -26,6 +27,7 @@ std::shared_ptr<Node> op::TopKIE::clone_with_new_inputs(const ngraph::OutputVect
 }
 
 void op::TopKIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(TopKIE_validate_and_infer_types);
     const auto& input_partial_shape = get_input_partial_shape(0);
     const auto input_rank = input_partial_shape.rank();
 
@@ -56,6 +58,7 @@ void op::TopKIE::validate_and_infer_types() {
 }
 
 bool op::TopKIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(TopKIE_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("mode", m_mode);
     visitor.on_attribute("sort", m_sort_type);

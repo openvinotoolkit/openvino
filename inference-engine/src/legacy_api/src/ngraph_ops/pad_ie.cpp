@@ -12,6 +12,7 @@
 
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/pad.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -38,14 +39,17 @@ op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
 }
 
 void op::PadIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(PadIE_validate_and_infer_types);
     set_output_type(0, get_input_element_type(0), m_output_shape);
 }
 
 shared_ptr<Node> op::PadIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(PadIE_clone_with_new_inputs);
     return nullptr;
 }
 
 bool op::PadIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(PadIE_visit_attributes);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
     visitor.on_attribute("pad_mode", m_pad_mode);

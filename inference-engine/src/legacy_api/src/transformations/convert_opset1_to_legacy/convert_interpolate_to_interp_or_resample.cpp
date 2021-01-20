@@ -13,12 +13,14 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "../../itt.hpp"
 
 #include <legacy/ngraph_ops/interp.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher, "ConvertInterpolateToInterpOrResampleMatcher", 0);
 
 ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToInterpOrResampleMatcher() {
+    MATCHER_SCOPE(ConvertInterpolateToInterpOrResampleMatcher);
     auto interpolate = pattern::wrap_type<opset1::Interpolate>({pattern::any_input(pattern::has_static_shape()),
                                                                 pattern::wrap_type<opset1::Constant>()});
 
@@ -160,6 +162,6 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate, "ConvertInterpolateToInterpOrResample");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate, matcher_name);
     this->register_matcher(m, callback);
 }

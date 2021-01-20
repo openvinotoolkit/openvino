@@ -50,6 +50,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
+#include "../../itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -57,6 +58,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(ConvertOpSet1ToLegacy);
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::ConstantFolding>();

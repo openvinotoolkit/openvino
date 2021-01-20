@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <numeric>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -23,11 +24,13 @@ op::FullyConnected::FullyConnected(
 }
 
 shared_ptr<Node> op::FullyConnected::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(FullyConnected_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<FullyConnected>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_shape);
 }
 
 void op::FullyConnected::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(FullyConnected_validate_and_infer_types);
     m_output_size = m_output_shape.back();
     set_output_type(
         0,

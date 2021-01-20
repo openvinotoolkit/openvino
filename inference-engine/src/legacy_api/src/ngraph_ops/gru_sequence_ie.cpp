@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -35,6 +36,7 @@ op::GRUSequenceIE::GRUSequenceIE(const Output<Node>& X,
 }
 
 void op::GRUSequenceIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(GRUSequenceIE_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
@@ -77,6 +79,7 @@ void op::GRUSequenceIE::validate_and_infer_types() {
 }
 
 bool op::GRUSequenceIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(GRUSequenceIE_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     visitor.on_attribute("linear_before_reset", m_linear_before_reset);
     visitor.on_attribute("axis", m_seq_axis);
@@ -84,6 +87,7 @@ bool op::GRUSequenceIE::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::GRUSequenceIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(GRUSequenceIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<op::GRUSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
             new_args.at(4), m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta, m_clip,

@@ -12,10 +12,12 @@
 
 #include <legacy/ngraph_ops/tile_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTileToLegacyMatcher, "ConvertTileToLegacyMatcher", 0);
 
 ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
+    MATCHER_SCOPE(ConvertTileToLegacyMatcher);
     auto tile = pattern::wrap_type<ngraph::opset1::Tile>({pattern::any_input(pattern::has_static_rank()),
                                                           pattern::wrap_type<opset1::Constant>()});
 
@@ -89,6 +91,6 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, "ConvertTileToIETiles");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, matcher_name);
     this->register_matcher(m, callback);
 }

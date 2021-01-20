@@ -5,6 +5,7 @@
 #include "legacy/ngraph_ops/onehot_ie.hpp"
 
 #include <memory>
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -17,6 +18,7 @@ op::OneHotIE::OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, f
 }
 
 void op::OneHotIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(OneHotIE_validate_and_infer_types);
     const PartialShape& arg_shape = get_input_partial_shape(0);
 
     if (arg_shape.is_dynamic()) {
@@ -32,11 +34,13 @@ void op::OneHotIE::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::OneHotIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(OneHotIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::OneHotIE>(new_args.at(0), m_axis, m_depth, m_on_value, m_off_value, m_type);
 }
 
 bool op::OneHotIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(OneHotIE_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("depth", m_depth);
     visitor.on_attribute("off_value", m_off_value);

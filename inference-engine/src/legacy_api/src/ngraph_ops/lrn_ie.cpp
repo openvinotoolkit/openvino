@@ -10,6 +10,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/lrn.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -23,17 +24,20 @@ op::LRN_IE::LRN_IE(const ngraph::Output<ngraph::Node>& arg, double alpha, double
 }
 
 void op::LRN_IE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(LRN_IE_validate_and_infer_types);
     element::Type arg_type = get_input_element_type(0);
     PartialShape arg_shape = get_input_partial_shape(0);
     set_output_type(0, arg_type, arg_shape);
 }
 
 shared_ptr<Node> op::LRN_IE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(LRN_IE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::LRN_IE>(new_args.at(0), m_alpha, m_beta, m_bias, m_size, m_region);
 }
 
 bool op::LRN_IE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(LRN_IE_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);
     visitor.on_attribute("beta", m_beta);
     visitor.on_attribute("k", m_bias);

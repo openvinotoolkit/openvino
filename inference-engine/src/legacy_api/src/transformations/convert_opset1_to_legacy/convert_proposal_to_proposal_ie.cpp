@@ -12,6 +12,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <legacy/ngraph_ops/proposal_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include "../../itt.hpp"
 
 bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, bool infer_probs = false) {
     ngraph::Output<ngraph::Node> last; // 2D tensor of size [1, 3-4] with im_info will be retrieved from this node
@@ -49,6 +50,7 @@ bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertProposalToLegacyMatcher, "ConvertProposalToLegacyMatcher", 0);
 
 ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
+    MATCHER_SCOPE(ConvertProposalToLegacyMatcher);
     auto proposal = ngraph::pattern::wrap_type<ngraph::opset1::Proposal>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -60,13 +62,14 @@ ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
         convert_to_proposal_ie(proposal);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "ConvertProposalToProposalIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertProposal4ToLegacyMatcher, "ConvertProposal4ToLegacyMatcher", 0);
 
 ngraph::pass::ConvertProposal4ToLegacyMatcher::ConvertProposal4ToLegacyMatcher() {
+    MATCHER_SCOPE(ConvertProposal4ToLegacyMatcher);
     auto proposal = ngraph::pattern::wrap_type<ngraph::opset4::Proposal>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -78,6 +81,6 @@ ngraph::pass::ConvertProposal4ToLegacyMatcher::ConvertProposal4ToLegacyMatcher()
         convert_to_proposal_ie(proposal, true);
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "ConvertProposal4ToProposalIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, matcher_name);
     this->register_matcher(m, callback);
 }

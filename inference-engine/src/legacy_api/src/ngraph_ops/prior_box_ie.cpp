@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "ngraph/op/constant.hpp"
+#include "../itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -19,6 +20,7 @@ op::PriorBoxIE::PriorBoxIE(const Output<Node>& input, const Output<Node>& image,
 }
 
 void op::PriorBoxIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(PriorBoxIE_validate_and_infer_types);
     if (get_input_partial_shape(0).is_dynamic() || get_input_partial_shape(1).is_dynamic()) {
         set_output_type(0, element::f32, PartialShape::dynamic(3));
         return;
@@ -31,11 +33,13 @@ void op::PriorBoxIE::validate_and_infer_types() {
 }
 
 std::shared_ptr<Node> op::PriorBoxIE::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(PriorBoxIE_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBoxIE>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
 bool op::PriorBoxIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(PriorBoxIE_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("max_size", m_attrs.max_size);
     visitor.on_attribute("aspect_ratio", m_attrs.aspect_ratio);

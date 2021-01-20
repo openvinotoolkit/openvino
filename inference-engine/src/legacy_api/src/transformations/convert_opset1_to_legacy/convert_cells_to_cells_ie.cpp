@@ -17,10 +17,12 @@
 #include "legacy/ngraph_ops/lstm_cell_ie.hpp"
 #include "legacy/ngraph_ops/gru_cell_ie.hpp"
 #include "legacy/ngraph_ops/rnn_cell_ie.hpp"
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMCellMatcher, "ConvertLSTMCellMatcher", 0);
 
 ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
+    MATCHER_SCOPE(ConvertLSTMCellMatcher);
     auto is_supported_lstm_cell = [](const std::shared_ptr<Node>& n) {
         return pattern::has_class<ngraph::opset1::LSTMCell>()(n) || pattern::has_class<ngraph::opset4::LSTMCell>()(n);
     };
@@ -58,13 +60,14 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, "ConvertLSTMCellToLSTMCellIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUCellMatcher, "ConvertGRUCellMatcher", 0);
 
 ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
+    MATCHER_SCOPE(ConvertGRUCellMatcher);
     auto gru_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::GRUCell>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -101,13 +104,14 @@ ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_cell_ngraph, "ConvertGRUCellToGRUCellIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_cell_ngraph, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertRNNCellMatcher, "ConvertRNNCellMatcher", 0);
 
 ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
+    MATCHER_SCOPE(ConvertRNNCellMatcher);
     auto rnn_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::RNNCell>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -143,7 +147,6 @@ ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell_ngraph, "ConvertRNNCellToRNNCellIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell_ngraph, matcher_name);
     this->register_matcher(m, callback);
 }
-

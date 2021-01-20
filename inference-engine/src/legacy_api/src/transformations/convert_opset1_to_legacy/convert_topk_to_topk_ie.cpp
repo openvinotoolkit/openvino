@@ -13,10 +13,12 @@
 #include <legacy/ngraph_ops/topk_ie.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopKToTopKIEMatcher, "ConvertTopKToTopKIEMatcher", 0);
 
 ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
+    MATCHER_SCOPE(ConvertTopKToTopKIEMatcher);
     auto topk = ngraph::pattern::wrap_type<opset1::TopK>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -76,6 +78,6 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopKToTopKIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, matcher_name);
     this->register_matcher(m, callback);
 }

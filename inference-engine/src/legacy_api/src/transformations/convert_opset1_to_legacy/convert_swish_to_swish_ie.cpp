@@ -12,10 +12,12 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "../../itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSwishToSwishIEMatcher, "ConvertSwishToSwishIEMatcher", 0);
 
 ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
+    MATCHER_SCOPE(ConvertSwishToSwishIEMatcher);
     auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -43,6 +45,6 @@ ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(swish, "ConvertSwishToSwishIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(swish, matcher_name);
     this->register_matcher(m, callback);
 }
