@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2017-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include "shape_infer/ie_built_in_holder.hpp"
 #include "shape_infer/ie_proposal_shape_infer.hpp"
 #include "shape_infer/ie_rnn_cell_shape_infer.hpp"
-#include "shape_infer/ie_roifeatureextractor_onnx_shape_infer.hpp"
 #include "shape_infer/ie_simpler_nms_shape_infer.hpp"
 #include "shape_infer/ie_sparse_to_dense_shape_infer.hpp"
 #include "shape_infer/ie_unique_shape_infer.hpp"
@@ -64,7 +63,6 @@ public:
 #define REG_SHAPE_INFER_FOR_TYPE(__prim, __type) \
     static ImplRegisterBase<__prim> __bi_reg__##__type(#__type)
 
-REG_SHAPE_INFER_FOR_TYPE(ExperimentalDetectronROIFeatureExtractorShapeProp, ExperimentalDetectronROIFeatureExtractor);
 REG_SHAPE_INFER_FOR_TYPE(SimplerNMSShapeProp, SimplerNMS);
 REG_SHAPE_INFER_FOR_TYPE(SparseToDenseShapeProp, SparseToDense);
 REG_SHAPE_INFER_FOR_TYPE(ProposalShapeProp, Proposal);
