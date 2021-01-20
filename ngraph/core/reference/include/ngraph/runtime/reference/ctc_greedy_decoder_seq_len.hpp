@@ -41,8 +41,7 @@ namespace ngraph
 
                 const CoordinateTransform out_transform{out_shape};
                 const CoordinateTransform data_transform{data_shape};
-
-                std::vector<TCI> tmp_out(shape_size(out_shape), -1);
+                std::fill_n(out1, shape_size(out_shape), -1);
 
                 for (std::size_t batch_ind = 0; batch_ind < batch_size; ++batch_ind)
                 {
@@ -52,21 +51,19 @@ namespace ngraph
                     for (std::size_t seq_ind = 0; seq_ind < seq_len; seq_ind++)
                     {
                         auto data_index = data_transform.index({batch_ind, seq_ind, 0});
-
                         auto class_index = data + data_index;
                         auto class_max_element =
                             std::max_element(class_index, class_index + class_count);
                         const auto max_class_ind = std::distance(class_index, class_max_element);
-                        if (!(previous_class_index == max_class_ind && ctc_merge_repeated) &&
-                            max_class_ind < blank_index[0])
+                        if (max_class_ind < blank_index[0] &&
+                            !(ctc_merge_repeated && previous_class_index == max_class_ind))
                         {
-                            tmp_out[out_index++] = max_class_ind;
+                            out1[out_index++] = max_class_ind;
                         }
                         previous_class_index = max_class_ind;
                     }
                     out2[batch_ind] = seq_len;
                 }
-                std::copy(tmp_out.begin(), tmp_out.end(), out1);
             }
         } // namespace reference
     }     // namespace runtime
