@@ -843,6 +843,7 @@ void InsertCopyLayerPass::run() {
                             current_layer = next_layer;
                         }
 
+
                         if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
                             // Concat|Split|Crop -> Memory case
                             delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
