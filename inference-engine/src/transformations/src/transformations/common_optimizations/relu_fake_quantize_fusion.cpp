@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/utils/utils.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -16,6 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReluFakeQuantizeFusion, "ReluFakeQuantizeFusion", 0);
 
 ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
+    MATCHER_SCOPE(ReluFakeQuantizeFusion);
     auto data_pattern = ngraph::pattern::any_input();
     auto relu_pattern = ngraph::pattern::wrap_type<opset5::Relu>({data_pattern}, pattern::consumers_count(1));
     auto input_low_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
@@ -53,6 +55,6 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fq_pattern, "ReluFakeQuantizeFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(fq_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
