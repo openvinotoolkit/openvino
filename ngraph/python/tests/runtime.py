@@ -18,10 +18,11 @@ import logging
 from typing import Dict, List, Union
 
 import numpy as np
-from openvino.inference_engine import IECore, IENetwork
+from openvino.inference_engine import IECore, IENetwork, Blob
 
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, Node, PartialShape
+from ngraph.opset1.ops import result
 from ngraph.utils.types import NumericData, get_shape, get_dtype
 
 import tests
@@ -93,7 +94,16 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return "<Computation: {}({})>".format(self.function.get_name(), params_string)
 
-    # flake8: noqa: C901
+    def __get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
+        if len(self.results) == 1:
+            return next(iter(output_blobs.values())).buffer
+        else:
+            prev_layer = ng_result.input(0)
+            out_name = prev_layer.get_node().get_friendly_name()
+            if prev_layer.get_node().get_output_size() != 1:
+                out_name += "." + prev_layer.get_index()
+            return output_blobs[out_name].buffer
+
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
         input_values = [np.array(input_value) for input_value in input_values]
@@ -132,14 +142,9 @@ class Computation(object):
         request = executable_network.requests[0]
         request.infer(dict(zip(param_names, input_values)))
 
-        # Set order of output blobs compatible with nG Function if possible
-        result_buffers = []
-        output_blobs_it = iter(request.output_blobs.values())
-        for result in self.results:
-            if result.get_friendly_name() == result.get_name():
-                result_buffers.append(next(output_blobs_it).buffer)
-            else:
-                result_buffers.append(request.output_blobs[result.get_friendly_name()].buffer)
+        # Set order of output blobs compatible with nG Function
+        result_buffers = [self.__get_ie_output_blob_buffer(request.output_blobs, result)
+                          for result in self.results]
 
         # Since OV overwrite result data type we have to convert results to the original one.
         original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
