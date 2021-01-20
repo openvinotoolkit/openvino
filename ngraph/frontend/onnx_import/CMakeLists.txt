@@ -17,7 +17,8 @@
 set(ONNX_OPSET_VERSION 13 CACHE INTERNAL "Supported version of ONNX operator set")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 # Remove disabled ops
 list(REMOVE_ITEM LIBRARY_SRC
@@ -26,11 +27,11 @@ list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/qlinear_matmul.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
     )
-list(REMOVE_ITEM PUBLIC_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/conv_integer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/matmul_integer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/qlinear_matmul.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/quant_conv.hpp
+list(REMOVE_ITEM LIBRARY_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/matmul_integer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/qlinear_matmul.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.hpp
     )
 
 set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -39,10 +40,11 @@ set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Empty name lists them directly under the .vcproj
 
 source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${PUBLIC_HEADERS})
+source_group("include" FILES ${LIBRARY_HEADERS})
+source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
 # Create shared library
-add_library(onnx_importer SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(onnx_importer SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
 if(COMMAND ie_add_vs_version_file)
@@ -65,6 +67,8 @@ target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_
                                                        $<INSTALL_INTERFACE:${ONNX_INSTALL_INCLUDE}>)
 target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH}
         ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
+
+target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 

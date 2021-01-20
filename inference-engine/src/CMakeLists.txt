@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_COMPILER_IS_GNUCC)
+    ie_add_compiler_flags(-Wall)
+endif()
+
 add_subdirectory(preprocessing)
 
 add_subdirectory(readers)
@@ -33,6 +37,8 @@ add_subdirectory(transformations)
 add_subdirectory(inference_engine)
 
 add_subdirectory(low_precision_transformations)
+
+add_subdirectory(offline_transformations)
 
 # add a custom target to build all Inference Engine Core libraries
 
