@@ -459,12 +459,15 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
     }
 
+    auto blobNamesNode = heteroNode.child("blob_names_map");
+    for (auto blobNameNode = blobNamesNode.child("blob_name_map"); !blobNameNode.empty();
+            blobNameNode = blobNameNode.next_sibling("blob_name_map")) {
+        _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
+    }
+
     for (auto&& config : configs) {
         importedConfigs[config.first] = config.second;
     }
-
-    // save config to current imported executable network
-    _config = importedConfigs;
 
     std::vector<NetworkDesc> descs;
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
@@ -504,14 +507,16 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
             auto inputs = cnnnetwork.getInputsInfo();
             auto inputsNode = subnetworkNode.child("inputs");
-            for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
+            for (auto inputNode = inputsNode.child("input"); !inputNode.empty();
+                inputNode = inputNode.next_sibling("input")) {
                 auto inputName = GetStrAttr(inputNode, "name");
                 inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
             }
 
-            auto outputsNode = subnetworkNode.child("outputs");
             auto outputs = cnnnetwork.getOutputsInfo();
-            for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+            auto outputsNode = subnetworkNode.child("outputs");
+            for (auto outputNode = outputsNode.child("output"); !outputNode.empty();
+                outputNode = outputNode.next_sibling("output")) {
                 auto outputName = GetStrAttr(outputNode, "name");
                 outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
             }
@@ -521,7 +526,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         }
 
         // restore network inputs and outputs
-
         for (auto&& input : executableNetwork.GetInputsInfo()) {
             if (networkInputs.end() != networkInputs.find(input.first)) {
                 _networkInputs.emplace(input.first, std::make_shared<InputInfo>(*input.second));
@@ -541,8 +545,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         });
     }
 
-    networks = std::move(descs);
-    SetPointerToPlugin(_heteroPlugin->shared_from_this());
+    // save state
+    this->_config = importedConfigs;
+    this->networks = std::move(descs);
+    this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
 
 void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
@@ -589,9 +595,16 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
 
     auto configsNode = heteroNode.append_child("configs");
     for (auto&& config : _config) {
-        auto configMode = configsNode.append_child("config");
-        configMode.append_attribute("key").set_value(config.first.c_str());
-        configMode.append_attribute("value").set_value(config.second.c_str());
+        auto configNode = configsNode.append_child("config");
+        configNode.append_attribute("key").set_value(config.first.c_str());
+        configNode.append_attribute("value").set_value(config.second.c_str());
+    }
+
+    auto blobNamesNode = heteroNode.append_child("blob_names_map");
+    for (auto&& kvp : _blobNameMap) {
+        auto blobNameNode = blobNamesNode.append_child("blob_name_map");
+        blobNameNode.append_attribute("key").set_value(kvp.first.c_str());
+        blobNameNode.append_attribute("value").set_value(kvp.second.c_str());
     }
 
     doc.save(heteroModel, nullptr, pugi::format_raw);

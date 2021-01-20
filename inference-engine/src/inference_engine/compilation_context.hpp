@@ -22,7 +22,9 @@ class NetworkCompilationContext final {
 public:
     explicit NetworkCompilationContext(const CNNNetwork & network,
         const std::map<std::string, std::string> & compileOptions = {}) :
-            m_compileOptions(compileOptions) {
+            m_compileOptions(compileOptions),
+            m_inputsInfo(network.getInputsInfo()),
+            m_outputsInfo(network.getOutputsInfo()) {
         try {
             const auto & ngraphImpl = dynamic_cast<const details::CNNNetworkNGraphImpl &>(
                         static_cast<const ICNNNetwork&>(network));
@@ -58,13 +60,13 @@ public:
             auto affinity_it = rt.find("affinity");
             if (rt.end() != affinity_it) {
                 auto affinity = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(affinity_it->second);
-                m_affinities += op->get_friendly_name() + "#" + affinity->get();
+                m_runtime_atrributes += op->get_friendly_name() + "#" + affinity->get();
             }
 
             auto priorities_it = rt.find("PrimitivesPriority");
             if (rt.end() != priorities_it) {
                 auto primPriority = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(priorities_it->second);
-                m_affinities += op->get_friendly_name() + "#" + primPriority->get();
+                m_runtime_atrributes += op->get_friendly_name() + "#" + primPriority->get();
             }
         }
 
@@ -83,16 +85,13 @@ public:
 
         size_t seed {};
         seed = hash_combine(seed, m_model);
-
-        for (auto & value : m_constants) {
-            seed = hash_combine(seed, value);
-        }
+        seed = hash_combine(seed, m_constants);
 
         for (const auto & kvp : m_compileOptions) {
             seed = hash_combine(seed, kvp.first + kvp.second);
         }
 
-        seed = hash_combine(seed, m_affinities);
+        seed = hash_combine(seed, m_runtime_atrributes);
 
         // TODO: more values to hash
         // 1. precisions
@@ -119,7 +118,9 @@ private:
     std::map<std::string, std::string> m_compileOptions;
 
     // runtime information
-    std::string m_affinities;
+    std::string m_runtime_atrributes;
+    InferenceEngine::InputsDataMap m_inputsInfo;
+    InferenceEngine::OutputsDataMap m_outputsInfo;
 };
 
 }  // namespace InferenceEngine

@@ -311,7 +311,7 @@ public:
             // Looks like we should not ...
             auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
             try {
-                std::cout << "try to import\n\n" << std::endl;
+                std::cout << "try to import from core to " << deviceName << "\n\n" << std::endl;
                 std::ifstream networkStream(blobFileName);
                 execNetwork = GetCPPPluginByName(importConfig._deviceName).ImportNetwork(networkStream, importConfig._config);
                 networkIsImported = true;

@@ -103,7 +103,7 @@ void HeteroSyntheticTest::SetUp() {
             _registredPlugins.push_back(pluginParameter._name);
         }
         targetDevice += pluginParameter._name;
-        targetDevice += ((num !=0) ? "," : "");
+        targetDevice += ((num != 0) ? "," : "");
         --num;
     }
     function = std::get<Function>(param)._function;
@@ -111,7 +111,10 @@ void HeteroSyntheticTest::SetUp() {
 
 void HeteroSyntheticTest::TearDown() {
     for (auto&& pluginName : _registredPlugins) {
-        PluginCache::get().ie()->UnregisterPlugin(pluginName);
+        try {
+            PluginCache::get().ie()->UnregisterPlugin(pluginName);
+        } catch (...) {
+        }
     }
 }
 
@@ -132,7 +135,6 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
             } else {
                 affinity = pluginParameters.at(1)._name;
             }
-            // affinity = pluginParameters.at(0)._name; // TODO
             node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
             affinities += "\t{" + node->get_friendly_name() + ",\t\t" + affinity + "}\n";
         }

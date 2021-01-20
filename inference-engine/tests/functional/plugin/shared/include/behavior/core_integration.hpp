@@ -84,6 +84,7 @@ public:
     void SetUp() override {
         // Generic network
         {
+            std::cout << "Create actual network " << std::endl;
             std::shared_ptr<ngraph::Function> fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
             ASSERT_NO_THROW(actualNetwork = CNNNetwork(fnPtr));
         }
