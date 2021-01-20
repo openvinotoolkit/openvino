@@ -46,8 +46,9 @@ IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtension
     }
 }
 
-void V10Parser::XmlDeserializer::map_type_in_function(const pugi::xml_node& node,
-    const std::string map_type, std::map<uint64_t, uint64_t>& type_id_in_function) {
+std::map<uint64_t, uint64_t> V10Parser::XmlDeserializer::map_type_in_function(const pugi::xml_node& node,
+    const std::string map_type) {
+    std::map<uint64_t, uint64_t> type_id_in_function;
     uint64_t map_type_number = 0;
     auto body_node = node.child("body");
 
@@ -56,44 +57,43 @@ void V10Parser::XmlDeserializer::map_type_in_function(const pugi::xml_node& node
     }
 
     // Fill map: parameter/result id to parameter/result number in Function
-    FOREACH_CHILD(_layer, body_node.child("layers"), "layer") {
-        auto type = XMLParseUtils::GetStrAttr(_layer, "type");
+    FOREACH_CHILD(layer, body_node.child("layers"), "layer") {
+        auto type = XMLParseUtils::GetStrAttr(layer, "type");
 
         if (type == map_type) {
-            auto id = XMLParseUtils::GetUIntAttr(_layer, "id");
-            type_id_in_function[id] = map_type_number;
+            auto id = XMLParseUtils::GetUIntAttr(layer, "id");
+            type_id_in_function.emplace(id, map_type_number);
             map_type_number++;
         }
     }
+    return type_id_in_function;
 }
 
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10Parser::XmlDeserializer::parseInputDescription(const pugi::xml_node& node) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> inputs;
-    std::map<uint64_t, uint64_t> param_id_in_function;
-    std::map<uint64_t, uint64_t> result_id_in_function;
-    map_type_in_function(node, "Parameter", param_id_in_function);
-    map_type_in_function(node, "Result", result_id_in_function);
+    std::map<uint64_t, uint64_t> param_id_in_function = map_type_in_function(node, "Parameter");
+    std::map<uint64_t, uint64_t> result_id_in_function = map_type_in_function(node, "Result");
 
     // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
     std::map<uint64_t, pugi::xml_node> input_map;
-    FOREACH_CHILD(_input, node.child("port_map"), "input") {
-        int64_t ext_port_id = GetInt64Attr(_input, "external_port_id");
-        input_map[ext_port_id] = _input;
+    FOREACH_CHILD(input, node.child("port_map"), "input") {
+        int64_t ext_port_id = GetInt64Attr(input, "external_port_id");
+        input_map.emplace(ext_port_id, input);
     }
 
     for (const auto& input : input_map) {
-        auto &_input = input.second;
-        auto axis_attr = _input.attribute("axis");
-        int64_t ti_input_index = XMLParseUtils::GetInt64Attr(_input, "external_port_id");
-        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(_input, "internal_layer_id");
+        auto &xml_input = input.second;
+        auto axis_attr = xml_input.attribute("axis");
+        int64_t ti_input_index = XMLParseUtils::GetInt64Attr(xml_input, "external_port_id");
+        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_input, "internal_layer_id");
 
         // if axis is set, then slicing is enabled. Create ngraph::TensorIterator::SlicedInput.
         if (!axis_attr.empty()) {
-            size_t axis = XMLParseUtils::GetUIntAttr(_input, "axis");
-            int64_t start = XMLParseUtils::GetInt64Attr(_input, "start", 0);
-            int64_t stride = XMLParseUtils::GetInt64Attr(_input, "stride", 1);
-            int64_t end = XMLParseUtils::GetInt64Attr(_input, "end", -1);
-            int64_t part_size = XMLParseUtils::GetInt64Attr(_input, "part_size", 1);
+            size_t axis = XMLParseUtils::GetUIntAttr(xml_input, "axis");
+            int64_t start = XMLParseUtils::GetInt64Attr(xml_input, "start", 0);
+            int64_t stride = XMLParseUtils::GetInt64Attr(xml_input, "stride", 1);
+            int64_t end = XMLParseUtils::GetInt64Attr(xml_input, "end", -1);
+            int64_t part_size = XMLParseUtils::GetInt64Attr(xml_input, "part_size", 1);
 
             inputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::SliceInputDescription>
                     (ti_input_index,
@@ -106,11 +106,11 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
         } else {
             // otherwise find corresponding back edge and create ngraph::TensorIterator::MergedInput
             bool is_back_edge_exist = false;
-            FOREACH_CHILD(_edge, node.child("back_edges"), "edge") {
-                size_t to_layer = XMLParseUtils::GetUIntAttr(_edge, "to-layer");
+            FOREACH_CHILD(xml_edge, node.child("back_edges"), "edge") {
+                size_t to_layer = XMLParseUtils::GetUIntAttr(xml_edge, "to-layer");
 
                 if (to_layer == body_parameter_index) {
-                    size_t from_layer = XMLParseUtils::GetUIntAttr(_edge, "from-layer");
+                    size_t from_layer = XMLParseUtils::GetUIntAttr(xml_edge, "from-layer");
                     inputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::MergedInputDescription>
                         (ti_input_index,
                         param_id_in_function[body_parameter_index],
@@ -135,84 +135,85 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
 
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> V10Parser::XmlDeserializer::parseOutputDescription(const pugi::xml_node& node) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> outputs;
-    std::map<uint64_t, uint64_t> result_id_in_function;
-    map_type_in_function(node, "Result", result_id_in_function);
+    std::map<uint64_t, uint64_t> result_id_in_function = map_type_in_function(node, "Result");
 
     // Parse PortMap: outputs
     std::map<int64_t, pugi::xml_node> output_map;
-    FOREACH_CHILD(_output, node.child("port_map"), "output") {
-        int64_t ext_port_id = GetInt64Attr(_output, "external_port_id");
-        output_map[ext_port_id] = _output;
+    FOREACH_CHILD(output, node.child("port_map"), "output") {
+        int64_t ext_port_id = GetInt64Attr(output, "external_port_id");
+        output_map.emplace(ext_port_id, output);
     }
 
     uint64_t output_number = 0;
     for (const auto& output : output_map) {
-        auto& _output = output.second;
-        auto axis_attr = _output.attribute("axis");
-        size_t body_result_index = XMLParseUtils::GetUIntAttr(_output, "internal_layer_id");
+        auto& xml_output = output.second;
+        auto axis_attr = xml_output.attribute("axis");
+        size_t body_result_index = XMLParseUtils::GetUIntAttr(xml_output, "internal_layer_id");
 
-        // if axis is set, then concatenation is enabled. Create ngraph::TensorIterator::ConcatOutput.
-        if (!axis_attr.empty()) {
-            int64_t axis = XMLParseUtils::GetInt64Attr(_output, "axis");
-            int64_t start = XMLParseUtils::GetInt64Attr(_output, "start", 0);
-            int64_t stride = XMLParseUtils::GetInt64Attr(_output, "stride", 1);
-            int64_t end = XMLParseUtils::GetInt64Attr(_output, "end", -1);
-            int64_t part_size = XMLParseUtils::GetInt64Attr(_output, "part_size", 1);
+        // if external_port_id < 0 it means that this body result isn't connected to the Loop output
+        // and is used only for internal needs. For TensorIterator external_port_id is always > 0.
+        if (std::stoi(XMLParseUtils::GetStrAttr(xml_output, "external_port_id", "")) >= 0) {
+            // if axis is set, then concatenation is enabled. Create ngraph::TensorIterator::ConcatOutput.
+            if (!axis_attr.empty()) {
+                int64_t axis = XMLParseUtils::GetInt64Attr(xml_output, "axis");
+                int64_t start = XMLParseUtils::GetInt64Attr(xml_output, "start", 0);
+                int64_t stride = XMLParseUtils::GetInt64Attr(xml_output, "stride", 1);
+                int64_t end = XMLParseUtils::GetInt64Attr(xml_output, "end", -1);
+                int64_t part_size = XMLParseUtils::GetInt64Attr(xml_output, "part_size", 1);
 
-            outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::ConcatOutputDescription>
-                    (result_id_in_function[body_result_index],
-                    output_number,
-                    start,
-                    stride,
-                    part_size,
-                    end,
-                    axis));
-        } else {
-            // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
-            outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::BodyOutputDescription>
-                    (result_id_in_function[body_result_index],
-                    output_number,
-                    -1));
+                outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::ConcatOutputDescription>
+                        (result_id_in_function[body_result_index],
+                        output_number,
+                        start,
+                        stride,
+                        part_size,
+                        end,
+                        axis));
+            } else {
+                // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
+                outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::BodyOutputDescription>
+                        (result_id_in_function[body_result_index],
+                        output_number,
+                        -1));
+            }
+            output_number++;
         }
-        output_number++;
     }
     return outputs;
 }
 
 ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeAttribute(const pugi::xml_node& node) {
     ngraph::op::v5::Loop::SpecialBodyPorts result = {-1, -1};
-    std::map<uint64_t, uint64_t> params;
-    std::map<uint64_t, uint64_t> results;
-    map_type_in_function(node, "Parameter", params);
-    map_type_in_function(node, "Result", results);
+    std::map<uint64_t, uint64_t> params = map_type_in_function(node, "Parameter");
+    std::map<uint64_t, uint64_t> results = map_type_in_function(node, "Result");
 
     NGRAPH_CHECK(!params.empty() || !results.empty(), "No parameters or results found in body Function.");
 
     // Parse PortMap: external_port_id for inputs/outputs does not always appear in consecutive order
     std::map<uint64_t, pugi::xml_node> input_map;
-    FOREACH_CHILD(_input, node.child("port_map"), "input") {
-        int64_t ext_port_id = GetInt64Attr(_input, "external_port_id");
-        input_map[ext_port_id] = _input;
+    FOREACH_CHILD(input, node.child("port_map"), "input") {
+        int64_t ext_port_id = GetInt64Attr(input, "external_port_id");
+        input_map.emplace(ext_port_id, input);
     }
     std::map<int64_t, pugi::xml_node> output_map;
-    FOREACH_CHILD(_output, node.child("port_map"), "output") {
-        int64_t ext_port_id = GetInt64Attr(_output, "external_port_id");
-        output_map[ext_port_id] = _output;
+    FOREACH_CHILD(output, node.child("port_map"), "output") {
+        int64_t ext_port_id = GetInt64Attr(output, "external_port_id");
+        output_map.emplace(ext_port_id, output);
     }
 
     for (const auto& input : input_map) {
-        auto &_input = input.second;
-        auto purpose = XMLParseUtils::GetStrAttr(_input, "purpose", "");
-        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(_input, "internal_layer_id");
+        auto &xml_input = input.second;
+        auto purpose = XMLParseUtils::GetStrAttr(xml_input, "purpose", "");
+        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_input, "internal_layer_id");
         if (purpose == "current_iteration") {
             result.current_iteration_input_idx = params[body_parameter_index];
         }
     }
 
     for (const auto& output : output_map) {
-        auto &_output = output.second;
-        auto purpose = XMLParseUtils::GetStrAttr(_output, "purpose", "");
-        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(_output, "internal_layer_id");
+        auto &xml_output = output.second;
+        auto purpose = XMLParseUtils::GetStrAttr(xml_output, "purpose", "");
+        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_output, "internal_layer_id");
         if (purpose == "execution_condition") {
             result.body_condition_output_idx = results[body_parameter_index];
         }

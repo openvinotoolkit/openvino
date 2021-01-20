@@ -301,8 +301,8 @@ private:
         ///  op iterations. Map constains type id and assigned to it consecutive number starting from 0.
         /// \param node xml op representation
         /// \param type op type name to find
-        /// \param type_id_in_function map container
-        void map_type_in_function(const pugi::xml_node& node, std::string type, std::map<uint64_t, uint64_t>& type_id_in_function);
+        /// \return map container
+        std::map<uint64_t, uint64_t> map_type_in_function(const pugi::xml_node& node, std::string type);
         /// \brief Traverses xml node representation in order to create nGraph function for it.
         /// \param node xml node representation
         /// \param weights weights attached to current node
