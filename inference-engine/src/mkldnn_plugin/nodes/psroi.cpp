@@ -53,13 +53,13 @@ public:
             auto supportedPrecision = (layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16 ? Precision::BF16 : Precision::FP32);
 
             std::vector<std::pair<Layout, Layout> > plainConfs{
-//                    {NHWC, NHWC},
+                    {NHWC, NHWC},
                     {NCHW, NCHW}
             };
 
             std::vector<std::pair<ConfLayout, ConfLayout> > blockConfs {
-//                    {ConfLayout::BLK16, ConfLayout::BLK16},
-//                    {ConfLayout::BLK8, ConfLayout::BLK8}
+                    {ConfLayout::BLK16, ConfLayout::BLK16},
+                    {ConfLayout::BLK8, ConfLayout::BLK8}
             };
 
             if (noTrans) {
@@ -338,11 +338,6 @@ public:
         auto srcDesc = inputs[0]->getTensorDesc();
         auto dstDesc = outputs[0]->getTensorDesc();
 
-        // TODO
-        const int blockSize = inputs[0]->getTensorDesc().getLayout() == Layout::BLOCKED ?
-                              inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4] : 1;
-        const int blockOffset = width * blockSize;
-
         int realRois = 0;
         for (; realRois < nn; realRois++) {
             int roiBatchInd = static_cast<int>(bottomRoisBeginning[realRois * 5]);
@@ -423,8 +418,7 @@ public:
                                     h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
                                     int c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
                                     float val = bilinearInterp<inputType>(offsetBottomData +
-                                                                          c1 * height * width, w1, h1, width,
-                                                                          blockSize, c1 % blockSize);
+                                                                          c1 * height * width, w1, h1, width);
 
                                     sum += val;
                                     count++;
@@ -438,39 +432,42 @@ public:
             }
         });
 
-        for (int n = realRois; n < nn; n++) {
-            parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
-                int index = n * nc * nh * nw + c * nh * nw + h * nw + w;
-                dstData[index] = 0;
-            });
-        }
+        memset(dstData + realRois * nc * nh * nw, 0, (nn - realRois) * nc * nh * nw * sizeof(outputType));
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
                        ResponseDesc *resp) noexcept override {
-        auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
-        auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
+        try {
+            auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
+            auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
 
-        PSROIPoolingContext ctx = {
-                *this,
-                inputs,
-                outputs
-        };
+            if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
+                  (inputPrec == Precision::FP32 && outputPrec == Precision::FP32)))
+                return NOT_IMPLEMENTED;
 
-        if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
-              (inputPrec == Precision::FP32 && outputPrec == Precision::FP32)))
-            return NOT_IMPLEMENTED;
+            PSROIPoolingContext ctx = {
+                    *this,
+                    inputs,
+                    outputs
+            };
 
-        OV_SWITCH(MKLDNNPlugin, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
-                  OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-                  OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
+            OV_SWITCH(MKLDNNPlugin, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
+                      OV_CASE2(Precision::FP32, Precision::FP32, float, float),
+                      OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
 
-        return OK;
+            return OK;
+        }
+        catch (const std::exception& excp) {
+            snprintf(resp->msg, sizeof(resp->msg), "%s", excp.what());
+            return GENERAL_ERROR;
+        }
+        catch(...) {
+            return GENERAL_ERROR;
+        }
     }
 
     template <typename inputType>
-    inline float bilinearInterp(const inputType* data, const float x, const float y, const int width_,
-                                const int blockSize = 1, const int blockResidual = 0) {
+    inline float bilinearInterp(const inputType* data, const float x, const float y, const int width_) {
         int x1 = static_cast<int>(std::floor(x));
         int x2 = static_cast<int>(std::ceil(x));
         int y1 = static_cast<int>(std::floor(y));
@@ -478,10 +475,10 @@ public:
         float distX = x - x1;
         float distY = y - y1;
 
-        float value11 = data[(y1 * width_ + x1) * blockSize + blockResidual];
-        float value12 = data[(y2 * width_ + x1) * blockSize + blockResidual];
-        float value21 = data[(y1 * width_ + x2) * blockSize + blockResidual];
-        float value22 = data[(y2 * width_ + x2) * blockSize + blockResidual];
+        float value11 = data[y1 * width_ + x1];
+        float value12 = data[y2 * width_ + x1];
+        float value21 = data[y1 * width_ + x2];
+        float value22 = data[y2 * width_ + x2];
         float value = (1 - distX) * (1 - distY) * value11 + (1 - distX) * distY * value12
                       + distX * (1 - distY) * value21 + distX * distY * value22;
         return value;
