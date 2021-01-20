@@ -28,7 +28,20 @@ from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
 
 
-def find_intergraph_match(external_match: dict, reserve_port: int, unstack_port: int, stack_port: int):
+def compute_input_port_idx(req_node: Node, loop_node: Node):
+    """
+    Computes input port index by which requested node is passed to Loop node
+    :param req_node: a node for which to find input port index is requested
+    :param loop_node: a node that can receive input data from requested node by some input port
+    :return:
+    """
+    for destination in req_node.out_port(0).get_destinations():
+        if loop_node.id == destination.node.id:
+            return destination.idx
+    return None
+
+
+def find_intergraph_match(external_match: dict, reserve_port_idx: int, unstack_port_idx: int, stack_port_idx: int):
     """
     The function checks that logic using TensorList operations corresponds to subsequent slicing of input and
     concatenation of intermediate results for output.
@@ -95,11 +108,11 @@ def find_intergraph_match(external_match: dict, reserve_port: int, unstack_port:
                 not back_edge_exists(loop_node.back_edges,
                                      internal_match['increment_iteration_result'].internal_layer_id,
                                      internal_match['current_iteration'].internal_layer_id) or \
-                not inter_edge_exists(loop_node.input_port_map, reserve_port,
+                not inter_edge_exists(loop_node.input_port_map, reserve_port_idx,
                                       internal_match['container'].internal_layer_id) or \
-                not inter_edge_exists(loop_node.input_port_map, unstack_port,
+                not inter_edge_exists(loop_node.input_port_map, unstack_port_idx,
                                       internal_match['tensor_list'].internal_layer_id) or \
-                not inter_edge_exists(loop_node.output_port_map, stack_port,
+                not inter_edge_exists(loop_node.output_port_map, stack_port_idx,
                                       internal_match['concatenation_result'].internal_layer_id):
             return None
 
@@ -108,7 +121,7 @@ def find_intergraph_match(external_match: dict, reserve_port: int, unstack_port:
     return None
 
 
-def process_keras_rnn(graph: Graph, external_match: dict, internal_match: dict, strided_slice_port: int):
+def process_keras_rnn(external_match: dict, internal_match: dict):
     """
     The function transforms the sub-graph so that no list of tensors presents, axis for Loop input ports performs slicing
     (TensorListFromTensor->TensorListGetItem), axis for Loop output port for concatenation of outputs generated on each
@@ -159,11 +172,14 @@ def process_keras_rnn(graph: Graph, external_match: dict, internal_match: dict, 
     # remove TensorListStack to by-pass the node since the result from the Loop node is already concatenated
     stack_node.out_port(0).get_connection().set_source(stack_node.in_port(0).get_connection().get_source())
 
-    # connect a number of iterations with maximum_iterations
+    # disconnect ListReserve node because it is no longer needed for Loop
+    list_reserve_node.out_port(0).disconnect()
+
+    # connect a number of iterations with trip count that can be received from the second input of ListReserve
     # create a constant network with True value for execution_condition so that IE can ignore execution condition
-    # and perform trip_counts iterations. This allows to avoid dynamism
+    # and perform trip_counts iterations. This approach with known trip count value allows to avoid dynamism.
     loop_node.in_port(1).disconnect()
-    loop_node.in_port(strided_slice_port).get_connection().add_destination(loop_node.in_port(1))
+    list_reserve_node.in_port(1).get_source().connect(loop_node.in_port(1))
     for record in loop_node.output_port_map:
         if 'purpose' in record and record['purpose'] == 'execution_condition':
             exec_cond_layer_id = record['internal_layer_id']
@@ -172,41 +188,11 @@ def process_keras_rnn(graph: Graph, external_match: dict, internal_match: dict, 
             exec_cond_node.in_port(0).get_connection().set_source(const_true.out_port(0))
 
 
-class KerasLSTMTransformation(FrontReplacementSubgraph):
+class KerasRNNTransformation(FrontReplacementSubgraph):
     """
-    TensorFlow 2 Keras LSTM operation is expressed through a sub-graph with While operation with a certain body graph.
-    This replacer allows to detect such a sub-graph and to handle it by avoiding unsupported operations:
-    TensorListFromTensor, TensorListReserve, and TensorListStack in the main graph;
-    TensorListGetItem and TensorListSetItem in the body graph.
-    """
-    enabled = True
-
-    def run_before(self):
-        return [WhileNormalize]
-
-    @staticmethod
-    def pattern(**kwargs):
-        return dict(
-            nodes=[('unstack', dict(op='TensorListFromTensor')),
-                   ('reserve', dict(op='TensorListReserve')),
-                   ('while', dict(op='Loop')),
-                   ('stack', dict(op='TensorListStack')),
-                   ],
-            edges=[('reserve', 'while', {'in': 3}),
-                   ('unstack', 'while', {'in': 7}),
-                   ('while', 'stack', {'out': 3})]
-        )
-
-    def replace_sub_graph(self, graph: Graph, ext_match: dict):
-        internal_match = find_intergraph_match(ext_match, 3, 7, 3)
-        if internal_match is not None:
-            process_keras_rnn(graph, ext_match, internal_match, 6)
-
-
-class KerasGRUTransformation(FrontReplacementSubgraph):
-    """
-    TensorFlow 2 Keras GRU operation is expressed through a sub-graph with While operation with a certain body graph.
-    This replacer allows to detect such a sub-graph and to handle it by avoiding unsupported operations:
+    TensorFlow 2 Keras Simple RNN, GRU, LSTM operations are expressed through a sub-graph with While operation
+    with a certain body graph.
+    This transformation allows to detect such a sub-graph and to handle it by avoiding unsupported operations:
     TensorListFromTensor, TensorListReserve, and TensorListStack in the main graph;
     TensorListGetItem and TensorListSetItem in the body graph.
     It transforms the sub-graph so that no list of tensors used, axis for Loop input ports performs slicing
@@ -221,17 +207,23 @@ class KerasGRUTransformation(FrontReplacementSubgraph):
     @staticmethod
     def pattern(**kwargs):
         return dict(
-            nodes=[('unstack', dict(op='TensorListFromTensor')),
-                   ('reserve', dict(op='TensorListReserve')),
+            nodes=[('reserve', dict(op='TensorListReserve')),
+                   ('unstack', dict(op='TensorListFromTensor')),
                    ('while', dict(op='Loop')),
                    ('stack', dict(op='TensorListStack')),
                    ],
-            edges=[('reserve', 'while', {'in': 3}),
-                   ('unstack', 'while', {'in': 6}),
-                   ('while', 'stack', {'out': 3})]
+            edges=[('reserve', 'while'),
+                   ('unstack', 'while'),
+                   ('while', 'stack')]
         )
 
-    def replace_sub_graph(self, graph: Graph, ext_match: dict):
-        internal_match = find_intergraph_match(ext_match, 3, 6, 3)
+    def replace_sub_graph(self, graph: Graph, external_match: dict):
+        loop_node = external_match['while']
+
+        reserve_port_idx = compute_input_port_idx(external_match['reserve'], loop_node)
+        unstack_port_idx = compute_input_port_idx(external_match['unstack'], loop_node)
+        stack_port_idx = external_match['stack'].in_port(0).get_source().idx
+
+        internal_match = find_intergraph_match(external_match, reserve_port_idx, unstack_port_idx, stack_port_idx)
         if internal_match is not None:
-            process_keras_rnn(graph, ext_match, internal_match, 5)
+            process_keras_rnn(external_match, internal_match)
