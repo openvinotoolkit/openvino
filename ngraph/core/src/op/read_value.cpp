@@ -35,6 +35,9 @@ void op::ReadValue::validate_and_infer_types()
     auto arg_t = get_input_element_type(0);
     auto output_shape = get_input_partial_shape(0);
 
+    NODE_VALIDATION_CHECK(
+        this, m_variable_id != "", "Variable identifier may not be an empty string.");
+
     VariableInfo info = {output_shape, arg_t, m_variable_id};
     if (m_variable == nullptr)
         m_variable = std::make_shared<Variable>(info);
