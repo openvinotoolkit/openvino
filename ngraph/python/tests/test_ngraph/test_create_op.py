@@ -77,6 +77,34 @@ def test_ctc_greedy_decoder(dtype):
     assert list(node.get_output_shape(0)) == expected_shape
 
 
+@pytest.mark.parametrize("fp_dtype, int_dtype, int_ci, int_sl, merge_repeated",
+                         [
+                             (np.float32, np.int32, np.int32, np.int32, True),
+                             (np.float32, np.int32, np.int64, np.int32, True),
+                             (np.float32, np.int32, np.int32, np.int64, True),
+                             (np.float32, np.int32, np.int64, np.int64, True),
+                             (np.float32, np.int32, np.int32, np.int32, False),
+                             (np.float32, np.int32, np.int64, np.int32, False),
+                             (np.float32, np.int32, np.int32, np.int64, False),
+                             (np.float32, np.int32, np.int64, np.int64, False)
+                         ],)
+def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated):
+    input0_shape = [8, 20, 128]
+    input1_shape = [8]
+    expected_shape = [8, 20]
+
+    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=fp_dtype)
+    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=int_dtype)
+    parameter_input2 = ng.parameter(input1_shape, name="Input2", dtype=int_dtype)
+
+    node = ng.ctc_greedy_decoder(parameter_input0, parameter_input1, parameter_input2,
+                                 merge_repeated, int_ci, int_sl)
+
+    assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
 @pytest.mark.parametrize("dtype", np_types)
 def test_deformable_convolution(dtype):
     strides = np.array([1, 1])
