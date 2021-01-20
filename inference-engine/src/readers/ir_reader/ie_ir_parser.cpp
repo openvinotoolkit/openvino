@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2017-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -680,7 +680,8 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     // Try to create operation from loaded opsets
     auto version = params.version;
     static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
-                                                                            "ExperimentalDetectronPriorGridGenerator"};
+                                                                            "ExperimentalDetectronPriorGridGenerator",
+                                                                            "ExperimentalDetectronROIFeatureExtractor"};
     if (experimental_detectrons.count(params.type)) {
         version = "opset6";
     }
