@@ -81,7 +81,8 @@ public:
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
             arg,
             (groups > 1) ? 1 : actual_split,
-            1);
+            1,
+            primitive->grouped_weights_shape);
         auto deconv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(arg.get_program());
 
