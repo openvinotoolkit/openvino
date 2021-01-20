@@ -123,6 +123,41 @@ namespace
     }
 };
 
+namespace
+{
+    InferenceEngine::Precision ng_type_to_precission(const element::Type& target_type)
+    {
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wswitch"
+#pragma GCC diagnostic error "-Wswitch-enum"
+#endif
+        switch (target_type)
+        {
+        case element::Type_t::boolean: return InferenceEngine::Precision::BOOL; break;
+        case element::Type_t::bf16: return InferenceEngine::Precision::BF16; break;
+        case element::Type_t::f16: return InferenceEngine::Precision::FP16; break;
+        case element::Type_t::f32: return InferenceEngine::Precision::FP32; break;
+        case element::Type_t::f64: return InferenceEngine::Precision::FP64; break;
+        case element::Type_t::i8: return InferenceEngine::Precision::I8; break;
+        case element::Type_t::i16: return InferenceEngine::Precision::I16; break;
+        case element::Type_t::i32: return InferenceEngine::Precision::I32; break;
+        case element::Type_t::i64: return InferenceEngine::Precision::I64; break;
+        case element::Type_t::u8: return InferenceEngine::Precision::U8; break;
+        case element::Type_t::u16: return InferenceEngine::Precision::U16; break;
+        case element::Type_t::u32: return InferenceEngine::Precision::U32; break;
+        case element::Type_t::u64: return InferenceEngine::Precision::U64; break;
+        case element::Type_t::u1: throw std::runtime_error("unsupported type");
+        case element::Type_t::undefined: throw std::runtime_error("unsupported type");
+        case element::Type_t::dynamic: throw std::runtime_error("unsupported type");
+        }
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#pragma GCC diagnostic pop
+#endif
+        throw std::runtime_error("unsupported type");
+    }
+}
+
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
 {
@@ -130,6 +165,13 @@ test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char*
     const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
     m_network_outputs = cnn_network.getOutputsInfo();
+
+    for (const auto& result : m_function->get_results())
+    {
+        const auto& out_name = get_output_name(result);
+        m_network_outputs[out_name]->setPrecision(
+            ng_type_to_precission(result->get_element_type()));
+    }
 
     InferenceEngine::Core ie;
     auto exe_network = ie.LoadNetwork(cnn_network, device);
@@ -170,6 +212,32 @@ testing::AssertionResult test::IE_Engine::compare_results(const size_t tolerance
     }
 
     return comparison_result;
+}
+
+std::string test::IE_Engine::get_output_name(const std::shared_ptr<op::v0::Result>& ng_result)
+{
+    if (m_function->get_results().size() == 1)
+    {
+        // ng_result argument is ignored
+        return m_network_outputs.begin()->first;
+    }
+    else
+    {
+        const auto& prev_layer = ng_result->input_value(0);
+        auto network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
+        if (prev_layer.get_node_shared_ptr()->get_output_size() != 1)
+        {
+            network_out_name += "." + std::to_string(prev_layer.get_index());
+        }
+
+        NGRAPH_CHECK(m_network_outputs.count(network_out_name) == 1,
+                     "nGraph function's output number ",
+                     m_allocated_expected_outputs,
+                     " was not found in the CNNNetwork built from it. Function's output name: ",
+                     network_out_name);
+
+        return network_out_name;
+    }
 }
 
 testing::AssertionResult
