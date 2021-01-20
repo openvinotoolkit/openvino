@@ -81,47 +81,36 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
     }
 
     size_t num_of_inputs = get_input_size();
-    std::vector<Dimension> channels(num_of_inputs - 1);
+    Dimension channels_intersection;
 
     for (size_t i = 1; i < num_of_inputs; i++)
     {
-        auto& channel = channels[i - 1];
         auto current_shape = get_input_partial_shape(i);
         auto current_rank = current_shape.rank();
 
-        if (current_rank.is_dynamic() || current_shape[1].is_dynamic())
+        if (current_rank.is_static())
         {
-            set_output_type(0, input_et, out_shape);
-            return;
+            NODE_VALIDATION_CHECK(this,
+                                  current_rank.get_length() == 4,
+                                  "Rank of each element of the pyramid must be equal to 4. Got: ",
+                                  current_rank);
+
+            NODE_VALIDATION_CHECK(this,
+                                  current_shape[0].is_static() &&
+                                      current_shape[0].get_length() == 1u,
+                                  "The first dimension of each pyramid element must be equal to 1. "
+                                  "Got: ",
+                                  current_shape[0]);
+
+            channels_intersection &= current_shape[1];
         }
-
-        NODE_VALIDATION_CHECK(this,
-                              current_rank.get_length() == 4,
-                              "Rank of each element of the pyramid must be equal to 4. Got: ",
-                              current_rank);
-
-        NODE_VALIDATION_CHECK(this,
-                              current_shape[0].is_static() && current_shape[0].get_length() == 1u,
-                              "The first dimension of each pyramid element must be equal to 1. "
-                              "Got: ",
-                              current_shape[0]);
-
-        channel = current_shape[1];
     }
 
-    auto featmap_shape = get_input_partial_shape(1);
-    auto expected_channels = featmap_shape[1];
-
-    bool correct_channels =
-        std::all_of(channels.begin() + 1, channels.end(), [&expected_channels](const Dimension& d) {
-            return expected_channels == d;
-        });
-
     NODE_VALIDATION_CHECK(this,
-                          correct_channels,
+                          !channels_intersection.get_interval().empty(),
                           "The number of channels must be the same for all layers of the pyramid.");
 
-    out_shape[1] = expected_channels;
+    out_shape[1] = channels_intersection;
 
     set_output_type(0, input_et, out_shape);
     set_output_type(1, input_et, out_rois_shape);
