@@ -40,6 +40,9 @@ namespace {
         ngraph::op::PadType::VALID
     };
 
+    const std::vector<size_t> inputShape = {511, 11, 13, 15};
+    const std::vector<bool> excludePad = {true, false};
+
     /* ============= AVERAGE POOLING ============= */
 
     const auto avgExcludePadParams = ::testing::Combine(
@@ -50,7 +53,7 @@ namespace {
             ::testing::ValuesIn(padEnds),
             ::testing::ValuesIn(roundingTypes),
             ::testing::ValuesIn(padTypes),
-            ::testing::Values(true));
+            ::testing::Values(excludePad[0]));
 
     INSTANTIATE_TEST_CASE_P(smoke_AvgPoolExcluePad, PoolingLayerTest,
             ::testing::Combine(
@@ -60,7 +63,7 @@ namespace {
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>{511, 11, 13, 15}),
+                ::testing::Values(inputShape),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             PoolingLayerTest::getTestCaseName);
 
@@ -72,7 +75,7 @@ namespace {
             ::testing::ValuesIn(padEnds),
             ::testing::ValuesIn(roundingTypes),
             ::testing::ValuesIn(padTypes),
-            ::testing::Values(false));
+            ::testing::Values(excludePad[1]));
 
     INSTANTIATE_TEST_CASE_P(smoke_AvgPool, PoolingLayerTest,
             ::testing::Combine(
@@ -82,7 +85,7 @@ namespace {
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>{41, 41, 41, 41}),
+                ::testing::Values(inputShape),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             PoolingLayerTest::getTestCaseName);
 }  // namespace

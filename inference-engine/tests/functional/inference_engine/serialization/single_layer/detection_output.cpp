@@ -63,7 +63,7 @@ namespace {
         commonAttributes,
         ::testing::ValuesIn(specificParams3In),
         ::testing::ValuesIn(numberBatch),
-        ::testing::Values(0.0f),
+        ::testing::Values(objectnessScore),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
 INSTANTIATE_TEST_CASE_P(
