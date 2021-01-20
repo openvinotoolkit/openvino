@@ -95,7 +95,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
-    auto outPrecision = precisionAfterOperation.is_real() ? precision : precisionAfterOperation;
+    auto outPrecision = precisionAfterOperation;
     const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
         opset1::AvgPool(
             deqBefore,
@@ -119,9 +119,6 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     }
     auto deqAfterStructure = dequantizationAfter;
     deqAfterStructure.multiply.outPrecision = precision;
-    if (outPrecision != element::f32 && !dequantizationAfter.empty()) {
-        deqAfterStructure.convert = DequantizationOperations::Convert(element::f32);
-    }
     lastLayer = makeDequantization(lastLayer, deqAfterStructure);
 
     if (addFQ) {

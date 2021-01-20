@@ -919,12 +919,15 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     newOperation->set_friendly_name(operation->get_friendly_name());
     ngraph::copy_runtime_info(operation, newOperation);
 
-    if (updatePrecision) {
-        auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
-        if (op == nullptr) {
-            THROW_IE_LPT_EXCEPTION(*newOperation) << "not possible to update precision for not TypeRelaxedBase operation";
+    auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
+    if (op != nullptr) {
+        if (updatePrecision) {
+            op->set_overridden_output_type(newOperation->get_input_element_type(0));
+        } else if (dequantization.multiply) {
+            op->set_overridden_output_type(dequantization.multiply->get_input_element_type(1));
+        } else if (dequantization.subtract) {
+            op->set_overridden_output_type(dequantization.subtract->get_input_element_type(1));
         }
-        op->set_overridden_output_type(newOperation->get_input_element_type(0));
         std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
     }
 
