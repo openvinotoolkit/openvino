@@ -86,7 +86,7 @@ TEST_P(CropLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Crop");
+    CheckPluginRelatedResults(executableNetwork, "Crop");
 }
 
 namespace {

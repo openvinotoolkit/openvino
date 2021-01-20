@@ -34,6 +34,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
             R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",
             R"(.*EltwiseLayerTest.*OpType=FloorMod.*netPRC=I64.*)",
+            // TODO: Issue: 46841
+            R"(.*(QuantGroupConvBackpropData3D).*)",
 
             // These tests might fail due to accuracy loss a bit bigger than threshold
             R"(.*(GRUCellTest).*)",
