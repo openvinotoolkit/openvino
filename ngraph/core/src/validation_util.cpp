@@ -1269,7 +1269,6 @@ HostTensorPtr ngraph::evaluate_bound(const Output<Node>& output, bool is_upper)
                     if ((same_inputs || !is_upper) &&
                         node->get_output_tensor(i).get_lower_value() == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
-
                 }
             }
             else
