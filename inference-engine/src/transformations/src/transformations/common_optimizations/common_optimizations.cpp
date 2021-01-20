@@ -26,6 +26,7 @@
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
@@ -122,6 +123,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
+    fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.run_passes(f);
