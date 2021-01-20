@@ -20,6 +20,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
+from mo.front.extractor import get_boolean_attr
 
 reduce_map = {
     'ReduceSum': np.sum,
@@ -106,7 +107,7 @@ class ReduceOp(Op):
 
     def supported_attrs(self):
         return [
-            ('keep_dims', lambda node: str(node.keep_dims).lower()),
+            ('keep_dims', lambda node: get_boolean_attr(node, 'keep_dims')),
         ]
 
 
