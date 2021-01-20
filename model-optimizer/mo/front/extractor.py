@@ -133,7 +133,7 @@ def attr_getter(node: Node, name: str):
 
 def get_boolean_attr(node: Node, attr: str):
     if isinstance(node[attr], bool):
-        return str(node.keep_dims).lower()
+        return str(node[attr]).lower()
     elif node[attr] in [0, 1]:
         return str(bool(node[attr])).lower()
     else:
