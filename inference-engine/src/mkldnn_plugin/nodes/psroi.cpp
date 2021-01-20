@@ -107,20 +107,245 @@ public:
         }
     };
 
-    template <typename inputType, typename outputType>
-    StatusCode executeSpecified(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) {
-        const float *bottomRoisBeginning = inputs[1]->buffer();
-        const auto *srcData = inputs[0]->cbuffer().as<const inputType*>();
-        auto *dstData = outputs[0]->buffer().as<outputType*>();
+    static void unpackParams(const TensorDesc& srcDesc, const TensorDesc& dstDesc,
+                             int& hInputStride, int& wInputStride,
+                             int& hOutputStride, int& wOutputStride,
+                             Layout& inFmt, Layout& outFmt,
+                             int& inBlockSize, int& outBlockSize,
+                             int& outBlockCount,
+                             unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding) {
+        inFmt = srcDesc.getLayout();
+        outFmt = dstDesc.getLayout();
+        const auto inBlockDims = srcDesc.getBlockingDesc().getBlockDims();
+        const auto outBlockDims = dstDesc.getBlockingDesc().getBlockDims();
 
+        const int expectedInBlkDimsSize = (inFmt == Layout::BLOCKED ? 5 : 4);
+        const int expectedOutBlkDimsSize = (outFmt == Layout::BLOCKED ? 5 : 4);
+        if (inBlockDims.size() != expectedInBlkDimsSize || outBlockDims.size() != expectedOutBlkDimsSize)
+            THROW_IE_EXCEPTION << "Incorrect blockDims size for input (given " <<
+                               inBlockDims.size()<< ", must be " << expectedInBlkDimsSize << "), or output (given " <<
+                               outBlockDims.size() << ", must be " << expectedOutBlkDimsSize << ")";
+
+        inBlockSize = (inFmt == Layout::BLOCKED ? inBlockDims[4] : 1);
+        outBlockSize = (outFmt == Layout::BLOCKED ? outBlockDims[4] : 1);
+        inputChannelsPadding = inBlockDims[1] * inBlockSize;
+        outputChannelsPadding = outBlockDims[1] * outBlockSize;
+        outBlockCount = outputChannelsPadding / outBlockSize;
+
+        int hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
+        const auto& outOrder = dstDesc.getBlockingDesc().getOrder();
+        const auto& inOrder = srcDesc.getBlockingDesc().getOrder();
+        for (int i = 0; i < outOrder.size(); i++) {
+            if (outOrder[i] == 2) hOutStrIndex = i;
+            if (outOrder[i] == 3) wOutStrIndex = i;
+        }
+        for (int i = 0; i < inOrder.size(); i++) {
+            if (inOrder[i] == 2) hInStrIndex = i;
+            if (inOrder[i] == 3) wInStrIndex = i;
+        }
+        hInputStride = srcDesc.getBlockingDesc().getStrides()[hInStrIndex];
+        wInputStride = srcDesc.getBlockingDesc().getStrides()[wInStrIndex];
+        hOutputStride = dstDesc.getBlockingDesc().getStrides()[hOutStrIndex];
+        wOutputStride = dstDesc.getBlockingDesc().getStrides()[wOutStrIndex];
+    }
+
+    template <typename inputType, typename outputType>
+    void executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
+                        const int currentRoi, const int roiBatchInd,
+                        const TensorDesc& srcDesc, const TensorDesc& dstDesc) {
+        Layout inFmt, outFmt;
+        int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
+        unsigned long inputChannelsPadding, outputChannelsPadding;
+        unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
+                     inFmt, outFmt, inBlockSize, outBlockSize, outBlockCount, inputChannelsPadding, outputChannelsPadding);
+        const float roiStartW = static_cast<float>(round(bottomRois[1])) * spatialScale;
+        const float roiStartH = static_cast<float>(round(bottomRois[2])) * spatialScale;
+        const float roiEndW   = static_cast<float>(round(bottomRois[3] + 1.0f)) * spatialScale;
+        const float roiEndH   = static_cast<float>(round(bottomRois[4] + 1.0f)) * spatialScale;
+        // Force too small ROIs to be 1x1
+        const float roiWidth  = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
+        const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
+
+        auto avgPsroi = [&] (int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
+            float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+            float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+
+            int hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
+            int hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
+
+            hStart = std::min<int>(std::max<int>(hStart, 0), height);
+            hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
+            int wStart = static_cast<int>(floor(static_cast<float>(w + 0) * binSizeW + roiStartW));
+            int wEnd = static_cast<int>(ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
+
+            wStart = std::min<int>(std::max<int>(wStart, 0), width);
+            wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
+
+            const float binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
+
+            size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
+            dstData[dstIndex] = 0;
+            if (binArea) {
+                float outSum = 0.0f;
+                const int heightIndexBound = hEnd * hInputStride;
+                const int widthIndexBound = wEnd * wInputStride;
+                for (int hh = hStart * hInputStride; hh < heightIndexBound; hh += hInputStride) {
+                    for (int ww = wStart * wInputStride; ww < widthIndexBound; ww += wInputStride) {
+                        outSum += srcData[binOffIn + hh + ww + inBlkRes];
+                    }
+                }
+                dstData[dstIndex] = outSum / binArea;
+            }
+        };
+        if (inFmt == Layout::NHWC) {
+            parallel_for2d(nh, nw, [&](int h, int w) {
+                const int binOffsetOutput = currentRoi * nc * nh * nw;
+                const int binOffsetInput = roiBatchInd * channels * height * width;
+                for (int c = 0; c < nc; c++) {
+                    const int gc = (c * groupSize + h) * groupSize + w;
+                    avgPsroi(c, h, w, 0, 0, binOffsetInput + gc, binOffsetOutput + c);
+                }
+            });
+        } else {  // nchw, nChw16c, nChw8c
+            parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
+                int cStart = blkIdx * outBlockSize;
+                int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
+                for (int c = cStart; c < cEnd; c++) {
+                    const int gc = (c * groupSize + h) * groupSize + w;
+                    const int inputBlockResidual = (inFmt == Layout::NCHW ? 0 : gc % inBlockSize);
+                    const int outputBlockResidual = (outFmt == Layout::NCHW ? 0 : c % inBlockSize);
+                    const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
+                    const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
+                    const int binOffsetInput = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
+                    const int binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * nh * nw;
+                    avgPsroi(c, h, w, inputBlockResidual, outputBlockResidual, binOffsetInput, binOffsetOutput);
+                }
+            });
+        }
+    }
+
+    template <typename inputType, typename outputType>
+    void executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
+                         const int currentRoi, const int roiBatchInd,
+                         const TensorDesc& srcDesc, const TensorDesc& dstDesc) {
+        Layout inFmt, outFmt;
+        int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
+        unsigned long inputChannelsPadding, outputChannelsPadding;
+        unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
+                     inFmt, outFmt, inBlockSize, outBlockSize, outBlockCount, inputChannelsPadding, outputChannelsPadding);
+        const float roiStartW = bottomRois[1] * spatialScale;
+        const float roiStartH = bottomRois[2] * spatialScale;
+        const float roiEndW = bottomRois[3] * spatialScale;
+        const float roiEndH = bottomRois[4] * spatialScale;
+        const float roiWidth  = roiEndW - roiStartW;
+        const float roiHeight = roiEndH - roiStartH;
+        size_t numBins = spatialBinsX * spatialBinsY;
+        const int binCount = nh * nw;
+
+        auto bilinearPsroi = [&] (int c, int h, int w, int binOffOut, int outBlkRes) {
+            float accum = 0.0f;
+            int binOffIn, inBlkRes;
+            size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
+            dstData[dstIndex] = 0;
+
+            for (size_t binY = 0; binY < spatialBinsY; binY++) {
+                const float boxYmin = roiStartH + (binY + 0) * (roiHeight / spatialBinsY);
+                const float boxYmax = roiStartH + (binY + 1) * (roiHeight / spatialBinsY);
+                const float heightScale = nh > 1 ? (boxYmax - boxYmin) * (height - 1) / (pooledHeight - 1) : 0.0f;
+                const float inY = nh > 1 ? (h * heightScale + boxYmin * (height - 1)) : 0.5f * (boxYmin + boxYmax) * (height - 1);
+                for (size_t binX = 0; binX < spatialBinsX; binX++) {
+                    size_t gc = c + (binY * spatialBinsX + binX) * nc;
+                    if (inFmt == Layout::NHWC) {
+                        binOffIn = roiBatchInd * channels * height * width + gc;
+                        inBlkRes = 0;
+                    } else {  // nchw, nChw16c, nChw8c
+                        const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
+                        binOffIn = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
+                        inBlkRes = (inFmt == Layout::BLOCKED ? gc % inBlockSize : 0);
+                    }
+                    const auto *bottomData = srcData + binOffIn;
+
+                    const float boxXmin = roiStartW + (binX + 0) * (roiWidth / spatialBinsX);
+                    const float boxXmax = roiStartW + (binX + 1) * (roiWidth / spatialBinsX);
+
+                    const float widthScale = nw > 1 ? (boxXmax - boxXmin) * (width - 1) / (pooledWidth - 1) : 0.0f;
+                    const float inX = nw > 1 ? (w * widthScale + boxXmin * (width - 1)) : 0.5f * (boxXmin + boxXmax) * (width - 1);
+
+                    if (!(inY < 0 || inY > height - 1 || inX < 0 || inX > width - 1)) {
+                        const int topYIndex = static_cast<int>(floorf(inY));
+                        int bottomYIndex = static_cast<int>(ceilf(inY));
+                        const int leftXIndex = static_cast<int>(floorf(inX));
+                        int rightXIndex = static_cast<int>(ceilf(inX));
+
+                        if (rightXIndex > width - 1) rightXIndex = width - 1;
+                        if (bottomYIndex > height - 1) bottomYIndex = height - 1;
+
+                        auto topLeftIndex = topYIndex * hInputStride + leftXIndex * wInputStride + inBlkRes;
+                        auto topRightIndex = topYIndex * hInputStride + rightXIndex * wInputStride + inBlkRes;
+                        auto bottomLeftIndex = bottomYIndex * hInputStride + leftXIndex * wInputStride + inBlkRes;
+                        auto bottomRightIndex = bottomYIndex * hInputStride + rightXIndex * wInputStride + inBlkRes;
+
+                        const float topLeft = bottomData[topLeftIndex];
+                        const float topRight = bottomData[topRightIndex];
+                        const float bottomLeft = bottomData[bottomLeftIndex];
+                        const float bottomRight = bottomData[bottomRightIndex];
+
+                        const float top = topLeft + (topRight - topLeft) * (inX - leftXIndex);
+                        const float bottom = bottomLeft + (bottomRight - bottomLeft) * (inX - leftXIndex);
+
+                        accum += top + (bottom - top) * (inY - topYIndex);
+                    }
+                }
+            }
+            accum /= numBins;
+            dstData[dstIndex] = accum;
+        };
+
+
+        int outputBlockIdx, binOffsetOutput, outputBlockResidual;
+        if (inFmt == Layout::NHWC) {
+            binOffsetOutput = currentRoi * nc * nh * nw;
+            parallel_for2d(nh, nw, [&](int h, int w) {
+                for (int c = 0; c < nc; c++) {
+                    bilinearPsroi(c, h, w, 0, binOffsetOutput + c);
+                }
+            });
+        } else {  // nchw, nChw16c, nChw8c
+            parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
+                int cStart = blkIdx * outBlockSize;
+                int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
+                for (int c = cStart; c < cEnd; c++) {
+                    outputBlockIdx = (c / inBlockSize) * inBlockSize;
+                    binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * binCount;
+                    outputBlockResidual = (inFmt == Layout::BLOCKED ? c % inBlockSize : 0);
+                    bilinearPsroi(c, h, w, outputBlockResidual, binOffsetOutput);
+                }
+            });
+        }
+    }
+
+    template <typename inputType, typename outputType>
+    void executeBilinearDeformable(const inputType *srcData, outputType *dstData, const float *bottomRois,
+                                   const int currentRoi, const int roiBatchInd) {
+    }
+
+    template <typename inputType, typename outputType>
+    void executeSpecified(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) {
+        const float *bottomRoisBeginning = inputs[1]->cbuffer().as<const float*>() + inputs[1]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        const auto *srcData = inputs[0]->cbuffer().as<const inputType*>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        auto *dstData = outputs[0]->buffer().as<outputType*>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+
+        auto srcDesc = inputs[0]->getTensorDesc();
+        auto dstDesc = outputs[0]->getTensorDesc();
+
+        // TODO
         const int blockSize = inputs[0]->getTensorDesc().getLayout() == Layout::BLOCKED ?
                               inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4] : 1;
         const int blockOffset = width * blockSize;
 
         int realRois = 0;
         for (; realRois < nn; realRois++) {
-            const float *bottomRois = bottomRoisBeginning + realRois * 5;
-            int roiBatchInd = static_cast<int>(bottomRois[0]);
+            int roiBatchInd = static_cast<int>(bottomRoisBeginning[realRois * 5]);
             if (roiBatchInd == -1) {
                 break;
             }
@@ -136,136 +361,16 @@ public:
             channelsEachClass /= numClasses;
         }
 
-        size_t numBins = spatialBinsX * spatialBinsY;
-
-        parallel_for(realRois, [&](int n) {
-            const float *bottomRois = bottomRoisBeginning + n * 5;
+        parallel_for(realRois, [&](int currentRoi) {
+            const float *bottomRois = bottomRoisBeginning + currentRoi * 5;
             int roiBatchInd = static_cast<int>(bottomRois[0]);
-            float roiStartW = 0.0f;
-            float roiStartH = 0.0f;
-            float roiEndW   = 0.0f;
-            float roiEndH   = 0.0f;
-            float roiWidth   = 0.0f;
-            float roiHeight  = 0.0f;
+            float roiStartW = 0.0f, roiStartH = 0.0f, roiEndW = 0.0f, roiEndH = 0.0f, roiWidth = 0.0f, roiHeight = 0.0f;
 
-            size_t index = n*nc*nh*nw;
+            size_t index = currentRoi*nc*nh*nw;  // TODO
             if (mode == "average") {
-                roiStartW = static_cast<float>(round(bottomRois[1])) * spatialScale;
-                roiStartH = static_cast<float>(round(bottomRois[2])) * spatialScale;
-                roiEndW   = static_cast<float>(round(bottomRois[3]) + 1.0f) * spatialScale;
-                roiEndH   = static_cast<float>(round(bottomRois[4]) + 1.0f) * spatialScale;
-                // Force too small ROIs to be 1x1
-                roiWidth  = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
-                roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
-
-                for (int c = 0; c < nc; c++) {
-                    for (int h = 0; h < nh; h++) {
-                        for (int w = 0; w < nw; w++) {
-                            dstData[index] = 0;
-                            float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-                            float binSizeW = roiWidth / static_cast<float>(pooledWidth);
-
-                            int hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
-                            int hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
-
-                            hStart = std::min<int>(std::max<int>(hStart, 0), height);
-                            hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
-                            int wstart = static_cast<int>(floor(static_cast<float>(w + 0) * binSizeW + roiStartW));
-                            int wend = static_cast<int>(ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
-
-                            wstart = std::min<int>(std::max<int>(wstart, 0), width);
-                            wend = std::min<int>(std::max<int>(wend, 0), width);
-
-                            float binArea = static_cast<float>((hEnd - hStart) * (wend - wstart));
-                            if (binArea) {
-                                const int gc = (c * groupSize + h) * groupSize + w;
-                                const int blockResidual = gc % blockSize;
-                                const auto *bottomData =
-                                        srcData + ((roiBatchInd * channels + (gc / blockSize) * blockSize) * height * width);
-                                float outSum = 0.0f;
-                                const int heightIndexBound = hEnd * blockOffset;
-                                const int weightIndexBound = wend * blockSize;
-                                for (int hh = hStart * width * blockSize; hh < heightIndexBound; hh += blockOffset) {
-                                    for (int ww = wstart * blockSize; ww < weightIndexBound; ww += blockSize) {
-                                        outSum += bottomData[hh + ww + blockResidual];
-                                    }
-                                }
-                                dstData[index] = outSum / binArea;
-                            }
-                            index++;
-                        }
-                    }
-                }
+                executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
             } else if (mode == "bilinear") {
-                roiStartW = bottomRois[1] * spatialScale;
-                roiStartH = bottomRois[2] * spatialScale;
-                roiEndW = bottomRois[3] * spatialScale;
-                roiEndH = bottomRois[4] * spatialScale;
-                roiWidth  = roiEndW - roiStartW;
-                roiHeight = roiEndH - roiStartH;
-
-                for (int c = 0; c < nc; c++) {
-                    for (int h = 0; h < nh; h++) {
-                        for (int w = 0; w < nw; w++) {
-                            dstData[index] = 0;
-                            float accum = 0.0f;
-                            for (size_t binY = 0; binY < spatialBinsY; binY++) {
-                                for (size_t binX = 0; binX < spatialBinsX; binX++) {
-                                    float boxXmin = roiStartW + (binX + 0) * (roiWidth / spatialBinsX);
-                                    float boxXmax = roiStartW + (binX + 1) * (roiWidth / spatialBinsX);
-                                    float boxYmin = roiStartH + (binY + 0) * (roiHeight / spatialBinsY);
-                                    float boxYmax = roiStartH + (binY + 1) * (roiHeight / spatialBinsY);
-
-                                    size_t gc = c + (binY * spatialBinsX + binX) * nc;
-                                    const int blockResidual = gc % blockSize;
-                                    size_t srcIdx = (roiBatchInd * channels + (gc / blockSize) * blockSize) * height * width;
-                                    const auto *bottomData = srcData + srcIdx;
-
-                                    float heightScale = nh > 1 ? (boxYmax - boxYmin) * (height - 1) / (pooledHeight - 1)
-                                                               : 0.0f;
-                                    float widthScale = nw > 1 ? (boxXmax - boxXmin) * (width - 1) / (pooledWidth - 1)
-                                                              : 0.0f;
-
-                                    float inY = nh > 1 ? (h * heightScale + boxYmin * (height - 1))
-                                                       : 0.5f * (boxYmin + boxYmax) * (height - 1);
-                                    float inX = nw > 1 ? (w * widthScale + boxXmin * (width - 1))
-                                                       : 0.5f * (boxXmin + boxXmax) * (width - 1);
-
-                                    if (!(inY < 0 || inY > height - 1 || inX < 0 || inX > width - 1)) {
-                                        int topYIndex = static_cast<int>(floorf(inY));
-                                        int bottomYIndex = static_cast<int>(ceilf(inY));
-                                        int leftXIndex = static_cast<int>(floorf(inX));
-                                        int rightXIndex = static_cast<int>(ceilf(inX));
-
-                                        if (rightXIndex > width - 1)
-                                            rightXIndex = width - 1;
-
-                                        if (bottomYIndex > height - 1)
-                                            bottomYIndex = height - 1;
-
-                                        auto topLeftIndex = (topYIndex * width + leftXIndex) * blockSize + blockResidual;
-                                        auto topRightIndex = (topYIndex * width + rightXIndex) * blockSize + blockResidual;
-                                        auto bottomLeftIndex = (bottomYIndex * width + leftXIndex) * blockSize + blockResidual;
-                                        auto bottomRightIndex = (bottomYIndex * width + rightXIndex) * blockSize + blockResidual;
-
-                                        const float topLeft = bottomData[topLeftIndex];
-                                        const float topRight = bottomData[topRightIndex];
-                                        const float bottomLeft = bottomData[bottomLeftIndex];
-                                        const float bottomRight = bottomData[bottomRightIndex];
-
-                                        const float top = topLeft + (topRight - topLeft) * (inX - leftXIndex);
-                                        const float bottom = bottomLeft + (bottomRight - bottomLeft) * (inX - leftXIndex);
-
-                                        accum += top + (bottom - top) * (inY - topYIndex);
-                                    }
-                                }
-                            }
-                            accum /= numBins;
-                            dstData[index] = accum;
-                            index++;
-                        }
-                    }
-                }
+                executeBilinear(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
             } else if (mode == "bilinear_deformable") {
                 roiStartW = static_cast<float>(round(bottomRois[1])) * spatialScale - 0.5f;
                 roiStartH = static_cast<float>(round(bottomRois[2])) * spatialScale - 0.5f;
@@ -290,10 +395,10 @@ public:
                             int partW = w * partSize / pooledWidth;
                             int classId = c / channelsEachClass;
                             float transX = noTrans ? 0 :
-                                            bottomTrans[(((n * numClasses + classId) * 2) * partSize + partH)
+                                            bottomTrans[(((currentRoi * numClasses + classId) * 2) * partSize + partH)
                                                         * partSize + partW] * transStd;
                             float transY = noTrans ? 0 :
-                                            bottomTrans[(((n * numClasses + classId) * 2 + 1) * partSize + partH)
+                                            bottomTrans[(((currentRoi * numClasses + classId) * 2 + 1) * partSize + partH)
                                                         * partSize + partW] * transStd;
 
                             float wStart = w * binSizeW + roiStartW + transX * roiWidth;
@@ -339,8 +444,6 @@ public:
                 dstData[index] = 0;
             });
         }
-
-        return OK;
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
