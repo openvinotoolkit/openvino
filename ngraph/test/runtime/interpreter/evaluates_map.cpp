@@ -196,6 +196,7 @@ namespace
         const auto& out_shape = outputs[0]->get_shape();
         const auto& in_shape = inputs[0]->get_shape();
         const auto& filter_shape = inputs[1]->get_shape();
+        Strides unused; // can't be removed currently due to kmb-plugin dependency
         runtime::reference::convolution<typename element_type_traits<ET>::value_type>(
             in_data_ptr,
             filter_data,
@@ -206,7 +207,8 @@ namespace
             op->get_strides(),
             op->get_dilations(),
             op->get_pads_begin(),
-            op->get_pads_end());
+            op->get_pads_end(),
+            unused);
         return true;
     }
 

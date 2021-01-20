@@ -329,7 +329,8 @@ namespace ngraph
                              const Strides& strides,
                              const Strides& dilation,
                              const CoordinateDiff& pads_begin,
-                             const CoordinateDiff& pads_end)
+                             const CoordinateDiff& pads_end,
+                             const Strides&)
 
             {
                 const ConvolutionType type = [&]() {
