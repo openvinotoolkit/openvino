@@ -38,6 +38,18 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      sudo apt --assume-yes install libusb-1.0-0-dev
+      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
+      # For running Python API tests
+      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
+      # Speed up build
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
+      unzip ninja-linux.zip
+      sudo cp -v ninja /usr/local/bin/
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install dependencies'
+
+  - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
     displayName: 'Make dir'
@@ -56,6 +68,7 @@ jobs:
     inputs:
       # CMake must get Python 3.x version by default
       cmakeArgs: >
+        -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_VPU=OFF
         -DENABLE_GNA=OFF
