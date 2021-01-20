@@ -126,6 +126,7 @@ set(SRC
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dyn_reshape.cpp
+    type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
     type_prop/embeddingbag_offsetssum.cpp
