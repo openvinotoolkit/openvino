@@ -30,6 +30,8 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+target_compile_options(${TARGET_NAME} PRIVATE -march=native)
+
 if(COMMAND ie_faster_build)
     ie_faster_build(${TARGET_NAME}
         UNITY
