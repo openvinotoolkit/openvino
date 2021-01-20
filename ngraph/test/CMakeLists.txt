@@ -126,6 +126,7 @@ set(SRC
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dyn_reshape.cpp
+    type_prop/experimental_detectron_roi_feature_extractor.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
     type_prop/embeddingbag_offsetssum.cpp
@@ -357,7 +358,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
-            onnx/onnx_import_quant.in.cpp)
+            onnx/onnx_import_quant.in.cpp
+            onnx/onnx_test_utils.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp

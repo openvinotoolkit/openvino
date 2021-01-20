@@ -143,6 +143,7 @@ const std::vector<std::string> modeVector = {
 const std::vector<std::vector<size_t>> inputShapeVector = {
         SizeVector({ 2, 18, 20, 20 }),
         SizeVector({ 2, 4, 20, 20 }),
+        SizeVector({ 2, 4, 20, 40 }),
         SizeVector({ 10, 1, 20, 20 })
 };
 
