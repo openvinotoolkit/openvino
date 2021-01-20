@@ -30,6 +30,8 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
+    INSTALL_DIR: $(WORK_DIR)/install_pkg
+    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
 
   steps:
   - script: |
@@ -52,10 +54,10 @@ jobs:
     displayName: 'System info'
 
   - script: |
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+      echo TargetBranch: $(System.PullRequest.TargetBranch)
+      echo SourceBranch: $(Build.SourceBranch)
     displayName: 'Make dir'
 
   - checkout: self
@@ -111,6 +113,10 @@ jobs:
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List files'
+
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install'
 
   - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
