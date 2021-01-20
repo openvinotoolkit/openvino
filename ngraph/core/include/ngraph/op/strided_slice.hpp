@@ -34,8 +34,8 @@ namespace ngraph
             class NGRAPH_API StridedSlice : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"StridedSlice", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 StridedSlice() = default;
 
                 /// \brief Constructs a dynamic tensor strided slice operation.
