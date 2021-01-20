@@ -152,7 +152,7 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> V1
 
         // if external_port_id < 0 it means that this body result isn't connected to the Loop output
         // and is used only for internal needs. For TensorIterator external_port_id is always > 0.
-        if (std::stoi(XMLParseUtils::GetStrAttr(xml_output, "external_port_id", "")) >= 0) {
+        if (XMLParseUtils::GetInt64Attr(xml_output, "external_port_id") >= 0) {
             // if axis is set, then concatenation is enabled. Create ngraph::TensorIterator::ConcatOutput.
             if (!axis_attr.empty()) {
                 int64_t axis = XMLParseUtils::GetInt64Attr(xml_output, "axis");
