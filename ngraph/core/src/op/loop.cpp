@@ -172,13 +172,16 @@ void op::v5::Loop::validate_and_infer_types()
     // the inputs.
     // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
     size_t input_offset = 2;
-    for (const auto& in_desc : m_input_descriptions) {
-        if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1) {
+    for (const auto& in_desc : m_input_descriptions)
+    {
+        if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1)
+        {
             input_offset--;
         }
     }
     // input_offset is 0 when count number of indexes 0 or 1 for input description is more than 2.
-    if (input_offset < 0) {
+    if (input_offset < 0)
+    {
         input_offset = 0;
     }
 
@@ -321,13 +324,16 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     // the inputs.
     // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
     size_t input_offset = 2;
-    for (const auto& in_desc : m_input_descriptions) {
-        if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1) {
+    for (const auto& in_desc : m_input_descriptions)
+    {
+        if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1)
+        {
             input_offset--;
         }
     }
     // input_offset is 0 when count number of indexes 0 or 1 for input description is more than 2.
-    if (input_offset < 0) {
+    if (input_offset < 0)
+    {
         input_offset = 0;
     }
     // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body
