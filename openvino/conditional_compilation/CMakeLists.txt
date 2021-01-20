@@ -29,7 +29,8 @@ if(SELECTIVE_BUILD STREQUAL "COLLECT")
     include(FetchContent)
     FetchContent_Declare(
         ext_seapi
-        GIT_REPOSITORY https://github.com/intel/IntelSEAPI.git
+        GIT_REPOSITORY  https://github.com/intel/IntelSEAPI.git
+        GIT_TAG         7997a782fd3fa5621e275bd31060f9795564e6ca
         )
 
     FetchContent_GetProperties(ext_seapi)
