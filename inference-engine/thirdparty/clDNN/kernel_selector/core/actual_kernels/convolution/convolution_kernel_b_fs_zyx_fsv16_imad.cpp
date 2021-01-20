@@ -65,188 +65,201 @@ namespace kernel_selector {
 
 Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams
 Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
-    constexpr float max_reg_pressure = 0.75f;
 
-    // TODO Investigate whether below algorithm for selecting optimal block params could be reduced to:
-    //      1. Enumerate possible block params as optimization space
-    //      2. Prune invalid params (too high register pressure, too big local memory usage)
-    //      3. Rank params according to some combination of:
-    //         - compute/memory ratio
-    //         - occupancy
-    //         - register pressure
-    //         - local memory usage
-    //      4. Select params with highest rank
+    size_t max_block_width = getOutBlock_X(params.output.X().v, params.stride.x, params.filterSize.x, params.dilation.x);
+    size_t max_in_block_width = (max_block_width - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
 
-    // Select optimal block width
-    size_t block_width = getOutBlock_X(params.output.X().v, params.stride.x, params.filterSize.x, params.dilation.x);
+    size_t block_width = max_block_width;
+    if (max_block_width > 1) {
+        for (size_t w = max_block_width; w >= CeilDiv(max_block_width, 2); w -= 1) {
+            if (params.output.X().v % w == 0) {
+                block_width = w;
+                break;
+            }
+        }
+    }
+
     size_t in_block_width = (block_width - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
-
-    // If possible increase features block size
     size_t block_features = simd;
-    {
-        size_t tmp_block_features = simd * 2;
-        auto block2_params = BlockParams{ block_width, 1, 1, tmp_block_features, in_block_width, 1, 1, 1 };
-
-        bool c_mul_f = params.weights.OFM().v % tmp_block_features == 0;
-        bool c_reg_pressure = EstimateRegPressure(params, block2_params) <= max_reg_pressure;
-
-        if (c_mul_f && c_reg_pressure) {
-            block_features = tmp_block_features;
-        }
-    }
-
-    // If not enough occupancy try to perform feature split or/and block reduction
     size_t feature_slm_split = 1;
-
-    auto no_split_params = BlockParams{ block_width, 1, 1, block_features, in_block_width, 1, 1, 1 };
-
-    if (EstimateOccupancy(params, no_split_params) < 1.f) {
-        // Temporary variables for possible reductions in block sizes
-        bool update_block_params = false;
-        size_t split_block_width = block_width;
-        size_t split_in_block_width = in_block_width;
-        size_t split_block_features = block_features;
-
-        // Feature split requires extra registers, so check if it can be done with current block sizes
-        bool can_split =
-            EstimateRegPressure(params, BlockParams{ block_width, 1, 1, block_features, in_block_width, 1, 1, 2 }) <= max_reg_pressure;
-
-        // Has the occupancy reached sufficient level
-        bool enough_occupancy = false;
-        // Reductions to reduce register pressure
-        // Try to reduce block width to free some registers. Good compute/memory ratio will be pointless if barely any threads will run.
-        if (!can_split && block_width != 1) {
-            // At most twice reduction in output block width is acceptable
-            for (size_t w = block_width; w >= CeilDiv(block_width, 2); w -= 1) {
-                size_t tmp_in_width = (w - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
-                auto dummy_split_params = BlockParams{ w, 1, 1, block_features, tmp_in_width, 1, 1, 2 };
-
-                bool c_reg_pressure = EstimateRegPressure(params, dummy_split_params) <= max_reg_pressure;
-                bool c_mul_x = params.output.X().v % w == 0;
-
-                if (c_reg_pressure && c_mul_x) {
-                    split_block_width = w;
-                    split_in_block_width = tmp_in_width;
-                    can_split = true;
-                    break;
-                }
-            }
-        }
-        // Try to reduce block features.
-        // Done after attempting block width reduction, because bigger feature block allows more threads to write results in parallel.
-        if (!can_split) {
-            if (block_features / simd % 2 == 0) {
-                split_block_features = block_features / 2;
-                can_split = true;
-            }
-        }
-        // Check if previous reductions haven't improved occupancy enough
-        {
-            auto reduced_params = BlockParams{ split_block_width, 1, 1, split_block_features, split_in_block_width, 1, 1, 1 };
-            enough_occupancy = EstimateOccupancy(params, reduced_params) >= 1.f;
-            update_block_params = enough_occupancy;
-        }
-
-        if (can_split && !enough_occupancy) {
-            // TODO Try other split sizes
-            for (size_t split = 4; split < 5; ++split) {
-                auto tmp_params = BlockParams{ block_width, 1, 1, block_features, in_block_width, 1, 1, split };
-
-                bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
-                bool c_slm = EstimateSLMUsage(params, tmp_params) <= 1.f;
-                bool c_lws = split * simd <= params.engineInfo.maxWorkGroupSize;
-                bool c_reg_pressure = EstimateRegPressure(params, tmp_params) <= max_reg_pressure;
-                bool c_occupancy = EstimateOccupancy(params, tmp_params) >= 1.f;
-
-                if (c_ifm_mul && c_slm && c_lws && c_reg_pressure) {
-                    feature_slm_split = split;
-                    update_block_params = true;
-                    enough_occupancy = c_occupancy;
-                }
-
-                // slm usage and work group sizes will only grow with split, so no point in checking
-                if (!c_slm || !c_lws || split * fsv >= params.weights.IFM().v)
-                    break;
-            }
-        }
-        // Splitting was not sufficient or couldn't be done
-        // Try to reduce block width if hasn't been done before
-        if (!enough_occupancy && split_block_width == block_width && block_width != 1) {
-            // At most twice reduction in output block width is acceptable
-            for (size_t w = block_width; w >= CeilDiv(block_width, 2); w -= 1) {
-                size_t tmp_in_width = (w - 1) * params.stride.x + (params.filterSize.x - 1) * params.dilation.x + 1;
-                auto tmp_params = BlockParams{ w, 1, 1, split_block_features, tmp_in_width, 1, 1,  feature_slm_split };
-
-                bool c_occupancy = EstimateOccupancy(params, tmp_params) >= 1.f;
-                bool c_mul_x = params.output.X().v % w == 0;
-
-                if (c_mul_x) {
-                    split_block_width = w;
-                    split_in_block_width = tmp_in_width;
-                    update_block_params = true;
-                }
-                // Reached enough occupancy, don't reduce futher to not hurt compute/mem ratio
-                if (c_mul_x && c_occupancy)
-                    break;
-            }
-        }
-        if (update_block_params) {
-            block_width = split_block_width;
-            in_block_width = split_in_block_width;
-            block_features = split_block_features;
-        }
-    }
-
-    // Select biggest block height and depth that fits into registers
     size_t block_height = 1;
     size_t block_depth = 1;
     size_t in_block_height = 1;
     size_t in_block_depth = 1;
 
-    bool break_external_loop = false;
+    // Estimate basic block params ratio
+    auto test_block_params = BlockParams{ block_width, 1, 1, simd, in_block_width, 1, 1, 1 };
+    auto best_block_params_ratio = EstimateBlockParamsRatio(params, test_block_params);
 
-    for (size_t d = 1; d < 16; ++d) {
-        if (params.output.Z().v % d != 0)
-            continue;
-        for (size_t h = 2; h < 16; ++h) {
-            if (params.output.Y().v % h != 0)
-                continue;
-            size_t tmp_in_block_depth = (d - 1) * params.stride.z + (params.filterSize.z - 1) * params.dilation.z + 1;
-            size_t tmp_in_block_height = (h - 1) * params.stride.y + (params.filterSize.y - 1) * params.dilation.y + 1;
-            auto tmp_params = BlockParams{ block_width, h, d, block_features, in_block_width, tmp_in_block_height, tmp_in_block_depth, feature_slm_split };
+    size_t max_slm_split = params.engineInfo.maxWorkGroupSize / simd;
 
-            bool c_reg_pressure = EstimateRegPressure(params, tmp_params) <= max_reg_pressure;
-            bool c_occupancy = EstimateOccupancy(params, tmp_params) >= 1.f;
-            bool c_slm = EstimateSLMUsage(params, tmp_params) <= 1.f;
+    // TGLU exceptions related to SLM usage
+    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.computeUnitsCount == 96) {
+        bool split_exception_1 = params.output.X().v == 3 && params.output.Y().v == 3 && params.output.Z().v == 1 && params.output.Feature().v == 512;
+        bool split_exception_2 = params.output.X().v == 5 && params.output.Y().v == 5 && params.output.Z().v == 1 && params.output.Feature().v == 256;
+        bool split_exception_3 = params.output.X().v == 9 && params.output.Y().v == 9 && params.output.Z().v == 1 && params.output.Feature().v == 128;
+        bool split_exception_4 = params.output.X().v == 18 && params.output.Y().v == 18 && params.output.Z().v == 1 && params.output.Feature().v == 64;
 
-            if (c_reg_pressure && c_occupancy && c_slm) {
-                block_height = h;
-                block_depth = d;
-                in_block_height = tmp_in_block_height;
-                in_block_depth = tmp_in_block_depth;
+        if (split_exception_1 || split_exception_2 || split_exception_3 || split_exception_4)
+            max_slm_split = 2;
+    }
+
+    // Check ratio in cycle for all available block params
+    for (size_t w = 0; w < 2; w++) {
+        size_t temp_block_width = block_width;
+        size_t temp_in_block_width = in_block_width;
+
+        if (w == 1) {
+            if (max_block_width > 1) {
+                temp_block_width = max_block_width;
+                temp_in_block_width = max_in_block_width;
             } else {
-                break_external_loop = true;
                 break;
             }
         }
 
-        if (break_external_loop) {
-            break;
+        for (size_t split = 1; split <= max_slm_split; split *= 2) {
+            for (size_t temp_block_features = simd; temp_block_features <= simd * 2; temp_block_features += simd) {
+                for (size_t d = 1; d < 16; ++d) {
+                    if (params.output.Z().v % d)
+                        continue;
+                    for (size_t h = 1; h < 16; ++h) {
+                        if (params.output.Y().v % h)
+                            continue;
+
+                        bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
+                        bool c_mul_f = temp_block_features == simd ? true : params.weights.OFM().v % temp_block_features == 0;
+
+                        size_t temp_block_height = 1;
+                        size_t temp_block_depth = 1;
+                        size_t temp_in_block_height = 1;
+                        size_t temp_in_block_depth = 1;
+
+                        if (h != 1) {
+                            temp_block_height = h;
+                            temp_block_depth = d;
+                            temp_in_block_height = (h - 1) * params.stride.y + (params.filterSize.y - 1) * params.dilation.y + 1;
+                            temp_in_block_depth = (d - 1) * params.stride.z + (params.filterSize.z - 1) * params.dilation.z + 1;
+                        }
+
+                        // Estimate current block params ratio
+                        test_block_params = BlockParams{ temp_block_width, temp_block_height, temp_block_depth, temp_block_features,
+                                                         temp_in_block_width, temp_in_block_height, temp_in_block_depth, split };
+                        auto block_params_ratio = EstimateBlockParamsRatio(params, test_block_params);
+
+                        // Try to increase block_params_ratio
+                        if (c_ifm_mul && c_mul_f && block_params_ratio > best_block_params_ratio) {
+                            best_block_params_ratio = block_params_ratio;
+
+                            // Update block params if current ratio is better than previous
+                            block_width = temp_block_width;
+                            block_height = temp_block_height;
+                            block_depth = temp_block_depth;
+                            block_features = temp_block_features;
+
+                            in_block_width = temp_in_block_width;
+                            in_block_height = temp_in_block_height;
+                            in_block_depth = temp_in_block_depth;
+                            feature_slm_split = split;
+                        }
+                    }
+                }
+            }
+            if (split * fsv >= params.weights.IFM().v)
+                break;
         }
     }
 
     return BlockParams{ block_width, block_height, block_depth, block_features, in_block_width, in_block_height, in_block_depth, feature_slm_split };
 }
 
+float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) const {
+    float occupancy_by_logic_size = static_cast<float>(params.output.LogicalSize() / static_cast<size_t>(params.engineInfo.maxThreadsPerDevice));
+    bool increase_max_reg_pressure = occupancy_by_logic_size >= 595.f;
+    bool twice_increase_max_reg_pressure = occupancy_by_logic_size >= 595.f * 2.f;
+    float max_reg_pressure = twice_increase_max_reg_pressure ? 0.785f : increase_max_reg_pressure ? 0.75f : 0.7f;
+
+    constexpr float max_occupancy = 2.f;
+    constexpr float max_slm_usage = 1.f;
+
+    // Estimate occupancy, slm usage and register pressure
+    float occupancy = EstimateOccupancy(params, block);
+    float slm_usage = EstimateSLMUsage(params, block);
+    float reg_pressure = EstimateRegPressure(params, block);
+
+    // Estimate fb32 usage factor
+    auto& output = params.output;
+    float feature_block_32 = static_cast<float>(block.output_block_features == 32);
+    float fb32_factor = -5.f;
+    if (params.engineInfo.deviceType == dev_type::discrete_gpu && params.engineInfo.bIMADSupport) {
+        // Known cases where fb32 for discrete GPU works better
+        bool fb32_exception_1 = output.X().v % 13 == 0 && output.X().v * output.Feature().v == 13312;
+        bool fb32_exception_2 = (output.X().v % 28 == 0 && output.X().v * output.Feature().v == 14336) || (output.X().v == 14 && output.Feature().v == 512);
+        bool fb32_exception_3 = (output.X().v == 5 || output.X().v == 9) && output.Feature().v == 128;
+        bool fb32_exception_4 = output.X().v == 18 && output.Feature().v == 64;
+        bool fb32_exception_5 = output.X().v == 37 && output.Feature().v == 512;
+        bool fb32_exception_6 = output.X().v == 17 && output.Feature().v == 256;
+
+        // Accumulate exceptions for z == 1
+        bool fb32_exceptions = fb32_exception_1 || fb32_exception_2 || fb32_exception_3 || fb32_exception_4 || fb32_exception_5 || fb32_exception_6;
+
+        // Exception for z != 1
+        bool fb32_exception_z = output.X().v == output.Y().v && output.X().v % 28 == 0 && output.Z().v == 40 && output.Feature().v % 32 == 0;
+
+        if ((output.X().v == output.Y().v && output.Z().v == 1 && fb32_exceptions) || fb32_exception_z)
+            fb32_factor = 1.f;
+    } else if (occupancy_by_logic_size >= 2500.f) {
+        fb32_factor = 0.5f;
+    }
+
+    // We use arctangens function below for estimation of reg_pressure_factor and slm_usage_factor because arctangens
+    // is a symmetric function with positive values for x > 0 (we are only interested in positive values because
+    // the occupancy is always a positive value). For low occupancy (e.g. < 1) we shouldn't concentrate our attention on
+    // reg_pressure_factor and slm_usage_factor because target №1 in these cases is the occupancy increase. So for occupancy < 1
+    // reg_pressure factor and slm_usage_factor are enough low and they grow with growth of occupancy. Pi number (3.14159f)
+    // is a scaling coefficient for setting function values in range [0; 0.5f].
+    float reg_pressure_factor = atanf(occupancy) / 3.14159f;
+    float slm_usage_factor = atanf(occupancy) / 3.14159f;
+
+    size_t cur_increase_occupancy_coeff = (block.output_block_features == fsv ? 2 : 1) * block.feature_slm_split;
+    size_t max_increase_occupancy_coeff = 2 * params.engineInfo.maxWorkGroupSize / simd;
+    float can_increase_occupancy_coeff = static_cast<float>(max_increase_occupancy_coeff) / static_cast<float>(cur_increase_occupancy_coeff);
+
+    // We should check if there is a possibility for increase of occupancy if occupancy is less than 1.0
+    auto c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % (params.engineInfo.maxWorkGroupSize / simd) == 0;
+    auto can_increase_occupancy = (occupancy * can_increase_occupancy_coeff >= 1.0f) && c_ifm_mul;
+
+    float reduce_occupancy = 0.0f;
+    if (occupancy > max_occupancy) {
+        reduce_occupancy = log10f(occupancy - max_occupancy);
+        occupancy = max_occupancy;
+    }
+
+    // Estimate current block_params_ratio
+    float block_params_ratio = occupancy +
+                               feature_block_32 * fb32_factor +
+                               slm_usage * slm_usage_factor +
+                               reg_pressure * reg_pressure_factor -
+                               reduce_occupancy;
+
+    // Check all restrictions
+    bool bad_block_params = reg_pressure > max_reg_pressure || slm_usage > max_slm_usage || (occupancy < 1.0f && can_increase_occupancy);
+
+    return bad_block_params ? -10.f : block_params_ratio;
+}
+
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateRegPressure(const convolution_params& params, const BlockParams& block) const {
     size_t bytes_used = 0;
-    // accumulator
+
+    // Accumulator
     size_t accumulator_elements = block.output_block_width * block.output_block_height * block.output_block_depth * block.output_block_features;
     bytes_used += accumulator_elements * BytesPerElement(GetAccumulatorType(params));
-    // input block
+
+    // Input block
     size_t input_block_elements = block.input_block_depth * block.input_block_height * Align(block.input_block_width, simd) * fsv;
     bytes_used += input_block_elements * BytesPerElement(params.inputs[0].GetDType());
-    // weights block
+
+    // Weights block
     size_t weights_block_elements = block.output_block_features * fsv;
     bytes_used += weights_block_elements * BytesPerElement(params.weights.GetDType());
 
@@ -275,22 +288,60 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolutio
     size_t block_b = params.output.Batch().v;
 
     auto threads = blocks_w * blocks_h * blocks_d * blocks_f * block_b;
-    constexpr size_t max_threads_per_cu = 7;
-    size_t compute_units = params.engineInfo.computeUnitsCount;
-    size_t max_threads = compute_units * max_threads_per_cu;
 
-    return static_cast<float>(threads) / static_cast<float>(max_threads);
+    return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const {
-    size_t slm_elements = block.output_block_width * block.output_block_height * block.output_block_depth *
-                          block.output_block_features * (block.feature_slm_split - 1);
-    size_t slm_bytes = slm_elements * BytesPerElement(GetAccumulatorType(params));
+    if (block.feature_slm_split == 1)
+        return 0.f;
 
-    // TODO:  Actual maximum slm should also depend on number of work-groups, but this is device specific
-    size_t max_slm_bytes = params.engineInfo.maxLocalMemSize;
+    size_t slm_elements_per_work_group = block.output_block_width * block.output_block_height * block.output_block_depth *
+                                         block.output_block_features * (block.feature_slm_split - 1);
+    size_t slm_bytes_per_work_group = slm_elements_per_work_group * BytesPerElement(GetAccumulatorType(params));
 
-    return static_cast<float>(slm_bytes) / static_cast<float>(max_slm_bytes);
+    // Check maxLocalMemSize limitations
+    size_t max_slm_bytes_per_sub_slice = params.engineInfo.maxLocalMemSize;
+    if (slm_bytes_per_work_group > max_slm_bytes_per_sub_slice)
+        return 0.f;
+
+    // Estimate work groups number
+    const auto& output = params.output;
+    size_t work_groups_number = CeilDiv(output.X().v, block.output_block_width) *
+                                CeilDiv(output.Y().v, block.output_block_height) *
+                                CeilDiv(output.Z().v, block.output_block_depth) *
+                                output.Batch().v *
+                                CeilDiv(params.weights.OFM().v, block.output_block_features) *
+                                params.groups;
+
+    // Check work groups per device limitations
+    size_t max_threads_per_compute_unit = static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
+    constexpr size_t max_compute_units_per_sub_slice = 8;
+    constexpr size_t max_work_groups_per_sub_slice = 16;
+    size_t max_sub_slices_per_device = params.engineInfo.computeUnitsCount / max_compute_units_per_sub_slice;
+    size_t max_work_groups_per_device = max_sub_slices_per_device * max_work_groups_per_sub_slice;
+    if (work_groups_number > max_work_groups_per_device * 100)
+        return 0.f;
+
+    // Estimate work groups number in sub slice
+    size_t threads_per_work_group = block.feature_slm_split;
+    size_t threads_per_sub_slice = max_threads_per_compute_unit * max_compute_units_per_sub_slice;
+    size_t current_max_work_groups_per_sub_slice = threads_per_sub_slice / threads_per_work_group;
+    while (current_max_work_groups_per_sub_slice * slm_bytes_per_work_group > max_slm_bytes_per_sub_slice)
+        current_max_work_groups_per_sub_slice--;
+
+    // The best scenario for slm usage from the point of view of time spending is a case with 1 work group per sub slice
+    // due to time isn't spent on waiting of synchronizations between work groups in sub slice
+    if (current_max_work_groups_per_sub_slice == 1)
+        return 1.0;
+
+    // Estimate the size of the SLM memory used
+    float max_slm_bytes_per_work_group = static_cast<float>(max_slm_bytes_per_sub_slice) / static_cast<float>(current_max_work_groups_per_sub_slice);
+    max_slm_bytes_per_work_group = static_cast<float>(Align(static_cast<size_t>(max_slm_bytes_per_work_group), 1024));
+    if (max_slm_bytes_per_work_group * static_cast<float>(current_max_work_groups_per_sub_slice) > static_cast<float>(max_slm_bytes_per_sub_slice))
+        max_slm_bytes_per_work_group -= 1024.0;
+
+    return static_cast<float>(slm_bytes_per_work_group) / static_cast<float>(max_slm_bytes_per_work_group);
 }
 
 ParamsKey Convolution_kernel_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
