@@ -85,7 +85,9 @@ const std::vector<std::string> list_of_names {
 
 class XmlSerializer {
 public:
-    explicit XmlSerializer(pugi::xml_node &xml_node) : m_xml_node{xml_node} {}
+    explicit XmlSerializer(pugi::xml_node &xml_node)
+        : m_xml_node(xml_node) {
+    }
 
     void serialize(const ngraph::Node::RTMap& rt_info) {
         for (const auto& rt_info_name : list_of_names) {
