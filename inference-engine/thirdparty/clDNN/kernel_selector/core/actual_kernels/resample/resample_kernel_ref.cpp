@@ -91,7 +91,7 @@ static bool use_packing(const resample_params& params) {
     auto packed_work_items = params.output.X().v * params.output.Y().v * params.output.Z().v
         * CeilDiv(params.output.Feature().v, pack) * params.output.Batch().v;
     // TODO Loosen this requirement to minimum EUs needed to saturate cache bandwidth
-    constexpr size_t max_work_items_per_eu = 32 * 7;
+    size_t max_work_items_per_eu = 32 * static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
     auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
 
     if (packed_work_items < minimum_work_items)

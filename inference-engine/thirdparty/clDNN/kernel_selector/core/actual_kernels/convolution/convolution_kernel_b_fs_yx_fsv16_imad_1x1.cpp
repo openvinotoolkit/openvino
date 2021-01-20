@@ -340,11 +340,8 @@ float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateOccupancy(const convolu
     size_t block_b = params.output.Batch().v;
 
     auto threads = blocks_s * blocks_f * block_b;
-    constexpr size_t max_threads_per_cu = 7;
-    size_t compute_units = params.engineInfo.computeUnitsCount;
-    size_t max_threads = compute_units * max_threads_per_cu;
 
-    return static_cast<float>(threads) / static_cast<float>(max_threads);
+    return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
 float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateSLMUsage(const convolution_params& params, const AutoTuneParams& tparams) const {
