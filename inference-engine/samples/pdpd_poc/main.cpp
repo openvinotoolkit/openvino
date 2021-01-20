@@ -18,7 +18,6 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#include "benchmark_app.hpp"
 #include "framework.pb.h"
 
 #include <ngraph/ngraph.hpp>
