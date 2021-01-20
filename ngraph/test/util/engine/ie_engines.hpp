@@ -90,36 +90,10 @@ namespace ngraph
             void add_expected_output(const ngraph::Shape& expected_shape,
                                      const std::vector<T>& values)
             {
-                std::string network_out_name;
-                InferenceEngine::DataPtr network_output;
-                if (m_function->get_results().size() == 1)
-                {
-                    network_out_name = m_network_outputs.begin()->first;
-                    network_output = m_network_outputs.begin()->second;
-                }
-                else
-                {
-                    const auto& function_output =
-                        m_function->get_results()[m_allocated_expected_outputs];
-
-                    // determine output name in IE convention
-                    // (based on name of node which produces the result)
-                    const auto& prev_layer = function_output->input_value(0);
-                    network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
-                    if (prev_layer.get_node_shared_ptr()->get_output_size() != 1)
-                    {
-                        network_out_name += "." + std::to_string(prev_layer.get_index());
-                    }
-
-                    NGRAPH_CHECK(
-                        m_network_outputs.count(network_out_name) == 1,
-                        "nGraph function's output number ",
-                        m_allocated_expected_outputs,
-                        " was not found in the CNNNetwork built from it. Function's output name: ",
-                        network_out_name);
-
-                    network_output = m_network_outputs[network_out_name];
-                }
+                const auto& function_output =
+                    m_function->get_results()[m_allocated_expected_outputs];
+                std::string network_out_name = get_output_name(function_output);
+                InferenceEngine::DataPtr network_output = m_network_outputs[network_out_name];
 
                 auto blob =
                     std::make_shared<InferenceEngine::TBlob<T>>(network_output->getTensorDesc());
@@ -158,6 +132,9 @@ namespace ngraph
 
             /// Retrieves a set of all ops IE can execute
             std::set<NodeTypeInfo> get_ie_ops() const;
+
+            // Get IE blob which corresponds to result of nG Function
+            std::string get_output_name(const std::shared_ptr<op::v0::Result>& ng_result);
         };
 
         class IE_CPU_Engine final : public IE_Engine

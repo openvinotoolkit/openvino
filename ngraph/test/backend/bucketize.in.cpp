@@ -56,16 +56,16 @@ NGRAPH_TEST(${BACKEND_NAME}, bucketize_left_edge)
 
     const auto data = make_shared<op::Parameter>(element::i32, data_shape);
     const auto buckets = make_shared<op::Parameter>(element::f32, bucket_shape);
-    const auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::i64, false);
+    const auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::i32, false);
     const auto f = make_shared<Function>(bucketize, ParameterVector{data, buckets});
 
     vector<int32_t> data_vect = {8, 1, 2, 1, 8, 5, 1, 5, 0, 20};
     vector<float> buckets_vect = {1.f, 4.f, 10.f, 20.f};
-    vector<int> expected_vect = {2, 1, 1, 1, 2, 2, 1, 2, 0, 4};
+    vector<int32_t> expected_vect = {2, 1, 1, 1, 2, 2, 1, 2, 0, 4};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int32_t>(data_shape, data_vect);
     test_case.add_input<float>(bucket_shape, buckets_vect);
-    test_case.add_expected_output<int>(data_shape, expected_vect);
+    test_case.add_expected_output<int32_t>(data_shape, expected_vect);
     test_case.run();
 }
