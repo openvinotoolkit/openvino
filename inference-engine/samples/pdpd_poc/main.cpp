@@ -18,7 +18,7 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#include "framework.pb.h"
+#include <framework.pb.h>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -49,81 +49,83 @@ bool endsWith(std::string str, std::string suffix) {
 }
 
 protobuf::RepeatedField<protobuf::int32> get_ints(proto::OpDesc op, std::string name,
-    protobuf::RepeatedField<protobuf::int32> default = protobuf::RepeatedField<protobuf::int32>()) {
+    protobuf::RepeatedField<protobuf::int32> def = protobuf::RepeatedField<protobuf::int32>()) {
+    std::cout << "Running get_ints" << std::endl;
     std::vector<proto::OpDesc_Attr> attrs;
     for (const auto& attr : op.attrs()) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
+    std::cout << "Attrs preprocessed" << std::endl;
     if (attrs.size() == 0) {
-        return default;
+        return def;
     } else if (attrs.size() > 1) {
         // TODO: raise exception here
-        return default;
+        return def;
     } else {
         return attrs[0].ints();
     }
 }
 
-int get_int(proto::OpDesc op, std::string name, int default = 0) {
+int get_int(proto::OpDesc op, std::string name, int def = 0) {
     std::vector<proto::OpDesc_Attr> attrs;
     for (const auto& attr : op.attrs()) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
     if (attrs.size() == 0) {
-        return default;
+        return def;
     } else if (attrs.size() > 1) {
         // TODO: raise exception here
-        return default;
+        return def;
     } else {
         return attrs[0].i();
     }
 }
 
-float get_float(proto::OpDesc op, std::string name, float default = 0.) {
+float get_float(proto::OpDesc op, std::string name, float def = 0.) {
     std::vector<proto::OpDesc_Attr> attrs;
     for (const auto& attr : op.attrs()) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
     if (attrs.size() == 0) {
-        return default;
+        return def;
     } else if (attrs.size() > 1) {
         // TODO: raise exception here
-        return default;
+        return def;
     } else {
         return attrs[0].f();
     }
 }
 
-std::string get_str(proto::OpDesc op, std::string name, std::string default = "") {
+std::string get_str(proto::OpDesc op, std::string name, std::string def = "") {
     std::vector<proto::OpDesc_Attr> attrs;
     for (const auto& attr : op.attrs()) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
     if (attrs.size() == 0) {
-        return default;
+        return def;
     } else if (attrs.size() > 1) {
         // TODO: raise exception here
-        return default;
+        return def;
     } else {
         return attrs[0].s();
     }
 }
 
-bool get_bool(proto::OpDesc op, std::string name, bool default = false) {
+bool get_bool(proto::OpDesc op, std::string name, bool def = false) {
     std::vector<proto::OpDesc_Attr> attrs;
     for (const auto& attr : op.attrs()) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
     if (attrs.size() == 0) {
-        return default;
+        return def;
     } else if (attrs.size() > 1) {
         // TODO: raise exception here
-        return default;
+        return def;
     } else {
         return attrs[0].b();
     }
@@ -134,6 +136,7 @@ typedef std::shared_ptr<ngraph::Node>(*CreatorFunction)(std::map<std::string, st
 
 std::shared_ptr<ngraph::Node> conv2d_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
     proto::OpDesc op, proto::BlockDesc block) {
+    std::cout << "Running conv2d creator" << std::endl;
     assert(inputs["Input"].size() == 1);
     auto data = inputs["Input"][0];
     assert(inputs["Filter"].size() == 1);
@@ -144,6 +147,7 @@ std::shared_ptr<ngraph::Node> conv2d_creator(std::map<std::string, std::vector<s
     auto strides = get_ints(op, "strides");
     auto paddings = get_ints(op, "paddings");
     auto dilations = get_ints(op, "dilations");
+    std::cout << "Creating convolution node" << std::endl;
     return std::make_shared<ngraph::opset6::Convolution>(data,
         filter,
         ngraph::Strides(strides.begin(), strides.end()),
@@ -197,7 +201,7 @@ std::shared_ptr<ngraph::Node> pool2d_creator(std::map<std::string, std::vector<s
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, { 2 }, { 2, 3 });
         return std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true);
     } else {
-        throw std::exception("Unsupported pooling type");
+        throw std::runtime_error("Unsupported pooling type");
     }
 }
 
@@ -224,7 +228,7 @@ std::shared_ptr<ngraph::Node> mul_creator(std::map<std::string, std::vector<std:
         auto shape = std::make_shared<ngraph::opset6::ShapeOf>(x);
         int64_t x_num_col_dims = get_int(op, "x_num_col_dims");
         auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, {}, { 0 });
-        auto split_lengths = ngraph::opset6::Constant::create(ngraph::element::i64, {2}, { x_num_col_dims, x_rank - x_num_col_dims });
+        auto split_lengths = ngraph::opset6::Constant::create(ngraph::element::i64, { 2 }, { x_num_col_dims, x_rank - x_num_col_dims });
         auto split = std::make_shared<ngraph::opset6::VariadicSplit>(shape, axis, split_lengths);
         auto f_dim_red_axis = ngraph::opset6::Constant::create(ngraph::element::i64, {}, { 0 });
         auto first_dim_reduce = std::make_shared<ngraph::opset6::ReduceProd>(split->output(0), f_dim_red_axis);
@@ -253,6 +257,7 @@ std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, google::protobu
     std::map<std::string, std::shared_ptr<ngraph::Node>> nodes,
     paddle::framework::proto::OpDesc op,
     paddle::framework::proto::BlockDesc block) {
+    std::cout << "Making node: " << op.type() << std::endl;
     std::map<std::string, CreatorFunction> CREATORS_MAP{
         {"conv2d", conv2d_creator},
         {"batch_norm", batch_norm_creator},
@@ -275,6 +280,7 @@ std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, google::protobu
 }
 
 std::shared_ptr<ngraph::opset6::Constant> read_tensor(paddle::framework::proto::VarDesc var, std::string model_dir) {
+    std::cout << "Reading tensor " << var.name() << std::endl;
     assert(var.type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
     auto tensor = var.type().lod_tensor().tensor();
 
@@ -283,24 +289,26 @@ std::shared_ptr<ngraph::opset6::Constant> read_tensor(paddle::framework::proto::
     // get length of file:
     is.seekg(0, std::ios::end);
     auto length = is.tellg();
-    auto tensor_length = std::accumulate(tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>()) * 4;
-    is.seekg((size_t)length - tensor_length, std::ios::beg);
+    auto tensor_length = std::accumulate(tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
+    is.seekg((size_t)length - tensor_length * 4, std::ios::beg);
 
-    std::vector<float> tensor_data(tensor_length);
-    is.read(reinterpret_cast<char*>(&tensor_data[0]), tensor_length);
+    std::vector<float> tensor_data(tensor_length, 0);
+    is.read(reinterpret_cast<char*>(&tensor_data[0]), tensor_length * 4);
     auto shape = std::vector<size_t>(tensor.dims().cbegin(), tensor.dims().cend());
     return ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape(shape), tensor_data);
 }
 
-std::shared_ptr<ngraph::Function> convert_model(const std::string & model_dir) {
+std::shared_ptr<ngraph::Function> convert_model(const std::string& model_dir) {
+    std::cout << "Convert Model Start" << std::endl;
     paddle::framework::proto::ProgramDesc fw_model;
-    std::ifstream pb_stream(model_dir + "\\model", std::ios::binary);
-    fw_model.ParseFromIstream(&pb_stream);
+    std::ifstream pb_stream(model_dir + "/__model__", std::ios::binary);
+    std::cout << "Model Parsed: " << fw_model.ParseFromIstream(&pb_stream) << std::endl;
 
     std::map<std::string, std::shared_ptr<ngraph::Node>> nodes_dict;
     ngraph::ParameterVector parameter_nodes;
     ngraph::ResultVector result_nodes;
 
+    std::cout << "Blocks number: " << fw_model.blocks().size() << std::endl;
     const auto& global_block = fw_model.blocks()[0];
     for (const auto& var : global_block.vars()) {
         if (endsWith(var.name(), "feed") || endsWith(var.name(), "fetch"))
@@ -309,6 +317,7 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string & model_dir) {
             continue;
         nodes_dict[var.name()] = read_tensor(var, model_dir);
     }
+    std::cout << "Reading consts finished" << std::endl;
 
     for (const auto& block : fw_model.blocks()) {
         std::map<std::string, paddle::framework::proto::VarType> vars_dict;
@@ -327,14 +336,23 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string & model_dir) {
             }
             if (op.type() == "feed") {
                 auto layer_name = outputs_dict["Out"][0];
+                std::cout << "Creating parameter: " << layer_name << std::endl;
                 auto var = vars_dict[layer_name];
                 assert(var.type() == paddle::framework::proto::VarType::LOD_TENSOR);
                 auto tensor_desc = var.lod_tensor().tensor();
                 auto dtype = tensor_desc.data_type();
-                auto shape = std::vector<size_t>(tensor_desc.dims().cbegin(), tensor_desc.dims().cend());
+                std::vector<size_t> shape;
+                for (auto dim : tensor_desc.dims()) {
+                    if (dim >= 0) {
+                        shape.push_back(dim);
+                    } else {
+                        shape.push_back(1);
+                    }
+                }
                 auto param = std::make_shared<ngraph::opset6::Parameter>(TYPE_MAP[dtype], ngraph::Shape(shape));
                 nodes_dict[layer_name] = param;
                 parameter_nodes.push_back(param);
+                std::cout << "Parameter created" << std::endl;
             } else if (op.type() == "fetch") {
                 auto input_node = inputs_dict["X"][0];
                 assert(nodes_dict.find(input_node) != nodes_dict.end());
@@ -355,7 +373,7 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string & model_dir) {
 
 int main(int argc, char* argv[]) {
     try {
-        std::string model_path = "C:\\Dev\\resnet_v2_50_imagenet\\model";
+        std::string model_path = "/home/mvafin/.paddlehub/modules/resnet_v2_50_imagenet/model";
         auto func = convert_model(model_path);
     }
     catch (const std::exception& ex) {
