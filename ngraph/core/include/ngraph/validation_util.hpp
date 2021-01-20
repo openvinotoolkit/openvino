@@ -245,6 +245,10 @@ namespace ngraph
                                   const HostTensorVector& lower_output_values,
                                   const HostTensorVector& upper_output_values);
     NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
+    NGRAPH_API std::shared_ptr<op::Constant> get_constant_from_source(const Output<Node>& source);
+
+    NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);
+    NGRAPH_API std::shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t);
 
     namespace opset1
     {

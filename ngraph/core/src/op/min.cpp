@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <ngraph/validation_util.hpp>
 #include "ngraph/op/min.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
@@ -82,4 +83,24 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate);
     return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+}
+
+bool op::v1::ReduceMin::evaluate_lower(const HostTensorVector& output_values) const
+{
+    HostTensorPtr lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(input_value(1));
+    if (!lb || lb != ub)
+        return false; // axis is undefined
+
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::ReduceMin::evaluate_upper(const HostTensorVector& output_values) const
+{
+    HostTensorPtr lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(input_value(1));
+    if (!lb || lb != ub)
+        return false; // axis is undefined
+
+    return default_upper_bound_evaluator(this, output_values);
 }

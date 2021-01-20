@@ -1245,6 +1245,7 @@ HostTensorPtr ngraph::evaluate_bound(const Output<Node>& output, bool is_upper)
     if (could_propagate(output, order))
     {
         reverse(order.begin(), order.end());
+        // std::cout << "START:" << std::endl;
         for (const auto& node : order)
         {
             HostTensorVector outputs;
@@ -1268,6 +1269,11 @@ HostTensorPtr ngraph::evaluate_bound(const Output<Node>& output, bool is_upper)
                     if ((same_inputs || !is_upper) &&
                         node->get_output_tensor(i).get_lower_value() == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
+
+                    // std::cout << (is_upper ? "UPP " : "LOW ") << node << " VALUE: ";
+                    // for (const auto v : std::make_shared<op::Constant>(outputs[i])->cast_vector<float>())
+                    //     std::cout << v << ", ";
+                    // std::cout << std::endl;
                 }
             }
             else
@@ -1307,7 +1313,10 @@ bool ngraph::evaluate_as_partial_shape(const Output<Node>& output, PartialShape&
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i)
+        {
+            NGRAPH_CHECK(lower_bound[i] >= 0 && upper_bound[i] >= 0);
             resulting_pshape[i] = {lower_bound[i], upper_bound[i]};
+        }
         pshape = PartialShape(resulting_pshape);
         shape_defined = true;
     }
@@ -1339,7 +1348,7 @@ bool ngraph::default_upper_bound_evaluator(const Node* node, const HostTensorVec
     return default_bound_evaluator(node, output_values, true);
 }
 
-shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t)
+shared_ptr<op::Constant> ngraph::get_constant_max_of_type(element::Type_t t)
 {
 #define NGRAPH_TYPE_TO_MAX_CONST(t)                                                                \
     case t:                                                                                        \
@@ -1370,7 +1379,7 @@ shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t)
     }
 }
 
-shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t)
+shared_ptr<op::Constant> ngraph::get_constant_min_of_type(element::Type_t t)
 {
 #define NGRAPH_TYPE_TO_MIN_CONST(t)                                                                \
     case t:                                                                                        \
@@ -1401,6 +1410,20 @@ shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t)
     }
 }
 
+HostTensorPtr equality_mask(const HostTensorPtr& tensor, const shared_ptr<op::Constant>& constant)
+{
+    auto mask = std::make_shared<HostTensor>(element::boolean, tensor->get_shape());
+    op::v1::Equal().evaluate({mask}, {tensor, std::make_shared<HostTensor>(constant)});
+    return mask;
+}
+
+HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs)
+{
+    auto result = std::make_shared<HostTensor>(element::boolean, lhs->get_shape());
+    op::v1::LogicalOr().evaluate({result}, {lhs, rhs});
+    return result;
+}
+
 bool ngraph::interval_bound_evaluator(const Node* node,
                                       const HostTensorVector& lower_output_values,
                                       const HostTensorVector& upper_output_values)
@@ -1421,6 +1444,10 @@ bool ngraph::interval_bound_evaluator(const Node* node,
         for (const auto& input_tensor : variant_of_input_vector)
             if (input_tensor == nullptr)
                 return false;
+
+    if (input_variants.size() == 1)
+        return node->evaluate(upper_output_values, *input_variants.begin()) &&
+                node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
     std::vector<HostTensorVector> unsqueezed_output_variants;
@@ -1453,31 +1480,14 @@ bool ngraph::interval_bound_evaluator(const Node* node,
     if (input_0_maximum_value == nullptr || input_1_maximum_value == nullptr)
         return false;
 
-    auto input_0_low_dyn_mask = std::make_shared<HostTensor>(element::boolean, low_0->get_shape());
-    op::v1::Equal().evaluate({input_0_low_dyn_mask},
-                             {low_0, std::make_shared<HostTensor>(input_0_maximum_value)});
-    auto input_0_up_dyn_mask = std::make_shared<HostTensor>(element::boolean, up_0->get_shape());
-    op::v1::Equal().evaluate({input_0_up_dyn_mask},
-                             {up_0, std::make_shared<HostTensor>(input_0_maximum_value)});
-    auto input_1_low_dyn_mask = std::make_shared<HostTensor>(element::boolean, low_1->get_shape());
-    op::v1::Equal().evaluate({input_1_low_dyn_mask},
-                             {low_1, std::make_shared<HostTensor>(input_1_maximum_value)});
-    auto input_1_up_dyn_mask = std::make_shared<HostTensor>(element::boolean, up_1->get_shape());
-    op::v1::Equal().evaluate({input_1_up_dyn_mask},
-                             {up_1, std::make_shared<HostTensor>(input_1_maximum_value)});
+    auto input_0_low_dyn_mask = equality_mask(low_0, input_0_maximum_value);
+    auto input_0_up_dyn_mask = equality_mask(up_0, input_0_maximum_value);
+    auto input_1_low_dyn_mask = equality_mask(low_1, input_1_maximum_value);
+    auto input_1_up_dyn_mask = equality_mask(up_1, input_1_maximum_value);
 
-    auto input_0_dyn_mask = std::make_shared<HostTensor>(element::boolean, low_0->get_shape());
-    op::v1::LogicalOr().evaluate({input_0_dyn_mask}, {input_0_low_dyn_mask, input_0_up_dyn_mask});
-    auto input_1_dyn_mask = std::make_shared<HostTensor>(element::boolean, low_1->get_shape());
-    op::v1::LogicalOr().evaluate({input_1_dyn_mask}, {input_1_low_dyn_mask, input_1_up_dyn_mask});
-
-    auto final_input_dyn_mask_op =
-        std::make_shared<op::v1::LogicalOr>(std::make_shared<op::Constant>(input_0_dyn_mask),
-                                            std::make_shared<op::Constant>(input_1_dyn_mask));
-    auto final_input_dyn_mask =
-        std::make_shared<HostTensor>(final_input_dyn_mask_op->get_output_element_type(0),
-                                     final_input_dyn_mask_op->get_output_shape(0));
-    final_input_dyn_mask_op->evaluate({final_input_dyn_mask}, {input_0_dyn_mask, input_1_dyn_mask});
+    auto final_input_dyn_mask = or_tensor(
+            or_tensor(input_0_low_dyn_mask, input_0_up_dyn_mask),
+            or_tensor(input_1_low_dyn_mask, input_1_up_dyn_mask));
 
     bool fully_defined = true;
     for (size_t i = 0; i < num_of_outputs; ++i)
@@ -1551,4 +1561,13 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound)
         std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>();
     NGRAPH_CHECK(all[0].get_shape() == Shape{});
     return result[0];
+}
+
+shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& source)
+{
+    HostTensorPtr lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(source);
+    if (!lb || lb != ub)
+        return nullptr;
+    return std::make_shared<op::Constant>(ub);
 }

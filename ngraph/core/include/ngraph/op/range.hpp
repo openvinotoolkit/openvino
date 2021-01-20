@@ -54,6 +54,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
             private:
                 element::Type m_output_type;
@@ -89,6 +91,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
             };
         }
         using v0::Range;

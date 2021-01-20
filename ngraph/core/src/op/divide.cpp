@@ -112,25 +112,3 @@ bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorV
     NGRAPH_OP_SCOPE(v1_Divide_evaluate);
     return divide::evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
-
-bool op::v1::Divide::evaluate_upper(const HostTensorVector& output_values) const
-{
-    HostTensorVector lower_output_tensors;
-    for (const auto& output : output_values)
-        lower_output_tensors.push_back(
-            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
-    if (!interval_bound_evaluator(this, lower_output_tensors, output_values))
-        return false;
-    return true;
-}
-
-bool op::v1::Divide::evaluate_lower(const HostTensorVector& output_values) const
-{
-    HostTensorVector upper_output_tensors;
-    for (const auto& output : output_values)
-        upper_output_tensors.push_back(
-            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
-    if (!interval_bound_evaluator(this, output_values, upper_output_tensors))
-        return false;
-    return true;
-}

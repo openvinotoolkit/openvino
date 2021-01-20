@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <algorithm>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -110,9 +111,9 @@ void op::v4::Range::validate_and_infer_types()
                           "'step' input scalar should be a numeric type. Got: ",
                           get_input_element_type(2));
 
-    auto const_start = as_type_ptr<op::Constant>(this->input_value(0).get_node_shared_ptr());
-    auto const_stop = as_type_ptr<op::Constant>(this->input_value(1).get_node_shared_ptr());
-    auto const_step = as_type_ptr<op::Constant>(this->input_value(2).get_node_shared_ptr());
+    auto const_start = get_constant_from_source(input_value(0));
+    auto const_stop = get_constant_from_source(input_value(1));
+    auto const_step = get_constant_from_source(input_value(2));
 
     double start = 0;
     double stop = 0;
@@ -299,6 +300,27 @@ namespace rangeop
         }
         return rc;
     }
+
+    bool evaluate_bound(const Node* range_node,
+                        const HostTensorVector& output_values)
+    {
+        HostTensorPtr start_lb, start_ub;
+        std::tie(start_lb, start_ub) = evaluate_both_bounds(range_node->input_value(0));
+        if (!start_lb || start_lb != start_ub)
+            return false;
+
+        HostTensorPtr stop_lb, stop_ub;
+        std::tie(stop_lb, stop_ub) = evaluate_both_bounds(range_node->input_value(1));
+        if (!stop_lb || stop_lb != stop_ub)
+            return false;
+
+        HostTensorPtr step_lb, step_ub;
+        std::tie(step_lb, step_ub) = evaluate_both_bounds(range_node->input_value(2));
+        if (!step_lb || step_lb != step_ub)
+            return false;
+
+        return range_node->evaluate(output_values, {start_ub, stop_ub, step_ub});
+    }
 }
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -309,6 +331,16 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
     return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
+}
+
+bool op::v4::Range::evaluate_lower(const HostTensorVector& output_values) const
+{
+    return rangeop::evaluate_bound(this, output_values);
+}
+
+bool op::v4::Range::evaluate_upper(const HostTensorVector& output_values) const
+{
+    return rangeop::evaluate_bound(this, output_values);
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
@@ -360,9 +392,9 @@ static
 template <typename T>
 static PartialShape infer_output_shape(const op::v0::Range* node, const element::Type& /* et */)
 {
-    auto const_start = as_type_ptr<op::Constant>(node->input_value(0).get_node_shared_ptr());
-    auto const_stop = as_type_ptr<op::Constant>(node->input_value(1).get_node_shared_ptr());
-    auto const_step = as_type_ptr<op::Constant>(node->input_value(2).get_node_shared_ptr());
+    shared_ptr<op::Constant> const_start = get_constant_from_source(node->input_value(0));
+    shared_ptr<op::Constant> const_stop = get_constant_from_source(node->input_value(1));
+    shared_ptr<op::Constant> const_step = get_constant_from_source(node->input_value(2));
 
     T start = static_cast<T>(0);
     T stop = static_cast<T>(0);
@@ -508,4 +540,14 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
     return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
+}
+
+bool op::v0::Range::evaluate_lower(const HostTensorVector& output_values) const
+{
+    return rangeop::evaluate_bound(this, output_values);
+}
+
+bool op::v0::Range::evaluate_upper(const HostTensorVector& output_values) const
+{
+    return rangeop::evaluate_bound(this, output_values);
 }
