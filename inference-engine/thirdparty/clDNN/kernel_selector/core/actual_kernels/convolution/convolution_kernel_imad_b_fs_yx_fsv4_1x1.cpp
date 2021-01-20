@@ -27,8 +27,7 @@ namespace {
     constexpr size_t pref_features_per_wi = 16;
 
     size_t get_preferred_lwg_depth(const DataTensor& output, const WeightsTensor& weights, const EngineInfo& info) {
-        constexpr size_t threads_per_eu = 7;
-        size_t max_simd_number = info.computeUnitsCount * threads_per_eu;
+        size_t max_simd_number = static_cast<size_t>(info.maxThreadsPerDevice);
 
         size_t simd_number = CeilDiv(output.X().v * output.Y().v, pref_simd) *
                              CeilDiv(output.Feature().v, pref_features_per_wi) *
