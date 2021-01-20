@@ -41,8 +41,7 @@ std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP
     {proto::VarType_Type::VarType_Type_BF16, ngraph::element::bf16}
 };
 
-bool endsWith(std::string str, std::string suffix)
-{
+bool endsWith(std::string str, std::string suffix) {
     if (str.length() >= suffix.length()) {
         return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
     }
@@ -56,13 +55,12 @@ protobuf::RepeatedField<protobuf::int32> get_ints(proto::OpDesc op, std::string 
         if (attr.name() == name)
             attrs.push_back(attr);
     }
-    if (attrs.size() == 0)
+    if (attrs.size() == 0) {
         return default;
-    else if (attrs.size() > 1) {
+    } else if (attrs.size() > 1) {
         // TODO: raise exception here
         return default;
-    }
-    else {
+    } else {
         return attrs[0].ints();
     }
 }
@@ -73,13 +71,12 @@ int get_int(proto::OpDesc op, std::string name, int default = 0) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
-    if (attrs.size() == 0)
+    if (attrs.size() == 0) {
         return default;
-    else if (attrs.size() > 1) {
+    } else if (attrs.size() > 1) {
         // TODO: raise exception here
         return default;
-    }
-    else {
+    } else {
         return attrs[0].i();
     }
 }
@@ -90,13 +87,12 @@ float get_float(proto::OpDesc op, std::string name, float default = 0.) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
-    if (attrs.size() == 0)
+    if (attrs.size() == 0) {
         return default;
-    else if (attrs.size() > 1) {
+    } else if (attrs.size() > 1) {
         // TODO: raise exception here
         return default;
-    }
-    else {
+    } else {
         return attrs[0].f();
     }
 }
@@ -107,13 +103,12 @@ std::string get_str(proto::OpDesc op, std::string name, std::string default = ""
         if (attr.name() == name)
             attrs.push_back(attr);
     }
-    if (attrs.size() == 0)
+    if (attrs.size() == 0) {
         return default;
-    else if (attrs.size() > 1) {
+    } else if (attrs.size() > 1) {
         // TODO: raise exception here
         return default;
-    }
-    else {
+    } else {
         return attrs[0].s();
     }
 }
@@ -124,13 +119,12 @@ bool get_bool(proto::OpDesc op, std::string name, bool default = false) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
-    if (attrs.size() == 0)
+    if (attrs.size() == 0) {
         return default;
-    else if (attrs.size() > 1) {
+    } else if (attrs.size() > 1) {
         // TODO: raise exception here
         return default;
-    }
-    else {
+    } else {
         return attrs[0].b();
     }
 }
@@ -198,13 +192,11 @@ std::shared_ptr<ngraph::Node> pool2d_creator(std::map<std::string, std::vector<s
             ngraph::Shape(paddings.begin(), paddings.end()),
             ngraph::Shape(paddings.begin(), paddings.end()),
             ngraph::Shape(kernel_shape.begin(), kernel_shape.end()));
-    }
-    else if (pooling_type == "avg" && global_pooling) {
+    } else if (pooling_type == "avg" && global_pooling) {
         // TODO : resolve axes according to rank
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, { 2 }, { 2, 3 });
         return std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true);
-    }
-    else {
+    } else {
         throw std::exception("Unsupported pooling type");
     }
 }
@@ -295,7 +287,7 @@ std::shared_ptr<ngraph::opset6::Constant> read_tensor(paddle::framework::proto::
     is.seekg((size_t)length - tensor_length, std::ios::beg);
 
     std::vector<float> tensor_data(tensor_length);
-    is.read((char*)(&tensor_data[0]), tensor_length);
+    is.read(reinterpret_cast<char*>(&tensor_data[0]), tensor_length);
     auto shape = std::vector<size_t>(tensor.dims().cbegin(), tensor.dims().cend());
     return ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape(shape), tensor_data);
 }
@@ -343,13 +335,11 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string & model_dir) {
                 auto param = std::make_shared<ngraph::opset6::Parameter>(TYPE_MAP[dtype], ngraph::Shape(shape));
                 nodes_dict[layer_name] = param;
                 parameter_nodes.push_back(param);
-            }
-            else if (op.type() == "fetch") {
+            } else if (op.type() == "fetch") {
                 auto input_node = inputs_dict["X"][0];
                 assert(nodes_dict.find(input_node) != nodes_dict.end());
                 result_nodes.push_back(std::make_shared<ngraph::opset6::Result>(nodes_dict[input_node]));
-            }
-            else {
+            } else {
                 auto node = make_ng_node(inputs_dict, nodes_dict, op, block);
                 for (const auto& item : outputs_dict) {
                     assert(item.second.size() <= 1);
