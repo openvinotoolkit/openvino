@@ -1586,5 +1586,7 @@ IE_GPU.onnx_model_gather_elements_int32_axis_0
 IE_GPU.onnx_model_gather_elements_int8_axis_1
 IE_GPU.onnx_model_gather_elements_float_3D_axis_2
 
-# incorrect result for Minimum if u16 type is unsupported
+# incorrect result for Minimum if u16 type is used
 minimum_u16
+# incorrect result on Windows if i16 type is used
+IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
