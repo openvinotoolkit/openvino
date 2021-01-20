@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -347,7 +347,8 @@ public:
                                 const std::string &name,
                                 const ie::CNNLayerPtr &layer,
                                 const Data &input, const Data &indices,
-                                const Data &output, int32_t axis);
+                                const Data &output, int32_t axis,
+                                bool inner_dim_axis);
 };
 
 }  // namespace vpu

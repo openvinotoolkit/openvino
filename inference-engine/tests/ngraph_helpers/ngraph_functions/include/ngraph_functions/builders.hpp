@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -465,6 +466,11 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
                                       const ngraph::op::v5::NonMaxSuppression::BoxEncodingType &boxEncoding,
                                       const bool &sortResDescend,
                                       const ngraph::element::Type& outType);
+
+std::shared_ptr<Node> makeGatherElements(const ngraph::Output<Node>& dataNode,
+                                         const element::Type& indicesType,
+                                         const std::size_t axis,
+                                         const std::size_t indices_axis_dim);
 
 }  // namespace builder
 }  // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,8 @@ protected:
     getBatchSupportInfoImpl(StageDataInfo<BatchSupport> &batchInfo) override {}
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        return StageSHAVEsRequirements::NotNeeded;
+        const auto inner_dim_axis = attrs().get<bool>("inner_dim_axis");
+        return (inner_dim_axis ? StageSHAVEsRequirements::NeedMax : StageSHAVEsRequirements::NotNeeded);
     }
 
     void initialCheckImpl() const override {
@@ -90,11 +91,13 @@ Stage StageBuilder::addGatherElementsStage(const Model &model,
                                            const std::string &name,
                                            const ie::CNNLayerPtr &layer,
                                            const Data &input, const Data &indices,
-                                           const Data &output, int32_t axis) {
+                                           const Data &output, int32_t axis,
+                                           bool inner_dim_axis) {
     auto stage = model->addNewStage<GatherElementsStage>(
         layer->name, StageType::GatherElements, layer, {input, indices}, {output});
 
     stage->attrs().set<int32_t>("axis", axis);
+    stage->attrs().set<bool>("inner_dim_axis", inner_dim_axis);
 
     return stage;
 }
@@ -123,8 +126,9 @@ void FrontEnd::parseGatherElements(const Model &model, const ie::CNNLayerPtr &la
     VPU_THROW_UNLESS(axis >= 0 && axis < rank, "axis must be in the range of [0, {}) , actually {}",
                      rank, axis);
 
+    const auto inner_dim_axis = ((rank - 1) == axis);
     _stageBuilder->addGatherElementsStage(model, layer->name, layer, inputs[0],
-                                          inputs[1], outputs[0], axis);
+                                          inputs[1], outputs[0], axis, inner_dim_axis);
 }
 
 }// namespace vpu
