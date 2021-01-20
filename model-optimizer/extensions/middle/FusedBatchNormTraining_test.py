@@ -47,7 +47,7 @@ nodes_attributes = {
     'variance_data': {'value': None, 'shape': int64_array([]), 'kind': 'data'},
 
     'batchnorm_train': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'type': None, 'kind': 'op',
-                        'op': 'batchNormTraining', 'eps': 1e-3},
+                        'op': 'BatchNormTraining', 'eps': 1e-3},
     'batchnorm_train_data': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'kind': 'data'},
 
     'batchnorm': {'value': None, 'shape': int64_array([3, 10, 11, 5]), 'type': None, 'kind': 'op',

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from mo.front.common.partial_infer.random_uniform import tf_random_uniform_infer
 from mo.graph.graph import Graph
 from mo.ops.op import Op
-from mo.front.common.partial_infer.random_uniform import tf_random_uniform_infer
+
 
 class RandomUniform(Op):
     op = 'RandomUniform'
@@ -30,4 +31,3 @@ class RandomUniform(Op):
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
-

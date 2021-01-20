@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.random_uniform import tf_random_uniform_infer
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.concat import Concat
 from extensions.ops.RandomUniform import RandomUniform
+from mo.front.extractor import FrontExtractorOp
+
 
 class RandomUniformExtractor(FrontExtractorOp):
     op = 'RandomUniform'

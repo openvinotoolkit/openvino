@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,12 +17,13 @@
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.concat import Concat
 
+
 class ConcatV2FrontExtractor(FrontExtractorOp):
     op = 'ConcatV2'
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        attrs = {'N': node.pb.attr["N"].i, 'axis': None};
+        attrs = {'N': node.pb.attr["N"].i, 'axis': None}
         Concat.update_node_stat(node, attrs)
         return cls.enabled

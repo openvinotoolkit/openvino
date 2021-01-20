@@ -48,30 +48,31 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('op', dict(kind='op', op=lambda op: op in ['batchNormTraining']))],
+                ('op', dict(kind='op', op='BatchNormTraining'))],
             edges=[]
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
         bn_train_node = match['op']
+        bn_train_node_name = bn_train_node.name
         additional_attrs = {}
         for batchNormAttr in batchNormAttrList:
             if bn_train_node.has(batchNormAttr):
                 additional_attrs[batchNormAttr] = bn_train_node[batchNormAttr]
 
         if len(bn_train_node.out_nodes().items()) > 1:
-            additional_attrs['name'] = bn_train_node.name + '/batchNormInferenceMO'
-            node = BatchNormInference(bn_train_node.graph, additional_attrs).create_node()
+            additional_attrs['name'] = bn_train_node_name + '/batchNormInferenceMO'
+            node = BatchNormInferenceMO(bn_train_node.graph, additional_attrs).create_node()
             for port_id, out_node in bn_train_node.out_nodes().items():
                 bn_train_node.out_port(port_id).get_connection().set_source(node.out_port(port_id))
 
         elif len(bn_train_node.out_nodes().items()) == 1:
-            additional_attrs['name'] = bn_train_node.name + '/batchNormInference'
+            additional_attrs['name'] = bn_train_node_name + '/batchNormInference'
             node = BatchNormInference(bn_train_node.graph, additional_attrs).create_node()
             bn_train_node.out_port(0).get_connection().set_source(node.out_port(0))
 
         else:
-            assert False, 'Node  {} has not out nodes'.format(bn_train_node.name)
+            assert False, 'Node  {} has not output nodes'.format(bn_train_node.name)
 
         for port_id, _ in bn_train_node.in_nodes().items():
             bn_train_node.in_port(port_id).get_connection().set_destination(node.in_port(port_id))

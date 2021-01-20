@@ -35,7 +35,7 @@ class MVNReplacer(FrontReplacementSubgraph):
                 ('variance', dict(op='ReduceMean')),
                 ('squeeze_mean', dict(op='Squeeze')),
                 ('squeeze_variance', dict(op='Squeeze')),
-                ('fbn', dict(op=lambda op: op in ['batchNormInference'])),
+                ('fbn', dict(op=lambda op: op in ['BatchNormInference'])),
             ],
             edges=[
                 ('mean', 'stop_grad', {'in': 0}),

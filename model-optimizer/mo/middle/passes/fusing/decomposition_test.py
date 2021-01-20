@@ -514,3 +514,34 @@ class BatchNormDecomposition(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_data')
         self.assertTrue(flag, resp)
+
+    # def test_bn_non_constant_var_mean(self):
+        # TODO: Rewrite unit test and add unit tests for NCHW
+        # graph = build_graph(nodes_attributes,
+        #                     [('placeholder_1', 'placeholder_1_data'),
+        #                      ('placeholder_1_data', 'bn_op'),
+        #                      ('const_bn_const', 'bn_const'),
+        #                      ('const_bn_beta', 'bn_beta'),
+        #                      ('const_bn_mean', 'bn_mean'),
+        #                      ('const_bn_var', 'bn_var'),
+        #                      ('bn_const', 'bn_op'),
+        #                      ('bn_beta', 'bn_op'),
+        #                      ('bn_mean', 'bn_op'),
+        #                      ('bn_var', 'bn_op'),
+        #                      ('bn_op', 'bn_data'),
+        #                      ('concat', 'concat_data'),
+        #                      ('bn_data', 'concat'),
+        #                      ('concat_data', 'op_output')
+        #                      ],
+        #                     {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
+        #                      'bn_op': {'eps': 1.2},
+        #                      'bn_const': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
+        #                      'bn_beta': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
+        #                      'bn_mean': {'shape': np.array([3]), 'value': None},
+        #                      'bn_var': {'shape': np.array([3]), 'value': None},
+        #                      'bn_data': {'shape': np.array([1, 227, 227, 3])},
+        #                      'concat_data': {}
+        #                      }, nodes_with_edges_only=True)
+        # graph.graph['layout'] = 'NHWC'
+        # convert_batch_norm(graph)
+        # graph.clean_up()
