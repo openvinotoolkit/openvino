@@ -30,6 +30,8 @@
 #include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
 
+// can't be removed currently due to arm-plugin dependency
+#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 namespace ngraph
 {
     namespace runtime
