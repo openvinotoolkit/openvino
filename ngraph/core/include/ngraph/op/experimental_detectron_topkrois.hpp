@@ -28,6 +28,9 @@ namespace ngraph
     {
         namespace v6
         {
+            /// \brief An operation ExperimentalDetectronTopKROIs, according to the repository
+            /// https://github.com/openvinotoolkit/training_extensions (see
+            /// pytorch_toolkit/instance_segmentation/segmentoly/rcnn/roi_feature_extractor.py).
             class NGRAPH_API ExperimentalDetectronTopKROIs : public Op
             {
             public:
