@@ -315,7 +315,7 @@ public:
         auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
         auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
         if (inputPrec == Precision::BF16 && outputPrec == Precision::BF16) {
-            return executeSpecified<bfloat16, bfloat16>(inputs, outputs, resp);
+            return executeSpecified<bfloat16_t, bfloat16_t>(inputs, outputs, resp);
         } else if (inputPrec == Precision::FP32 && outputPrec == Precision::FP32) {
             return executeSpecified<float, float>(inputs, outputs, resp);
         } else {
