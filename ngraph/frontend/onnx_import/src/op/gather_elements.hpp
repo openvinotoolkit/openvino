@@ -16,36 +16,26 @@
 
 #pragma once
 
-#include <cstddef>
-
-#include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/output_vector.hpp"
 
 namespace ngraph
 {
-    namespace runtime
+    namespace onnx_import
     {
-        /// \brief SharedBuffer class to store pointer to pre-acclocated buffer.
-        template <typename T>
-        class SharedBuffer : public ngraph::runtime::AlignedBuffer
+        namespace op
         {
-        public:
-            SharedBuffer(char* data, size_t size, T& shared_object)
-                : _shared_object(shared_object)
+            namespace set_1
             {
-                m_allocated_buffer = data;
-                m_aligned_buffer = data;
-                m_byte_size = size;
-            }
+                inline OutputVector gather_elements(const Node& node)
+                {
+                    OutputVector ng_inputs{node.get_ng_inputs()};
+                    auto data = ng_inputs.at(0);
+                    auto indices = ng_inputs.at(1);
+                    auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
-            virtual ~SharedBuffer()
-            {
-                m_aligned_buffer = nullptr;
-                m_allocated_buffer = nullptr;
-                m_byte_size = 0;
-            }
-
-        private:
-            T _shared_object;
-        };
-    }
-}
+                    return {std::make_shared<ngraph::op::v6::GatherElements>(data, indices, axis)};
+                }
+            } // namespace set_1
+        }     // namespace op
+    }         // namespace onnx_import
+} // namespace ngraph
