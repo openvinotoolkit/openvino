@@ -351,15 +351,14 @@ void LayerTestsCommon::Infer() {
 }
 
 std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
-    // nGraph interpreter does not support f16
-    // IE converts f16 to f32
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(
-            function);
-
-    // The same idea for bf16
+    // nGraph interpreter does not support f16/bf16
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
+
     function->validate_nodes_and_infer_types();
+
     auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
+    auto refInputsTypes = std::vector<ngraph::element::Type>(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) {
         const auto &input = inputs[i];
         const auto &inputSize = input->byteSize();
@@ -372,29 +371,27 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
         const auto lockedMemory = memory->wmap();
         const auto buffer = lockedMemory.as<const std::uint8_t *>();
         std::copy(buffer, buffer + inputSize, referenceInput.data());
+
+        refInputsTypes[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(memory->getTensorDesc().getPrecision());
     }
 
-    auto ieOutPrc = outPrc;
     const auto &&outputsInfo = executableNetwork.GetOutputsInfo();
-    std::vector<ngraph::element::Type_t> convertType(outputsInfo.size(),
-                                                     FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ieOutPrc));
-    if (ieOutPrc == InferenceEngine::Precision::UNSPECIFIED) {
-        size_t i = 0;
+    std::vector<ngraph::element::Type_t> convertType;
+    convertType.reserve(outputsInfo.size());
         for (const auto &output : outputsInfo) {
-                convertType[i++] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
-                    output.second->getTensorDesc().getPrecision());
+                convertType.push_back(
+                    FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
+                        output.second->getTensorDesc().getPrecision()));
         }
-    }
 
-    const auto& inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
     std::vector<std::vector<std::uint8_t>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, inType, convertType);
+            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes, convertType);
             break;
         }
         case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, inType);
+            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, refInputsTypes);
             expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
             break;
         }

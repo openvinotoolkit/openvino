@@ -239,7 +239,7 @@ inline ngraph::NodeVector castOps2Nodes(const std::vector<std::shared_ptr<opType
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
                                                            const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                           element::Type_t inType = element::Type_t::undefined,
+                                                           const std::vector<ngraph::element::Type> &inputTypes = {},
                                                            const std::vector<ngraph::element::Type_t> convertType = {});
 
 //
@@ -253,7 +253,7 @@ void CompareFunctions(const Function &actual, const Function &expected);
 
 std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function,
                                        const std::vector<std::vector<std::uint8_t>> &inputs,
-                                       element::Type_t inpType = element::Type_t::undefined);
+                                       const std::vector<ngraph::element::Type> &inputTypes = {});
 
 std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function,
                                                     std::vector<ngraph::element::Type_t> convertType = {});
