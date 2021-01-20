@@ -100,17 +100,17 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     };
 
     if (nDims == 4) {
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::nhwc);
+        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nhwc);
         if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::nChw8c);
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw8c);
         if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::nChw16c);
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw16c);
     } else if (nDims == 5) {
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::ndhwc);
+        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::ndhwc);
         if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::nCdhw8c);
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw8c);
         if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::nCdhw16c);
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw16c);
     }
     pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
 }

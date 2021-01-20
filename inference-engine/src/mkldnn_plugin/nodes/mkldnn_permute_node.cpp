@@ -75,7 +75,7 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nChw16c});
         }
 
-        if (prec == Precision::I8 || prec == Precision::U8) {
+        if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nhwc);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nhwc);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nhwc});
@@ -96,7 +96,7 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nCdhw16c});
         }
 
-        if (prec == Precision::I8 || prec == Precision::U8) {
+        if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ndhwc);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ndhwc);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ndhwc});
@@ -684,7 +684,8 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
-    if (prec == Precision::FP32) {
+    auto layout = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getLayout();
+    if (prec == Precision::FP32 && layout != NHWC && layout != NDHWC) {
         for (const auto &impl : OptimizedCases) {
             if (impl.first == order && impl.second.isValidParams(batchToProcess(), srcMemPtr, dstMemPtr)) {
                 impl.second.execute(batchToProcess(), srcMemPtr, dstMemPtr);
