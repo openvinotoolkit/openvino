@@ -1,35 +1,35 @@
-## Convolution<a name="Convolution"></a> {#openvino_docs_ops_convolution_Convolution_1}
+## Convolution <a name="Convolution"></a> {#openvino_docs_ops_convolution_Convolution_1}
 
 **Versioned name**: *Convolution-1*
 
 **Category**: Convolution
 
-**Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/convolution.html)
+**Short description**: Computes 1D, 2D or 3D convolution (cross-correlation to be precise) of input and kernel tensors.
 
-**Detailed description**: [Reference](http://cs231n.github.io/convolutional-networks/#conv)
+**Detailed description**: [Convolutional Neural Networks](http://cs231n.github.io/convolutional-networks/#conv), [Convolution operation](https://medium.com/apache-mxnet/convolutions-explained-with-ms-excel-465d6649831c).  
 
-
-*   For the convolutional layer, the number of output features in each dimension is calculated using the formula:
+For the convolutional layer, the number of output features in each dimension is calculated using the formula:  
 \f[
 n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
-\f]
-*   The receptive field in each layer is calculated using the formulas:
-    *   Jump in the output feature map:
-        \f[
-        j_{out} = j_{in} * s
-        \f]
-    *   Size of the receptive field of output feature:
-        \f[
-        r_{out} = r_{in} + ( k - 1 ) * j_{in}
-        \f]
-    *   Center position of the receptive field of the first output feature:
-        \f[
-        start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) * j_{in}
-        \f]
-    *   Output is calculated using the following formula:
-        \f[
-        out = \sum_{i = 0}^{n}w_{i}x_{i} + b
-        \f]
+\f] 
+
+The receptive field in each layer is calculated using the formulas:  
+*   Jump in the output feature map:  
+  \f[
+  j_{out} = j_{in} * s
+  \f]
+*   Size of the receptive field of output feature:  
+  \f[
+  r_{out} = r_{in} + ( k - 1 ) * j_{in}
+  \f]
+*   Center position of the receptive field of the first output feature:  
+  \f[
+  start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) * j_{in}
+  \f]
+*   Output is calculated using the following formula: 
+  \f[
+  out = \sum_{i = 0}^{n}w_{i}x_{i} + b
+  \f]
 
 **Attributes**
 
@@ -70,24 +70,33 @@ n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
-    * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
-    * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
+    * *explicit* - use explicit padding values from `pads_begin` and `pads_end`.
+    * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
+    * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
     * *valid* - do not use padding.
   * **Type**: string
-  * **Default value**: None
+  * **Default value**: explicit
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
 
 **Inputs**:
 
-*   **1**: Input tensor of rank 3 or greater. Required.
-*   **2**: Convolution kernel tensor. Weights layout is OIYX (OIZYX for 3D convolution), which means that *X* is changing the fastest, then *Y*, then *Input*, then *Output*. The size of the kernel is derived from the shape of this input and not specified by any attribute. Required.
+*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is NCZYX (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is OIZYX (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
+*   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
+      * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
+      * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
+      * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X
+
+**Types**
+
+* *T*: any numeric type.
 
 **Example**
 
 ```xml
 <layer type="Convolution" ...>
-    <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1"/>
+    <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" auto_pad="explicit"/>
     <input>
         <port id="0">
             <dim>1</dim>
