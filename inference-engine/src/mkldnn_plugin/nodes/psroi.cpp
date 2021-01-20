@@ -52,20 +52,37 @@ public:
 
             auto supportedPrecision = (layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16 ? Precision::BF16 : Precision::FP32);
 
-            if (noTrans) {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
-                                  DataConfigurator(ConfLayout::PLN, Precision::FP32)},
-                          {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
+            std::vector<std::pair<Layout, Layout> > plainConfs{
+//                    {NHWC, NHWC},
+                    {NCHW, NCHW}
+            };
 
-                addConfig(layer, {DataConfigurator(ConfLayout::BLK16, supportedPrecision),
-                                  DataConfigurator(ConfLayout::PLN, Precision::FP32)},
-                          {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
+            std::vector<std::pair<ConfLayout, ConfLayout> > blockConfs {
+//                    {ConfLayout::BLK16, ConfLayout::BLK16},
+//                    {ConfLayout::BLK8, ConfLayout::BLK8}
+            };
+
+            if (noTrans) {
+                for (auto conf : plainConfs) {
+                    LayerConfig config;
+                    DataConfig inConfig0, inConfig1, inConfig2;
+                    SizeVector propDims = layer->insData[1].lock()->getTensorDesc().getDims();
+                    inConfig0.desc = TensorDesc(supportedPrecision, inDims, conf.first);
+                    inConfig1.desc = TensorDesc(Precision::FP32, propDims, NC);
+                    config.inConfs.push_back(inConfig0);
+                    config.inConfs.push_back(inConfig1);
+                    DataConfig outConfig;
+                    outConfig.desc = TensorDesc(supportedPrecision, outDims, conf.second);
+                    config.outConfs.push_back(outConfig);
+                    confs.push_back(config);
+                }
+                for (auto conf : blockConfs) {
+                    addConfig(layer, {DataConfigurator(conf.first, supportedPrecision),
+                                      DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                              {DataConfigurator(conf.second, supportedPrecision)});
+                }
             } else {
                 addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
-                                  DataConfigurator(ConfLayout::PLN, Precision::FP32),
-                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
-
-                addConfig(layer, {DataConfigurator(ConfLayout::BLK16, supportedPrecision),
                                   DataConfigurator(ConfLayout::PLN, Precision::FP32),
                                   DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
             }
@@ -74,9 +91,24 @@ public:
         }
     }
 
+    struct PSROIPoolingContext {
+        PSROIPoolingImpl &node;
+        std::vector<Blob::Ptr>& inputs;
+        std::vector<Blob::Ptr>& outputs;
+    };
+
+    template<typename T>
+    struct PSROIPoolingExecute {
+        using srcT = typename std::tuple_element<0, T>::type;
+        using dstT = typename std::tuple_element<1, T>::type;
+
+        void operator()(PSROIPoolingContext & ctx) {
+            ctx.node.executeSpecified<srcT, dstT>(ctx.inputs, ctx.outputs);
+        }
+    };
+
     template <typename inputType, typename outputType>
-    StatusCode executeSpecified(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
-                                ResponseDesc *resp) {
+    StatusCode executeSpecified(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) {
         const float *bottomRoisBeginning = inputs[1]->buffer();
         const auto *srcData = inputs[0]->cbuffer().as<const inputType*>();
         auto *dstData = outputs[0]->buffer().as<outputType*>();
@@ -315,13 +347,22 @@ public:
                        ResponseDesc *resp) noexcept override {
         auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
         auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
-        if (inputPrec == Precision::BF16 && outputPrec == Precision::BF16) {
-            return executeSpecified<bfloat16_t, bfloat16_t>(inputs, outputs, resp);
-        } else if (inputPrec == Precision::FP32 && outputPrec == Precision::FP32) {
-            return executeSpecified<float, float>(inputs, outputs, resp);
-        } else {
+
+        PSROIPoolingContext ctx = {
+                *this,
+                inputs,
+                outputs
+        };
+
+        if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
+              (inputPrec == Precision::FP32 && outputPrec == Precision::FP32)))
             return NOT_IMPLEMENTED;
-        }
+
+        OV_SWITCH(MKLDNNPlugin, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
+                  OV_CASE2(Precision::FP32, Precision::FP32, float, float),
+                  OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
+
+        return OK;
     }
 
     template <typename inputType>
