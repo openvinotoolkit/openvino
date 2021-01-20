@@ -420,13 +420,14 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
             graph.DropNode(dataEltwise);
         }
 
-        auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
-        if (initializeWeightsZeroPoints(conv, weightsEltwise)) {
-            auto p_edge = weightsEltwise->getParentEdgesAtPort(1)[0];
-            removeEdge(graph, p_edge);
-
-            graph.DropNode(weightsEltwise);
-        }
+// [TODO] Weights zero point is not supported on oneDNN side for the moment
+//        auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
+//        if (initializeWeightsZeroPoints(conv, weightsEltwise)) {
+//            auto p_edge = weightsEltwise->getParentEdgesAtPort(1)[0];
+//            removeEdge(graph, p_edge);
+//
+//            graph.DropNode(weightsEltwise);
+//        }
 
         initializeOutputCompensation(conv);
     }
