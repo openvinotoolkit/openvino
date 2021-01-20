@@ -405,6 +405,33 @@ namespace
         return true;
     }
 
+    namespace mvn_6_axes
+    {
+        template <typename T>
+        AxisSet mvn_6_reduction_axes(const HostTensorPtr& axes_input, size_t rank)
+        {
+            T* a = axes_input->get_data_ptr<T>();
+            auto v = std::vector<T>(a, a + axes_input->get_shape()[0]);
+            std::vector<size_t> axes(v.size(), 0);
+            for (int i = 0; i < v.size(); i++)
+            {
+                if (v[i] < 0)
+                {
+                    if (rank + v[i] < 0)
+                    {
+                        throw ngraph_error("Unexpected axis");
+                    }
+                    axes[i] = (size_t)(rank + v[i]);
+                }
+                else
+                {
+                    axes[i] = (size_t)(v[i]);
+                }
+            }
+            return AxisSet(axes);
+        }
+    } // mvn_6_axes
+
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v6::MVN>& op,
                   const HostTensorVector& outputs,
@@ -415,47 +442,11 @@ namespace
         auto rank = inputs[0]->get_shape().size();
         if (inputs[1]->get_element_type() == element::i64)
         {
-            int64_t* a = inputs[1]->get_data_ptr<int64_t>();
-            auto v = std::vector<int64_t>(a, a + inputs[1]->get_shape()[0]);
-            std::vector<size_t> axes(v.size(), 0);
-            for (int i = 0; i < v.size(); i++)
-            {
-                if (v[i] < 0)
-                {
-                    if (rank + v[i] < 0)
-                    {
-                        throw ngraph_error("Unexpected axis");
-                    }
-                    axes[i] = (size_t)(rank + v[i]);
-                }
-                else
-                {
-                    axes[i] = (size_t)(v[i]);
-                }
-            }
-            reduction_axes = AxisSet(axes);
+            reduction_axes = mvn_6_axes::mvn_6_reduction_axes<int64_t>(inputs[1], rank);
         }
         else if (inputs[1]->get_element_type() == element::i32)
         {
-            int32_t* a = inputs[1]->get_data_ptr<int32_t>();
-            auto v = std::vector<int32_t>(a, a + inputs[1]->get_shape()[0]);
-            std::vector<size_t> axes(v.size(), 0);
-            for (int i = 0; i < v.size(); i++)
-            {
-                if (v[i] < 0)
-                {
-                    if (rank + v[i] < 0)
-                    {
-                        throw ngraph_error("Unexpected axis");
-                    }
-                    axes[i] = (size_t)(rank + v[i]);
-                }
-                else
-                {
-                    axes[i] = (size_t)(v[i]);
-                }
-            }
-            reduction_axes = AxisSet(axes);
+            reduction_axes = mvn_6_axes::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
         }
         else
         {

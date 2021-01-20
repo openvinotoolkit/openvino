@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstddef>
+#include <ngraph/op/mvn.hpp>
 #include <ngraph/runtime/reference/add.hpp>
 #include <ngraph/runtime/reference/divide.hpp>
 #include <ngraph/runtime/reference/mean.hpp>
