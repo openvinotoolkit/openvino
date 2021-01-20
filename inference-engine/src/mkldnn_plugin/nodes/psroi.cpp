@@ -53,55 +53,38 @@ public:
             auto supportedPrecision = (layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16 ? Precision::BF16 : Precision::FP32);
 
             std::vector<std::pair<Layout, Layout> > plainConfs{
-                {NCHW, NCHW}
+                {NCHW, NCHW},
+                {NHWC, NHWC}
             };
-
-            if (noTrans) {
-                // nhwc format has to be added after reference implementation of deformable mode
-                plainConfs.push_back({NHWC, NHWC});
-            }
 
             std::vector<std::pair<ConfLayout, ConfLayout> > blockConfs {
                     {ConfLayout::BLK16, ConfLayout::BLK16},
                     {ConfLayout::BLK8, ConfLayout::BLK8}
             };
 
-//            for (auto conf : plainConfs) {
-//                LayerConfig config;
-//                DataConfig inConfig0, inConfig1, inConfig2;
-//                SizeVector propDims = layer->insData[1].lock()->getTensorDesc().getDims();
-//                inConfig0.desc = TensorDesc(supportedPrecision, inDims, conf.first);
-//                inConfig1.desc = TensorDesc(Precision::FP32, propDims, NC);
-//                config.inConfs.push_back(inConfig0);
-//                config.inConfs.push_back(inConfig1);
-//                if (!noTrans) {
-//                    SizeVector offsetDims = layer->insData[2].lock()->getTensorDesc().getDims();
-//                    auto blocks = layer->insData[2].lock()->getTensorDesc().getDims();
-//                    std::vector<size_t> order(blocks.size());
-//                    for (size_t i = 0; i < order.size(); i++) order[i] = i;
-//                    inConfig2.desc = TensorDesc(Precision::UNSPECIFIED, offsetDims, {blocks, order});
-//                    config.inConfs.push_back(inConfig2);
-//                }
-//                DataConfig outConfig;
-//                outConfig.desc = TensorDesc(supportedPrecision, outDims, conf.second);
-//                config.outConfs.push_back(outConfig);
-//                confs.push_back(config);
-//            }
-
-            addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
-                              DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
-
-            for (auto conf : blockConfs) {
-                if (noTrans) {
+            if (noTrans) {
+                for (auto conf : plainConfs) {
+                    LayerConfig config;
+                    DataConfig inConfig0, inConfig1, inConfig2;
+                    SizeVector propDims = layer->insData[1].lock()->getTensorDesc().getDims();
+                    inConfig0.desc = TensorDesc(supportedPrecision, inDims, conf.first);
+                    inConfig1.desc = TensorDesc(Precision::FP32, propDims, NC);
+                    config.inConfs.push_back(inConfig0);
+                    config.inConfs.push_back(inConfig1);
+                    DataConfig outConfig;
+                    outConfig.desc = TensorDesc(supportedPrecision, outDims, conf.second);
+                    config.outConfs.push_back(outConfig);
+                    confs.push_back(config);
+                }
+                for (auto conf : blockConfs) {
                     addConfig(layer, {DataConfigurator(conf.first, supportedPrecision),
                                       DataConfigurator(ConfLayout::PLN, Precision::FP32)},
                               {DataConfigurator(conf.second, supportedPrecision)});
-                } else {
-                    break;
-                    addConfig(layer, {DataConfigurator(conf.first, supportedPrecision),
-                                      DataConfigurator(ConfLayout::PLN, Precision::FP32),
-                                      DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(conf.second, supportedPrecision)});
                 }
+            } else {
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
+                                  DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                                  DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
@@ -130,7 +113,7 @@ public:
                       Layout& inFmt, Layout& outFmt,
                       int& inBlockSize, int& outBlockSize,
                       int& outBlockCount,
-                      ulong& inputChannelsPadding, ulong& outputChannelsPadding) {
+                      unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding) {
         inFmt = srcDesc.getLayout();
         outFmt = dstDesc.getLayout();
         inBlockSize = (inFmt == Layout::BLOCKED ? srcDesc.getBlockingDesc().getBlockDims()[4] : 1);
@@ -162,7 +145,7 @@ public:
                         const TensorDesc& srcDesc, const TensorDesc& dstDesc) {
         Layout inFmt, outFmt;
         int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
-        ulong inputChannelsPadding, outputChannelsPadding;
+        unsigned long inputChannelsPadding, outputChannelsPadding;
         unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
             inFmt, outFmt, inBlockSize, outBlockSize, outBlockCount, inputChannelsPadding, outputChannelsPadding);
         const float roiStartW = static_cast<float>(round(bottomRois[1])) * spatialScale;
@@ -237,7 +220,7 @@ public:
                         const TensorDesc& srcDesc, const TensorDesc& dstDesc) {
         Layout inFmt, outFmt;
         int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
-        ulong inputChannelsPadding, outputChannelsPadding;
+        unsigned long inputChannelsPadding, outputChannelsPadding;
         unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
                      inFmt, outFmt, inBlockSize, outBlockSize, outBlockCount, inputChannelsPadding, outputChannelsPadding);
         const float roiStartW = bottomRois[1] * spatialScale;
@@ -397,61 +380,60 @@ public:
                 // Force too small ROIs to be 1x1
                 roiWidth  = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
                 roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
+                size_t dstIndex = currentRoi * nc * nh * nw;
+                for (int c = 0; c < nc; c++) {
+                    for (int h = 0; h < nh; h++) {
+                        for (int w = 0; w < nw; w++) {
+                            dstData[dstIndex] = 0;
+                            // Compute w and h at bottom
+                            const float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+                            const float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
-                parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
-                    const int outputBlockIdx = (c / inBlockSize) * inBlockSize;
-                    const int binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * binCount;
-                    const int outputBlockResidual = (inFmt == Layout::BLOCKED ? c % inBlockSize : 0);
-                    size_t dstIndex = binOffsetOutput + h * hOutputStride + w * wOutputStride + outputBlockResidual;
-                    dstData[dstIndex] = 0;
-                    // Compute w and h at bottom
-                    const float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-                    const float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+                            const float subBinSizeH = binSizeH / static_cast<float>(spatialBinsX);
+                            const float subBinSizeW = binSizeW / static_cast<float>(spatialBinsY);
 
-                    const float subBinSizeH = binSizeH / static_cast<float>(spatialBinsX);
-                    const float subBinSizeW = binSizeW / static_cast<float>(spatialBinsY);
+                            const int partH = h * partSize / pooledHeight;
+                            const int partW = w * partSize / pooledWidth;
+                            const int classId = c / channelsEachClass;
+                            const float transX = noTrans ? 0 :
+                                                 bottomTrans[(((currentRoi * numClasses + classId) * 2) * partSize + partH)
+                                                             * partSize + partW] * transStd;
+                            const float transY = noTrans ? 0 :
+                                                 bottomTrans[(((currentRoi * numClasses + classId) * 2 + 1) * partSize + partH)
+                                                             * partSize + partW] * transStd;
 
-                    const int partH = h * partSize / pooledHeight;
-                    const int partW = w * partSize / pooledWidth;
-                    const int classId = c / channelsEachClass;
-                    const float transX = noTrans ? 0 :
-                                         bottomTrans[(((currentRoi * numClasses + classId) * 2) * partSize + partH)
-                                                     * partSize + partW] * transStd;
-                    const float transY = noTrans ? 0 :
-                                         bottomTrans[(((currentRoi * numClasses + classId) * 2 + 1) * partSize + partH)
-                                                     * partSize + partW] * transStd;
+                            const float wStart = w * binSizeW + roiStartW + transX * roiWidth;
+                            const float hStart = h * binSizeH + roiStartH + transY * roiHeight;
 
-                    const float wStart = w * binSizeW + roiStartW + transX * roiWidth;
-                    const float hStart = h * binSizeH + roiStartH + transY * roiHeight;
+                            float sum = 0;
+                            int count = 0;
+                            int gw = w * groupSize / pooledWidth;
+                            int gh = h * groupSize / pooledHeight;
+                            gw = (std::min)((std::max)(gw, 0), static_cast<int>(groupSize - 1));
+                            gh = (std::min)((std::max)(gh, 0), static_cast<int>(groupSize - 1));
 
-                    float sum = 0;
-                    int count = 0;
-                    int gw = w * groupSize / pooledWidth;
-                    int gh = h * groupSize / pooledHeight;
-                    gw = (std::min)((std::max)(gw, 0), static_cast<int>(groupSize - 1));
-                    gh = (std::min)((std::max)(gh, 0), static_cast<int>(groupSize - 1));
+                            const inputType *offsetBottomData = srcData + (roiBatchInd * channels) * height * width;
+                            for (size_t ih = 0; ih < spatialBinsY; ih++) {
+                                for (size_t iw = 0; iw < spatialBinsX; iw++) {
+                                    float w1 = wStart + iw * subBinSizeW;
+                                    float h1 = hStart + ih * subBinSizeH;
+                                    // bilinear interpolation
+                                    if (w1 < -0.5 || w1 > width - 0.5 || h1 < -0.5 || h1 > height - 0.5)
+                                        continue;
+                                    w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
+                                    h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
+                                    int c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
+                                    float val = bilinearInterp<inputType>(offsetBottomData + c1 * height * width, w1, h1, width);
 
-                    const inputType *offsetBottomData = srcData + (roiBatchInd * channels) * height * width;
-                    for (size_t ih = 0; ih < spatialBinsY; ih++) {
-                        for (size_t iw = 0; iw < spatialBinsX; iw++) {
-                            float w1 = wStart + iw * subBinSizeW;
-                            float h1 = hStart + ih * subBinSizeH;
-                            // bilinear interpolation
-                            if (w1 < -0.5 || w1 > width - 0.5 || h1 < -0.5 || h1 > height - 0.5)
-                                continue;
-                            w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
-                            h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
-                            int c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
-                            float val = bilinearInterp<inputType>(offsetBottomData +
-                                                                  c1 * height * width, w1, h1, width,
-                                                                  inBlockSize, c1 % inBlockSize);
-
-                            sum += val;
-                            count++;
+                                    sum += val;
+                                    count++;
+                                }
+                            }
+                            dstData[dstIndex] = count == 0 ? 0 : sum / count;
+                            dstIndex++;
                         }
                     }
-                    dstData[dstIndex] = count == 0 ? 0 : sum / count;
-                });
+                }
             }
         });
 
@@ -489,8 +471,7 @@ public:
     }
 
     template <typename inputType>
-    inline float bilinearInterp(const inputType* data_, const float x_, const float y_, const int width_,
-                                const int blockSize_ = 1, const int blockResidual_ = 0) {
+    inline float bilinearInterp(const inputType* data_, const float x_, const float y_, const int width_) {
         int x1 = static_cast<int>(std::floor(x_));
         int x2 = static_cast<int>(std::ceil(x_));
         int y1 = static_cast<int>(std::floor(y_));
@@ -498,10 +479,10 @@ public:
         float distX = x_ - x1;
         float distY = y_ - y1;
 
-        float value11 = data_[(y1 * width_ + x1) * blockSize_ + blockResidual_];
-        float value12 = data_[(y2 * width_ + x1) * blockSize_ + blockResidual_];
-        float value21 = data_[(y1 * width_ + x2) * blockSize_ + blockResidual_];
-        float value22 = data_[(y2 * width_ + x2) * blockSize_ + blockResidual_];
+        float value11 = data_[y1 * width_ + x1];
+        float value12 = data_[y2 * width_ + x1];
+        float value21 = data_[y1 * width_ + x2];
+        float value22 = data_[y2 * width_ + x2];
         float value = (1 - distX) * (1 - distY) * value11 + (1 - distX) * distY * value12
                       + distX * (1 - distY) * value21 + distX * distY * value22;
         return value;
