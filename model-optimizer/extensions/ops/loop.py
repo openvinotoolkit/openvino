@@ -343,6 +343,38 @@ class Loop(TensorIterator):
                              ''.format(layer_id_attr, layer_id_value)
 
     @staticmethod
+    def back_edge_exists(back_edges_map: dict, from_layer: int, to_layer: int, from_port=0, to_port=0):
+        """
+        Checks if back edge exists in back_edges_map
+        :param back_edges_map: a map where to search for specified back edge
+        :param from_layer: id of Result node that belongs a back edge
+        :param to_layer: id of Parameter node that belongs a back edge
+        :param from_port: output port index of Result node
+        :param to_port: input port index of Parameter node
+        :return: True or False
+        """
+        for back_edge in back_edges_map:
+            if back_edge['from_layer'] == from_layer and back_edge['to_layer'] == to_layer \
+                    and back_edge['from_port'] == from_port and back_edge['to_port'] == to_port:
+                return True
+        return False
+
+    @staticmethod
+    def inter_edge_exists(port_map: dict, external_port_id: int, internal_layer_id: int):
+        """
+        Check if inter-graph edge (i.e. an edge between the main graph and body graph) exists
+        :param port_map: a port mat where to search for inter-graph edge
+        :param external_port_id: port index from/to which edge goes
+        :param internal_layer_id: layer id from/to which edge goes
+        :return:
+        """
+        for i_port in port_map:
+            if i_port['external_port_id'] == external_port_id and \
+                    i_port['internal_layer_id'] == internal_layer_id:
+                return True
+        return False
+
+    @staticmethod
     def re_numerate_input_ports(loop_node: Node):
         """
         Update input ports ids to be consecutive from 0 to num_input_ports - 1 and update the port_map values of the
