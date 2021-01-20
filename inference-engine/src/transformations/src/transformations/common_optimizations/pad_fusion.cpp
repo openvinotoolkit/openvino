@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/utils/utils.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -72,6 +73,7 @@ static std::tuple<Shape, Shape> new_pooling_pad_values(const std::shared_ptr<ops
 NGRAPH_RTTI_DEFINITION(pass::PadFusionAvgPool, "PadFusionAvgPool", 0);
 
 pass::PadFusionAvgPool::PadFusionAvgPool() {
+    MATCHER_SCOPE(PadFusionAvgPool);
     auto data_pattern = pattern::any_input();
     auto pads_begin_pattern = pattern::wrap_type<opset5::Constant>();
     auto pads_end_pattern = pattern::wrap_type<opset5::Constant>();
@@ -125,13 +127,14 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(avg_pool_pattern, "PadFusionAvgPool");
+    auto m = std::make_shared<pattern::Matcher>(avg_pool_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(pass::PadFusionMaxPool, "PadFusionMaxPool", 0);
 
 pass::PadFusionMaxPool::PadFusionMaxPool() {
+    MATCHER_SCOPE(PadFusionMaxPool);
     auto data_pattern = pattern::any_input();
     auto pads_begin_pattern = pattern::wrap_type<opset5::Constant>();
     auto pads_end_pattern = pattern::wrap_type<opset5::Constant>();
@@ -166,7 +169,7 @@ pass::PadFusionMaxPool::PadFusionMaxPool() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(max_pool_pattern, "PadFusionMaxPool");
+    auto m = std::make_shared<pattern::Matcher>(max_pool_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -192,6 +195,7 @@ static std::tuple<CoordinateDiff, CoordinateDiff> new_conv_pad_values(const std:
 NGRAPH_RTTI_DEFINITION(pass::PadFusionConvolution, "PadFusionConvolution", 0);
 
 pass::PadFusionConvolution::PadFusionConvolution() {
+    MATCHER_SCOPE(PadFusionConvolution);
     auto data_pattern = pattern::any_input();
     auto filter_pattern = pattern::any_input();
     auto pads_begin_pattern = pattern::wrap_type<opset5::Constant>();
@@ -227,13 +231,14 @@ pass::PadFusionConvolution::PadFusionConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, "PadFusionConvolution");
+    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(pass::PadFusionConvolutionBackpropData, "PadFusionConvolutionBackpropData", 0);
 
 pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
+    MATCHER_SCOPE(PadFusionConvolutionBackpropData);
     auto data_pattern = pattern::any_input();
     auto filter_pattern = pattern::any_input();
     auto pads_begin_pattern = pattern::wrap_type<opset5::Constant>();
@@ -280,13 +285,14 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, "PadFusionConvolution");
+    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(pass::PadFusionGroupConvolution, "PadFusionGroupConvolution", 0);
 
 pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
+    MATCHER_SCOPE(PadFusionGroupConvolution);
     auto data_pattern = pattern::any_input();
     auto filter_pattern = pattern::any_input();
     auto pads_begin_pattern = pattern::wrap_type<opset5::Constant>();
@@ -322,13 +328,14 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, "PadFusionConvolution");
+    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(pass::PadFusionGroupConvolutionBackpropData, "PadFusionGroupConvolutionBackpropData", 0);
 
 pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropData() {
+    MATCHER_SCOPE(PadFusionGroupConvolutionBackpropData);
     auto data_pattern = pattern::any_input();
     auto filter_pattern = pattern::any_input();
     auto pads_begin_pattern = pattern::wrap_type<opset5::Constant>();
@@ -375,6 +382,6 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, "PadFusionConvolutionBackpropData");
+    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
