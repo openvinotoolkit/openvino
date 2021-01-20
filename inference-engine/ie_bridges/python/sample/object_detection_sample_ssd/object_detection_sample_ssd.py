@@ -75,7 +75,7 @@ def main():
     # --------------------------- 3. Read and preprocess input --------------------------------------------
 
     print("inputs number: " + str(len(net.input_info.keys())))
-    assert len(net.input_info.keys()) == 1, 'Sample supports networks with one input'
+    # assert len(net.input_info.keys()) == 1, 'Sample supports networks with one input'
 
     for input_key in net.input_info:
         print("input shape: " + str(net.input_info[input_key].input_data.shape))
@@ -115,19 +115,35 @@ def main():
             input_info_name = input_key
             net.input_info[input_key].precision = 'FP32'
             if net.input_info[input_key].input_data.shape[1] != 3 and net.input_info[input_key].input_data.shape[1] != 6 or \
-                net.input_info[input_key].input_data.shape[0] != 1:
+                net.input_info[input_key].input_data.shape[0] != 1:  # TODO: maybe add reshape to this sample?
                 log.error('Invalid input info. Should be 3 or 6 values length.')
 
     data = {}
     data[input_name] = images
 
     if input_info_name != "":
-        infos = np.ndarray(shape=(n, c), dtype=float)
-        for i in range(n):
-            infos[i, 0] = h
-            infos[i, 1] = w
-            infos[i, 2] = 1.0
-        data[input_info_name] = infos
+        print('filling info')
+        # converted public like faster_rcnn_resnet101_coco
+        if net.input_info[input_info_name].input_data.shape[1] == 3:
+            infos = np.ndarray(shape=(n, 3), dtype=float)
+            for i in range(n):
+                infos[i, 0] = h
+                infos[i, 1] = w
+                infos[i, 2] = 1.0
+            data[input_info_name] = infos
+        # person-detection-retail-0002
+        # TODO: find clarification on what this input means
+        # TODO: maybe drop due to poor accuracy?
+        elif net.input_info[input_info_name].input_data.shape[1] == 6:
+            infos = np.ndarray(shape=(n, 6), dtype=float)
+            for i in range(n):
+                infos[i, 0] = h
+                infos[i, 1] = w
+                infos[i, 2] = h
+                infos[i, 3] = w
+                infos[i, 4] = h
+                infos[i, 5] = w
+            data[input_info_name] = infos
 
     # --------------------------- Prepare output blobs ----------------------------------------------------
     log.info('Preparing output blobs')
@@ -143,13 +159,14 @@ def main():
     if output_name == "":
         log.error("Can't find a DetectionOutput layer in the topology")
 
-    output_dims = output_info.shape
-    if len(output_dims) != 4:
-        log.error("Incorrect output dimensions for SSD model")
-    max_proposal_count, object_size = output_dims[2], output_dims[3]
+    print(f'Output shape is {"" if output_info.outputs()[0].get_partial_shape().is_static else "NOT "}static')
+    # output_dims = output_info.shape
+    # if len(output_dims) != 4:
+    #     log.error("Incorrect output dimensions for SSD model")
+    # max_proposal_count, object_size = output_dims[2], output_dims[3]
 
-    if object_size != 7:
-        log.error("Output item should have 7 as a last dimension")
+    # if object_size != 7:
+    #     log.error("Output item should have 7 as a last dimension")
 
     output_info.precision = "FP32"
     # -----------------------------------------------------------------------------------------------------
