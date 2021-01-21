@@ -430,6 +430,12 @@ namespace ngraph
                 /// \param out pointer to memory block for output data
                 void linear_onnx_func(const T* input_data, T* out);
 
+                /// \brief Calculates interpolation as in ONNX 'linear' mode (4D case)
+                ///
+                /// \param input_data pointer to input data
+                /// \param out pointer to memory block for output data
+                void linear_onnx4D_func(const T* input_data, T* out);
+
                 /// \brief Calculates interpolation as in ONNX 'linear' mode (5D case)
                 ///
                 /// \param input_data pointer to input data
@@ -537,15 +543,23 @@ namespace ngraph
                             {
                                 for (int64_t x = 0; x < output_width; ++x)
                                 {
-                                    T x111 = xdata[input_height_width_mul_z1[z] + input_width_mul_y1[y] + in_x1[x]];
-                                    T x211 = xdata[input_height_width_mul_z1[z] + input_width_mul_y1[y] + in_x2[x]];
-                                    T x121 = xdata[input_height_width_mul_z1[z] + input_width_mul_y2[y] + in_x1[x]];
-                                    T x221 = xdata[input_height_width_mul_z1[z] + input_width_mul_y2[y] + in_x2[x]];
+                                    T x111 = xdata[input_height_width_mul_z1[z] +
+                                                   input_width_mul_y1[y] + in_x1[x]];
+                                    T x211 = xdata[input_height_width_mul_z1[z] +
+                                                   input_width_mul_y1[y] + in_x2[x]];
+                                    T x121 = xdata[input_height_width_mul_z1[z] +
+                                                   input_width_mul_y2[y] + in_x1[x]];
+                                    T x221 = xdata[input_height_width_mul_z1[z] +
+                                                   input_width_mul_y2[y] + in_x2[x]];
 
-                                    T x112 = xdata[input_height_width_mul_z2[z] + input_width_mul_y1[y] + in_x1[x]];
-                                    T x212 = xdata[input_height_width_mul_z2[z] + input_width_mul_y1[y] + in_x2[x]];
-                                    T x122 = xdata[input_height_width_mul_z2[z] + input_width_mul_y2[y] + in_x1[x]];
-                                    T x222 = xdata[input_height_width_mul_z2[z] + input_width_mul_y2[y] + in_x2[x]];
+                                    T x112 = xdata[input_height_width_mul_z2[z] +
+                                                   input_width_mul_y1[y] + in_x1[x]];
+                                    T x212 = xdata[input_height_width_mul_z2[z] +
+                                                   input_width_mul_y1[y] + in_x2[x]];
+                                    T x122 = xdata[input_height_width_mul_z2[z] +
+                                                   input_width_mul_y2[y] + in_x1[x]];
+                                    T x222 = xdata[input_height_width_mul_z2[z] +
+                                                   input_width_mul_y2[y] + in_x2[x]];
 
                                     ydata[output_width * output_height * z + output_width * y + x] =
                                         static_cast<T>(dx2[x] * dy2[y] * dz2[z] * x111 +
@@ -567,7 +581,7 @@ namespace ngraph
             }
 
             template <typename T>
-            void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
+            void InterpolateEval<T>::linear_onnx4D_func(const T* input_data, T* out)
             {
                 size_t input_rank = m_input_data_shape.size();
                 size_t num_of_axes = m_axes.size();
@@ -620,6 +634,18 @@ namespace ngraph
                         xdata += input_height * input_width;
                         ydata += output_width * output_height;
                     }
+                }
+            }
+
+            template <typename T>
+            void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
+            {
+                size_t input_rank = m_input_data_shape.size();
+                switch (input_rank)
+                {
+                case 2: case 4: linear_onnx4D_func(input_data, out); break;
+                case 3: case 5: linear_onnx5D_func(input_data, out); break;
+                default:;
                 }
             }
 
