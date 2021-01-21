@@ -97,7 +97,7 @@ def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_r
     parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=int_dtype)
     parameter_input2 = ng.parameter(input1_shape, name="Input2", dtype=int_dtype)
 
-    node = ng.ctc_greedy_decoder(parameter_input0, parameter_input1, parameter_input2,
+    node = ng.ctc_greedy_decoder_seq_len(parameter_input0, parameter_input1, parameter_input2,
                                  merge_repeated, int_ci, int_sl)
 
     assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
