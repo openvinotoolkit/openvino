@@ -56,12 +56,18 @@ namespace BehaviorTestsDefinitions {                                            
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
+// TODO: issue with RTTI
+#ifdef __APPLE__
+using NotImplementedException = std::exception;
+#else
+using NotImplementedException = InferenceEngine::NotImplemented;
+#endif
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                                            \
 {                                                                               \
     try {                                                                       \
         __VA_ARGS__;                                                            \
-    } catch (const InferenceEngine::NotImplemented&) {                          \
+    } catch (const NotImplementedException &) {                                 \
         GTEST_SKIP();                                                           \
     }                                                                           \
 }
@@ -425,8 +431,9 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
 
-    if (deviceName == CommonTestUtils::DEVICE_CPU || deviceName == CommonTestUtils::DEVICE_FPGA) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplemented);
+    if (deviceName == CommonTestUtils::DEVICE_CPU ||
+        deviceName == CommonTestUtils::DEVICE_GPU) {
+        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplementedException);
     }
 }
 
