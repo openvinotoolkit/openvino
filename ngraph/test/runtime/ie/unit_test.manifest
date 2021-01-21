@@ -1594,6 +1594,8 @@ IE_CPU.evaluate_ctc_greedy_decoder_seq_len_merge
 IE_GPU.evaluate_ctc_greedy_decoder_seq_len_merge
 IE_CPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches
 IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches2
+IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches2
 
 # incorrect result for Minimum if u16 type is used
 minimum_u16

@@ -37,20 +37,18 @@ namespace ngraph
                                             const bool ctc_merge_repeated)
             {
                 const auto batch_size = data_shape[0];
+                const auto seq_len_max = data_shape[1];
                 const auto class_count = data_shape[2];
-
-                const CoordinateTransform out_transform{out_shape};
-                const CoordinateTransform data_transform{data_shape};
                 std::fill_n(out1, shape_size(out_shape), -1);
 
                 for (std::size_t batch_ind = 0; batch_ind < batch_size; ++batch_ind)
                 {
                     TI previous_class_index = static_cast<TI>(-1);
-                    auto out_index = out_transform.index({batch_ind, 0});
+                    auto out_index = batch_ind * seq_len_max;
                     auto seq_len = static_cast<std::size_t>(sequence_length[batch_ind]);
                     for (std::size_t seq_ind = 0; seq_ind < seq_len; seq_ind++)
                     {
-                        auto data_index = data_transform.index({batch_ind, seq_ind, 0});
+                        auto data_index = batch_ind * seq_len_max * class_count + seq_ind * class_count;
                         auto class_index = data + data_index;
                         auto class_max_element =
                             std::max_element(class_index, class_index + class_count);
