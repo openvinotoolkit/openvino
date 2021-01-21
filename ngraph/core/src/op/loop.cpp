@@ -179,7 +179,9 @@ void op::v5::Loop::validate_and_infer_types()
             input_offset--;
         }
     }
-    // throw exception when input_offset < 0.
+    // input_offset < 0 means that there are several duplications of external_port_id
+    // (the same ext_port_id is connected to several Parameters in the port map) in input_desc,
+    // this can lead to wrong or undefined behavior, so throw exception here. Ticket: 47302
     NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
 
     NODE_VALIDATION_CHECK(this,
@@ -328,7 +330,9 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
             input_offset--;
         }
     }
-    // throw exception when input_offset < 0
+    // input_offset < 0 means that there are several duplications of external_port_id
+    // (the same ext_port_id is connected to several Parameters in the port map) in input_desc,
+    // this can lead to wrong or undefined behavior, so throw exception here. Ticket: 47302
     NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
     // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body
     // params
