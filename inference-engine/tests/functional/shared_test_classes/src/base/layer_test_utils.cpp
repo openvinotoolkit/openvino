@@ -123,10 +123,10 @@ void TestEnvironment::TearDown() {
     for (const auto &it : stats) {
         std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
-        entry.append_attribute("passed").set_value(std::to_string(it.second.passed).c_str());
-        entry.append_attribute("failed").set_value(std::to_string(it.second.failed).c_str());
-        entry.append_attribute("skipped").set_value(std::to_string(it.second.skipped).c_str());
-        entry.append_attribute("passrate").set_value(std::to_string(it.second.getPassrate()).c_str());
+        entry.append_attribute("passed").set_value(it.second.passed);
+        entry.append_attribute("failed").set_value(it.second.failed);
+        entry.append_attribute("skipped").set_value(it.second.skipped);
+        entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
     bool result = doc.save_file(reportFileName.c_str());
     if (!result) {
