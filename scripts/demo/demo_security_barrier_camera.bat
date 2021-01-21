@@ -97,7 +97,7 @@ for /F "tokens=1,2 usebackq" %%a in ("%ROOT_DIR%demo_security_barrier_camera.con
 
     for /F "tokens=* usebackq" %%d in (
         `python "%downloader_dir%\info_dumper.py" --name "%%b" ^|
-         python -c "import sys, json; print(json.load(sys.stdin)[0]['subdirectory'])"`
+            python -c "import sys, json; print(json.load(sys.stdin)[0]['subdirectory'])"`
     ) do (
         set model_args=!model_args! %%a "%models_path%\%%d\%target_precision%\%%b.xml"
     )
@@ -127,19 +127,19 @@ if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
 
 if !VSWHERE! == "true" (
     for /f "usebackq tokens=*" %%i in (`vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath`) do (
-       set VS_PATH=%%i
+        set VS_PATH=%%i
     )
     if exist "!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe" (
-       set "MSBUILD_BIN=!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe"
+        set "MSBUILD_BIN=!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe"
     )
     if exist "!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe" (
-       set "MSBUILD_BIN=!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe"
+        set "MSBUILD_BIN=!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe"
     )
     if exist "!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe" (
-       set "MSBUILD_BIN=!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe"
+        set "MSBUILD_BIN=!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe"
     )
     for /f "usebackq tokens=1 delims=." %%i in (`vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationVersion`) do (
-       set VS_MAJOR_VER=%%i
+        set VS_MAJOR_VER=%%i
     )
     if "!VS_MAJOR_VER!"=="16" set "MSBUILD_VERSION=16 2019"
     if "!VS_MAJOR_VER!"=="15" set "MSBUILD_VERSION=15 2017"
