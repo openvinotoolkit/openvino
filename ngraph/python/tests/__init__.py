@@ -185,6 +185,7 @@ xfail_issue_47324 = xfail_test(reason="RuntimeError: CumSum layer with name 'y' 
                                       "input tensor with rank: 1")
 xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[name]` doesn't support "
                                       "FP64 precision.")
+xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
