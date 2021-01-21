@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <ngraph/op/constant.hpp>
 #include "ngraph/pass/constant_folding.hpp"
+#include <ngraph/op/constant.hpp>
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/rt_info.hpp"
 
@@ -90,7 +90,7 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
 }
 
 bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
-        std::shared_ptr<ngraph::Function> f)
+    std::shared_ptr<ngraph::Function> f)
 {
     deque<shared_ptr<Node>> nodes;
     set<shared_ptr<Node>> visited;
@@ -111,7 +111,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
         for (auto& input_value : curr_node->input_values())
         {
             const auto lb = input_value.get_tensor().get_lower_value(),
-            ub = input_value.get_tensor().get_upper_value();
+                       ub = input_value.get_tensor().get_upper_value();
 
             if (lb != nullptr && lb == ub)
             {
@@ -126,7 +126,8 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
                     }
                     else
                     {
-                        replacement->set_friendly_name(input_node->get_friendly_name() + "." + std::to_string(input_value.get_index()));
+                        replacement->set_friendly_name(input_node->get_friendly_name() + "." +
+                                                       std::to_string(input_value.get_index()));
                     }
                     input_value.replace(replacement);
                     // Propagate runtime info attributes to replacement consumer nodes

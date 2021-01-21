@@ -299,17 +299,15 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
 
 bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)) ||
-        !std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(2)) ||
-        !std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(3)))
+    if (!get_constant_from_source(input_value(1)) || !get_constant_from_source(input_value(2)) ||
+        !get_constant_from_source(input_value(3)))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!get_constant_from_source(input_value(1)) ||
-        !get_constant_from_source(input_value(2)) ||
+    if (!get_constant_from_source(input_value(1)) || !get_constant_from_source(input_value(2)) ||
         !get_constant_from_source(input_value(3)))
         return false;
     return default_upper_bound_evaluator(this, output_values);
