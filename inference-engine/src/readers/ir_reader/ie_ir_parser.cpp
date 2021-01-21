@@ -1198,38 +1198,4 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::LogicalNot
     return std::make_shared<ngraph::op::v1::LogicalNot>(inputs[0]);
 }
 
-// Constant layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::Constant>::createLayer(
-    const ngraph::OutputVector & inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    std::vector<size_t> shape = getParameters<size_t>(dn, "shape");
-    std::string el_type_str = GetStrAttr(dn, "element_type");
-
-    ngraph::element::Type el_type = details::convertPrecision(el_type_str);
-
-    size_t offset = GetUInt64Attr(dn, "offset");
-    size_t size = GetUInt64Attr(dn, "size");
-
-    size_t length = weights->byteSize();
-    if (!length)
-        THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
-    if (length < offset + size)
-        THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
-    if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
-        THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for Constant op: " << layerParsePrms.name;
-
-    char* data = weights->cbuffer().as<char*>() + offset;
-
-    using SharedBuffer = ngraph::runtime::SharedBuffer<const Blob::CPtr>;
-
-    auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
-    return std::make_shared<ngraph::op::Constant>(el_type, shape, buffer);
-}
-
 }  // namespace InferenceEngine
