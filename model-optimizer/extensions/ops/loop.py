@@ -127,7 +127,7 @@ class Loop(TensorIterator):
                                                            'output for Loop node "{}" for loop output port "{}"'.\
                         format(loop_name, loop_port_idx)
                     num_iters = Loop.iterations_count(loop_node)
-                    if num_iters is None or num_iters == -1:
+                    if num_iters is None:
                         log.error('Dynamic number of iterations for Loop node "{}". Consider number to be 1 to be able'
                                   ' to generate the IR.'.format(loop_name), extra={'is_warning': True})
                         num_iters = 1
@@ -158,6 +158,8 @@ class Loop(TensorIterator):
         num_iterations = loop_node.in_port(0).data.get_value()
         if num_iterations is not None:
             num_iterations = num_iterations.item(0)
+            if num_iterations < 0:
+                return None
         return num_iterations
 
     @staticmethod
@@ -343,19 +345,16 @@ class Loop(TensorIterator):
                              ''.format(layer_id_attr, layer_id_value)
 
     @staticmethod
-    def back_edge_exists(back_edges_map: dict, from_layer: int, to_layer: int, from_port=0, to_port=0):
+    def back_edge_exists(back_edges_map: dict, from_layer: int, to_layer: int):
         """
-        Checks if back edge exists in back_edges_map
+        Checks if a back edge exists in the back_edges_map connecting specific nodes
         :param back_edges_map: a map where to search for specified back edge
         :param from_layer: id of Result node that belongs a back edge
         :param to_layer: id of Parameter node that belongs a back edge
-        :param from_port: output port index of Result node
-        :param to_port: input port index of Parameter node
         :return: True or False
         """
         for back_edge in back_edges_map:
-            if back_edge['from_layer'] == from_layer and back_edge['to_layer'] == to_layer \
-                    and back_edge['from_port'] == from_port and back_edge['to_port'] == to_port:
+            if back_edge['from_layer'] == from_layer and back_edge['to_layer'] == to_layer:
                 return True
         return False
 
@@ -363,10 +362,10 @@ class Loop(TensorIterator):
     def inter_edge_exists(port_map: dict, external_port_id: int, internal_layer_id: int):
         """
         Check if inter-graph edge (i.e. an edge between the main graph and body graph) exists
-        :param port_map: a port mat where to search for inter-graph edge
+        :param port_map: a port map where to search for inter-graph edge
         :param external_port_id: port index from/to which edge goes
         :param internal_layer_id: layer id from/to which edge goes
-        :return:
+        :return: True or False
         """
         for i_port in port_map:
             if i_port['external_port_id'] == external_port_id and \
