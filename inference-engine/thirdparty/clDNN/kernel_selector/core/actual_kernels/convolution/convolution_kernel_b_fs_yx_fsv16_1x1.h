@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,7 +51,16 @@ protected:
         std::string exeMode;
     };
 
+    struct ConvolutionTuningData {
+        const size_t sub_group_size = 16;
+        const size_t feature_block_size = 16;
+        size_t slm_div_factor = 1;
+        size_t work_group_size = 1;
+    };
+
     std::vector<AutoTuneOption> autoTuneOptions;
     AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
+    ConvolutionTuningData GetTuningParams(const convolution_params& params) const;
+    float EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) const;
 };
 }  // namespace kernel_selector
