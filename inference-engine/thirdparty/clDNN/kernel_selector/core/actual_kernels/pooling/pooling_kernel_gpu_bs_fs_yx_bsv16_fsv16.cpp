@@ -59,9 +59,12 @@ PoolingKernelBase::DispatchData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::SetDef
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = SIMD_SIZE;
-    dispatchData.efficiency = FORCE_PRIORITY_1;
 
     return dispatchData;
+}
+
+KernelsPriority Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
@@ -77,7 +80,7 @@ JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const poo
 }
 
 KernelsData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);
+    return GetCommonKernelsData(params, options);
 }
 
 bool Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::Validate(const Params& params, const optional_params& options) const {

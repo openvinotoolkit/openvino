@@ -58,8 +58,7 @@ void kernel_selector::LSTM_DynamicInputKernelBase::SetKernelArguments(const lstm
 }
 
 KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& params,
-                                                              const optional_params& options,
-                                                              float estimated_time) const {
+                                                              const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -78,7 +77,6 @@ KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& para
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(orgParams, kernel);
 
-    k_data.estimatedTime = estimated_time;
     return {k_data};
 }
 }  // namespace kernel_selector
