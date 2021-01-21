@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,16 +16,24 @@
 #include "include/unit_type.cl"
 #include "include/mmad.cl"
 
-#define GET_SRC(data, id) AS_TYPE(MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE),                             \
-                            intel_sub_group_shuffle(                                                     \
-                                AS_TYPE(MAKE_VECTOR_TYPE(UNIT_BLOCK_RW_TYPE, X_BLOCK_SIZE), data),       \
-                                id))
+#if X_BLOCK_SIZE > 1
+#   define GET_SRC(data, id)    AS_TYPE(MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE),                             \
+                                    intel_sub_group_shuffle(                                                   \
+                                    AS_TYPE(MAKE_VECTOR_TYPE(UNIT_BLOCK_RW_TYPE, X_BLOCK_SIZE), data),         \
+                                    id))
+#else
+#   define GET_SRC(data, id)    AS_TYPE(UNIT_TYPE, intel_sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, data), id))
+#endif
 
 #define FEATURE_SLICE_SIZE 16
 
+#if X_BLOCK_SIZE > 1
+#   define UNIT_BLOCK_READ_VEC(ptr, offset)         CAT(UNIT_BLOCK_READ, X_BLOCK_SIZE)(ptr, offset)
+#   define UNIT_BLOCK_WRITE_VEC(ptr, offset, val)   CAT(UNIT_BLOCK_WRITE, X_BLOCK_SIZE)(ptr, offset, val)
+#endif
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
-__attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
+__attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE * SLM_DIV_FACTOR, 1)))
 KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
@@ -37,16 +45,21 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     FUSED_OPS_DECLS,
 #endif
     uint split_idx) {
-    const int xy = get_global_id(0);
-    const int f_block = get_group_id(1);
-    const int b = get_global_id(2);
-    const int lid = get_sub_group_local_id();
+#if X_BLOCK_SIZE > 1
+    const uint xy = (int)get_global_id(0);
+    const uint x = (xy * X_BLOCK_SIZE) % OUTPUT_SIZE_X;
+    const uint y = (xy * X_BLOCK_SIZE) / OUTPUT_SIZE_X;
 
-    const int x = (xy * X_BLOCK_SIZE) % OUTPUT_SIZE_X;
-    const int y = (xy * X_BLOCK_SIZE) / OUTPUT_SIZE_X;
+    const uint input_x = x;
+    const uint input_y = y;
+#endif
+    const uint b = (int)get_global_id(2);
+    const uint sglid = (int)get_sub_group_local_id();
 
-    const int input_x = x;
-    const int input_y = y;
+    const uint lid1 = (int)get_local_id(1);
+    const uint feature_per_wg = (int)get_local_size(1) / SLM_DIV_FACTOR;
+    const uint feature_sub_block = lid1 / feature_per_wg;
+    const uint feature_block = (int)get_group_id(1);
 
     // Input offset calculations:
     const uint input_x_pitch = FEATURE_SLICE_SIZE;
@@ -71,8 +84,8 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
 
     const uint output_fs_pad_before = OUTPUT_PAD_BEFORE_FEATURE_NUM / FEATURE_SLICE_SIZE;
 
-    const uint output_offset =  b * output_b_pitch +
-                               (f_block + output_fs_pad_before) * output_fs_pitch +
+    const uint output_offset = b * output_b_pitch +
+                               (feature_block + output_fs_pad_before) * output_fs_pitch +
                                (OUTPUT_PAD_BEFORE_SIZE_Y) * output_y_pitch +
                                (OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
 
@@ -83,71 +96,91 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     const uint filter_is_pitch = filter_y_pitch * FILTER_SIZE_Y;
     const uint filter_os_pitch = filter_is_pitch * ((FILTER_IFM_NUM + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE);
 
-    const uint filter_offset = f_block * filter_os_pitch;
+    const uint filter_offset = feature_block * filter_os_pitch;
 
+#if X_BLOCK_SIZE > 1
     typedef MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE) vec_t;
-
-
-#if BIAS_TERM
-    vec_t dst = (vec_t)(UNIT_BLOCK_READ(biases, f_block * FEATURE_SLICE_SIZE));
 #else
-    vec_t dst = UNIT_VAL_ZERO;
+    typedef UNIT_TYPE vec_t;
 #endif
 
-    for (uint k = 0; k < IC_BLOCKS; ++k)
+#if BIAS_TERM
+#if SLM_DIV_FACTOR == 1
+    vec_t dst = (vec_t)(UNIT_BLOCK_READ(biases, feature_block * FEATURE_SLICE_SIZE));
+#else
+    vec_t dst;
+
+    if (feature_sub_block == 0) {
+        dst = (vec_t)(UNIT_BLOCK_READ(biases, feature_block * FEATURE_SLICE_SIZE));
+    } else {
+        dst = UNIT_VAL_ZERO;
+    }
+#endif // SLM_DIV_FACTOR == 1
+#else
+    vec_t dst = UNIT_VAL_ZERO;
+#endif // BIAS_TERM
+
+#if SLM_DIV_FACTOR > 1
+    __local vec_t partial_summ[WORK_GROUP_SIZE];
+
+    for (uint k = feature_sub_block * IC_BLOCKS / SLM_DIV_FACTOR; k < (feature_sub_block + 1) * IC_BLOCKS / SLM_DIV_FACTOR; k++)
     {
+#else
+    for (uint k = 0; k < IC_BLOCKS; k++)
+    {
+#endif // SLM_DIV_FACTOR > 1
         vec_t src = 0;
 #if INPUT_LEFTOVERS
-        if ((k+1)*FEATURE_SLICE_SIZE >= INPUT0_FEATURE_NUM)
+        if ((k + 1) * FEATURE_SLICE_SIZE >= INPUT0_FEATURE_NUM)
         {
-            if (k*FEATURE_SLICE_SIZE + lid < INPUT0_FEATURE_NUM)
+            if (k * FEATURE_SLICE_SIZE + sglid < INPUT0_FEATURE_NUM)
             {
+#if X_BLOCK_SIZE > 1
                 __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
                 for (int i = 0; i < X_BLOCK_SIZE; i++)
                 {
                     const uint xb = (x + i) % INPUT0_SIZE_X;
                     const uint yb = y + (x + i) / INPUT0_SIZE_X;
-                    const uint input_idx = input_offset + k * input_fs_pitch +
-                                                          yb * input_y_pitch +
-                                                          xb * input_x_pitch;
-                    src[i] = input[input_idx + lid];
+                    const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
+
+                    src[i] = input[input_idx + sglid];
                 }
+#else
+                src = input[input_offset + k * input_fs_pitch + sglid];
+#endif // X_BLOCK_SIZE > 1
             }
         }
         else
-#endif
+#endif // INPUT_LEFTOVERS
         {
 #if PADDED_INPUT
+#if X_BLOCK_SIZE > 1
             __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
             for (int i = 0; i < X_BLOCK_SIZE; i++)
             {
                 const uint xb = (x + i) % INPUT0_SIZE_X;
                 const uint yb = y + (x + i) / INPUT0_SIZE_X;
-                const uint input_idx = input_offset + k * input_fs_pitch +
-                                                      yb * input_y_pitch +
-                                                      xb * input_x_pitch;
+                const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
+
                 src[i] = UNIT_BLOCK_READ(input, input_idx);
             }
 #else
-#if X_BLOCK_SIZE == 8
-            src = UNIT_BLOCK_READ8(input, input_offset + k * input_fs_pitch +
-                                                         input_y * input_y_pitch +
-                                                         input_x * input_x_pitch);
-#elif X_BLOCK_SIZE == 4
-            src = UNIT_BLOCK_READ4(input, input_offset + k * input_fs_pitch +
-                                                         input_y * input_y_pitch +
-                                                         input_x * input_x_pitch);
-#elif X_BLOCK_SIZE == 2
-            src = UNIT_BLOCK_READ2(input, input_offset + k * input_fs_pitch +
-                                                         input_y * input_y_pitch +
-                                                         input_x * input_x_pitch);
-#endif
-#endif
-        }
+            src = UNIT_BLOCK_READ(input, input_offset + k * input_fs_pitch);
+#endif // X_BLOCK_SIZE > 1
 
+#else // PADDED_INPUT
+
+#if X_BLOCK_SIZE > 1
+            src = UNIT_BLOCK_READ_VEC(input, input_offset + k * input_fs_pitch + input_y * input_y_pitch + input_x * input_x_pitch);
+#else
+            src = UNIT_BLOCK_READ(input, input_offset + k * input_fs_pitch);
+#endif // X_BLOCK_SIZE > 1
+#endif // PADDED_INPUT
+        }
 
         UNIT_TYPE8 wei0 = UNIT_BLOCK_READ8(weights, filter_offset + k * filter_is_pitch);
         UNIT_TYPE8 wei1 = UNIT_BLOCK_READ8(weights, filter_offset + k * filter_is_pitch + 8 * filter_isv_pitch);
+
         const vec_t src0  = GET_SRC(src, 0);
         const vec_t src1  = GET_SRC(src, 1);
         const vec_t src2  = GET_SRC(src, 2);
@@ -183,29 +216,52 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
         dst = mad(wei1.s7, src15, dst);
     }
 
+#if SLM_DIV_FACTOR > 1
+    partial_summ[lid1] = dst;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (feature_sub_block == 0) {
+        __attribute__((opencl_unroll_hint))
+        for (int i = 1; i < SLM_DIV_FACTOR; i++)
+            dst += partial_summ[lid1 % feature_per_wg + i * feature_per_wg];
+#endif // SLM_DIV_FACTOR > 1
+
     dst = ACTIVATION(dst, ACTIVATION_PARAMS);
 
 #if OUTPUT_LEFTOVERS
-    if ((f_block+1)*FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
+    if ((feature_block + 1) * FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
     {
+#if X_BLOCK_SIZE > 1
         for (int i = 0; i < X_BLOCK_SIZE; i++) {
-            if (xy * X_BLOCK_SIZE + i >= OUTPUT_SIZE_X * OUTPUT_SIZE_Y ||
-                f_block*FEATURE_SLICE_SIZE + lid >= OUTPUT_FEATURE_NUM)
+            if (xy * X_BLOCK_SIZE + i >= OUTPUT_SIZE_X * OUTPUT_SIZE_Y || feature_block * FEATURE_SLICE_SIZE + sglid >= OUTPUT_FEATURE_NUM)
                 return;
 
-            int xi = (x+i) % OUTPUT_SIZE_X;
-            int yi = y + ((x+i) / OUTPUT_SIZE_X);
+            int xi = (x + i) % OUTPUT_SIZE_X;
+            int yi = y + ((x + i) / OUTPUT_SIZE_X);
 
 #if HAS_FUSED_OPS
             FUSED_OPS_SCALAR;
             dst[i] = FUSED_OPS_RESULT_SCALAR;
 #endif
 
-            output[output_offset + yi * output_y_pitch + xi * output_x_pitch + lid] = dst[i];
+            output[output_offset + yi * output_y_pitch + xi * output_x_pitch + sglid] = dst[i];
         }
+#else // X_BLOCK_SIZE > 1
+        if (feature_block * FEATURE_SLICE_SIZE + sglid >= OUTPUT_FEATURE_NUM)
+            return;
+
+#if HAS_FUSED_OPS
+        FUSED_OPS_SCALAR_B1;
+        dst = FUSED_OPS_RESULT_SCALAR_B1;
+#endif
+
+        output[output_offset + sglid] = dst;
+#endif // X_BLOCK_SIZE > 1
     }
     else
-#endif
+#endif // OUTPUT_LEFTOVERS
+
+#if X_BLOCK_SIZE > 1
     {
 #if !PADDED_OUTPUT && !NON_UNIT_FUSED_OP_SPATIAL
         if (xy * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X * OUTPUT_SIZE_Y || (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % X_BLOCK_SIZE == 0) {
@@ -216,20 +272,14 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
             FUSED_OPS_VEC;
             dst = FUSED_OPS_RESULT_VEC;
 #endif
-#if X_BLOCK_SIZE == 8
-            UNIT_BLOCK_WRITE8(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#elif X_BLOCK_SIZE == 4
-            UNIT_BLOCK_WRITE4(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#elif X_BLOCK_SIZE == 2
-            UNIT_BLOCK_WRITE2(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#endif
+            UNIT_BLOCK_WRITE_VEC(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
         } else {
             for (int i = 0; i < X_BLOCK_SIZE; i++) {
                 if (xy * X_BLOCK_SIZE + i >= OUTPUT_SIZE_X * OUTPUT_SIZE_Y)
                     return;
 
-                int xi = (x+i) % OUTPUT_SIZE_X;
-                int yi = y + ((x+i) / OUTPUT_SIZE_X);
+                int xi = (x + i) % OUTPUT_SIZE_X;
+                int yi = y + ((x + i) / OUTPUT_SIZE_X);
 
 #if HAS_FUSED_OPS
                 FUSED_OPS_SCALAR;
@@ -240,7 +290,22 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
             }
         }
     }
+#else // X_BLOCK_SIZE > 1
+    {
+#if HAS_FUSED_OPS
+        FUSED_OPS_SCALAR_B1;
+        dst = FUSED_OPS_RESULT_SCALAR_B1;
+#endif
+        UNIT_BLOCK_WRITE(output, output_offset, dst);
+    }
+#endif // X_BLOCK_SIZE > 1
+
+#if SLM_DIV_FACTOR > 1
+    }
+#endif
 }
 
 #undef GET_SRC
 #undef FEATURE_SLICE_SIZE
+#undef UNIT_BLOCK_READ_VEC
+#undef UNIT_BLOCK_WRITE_VEC
