@@ -621,7 +621,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
     static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
-        { "GreaterEqual", std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual") },
         { "SquaredDifference", std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference") },
         { "LessEqual", std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual") },
         { "LSTMCell", std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell") },
@@ -1016,15 +1015,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::SquaredDiffere
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 2);
     return std::make_shared<ngraph::op::SquaredDifference>(inputs[0], inputs[1]);
-}
-
-// GreaterEqual layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GreaterEqual>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::GreaterEqual>(inputs[0], inputs[1]);
 }
 
 // LessEqual layer
