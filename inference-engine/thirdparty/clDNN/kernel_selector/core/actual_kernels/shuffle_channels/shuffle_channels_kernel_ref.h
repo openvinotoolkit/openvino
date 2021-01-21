@@ -43,6 +43,7 @@ public:
     ShuffleChannelsKernelRef() : KernelBaseOpenCL("shuffle_channels_ref") {}
     virtual ~ShuffleChannelsKernelRef() {}
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
     bool Validate(const Params&, const optional_params&) const override;

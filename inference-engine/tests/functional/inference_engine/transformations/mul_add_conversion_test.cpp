@@ -23,6 +23,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
 #include <legacy/ngraph_ops/power.hpp>
 #include <legacy/ngraph_ops/scaleshift.hpp>
+#include <legacy/ngraph_ops/eltwise.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

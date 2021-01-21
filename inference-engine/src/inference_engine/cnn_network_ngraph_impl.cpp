@@ -240,8 +240,12 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                     outputName += "." + std::to_string(outputIndex);
                 }
 
+                // Check that we don't have a result for the output port
+                for (const auto& port : layer->output(outputIndex).get_target_inputs()) {
+                    if (dynamic_cast<ngraph::op::Result*>(port.get_node()))
+                        return OK;
+                }
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
-                result->set_friendly_name(outputName);
                 _ngraph_function->add_results({result});
 
                 if (_outputData.count(outputName) == 0) {

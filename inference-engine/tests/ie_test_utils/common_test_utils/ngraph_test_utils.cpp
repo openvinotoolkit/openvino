@@ -114,6 +114,17 @@ std::pair<bool, std::string> compare_functions(
             return {false, typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2)};
         }
 
+        auto subgraph1 = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node1);
+        auto subgraph2 = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node2);
+
+        if (subgraph1 && subgraph2) {
+            auto res = compare_functions(subgraph1->get_function(), subgraph2->get_function(),
+                    compareConstValues, compareNames, compareRuntimeKeys, comparePrecisions);
+            if (!res.first) {
+                return res;
+            }
+        }
+
         const auto& dependencies_1 = node1->get_control_dependencies();
         const auto& dependencies_2 = node2->get_control_dependencies();
         if (dependencies_1.size() != dependencies_2.size()) {
