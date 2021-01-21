@@ -482,7 +482,6 @@ TEST_P(InferRequestTests, canRun3AsyncRequestsConsistentlyWithWait) {
     auto req1 = execNet.CreateInferRequest();
     auto req2 = execNet.CreateInferRequest();
     auto req3 = execNet.CreateInferRequest();
-    InferenceEngine::ResponseDesc response1, response2, response3;
 
     req1.StartAsync();
     ASSERT_NO_THROW(req1.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
@@ -643,7 +642,6 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    InferenceEngine::ResponseDesc response;
     InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
     std::promise<std::chrono::system_clock::time_point> callbackTimeStamp;
     auto callbackTimeStampFuture = callbackTimeStamp.get_future();
