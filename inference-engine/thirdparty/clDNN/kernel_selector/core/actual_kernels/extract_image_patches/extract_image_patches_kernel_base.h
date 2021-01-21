@@ -51,7 +51,7 @@ protected:
     virtual ParamsKey GetSupportedKey() const override;
     virtual JitConstants GetJitConstants(const extract_image_patches_params& params) const;
     DispatchData SetDefault(const extract_image_patches_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 
     bool Validate(const Params& p, const optional_params&) const override;
 };

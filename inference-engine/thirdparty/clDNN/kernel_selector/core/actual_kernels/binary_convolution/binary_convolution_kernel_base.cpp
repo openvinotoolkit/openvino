@@ -106,7 +106,6 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefaul
     dispatchData.gemmStyle.subBlockDimK = 1;
     dispatchData.gemmStyle.subBlockDimM = 0;
     dispatchData.gemmStyle.subBlockDimN = 0;
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return dispatchData;
 }
 
@@ -168,7 +167,6 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
                      fused_deps_total);
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

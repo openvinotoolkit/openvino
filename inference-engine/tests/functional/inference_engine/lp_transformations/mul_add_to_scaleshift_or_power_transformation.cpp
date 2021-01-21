@@ -13,6 +13,7 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
