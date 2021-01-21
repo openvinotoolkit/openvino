@@ -648,7 +648,8 @@ namespace ngraph
                 case 4: linear_onnx4D_func(input_data, out); break;
                 case 3:
                 case 5: linear_onnx5D_func(input_data, out); break;
-                default:;
+                default: throw ngraph_error("Mode 'linear_onnx' of the layer Interpolate-4 supports"
+                                            " only 2D, 3D, 4D, or 5D input tensors."); break;
                 }
             }
 
