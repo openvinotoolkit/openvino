@@ -23,10 +23,10 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/op/proposal.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "ngraph/op/proposal.hpp"
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;

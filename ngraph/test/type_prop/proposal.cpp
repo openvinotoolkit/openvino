@@ -65,8 +65,7 @@ TEST(type_prop, proposal_v0_invalid_anchor_count)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("Anchor number inconsistent between"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Anchor number inconsistent between"));
     }
     catch (...)
     {
