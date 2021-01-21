@@ -44,8 +44,10 @@ class GABackend(TelemetryBackend):
         try:
             import requests
             print("Sending message: {}".format(message.attrs))
-            requests.post(self.backend_url, message.attrs)
+            requests.post(self.backend_url, message.attrs, timeout=0.5)
         except ImportError:
+            pass
+        except Exception:
             pass
 
     def build_event_message(self, event_category: str, event_action: str, event_label: str, event_value: int = 1,

@@ -18,8 +18,7 @@ from concurrent import futures
 from telemetry.backend.backend import TelemetryBackend
 from telemetry.utils.message import Message
 
-MAX_QUEUE_SIZE = 100  # maximum number of messages in the queue
-MAX_TIMEOUT = 10  # maximum timeout in seconds to send the data
+MAX_QUEUE_SIZE = 1000  # maximum number of messages in the queue
 
 
 class TelemetrySender:
