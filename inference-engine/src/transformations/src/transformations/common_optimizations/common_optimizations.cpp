@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "transformations/init_node_info.hpp"
-#include "transformations/itt.hpp"
+#include "itt.hpp"
 #include "transformations/common_optimizations/algebraic_simplification.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -26,6 +26,7 @@
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
@@ -55,6 +56,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
 
     // This pass must be called first in pipeline
@@ -121,6 +123,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
+    fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.run_passes(f);

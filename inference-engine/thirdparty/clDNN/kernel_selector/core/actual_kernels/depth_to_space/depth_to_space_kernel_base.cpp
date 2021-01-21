@@ -64,7 +64,7 @@ JitConstants DepthToSpaceKernelBase::GetJitConstants(const depth_to_space_params
     return jit;
 }
 
-KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options, float estimatedTime) const {
+KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
     KernelData kd = KernelData::Default<depth_to_space_params>(params);
     depth_to_space_params& newParams = *static_cast<depth_to_space_params*>(kd.params.get());
 
@@ -81,8 +81,6 @@ KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimatedTime;
 
     return { kd };
 }

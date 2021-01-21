@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -279,4 +279,9 @@ void MKLDNNDeformableConvolutionNode::initDescriptor(const InferenceEngine::Laye
     }
     selectedPD->getConfig() = rightConfig;
 }
+
+InferenceEngine::Precision MKLDNNDeformableConvolutionNode::getRuntimePrecision() const {
+    return MKLDNNExtensionUtils::getMaxPrecision(getInputPrecisions());
+}
+
 REG_MKLDNN_PRIM_FOR(MKLDNNDeformableConvolutionNode, DeformableConvolution);
