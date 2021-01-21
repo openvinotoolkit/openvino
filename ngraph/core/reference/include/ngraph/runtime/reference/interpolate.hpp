@@ -643,8 +643,10 @@ namespace ngraph
                 size_t input_rank = m_input_data_shape.size();
                 switch (input_rank)
                 {
-                case 2: case 4: linear_onnx4D_func(input_data, out); break;
-                case 3: case 5: linear_onnx5D_func(input_data, out); break;
+                case 2:
+                case 4: linear_onnx4D_func(input_data, out); break;
+                case 3:
+                case 5: linear_onnx5D_func(input_data, out); break;
                 default:;
                 }
             }
