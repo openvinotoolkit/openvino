@@ -9,15 +9,20 @@
 #include "mkldnn_node.h"
 #include "utils/bfloat16.hpp"
 
+using namespace InferenceEngine;
+
 namespace MKLDNNPlugin {
 struct load_emitter_context : public emitter_context {
-    load_emitter_context() : offset_byte_(0), load_num_(8), src_prc_(InferenceEngine::Precision::FP32),
+    load_emitter_context() : offset_byte_(0), load_num_(8), src_prc_(Precision::FP32),
     dst_prc_(InferenceEngine::Precision::FP32), is_fill_(false), fill_value_("zero") {}
+
+    load_emitter_context(int load_num, Precision src_prc, Precision dst_prc, bool is_fill = false, std::string fill_value = "zero", int offset_byte = 0):
+    load_num_(load_num), src_prc_(src_prc), dst_prc_(dst_prc), is_fill_(is_fill), fill_value_(fill_value), offset_byte_(offset_byte) {}
 
     int offset_byte_;
     int load_num_;
-    InferenceEngine::Precision src_prc_;
-    InferenceEngine::Precision dst_prc_;
+    Precision src_prc_;
+    Precision dst_prc_;
     bool is_fill_;
     std::string fill_value_;
 };
@@ -26,10 +31,13 @@ struct store_emitter_context : public emitter_context {
     store_emitter_context() : offset_byte_(0), store_num_(8), src_prc_(InferenceEngine::Precision::FP32),
     dst_prc_(InferenceEngine::Precision::FP32) {}
 
+    store_emitter_context(int store_num, Precision src_prc, Precision dst_prc, int offset_byte = 0)
+    : store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), offset_byte_(offset_byte) {}
+
     int offset_byte_;
     int store_num_;
-    InferenceEngine::Precision src_prc_;
-    InferenceEngine::Precision dst_prc_;
+    Precision src_prc_;
+    Precision dst_prc_;
 };
 
 class jit_load_emitter : public jit_emitter {

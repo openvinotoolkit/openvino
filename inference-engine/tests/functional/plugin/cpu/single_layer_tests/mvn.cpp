@@ -85,6 +85,10 @@ const std::vector<std::vector<size_t>> inputShapes_4D = {
         {2, 19, 5, 10},
         {7, 32, 2, 8},
         {5, 8, 3, 5},
+        {1, 2, 7, 5},
+        {1, 4, 5, 5},
+        {1, 7, 3, 5},
+        {1, 15, 9, 5},
         {4, 41, 6, 9}
 };
 
@@ -113,11 +117,13 @@ const std::vector<double> epsilon = {
 std::vector<Precision> inpOutPrc = {Precision::BF16, Precision::FP32};
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
         CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
 };
@@ -150,36 +156,6 @@ const auto Mvn4D = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
 
-
-const auto MvnNHWC = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapes_4D),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::Values(false),
-                ::testing::Values(true),
-                ::testing::ValuesIn(epsilon),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(CPUSpecificParams({nhwc}, {nhwc}, {}, {})),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
-
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_NHWC, MvnLayerCPUTest, MvnNHWC, MvnLayerCPUTest::getTestCaseName);
-
-const auto MvnNDHWC = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapes_5D),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::Values(false),
-                ::testing::Values(true),
-                ::testing::ValuesIn(epsilon),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(CPUSpecificParams({ndhwc}, {ndhwc}, {}, {})),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc));
-
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_NDHWC, MvnLayerCPUTest, MvnNDHWC, MvnLayerCPUTest::getTestCaseName);
-
-
 const auto Mvn5D = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inputShapes_5D),
@@ -191,7 +167,6 @@ const auto Mvn5D = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc));
-
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
 
