@@ -249,7 +249,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                  #endif
             #else
                 #ifdef BLOCK_LOAD_INPUTS
-                    in[reg] = AS_PACKED_TYPE(intel_sub_group_block_read(&conv_input[in_addr]));
+                    in[reg] = AS_PACKED_TYPE(intel_sub_group_block_read((const __global uint*) &conv_input[in_addr]));
                     #ifdef SHOULD_USE_DATA_ZP
                         if (input_on_padding)
                             in[reg] = data_zp_val;

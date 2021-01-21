@@ -41,8 +41,6 @@ ParamsKey ConvolutionKernel_bfyx_iyxo::GetSupportedKey() const {
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_iyxo::SetDefault(const convolution_params& cp, int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    dispatchData.efficiency = FORCE_PRIORITY_9;
-
     dispatchData.gws[0] = CeilDiv(cp.output.X().v, sub_group_size) / 4;
     dispatchData.gws[1] = cp.output.Y().v;
     dispatchData.gws[2] = sub_group_size;
@@ -52,6 +50,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_iyxo::SetDefault(cons
     dispatchData.lws[2] = sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_iyxo::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p, const optional_params& o) const {

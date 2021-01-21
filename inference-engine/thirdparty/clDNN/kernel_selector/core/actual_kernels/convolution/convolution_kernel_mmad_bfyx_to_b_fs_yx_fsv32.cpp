@@ -162,8 +162,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
     dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     const size_t max_lws = std::max((size_t)1, cp.engineInfo.maxWorkGroupSize / sub_group_size);
     dispatchData.gws[0] = Align(cp.output.Feature().v, 32) / 2;
     dispatchData.gws[1] = CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth);
@@ -174,6 +172,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32
     dispatchData.lws[2] = 1;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const convolution_params &params,
@@ -235,10 +237,6 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const
 
 KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetKernelsData(const Params &params, const optional_params &options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
-    if (!kd.empty()) {
-        kd[0].estimatedTime = FORCE_PRIORITY_2;
-    }
-
     return kd;
 }
 

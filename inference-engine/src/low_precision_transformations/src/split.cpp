@@ -130,7 +130,6 @@ ngraph::Shape SplitTransformation::getConstSplitShape(
     const std::vector<size_t>& constSplitLengths,
     const ngraph::Shape& constShape, const size_t axis,
     const size_t idx) const {
-    size_t numSplit = constSplitLengths.size() - 1;
     Shape result(constShape);
     result[axis] = constSplitLengths[idx + 1] - constSplitLengths[idx];
     return result;

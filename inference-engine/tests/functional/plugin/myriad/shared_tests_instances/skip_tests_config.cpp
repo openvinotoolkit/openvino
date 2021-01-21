@@ -32,11 +32,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
         // TODO: Issue: 42721
         R"(.*(DSR_GatherND).*)",
-        // TODO: Issue 43781
-        ".*ROIPoolingLayerTest.*",
         // TODO: Issue 26090
         ".*DSR_GatherStaticDataDynamicIdx.*f32.*1.3.200.304.*",
         // TODO: Issue 47315
-        ".*ProposalLayerTest.*"
+        ".*ProposalLayerTest.*",
+        // TODO: Issue 46755
+        ".*DSR_GatherElements.*"
     };
 }

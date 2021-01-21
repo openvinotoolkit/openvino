@@ -19,6 +19,7 @@
 #include <set>
 
 #include "transformations/common_optimizations/algebraic_simplification.hpp"
+#include "itt.hpp"
 
 #include <ngraph/log.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -181,7 +182,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
     };
     std::vector<DimensionToPosition> dims;
     for (size_t i = 0; i < input_shape_rank; ++i) {
-        if (order_value[i] != i) {
+        if (order_value[i] != static_cast<int64_t>(i)) {
             dims.push_back({input_shape[order_value[i]], i});
         }
     }
@@ -234,6 +235,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
 }
 
 bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f) {
+    RUN_ON_FUNCTION_SCOPE(AlgebraicSimplification);
     static const unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> ops_to_simplifiers =
         {{opset3::Gather::type_info, simplify_gather},
          {opset2::ShapeOf::type_info, simplify_gather_shapeof},

@@ -151,54 +151,42 @@ protected:
         _outputsInfo = network.getOutputsInfo();
         _outputsInfo["scatter_update"]->setPrecision(Precision::FP16);
 
-        StatusCode st = OK;
-
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, _config, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, _config));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
         Blob::Ptr inputBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("input", inputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(inputBlob = _inferRequest.GetBlob("input"));
+        
         void* inputBlobData = inputBlob->buffer();
         ASSERT_NE(inputBlobData, nullptr);
         std::copy(inputData.cbegin(), inputData.cend(), reinterpret_cast<ie_fp16*>(inputBlobData));
 
         Blob::Ptr indicesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("indices", indicesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(indicesBlob = _inferRequest.GetBlob("indices"));
+        
         void* indicesBlobData = indicesBlob->buffer();
         ASSERT_NE(indicesBlobData, nullptr);
         std::copy(indicesData.cbegin(), indicesData.cend(), reinterpret_cast<int32_t*>(indicesBlobData));
 
         Blob::Ptr updatesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("updates", updatesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(updatesBlob = _inferRequest.GetBlob("updates"));
+        
         void* updatesBlobData = updatesBlob->buffer();
         ASSERT_NE(updatesBlobData, nullptr);
         std::copy(updatesData.cbegin(), updatesData.cend(), reinterpret_cast<ie_fp16*>(updatesBlobData));
 
         Blob::Ptr axisBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("axis", axisBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(axisBlob = _inferRequest.GetBlob("axis"));
+        
         void* axisBlobData = axisBlob->buffer();
         ASSERT_NE(axisBlobData, nullptr);
         std::copy(axisData.cbegin(), axisData.cend(), reinterpret_cast<int32_t*>(axisBlobData));
 
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_inferRequest.Infer());
+        
         Blob::Ptr outputBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("scatter_update", outputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("scatter_update"));
+        
         const void* outputBlobDataPtr = outputBlob->cbuffer();
         const ie_fp16* outputBlobData = reinterpret_cast<const ie_fp16*>(outputBlobDataPtr);
         ASSERT_NE(outputBlobData, nullptr);

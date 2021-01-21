@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1128,6 +1128,45 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
 
 void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops) {
     THROW_IE_EXCEPTION << "Fusing of " << this->getType() << " operation is not implemented";
+}
+
+std::vector<InferenceEngine::Precision> MKLDNNNode::getInputPrecisions() const {
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        auto parentEdge = getParentEdgeAt(i);
+        if (parentEdge && parentEdge->getStatus() == MKLDNNEdge::Status::Validated) {
+            inputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+        }
+    }
+    return inputPrecisions;
+}
+
+std::vector<InferenceEngine::Precision> MKLDNNNode::getOutputPrecisions() const {
+    std::vector<InferenceEngine::Precision> outputPrecisions;
+    for (size_t i = 0; i < getChildEdges().size(); i++) {
+        auto childEdge = getChildEdgeAt(i);
+        if (childEdge && childEdge->getStatus() == MKLDNNEdge::Status::Validated) {
+            outputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
+        }
+    }
+    return outputPrecisions;
+}
+
+InferenceEngine::Precision MKLDNNNode::getRuntimePrecision() const {
+    // Base implementation consider precision only on data path and
+    // assumes it is placed on 0-th port (which is true for almost all layers)
+    InferenceEngine::Precision runtimePrecision = Precision::UNSPECIFIED;
+    auto inputPrecisions = getInputPrecisions();
+    if (!inputPrecisions.empty()) {
+        runtimePrecision = inputPrecisions[0];
+    } else {
+        auto outputPrecisions = getOutputPrecisions();
+        if (!outputPrecisions.empty()) {
+            runtimePrecision = outputPrecisions[0];
+        }
+    }
+
+    return runtimePrecision;
 }
 
 MKLDNNNode* MKLDNNNode::NodesFactory::create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,

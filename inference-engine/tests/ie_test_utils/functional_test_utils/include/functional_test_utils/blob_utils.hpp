@@ -517,6 +517,32 @@ InferenceEngine::Blob::Ptr inline createAndFillBlobConsistently(
     return blob;
 }
 
+InferenceEngine::Blob::Ptr inline createAndFillBlobUniqueSequence(
+    const InferenceEngine::TensorDesc &td,
+    const int32_t start_from = 0,
+    const int32_t resolution = 1,
+    const int32_t seed = 1) {
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
+    blob->allocate();
+    auto shape = td.getDims();
+    auto range = std::accumulate(begin(shape), end(shape), 1, std::multiplies<uint64_t>()) * 2;
+    switch (td.getPrecision()) {
+#define CASE(X) case X: CommonTestUtils::fill_random_unique_sequence<X>(blob, range, start_from, resolution, seed); break;
+        CASE(InferenceEngine::Precision::FP32)
+        CASE(InferenceEngine::Precision::FP16)
+        CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::I8)
+        CASE(InferenceEngine::Precision::I16)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::I32)
+#undef CASE
+    default:
+        THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+    }
+    return blob;
+}
+
 InferenceEngine::Blob::Ptr inline convertBlobLayout(const InferenceEngine::Blob::Ptr& in,
                                                     InferenceEngine::Layout layout) {
     IE_ASSERT(in != nullptr) << "Got NULL pointer";

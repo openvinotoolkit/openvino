@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@
 
 using namespace ngraph;
 using namespace std;
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
 NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);

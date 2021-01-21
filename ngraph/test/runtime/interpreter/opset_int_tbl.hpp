@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ NGRAPH_OP(TensorIterator, op::v0)
 NGRAPH_OP(ROIPooling, op::v0)
 
 NGRAPH_OP(AvgPool, op::v1)
+NGRAPH_OP(ConvertLike, op::v1)
 NGRAPH_OP(Convolution, ngraph::op::v1)
 NGRAPH_OP(ConvolutionBackpropData, ngraph::op::v1)
 NGRAPH_OP(LessEqual, op::v1)
@@ -65,6 +66,7 @@ NGRAPH_OP(Reshape, op::v1)
 NGRAPH_OP(Select, op::v1)
 NGRAPH_OP(GatherTree, op::v1)
 
+NGRAPH_OP(Bucketize, op::v3)
 NGRAPH_OP(EmbeddingBagOffsetsSum, ngraph::op::v3)
 NGRAPH_OP(EmbeddingBagPackedSum, ngraph::op::v3)
 NGRAPH_OP(ExtractImagePatches, op::v3)
