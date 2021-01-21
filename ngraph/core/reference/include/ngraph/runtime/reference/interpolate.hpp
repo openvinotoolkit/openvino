@@ -543,33 +543,33 @@ namespace ngraph
                             {
                                 for (int64_t x = 0; x < output_width; ++x)
                                 {
-                                    T x111 = xdata[input_height_width_mul_z1[z] +
-                                                   input_width_mul_y1[y] + in_x1[x]];
-                                    T x211 = xdata[input_height_width_mul_z1[z] +
-                                                   input_width_mul_y1[y] + in_x2[x]];
-                                    T x121 = xdata[input_height_width_mul_z1[z] +
-                                                   input_width_mul_y2[y] + in_x1[x]];
-                                    T x221 = xdata[input_height_width_mul_z1[z] +
-                                                   input_width_mul_y2[y] + in_x2[x]];
+                                    T x111 = xdata[info.input_height_width_mul_z1[z] +
+                                                   info.input_width_mul_y1[y] + info.in_x1[x]];
+                                    T x211 = xdata[info.input_height_width_mul_z1[z] +
+                                                   info.input_width_mul_y1[y] + info.in_x2[x]];
+                                    T x121 = xdata[info.input_height_width_mul_z1[z] +
+                                                   info.input_width_mul_y2[y] + info.in_x1[x]];
+                                    T x221 = xdata[info.input_height_width_mul_z1[z] +
+                                                   info.input_width_mul_y2[y] + info.in_x2[x]];
 
-                                    T x112 = xdata[input_height_width_mul_z2[z] +
-                                                   input_width_mul_y1[y] + in_x1[x]];
-                                    T x212 = xdata[input_height_width_mul_z2[z] +
-                                                   input_width_mul_y1[y] + in_x2[x]];
-                                    T x122 = xdata[input_height_width_mul_z2[z] +
-                                                   input_width_mul_y2[y] + in_x1[x]];
-                                    T x222 = xdata[input_height_width_mul_z2[z] +
-                                                   input_width_mul_y2[y] + in_x2[x]];
+                                    T x112 = xdata[info.input_height_width_mul_z2[z] +
+                                                   info.input_width_mul_y1[y] + info.in_x1[x]];
+                                    T x212 = xdata[info.input_height_width_mul_z2[z] +
+                                                   info.input_width_mul_y1[y] + info.in_x2[x]];
+                                    T x122 = xdata[info.input_height_width_mul_z2[z] +
+                                                   info.input_width_mul_y2[y] + info.in_x1[x]];
+                                    T x222 = xdata[info.input_height_width_mul_z2[z] +
+                                                   info.input_width_mul_y2[y] + info.in_x2[x]];
 
                                     ydata[output_width * output_height * z + output_width * y + x] =
-                                        static_cast<T>(dx2[x] * dy2[y] * dz2[z] * x111 +
-                                                       dx1[x] * dy2[y] * dz2[z] * x211 +
-                                                       dx2[x] * dy1[y] * dz2[z] * x121 +
-                                                       dx1[x] * dy1[y] * dz2[z] * x221 +
-                                                       dx2[x] * dy2[y] * dz1[z] * x112 +
-                                                       dx1[x] * dy2[y] * dz1[z] * x212 +
-                                                       dx2[x] * dy1[y] * dz1[z] * x122 +
-                                                       dx1[x] * dy1[y] * dz1[z] * x222);
+                                        static_cast<T>(info.dx2[x] * info.dy2[y] * info.dz2[z] * x111 +
+                                                       info.dx1[x] * info.dy2[y] * info.dz2[z] * x211 +
+                                                       info.dx2[x] * info.dy1[y] * info.dz2[z] * x121 +
+                                                       info.dx1[x] * info.dy1[y] * info.dz2[z] * x221 +
+                                                       info.dx2[x] * info.dy2[y] * info.dz1[z] * x112 +
+                                                       info.dx1[x] * info.dy2[y] * info.dz1[z] * x212 +
+                                                       info.dx2[x] * info.dy1[y] * info.dz1[z] * x122 +
+                                                       info.dx1[x] * info.dy1[y] * info.dz1[z] * x222);
                                 }
                             }
                         }
