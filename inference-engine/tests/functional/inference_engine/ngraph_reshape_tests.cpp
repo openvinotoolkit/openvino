@@ -753,7 +753,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
             </output>
         </layer>
         <layer name="in1" type="Parameter" id="1" version="opset1">
-            <data shape="1201600000,4" element_type="f32"/>
+            <data shape="201600,4" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>201600</dim>
@@ -772,7 +772,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
             </output>
         </layer>
         <layer name="in3" type="Parameter" id="3" version="opset1">
-            <data shape="1,3" element_type="f32"/>
+            <data shape="3,200,336" element_type="f32"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>
@@ -817,6 +817,113 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
                 <port id="0" precision="FP32">
                     <dim>1000</dim>
                     <dim>4</dim>
+                </port>
+            </input>
+        </layer>
+        <layer name="out_1" type="Result" id="6" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="4" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="4" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="4" to-port="3"/>
+        <edge from-layer="4" from-port="4" to-layer="5" to-port="0"/>
+        <edge from-layer="4" from-port="5" to-layer="6" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in2"] = {12, 200, 300};
+    newShapes["in3"] = {2, 200, 300};
+    ASSERT_NO_THROW(network.reshape(newShapes));
+}
+
+TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage_opset6) {
+    std::string model = R"V0G0N(
+<net name="GenerateProposalsSingleImage" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="3" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="201600,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>201600</dim>
+					<dim>4</dim>
+                </port>
+            </output>
+        </layer>
+       <layer name="in2" type="Parameter" id="2" version="opset1">
+            <data shape="12,200,336" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>12</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in3" type="Parameter" id="3" version="opset1">
+            <data shape="3,200,336" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>3</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="1133" type="ExperimentalDetectronGenerateProposalsSingleImage" version="opset6">
+			<data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>
+			<input>
+				<port id="0">
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>201600</dim>
+					<dim>4</dim>
+				</port>
+				<port id="2">
+					<dim>12</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+				</port>
+				<port id="3">
+					<dim>3</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+				<port id="5" precision="FP32">
+					<dim>1000</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="out_0" type="Result" id="5" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+					<dim>4</dim>
                 </port>
             </input>
         </layer>
