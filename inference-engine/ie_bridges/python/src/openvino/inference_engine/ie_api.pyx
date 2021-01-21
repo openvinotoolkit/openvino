@@ -1439,6 +1439,12 @@ cdef class IENetwork:
     def _get_function_capsule(self):
         return self.impl.getFunction()
 
+    def get_ov_name_for_tensor(self, orig_name: str):
+        return self.impl.getOVNameForTensor(orig_name)
+
+    def get_ov_name_for_operation(self, orig_name: str):
+        return self.impl.getOVNameForOperation(orig_name)
+
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""
 
