@@ -35,7 +35,7 @@ ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
         const auto& unsqueezeAxisVec = unsqueezeAxisNode->cast_vector<int64_t>();
         const auto& gatherAxisVec = gatherAxisNode->cast_vector<int64_t>();
 
-        if (unsqueezeAxisVec.size() != 1) {
+        if (unsqueezeAxisVec.size() != 1 || gatherAxisVec.size() != 1) {
             return false;
         }
 
