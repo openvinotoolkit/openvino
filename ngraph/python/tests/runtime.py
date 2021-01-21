@@ -40,15 +40,16 @@ def get_runtime():
 
 
 def _convert_inputs(cnn_network: IENetwork) -> None:
-    """ WA converts unsupported input images formats. """
+    """WA converts unsupported input images formats."""
     precision_map = {
-        "FP64" : "FP32",
-        "U32" : "I32",
+        "FP64": "FP32",
+        "U32": "I32",
     }
 
     for cnn_input in cnn_network.input_info:
         try:
-            cnn_network.input_info[cnn_input].precision = precision_map[cnn_network.input_info[cnn_input].precision]
+            _precision = precision_map[cnn_network.input_info[cnn_input].precision]
+            cnn_network.input_info[cnn_input].precision = _precision
         except KeyError:
             pass
 
