@@ -579,6 +579,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             order = {0, 1};
             blkDims = dims;
             break;
+        case memory::oiw:
         case memory::tnc:
         case memory::ncw:
             layout = Layout::CHW;

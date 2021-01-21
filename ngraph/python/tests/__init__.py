@@ -110,7 +110,6 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
                                       "CNNNetwork::reshape() method in order to specialize shapes "
                                       "before the conversion.")
 xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
-xfail_issue_38087 = xfail_test(reason="RuntimeError: Cannot cast to tensor desc. Format is unsupported!")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Gradient")
