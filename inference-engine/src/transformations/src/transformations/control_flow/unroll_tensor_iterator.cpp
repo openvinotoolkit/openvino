@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -16,6 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
 
 bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(op);
         if (!ti || transformation_callback(ti)) {
@@ -43,7 +45,6 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
 
         // Port map : inputs and back edges
         for (const auto& desc : ti->get_input_descriptions()) {
-            const std::string& type_name = desc->get_type_info().name;
             if (const auto& input_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::SliceInputDescription>(desc)) {
                 // Connect the sliced input (layer before the input) to the Split layer and connect
                 // the corresponding Split output to the corresponding copy of the body.
@@ -104,7 +105,6 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
 
         // Port map: outputs
         for (const auto& desc : ti->get_output_descriptions()) {
-            std::string type_name = desc->get_type_info().name;
             if (const auto& concat_desc = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator::ConcatOutputDescription>(desc)) {
                 if (!concat_desc) {
                     return false;

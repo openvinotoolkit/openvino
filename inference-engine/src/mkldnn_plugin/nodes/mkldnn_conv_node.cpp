@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -911,6 +911,20 @@ const mkldnn::memory& MKLDNNConvolutionNode::getWeights() const {
 
 const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
     return baseInputsNumber > 2 ? getParentEdgeAt(2)->getMemory().GetPrimitive() : internalBlobMemory[1]->GetPrimitive();
+}
+
+InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    // Don't take bias precision into account
+    size_t inputsNumLimit = 2;
+    for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
+        auto parentEdge = getParentEdgeAt(i);
+        if (parentEdge && parentEdge->getStatus() == MKLDNNEdge::Status::Validated) {
+            inputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+        }
+    }
+
+    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);

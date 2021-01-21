@@ -6,6 +6,7 @@
 
 #include <ngraph/opsets/opset5.hpp>
 #include "ngraph_ops/nms_ie_internal.hpp"
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -40,6 +41,7 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
 }
 
 std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+    INTERNAL_OP_SCOPE(internal_NonMaxSuppressionIEInternal_clone_with_new_inputs);
     if (new_args.size() == 6) {
         return make_shared<NonMaxSuppressionIEInternal>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                              new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
@@ -53,6 +55,7 @@ std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_
 }
 
 bool op::internal::NonMaxSuppressionIEInternal::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(internal_NonMaxSuppressionIEInternal_visit_attributes);
     visitor.on_attribute("center_point_box", m_center_point_box);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -79,6 +82,7 @@ int64_t op::internal::NonMaxSuppressionIEInternal::max_boxes_output_from_input()
 }
 
 void op::internal::NonMaxSuppressionIEInternal::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(internal_NonMaxSuppressionIEInternal_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(boxes_port);
     const auto scores_ps = get_input_partial_shape(scores_port);
 

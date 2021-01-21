@@ -248,7 +248,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                         } else {
                             sampleYHigh = sampleYLow + 1;
                         }
-                        if (sampleXLow >= H - 1) {
+                        if (sampleXLow >= W - 1) {
                             sampleXHigh = sampleXLow = W - 1;
                             sampleX = static_cast<float>(sampleXLow);
                         } else {

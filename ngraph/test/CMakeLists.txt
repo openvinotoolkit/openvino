@@ -73,6 +73,7 @@ set(SRC
     ngraph_api.cpp
     node_input_output.cpp
     op.cpp
+    op_eval/bucketize.cpp
     op_eval/floor_mod.cpp
     op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
@@ -103,7 +104,6 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
-    type_prop/abs.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -125,9 +125,14 @@ set(SRC
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dyn_reshape.cpp
+    type_prop/experimental_detectron_generate_proposals.cpp
+    type_prop/experimental_detectron_roi_feature_extractor.cpp
+    type_prop/experimental_detectron_topkrois.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
     type_prop/embeddingbag_offsetssum.cpp
+    type_prop/experimental_detectron_detection_output.cpp
+    type_prop/experimental_detectron_prior_grid_generator.cpp
     type_prop/extractimagepatches.cpp
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
@@ -255,12 +260,14 @@ set(MULTI_TEST_SRC
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
+    backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convert.in.cpp
+    backend/convert_like.in.cpp
     backend/convolution.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
@@ -353,7 +360,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
-            onnx/onnx_import_quant.in.cpp)
+            onnx/onnx_import_quant.in.cpp
+            onnx/onnx_test_utils.in.cpp)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp

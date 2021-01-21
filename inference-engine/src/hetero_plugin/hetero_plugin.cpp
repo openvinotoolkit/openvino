@@ -20,13 +20,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::HeteroConfigParams;
 using namespace HeteroPlugin;
-using namespace std;
-
-static Version heteroPluginDescription = {
-        {2, 1},  // plugin API version
-        CI_BUILD_NUMBER,
-        "heteroPlugin"  // plugin description message
-};
 
 Engine::Engine() {
     _pluginName = "HETERO";
@@ -203,5 +196,10 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     }
 }
 
-static const Version version = {{2, 1}, CI_BUILD_NUMBER, "heteroPlugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
+static Version heteroPluginDescription = {
+        {2, 1},  // plugin API version
+        CI_BUILD_NUMBER,
+        "heteroPlugin"  // plugin description message
+};
+
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, heteroPluginDescription)

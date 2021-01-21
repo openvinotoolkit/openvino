@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2017-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -678,7 +678,19 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     }
 
     // Try to create operation from loaded opsets
-    if (!ngraphNode && opsetIt != opsets.end()) {
+    auto version = params.version;
+    static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
+                                                                            "ExperimentalDetectronGenerateProposalsSingleImage",
+                                                                            "ExperimentalDetectronPriorGridGenerator",
+                                                                            "ExperimentalDetectronROIFeatureExtractor",
+                                                                            "ExperimentalDetectronTopKROIs"};
+
+    if (experimental_detectrons.count(params.type)) {
+        version = "opset6";
+    }
+
+    if (!ngraphNode && opsets.count(version)) {
+        auto opset = opsets.at(version);
         auto const & type = params.type == "Const"
                                 ? "Constant"
                                 : params.type;
@@ -691,10 +703,9 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
                         << " from unsupported opset: " << params.version;
                 }
+                opset = opsetIt->second;
             }
         }
-
-        auto const & opset = opsetIt->second;
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         if (!ngraphNode) {
@@ -702,8 +713,18 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets);
-        if (ngraphNode->visit_attributes(visitor))
+        if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
+        }
+
+        // To be sure that all default values will be initialized:
+        ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
+
+        // Constructor of Loop and TensorIterator do not call validate_and_infer_types function
+        // -> ticket 36145
+        if (const auto& subGraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphNode)) {
+            subGraph->validate_and_infer_types();
+        }
     }
 
     // Create GenericIE operation for backward compatibility
@@ -899,7 +920,6 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
         output_map[ext_port_id] = _output;
     }
 
-    int i = 0;
     for (const auto& output : output_map) {
         auto& _output = output.second;
         auto axis_attr = _output.attribute("axis");

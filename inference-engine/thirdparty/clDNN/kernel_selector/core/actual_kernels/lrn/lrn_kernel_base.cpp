@@ -87,8 +87,7 @@ LRNKernelBase::DispatchData LRNKernelBase::SetDefault(const lrn_params& params) 
 }
 
 KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params,
-                                                const optional_params& options,
-                                                float estimatedTime) const {
+                                                const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -115,8 +114,6 @@ KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params,
                      false,
                      1,
                      fused_deps_total);
-
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }
