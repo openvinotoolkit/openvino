@@ -15,12 +15,7 @@ std::string TensorNamesTest::getTestCaseName(testing::TestParamInfo<constResultP
 }
 
 void TensorNamesTest::SetUp() {
-    InferenceEngine::SizeVector inputShapes;
-    InferenceEngine::Precision inputPrecision;
     std::tie(targetDevice) = this->GetParam();
-    std::vector<float> data(300);
-    for (size_t i = 0; i < 300; i++)
-        data[i] = i;
 
     auto parameter = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
     parameter->set_friendly_name("parameter");
