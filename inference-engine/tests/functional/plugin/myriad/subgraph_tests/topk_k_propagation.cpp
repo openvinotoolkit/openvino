@@ -9,6 +9,7 @@
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/operations/static_shape_topk.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape_topk.hpp>
@@ -186,7 +187,9 @@ class KPropagationAfterShapeOfElimination : public DynamicToStaticTopKPropagatio
             "KPropagationAfterShapeOfElimination");
 
         validate(*function);
-        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
         function->validate_nodes_and_infer_types();
         validate(*function);
     }
