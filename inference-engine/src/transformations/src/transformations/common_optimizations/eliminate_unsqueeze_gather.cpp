@@ -7,10 +7,12 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::EliminateUnsqueezeGather, "EliminateUnsqueezeGather", 0);
 
 ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
+    MATCHER_SCOPE(EliminateUnsqueezeGather);
     const auto unsqueezeAxis = ngraph::pattern::any_input();
     const auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset6::Unsqueeze>({ngraph::pattern::any_input(), unsqueezeAxis});
     const auto gatherIndices = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
