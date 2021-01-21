@@ -527,6 +527,43 @@ namespace ngraph
 
                 const T* xdata = input_data;
                 T* ydata = out;
+                for (int64_t n = 0; n < batch_size; ++n)
+                {
+                    for (int64_t c = 0; c < num_channels; ++c)
+                    {
+                        for (int64_t z = 0; z < output_depth; ++z)
+                        {
+                            for (int64_t y = 0; y < output_height; ++y)
+                            {
+                                for (int64_t x = 0; x < output_width; ++x)
+                                {
+                                    T x111 = xdata[input_height_width_mul_z1[z] + input_width_mul_y1[y] + in_x1[x]];
+                                    T x211 = xdata[input_height_width_mul_z1[z] + input_width_mul_y1[y] + in_x2[x]];
+                                    T x121 = xdata[input_height_width_mul_z1[z] + input_width_mul_y2[y] + in_x1[x]];
+                                    T x221 = xdata[input_height_width_mul_z1[z] + input_width_mul_y2[y] + in_x2[x]];
+
+                                    T x112 = xdata[input_height_width_mul_z2[z] + input_width_mul_y1[y] + in_x1[x]];
+                                    T x212 = xdata[input_height_width_mul_z2[z] + input_width_mul_y1[y] + in_x2[x]];
+                                    T x122 = xdata[input_height_width_mul_z2[z] + input_width_mul_y2[y] + in_x1[x]];
+                                    T x222 = xdata[input_height_width_mul_z2[z] + input_width_mul_y2[y] + in_x2[x]];
+
+                                    ydata[output_width * output_height * z + output_width * y + x] =
+                                        static_cast<T>(dx2[x] * dy2[y] * dz2[z] * x111 +
+                                                       dx1[x] * dy2[y] * dz2[z] * x211 +
+                                                       dx2[x] * dy1[y] * dz2[z] * x121 +
+                                                       dx1[x] * dy1[y] * dz2[z] * x221 +
+                                                       dx2[x] * dy2[y] * dz1[z] * x112 +
+                                                       dx1[x] * dy2[y] * dz1[z] * x212 +
+                                                       dx2[x] * dy1[y] * dz1[z] * x122 +
+                                                       dx1[x] * dy1[y] * dz1[z] * x222);
+                                }
+                            }
+                        }
+
+                        xdata += input_depth * input_height * input_width;
+                        ydata += output_depth * output_width * output_height;
+                    }
+                }
             }
 
             template <typename T>
