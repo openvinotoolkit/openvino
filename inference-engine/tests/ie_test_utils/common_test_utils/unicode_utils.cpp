@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
 #include "unicode_utils.hpp"
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
