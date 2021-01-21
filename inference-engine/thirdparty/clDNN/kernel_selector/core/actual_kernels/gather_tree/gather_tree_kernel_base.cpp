@@ -37,8 +37,7 @@ GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather
 }
 
 KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params,
-                                                       const optional_params& options,
-                                                       float estimated_time) const {
+                                                       const optional_params& options) const {
     assert(params.GetType() == KernelType::GATHER_TREE);
     const auto& gt_params = static_cast<const gather_tree_params&>(params);
 
@@ -57,7 +56,6 @@ KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params,
                      false,
                      false,
                      static_cast<int>(gt_params.inputs.size()));
-    kernel_data.estimatedTime = estimated_time;
     return { kernel_data };
 }
 }  // namespace kernel_selector

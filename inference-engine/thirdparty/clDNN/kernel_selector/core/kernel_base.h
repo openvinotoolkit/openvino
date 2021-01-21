@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,9 +29,8 @@ using primitive_db = kernel_selector::gpu::cache::primitive_db;
 struct CommonDispatchData {
     std::vector<size_t> gws;
     std::vector<size_t> lws;
-    float efficiency;
 
-    CommonDispatchData() : gws({0, 0, 0}), lws({0, 0, 0}), efficiency(0.0f) {}
+    CommonDispatchData() : gws({0, 0, 0}), lws({0, 0, 0}) {}
 };
 
 std::string toString(const kernel_selector::CommonDispatchData& dispatchData);
@@ -59,6 +58,10 @@ public:
                                                    int /*autoTuneIndex*/) const {
         return GetKernelsData(params, options);
     }
+    virtual KernelsPriority GetKernelsPriority(const Params& /*params*/,
+                                               const optional_params& /*options*/) const {
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    };
 
     virtual ParamsKey GetSupportedKey() const = 0;
     virtual const std::string GetName() const { return kernelName; }
