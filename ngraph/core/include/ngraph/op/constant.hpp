@@ -465,6 +465,7 @@ namespace ngraph
                     return m_all_elements_bitwise_identical;
                 }
                 std::string convert_value_to_string(size_t index) const;
+                void need_alloc_buffer_on_visit_attrubutes(bool val);
 
             protected:
                 template <typename IN_T, typename OUT_T>
@@ -587,6 +588,7 @@ namespace ngraph
                 std::shared_ptr<runtime::AlignedBuffer> m_data;
                 bool m_all_elements_bitwise_identical;
                 bool are_all_data_elements_bitwise_identical() const;
+                bool m_need_alloc_buffer_on_visit_attrubutes = true;
             };
         }
         using v0::Constant;

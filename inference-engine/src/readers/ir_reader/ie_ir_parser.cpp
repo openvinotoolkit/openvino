@@ -636,7 +636,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         { "LogicalOr", std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr") },
         { "LogicalXor", std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor") },
         { "LogicalNot", std::make_shared<LayerCreator<ngraph::op::v1::LogicalNot>>("LogicalNot") },
-        { "Const", std::make_shared<LayerCreator<ngraph::op::v0::Constant>>("Const") },
     };
 
     // Check that operation in default opsets
@@ -701,10 +700,52 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         if (!ngraphNode) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
+        if (type == "Constant") {
+            auto constant = ngraph::as_type_ptr<ngraph::op::v0::Constant>(ngraphNode);
+            constant->need_alloc_buffer_on_visit_attrubutes(false);
+        }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets);
-        if (ngraphNode->visit_attributes(visitor))
+        if (ngraphNode->visit_attributes(visitor)) {
+            if (type == "Constant") {
+                auto constant = ngraph::as_type_ptr<ngraph::op::v0::Constant>(ngraphNode);
+
+                pugi::xml_node dn = node.child("data");
+
+                if (dn.empty())
+                    THROW_IE_EXCEPTION << "Cannot read parameter for " << type << " layer with name: " << params.name;
+
+                std::vector<size_t> shape;
+                std::string el_type_str;
+
+                if (!getStrAttribute(dn, "element_type", el_type_str))
+                    THROW_IE_EXCEPTION << "Cannot read element type for " << type << " layer with name: " << params.name;
+                if (!getParameters<size_t>(dn, "shape", shape))
+                    THROW_IE_EXCEPTION << "Cannot read shape for " << type << " layer with name: " << params.name;
+
+                ngraph::element::Type el_type = details::convertPrecision(el_type_str);
+
+                size_t offset = GetUInt64Attr(dn, "offset");
+                size_t size = GetUInt64Attr(dn, "size");
+                size_t length = weights->byteSize();
+
+                if (!length)
+                    THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
+                if (length < offset + size)
+                    THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
+                if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
+                    THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for Constant op: " << params.name;
+
+                char* data = weights->cbuffer().as<char*>() + offset;
+
+                using SharedBuffer = ngraph::runtime::SharedBuffer<const Blob::CPtr>;
+
+                auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
+
+                ngraphNode = std::make_shared<ngraph::op::Constant>(el_type, shape, buffer);
+            }
             ngraphNode->constructor_validate_and_infer_types();
+        }
     }
 
     // Create GenericIE operation for backward compatibility
