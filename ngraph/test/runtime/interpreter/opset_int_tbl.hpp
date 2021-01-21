@@ -48,6 +48,7 @@ NGRAPH_OP(TensorIterator, op::v0)
 NGRAPH_OP(ROIPooling, op::v0)
 
 NGRAPH_OP(AvgPool, op::v1)
+NGRAPH_OP(ConvertLike, op::v1)
 NGRAPH_OP(Convolution, ngraph::op::v1)
 NGRAPH_OP(ConvolutionBackpropData, ngraph::op::v1)
 NGRAPH_OP(LessEqual, op::v1)
