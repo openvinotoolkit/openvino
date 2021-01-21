@@ -16,13 +16,14 @@
 import requests
 import uuid
 
-from telemetry.backend.backend import TelemetryBackend
+from telemetry.backend.backend import TelemetryBackend, BackendRegistry
 from telemetry.utils.message import Message, MessageType
 from telemetry.utils.guid import get_or_generate_uid
 
 
 class GABackend(TelemetryBackend):
     backend_url = 'https://www.google-analytics.com/collect'
+    id = 'ga'
 
     def __init__(self, tid: str, app_name: str, app_version: str):
         super(GABackend, self).__init__(tid, app_name, app_version)

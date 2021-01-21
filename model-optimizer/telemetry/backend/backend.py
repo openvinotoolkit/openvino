@@ -15,10 +15,36 @@
 """
 
 import abc
+
 from telemetry.utils.message import Message
 
 
-class TelemetryBackend(abc.ABC):
+class BackendRegistry:
+    """
+    The class that stores information about all registered telemetry backends
+    """
+    r = {}
+
+    @classmethod
+    def register_backend(cls, id: str, backend):
+        cls.r[id] = backend
+
+    @classmethod
+    def get_backend(cls, id: str):
+        assert id in cls.r, 'The backend with id "{}" is not registered'.format(id)
+        return cls.r.get(id)
+
+
+class TelemetryBackendMetaClass(abc.ABCMeta):
+    def __init__(cls, clsname, bases, methods):
+        super().__init__(clsname, bases, methods)
+        if cls.id is not None:
+            BackendRegistry.register_backend(cls.id, cls)
+
+
+class TelemetryBackend(metaclass=TelemetryBackendMetaClass):
+    id = None
+
     @abc.abstractmethod
     def __init__(self, tid: str, app_name: str, app_version: str):
         """

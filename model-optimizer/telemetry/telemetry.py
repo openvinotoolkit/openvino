@@ -15,7 +15,7 @@
 """
 import telemetry.utils.isip as isip
 
-from telemetry.backend.backend_ga import GABackend
+from telemetry.backend.backend import BackendRegistry
 from telemetry.utils.sender import TelemetrySender
 
 
@@ -35,14 +35,15 @@ class Telemetry(metaclass=SingletonMetaClass):
     The main class to send telemetry data. It uses singleton pattern. The instance should be initialized with the
     application name, version and tracking id just once. Later the instance can be created without parameters.
     """
-    def __init__(self, app_name: str = None, app_version: str = None, tid: [None, str] = None):
+    def __init__(self, app_name: str = None, app_version: str = None, tid: [None, str] = None,
+                 backend: [str, None] = 'ga'):
         if app_name is not None:
             #self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
             self.consent = True  # for testing purposes
             # override default tid
             if tid is not None:
                 self.tid = tid
-            self.backend = GABackend(self.tid, app_name, app_version)
+            self.backend = BackendRegistry.get_backend(backend)(self.tid, app_name, app_version)
             self.sender = TelemetrySender()
         else:  # use already configured instance
             assert self.sender is not None, 'The first instantiation of the Telemetry should be done with the ' \
