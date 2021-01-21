@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstddef>
+#include <ngraph/op/mvn.hpp>
 #include <ngraph/runtime/reference/add.hpp>
 #include <ngraph/runtime/reference/divide.hpp>
 #include <ngraph/runtime/reference/mean.hpp>
@@ -36,9 +37,9 @@ namespace ngraph
             void mvn(const T* arg,
                      T* out,
                      const Shape& in_shape,
-                     bool normalize_variance,
-                     AxisSet reduction_axes,
-                     double eps)
+                     const bool normalize_variance,
+                     const AxisSet& reduction_axes,
+                     const double eps)
             {
                 auto reduced_shape = reduce(in_shape, reduction_axes, true);
                 std::vector<T> tmp_buffer(shape_size(in_shape));
@@ -63,6 +64,62 @@ namespace ngraph
                         reduced_shape,
                         op::AutoBroadcastSpec::NUMPY);
                     sqrt(tmp_buffer.data(), tmp_buffer.data(), shape_size(reduced_shape));
+
+                    divide(out,
+                           tmp_buffer.data(),
+                           out,
+                           in_shape,
+                           reduced_shape,
+                           op::AutoBroadcastSpec::NUMPY,
+                           true);
+                }
+            }
+
+            template <typename T>
+            void mvn_6(const T* arg,
+                       T* out,
+                       const Shape& in_shape,
+                       AxisSet reduction_axes,
+                       bool normalize_variance,
+                       double eps,
+                       op::MVNEpsMode eps_mode)
+            {
+                auto reduced_shape = reduce(in_shape, reduction_axes, true);
+                std::vector<T> tmp_buffer(shape_size(in_shape));
+                mean(arg, tmp_buffer.data(), in_shape, reduction_axes, true);
+                subtract(arg,
+                         tmp_buffer.data(),
+                         out,
+                         in_shape,
+                         reduced_shape,
+                         op::AutoBroadcastSpec::NUMPY);
+
+                if (normalize_variance)
+                {
+                    multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
+                    std::vector<T> mean_value(shape_size(reduced_shape));
+                    mean(tmp_buffer.data(), mean_value.data(), in_shape, reduction_axes, true);
+
+                    if (eps_mode == op::MVNEpsMode::INSIDE_SQRT)
+                    {
+                        add(mean_value.data(),
+                            std::vector<T>(shape_size(reduced_shape), eps).data(),
+                            tmp_buffer.data(),
+                            reduced_shape,
+                            reduced_shape,
+                            op::AutoBroadcastSpec::NUMPY);
+                        sqrt(tmp_buffer.data(), tmp_buffer.data(), shape_size(reduced_shape));
+                    }
+                    else
+                    {
+                        sqrt(mean_value.data(), tmp_buffer.data(), shape_size(reduced_shape));
+                        add(tmp_buffer.data(),
+                            std::vector<T>(shape_size(reduced_shape), eps).data(),
+                            tmp_buffer.data(),
+                            reduced_shape,
+                            reduced_shape,
+                            op::AutoBroadcastSpec::NUMPY);
+                    }
 
                     divide(out,
                            tmp_buffer.data(),
