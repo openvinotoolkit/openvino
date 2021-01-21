@@ -562,14 +562,15 @@ namespace ngraph
                                                    info.input_width_mul_y2[y] + info.in_x2[x]];
 
                                     ydata[output_width * output_height * z + output_width * y + x] =
-                                        static_cast<T>(info.dx2[x] * info.dy2[y] * info.dz2[z] * x111 +
-                                                       info.dx1[x] * info.dy2[y] * info.dz2[z] * x211 +
-                                                       info.dx2[x] * info.dy1[y] * info.dz2[z] * x121 +
-                                                       info.dx1[x] * info.dy1[y] * info.dz2[z] * x221 +
-                                                       info.dx2[x] * info.dy2[y] * info.dz1[z] * x112 +
-                                                       info.dx1[x] * info.dy2[y] * info.dz1[z] * x212 +
-                                                       info.dx2[x] * info.dy1[y] * info.dz1[z] * x122 +
-                                                       info.dx1[x] * info.dy1[y] * info.dz1[z] * x222);
+                                        static_cast<T>(
+                                            info.dx2[x] * info.dy2[y] * info.dz2[z] * x111 +
+                                            info.dx1[x] * info.dy2[y] * info.dz2[z] * x211 +
+                                            info.dx2[x] * info.dy1[y] * info.dz2[z] * x121 +
+                                            info.dx1[x] * info.dy1[y] * info.dz2[z] * x221 +
+                                            info.dx2[x] * info.dy2[y] * info.dz1[z] * x112 +
+                                            info.dx1[x] * info.dy2[y] * info.dz1[z] * x212 +
+                                            info.dx2[x] * info.dy1[y] * info.dz1[z] * x122 +
+                                            info.dx1[x] * info.dy1[y] * info.dz1[z] * x222);
                                 }
                             }
                         }
