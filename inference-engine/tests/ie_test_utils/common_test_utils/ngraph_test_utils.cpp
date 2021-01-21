@@ -10,8 +10,9 @@
 #include <string>
 
 #include <ngraph/function.hpp>
-#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 namespace {
@@ -194,7 +195,6 @@ std::pair<bool, std::string> compare_functions(
                                    [](const double &s1, const double & s2) {
                                        return std::abs(s1 - s2) < 0.001;
                                    });
-
                 };
 
                 if (const1 && const2 && !compare_constant_values(const1.get(), const2.get())) {

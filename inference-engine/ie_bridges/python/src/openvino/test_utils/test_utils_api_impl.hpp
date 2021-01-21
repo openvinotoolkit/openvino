@@ -9,8 +9,6 @@
 
 namespace InferenceEnginePython {
 
-void ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf);
-
-void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network);
+std::pair<bool, std::string> CompareNetworks(InferenceEnginePython::IENetwork, InferenceEnginePython::IENetwork);
 
 };  // namespace InferenceEnginePython
