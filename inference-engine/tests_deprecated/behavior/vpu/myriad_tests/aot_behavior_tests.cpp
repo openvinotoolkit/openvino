@@ -84,7 +84,7 @@ class AOTBehaviorTests : public BehaviorPluginTest {
         {
             ret = core.ImportNetwork("local_tmp.fw", GetParam().device);
         }
-        catch (InferenceEngine::details::InferenceEngineException ex)
+        catch (InferenceEngine::details::InferenceEngineException & ex)
         {
             return ex.getStatus();
         }

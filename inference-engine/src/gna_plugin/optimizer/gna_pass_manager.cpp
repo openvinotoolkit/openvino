@@ -1445,7 +1445,6 @@ void SubstituteScaleShiftBroadCastPass::run() {
         auto batchSize = dataDims[0];
         auto nElements = product(begin(dataDims), end(dataDims)) / batchSize;
         auto weightsElements = scaleShift->_weights->size();
-        auto weightsBytes = scaleShift->_weights->byteSize();
 
         if (!reshape_batch && nElements == weightsElements) {
             continue;
@@ -1941,7 +1940,6 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         float fqLevels = fqLayer.getLevels();
-        float scaleInput = (fqLevels - 1) / (inputRange.second[0] - inputRange.first[0]);
         float scaleOutputs = (fqLevels - 1) / (outputRange.second[0] - outputRange.first[0]);
 
         // Before FQ layer is removed, the previous layer has to be updated with its quantization data
