@@ -98,10 +98,10 @@ class Computation(object):
         if len(self.results) == 1:
             return next(iter(output_blobs.values())).buffer
         else:
-            prev_layer = ng_result.input(0)
+            prev_layer = ng_result.input(0).get_source_output()
             out_name = prev_layer.get_node().get_friendly_name()
             if prev_layer.get_node().get_output_size() != 1:
-                out_name += "." + prev_layer.get_index()
+                out_name += "." + str(prev_layer.get_index())
             return output_blobs[out_name].buffer
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
