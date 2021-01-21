@@ -42,6 +42,11 @@
 #error CV_SIMD128 is required!
 #endif
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
+
 #include <cstring>
 
 using namespace cv;
