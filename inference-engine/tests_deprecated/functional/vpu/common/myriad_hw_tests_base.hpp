@@ -32,12 +32,9 @@ struct RunInfo {
 class MyriadX_HW_Tests_nightly : public myriadLayersTests_nightly {
 public:
     void CheckHWRun() {
-        StatusCode st;
-
         std::map<std::string, InferenceEngineProfileInfo> perfMap;
-        ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
+        
         std::vector<std::pair<std::string, InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
         std::sort(perfVec.begin(), perfVec.end(),
             [=](const std::pair<std::string, InferenceEngineProfileInfo> &pair1,
@@ -120,10 +117,8 @@ public:
                     const char* outputName,
                     const RunInfo& runInfo,
                     const std::string& logLevel = CONFIG_VALUE(LOG_NONE)) {
-        _inferRequest.reset();
-        _exeNetwork.reset();
-
-        StatusCode st;
+        _inferRequest = {};
+        _exeNetwork = {};
 
         std::map<std::string, std::string> config = {
             { InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, runInfo.hwMode ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO) },
@@ -134,20 +129,11 @@ public:
             { CONFIG_KEY(LOG_LEVEL), logLevel }
         };
 
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _inferRequest->SetBlob(inputName, input, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob(outputName, output, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, config));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        ASSERT_NO_THROW(_inferRequest.SetBlob(inputName, input));
+        ASSERT_NO_THROW(output = _inferRequest.GetBlob(outputName));
+        ASSERT_NO_THROW(_inferRequest.Infer());
     }
 
     void CompareWithSW(float errorThreshold, vpu::LayoutPreference layoutPreference = vpu::LayoutPreference::ChannelMajor) {

@@ -17,7 +17,7 @@ namespace Regression { namespace Matchers {
 class ClassificationMatcher : public BaseMatcher {
 private:
     size_t checkResultNumber;
-    std::vector<std::shared_ptr<InferenceEngine::IExecutableNetwork>> _executableNetworks;
+    std::vector<InferenceEngine::ExecutableNetwork> _executableNetworks;
     std::vector <std::vector<Reference::LabelProbability>> _results;
     ResponseDesc _resp;
     InferenceEngine::InputsDataMap _inputsInfo;

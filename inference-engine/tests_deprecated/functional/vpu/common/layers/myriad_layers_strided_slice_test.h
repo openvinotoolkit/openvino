@@ -239,7 +239,6 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
     outputsInfo["strided_slice"]->setPrecision(Precision::FP16);
 
     // Load network.
-    StatusCode st = GENERAL_ERROR;
 
     std::map<std::string, std::string> config = {
         { InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO) }
@@ -248,30 +247,22 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
         config.insert({ InferenceEngine::MYRIAD_DISABLE_REORDER, CONFIG_VALUE(YES) });
     }
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(
-        _exeNetwork, network, config,
-        &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, config));
 
     // Create InferRequest.
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = _exeNetwork.CreateInferRequest());
+    
     // Input Data.
     InferenceEngine::Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("input", inputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob("input"));
     GenRandomData(inputBlob);
 
     // Infer & get output blob.
     InferenceEngine::Blob::Ptr outputBlob;
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("strided_slice", outputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(inferRequest.Infer());
+    ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob("strided_slice"));
+    
     // Output Reference.
     Blob::Ptr refBlob = InferenceEngine::make_shared_blob<ie_fp16>(outputBlob->getTensorDesc());
     refBlob->allocate();

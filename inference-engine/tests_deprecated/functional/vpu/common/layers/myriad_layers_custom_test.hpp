@@ -909,8 +909,6 @@ TEST_P(myriadLayersTestsQuantizeBinarize_smoke, Quantize_Binarization) {
     model.replace( model.find("@output_low_size@"), sizeof("@output_low_size@") -1, std::to_string(output_low_size));
     model.replace( model.find("@output_high_size@"), sizeof("@output_high_size@") -1, std::to_string(output_high_size));
 
-    StatusCode st;
-
     InferenceEngine::Core ie;
     auto network = ie.ReadNetwork(model, InferenceEngine::Blob::CPtr());
 
@@ -931,74 +929,64 @@ TEST_P(myriadLayersTestsQuantizeBinarize_smoke, Quantize_Binarization) {
     _inputsInfo["output_high"]->setLayout(NCHW);
     _outputsInfo["Quantize"]->setLayout(NCHW);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
-                                                    {{InferenceEngine::MYRIAD_CUSTOM_LAYERS, customConfig }}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
+                                                    {{InferenceEngine::MYRIAD_CUSTOM_LAYERS, customConfig }}));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
     Blob::Ptr data;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("data", data, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(data = _inferRequest.GetBlob("data"));
     GenRandomData(data);
 
     Blob::Ptr input_low;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("input_low", input_low, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(input_low = _inferRequest.GetBlob("input_low"));
     GenRandomData(input_low);
 
     Blob::Ptr input_high;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("input_high", input_high, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(input_high = _inferRequest.GetBlob("input_high"));
     Blob::Ptr output_low;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("output_low", output_low, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(output_low = _inferRequest.GetBlob("output_low"));
     Blob::Ptr output_high;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("output_high", output_high, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    if(levels == 2){
+    ASSERT_NO_THROW(output_high = _inferRequest.GetBlob("output_high"));
+    
+    if (levels == 2) {
         memcpy((uint8_t*)input_high->buffer(), (uint8_t*)input_low->buffer(), input_high->byteSize());
         for(int i = 0; i < (output_low->byteSize() / output_low->element_size()); ++i){
             *((ie_fp16*)output_low->buffer() + i) = switch_out ? PrecisionUtils::f32tof16(1.0f) : PrecisionUtils::f32tof16(-1.0f);
             *((ie_fp16*)output_high->buffer() + i) = switch_out ? PrecisionUtils::f32tof16(-1.0f) : PrecisionUtils::f32tof16(1.0f);
         }
-    }
-    else{
+    } else {
         GenRandomData(input_high);
         GenRandomData(output_low);
         GenRandomData(output_high);
     }
 
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
-{
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-    _inferRequest->GetPerformanceCounts(perfMap, nullptr);
-    std::vector <std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
-    std::sort(perfVec.begin(), perfVec.end(),
-              [=](const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair1,
-                  const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair2) -> bool {
-                  return pair1.second.execution_index < pair2.second.execution_index;
-              });
+    // TODO: fix CVS-47174
+    if (0)
+    {
+        auto perfMap = _inferRequest.GetPerformanceCounts();
+        std::vector <std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
+        std::sort(perfVec.begin(), perfVec.end(),
+                [=](const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair1,
+                    const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair2) -> bool {
+                    return pair1.second.execution_index < pair2.second.execution_index;
+                });
 
-    unsigned currentIndex = 0;
-    for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
-        std::string layerName = it->first;
-        InferenceEngine::InferenceEngineProfileInfo info = it->second;
-        if (info.status == InferenceEngine::InferenceEngineProfileInfo::EXECUTED) {
-            printf("\x1B[32m[----------]\x1B[0m Myriad time = '%s' layer with '%s' type is %f ms.\n", layerName.c_str(), info.exec_type, info.realTime_uSec / 1000.f);
+        unsigned currentIndex = 0;
+        for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
+            std::string layerName = it->first;
+            InferenceEngine::InferenceEngineProfileInfo info = it->second;
+            if (info.status == InferenceEngine::InferenceEngineProfileInfo::EXECUTED) {
+                printf("\x1B[32m[----------]\x1B[0m Myriad time = '%s' layer with '%s' type is %f ms.\n", layerName.c_str(), info.exec_type, info.realTime_uSec / 1000.f);
+            }
         }
     }
-}
 
     Blob::Ptr outputBlob;
-    ASSERT_NO_THROW(_inferRequest->GetBlob("Quantize", outputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("Quantize"));
+    
     _refBlob = make_shared_blob<ie_fp16>(TensorDesc(Precision::FP16, outputBlob->getTensorDesc().getDims(), NCHW));
     _refBlob->allocate();
 

@@ -172,8 +172,6 @@ TEST_P(myriadConvolution1x1LayerTests_smoke, Convolution1x1) {
 
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(GenWeights(num_weights));
 
-    StatusCode st;
-
     InferenceEngine::Core ie;
     auto network = ie.ReadNetwork(model, weights_ptr);
 
@@ -185,49 +183,44 @@ TEST_P(myriadConvolution1x1LayerTests_smoke, Convolution1x1) {
     _outputsInfo["conv1x1"]->setPrecision(Precision::FP16);
     _outputsInfo["conv1x1"]->setLayout(layout);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
             {{InferenceEngine::MYRIAD_CUSTOM_LAYERS, customConfig.custom_config},
-             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, HWConfigValue}},
-             &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, HWConfigValue}}));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
     Blob::Ptr data;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("data", data, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(data = _inferRequest.GetBlob("data"));
     GenRandomData(data);
 
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
-{
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-    _inferRequest->GetPerformanceCounts(perfMap, nullptr);
-    std::vector <std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
-    std::sort(perfVec.begin(), perfVec.end(),
-              [=](const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair1,
-                 const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair2) -> bool {
-                  return pair1.second.execution_index < pair2.second.execution_index;
-              });
+    // TODO: fix CVS-47174
+    if (0)
+    {
+        auto perfMap = _inferRequest.GetPerformanceCounts();
+        std::vector <std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
+        std::sort(perfVec.begin(), perfVec.end(),
+                [=](const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair1,
+                    const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair2) -> bool {
+                    return pair1.second.execution_index < pair2.second.execution_index;
+                });
 
-    unsigned currentIndex = 0;
-    for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
-        std::string layerName = it->first;
-        InferenceEngine::InferenceEngineProfileInfo info = it->second;
-        if (info.status == InferenceEngine::InferenceEngineProfileInfo::EXECUTED) {
-            printf("[----------] Myriad time = '%s' layer with '%s' type is %f ms.\n", layerName.c_str(), info.exec_type, info.realTime_uSec / 1000.f);
+        unsigned currentIndex = 0;
+        for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
+            std::string layerName = it->first;
+            InferenceEngine::InferenceEngineProfileInfo info = it->second;
+            if (info.status == InferenceEngine::InferenceEngineProfileInfo::EXECUTED) {
+                printf("[----------] Myriad time = '%s' layer with '%s' type is %f ms.\n", layerName.c_str(), info.exec_type, info.realTime_uSec / 1000.f);
+            }
         }
+        printf("[----------] input dim: [%d %d %d %d]; output dim: [%d %d %d %d].\n", IB, IC, IH, IW, OB, OC, OH, OW);
+        printf("[----------] isHardware: %s; isHWC: %d.\n", HWConfigValue.c_str(), isHWC);
     }
-    printf("[----------] input dim: [%d %d %d %d]; output dim: [%d %d %d %d].\n", IB, IC, IH, IW, OB, OC, OH, OW);
-    printf("[----------] isHardware: %s; isHWC: %d.\n", HWConfigValue.c_str(), isHWC);
-}
-    Blob::Ptr outputBlob;
-    ASSERT_NO_THROW(_inferRequest->GetBlob("conv1x1", outputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
 
+    Blob::Ptr outputBlob;
+    ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("conv1x1"));
+    
     _refBlob = make_shared_blob<ie_fp16>(TensorDesc(Precision::FP16, outputBlob->getTensorDesc().getDims(), NCHW));
     _refBlob->allocate();
 

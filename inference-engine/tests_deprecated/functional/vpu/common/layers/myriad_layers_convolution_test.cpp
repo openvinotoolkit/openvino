@@ -704,8 +704,6 @@ TEST_F(myriadLayersTests_nightly, DISABLED_tests125) {
     InferenceEngine::TBlob<uint8_t>::Ptr weights(GenWeights(1697280 / sizeof(ie_fp16)));
     constWeightsRange(weights->data().as<uint16_t *>(), 1697280 / sizeof(ie_fp16));
 
-    StatusCode st;
-
     InferenceEngine::Core ie;
     auto network = ie.ReadNetwork(MODEL_RFCNN, weights);
 
@@ -716,26 +714,21 @@ TEST_F(myriadLayersTests_nightly, DISABLED_tests125) {
     outputsInfo[outName1]->setPrecision(Precision::FP16);
     outputsInfo[outName2]->setPrecision(Precision::FP16);
 
-    InferenceEngine::IExecutableNetwork::Ptr exeNetwork;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network));
 
-    InferenceEngine::IInferRequest::Ptr     inferRequest;
-    ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    InferenceEngine::InferRequest     inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
 
     Blob::Ptr input;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("input", input, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(input = inferRequest.GetBlob("input"));
     genTestData(input);
 
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequest.Infer());
 
-    Blob::Ptr out1;
-    Blob::Ptr out2;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob(outName1.c_str(), out1, &_resp));
-    ASSERT_NO_THROW(st = inferRequest->GetBlob(outName2.c_str(), out2, &_resp));
+    Blob::Ptr out1, out2;
+    ASSERT_NO_THROW(out1 = inferRequest.GetBlob(outName1.c_str()));
+    ASSERT_NO_THROW(out2 = inferRequest.GetBlob(outName2.c_str()));
 };
 
 // This tests checks that conv3x3s1 case doesn't corrupt its input.
@@ -874,8 +867,6 @@ TEST_F(myriadLayersTests_nightly, SmallConv_CorruptInputBug) {
     const ie_fp16 *weights = weightsBlob->readOnly().as<const ie_fp16 *>();
     const ie_fp16 *bias = weights + num_weights;
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model, weightsBlob));
 
     const auto& network = _cnnNetwork;
@@ -887,15 +878,12 @@ TEST_F(myriadLayersTests_nightly, SmallConv_CorruptInputBug) {
     _outputsInfo["conv1_out"]->setPrecision(Precision::FP16);
     _outputsInfo["conv2_out"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
 
     Blob::Ptr input;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("input", input, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(input = _inferRequest.GetBlob("input"));
     {
         ie_fp16 *dst = input->buffer().as<ie_fp16 *>();
         for (int i = 0; i < input->size(); ++i) {
@@ -904,16 +892,13 @@ TEST_F(myriadLayersTests_nightly, SmallConv_CorruptInputBug) {
         }
     }
 
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
     Blob::Ptr conv1;
-    ASSERT_NO_THROW(_inferRequest->GetBlob("conv1_out", conv1, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(conv1 = _inferRequest.GetBlob("conv1_out"));
 
     Blob::Ptr conv2;
-    ASSERT_NO_THROW(_inferRequest->GetBlob("conv2_out", conv2, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(conv2 = _inferRequest.GetBlob("conv2_out"));
 
     {
         SCOPED_TRACE("CompareCommonAbsolute with itself");

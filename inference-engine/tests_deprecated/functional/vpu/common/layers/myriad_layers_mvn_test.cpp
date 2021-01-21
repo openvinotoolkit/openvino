@@ -54,8 +54,6 @@ TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
         </net>
     )V0G0N";
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model));
 
     const auto& network = _cnnNetwork;
@@ -66,14 +64,11 @@ TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["mvn"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
-            {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
+            {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES)}}));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
     auto tensorDesc = TensorDesc(Precision::FP16, _inputsInfo["data"]->getTensorDesc().getDims(), Layout::NCHW);
     auto inputNCHW = make_shared_blob<ie_fp16>(tensorDesc);
     ASSERT_NO_THROW(inputNCHW->allocate());
@@ -86,14 +81,9 @@ TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
 
     ASSERT_NO_THROW(GenRandomData(inputNCHW));
 
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("data", inputNCHW, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("mvn", outputNCHW, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest.SetBlob("data", inputNCHW));
+    ASSERT_NO_THROW(_inferRequest.SetBlob("mvn", outputNCHW));
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
     ASSERT_NO_FATAL_FAILURE(refMVN(inputNCHW, output_ref, 1, 1, 9.999999717180685e-10, true));
 

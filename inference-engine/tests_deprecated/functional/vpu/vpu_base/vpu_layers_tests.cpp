@@ -48,7 +48,7 @@ void vpuLayersTests::TearDown() {
             _cnnNetwork.serialize(xmlName, weightsName);
 
             std::string blobName = filename + ".blob";
-            _exeNetwork->Export(blobName, nullptr);
+            ASSERT_NO_THROW(_exeNetwork.Export(blobName));
         }
     }
 
@@ -76,8 +76,7 @@ Blob::Ptr vpuLayersTests::getReferenceOutput() {
 }
 
 void vpuLayersTests::dumpPerformance() {
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-    _inferRequest->GetPerformanceCounts(perfMap, nullptr);
+    auto perfMap = _inferRequest.GetPerformanceCounts();
     std::vector <std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
     std::sort(perfVec.begin(), perfVec.end(),
               [=](const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair1,
@@ -96,8 +95,7 @@ void vpuLayersTests::dumpPerformance() {
 }
 
 bool vpuLayersTests::wasCustomLayerInferred() const {
-     auto perfMap = std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>{};
-    _inferRequest->GetPerformanceCounts(perfMap, nullptr);
+    auto perfMap = _inferRequest.GetPerformanceCounts();
     const auto isCustomLayer = [&](const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>& info) {
         return !strcmp(info.second.exec_type, "Custom");
     };
@@ -143,7 +141,7 @@ void vpuLayersTests::genInputBlobs(bool lockLayout) {
         ASSERT_NE(genDataCallback, nullptr);
         genDataCallback(inputBlob);
 
-        ASSERT_EQ(InferenceEngine::StatusCode::OK, _inferRequest->SetBlob(input.first.c_str(), inputBlob, &_resp)) << _resp.msg;
+        ASSERT_NO_THROW(_inferRequest.SetBlob(input.first.c_str(), inputBlob));
 
         _inputMap[input.first] = inputBlob;
         genDataCallback = _genDataCallback;
@@ -158,7 +156,7 @@ void vpuLayersTests::genOutputBlobs(bool lockLayout) {
     for (const auto& output : _outputsInfo) {
         auto outputBlob = allocateBlob(output.second, lockLayout);
 
-        ASSERT_EQ(InferenceEngine::StatusCode::OK, _inferRequest->SetBlob(output.first.c_str(), outputBlob, &_resp)) << _resp.msg;
+        ASSERT_NO_THROW(_inferRequest.SetBlob(output.first.c_str(), outputBlob));
 
         _outputMap[output.first] = outputBlob;
     }
@@ -186,12 +184,8 @@ void vpuLayersTests::createInferRequest(const NetworkParams& params) {
     config[InferenceEngine::MYRIAD_PERF_REPORT_MODE] = InferenceEngine::MYRIAD_PER_STAGE;
     config[InferenceEngine::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION] = CONFIG_VALUE(NO); // Make VPU plugin be able to use NGraph network.
 
-    InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork, config, &_resp));
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-    ASSERT_NO_THROW(_exeNetwork->CreateInferRequest(_inferRequest, &_resp)) << _resp.msg;
-    ASSERT_EQ((int) InferenceEngine::StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_inferRequest, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork, config));
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
 
     genInputBlobs(params._lockLayout);
     genOutputBlobs(params._lockLayout);
@@ -246,13 +240,12 @@ void vpuLayersTests::readNetwork(const std::string& modelFilename, const std::st
 }
 
 bool vpuLayersTests::Infer() {
-    if (_inferRequest == nullptr ||
-        _inputMap.empty() ||
-        _outputMap.empty())
+    if (_inputMap.empty() || _outputMap.empty())
         return false;
-    const auto st = _inferRequest->Infer(&_resp);
-    EXPECT_EQ(InferenceEngine::StatusCode::OK, st) << _resp.msg;
+
+    _inferRequest.Infer();
 //    dumpPerformance();
+
     if (!_config[InferenceEngine::MYRIAD_CUSTOM_LAYERS].empty()) {
         EXPECT_TRUE(wasCustomLayerInferred())
             << "CustomBindings.xml has been provided but Custom layer was not inferred";
@@ -271,8 +264,8 @@ bool vpuLayersTests::generateNetAndInfer(const NetworkParams& params) {
 
 void vpuLayersTests::ResetGeneratedNet() {
     SetSeed(DEFAULT_SEED_VALUE);
-    _exeNetwork.reset();
-    _inferRequest.reset();
+    _exeNetwork = {};
+    _inferRequest = {};
 }
 
 void vpuLayersTests::ResetReferenceLayers() {

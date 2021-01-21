@@ -289,8 +289,6 @@ public:
                               const PriorBoxParams& params, Precision outPrec = Precision::FP16) {
         SetSeed(DEFAULT_SEED_VALUE + 5);
 
-        StatusCode st;
-
         ASSERT_NO_THROW(readNetwork(model));
 
         const auto& network = _cnnNetwork;
@@ -304,31 +302,23 @@ public:
         _outputsInfo["data2_copy"]->setPrecision(Precision::FP16);
         _outputsInfo[outputName]->setPrecision(outPrec);
 
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
         Blob::Ptr data1;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("data1", data1, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(data1 = _inferRequest.GetBlob("data1"));
+        
         Blob::Ptr data2;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("data2", data2, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(data2 = _inferRequest.GetBlob("data2"));
+        
         GenRandomData(data1);
         GenRandomData(data2);
 
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_inferRequest.Infer());
+        
         Blob::Ptr outputBlob;
-        ASSERT_NO_THROW(_inferRequest->GetBlob(outputName.c_str(), outputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob(outputName.c_str()));
+        
         _refBlob = make_shared_blob<ie_fp16>(TensorDesc(Precision::FP16, outputBlob->getTensorDesc().getDims(), ANY));
         _refBlob->allocate();
 
@@ -1296,8 +1286,6 @@ TEST_F(myriadLayersTests_nightly, PriorBox_WithConcat)
         </net>
     )V0G0N";
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model));
 
     const auto& network = _cnnNetwork;
@@ -1321,24 +1309,19 @@ TEST_F(myriadLayersTests_nightly, PriorBox_WithConcat)
     _outputsInfo["conv9_2_copy"]->setPrecision(Precision::FP16);
     _outputsInfo["mbox_priorbox_copy"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, {}));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
+    ASSERT_NO_THROW(_inferRequest.Infer());
+    
     // TODO: uncomment this code when GraphTransformer will be updated
     // to optimize out extra copies in case of PriorBox+Concat pair.
 #if 0
     {
         std::map<std::string, InferenceEngineProfileInfo> perfMap;
-        ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
+        
         int count = 0;
         for (auto p : perfMap) {
             auto layerName = p.first;
@@ -1353,9 +1336,8 @@ TEST_F(myriadLayersTests_nightly, PriorBox_WithConcat)
 #endif
 
     Blob::Ptr outputBlob;
-    ASSERT_NO_THROW(_inferRequest->GetBlob("mbox_priorbox_copy", outputBlob, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("mbox_priorbox_copy"));
+    
     auto conv4_3_norm_mbox_priorbox = make_shared_blob<ie_fp16>(TensorDesc(Precision::FP16, {1, 2, 23104}, Layout::ANY));
     {
         conv4_3_norm_mbox_priorbox->allocate();
@@ -1836,8 +1818,6 @@ TEST_F(myriadLayersPriorBoxTests_smoke, TwoPriorBoxLayersWithUnusedInput)
 
     SetSeed(DEFAULT_SEED_VALUE + 5);
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model));
 
     const auto& network = _cnnNetwork;
@@ -1852,34 +1832,26 @@ TEST_F(myriadLayersPriorBoxTests_smoke, TwoPriorBoxLayersWithUnusedInput)
     _outputsInfo["priorbox1"]->setPrecision(Precision::FP16);
     _outputsInfo["priorbox2"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, {}));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    
     Blob::Ptr data1;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("data1", data1, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(data1 = _inferRequest.GetBlob("data1"));
+    
     Blob::Ptr data2;
-    ASSERT_NO_THROW(st = _inferRequest->GetBlob("data2", data2, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(data2 = _inferRequest.GetBlob("data2"));
+    
     GenRandomData(data1);
     GenRandomData(data2);
 
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(_inferRequest.Infer());
+    
     Blob::Ptr outputBlob1;
     Blob::Ptr outputBlob2;
-    ASSERT_NO_THROW(_inferRequest->GetBlob("priorbox1", outputBlob1, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(_inferRequest->GetBlob("priorbox2", outputBlob2, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+    ASSERT_NO_THROW(outputBlob1 = _inferRequest.GetBlob("priorbox1"));
+    ASSERT_NO_THROW(outputBlob2 = _inferRequest.GetBlob("priorbox2"));
+    
     _refBlob = make_shared_blob<ie_fp16>(TensorDesc(Precision::FP16, outputBlob1->getTensorDesc().getDims(), ANY));
     _refBlob->allocate();
 

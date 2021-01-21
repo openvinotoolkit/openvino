@@ -37,7 +37,7 @@ TEST_P(InferRequestTests, SetEmptyConfig) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     // Load CNNNetwork to target plugins
-    InferenceEngine::IExecutableNetwork::Ptr execNet;
+    InferenceEngine::ExecutableNetwork execNet;
     std::map<std::string, std::string> config {};
     if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
@@ -55,7 +55,7 @@ TEST_P(InferRequestTests, canLoadCorrectNetworkToGetExecutable) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::IExecutableNetwork::Ptr execNet;
+    InferenceEngine::ExecutableNetwork execNet;
     ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
 
@@ -64,7 +64,7 @@ TEST_P(InferRequestTests,  CanCreateTwoExeNetworks) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::IExecutableNetwork::Ptr execNet;
+    InferenceEngine::ExecutableNetwork execNet;
     for (auto i = 0; i < 2; i++) {
         ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
         ASSERT_NE(nullptr, cnnNet.getFunction());
