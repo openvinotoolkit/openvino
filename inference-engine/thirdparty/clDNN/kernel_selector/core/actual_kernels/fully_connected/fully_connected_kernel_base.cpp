@@ -53,7 +53,6 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                                                            const optional_params &options,
                                                            DataLayout dl,
                                                            WeightsLayout wl,
-                                                           float estimated_time,
                                                            const std::string exeMode,
                                                            int autoTuneIndex) const {
     if (!Validate(params, options)) {
@@ -122,7 +121,6 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      fused_deps_total);
 
     // TODO Pass estimated time only through DispatchData
-    kd.estimatedTime = estimated_time;
     kd.autoTuneIndex = autoTuneIndex;
     return {kd};
 }
@@ -139,13 +137,11 @@ KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &p
                                                                  const optional_params &options,
                                                                  DataLayout dl,
                                                                  WeightsLayout wl,
-                                                                 float estimated_time,
                                                                  const int autoTuneIndex) const {
     return GetCommonKernelsData(params,
                                 options,
                                 dl,
                                 wl,
-                                estimated_time,
                                 GetAutoTuneOptions(autoTuneIndex),
                                 autoTuneIndex);
 }

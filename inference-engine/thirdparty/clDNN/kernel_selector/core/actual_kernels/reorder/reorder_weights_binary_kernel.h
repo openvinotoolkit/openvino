@@ -22,6 +22,7 @@ public:
     ReorderWeightsBinaryKernel() : ReorderKernelBase("reorder_weights_binary") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     DispatchData SetDefault(const reorder_weights_params& arg) const override;
 
 protected:
