@@ -61,9 +61,11 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1_b_fs_yx_fsv
 
     dispatchData.lws = { static_cast<size_t>(sub_group_size), 1, 1 };
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
+}
+
+KernelsPriority BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 bool BinaryConvolutionKernel1x1_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {

@@ -313,6 +313,41 @@ TEST(CNNNGraphImplTests, TestAddOutput) {
     ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
 }
 
+TEST(CNNNGraphImplTests, TestAddOutputTwoTimes) {
+    const std::string testLayerName = "testReLU";
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name(testLayerName);
+        auto relu2 = std::make_shared<ngraph::op::Relu>(relu);
+        relu2->set_friendly_name("relu2");
+        auto result = std::make_shared<ngraph::op::Result>(relu2);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+    ASSERT_NE(nullptr, cnnNet.getFunction());
+    ASSERT_EQ(4, cnnNet.layerCount());
+
+    cnnNet.addOutput(testLayerName);
+    ASSERT_NE(nullptr, cnnNet.getFunction());
+    ASSERT_EQ(5, cnnNet.layerCount());
+    cnnNet.addOutput(testLayerName);
+    ASSERT_NE(nullptr, cnnNet.getFunction());
+    ASSERT_EQ(5, cnnNet.layerCount());
+    auto outputs = cnnNet.getOutputsInfo();
+    ASSERT_EQ(2, outputs.size());
+    ASSERT_TRUE(outputs.find("relu2") != outputs.end());
+    ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
+}
+
 TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     const std::string testLayerName = "testReLU";
     std::shared_ptr<ngraph::Function> ngraph;

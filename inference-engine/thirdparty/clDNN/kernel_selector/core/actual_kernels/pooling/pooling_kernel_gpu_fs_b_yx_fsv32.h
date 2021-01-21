@@ -24,6 +24,7 @@ public:
     virtual ~PoolingKerneGPU_fs_b_yx_fsv32() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const pooling_params& params) const override;
 
