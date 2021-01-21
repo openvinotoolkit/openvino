@@ -86,6 +86,7 @@ def ctc_greedy_decoder_seq_len(
 
     return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
 
+
 @nameable_op
 def gather_elements(
     data: NodeInput,
