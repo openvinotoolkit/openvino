@@ -375,7 +375,7 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     {
         op->m_output_descriptions.push_back(output_description->copy());
     }
-    return move(op);
+    return op;
 }
 
 Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,

@@ -68,7 +68,8 @@ INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
                         std::make_tuple("experimental_detectron_detection_output.xml", ""),
                         std::make_tuple("experimental_detectron_detection_output_opset6.xml", ""),
                         std::make_tuple("nms5.xml", "nms5.bin"),
-                        std::make_tuple("shape_of.xml", "")));
+                        std::make_tuple("shape_of.xml", ""),
+                        std::make_tuple("pad_with_shape_of.xml", "")));
 
 INSTANTIATE_TEST_CASE_P(ONNXSerialization, SerializationTest,
         testing::Values(std::make_tuple("add_abc.prototxt", ""),

@@ -301,5 +301,5 @@ std::shared_ptr<Node>
     {
         op->m_output_descriptions.push_back(output_description->copy());
     }
-    return move(op);
+    return op;
 }
