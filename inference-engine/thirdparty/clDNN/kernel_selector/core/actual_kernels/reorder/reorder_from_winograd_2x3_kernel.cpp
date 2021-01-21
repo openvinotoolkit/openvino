@@ -64,6 +64,10 @@ ReorderFromWinograd2x3Kernel::DispatchData ReorderFromWinograd2x3Kernel::SetDefa
 
 KernelsData ReorderFromWinograd2x3Kernel::GetKernelsData(const Params& params, const optional_params& options) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
-    return GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_6);
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderFromWinograd2x3Kernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

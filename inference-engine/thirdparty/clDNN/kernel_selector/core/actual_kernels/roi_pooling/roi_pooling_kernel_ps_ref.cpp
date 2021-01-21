@@ -53,6 +53,10 @@ JitConstants PSROIPoolingKernelRef::GetJitConstants(const roi_pooling_params& rp
 }
 
 KernelsData PSROIPoolingKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority PSROIPoolingKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

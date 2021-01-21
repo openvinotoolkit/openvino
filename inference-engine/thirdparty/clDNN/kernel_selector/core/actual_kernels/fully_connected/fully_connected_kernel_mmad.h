@@ -27,6 +27,7 @@ public:
     FullyConnectedKernelMMAD() : Parent("fully_connected_gpu_MMAD") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
     struct FullyConnectedTuningData {

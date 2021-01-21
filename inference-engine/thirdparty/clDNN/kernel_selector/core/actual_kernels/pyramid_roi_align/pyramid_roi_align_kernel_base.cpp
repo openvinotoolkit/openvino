@@ -38,8 +38,7 @@ PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelBase::SetDefault(co
 }
 
 KernelsData PyramidROIAlignKernelBase::GetCommonKernelsData(const Params& params,
-                                                            const optional_params& options,
-                                                            float estimated_time) const {
+                                                            const optional_params& options) const {
     assert(params.GetType() == KernelType::PYRAMID_ROI_ALIGN);
 
     const auto& prim_params =
@@ -61,8 +60,6 @@ KernelsData PyramidROIAlignKernelBase::GetCommonKernelsData(const Params& params
                      false,
                      false,
                      (uint32_t)prim_params.inputs.size());
-
-    k_data.estimatedTime = estimated_time;
 
     return {k_data};
 }

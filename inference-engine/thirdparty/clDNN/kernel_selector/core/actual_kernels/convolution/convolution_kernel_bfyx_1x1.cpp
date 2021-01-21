@@ -58,9 +58,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1::SetDefault(const
     dispatchData.lws[1] = 16;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_1x1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 bool ConvolutionKernel_bfyx_1x1::Validate(const Params& p, const optional_params& o) const {

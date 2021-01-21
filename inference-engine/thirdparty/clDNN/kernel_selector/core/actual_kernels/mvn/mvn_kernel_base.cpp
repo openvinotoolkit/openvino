@@ -58,8 +58,7 @@ MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) 
 }
 
 KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
-                                                const optional_params& options,
-                                                float estimated_time) const {
+                                                const optional_params& options) const {
     assert(params.GetType() == KernelType::MVN);
 
     if (!Validate(params, options))
@@ -88,8 +87,6 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

@@ -99,7 +99,6 @@ KernelsData FullyConnected_bs_f_bsv16_b1::GetKernelsData(const Params& params, c
                                                     optParams,
                                                     DataLayout::bf,
                                                     WeightsLayout::os_i_osv16,
-                                                    FORCE_PRIORITY_5,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -107,5 +106,9 @@ KernelsData FullyConnected_bs_f_bsv16_b1::GetKernelsData(const Params& params, c
     }
 
     return res;
+}
+
+KernelsPriority FullyConnected_bs_f_bsv16_b1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

@@ -37,8 +37,7 @@ BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcas
 }
 
 KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
-                                                      const optional_params& options,
-                                                      float estimated_time) const {
+                                                      const optional_params& options) const {
     assert(params.GetType() == KernelType::BROADCAST);
 
     const auto& prim_params =
@@ -53,7 +52,6 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
 
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-    k_data.estimatedTime = estimated_time;
 
     return {k_data};
 }

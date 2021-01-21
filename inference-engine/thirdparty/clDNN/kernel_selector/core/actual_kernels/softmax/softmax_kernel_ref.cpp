@@ -28,9 +28,11 @@ SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softma
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return dispatchData;
+}
+
+KernelsPriority SoftmaxKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {

@@ -78,8 +78,6 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
         dispatchData.lws[2] = 1;
     }
 
-    dispatchData.efficiency = FORCE_PRIORITY_7;
-
     return dispatchData;
 }
 
@@ -224,8 +222,6 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

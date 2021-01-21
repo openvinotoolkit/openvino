@@ -25,6 +25,7 @@ public:
 
     virtual ~LSTM_DynamicTimeloopKernelRef() {}
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     ParamsKey GetSupportedKey() const override;

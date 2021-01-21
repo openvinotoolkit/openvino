@@ -83,7 +83,6 @@ KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,
                                                     optParams,
                                                     DataLayout::bs_f_bsv16__af8,
                                                     WeightsLayout::os_i_osv16__ai8,
-                                                    FORCE_PRIORITY_2,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -91,5 +90,9 @@ KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,
     }
 
     return res;
+}
+
+KernelsPriority FullyConnected_bs_f_bsv16_af8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 }  // namespace kernel_selector

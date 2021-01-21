@@ -19,21 +19,10 @@ namespace kernel_selector {
 // how many workitems we use to calculate item classes for one output, only 16 supported right now
 static const auto workitems_per_classes = 16;
 
-ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const { return GetDefaultSupportedKey(); }
-
-SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(
-    const softmax_params& params,
-    const optional_params& optParams) const {
-    auto dispatchData = Parent::SetDefault(params, optParams);
-
-    auto& input = params.inputs[0];
-
+inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) {
     size_t item_class_count = 0;
-    const auto global = GetSoftmaxDimGlobalSizes(params.dim, params.output);
-
-    assert(global.size() == 3);
-
-    switch (params.dim) {
+    
+    switch (dim) {
         case SoftmaxDim::X:
             item_class_count = input.X().v;
             break;
@@ -50,23 +39,39 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
             break;
     }
 
+    return item_class_count;
+}
+
+ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const { return GetDefaultSupportedKey(); }
+
+SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(
+    const softmax_params& params,
+    const optional_params& optParams) const {
+    auto dispatchData = Parent::SetDefault(params, optParams);
+
+    auto& input = params.inputs[0];
+
+    const auto global = GetSoftmaxDimGlobalSizes(params.dim, params.output);
+
+    assert(global.size() == 3);
+
     dispatchData.gws[0] = global[0];
     dispatchData.gws[1] = global[1] * workitems_per_classes;  // we multiply it by workitems_per_classes because we split computations of
-                                                         // one "full item classes output" into multiple workitems by "full item
-                                                         // classes output" i mean N outputs where N is number of item classes.
+                                                              // one "full item classes output" into multiple workitems by "full item
+                                                              // classes output" i mean N outputs where N is number of item classes.
     dispatchData.gws[2] = global[2];
 
     dispatchData.lws = { 1, static_cast<size_t>(workitems_per_classes), 1 };
 
-    dispatchData.leftovers = item_class_count % workitems_per_classes;
-
-    if (item_class_count >= 32) {
-        dispatchData.efficiency = FORCE_PRIORITY_7;
-    } else {
-        dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    }
+    dispatchData.leftovers = GetItemClassCount(input, params.dim) % workitems_per_classes;
 
     return dispatchData;
+}
+
+KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const softmax_params&>(params);
+
+    return GetItemClassCount(p.inputs[0], p.dim) >= 32 ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {

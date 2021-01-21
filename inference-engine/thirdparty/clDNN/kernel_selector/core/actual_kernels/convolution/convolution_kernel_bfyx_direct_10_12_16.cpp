@@ -75,9 +75,11 @@ ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Dire
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = TILE_N;
 
-    dispatchData.efficiency = FORCE_PRIORITY_4;
-
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_4;
 }
 
 bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p, const optional_params& o) const {

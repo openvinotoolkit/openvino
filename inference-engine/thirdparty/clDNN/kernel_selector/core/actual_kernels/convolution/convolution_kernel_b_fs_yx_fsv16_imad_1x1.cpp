@@ -129,15 +129,24 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::S
     dispatchData.cldnnStyle.blockHeight = tune_params.out_block_features;
     dispatchData.cldnnStyle.prefetch = k_slices;
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
+    return dispatchData;
+}  // SetDefault
 
-    auto in_f = params.weights.IFM().v;
-    auto out_f = params.weights.OFM().v;
+KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    const auto& output = p.output;
+    auto tune_params = GetAutoTuneParams(p, -1);
+
+    auto priority = FORCE_PRIORITY_2;
+
+    auto in_f = p.weights.IFM().v;
+    auto out_f = p.weights.OFM().v;
     auto batch = output.Batch().v;
     auto out_x = output.X().v;
     auto out_y = output.Y().v;
 
-    bool x_strided = params.stride.x != 1;
+    bool x_strided = p.stride.x != 1;
     bool general_is_faster = false;
 
     // This kernel cannot split for large x, but general could
@@ -161,15 +170,15 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::S
     general_is_faster |= in_f == 256 && out_f == 128 && out_x == 3 && out_y == 3 && batch == 1;
 
     if (general_is_faster && !x_strided) {
-        dispatchData.efficiency = FORCE_PRIORITY_3;
+        priority = FORCE_PRIORITY_3;
     }
 
     // Better to use kernel with 4 input features in a loop
-    if (static_cast<float>(params.weights.IFM().v) / static_cast<float>(Align(params.weights.IFM().v, fsv)) < 0.5f)
-        dispatchData.efficiency = FORCE_PRIORITY_4;
+    if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f)
+        priority = FORCE_PRIORITY_4;
 
-    return dispatchData;
-}  // SetDefault
+    return priority;
+}
 
 bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options)) {

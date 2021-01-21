@@ -81,9 +81,13 @@ PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const po
     dispatchData.lws[1] = alignment;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
+}
+
+KernelsPriority PoolingKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& pooling_p = static_cast<const pooling_params&>(params);
+
+    return pooling_p.output.Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
 }
 
 JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
@@ -164,8 +168,8 @@ bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
 KernelsData PoolingKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
     const auto& pooling_p = static_cast<const pooling_params&>(params);
     if (pooling_p.output.Batch().v == 1)
-        return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);
+        return GetCommonKernelsData(params, options);
     else
-        return GetCommonKernelsData(params, options, FORCE_PRIORITY_7);
+        return GetCommonKernelsData(params, options);
 }
 }  // namespace kernel_selector

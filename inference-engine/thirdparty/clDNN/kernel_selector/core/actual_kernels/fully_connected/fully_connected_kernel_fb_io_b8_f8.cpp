@@ -92,20 +92,22 @@ bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params
 KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, const optional_params& optParams) const {
     assert(params.GetType() == KernelType::FULLY_CONNECTED);
     KernelsData res = {};
-    const auto& orgParams = static_cast<const fully_connected_params&>(params);
-
-    float estimated_time = orgParams.inputs[0].GetDType() == Datatype::F16 && orgParams.output.Batch().v >= 16
-                               ? FORCE_PRIORITY_3
-                               : FORCE_PRIORITY_5;
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd =
-            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, estimated_time, static_cast<int>(i));
+            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
     }
 
     return res;
+}
+
+KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const fully_connected_params&>(params);
+
+    return p.inputs[0].GetDType() == Datatype::F16 && p.output.Batch().v >= 16 ? FORCE_PRIORITY_3
+                                                                               : FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

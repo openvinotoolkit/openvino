@@ -73,9 +73,11 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_fs_b_yx_fsv32::SetDefa
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = subGroupSize;
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
+}
+
+KernelsPriority ConcatenationKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 JitConstants ConcatenationKernel_fs_b_yx_fsv32::GetJitConstants(const concatenation_params& params) const {
@@ -100,7 +102,6 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
 
     uint32_t lastOffset = 0;
     const auto concatChannelIndex = GetConcatChannelIndex(orgParams);
-    float efficiency = FORCE_PRIORITY_1;
     size_t ifm_offset = 0;
     for (size_t i = 0; i < orgParams.inputs.size(); i++) {
         const auto& input = orgParams.inputs[i];
@@ -131,10 +132,7 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         kernel.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
-        efficiency = std::max(efficiency, dispatchData.efficiency);
     }
-
-    kd.estimatedTime = efficiency;
 
     return {kd};
 }

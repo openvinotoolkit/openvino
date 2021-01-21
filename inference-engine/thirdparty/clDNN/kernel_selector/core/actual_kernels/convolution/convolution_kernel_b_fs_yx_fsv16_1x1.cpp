@@ -78,7 +78,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
 
-    const auto& input = params.inputs[0];
     const auto& out = params.output;
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -93,21 +92,29 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
     dispatchData.lws[1] = sub_group_size;
     dispatchData.lws[2] = 1;
 
-    auto bBlockSizeX = x % autoTune.blockWidth == 0;
+    return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+    auto autoTune = GetAutoTuneOptions(params, -1);
+
+    const auto& input = p.inputs[0];
+    const auto& out = p.output;
+
+    auto bBlockSizeX = out.X().v % autoTune.blockWidth == 0;
     auto bBlockSizeXY = out.X().pad.Total() + out.Y().pad.Total() == 0;
     auto bInputPad = input.X().pad.Total() + input.Y().pad.Total() != 0;
 
-    if (b == 1) {
+    if (out.Batch().v == 1) {
         if ((bBlockSizeX || bBlockSizeXY) && !bInputPad) {
-            dispatchData.efficiency = FORCE_PRIORITY_1;
+            return FORCE_PRIORITY_1;
         } else {
-            dispatchData.efficiency = FORCE_PRIORITY_3;
+            return FORCE_PRIORITY_3;
         }
     } else {
-        dispatchData.efficiency = FORCE_PRIORITY_7;
+        return FORCE_PRIORITY_7;
     }
-
-    return dispatchData;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p, const optional_params& o) const {

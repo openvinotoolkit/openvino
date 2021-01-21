@@ -119,8 +119,7 @@ void kernel_selector::LSTM_DynamicTimeloopKernelBase::SetKernelArguments(const l
 
 
 KernelsData LSTM_DynamicTimeloopKernelBase::GetCommonKernelsData(const Params& params,
-                                                                 const optional_params& options,
-                                                                 float estimated_time) const {
+                                                                 const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -139,7 +138,6 @@ KernelsData LSTM_DynamicTimeloopKernelBase::GetCommonKernelsData(const Params& p
     kernel.workGroups.local  = dispatchData.lws;
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(org_params, kernel);
-    k_data.estimatedTime = estimated_time;
     return {k_data};
 }
 }  // namespace kernel_selector

@@ -70,9 +70,11 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_ref::SetDefault(c
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    dispatchData.efficiency = FORCE_PRIORITY_9;
-
     return dispatchData;
+}
+
+KernelsPriority DeconvolutionKernel_imad_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 JitConstants DeconvolutionKernel_imad_ref::GetJitConstants(const deconvolution_params& params) const {

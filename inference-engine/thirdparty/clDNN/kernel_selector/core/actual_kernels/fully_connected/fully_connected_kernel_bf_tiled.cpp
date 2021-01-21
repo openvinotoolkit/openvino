@@ -268,6 +268,22 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     return dispatchData;
 }
 
+KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
+
+    size_t output_b = fc_params.output.Batch().v;
+    if (fc_params.output.GetLayout() == DataLayout::bfyx)
+        output_b *= fc_params.output.Feature().v;
+    
+    float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
+        estimated_time = FORCE_PRIORITY_3;
+    else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
+        estimated_time = FORCE_PRIORITY_4;
+
+    return estimated_time;
+}
+
 JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
@@ -333,9 +349,6 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                                                 const optional_params &options,
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
-    size_t output_b = fc_params.output.Batch().v;
-    if (fc_params.output.GetLayout() == DataLayout::bfyx)
-        output_b *= fc_params.output.Feature().v;
 
     if (autoTuneIndex >= 0 && autoTuneIndex < (int)auto_tune_params.size()
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
@@ -349,17 +362,10 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     else if (tparams.tile_ofm * simd == 64)
         weights_layout = WeightsLayout::os_iyx_osv64;
 
-    float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
-        estimated_time = FORCE_PRIORITY_3;
-    if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
-        estimated_time = FORCE_PRIORITY_4;
-
     return GetCommonKernelsData(params,
                                 options,
                                 fc_params.inputs[0].GetLayout(),
                                 weights_layout,
-                                estimated_time,
                                 tparams.exec_options,
                                 autoTuneIndex);
 

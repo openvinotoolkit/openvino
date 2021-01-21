@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,7 +50,6 @@ KernelsData FullyConnected_bf_io_ref::GetKernelsData(const Params& params, const
                                                     optParams,
                                                     DataLayout::bf,
                                                     WeightsLayout::io,
-                                                    DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -60,4 +59,7 @@ KernelsData FullyConnected_bf_io_ref::GetKernelsData(const Params& params, const
     return res;
 }
 
+KernelsPriority FullyConnected_bf_io_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

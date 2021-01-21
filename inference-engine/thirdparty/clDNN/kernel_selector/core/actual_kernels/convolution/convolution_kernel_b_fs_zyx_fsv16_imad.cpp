@@ -463,12 +463,17 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetD
     dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
     dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-    if (static_cast<float>(params.weights.IFM().v) / static_cast<float>(Align(params.weights.IFM().v, fsv)) < 0.5f)
-        dispatchData.efficiency = FORCE_PRIORITY_4;
-
     return dispatchData;
 }  // SetDefault
+
+KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f)
+        return FORCE_PRIORITY_4;
+    else
+        return FORCE_PRIORITY_2;
+}
 
 bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options)) {

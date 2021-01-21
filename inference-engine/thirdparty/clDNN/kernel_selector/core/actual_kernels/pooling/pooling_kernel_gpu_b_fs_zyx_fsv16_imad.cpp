@@ -141,7 +141,11 @@ bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::IsGlobalPooling(const pooling_params&
 }
 
 KernelsData PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {

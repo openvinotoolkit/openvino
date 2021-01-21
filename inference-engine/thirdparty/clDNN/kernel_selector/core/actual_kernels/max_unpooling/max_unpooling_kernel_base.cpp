@@ -64,8 +64,7 @@ MaxUnpoolingKernelBase::DispatchData MaxUnpoolingKernelBase::SetDefault(const ma
 }
 
 KernelsData MaxUnpoolingKernelBase::GetCommonKernelsData(const Params& params,
-                                                         const optional_params& options,
-                                                         float estimatedTime) const {
+                                                         const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -83,8 +82,6 @@ KernelsData MaxUnpoolingKernelBase::GetCommonKernelsData(const Params& params,
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
     kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

@@ -96,13 +96,15 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_simple_Ref::SetDefault
                          input.Feature().v * input.Batch().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    dispatchData.efficiency = FORCE_PRIORITY_9;
-
     return dispatchData;
 }
 
 KernelsData ConcatenationKernel_simple_Ref::GetKernelsData(const Params& params, const optional_params& optParams) const {
     KernelsData kd = GetCommonKernelsData(params, optParams);
     return kd;
+}
+
+KernelsPriority ConcatenationKernel_simple_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector
