@@ -299,6 +299,8 @@ namespace ngraph
                     int64_t output_width;
                 };
 
+                InfoForLinearONNXMode5D get_info_for_linear_onnx_mode5D();
+
                 struct InfoForLinearMode
                 {
                     bool antialias;
