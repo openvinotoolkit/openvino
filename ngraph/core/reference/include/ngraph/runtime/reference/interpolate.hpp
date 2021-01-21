@@ -269,6 +269,36 @@ namespace ngraph
 
                 InfoForLinearONNXMode get_info_for_linear_onnx_mode();
 
+                struct InfoForLinearONNXMode5D
+                {
+                    std::vector<float> z_original;
+                    std::vector<float> y_original;
+                    std::vector<float> x_original;
+
+                    std::vector<int64_t> input_height_width_mul_z1;
+                    std::vector<int64_t> input_height_width_mul_z2;
+                    std::vector<int64_t> input_width_mul_y1;
+                    std::vector<int64_t> input_width_mul_y2;
+                    std::vector<int64_t> in_x1;
+                    std::vector<int64_t> in_x2;
+
+                    std::vector<float> dz1;
+                    std::vector<float> dz2;
+                    std::vector<float> dy1;
+                    std::vector<float> dy2;
+                    std::vector<float> dx1;
+                    std::vector<float> dx2;
+
+                    int64_t batch_size;
+                    int64_t num_channels;
+                    int64_t input_depth;
+                    int64_t input_height;
+                    int64_t input_width;
+                    int64_t output_depth;
+                    int64_t output_height;
+                    int64_t output_width;
+                };
+
                 struct InfoForLinearMode
                 {
                     bool antialias;
