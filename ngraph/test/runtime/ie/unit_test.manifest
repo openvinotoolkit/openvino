@@ -1120,6 +1120,14 @@ IE_CPU.backwards_log
 # Unsupported op detected
 IE_CPU.backwards_batchmatmultranspose_tensor2_tensor2
 IE_CPU.round_int64
+IE_CPU.convert_like_float32_int32
+IE_CPU.convert_like_int32_float32
+IE_CPU.convert_like_uint16_float32
+IE_CPU.convert_like_int32_bool
+IE_CPU.convert_like_float32_bool
+IE_CPU.convert_like_float32_bfloat16
+IE_CPU.convert_like_bfloat16_float32
+IE_CPU.convert_like_dyn_float16_to_int64
 
 # Can't convert type f16 to IE Precision!
 IE_CPU.fused_clamp_float16
@@ -1519,8 +1527,9 @@ IE_GPU.region_yolo_v3_mxnet
 # Detected op not belonging to opset1!
 IE_GPU.round_int64
 
-# Unsupported collapse op with dynamic shape
+# Unsupported ops with dynamic shape
 IE_GPU.builder_opset1_collapse_dyn_shape
+IE_GPU.convert_like_dyn_float16_to_int64
 
 IE_GPU.onnx_model_fake_quantize_const_inputs_infer
 IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
