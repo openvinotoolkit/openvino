@@ -171,33 +171,9 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_ctc_greedy_decoder_seq_len_multiple_batche
     auto function = make_shared<Function>(decoder, ParameterVector{data, seq_len});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input<float>({0.1f,
-                                0.2f,
-                                0.f,
-                                0.15f,
-                                0.25f,
-                                0.f,
-                                0.4f,
-                                0.3f,
-                                0.f,
-                                0.45f,
-                                0.35f,
-                                0.f,
-                                0.5f,
-                                0.6f,
-                                0.f,
-                                0.55f,
-                                0.65f,
-                                0.f,
-                                0.1f,
-                                0.2f,
-                                0.f,
-                                0.15f,
-                                0.25f,
-                                0.f,
-                                0.4f,
-                                0.3f,
-                                0.f});
+    test_case.add_input<float>({0.1f,  0.2f,  0.f, 0.15f, 0.25f, 0.f, 0.4f,  0.3f,  0.f,
+                                0.45f, 0.35f, 0.f, 0.5f,  0.6f,  0.f, 0.55f, 0.65f, 0.f,
+                                0.1f,  0.2f,  0.f, 0.15f, 0.25f, 0.f, 0.4f,  0.3f,  0.f});
 
     test_case.add_input<int32_t>({2, 3, 1});
 

@@ -48,7 +48,8 @@ namespace ngraph
                     auto seq_len = static_cast<std::size_t>(sequence_length[batch_ind]);
                     for (std::size_t seq_ind = 0; seq_ind < seq_len; seq_ind++)
                     {
-                        auto data_index = batch_ind * seq_len_max * class_count + seq_ind * class_count;
+                        auto data_index =
+                            batch_ind * seq_len_max * class_count + seq_ind * class_count;
                         auto class_index = data + data_index;
                         auto class_max_element =
                             std::max_element(class_index, class_index + class_count);
