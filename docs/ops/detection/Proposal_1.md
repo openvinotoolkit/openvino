@@ -8,7 +8,7 @@
 
 **Detailed description**
 
-*Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with bbox_deltas for each of the bounding boxes, a tensor with input image size in the [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`] format. The produced tensor has two dimensions `[batch_size * post_nms_topn, 5]`.
+*Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with bbox_deltas for each of the bounding boxes, a tensor with input image size in the [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`] format. The produced tensor has two dimensions `[batch_size * post_nms_topn, 5]`, and for each output box contains batch index and box coordinates.
 *Proposal* layer does the following with the input tensor:
 1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
 2.  For each point in the first input tensor:
@@ -136,9 +136,9 @@
 
 **Inputs**:
 
-*   **1**: 4D input floating point tensor with class prediction scores. Required.
+*   **1**: 4D input floating point tensor with class prediction scores of shape `[batch_size, 2*K, H, W]`. Required.
 
-*   **2**: 4D input floating point tensor with box bbox_deltas. Required.
+*   **2**: 4D input floating point tensor with box bbox_deltas of shape `[batch_size, 4*K, H, W]`. Required.
 
 *   **3**: 1D input floating tensor 3 or 4 elements:  [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`]. Required.
 
