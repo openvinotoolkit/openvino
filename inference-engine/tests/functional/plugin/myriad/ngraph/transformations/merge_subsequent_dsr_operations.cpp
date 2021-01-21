@@ -34,7 +34,9 @@ TEST(MergeSubsequentDSROperations, smoke_SingleDSRFunction) {
         "SingleDSRFunction");
     auto actual = ngraph::clone_function(*reference);
 
-    vpu::MergeSubsequentDSROperations().run_on_function(actual);
+    ngraph::pass::Manager manager;
+    manager.register_pass<vpu::MergeSubsequentDSROperations>();
+    manager.run_passes(actual);
 
     ASSERT_NO_THROW(ngraph::helpers::CompareFunctions(*reference, *actual));
 }
@@ -80,7 +82,9 @@ TEST(MergeSubsequentDSROperations, smoke_DSR_ReLU_DSR_ReLU_DSR) {
         "DSR_ReLU_DSR_ReLU_DSR");
     auto actual = ngraph::clone_function(*reference);
 
-    vpu::MergeSubsequentDSROperations().run_on_function(actual);
+    ngraph::pass::Manager manager;
+    manager.register_pass<vpu::MergeSubsequentDSROperations>();
+    manager.run_passes(actual);
 
     ASSERT_NO_THROW(ngraph::helpers::CompareFunctions(*reference, *actual));
 }
@@ -161,7 +165,9 @@ TEST(MergeSubsequentDSROperations, smoke_DSR_ReLU_DSR_DSR) {
             "DSR_ReLU_DSR_DSR");
     }
 
-    vpu::MergeSubsequentDSROperations().run_on_function(actual);
+    ngraph::pass::Manager manager;
+    manager.register_pass<vpu::MergeSubsequentDSROperations>();
+    manager.run_passes(actual);
 
     ASSERT_NO_THROW(ngraph::helpers::CompareFunctions(*reference, *actual));
 }

@@ -221,6 +221,7 @@ TEST(TransformationTests, ConvertMatMulTest7) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
 
         ngraph::pass::Manager m;
+        auto pass_config = m.get_pass_config();
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::ConvertMatMulToFC>();
         m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
@@ -235,9 +236,8 @@ TEST(TransformationTests, ConvertMatMulTest7) {
             return false;
         };
 
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        m.set_callback(callback);
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        pass_config->set_callback<ngraph::pass::ReshapeFullyConnected>(callback);
+
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

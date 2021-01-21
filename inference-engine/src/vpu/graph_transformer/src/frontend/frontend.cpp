@@ -28,6 +28,10 @@
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
+#include <transformations/op_conversions/convert_gelu.hpp>
+#include <transformations/op_conversions/softplus_decomposition.hpp>
+#include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
+#include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -39,6 +43,8 @@
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 
 namespace vpu {
@@ -154,22 +160,6 @@ ModelPtr FrontEnd::buildInitialModel(const ie::ICNNNetwork& network) {
 }
 
 ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
-    // disable transformations for some cases
-    const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-        const bool casesWithDynamicOrStaticUsage =
-            std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
-            std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
-            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node) ||
-            std::dynamic_pointer_cast<const ngraph::opset5::HSwish>(node);
-
-        const bool casesWithOnlyDynamicUsage =
-            (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
-             std::dynamic_pointer_cast<const ngraph::opset3::StridedSlice>(node)) &&
-            std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
-
-        return casesWithDynamicOrStaticUsage || casesWithOnlyDynamicUsage;
-    };
-
     auto nGraphFunc = network.getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
@@ -195,14 +185,22 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.get_pass_config()->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
+    manager.register_pass<vpu::MergeSubsequentDSROperations>();
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    manager.set_callback(transformationsPredicate);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    auto pass_config = manager.get_pass_config();
+    pass_config->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
+    pass_config->disable<ngraph::pass::ConvertGELU>();
+    pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
+    pass_config->disable<ngraph::pass::ConvertMinimum>();
+    pass_config->disable<ngraph::pass::HSwishDecomposition>();
+
+    auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+        return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
+    };
+    pass_config->set_callback<ngraph::pass::ConvertMatMulToFC,
+                              ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
+
     manager.run_passes(nGraphFunc);
-
-    vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 
     return InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
 }
