@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,6 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         // TODO: internal connection API - better to generalize
         if (networkOutputs.empty()) {
             THROW_GNA_EXCEPTION << "GNAInferRequest :: network has zero outputs";
-        }
-        if (networkInputs.empty()) {
-            THROW_GNA_EXCEPTION << "GNAInferRequest :: network has zero inputs";
         }
 
         // copy inputs blobs since we need to have them in separate address space to allow simultaneous infer requests
