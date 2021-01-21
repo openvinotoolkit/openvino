@@ -571,15 +571,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ScaleShiftIE>::createLayer(const std::sh
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::SquaredDifference>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Eltwise",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
-    res->params["operation"] = "squared_diff";
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "ShuffleChannels", details::convertPrecision(layer->get_output_element_type(0))};
 

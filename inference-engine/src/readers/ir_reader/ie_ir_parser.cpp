@@ -622,7 +622,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const GenericLayerParams& params) {
     static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
         { "GreaterEqual", std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual") },
-        { "SquaredDifference", std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference") },
         { "LessEqual", std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual") },
         { "Equal", std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal") },
         { "LSTMCell", std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell") },
@@ -1007,15 +1006,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>:
     return std::make_shared<ngraph::op::v0::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
                                                   GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
                                                   activations, activations_alpha, activations_beta, clip);
-}
-
-// SquaredDifference layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::SquaredDifference>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::SquaredDifference>(inputs[0], inputs[1]);
 }
 
 // GreaterEqual layer
