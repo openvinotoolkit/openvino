@@ -1597,3 +1597,11 @@ IE_GPU.onnx_model_gather_elements_float_3D_axis_2
 
 # incorrect result for Minimum if u16 type is used
 minimum_u16
+IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
+
+# not implemented in CPU and GPU
+evaluate_mvn_6_no_variance
+evaluate_mvn_6
+evaluate_mvn_6_inside_sqrt
+evaluate_mvn_6_across_chanells
+evaluate_mvn_6_across_batch
