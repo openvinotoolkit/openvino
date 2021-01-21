@@ -22,6 +22,7 @@ public:
     ReorderWeightsImage_fyx_b_Kernel() : ReorderKernelBase("reorder_weights_image_2d_c4_fyx_b") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const reorder_weights_params& arg) const override;
 };

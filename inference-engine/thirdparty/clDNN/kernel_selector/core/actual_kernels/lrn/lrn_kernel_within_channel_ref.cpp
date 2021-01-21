@@ -72,6 +72,10 @@ bool LRNKernelWithinChannel::Validate(const Params& p, const optional_params& o)
 }
 
 KernelsData LRNKernelWithinChannel::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority LRNKernelWithinChannel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

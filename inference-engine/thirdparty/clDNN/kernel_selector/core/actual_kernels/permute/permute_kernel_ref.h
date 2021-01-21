@@ -47,6 +47,7 @@ public:
 
     JitConstants GetJitConstants(const permute_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 };
 }  // namespace kernel_selector
