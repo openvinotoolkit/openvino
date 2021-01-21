@@ -13,10 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import requests
 import uuid
 
-from telemetry.backend.backend import TelemetryBackend, BackendRegistry
+from telemetry.backend.backend import TelemetryBackend
 from telemetry.utils.message import Message, MessageType
 from telemetry.utils.guid import get_or_generate_uid
 
@@ -42,8 +41,12 @@ class GABackend(TelemetryBackend):
         }
 
     def send(self, message: Message):
-        print("Sending message: {}".format(message.attrs))
-        requests.post(self.backend_url, message.attrs)
+        try:
+            import requests
+            print("Sending message: {}".format(message.attrs))
+            requests.post(self.backend_url, message.attrs)
+        except ImportError:
+            pass
 
     def build_event_message(self, event_category: str, event_action: str, event_label: str, event_value: int = 1,
                             **kwargs):
