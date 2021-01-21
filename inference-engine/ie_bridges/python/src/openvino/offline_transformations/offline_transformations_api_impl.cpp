@@ -4,8 +4,6 @@
 
 #include "offline_transformations_api_impl.hpp"
 
-#include <string>
-
 #include <moc_transformations.hpp>
 
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>

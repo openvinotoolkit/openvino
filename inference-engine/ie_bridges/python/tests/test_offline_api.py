@@ -1,5 +1,5 @@
 from openvino.inference_engine import IECore, IENetwork
-from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, CompareNetworks
+from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation
 
 import ngraph as ng
 from ngraph.impl.op import Parameter
@@ -38,9 +38,3 @@ def test_low_latency_transformations():
     f = ng.function_from_cnn(net)
     assert f != None
     assert len(f.get_ops()) == 3
-
-
-def test_compare_networks():
-    net = get_test_cnnnetwork()
-    status, msg = CompareNetworks(net, net)
-    assert status
