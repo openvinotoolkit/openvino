@@ -35,7 +35,7 @@ class DetectionOutput(Op):
             'infer': multi_box_detection_infer,
             'input_width': 1,
             'input_height': 1,
-            'normalized': False,
+            'normalized': True,     # In specification we have default value `False`, but it breaks shape inference
             'share_location': True,
             'clip_after_nms': False,
             'clip_before_nms': False,
