@@ -430,6 +430,12 @@ namespace ngraph
                 /// \param out pointer to memory block for output data
                 void linear_onnx_func(const T* input_data, T* out);
 
+                /// \brief Calculates interpolation as in ONNX 'linear' mode (5D case)
+                ///
+                /// \param input_data pointer to input data
+                /// \param out pointer to memory block for output data
+                void linear_onnx5D_func(const T* input_data, T* out);
+
                 /// \brief Calculates cubic interpolation.
                 ///
                 /// \param input_data pointer to input data
@@ -486,6 +492,41 @@ namespace ngraph
                         out[output_transform.index(output_coord)] = static_cast<T>(summa / wsum);
                     }
                 }
+            }
+
+            template <typename T>
+            void InterpolateEval<T>::linear_onnx5D_func(const T* input_data, T* out)
+            {
+                size_t input_rank = m_input_data_shape.size();
+                size_t num_of_axes = m_axes.size();
+
+                assert((input_rank == 3) || (input_rank == 5));
+                assert((num_of_axes == 3) || (num_of_axes == input_rank));
+
+                bool correct_axes = ((m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2)) ||
+                                    ((m_axes[0] == 2) && (m_axes[1] == 3) && (m_axes[2] == 4));
+
+                if ((num_of_axes == 5) && (input_rank == 5))
+                {
+                    correct_axes = (m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2) &&
+                                   (m_axes[3] == 3) && (m_axes[4] == 4);
+                }
+
+                assert(correct_axes);
+
+                const auto info = helper.get_info_for_linear_onnx_mode5D();
+
+                int64_t batch_size = info.batch_size;
+                int64_t num_channels = info.num_channels;
+                int64_t output_depth = info.output_depth;
+                int64_t output_height = info.output_height;
+                int64_t output_width = info.output_width;
+                int64_t input_depth = info.input_depth;
+                int64_t input_height = info.input_height;
+                int64_t input_width = info.input_width;
+
+                const T* xdata = input_data;
+                T* ydata = out;
             }
 
             template <typename T>
