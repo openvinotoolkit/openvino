@@ -196,7 +196,16 @@ public:
                     avgPsroi(c, h, w, 0, 0, binOffsetInput + gc, binOffsetOutput + c);
                 }
             });
-        } else {  // nchw, nChw16c, nChw8c
+        } else if (inFmt == Layout::NCHW) {
+            parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
+                const int gc = (c * groupSize + h) * groupSize + w;
+                const int outputBlockResidual = (outFmt == Layout::NCHW ? 0 : c % inBlockSize);
+                const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
+                const int binOffsetInput = (roiBatchInd * inputChannelsPadding + gc) * height * width;
+                const int binOffsetOutput = (n * outputChannelsPadding + outputBlockIdx) * nh * nw;
+                avgPsroi(c, h, w, 0, outputBlockResidual, binOffsetInput, binOffsetOutput);
+            });
+        } else {  // nChw16c, nChw8c
             parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
                 int cStart = blkIdx * outBlockSize;
                 int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
@@ -216,8 +225,8 @@ public:
 
     template <typename inputType, typename outputType>
     void executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
-                        const int currentRoi, const int roiBatchInd,
-                        const TensorDesc& srcDesc, const TensorDesc& dstDesc) {
+                                     const int currentRoi, const int roiBatchInd,
+                                     const TensorDesc& srcDesc, const TensorDesc& dstDesc) {
         Layout inFmt, outFmt;
         int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
         unsigned long inputChannelsPadding, outputChannelsPadding;
@@ -232,19 +241,19 @@ public:
         size_t numBins = spatialBinsX * spatialBinsY;
         const int binCount = nh * nw;
 
-        auto bilinearPsroi = [&] (int c_, int h_, int w_, int binOffOut_, int outBlkRes_) {
+        auto bilinearPsroi = [&] (int c, int h, int w, int binOffOut, int outBlkRes) {
             float accum = 0.0f;
             int binOffIn, inBlkRes;
-            size_t dstIndex = binOffOut_ + h_ * hOutputStride + w_ * wOutputStride + outBlkRes_;
+            size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
             dstData[dstIndex] = 0;
 
             for (size_t binY = 0; binY < spatialBinsY; binY++) {
                 const float boxYmin = roiStartH + (binY + 0) * (roiHeight / spatialBinsY);
                 const float boxYmax = roiStartH + (binY + 1) * (roiHeight / spatialBinsY);
                 const float heightScale = nh > 1 ? (boxYmax - boxYmin) * (height - 1) / (pooledHeight - 1) : 0.0f;
-                const float inY = nh > 1 ? (h_ * heightScale + boxYmin * (height - 1)) : 0.5f * (boxYmin + boxYmax) * (height - 1);
+                const float inY = nh > 1 ? (h * heightScale + boxYmin * (height - 1)) : 0.5f * (boxYmin + boxYmax) * (height - 1);
                 for (size_t binX = 0; binX < spatialBinsX; binX++) {
-                    size_t gc = c_ + (binY * spatialBinsX + binX) * nc;
+                    size_t gc = c + (binY * spatialBinsX + binX) * nc;
                     if (inFmt == Layout::NHWC) {
                         binOffIn = roiBatchInd * channels * height * width + gc;
                         inBlkRes = 0;
@@ -259,7 +268,7 @@ public:
                     const float boxXmax = roiStartW + (binX + 1) * (roiWidth / spatialBinsX);
 
                     const float widthScale = nw > 1 ? (boxXmax - boxXmin) * (width - 1) / (pooledWidth - 1) : 0.0f;
-                    const float inX = nw > 1 ? (w_ * widthScale + boxXmin * (width - 1)) : 0.5f * (boxXmin + boxXmax) * (width - 1);
+                    const float inX = nw > 1 ? (w * widthScale + boxXmin * (width - 1)) : 0.5f * (boxXmin + boxXmax) * (width - 1);
 
                     if (!(inY < 0 || inY > height - 1 || inX < 0 || inX > width - 1)) {
                         const int topYIndex = static_cast<int>(floorf(inY));
@@ -291,7 +300,6 @@ public:
             dstData[dstIndex] = accum;
         };
 
-
         int outputBlockIdx, binOffsetOutput, outputBlockResidual;
         if (inFmt == Layout::NHWC) {
             binOffsetOutput = currentRoi * nc * nh * nw;
@@ -300,7 +308,11 @@ public:
                     bilinearPsroi(c, h, w, 0, binOffsetOutput + c);
                 }
             });
-        } else {  // nchw, nChw16c, nChw8c
+        } else if (inFmt == Layout::NCHW) {
+            parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
+                bilinearPsroi(c, h, w, 0, (currentRoi * outputChannelsPadding + c) * binCount);
+            });
+        } else {  // nChw16c, nChw8c
             parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
                 int cStart = blkIdx * outBlockSize;
                 int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
