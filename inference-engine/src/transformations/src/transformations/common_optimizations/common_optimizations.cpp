@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
+#include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -80,6 +81,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
     manager.register_pass<ngraph::pass::ClampFusion>();
+    manager.register_pass<ngraph::pass::PadFusion>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
