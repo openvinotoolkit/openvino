@@ -75,7 +75,6 @@ InterpolateEvalHelper::InfoForLinearONNXMode5D
         output_shape = m_out_shape;
     }
 
-
     int64_t batch_size = input_shape[0];
     int64_t num_channels = input_shape[1];
     int64_t input_depth = input_shape[2];
