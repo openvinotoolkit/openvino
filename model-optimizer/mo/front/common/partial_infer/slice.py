@@ -55,19 +55,25 @@ def tf_strided_slice_infer(node):
                 mask.extend(np.ones(dims-len(mask), dtype=np.int32))
         return np.array(mask, dtype=np.int32)
 
-    for mask in {'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask'}:
-        node[mask] = extend_mask(node[mask], dims)
-    node.begin_mask = extend_mask(node.begin_mask, dims, False)
-    node.end_mask = extend_mask(node.end_mask, dims, False)
+    # for mask in {'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask'}:
+    #     node[mask] = extend_mask(node[mask], dims)
+    # node.begin_mask = extend_mask(node.begin_mask, dims, False)
+    # node.end_mask = extend_mask(node.end_mask, dims, False)
+
+    new_axis_mask = extend_mask(node.new_axis_mask, dims)
+    shrink_axis_mask = extend_mask(node.shrink_axis_mask, dims)
+    ellipsis_mask = extend_mask(node.ellipsis_mask, dims)
+    begin_mask = extend_mask(node.begin_mask, dims, False)
+    end_mask = extend_mask(node.end_mask, dims, False)
 
     old_idx = 0
     ellips_ext = 0
     id_em = 0
     for idx in range(dims):
-        if node.new_axis_mask[idx]:
+        if new_axis_mask[idx]:
             slice_idx.append(np.newaxis)
-        elif node.ellipsis_mask[idx]:
-            ellips_ext = len(shape) - (dims - np.count_nonzero(node.new_axis_mask) - 1)
+        elif ellipsis_mask[idx]:
+            ellips_ext = len(shape) - (dims - np.count_nonzero(new_axis_mask) - 1)
             id_em = idx
             for i in range(0, ellips_ext):
                 slice_idx.append(slice(0, shape[old_idx], 1))
@@ -76,11 +82,11 @@ def tf_strided_slice_infer(node):
             s = stride[idx] if len(stride) > idx else 1
             def_beg = 0 if s > 0 else -1
             def_end = shape[old_idx] if s > 0 else -shape[old_idx]-1
-            l = begin_id[idx] if node.begin_mask[idx] and idx < len(begin_id) else def_beg
-            r = end_id[idx] if node.end_mask[idx] and idx < len(end_id) else def_end
+            l = begin_id[idx] if begin_mask[idx] and idx < len(begin_id) else def_beg
+            r = end_id[idx] if end_mask[idx] and idx < len(end_id) else def_end
 
             # Check shrink_axis_mask
-            if node.shrink_axis_mask[idx] and idx < len(shape):
+            if shrink_axis_mask[idx] and idx < len(shape):
                 slice_idx.append(slice(l, l+1, s))
             else:
                 slice_idx.append(slice(l, r, s))
@@ -91,7 +97,7 @@ def tf_strided_slice_infer(node):
     # `arr[tuple(seq)]` instead of `arr[seq]`"
     value = value[tuple(slice_idx)]
 
-    for idx, flag in reversed(list(enumerate(node.shrink_axis_mask))):
+    for idx, flag in reversed(list(enumerate(shrink_axis_mask))):
         if flag:
             if ellips_ext > 0 and idx > id_em:
                 idx = idx + ellips_ext - 1

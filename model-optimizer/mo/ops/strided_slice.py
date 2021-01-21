@@ -19,6 +19,7 @@ import numpy as np
 from mo.front.common.partial_infer.slice import tf_strided_slice_infer
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.utils import array_to_str
 
@@ -50,6 +51,8 @@ def permute_array(node: Node, array: np.array):
         return attr_mask_extended
 
     perm_len = len(node.out_port(0).data.get_shape()) + np.count_nonzero(node.shrink_axis_mask)
+    perm_len = len(array)
+
     perm = PermuteAttrs.get_nhwc_to_nchw_permutation(perm_len)
     perm_list = list(perm.perm)
     # if mask length is more than output, just add tail that will not be permuted to avoid error
@@ -118,25 +121,24 @@ class StridedSlice(Op):
                                                                    len(out_shape), list(old_value),
                                                                    int(i_port.idx == 3)))
             # set_value additionally set_shape and propagate value to Const node
-            if not np.array_equal(new_value, old_value):
-                i_port.data.set_value(new_value)
+            # if not np.array_equal(new_value, old_value):
+            #     i_port.data.set_value(new_value)
 
         # extend masks before removing ellipsis
-        for attr in ["new_axis_mask", "shrink_axis_mask", "begin_mask", "end_mask", "ellipsis_mask"]:
-            node[attr] = int64_array(extend_mask_according_ellipsis(node.ellipsis_mask, node.shrink_axis_mask,
-                                                                    len(out_shape), list(node[attr]), 0))
+        # for attr in ["new_axis_mask", "shrink_axis_mask", "begin_mask", "end_mask", "ellipsis_mask"]:
+        #     node[attr] = int64_array(extend_mask_according_ellipsis(node.ellipsis_mask, node.shrink_axis_mask,
+        #                                                             len(out_shape), list(node[attr]), 0))
 
         # we will extend all masks and inputs to simplify future transformations
         idx = np.nonzero(node.ellipsis_mask)
-        node.ellipsis_mask[idx] = 0
+        # node.ellipsis_mask[idx] = 0
 
         if node.graph.graph['layout'] == 'NHWC' and node.out_port(0).data.get_value() is None:
             PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
                                                            ('new_axis_mask', 'input:0', permute_masks),
                                                            ('ellipsis_mask', 'input:0', permute_masks),
                                                            ('begin_mask', 'input:0', permute_masks),
-                                                           ('end_mask', 'input:0', permute_masks),
-                                                           ])
+                                                           ('end_mask', 'input:0', permute_masks)])
             # permute inputs
             in_shape = node.in_port(0).get_source().data.get_shape()
             assert in_shape is not None, \
@@ -149,3 +151,6 @@ class StridedSlice(Op):
                     new_value = permute_array(node, i_port.data.get_value())
                     # set_value additionally set_shape and propagate value to Const node
                     i_port.data.set_value(new_value)
+            # PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:1', 'order')
+            # PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:2', 'order')
+            # PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:3', 'order')
