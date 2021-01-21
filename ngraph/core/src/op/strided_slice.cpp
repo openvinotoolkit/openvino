@@ -186,9 +186,9 @@ void op::v1::StridedSlice::validate_and_infer_types()
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    auto begin_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
-    auto end_const = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
-    auto strides = as_type_ptr<op::Constant>(input_value(3).get_node_shared_ptr());
+    auto begin_const = get_constant_from_source(input_value(1));
+    auto end_const = get_constant_from_source(input_value(2));
+    auto strides = get_constant_from_source(input_value(3));
 
     if (begin_const && end_const && strides)
     {
@@ -308,9 +308,9 @@ bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values)
 
 bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)) ||
-        !std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(2)) ||
-        !std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(3)))
+    if (!get_constant_from_source(input_value(1)) ||
+        !get_constant_from_source(input_value(2)) ||
+        !get_constant_from_source(input_value(3)))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

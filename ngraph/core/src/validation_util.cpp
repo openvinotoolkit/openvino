@@ -1408,14 +1408,20 @@ shared_ptr<op::Constant> ngraph::get_constant_min_of_type(element::Type_t t)
 HostTensorPtr equality_mask(const HostTensorPtr& tensor, const shared_ptr<op::Constant>& constant)
 {
     auto mask = std::make_shared<HostTensor>(element::boolean, tensor->get_shape());
-    op::v1::Equal().evaluate({mask}, {tensor, std::make_shared<HostTensor>(constant)});
+    const auto& param =
+        std::make_shared<op::Parameter>(tensor->get_element_type(), tensor->get_shape());
+    op::v1::Equal(param, constant, ngraph::op::AutoBroadcastSpec::NUMPY)
+        .evaluate({mask}, {tensor, std::make_shared<HostTensor>(constant)});
     return mask;
 }
 
 HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs)
 {
     auto result = std::make_shared<HostTensor>(element::boolean, lhs->get_shape());
-    op::v1::LogicalOr().evaluate({result}, {lhs, rhs});
+    op::v1::LogicalOr(std::make_shared<op::Parameter>(lhs->get_element_type(), lhs->get_shape()),
+                      std::make_shared<op::Parameter>(rhs->get_element_type(), rhs->get_shape()),
+                      ngraph::op::AutoBroadcastSpec::NUMPY)
+        .evaluate({result}, {lhs, rhs});
     return result;
 }
 
