@@ -123,9 +123,11 @@ ConvolutionKernel_Winograd_6x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     dispatchData.lws[1] = local_size[1];
     dispatchData.lws[2] = local_size[2];
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_Winograd_6x3_s1_fused::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 bool ConvolutionKernel_Winograd_6x3_s1_fused::Validate(const Params& p, const optional_params& o) const {

@@ -56,7 +56,11 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
 }
 
 KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
