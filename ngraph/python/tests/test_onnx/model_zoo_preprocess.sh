@@ -115,6 +115,12 @@ function postprocess_msft_models() {
     echo "Fix LSTM_Seq_lens_unpacked"
     mv $MSFT_MODELS_DIR/opset9/LSTM_Seq_lens_unpacked/seq_lens_sorted $MSFT_MODELS_DIR/opset9/LSTM_Seq_lens_unpacked/test_data_set_0
     mv $MSFT_MODELS_DIR/opset9/LSTM_Seq_lens_unpacked/seq_lens_unsorted $MSFT_MODELS_DIR/opset9/LSTM_Seq_lens_unpacked/test_data_set_1
+
+    echo "Replace BERT_Squad expected outputs"
+    cd $MSFT_MODELS_DIR/opset10/BERT_Squad/test_data_set_1/
+    cd $MSFT_MODELS_DIR/opset10/BERT_Squad/test_data_set_1/
+    rm output_*
+    cp "$ONNX_MODELS_DIR/text/machine_comprehension/bert-squad/model/bertsquad-10/output_* .
 }
 
 if [[ $ENABLE_ONNX_MODELS_ZOO = false ]] && [[ $ENABLE_MSFT_MODELS = false ]] ; then
