@@ -141,8 +141,6 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return {kd};
 }
 }  // namespace kernel_selector

@@ -47,6 +47,10 @@ ReorderWeightsImage_fyx_b_Kernel::DispatchData ReorderWeightsImage_fyx_b_Kernel:
 KernelsData ReorderWeightsImage_fyx_b_Kernel::GetKernelsData(const Params& params,
                                                              const optional_params& options) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_4);
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderWeightsImage_fyx_b_Kernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

@@ -80,8 +80,6 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeatures::SetDefault(const lrn_
         }
     }
 
-    dispatchData.efficiency = FORCE_PRIORITY_6;
-
     return dispatchData;
 }
 
@@ -122,6 +120,10 @@ JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_p
 
 KernelsData LRNKernelAcrossChannelMultipleFeatures::GetKernelsData(const Params& params,
                                                                    const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_6);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority LRNKernelAcrossChannelMultipleFeatures::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector
