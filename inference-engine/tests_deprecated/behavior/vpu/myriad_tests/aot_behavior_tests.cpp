@@ -25,8 +25,6 @@ std::string getTestCaseName(testing::TestParamInfo<BehTestParams> obj) {
     return obj.param.device + "_" + obj.param.input_blob_precision.name()
         + (obj.param.config.size() ? "_" + obj.param.config.begin()->second : "");
 }
-
-const int BLOB_VERSION_MAJOR = 3;
 }
 
 #if (defined(_WIN32) || defined(_WIN64) )

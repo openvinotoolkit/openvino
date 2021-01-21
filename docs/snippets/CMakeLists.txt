@@ -54,8 +54,11 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(${TARGET_NAME} PRIVATE onnx_importer)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable -Wno-unused-but-set-variable)
+if(NOT MSVC)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-but-set-variable)
+    endif()
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api

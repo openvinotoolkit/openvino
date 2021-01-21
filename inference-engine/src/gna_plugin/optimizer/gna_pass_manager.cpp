@@ -63,8 +63,6 @@ static const char softSignLayersCounter[] = "numSoftSignLayers";
  * @brief helper injections of diagonal layer with certain value
  */
 
-static const char diagonalLayerCounterName[] = "diagonalLayerCounter";
-
 static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
                                        InferenceEngine::CNNLayerPtr nextLayer,
                                        std::shared_ptr<IPassManager> passmanager,
@@ -549,13 +547,6 @@ void ReversePermutationsPass::run() {
 
         return prev;
     };
-
-    auto prevLayerSkipReshape = [&prevLayerSkipCertain](CNNLayerPtr layer) -> CNNLayerPtr {
-        return prevLayerSkipCertain(layer, [] (CNNLayerPtr l2) {
-            return LayerInfo(l2).isNonFunctional();
-        });
-    };
-
 
     std::function<CNNLayerPtr(CNNLayerPtr)> nextLayerSkipReshape = [&nextLayerSkipReshape](CNNLayerPtr layer) -> CNNLayerPtr {
         if (layer->outData.empty()) {
