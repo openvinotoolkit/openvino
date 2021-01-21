@@ -159,7 +159,7 @@ ModelPtr FrontEnd::buildInitialModel(const ie::CNNNetwork& network) {
     return runCommonPasses(network);
 }
 
-ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::CNNNetwork& network) {
+ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     auto nGraphFunc = network.getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
