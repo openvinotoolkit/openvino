@@ -1559,19 +1559,19 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"SquaredDifference"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-    LayerParams attrs = {node->get_friendly_name(), "Eltwise", details::convertPrecision(node->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(attrs);
-    res->params["operation"] = "squared_diff";
-    return res;
+        LayerParams attrs = {node->get_friendly_name(), "Eltwise", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::EltwiseLayer>(attrs);
+        res->params["operation"] = "squared_diff";
+        return res;
     });
 
     addSpecificCreator({"RegionYolo"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-    LayerParams attrs = {node->get_friendly_name(), "RegionYolo", details::convertPrecision(node->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-    res->params = params;
-    res->params["do_softmax"] = res->getBoolStrParamAsIntStr("do_softmax");
-    return res;
+        LayerParams attrs = {node->get_friendly_name(), "RegionYolo", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        res->params["do_softmax"] = res->getBoolStrParamAsIntStr("do_softmax");
+        return res;
     });
 }
 
