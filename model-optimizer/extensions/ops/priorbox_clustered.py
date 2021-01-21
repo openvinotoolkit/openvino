@@ -17,8 +17,7 @@
 import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
-from mo.front.extractor import attr_getter
-from mo.front.extractor import get_boolean_attr
+from mo.front.extractor import attr_getter, get_boolean_attr
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
