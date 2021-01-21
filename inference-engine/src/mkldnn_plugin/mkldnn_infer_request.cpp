@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn_memory_state.h"
 #include "nodes/mkldnn_memory_node.hpp"
+#include "nodes/common/cpu_memcpy.h"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
@@ -42,7 +43,7 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     IE_SUPPRESS_DEPRECATED_START
-    if (execNetwork->QueryState().size() == 0) {
+    if (execNetwork->_numRequests > 1 || execNetwork->QueryState().size() == 0) {
         for (auto &node : graph->GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
@@ -132,6 +133,49 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
     }
 }
 
+void MKLDNNPlugin::MKLDNNInferRequest::PushStates() {
+    for (auto &node : graph->GetNodes()) {
+        if (node->getType() == MemoryInput) {
+            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            auto cur_id = cur_node->getId();
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
+                    auto cur_state_mem = cur_node->getStore();
+                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
+                    auto data_size = state->GetState()->byteSize();
+                    auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(cur_state_mem->GetDataType());
+                    auto padSize = cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding;
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + padSize * elemSize;
+
+                    cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
+                }
+            }
+        }
+    }
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
+    for (auto &node : graph->GetNodes()) {
+        if (node->getType() == MemoryInput) {
+            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            auto cur_id = cur_node->getId();
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
+                    auto cur_state_mem = cur_node->getStore();
+                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
+                    auto data_size = state->GetState()->byteSize();
+                    auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(cur_state_mem->GetDataType());
+                    auto padSize = cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding;
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + padSize * elemSize;
+
+                    cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
+                }
+            }
+        }
+    }
+}
+
+
 void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     using namespace openvino::itt;
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, profilingTask);
@@ -144,7 +188,15 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
 
     PushInputData();
 
+    if (memoryStates.size() != 0) {
+        PushStates();
+    }
+
     graph->Infer(m_curBatch);
+
+    if (memoryStates.size() != 0) {
+        PullStates();
+    }
 
     graph->PullOutputData(_outputs);
 }

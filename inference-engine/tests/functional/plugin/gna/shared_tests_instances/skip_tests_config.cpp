@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 29577
         R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
+        //TODO: Issue: 46416
+        R"(.*VariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)"
