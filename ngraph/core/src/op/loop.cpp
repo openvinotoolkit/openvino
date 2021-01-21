@@ -179,11 +179,8 @@ void op::v5::Loop::validate_and_infer_types()
             input_offset--;
         }
     }
-    // input_offset is 0 when count number of indexes 0 or 1 for input description is more than 2.
-    if (input_offset < 0)
-    {
-        input_offset = 0;
-    }
+    // throw exception when input_offset < 0.
+    NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions.size() + input_offset,
@@ -331,11 +328,8 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
             input_offset--;
         }
     }
-    // input_offset is 0 when count number of indexes 0 or 1 for input description is more than 2.
-    if (input_offset < 0)
-    {
-        input_offset = 0;
-    }
+    // throw exception when input_offset < 0
+    NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
     // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body
     // params
     OutputVector body_params_args(new_args.begin() + input_offset, new_args.end());
