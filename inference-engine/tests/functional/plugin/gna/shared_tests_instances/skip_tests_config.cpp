@@ -54,5 +54,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 24839
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)"
+        R"(.*TensorNamesTest.CheckAddOutput.*)",
     };
 }
