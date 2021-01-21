@@ -15,10 +15,7 @@
 namespace FormatReader {
 class ReaderPtr {
 public:
-    explicit ReaderPtr(const char *imageName) : reader(CreateFormatReader(imageName),
-                                                [](Reader *p) {
-                                                p->Release();
-                                           }) {}
+    explicit ReaderPtr(const char *imageName) : reader(CreateFormatReader(imageName)) {}
     /**
      * @brief dereference operator overload
      * @return Reader

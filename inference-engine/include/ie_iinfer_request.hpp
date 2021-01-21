@@ -18,7 +18,6 @@
 #include "ie_common.h"
 #include "ie_preprocess.hpp"
 #include "ie_imemory_state.hpp"
-#include "details/ie_irelease.hpp"
 
 namespace InferenceEngine {
 
@@ -26,8 +25,10 @@ namespace InferenceEngine {
  * @brief This is an interface of asynchronous infer request
  *
  */
-class IInferRequest : public details::IRelease {
+class IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
+    virtual ~IInferRequest() = default;
+
     /**
      * @enum WaitMode
      * @brief Enumeration to hold wait mode for IInferRequest
@@ -199,6 +200,13 @@ public:
      */
     virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
     IE_SUPPRESS_DEPRECATED_END
+
+    // IE_SUPPRESS_DEPRECATED_START
+    // INFERENCE_ENGINE_DEPRECATED("Create std::shared_ptr whithout custom deleter that use Release")
+    virtual void Release() noexcept {
+        delete this;
+    }
+    // IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace InferenceEngine

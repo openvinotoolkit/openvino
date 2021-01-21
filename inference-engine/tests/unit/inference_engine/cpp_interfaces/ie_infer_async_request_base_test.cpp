@@ -34,7 +34,7 @@ protected:
 
     virtual void SetUp() {
         mock_impl.reset(new MockIAsyncInferRequestInternal());
-        request = details::shared_from_irelease(new InferRequestBase<MockIAsyncInferRequestInternal>(mock_impl));
+        request = std::make_shared<InferRequestBase<MockIAsyncInferRequestInternal>>(mock_impl);
     }
 };
 
@@ -243,8 +243,7 @@ protected:
         OutputsDataMap outputsInfo;
         mockNotEmptyNet.getOutputsInfo(outputsInfo);
         mockInferRequestInternal = make_shared<MockAsyncInferRequestInternal>(inputsInfo, outputsInfo);
-        inferRequest = shared_from_irelease(
-                new InferRequestBase<MockAsyncInferRequestInternal>(mockInferRequestInternal));
+        inferRequest = std::make_shared<InferRequestBase<MockAsyncInferRequestInternal>>(mockInferRequestInternal);
         return make_shared<InferRequest>(inferRequest);
     }
 

@@ -118,4 +118,5 @@
 # endif
 #else
 # define INFERENCE_PLUGIN_API(TYPE) extern "C" TYPE
+# define INFERENCE_PLUGIN_API(TYPE) TYPE
 #endif

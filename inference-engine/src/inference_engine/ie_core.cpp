@@ -367,7 +367,7 @@ public:
 
                     allowNotImplemented([&]() {
                         for (auto&& extensionLocation : desc.listOfExtentions) {
-                            plugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
+                            plugin.AddExtension(std::make_shared<Extension>(extensionLocation));
                         }
                     });
                 }

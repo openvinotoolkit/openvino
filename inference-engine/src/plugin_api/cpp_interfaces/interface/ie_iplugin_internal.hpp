@@ -83,8 +83,7 @@ inline void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
  * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
  */
-class IInferencePlugin : public details::IRelease,
-                         public std::enable_shared_from_this<IInferencePlugin> {
+class IInferencePlugin : public std::enable_shared_from_this<IInferencePlugin> {
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;
@@ -112,13 +111,12 @@ class IInferencePlugin : public details::IRelease,
         }
     } _version;
 
-protected:
+public:
     /**
      * @brief      Destroys the object.
      */
-    ~IInferencePlugin() override = default;
+    virtual ~IInferencePlugin() = default;
 
-public:
     /**
      * @brief A shared pointer to IInferencePlugin interface
      */
@@ -138,10 +136,6 @@ public:
      */
     Version GetVersion() const {
         return _version;
-    }
-
-    void Release() noexcept override {
-        delete this;
     }
 
     /**
@@ -280,16 +274,8 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                          \
-    INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                                   \
-            InferenceEngine::IInferencePlugin *&plugin,                                                     \
-            InferenceEngine::ResponseDesc *resp) noexcept {                                                 \
-        try {                                                                                               \
-            plugin = new PluginType(__VA_ARGS__);                                                           \
-            plugin->SetVersion(version);                                                                    \
-            return InferenceEngine::OK;                                                                     \
-        }                                                                                                   \
-        catch (std::exception &ex) {                                                                        \
-            return InferenceEngine::DescriptionBuffer(InferenceEngine::GENERAL_ERROR, resp) << ex.what();   \
-        }                                                                                                   \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                  \
+    INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>* plugin) { \
+        *plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                      \
+        (*plugin)->SetVersion(version);                                                                             \
     }

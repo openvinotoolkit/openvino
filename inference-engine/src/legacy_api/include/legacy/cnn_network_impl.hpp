@@ -25,8 +25,7 @@ namespace details {
 
 IE_SUPPRESS_DEPRECATED_START
 
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork,
-    public std::enable_shared_from_this<ICNNNetwork> {
+class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
     explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
@@ -115,10 +114,6 @@ public:
     void addOutput(const std::string& dataName);
 
     void removeOutput(const std::string& dataName);
-
-    void Release() noexcept override {
-        delete this;
-    }
 
     virtual void validate(int = 2);
 

@@ -778,7 +778,7 @@ protected:
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
         // in case when constructor without allocator was used
         if (!_allocator) {
-            _allocator = shared_from_irelease(CreateDefaultAllocator());
+            _allocator = CreateDefaultAllocator();
         }
 
         return _allocator;

@@ -146,8 +146,10 @@ public:
 /**
  * @brief This class is the main extension interface
  */
-class INFERENCE_ENGINE_API_CLASS(IExtension) : public InferenceEngine::details::IRelease {
+class INFERENCE_ENGINE_API_CLASS(IExtension) : public std::enable_shared_from_this<IExtension> {
 public:
+    virtual ~IExtension() = default;
+
     /**
      * @brief Returns operation sets
      * This method throws an exception if it was not implemented
@@ -187,6 +189,13 @@ public:
      * @param versionInfo Pointer to version info, will be set by plugin
      */
     virtual void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept = 0;
+
+    // IE_SUPPRESS_DEPRECATED_START
+    // INFERENCE_ENGINE_DEPRECATED("Create std::shared_ptr whithout custom deleter that use Release")
+    virtual void Release() noexcept {
+        delete this;
+    }
+    // IE_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -201,6 +210,6 @@ using IExtensionPtr = std::shared_ptr<IExtension>;
  * @param resp Response description
  * @return Status code
  */
-INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
+INFERENCE_EXTENSION_API(void) CreateExtension(IExtensionPtr*);
 
 }  // namespace InferenceEngine

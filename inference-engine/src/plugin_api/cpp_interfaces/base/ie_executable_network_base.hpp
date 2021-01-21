@@ -87,10 +87,6 @@ public:
     }
     IE_SUPPRESS_DEPRECATED_END
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     /// @private Need for unit tests only - TODO: unit tests should test using public API, non having details
     const std::shared_ptr<T> getImpl() const {
         return _impl;
@@ -112,7 +108,6 @@ public:
         TO_STATUS(pContext = _impl->GetContext());
     }
 
-private:
     ~ExecutableNetworkBase() = default;
 };
 
@@ -127,9 +122,7 @@ template <class T>
 inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
     // to suppress warning about deprecated QueryState
     IE_SUPPRESS_DEPRECATED_START
-    typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
-        p->Release();
-    });
+    typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl));
     IE_SUPPRESS_DEPRECATED_END
     return InferenceEngine::ExecutableNetwork(net);
 }

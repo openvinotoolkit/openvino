@@ -60,15 +60,6 @@ public:
         return false;
     }
 
-    /**
-     * @brief Deletes current allocator.
-     * Can be used if a shared_from_irelease pointer is used
-     */
-    void Release() noexcept override {
-        delete this;
-    }
-
-protected:
     virtual ~PreAllocator() = default;
 };
 
@@ -80,7 +71,7 @@ protected:
  */
 template <class T>
 std::shared_ptr<IAllocator> make_pre_allocator(T* ptr, size_t size) {
-    return shared_from_irelease(new PreAllocator(ptr, size * sizeof(T)));
+    return std::make_shared<PreAllocator>(ptr, size * sizeof(T));
 }
 
 }  // namespace details

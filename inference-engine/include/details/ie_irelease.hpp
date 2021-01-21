@@ -19,13 +19,17 @@ namespace details {
 /**
  * @brief This class is used for objects allocated by a shared module (in *.so)
  */
+// IE_SUPPRESS_DEPRECATED_START
+// INFERENCE_ENGINE_DEPRECATED("This Interface is depricated")
 class IRelease : public no_copy {
 public:
     /**
      * @brief Releases current allocated object and all related resources.
      * Once this method is called, the pointer to this interface is no longer valid
      */
-    virtual void Release() noexcept = 0;
+    virtual void Release() noexcept {
+        delete this;
+    }
 
 protected:
     /**
@@ -33,15 +37,6 @@ protected:
      */
     ~IRelease() override = default;
 };
-
-template <class T>
-inline std::shared_ptr<T> shared_from_irelease(T* ptr) {
-    std::shared_ptr<T> pointer(ptr, [](IRelease* p) {
-        if (p)
-            p->Release();
-    });
-    return pointer;
-}
-
+// IE_SUPPRESS_DEPRECATED_END
 }  // namespace details
 }  // namespace InferenceEngine

@@ -34,10 +34,6 @@ public:
 
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     void Unload() noexcept override {}
 
     static void AddImpl(const std::string& name, const IShapeInferImpl::Ptr& impl);

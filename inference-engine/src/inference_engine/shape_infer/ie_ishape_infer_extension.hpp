@@ -7,7 +7,6 @@
 #include <vector>
 #include <map>
 
-#include "details/ie_irelease.hpp"
 #include "ie_version.hpp"
 #include "ie_common.h"
 #include "ie_blob.h"
@@ -42,8 +41,10 @@ public:
  * @class IShapeInferExtension
  * @brief This class is the reader extension interface to provide implementation for shape propagation
  */
-class IShapeInferExtension : public InferenceEngine::details::IRelease {
+class IShapeInferExtension : public std::enable_shared_from_this<IShapeInferExtension> {
 public:
+    virtual ~IShapeInferExtension() = default;
+
     /**
      * @brief Gets extension version information and stores in versionInfo
      * @param versionInfo Pointer to version info, will be set by plugin

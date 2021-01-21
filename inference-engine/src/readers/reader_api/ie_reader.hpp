@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <details/ie_irelease.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <ie_iextension.h>
 #include <istream>
@@ -17,8 +16,10 @@ namespace InferenceEngine {
 /**
  * @brief IReader an abstract interface for Inference Engine readers
  */
-class IReader: public details::IRelease {
+class IReader: public std::enable_shared_from_this<IReader> {
 public:
+    virtual ~IReader() = default;
+
     /**
      * @brief Checks that reader supports format of the model
      * @param model stream with model
@@ -53,11 +54,8 @@ public:
 
 /**
  * @brief Creates the default instance of the reader
- *
- * @param reader Reader interface
- * @param resp Response description
- * @return Status code
+ * @return Reader interface
  */
-INFERENCE_PLUGIN_API(StatusCode) CreateReader(IReader*& reader, ResponseDesc* resp) noexcept;
+INFERENCE_PLUGIN_API(void) CreateReader(std::shared_ptr<IReader>* reader);
 
 }  // namespace InferenceEngine

@@ -32,12 +32,14 @@ using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
 /**
  * @brief This is an interface of an executable network
  */
-class IExecutableNetwork : public details::IRelease {
+class IExecutableNetwork : public std::enable_shared_from_this<IExecutableNetwork> {
 public:
     /**
      * @brief A smart pointer to the current IExecutableNetwork object
      */
     using Ptr = std::shared_ptr<IExecutableNetwork>;
+
+    virtual ~IExecutableNetwork() = default;
 
     /**
      * @brief Gets the Executable network output Data node information.

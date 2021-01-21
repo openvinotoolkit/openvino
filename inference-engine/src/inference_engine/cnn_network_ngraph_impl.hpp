@@ -62,10 +62,6 @@ public:
 
     void addOutput(const ::ngraph::Output<::ngraph::Node> & dataName);
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     std::shared_ptr<const ::ngraph::Function> getFunction() const noexcept override {
         return _ngraph_function;
     }

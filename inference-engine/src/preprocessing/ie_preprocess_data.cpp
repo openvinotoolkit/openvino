@@ -36,18 +36,12 @@ public:
 
     void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial, int batchSize = -1) override;
 
-    void Release() noexcept override;
-
     void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) override;
 };
 
 StatusCode CreatePreProcessData(IPreProcessData *& data, ResponseDesc * /*resp*/) noexcept {
     data = new PreProcessData();
     return StatusCode::OK;
-}
-
-void PreProcessData::Release() noexcept {
-    delete this;
 }
 
 void PreProcessData::setRoiBlob(const Blob::Ptr &blob) {

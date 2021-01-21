@@ -8,12 +8,10 @@
 
 #include "ie_allocator.hpp"
 
+namespace InferenceEngine {
 class SystemMemoryAllocator : public InferenceEngine::IAllocator {
 public:
-    void Release() noexcept override {
-        delete this;
-    }
-
+    ~SystemMemoryAllocator() = default;
     void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
         return handle;
     }
@@ -37,3 +35,5 @@ public:
         return true;
     }
 };
+
+}  // namespace InferenceEngine

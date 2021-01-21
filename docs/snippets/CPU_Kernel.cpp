@@ -5,8 +5,8 @@ using namespace InferenceEngine;
 //! [part0]
 InferenceEngine::Core core;
 // Load CPU extension as a shared library
-auto extension_ptr = make_so_pointer<InferenceEngine::IExtension>("<shared lib path>");
-// Add extension to the CPU device
+auto extension_ptr = std::make_shared<InferenceEngine::Extension>(std::string{"<shared lib path>"});
+// Add extension to the CPU demake_so_pointervice
 core.AddExtension(extension_ptr, "CPU");
 //! [part0]
 

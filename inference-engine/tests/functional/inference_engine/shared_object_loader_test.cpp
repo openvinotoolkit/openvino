@@ -48,7 +48,7 @@ TEST_F(SharedObjectLoaderTests, loaderThrowsIfNoPlugin) {
 TEST_F(SharedObjectLoaderTests, canFindExistedMethod) {
     loadDll(get_mock_engine_name());
 
-    auto factory = make_std_function<StatusCode(IInferencePlugin*&, ResponseDesc*)>("CreatePluginEngine");
+    auto factory = make_std_function<std::shared_ptr<IInferencePlugin>()>("CreatePluginEngine");
     EXPECT_NE(nullptr, factory);
 }
 
@@ -61,9 +61,7 @@ TEST_F(SharedObjectLoaderTests, throwIfMethodNofFoundInLibrary) {
 TEST_F(SharedObjectLoaderTests, canCallExistedMethod) {
     loadDll(get_mock_engine_name());
 
-    auto factory = make_std_function<StatusCode(IInferencePlugin*&, ResponseDesc*)>("CreatePluginEngine");
-    IInferencePlugin* ptr = nullptr;
-    ResponseDesc resp;
-    EXPECT_NO_THROW(factory(ptr, &resp));
-    ptr->Release();
+    auto factory = make_std_function<void(std::shared_ptr<IInferencePlugin>)>("CreatePluginEngine");
+    std::shared_ptr<IInferencePlugin> ptr;
+    EXPECT_NO_THROW(factory(ptr));
 }

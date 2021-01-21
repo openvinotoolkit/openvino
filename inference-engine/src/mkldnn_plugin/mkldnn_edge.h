@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ie_blob.h>
+#include <details/ie_no_copy.hpp>
 #include <memory>
 #include "mkldnn_memory.h"
 #include "mkldnn_dims.h"

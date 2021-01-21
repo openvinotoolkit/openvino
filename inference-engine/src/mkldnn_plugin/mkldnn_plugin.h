@@ -19,7 +19,7 @@ namespace MKLDNNPlugin {
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
-    ~Engine() override;
+    ~Engine();
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,

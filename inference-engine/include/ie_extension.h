@@ -66,11 +66,6 @@ public:
     }
 
     /**
-     * @brief Does nothing since destruction is done via the regular mechanism
-     */
-    void Release() noexcept override {}
-
-    /**
      * @brief Returns operation sets
      * This method throws an exception if it was not implemented
      * @return map of opset name to opset
@@ -105,24 +100,21 @@ protected:
     details::SOPointer<IExtension> actual;
 };
 
-/**
- * @brief Creates a special shared_pointer wrapper for the given type from a specific shared module
- *
- * @param name A std::string name of the shared library file
- * @return shared_pointer A wrapper for the given type from a specific shared module
- */
-template <>
-inline std::shared_ptr<IExtension> make_so_pointer(const std::string& name) {
+// IE_SUPPRESS_DEPRECATED_START
+template<typename T = IExtension>
+// INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
+inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
     return std::make_shared<Extension>(name);
 }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
-template <>
+template<typename T = IExtension>
+// INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
 inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
     return std::make_shared<Extension>(name);
 }
 
 #endif
-
+// IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

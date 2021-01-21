@@ -106,8 +106,6 @@ class CustomAbsExtension : public InferenceEngine::IExtension {
 
         void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
 
-        void Release() noexcept override { delete this; }
-
         void Unload() noexcept override {}
 
         std::map<std::string, ngraph::OpSet> getOpSets() override {
@@ -329,7 +327,7 @@ TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
     InferenceEngine::Core ie;
-    ie.AddExtension(InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path()));
+    ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
     infer_model(ie, model, input_values, expected);
 }
 
@@ -406,7 +404,7 @@ opset_import {
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
     InferenceEngine::Core ie;
-    ie.AddExtension(InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path()));
+    ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
     infer_model(ie, model, input_values, expected);
 }
 

@@ -32,8 +32,10 @@ namespace InferenceEngine {
 /**
  * @brief This class stores pre-process information for exact input
  */
-class IPreProcessData : public details::IRelease {
+class IPreProcessData : public std::enable_shared_from_this<IPreProcessData> {
 public:
+    virtual ~IPreProcessData() = default;
+
     /**
      * @brief Sets ROI blob to be resized and placed to the default input blob during pre-processing.
      * @param blob ROI blob.

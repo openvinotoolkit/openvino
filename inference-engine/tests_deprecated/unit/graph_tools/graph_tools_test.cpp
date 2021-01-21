@@ -14,6 +14,7 @@
 #include <memory>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <common_test_utils/common_utils.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 using namespace testing;
 using namespace InferenceEngine;
