@@ -36,8 +36,7 @@ GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) 
 }
 
 KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
-                                                const optional_params& options,
-                                                float estimated_time) const {
+                                                const optional_params& options) const {
     assert(params.GetType() == KernelType::GRN);
 
     if (!Validate(params, options))
@@ -65,8 +64,6 @@ KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }
