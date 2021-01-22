@@ -54,6 +54,13 @@ find_package(IEDevScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
+if(NOT MSVC)
+    ie_add_compiler_flags(-Wno-error=unused-variable)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
+    endif()
+endif()
+
 # Don't threat deprecated API warnings as errors in 3rd party apps
 ie_deprecated_no_errors()
 
