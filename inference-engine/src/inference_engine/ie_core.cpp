@@ -275,15 +275,20 @@ public:
         bool networkIsImported = false;
         std::string networkHash = cachingIsAvailable ? context.computeHash() : std::string{};
 
-        std::cout << "caching is available: " << (cachingIsAvailable ?
+        std::cout << (cachingIsAvailable ?
             std::string("caching is available") :
-            std::string("caching is not available")) << std::endl;
+            std::string("caching is not available")) << " for " << deviceName << std::endl;
 
         auto removeCacheEntry = [] (const std::string & blobFileName_) {
+            std::cout << "Removed cache entry " << blobFileName_ << std::endl;
             std::remove(blobFileName_.c_str());
         };
 
         auto getImportConfig = [] (const std::map<std::string, std::string> & loadConfig) {
+            // For import config all options are passed as is
+            // Plugin should either:
+            // 1. ignore not compatible options (e.g. binary is compiled with 1 option, while provided different value)
+            // 2. throw exceptions if values for some options are different
             std::map<std::string, std::string> importConfig;
             auto copyConfigValue = [&] (const std::string & configKey) {
                 auto it = loadConfig.find(configKey);
