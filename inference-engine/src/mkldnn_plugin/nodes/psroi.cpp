@@ -62,7 +62,7 @@ public:
                     {ConfLayout::BLK8, ConfLayout::BLK8}
             };
 
-            if (noTrans) {
+            if (mode != "bilinear_deformable" && noTrans) {
                 for (auto conf : plainConfs) {
                     LayerConfig config;
                     DataConfig inConfig0, inConfig1, inConfig2;
