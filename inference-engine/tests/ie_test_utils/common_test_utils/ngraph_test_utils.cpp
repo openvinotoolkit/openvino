@@ -10,9 +10,9 @@
 #include <string>
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 namespace {
@@ -82,6 +82,8 @@ template <typename Node>
 std::string name(const Node& n) {
     return n->get_friendly_name();
 }
+
+}  // namespace
 
 std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
