@@ -206,7 +206,16 @@ public:
                     avgPsroi(c, h, w, 0, 0, binOffsetInput + gc, binOffsetOutput + c);
                 }
             });
-        } else {  // nchw, nChw16c, nChw8c
+        } else if (inFmt == Layout::NCHW) {
+            parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
+                const int gc = (c * groupSize + h) * groupSize + w;
+                const int outputBlockResidual = (outFmt == Layout::NCHW ? 0 : c % inBlockSize);
+                const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
+                const int binOffsetInput = (roiBatchInd * inputChannelsPadding + gc) * height * width;
+                const int binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * nh * nw;
+                avgPsroi(c, h, w, 0, outputBlockResidual, binOffsetInput, binOffsetOutput);
+            });
+        } else {  // nChw16c, nChw8c
             parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
                 int cStart = blkIdx * outBlockSize;
                 int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
@@ -301,7 +310,6 @@ public:
             dstData[dstIndex] = accum;
         };
 
-
         int outputBlockIdx, binOffsetOutput, outputBlockResidual;
         if (inFmt == Layout::NHWC) {
             binOffsetOutput = currentRoi * nc * nh * nw;
@@ -310,7 +318,11 @@ public:
                     bilinearPsroi(c, h, w, 0, binOffsetOutput + c);
                 }
             });
-        } else {  // nchw, nChw16c, nChw8c
+        } else if (inFmt == Layout::NCHW) {
+            parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
+                bilinearPsroi(c, h, w, 0, (currentRoi * outputChannelsPadding + c) * binCount);
+            });
+        } else {  // nChw16c, nChw8c
             parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
                 int cStart = blkIdx * outBlockSize;
                 int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
