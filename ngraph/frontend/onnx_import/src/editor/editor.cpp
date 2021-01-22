@@ -282,26 +282,34 @@ void onnx_import::ONNXModelEditor::set_input_values(
         auto& name = input_desc.first;
         auto& values = input_desc.second;
 
-        auto it = find_graph_initializer(*onnx_graph, name);
-        if (it)
+        auto initializer = find_graph_initializer(*onnx_graph, name);
+
+        if (!initializer && !find_graph_input(*onnx_graph, input_desc.first))
         {
-            it->Clear();
+            throw ngraph_error("Could not set custom values for input: '" + name +
+                               "'. Such input was not found in the original ONNX model.");
+        }
+
+        if (initializer)
+        {
+            initializer->Clear();
         }
         else
         {
-            it = onnx_graph->add_initializer();
+            initializer = onnx_graph->add_initializer();
         }
 
-        *it->mutable_name() = input_desc.first;
+        *initializer->mutable_name() = name;
 
-        it->set_data_type(NG_2_ONNX_TYPES.at(values->get_element_type()));
+        initializer->set_data_type(NG_2_ONNX_TYPES.at(values->get_element_type()));
 
         for (const auto& dim : values->get_shape())
         {
-            it->add_dims(dim);
+            initializer->add_dims(dim);
         }
 
-        const auto data_size = get_onnx_data_size(it->data_type());
-        it->set_raw_data(values->get_data_ptr(), shape_size(values->get_shape()) * data_size);
+        const auto data_size = get_onnx_data_size(initializer->data_type());
+        initializer->set_raw_data(values->get_data_ptr(),
+                                  shape_size(values->get_shape()) * data_size);
     }
 }
