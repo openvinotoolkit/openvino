@@ -77,6 +77,42 @@ std::string get_special_opset_for_op(const ngraph::Node::type_info_t& type_info)
     return "";
 }
 
+namespace rt_info {
+const std::vector<std::string> list_of_names {
+    "PrimitivesPriority",
+    "alt_width",
+};
+
+class XmlSerializer {
+public:
+    explicit XmlSerializer(pugi::xml_node &xml_node)
+        : m_xml_node(xml_node) {
+    }
+
+    void serialize(const ngraph::Node::RTMap& rt_info) {
+        for (const auto& rt_info_name : list_of_names) {
+            const auto &found_rt_info = rt_info.find(rt_info_name);
+            if (found_rt_info != rt_info.end()) {
+                xml_node_append_attribute<std::string>(rt_info_name, found_rt_info->second);
+            }
+        }
+    }
+
+private:
+    template<typename VariantType>
+    void xml_node_append_attribute(const std::string& name,
+                                   const std::shared_ptr<ngraph::Variant>& variant) {
+        if ( auto v = std::dynamic_pointer_cast<ngraph::VariantImpl<VariantType>>(variant) ) {
+            const auto& value = v->get();
+            m_xml_node.append_attribute(name.c_str()).set_value(value.c_str());
+        }
+    }
+
+    pugi::xml_node& m_xml_node;
+};
+
+} // namespace rt_info
+
 class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     std::ostream& m_bin_data;
@@ -551,6 +587,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             XmlSerializer visitor(data, bin_file, node_type_name, custom_opsets);
             NGRAPH_CHECK(node->visit_attributes(visitor),
                          "Visitor API is not supported in ", node);
+            rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
         }
         layer_type_attribute.set_value(
             translate_type_name(node_type_name).c_str());
