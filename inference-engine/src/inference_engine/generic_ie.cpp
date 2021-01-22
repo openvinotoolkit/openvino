@@ -142,7 +142,6 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
         }
         return;
     }
-
     // Extensions are not loaded when we create nGraph function
     // First call: create node
     if (initialized < 1) {
@@ -152,9 +151,6 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
             set_output_type(output_index, get_precision(output_index), Shape(outputs[output_index].dims));
         }
         initialized++;
-    } else if (reshape) {
-        THROW_IE_EXCEPTION << "IShapeInferExtension wasn't registered for node " << get_friendly_name()
-                           << " with type " << type;
     }
 }
 
