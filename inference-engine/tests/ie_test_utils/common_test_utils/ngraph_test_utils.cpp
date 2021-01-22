@@ -186,9 +186,9 @@ std::pair<bool, std::string> compare_functions(
                 auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
                 auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
 
-                auto compare_constant_values = [](Constant * const1, Constant * const2) {
-                    const auto &c1v = const1->cast_vector<double>();
-                    const auto &c2v = const2->cast_vector<double>();
+                const auto equal = [](std::shared_ptr<Constant> c1, std::shared_ptr<Constant> c2) {
+                    const auto &c1v = c1->cast_vector<double>();
+                    const auto &c2v = c2->cast_vector<double>();
 
                     return c1v.size() == c2v.size() &&
                            std::equal(begin(c1v), end(c1v), begin(c2v),
@@ -197,7 +197,7 @@ std::pair<bool, std::string> compare_functions(
                                    });
                 };
 
-                if (const1 && const2 && !compare_constant_values(const1.get(), const2.get())) {
+                if (const1 && const2 && !equal(const1, const2)) {
                     err_log << "Different Constant values detected\n"
                             << node1->description() << " Input(" << i << ") and "
                             << node2->description() << " Input(" << i << ")" << std::endl;
