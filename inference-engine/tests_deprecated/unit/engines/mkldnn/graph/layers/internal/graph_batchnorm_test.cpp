@@ -217,7 +217,7 @@ protected:
 
 TEST_P(MKLDNNGraphBatchNormTests, TestsBatchNorm) {}
 
-const size_t expect_num_impl = InferenceEngine::with_cpu_x86_avx2() ? 5 : 4;
+const size_t expect_num_impl = InferenceEngine::with_cpu_x86_avx2() ? 3 : 2;
 
 INSTANTIATE_TEST_CASE_P(
         TestsBatchNorm, MKLDNNGraphBatchNormTests,

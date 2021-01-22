@@ -300,7 +300,7 @@ TEST_F(MKLDNNGraphStructureTests, TestRedundantReorderBeforeConvWithC_3) {
             }
         }
     }
-    size_t expected = InferenceEngine::with_cpu_x86_avx2() ? 3 : 1;
+    size_t expected = 1;
     ASSERT_EQ(reorders_num, expected);
 }
 
