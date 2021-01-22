@@ -130,12 +130,14 @@ def test_erf1():
     result = run_op_node([input_tensor], ng.erf)
     assert np.allclose(result, expected)
 
+
 def test_erf2():
     input_tensor = np.array([0.0], dtype=np.float32)
     expected = [0.0]
 
     result = run_op_node([input_tensor], ng.erf)
     assert np.allclose(result, expected)
+
 
 def test_erf3():
     input_tensor = np.array([1.0], dtype=np.float32)
@@ -144,12 +146,14 @@ def test_erf3():
     result = run_op_node([input_tensor], ng.erf)
     assert np.allclose(result, expected)
 
+
 def test_erf4():
     input_tensor = np.array([2.5], dtype=np.float32)
     expected = [0.999593]
 
     result = run_op_node([input_tensor], ng.erf)
     assert np.allclose(result, expected)
+
 
 def test_erf5():
     input_tensor = np.array([3.14], dtype=np.float32)
@@ -158,12 +162,14 @@ def test_erf5():
     result = run_op_node([input_tensor], ng.erf)
     assert np.allclose(result, expected)
 
+
 def test_erf6():
     input_tensor = np.array([4.0], dtype=np.float32)
     expected = [1.0]
 
     result = run_op_node([input_tensor], ng.erf)
     assert np.allclose(result, expected)
+
 
 def test_hswish():
     float_dtype = np.float32
