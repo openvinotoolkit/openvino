@@ -90,7 +90,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_46765,
                    xfail_issue_47317,
                    xfail_issue_47323,
-                   xfail_issue_47324,
                    xfail_issue_47330)
 
 
@@ -253,14 +252,6 @@ tests_expected_to_fail = [
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_broadcast_cpu",
         "OnnxBackendPyTorchOperatorModelTest.test_operator_addconstant_cpu",
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_right_broadcast_cpu",),
-    (xfail_issue_47324,
-        "OnnxBackendNodeModelTest.test_cumsum_1d_cpu",
-        "OnnxBackendNodeModelTest.test_cumsum_1d_reverse_cpu",
-        "OnnxBackendNodeModelTest.test_cumsum_1d_exclusive_cpu",
-        "OnnxBackendNodeModelTest.test_cumsum_1d_reverse_exclusive_cpu",
-        "OnnxBackendNodeModelTest.test_cumsum_2d_axis_0_cpu",
-        "OnnxBackendNodeModelTest.test_cumsum_2d_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_cumsum_2d_axis_1_cpu"),
     (xfail_issue_47330,
         "OnnxBackendNodeModelTest.test_mod_mixed_sign_float64_cpu",
         "OnnxBackendNodeModelTest.test_min_float64_cpu"),
