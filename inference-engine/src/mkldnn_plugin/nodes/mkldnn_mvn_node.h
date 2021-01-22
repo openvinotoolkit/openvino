@@ -88,11 +88,11 @@ public:
     static bool checkAxesSuitability(const std::shared_ptr<const ngraph::Node>&);
 
 private:
-    template <typename in_data_t, typename out_data_t>
-    void mvn_pln(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    void mvn_pln(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
 
-    template <typename in_data_t, typename out_data_t>
-    void mvn_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    void mvn_blk(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+
+    void mvn_ref(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
