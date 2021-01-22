@@ -571,15 +571,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ScaleShiftIE>::createLayer(const std::sh
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::SquaredDifference>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Eltwise",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
-    res->params["operation"] = "squared_diff";
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "ShuffleChannels", details::convertPrecision(layer->get_output_element_type(0))};
 
@@ -838,39 +829,6 @@ CNNLayer::Ptr NodeConverter<ExecGraphInfoSerialization::ExecutionNode>::createLa
         if (castedVariant)
             res->params[kvp.first] = getStringValue(castedVariant);
     }
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::RegionYolo>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "RegionYolo",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::RegionYolo>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["mask"] = value;
-
-    value = "";
-    for (const auto& val : castedLayer->get_anchors()) {
-        if (!value.empty())
-            value += ",";
-        value += asString(val);
-    }
-    res->params["anchors"] = value;
-
-    res->params["coords"] = asString(castedLayer->get_num_coords());
-    res->params["classes"] = asString(castedLayer->get_num_classes());
-    res->params["num"] = asString(castedLayer->get_num_regions());
-    res->params["do_softmax"] = castedLayer->get_do_softmax() ? "1" : "0";
-    res->params["axis"] = asString(castedLayer->get_axis());
-    res->params["end_axis"] = asString(castedLayer->get_end_axis());
 
     return res;
 }
