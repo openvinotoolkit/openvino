@@ -41,6 +41,29 @@ namespace
         {element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
     };
 
+    inline size_t get_onnx_data_size(int32_t data_type)
+    {
+        switch (data_type)
+        {
+        case TensorProto_DataType_FLOAT: return sizeof(float);
+        case TensorProto_DataType_UINT8: return sizeof(uint8_t);
+        case TensorProto_DataType_INT8: return sizeof(int8_t);
+        case TensorProto_DataType_UINT16: return sizeof(uint16_t);
+        case TensorProto_DataType_INT16: return sizeof(int16_t);
+        case TensorProto_DataType_INT32: return sizeof(int32_t);
+        case TensorProto_DataType_INT64: return sizeof(int64_t);
+        case TensorProto_DataType_BOOL: return sizeof(char);
+        case TensorProto_DataType_FLOAT16: return 2;
+        case TensorProto_DataType_DOUBLE: return sizeof(double);
+        case TensorProto_DataType_UINT32: return sizeof(uint32_t);
+        case TensorProto_DataType_UINT64: return sizeof(uint64_t);
+        case TensorProto_DataType_COMPLEX64: return 2 * sizeof(float);
+        case TensorProto_DataType_COMPLEX128: return 2 * sizeof(double);
+
+        default: throw ngraph_error("Unhandled data type: " + data_type);
+        }
+    }
+
     ValueInfoProto* find_graph_input(GraphProto& graph, const std::string& name)
     {
         for (int i = 0; i < graph.input_size(); ++i)
@@ -50,6 +73,22 @@ namespace
             {
                 return input_desc;
             }
+        }
+
+        return nullptr;
+    }
+
+    TensorProto* find_graph_initializer(GraphProto& graph, const std::string& name)
+    {
+        size_t i = 0;
+        for (const auto& initializer_tensor : graph.initializer())
+        {
+            if (initializer_tensor.has_name() && initializer_tensor.name() == name)
+            {
+                auto* initializer_desc = graph.mutable_initializer(i);
+                return initializer_desc;
+            }
+            ++i;
         }
 
         return nullptr;
@@ -230,5 +269,39 @@ void onnx_import::ONNXModelEditor::set_input_shapes(
             throw ngraph_error("Could not set custom shape for input: " + input_desc.first +
                                ". Such input was not found in the original ONNX model.");
         }
+    }
+}
+
+void onnx_import::ONNXModelEditor::set_input_values(
+    const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values)
+{
+    auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
+
+    for (const auto& input_desc : input_values)
+    {
+        auto& name = input_desc.first;
+        auto& values = input_desc.second;
+
+        auto it = find_graph_initializer(*onnx_graph, name);
+        if (it)
+        {
+            it->Clear();
+        }
+        else
+        {
+            it = onnx_graph->add_initializer();
+        }
+
+        *it->mutable_name() = input_desc.first;
+
+        it->set_data_type(NG_2_ONNX_TYPES.at(values->get_element_type()));
+
+        for (const auto& dim : values->get_shape())
+        {
+            it->add_dims(dim);
+        }
+
+        const auto data_size = get_onnx_data_size(it->data_type());
+        it->set_raw_data(values->get_data_ptr(), shape_size(values->get_shape()) * data_size);
     }
 }
