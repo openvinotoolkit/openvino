@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 #include <cstddef>
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
@@ -26,10 +28,8 @@
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/partial_shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/instance_norm.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "op/instance_norm.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {

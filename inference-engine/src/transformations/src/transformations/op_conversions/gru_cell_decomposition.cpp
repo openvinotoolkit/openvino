@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 
 #include <memory>
@@ -15,6 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GRUCellDecomposition, "GRUCellDecomposition", 0);
 
 ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
+    MATCHER_SCOPE(GRUCellDecomposition);
     auto gru_cell = ngraph::pattern::wrap_type<opset4::GRUCell>();
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto gru_cell = std::dynamic_pointer_cast<ngraph::opset4::GRUCell> (m.get_match_root());
@@ -101,6 +103,6 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_cell, "GRUCellDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gru_cell, matcher_name);
     register_matcher(m, callback);
 }

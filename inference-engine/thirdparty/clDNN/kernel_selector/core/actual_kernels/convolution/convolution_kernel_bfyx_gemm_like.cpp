@@ -81,11 +81,9 @@ ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEM
     if (arg.inputs[0].GetDType() == Datatype::F16) {
         dispatchData.gemmStyle = {1, arg.filterSize.x, 32, 32, 1, 1};
         dispatchData.lws[1] = 16;
-        dispatchData.efficiency = FORCE_PRIORITY_6;
     } else {
         dispatchData.gemmStyle = {2, arg.filterSize.x, 32, 32, 2, 1};
         dispatchData.lws[1] = 8;
-        dispatchData.efficiency = FORCE_PRIORITY_8;
     }
 
     size_t sgemm_m = RoundUp(arg.output.X().v * arg.output.Y().v, dispatchData.gemmStyle.subBlockDimM);
@@ -96,6 +94,12 @@ ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEM
     dispatchData.gws[2] = arg.output.Batch().v * arg.groups;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_GEMMLike::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.output.GetDType() == Datatype::F16 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_8;
 }
 
 bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_params& o) const {

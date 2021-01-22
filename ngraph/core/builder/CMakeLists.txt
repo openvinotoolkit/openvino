@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,11 +29,6 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-
-set_target_properties(${TARGET_NAME} PROPERTIES
-                      CXX_VISIBILITY_PRESET hidden
-                      C_VISIBILITY_PRESET hidden
-                      VISIBILITY_INLINES_HIDDEN ON)
 
 if(COMMAND ie_faster_build)
     ie_faster_build(${TARGET_NAME}

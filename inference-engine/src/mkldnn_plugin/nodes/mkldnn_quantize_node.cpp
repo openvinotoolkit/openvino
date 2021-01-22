@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -369,7 +369,7 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
             if (i == 0) {
                 dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, fmt);
             } else {
-                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), memory::f32, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
             }
             config.inConfs.push_back(dataConfig);
         }
@@ -534,6 +534,24 @@ void MKLDNNQuantizeNode::execute(mkldnn::stream strm) {
 void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
     if (!isPostOpDataInitialized) {
         isPostOpDataInitialized = true;
+
+        // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
+        // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
+        // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
+        const size_t bufferAlignment = 16;
+        if (cropLow.size() > 1)
+            cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
+        if (cropHigh.size() > 1)
+            cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
+        if (inputScale.size() > 1)
+            inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
+        if (inputShift.size() > 1)
+            inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
+        if (outputScale.size() > 1)
+            outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
+        if (outputShift.size() > 1)
+            outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
+
         cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
         cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
         inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);

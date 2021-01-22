@@ -23,13 +23,8 @@ class TRANSFORMATIONS_API ConvertScatterElementsToScatter;
  * @ingroup ie_transformation_common_api
  * @brief ConvertScatterElementsToScatter convert opset3::ScatterElementsUpdate to opset3::ScatterUpdate.
  */
-class ngraph::pass::ConvertScatterElementsToScatter: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertScatterElementsToScatter: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertScatterElementsToScatter() : GraphRewrite() {
-        convert_scatter_elements_to_scatter();
-    }
-
-private:
-    void convert_scatter_elements_to_scatter();
+    ConvertScatterElementsToScatter();
 };

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 
 #include <memory>
@@ -20,12 +21,12 @@ bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector
         return false;
     }
     const int64_t & input_shape_rank = input_shape.rank().get_length();
-    if (input_shape_rank > target_shape.size()) {
+    if (input_shape_rank > static_cast<int64_t>(target_shape.size())) {
         // target_shape rank must greater or equal to input_shape rank, so in case when it's less we
         // insert missing input_shape dimensions to the beginning of the target_shape.
         const int64_t & dims_to_add_count = input_shape_rank - target_shape.size();
         std::vector<size_t> dims_to_add(dims_to_add_count);
-        for (size_t dim = 0; dim < dims_to_add_count; ++dim) {
+        for (int64_t dim = 0; dim < dims_to_add_count; ++dim) {
             if (input_shape[dim].is_dynamic()) {
                 return false;
             }
@@ -36,7 +37,7 @@ bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector
     for (int64_t i_dim = input_shape_rank - 1, t_dim = target_shape.size() - 1; i_dim >= 0 && t_dim >= 0; --i_dim, --t_dim) {
         if (input_shape[i_dim].is_static()) {
             const auto & input_dim = input_shape[i_dim].get_length();
-            if (input_dim != target_shape[t_dim] && input_dim != 1 && target_shape[t_dim] != 1) {
+            if (static_cast<size_t>(input_dim) != target_shape[t_dim] && input_dim != 1 && target_shape[t_dim] != 1) {
                 // this dimensions are not broadcastable
                 return false;
             }
@@ -55,6 +56,7 @@ bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector
 }
 
 ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
+    MATCHER_SCOPE(ConvertBroadcast3);
     auto broadcast = pattern::wrap_type<opset3::Broadcast>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -106,6 +108,6 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(broadcast, "ConvertBroadcast3");
+    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
     register_matcher(m, callback);
 }

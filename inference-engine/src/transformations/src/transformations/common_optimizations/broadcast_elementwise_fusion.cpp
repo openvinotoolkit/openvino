@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
@@ -9,7 +10,14 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastElementwiseFusion, "BroadcastElementwiseFusion", 0);
 
-bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngraph::PartialShape & broadcast_shape) {
+bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
+                             const ngraph::PartialShape & input_shape,
+                             const ngraph::PartialShape & broadcast_shape) {
+    auto b = std::dynamic_pointer_cast<ngraph::op::util::BinaryElementwiseArithmetic>(eltwise.get_node_shared_ptr());
+    if (!b || b->get_autob() == ngraph::op::AutoBroadcastSpec::NONE) {
+        return false;
+    }
+
     if (input_shape.rank().is_dynamic() || broadcast_shape.rank().is_dynamic()) {
         return false;
     }
@@ -44,6 +52,7 @@ bool is_eliminate_broadcast(const ngraph::PartialShape & input_shape, const ngra
 }
 
 ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
+    MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
     auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()});
     auto eltwise_input = pattern::any_input();
@@ -53,13 +62,13 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
         auto & pattern_value = m.get_pattern_value_map();
 
         const auto & m_eltwise_input = pattern_value.at(eltwise_input);
-        const auto & m_eltwise = pattern_value.at(eltwise_input);
+        const auto & m_eltwise = pattern_value.at(eltwise);
 
         const auto & m_broadcast_input = pattern_value.at(broadcast_input);
         auto & m_broadcast = pattern_value.at(broadcast);
 
-        if (!is_eliminate_broadcast(m_eltwise_input.get_partial_shape(),
-                                    m_broadcast.get_partial_shape())) {
+        if (!can_eliminate_broadcast(m_eltwise, m_eltwise_input.get_partial_shape(),
+                                     m_broadcast.get_partial_shape())) {
             return false;
         }
 
@@ -69,6 +78,6 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, "BroadcastElementwiseFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, matcher_name);
     register_matcher(m, callback);
 }

@@ -114,7 +114,7 @@ TEST_P(ReduceCPULayerTest, CompareWithRefs) {
     }
 
     Run();
-    CheckCPUImpl(executableNetwork, name);
+    CheckPluginRelatedResults(executableNetwork, name);
 }
 namespace {
 std::vector<Precision> inpOutPrc = {Precision::BF16, Precision::FP32};

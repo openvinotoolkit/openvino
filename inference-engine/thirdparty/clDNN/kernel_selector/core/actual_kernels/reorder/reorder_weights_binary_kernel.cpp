@@ -44,6 +44,10 @@ ReorderWeightsBinaryKernel::DispatchData ReorderWeightsBinaryKernel::SetDefault(
 
 KernelsData ReorderWeightsBinaryKernel::GetKernelsData(const Params& params, const optional_params& options) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_4);
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderWeightsBinaryKernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

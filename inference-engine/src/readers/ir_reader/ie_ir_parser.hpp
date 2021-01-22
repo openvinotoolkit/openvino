@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
+# include <ngraph/opsets/opset.hpp>
 # include <ie_ngraph_utils.hpp>
 # include <ngraph/opsets/opset.hpp>
 #endif  // IR_READER_V10
@@ -19,6 +20,7 @@
 #include <cctype>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -58,7 +60,7 @@ public:
     std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, const Blob::CPtr& weights) override;
 
 private:
-    std::map<std::string, ngraph::OpSet> opsets;
+    std::unordered_map<std::string, ngraph::OpSet> opsets;
     const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
@@ -75,7 +77,7 @@ private:
         std::vector<LayerPortData> inputPorts;
         std::vector<LayerPortData> outputPorts;
 
-        size_t getRealInputPortId(size_t id) {
+        size_t getRealInputPortId(size_t id) const {
             size_t real_id = 0;
             for (auto& it : inputPorts) {
                 if (it.portId == id) {
@@ -86,7 +88,7 @@ private:
             THROW_IE_EXCEPTION << "Can not find input port with id " << id << " in layer " << name;
         }
 
-        size_t getRealOutputPortId(size_t id) {
+        size_t getRealOutputPortId(size_t id) const {
             size_t real_id = 0;
             for (auto& it : outputPorts) {
                 if (it.portId == id) {
@@ -142,7 +144,7 @@ private:
             return result;
         }
 
-        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs) {
+        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, size_t numInputs) {
             if (numInputs >= 0 && inputs.size() != numInputs) {
                 THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
                                    << " has incorrect number of inputs! Expected: " << numInputs << ", actual: " << inputs.size();
@@ -179,7 +181,7 @@ private:
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
         explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights,
-        const std::map<std::string, ngraph::OpSet>& opsets) : node(node), weights(weights), opsets(opsets) {}
+        const std::unordered_map<std::string, ngraph::OpSet>& opsets) : node(node), weights(weights), opsets(opsets) {}
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -284,7 +286,7 @@ private:
     private:
         const pugi::xml_node node;
         const Blob::CPtr& weights;
-        const std::map<std::string, ngraph::OpSet>& opsets;
+        const std::unordered_map<std::string, ngraph::OpSet>& opsets;
         /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
         /// Shall be used only for ops which have port_map attribute.
         /// \param node xml op representation
