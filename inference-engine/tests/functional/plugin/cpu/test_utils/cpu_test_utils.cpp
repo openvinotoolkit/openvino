@@ -66,7 +66,6 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
 }
 
 void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
-    IE_SUPPRESS_DEPRECATED_START
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     bool isNodeFound = false;
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
@@ -112,7 +111,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
         }
     }
     ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
