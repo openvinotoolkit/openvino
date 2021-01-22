@@ -435,7 +435,7 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
             VPU_THROW_UNLESS(!iterations.empty(),
                 "Encountered Loop which is supposed to be loop by dynamic batch (dynamic iterations count), but didn't find an iteration component");
             VPU_THROW_UNLESS(!tensorIterator->params.count(s_curIterPort), "Current iteration port for body of Loop operation is not supported");
-            batchIdx = static_cast<std::uint32_t>(loopEndInputs.size());
+            batchIdx = static_cast<std::uint32_t>(loopEndOutputs.size());
         }
 
         IterationComponents end_iteration_components;

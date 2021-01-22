@@ -60,7 +60,7 @@ protected:
 
         if (attrs().has("batchId")) {
             const auto batchId = attrs().get<uint32_t>("batchId");
-            const auto numDims = inputEdge(batchId)->input()->desc().numDims();
+            const auto numDims = outputEdge(batchId)->output()->desc().numDims();
             const auto batchDimInd = numDims - 1 - dimToIeInd(Dim::N, numDims);
             serializer.append(static_cast<uint32_t>(batchDimInd));
         }
@@ -82,7 +82,7 @@ protected:
 
         if (attrs().has("batchId")) {
             auto batchId = attrs().get<uint32_t>("batchId");
-            inputEdge(batchId)->input()->serializeBuffer(serializer);
+            outputEdge(batchId)->output()->serializeBuffer(serializer);
         }
 
         for (const auto& iteration : endCopies) {
