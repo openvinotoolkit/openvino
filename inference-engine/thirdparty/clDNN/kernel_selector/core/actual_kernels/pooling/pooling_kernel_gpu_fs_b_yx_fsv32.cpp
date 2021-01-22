@@ -104,6 +104,10 @@ JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params
 }
 
 KernelsData PoolingKerneGPU_fs_b_yx_fsv32::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority PoolingKerneGPU_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

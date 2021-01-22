@@ -29,6 +29,10 @@ JitConstants CumSumKernelRef::GetJitConstants(const cum_sum_params& params, Disp
 }
 
 KernelsData CumSumKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, DONT_USE_IF_HAVE_SOMETHING_ELSE);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority CumSumKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

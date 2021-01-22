@@ -149,12 +149,8 @@ public:
             outputInfo.second->setLayout(NCHW);
         }
 
-        InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, _cnnNetwork, {}, &_resp));
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-        ASSERT_NO_THROW(_exeNetwork->CreateInferRequest(_inferRequest, &_resp)) << _resp.msg;
-        ASSERT_EQ((int)InferenceEngine::StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_inferRequest, nullptr) << _resp.msg;
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
 
         ASSERT_NO_THROW(_inputsInfo = _cnnNetwork.getInputsInfo());
         ASSERT_NO_THROW(_outputsInfo = _cnnNetwork.getOutputsInfo());
@@ -166,23 +162,18 @@ public:
             InferenceEngine::Layout layout = inputInfo.second->getTensorDesc().getLayout();
 
             Blob::Ptr data;
-            ASSERT_NO_THROW(st = _inferRequest->GetBlob(inputInfo.first.c_str(), data, &_resp));
-            ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+            ASSERT_NO_THROW(data = _inferRequest.GetBlob(inputInfo.first.c_str()));
+            
             if (inputInfo.first == _inputsInfo.begin()->first)
-            {
                 GenRandomData(data);
-            }
             else
-            {
                 genROIs(data, params, num_rois);
-            }
+
             _inputMap[inputInfo.first] = data;
         }
 
         Blob::Ptr data;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob(_outputsInfo.begin()->first.c_str(), data, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(data = _inferRequest.GetBlob(_outputsInfo.begin()->first.c_str()));
         _outputMap[_outputsInfo.begin()->first] = data;
     }
 
