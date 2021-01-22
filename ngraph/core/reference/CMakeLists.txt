@@ -21,6 +21,20 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(REF_IMPL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+include(FetchContent)
+
+FetchContent_Declare(
+    xbyak
+    GIT_REPOSITORY https://github.com/herumi/xbyak.git
+    GIT_TAG v5.991
+)
+
+FetchContent_GetProperties(xbyak)
+if(NOT xbyak_POPULATED)
+    FetchContent_Populate(xbyak)
+    add_subdirectory(${xbyak_SOURCE_DIR} ${xbyak_BINARY_DIR})
+endif()
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -30,7 +44,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_compile_options(${TARGET_NAME} PRIVATE -march=native)
+target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
+
+target_include_directories(${TARGET_NAME} PRIVATE ${xbyak_SOURCE_DIR})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(${TARGET_NAME}

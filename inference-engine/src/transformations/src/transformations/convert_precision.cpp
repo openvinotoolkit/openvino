@@ -14,7 +14,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 
-#include <immintrin.h>
+#include <ngraph/runtime/reference/convert.hpp>
 
 using namespace ngraph;
 
@@ -376,24 +376,7 @@ namespace {
         if (dst_data == nullptr)
             throw ngraph_error("Can't get destination data pointer");
 
-        size_t i = 0;
-
-        // if SSE2/FP16C and AVX supported
-
-        size_t const step = 8;
-        size_t const n = size / step;
-
-        for (; i < n * step; i += 8) {
-            __m128i f16vec = _mm_loadu_si128((const __m128i*)&src_data[i]);     // SSE2
-            __m256 f32vec = _mm256_cvtph_ps(f16vec);                            // FP16C
-            _mm256_storeu_ps(&dst_data[i], f32vec);                             // AVX
-        }
-
-        // else
-
-        for (; i < size; ++i) {
-            dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
-        }
+        ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
 
         return new_constant;
     }

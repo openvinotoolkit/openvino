@@ -14,11 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <cstring>
-
 #include "ngraph/runtime/reference/convert.hpp"
-
-#include <immintrin.h>
+#include "jit_generator.hpp"
 
 namespace ngraph
 {
@@ -26,6 +23,129 @@ namespace ngraph
     {
         namespace reference
         {
+            namespace
+            {
+                class jit_convert_u8_to_f16 : public jit::Generator
+                {
+                    jit_convert_u8_to_f16()
+                    {
+                        using namespace Xbyak;
+
+                        auto u8vec = xmm1;
+                        auto i32vec = ymm2;
+                        auto f16vec = xmm3;
+                        auto fvec = ymm4;
+
+                        auto reg_src = rax;
+                        auto reg_dst = rbx;
+                        auto reg_sz = rdx;
+
+                        Label loop;
+
+                        preamble();
+
+                        mov(reg_src, ptr[param + offsetof(args_t, arg)]);
+                        mov(reg_dst, ptr[param + offsetof(args_t, out)]);
+                        mov(reg_sz, ptr[param + offsetof(args_t, count)]);
+
+                        L(loop);
+
+                        movq(u8vec, qword[reg_src]);
+                        vpmovzxbd(i32vec, u8vec);
+                        vcvtdq2ps(fvec, i32vec);
+                        vcvtps2ph(f16vec, fvec, 0);
+                        movdqu(xword[reg_dst], f16vec);
+
+                        lea(reg_src, ptr[reg_src + sizeof(uint8_t) * 8]);
+                        lea(reg_dst, ptr[reg_dst + sizeof(float16) * 8]);
+
+                        dec(reg_sz);
+                        test(reg_sz, reg_sz);
+                        jnz(loop);
+
+                        postamble();
+                    }
+
+                public:
+                    typedef struct
+                    {
+                        const uint8_t* arg;
+                        float16* out;
+                        const size_t count;
+                    } args_t;
+
+                    typedef void (*fn_t)(const args_t*);
+
+                    static fn_t get()
+                    {
+                        if (mayiuse(avx) && mayiuse(avx2) && mayiuse(fp16))
+                        {
+                            static jit_convert_u8_to_f16 generator;
+                            return (fn_t)generator.getCode();
+                        }
+                        return nullptr;
+                    }
+                };
+
+                class jit_convert_f16_to_f32 : public jit::Generator
+                {
+                    jit_convert_f16_to_f32()
+                    {
+                        using namespace Xbyak;
+
+                        auto f16vec = xmm1;
+                        auto f32vec = ymm2;
+
+                        auto reg_src = rax;
+                        auto reg_dst = rbx;
+                        auto reg_sz = rdx;
+
+                        Label loop;
+
+                        preamble();
+
+                        mov(reg_src, ptr[param + offsetof(args_t, arg)]);
+                        mov(reg_dst, ptr[param + offsetof(args_t, out)]);
+                        mov(reg_sz, ptr[param + offsetof(args_t, count)]);
+
+                        L(loop);
+
+                        movdqu(f16vec, xword[reg_src]);
+                        vcvtph2ps(f32vec, f16vec);
+                        vmovups(yword[reg_dst], f32vec);
+
+                        lea(reg_src, ptr[reg_src + sizeof(float16) * 8]);
+                        lea(reg_dst, ptr[reg_dst + sizeof(float) * 8]);
+
+                        dec(reg_sz);
+                        test(reg_sz, reg_sz);
+                        jnz(loop);
+
+                        postamble();
+                    }
+
+                public:
+                    typedef struct
+                    {
+                        const float16* arg;
+                        float* out;
+                        const size_t count;
+                    } args_t;
+
+                    typedef void (*fn_t)(const args_t*);
+
+                    static fn_t get()
+                    {
+                        if (mayiuse(avx) && mayiuse(fp16))
+                        {
+                            static jit_convert_f16_to_f32 generator;
+                            return (fn_t)generator.getCode();
+                        }
+                        return nullptr;
+                    }
+                };
+            } // namespace
+
             template <>
             void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count)
             {
@@ -33,20 +153,46 @@ namespace ngraph
                 const size_t step = 8;
                 const size_t n = count / step;
 
-                for (; i < n * step; i += 8)
+                if (n)
                 {
-                    __m128i u8vec = _mm_loadl_epi64((__m128i const*)&arg[i]); // SSE2: Load(u8[8])
-                    __m256i i32vec = _mm256_cvtepu8_epi32(u8vec); // AVX2: Convert u8[8] -> i32[8]
-                    __m256 fvec = _mm256_cvtepi32_ps(i32vec);     // AVX: Convert i32[8] -> float[8]
-                    __m128i f16vec =
-                        _mm256_cvtps_ph(fvec, 0); // FP16C: Convert float[8] -> float16[8]
-                    _mm_storeu_si128((__m128i*)&out[i],
-                                     f16vec); // SSE2: Store (Works only in LE architecture!)
+                    auto converter = jit_convert_u8_to_f16::get();
+
+                    if (converter)
+                    {
+                        jit_convert_u8_to_f16::args_t args = {arg, out, n};
+                        converter(&args);
+                        i = n * step;
+                    }
                 }
 
                 for (; i < count; ++i)
                 {
                     out[i] = static_cast<float16>(arg[i]);
+                }
+            }
+
+            template <>
+            void convert<float16, float>(const float16* arg, float* out, size_t count)
+            {
+                size_t i = 0;
+                const size_t step = 8;
+                const size_t n = count / step;
+
+                if (n)
+                {
+                    auto converter = jit_convert_f16_to_f32::get();
+
+                    if (converter)
+                    {
+                        jit_convert_f16_to_f32::args_t args = {arg, out, n};
+                        converter(&args);
+                        i = n * step;
+                    }
+                }
+
+                for (; i < count; ++i)
+                {
+                    out[i] = static_cast<float>(arg[i]);
                 }
             }
         }
