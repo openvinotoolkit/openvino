@@ -80,7 +80,13 @@ public:
 
         size_t seed {};
         seed = hash_combine(seed, m_model);
-        seed = hash_combine(seed, m_constants);
+
+        // TODO: optimize hash compute using this scheme:
+        // find any layer with wiegths and compute hash only for this binary blob
+        // it will minimize time which is needed to compute hash for the network itself
+        {
+            seed = hash_combine(seed, m_constants);
+        }
 
         for (const auto & kvp : m_compileOptions) {
             seed = hash_combine(seed, kvp.first + kvp.second);
