@@ -39,9 +39,6 @@ namespace ngraph
                 const int64_t OH = outShape[dimsSize - 2];
                 const int64_t OW = outShape[dimsSize - 1];
 
-                int64_t ihStart = 0;
-                int64_t iwStart = 0;
-
                 int64_t iwStep = KW + (RW - 1) * (KW - 1);
                 int64_t ihStep = KH + (RH - 1) * (KH - 1);
 
@@ -51,7 +48,6 @@ namespace ngraph
                 const int64_t IH_IW = IH * IW;
                 const int64_t IC_IH_IW = IC * IH_IW;
                 const int64_t IB_IC_IH_IW = IC_IH_IW * IB;
-                const int64_t KH_KW = KH * KW;
 
                 int64_t PL = 0, PT = 0;
 

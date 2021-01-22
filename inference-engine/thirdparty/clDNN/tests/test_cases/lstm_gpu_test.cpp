@@ -286,7 +286,8 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
 }
 
 template<typename T>
-void generic_lstm_elt_gpu_test(int sequence_len, int direction, int batch_size, int input_size, int hidden_size, bool hasCell = true,
+void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_size,
+    int /* input_size */, int hidden_size, bool hasCell = true,
     T clip_threshold = (T)0.f, bool input_forget = false) {
     // tempGEMM  = [        1, direction,           batch, 4 * hidden_size ] input
     // cell      = [        1, direction,           batch,     hidden_size ] optional
@@ -1083,7 +1084,6 @@ void lstm_gpu_users_test() {
     cldnn::memory output_memory = outputs.begin()->second.get_memory();
     auto output_ptr = output_memory.pointer<T>();
 
-    int32_t i = 0;
     for (int32_t b = 0; b < batch_size; ++b) {
         for (int32_t s = 0; s < 1; ++s) {
             for (int32_t d = 0; d < directions; ++d) {

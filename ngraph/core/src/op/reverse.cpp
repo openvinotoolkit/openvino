@@ -175,7 +175,6 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
     AxisSet axes{};
-    size_t axes_rank = inputs[1]->get_element_count();
     if (get_mode() == op::v1::Reverse::Mode::INDEX)
     {
         switch (inputs[1]->get_element_type())

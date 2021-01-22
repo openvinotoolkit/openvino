@@ -2084,7 +2084,6 @@ void MKLDNNInterpolateNode::buildTblCubic(SizeVector& srcDimPad5d, SizeVector& d
 }
 
 void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    int blob_idx = 0;
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
@@ -2643,7 +2642,6 @@ void MKLDNNInterpolateNode::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_
 }
 
 void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
-    const int idxNum = 1;
     int tblAdvance = 0;
     int *xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
     tblAdvance += OW;

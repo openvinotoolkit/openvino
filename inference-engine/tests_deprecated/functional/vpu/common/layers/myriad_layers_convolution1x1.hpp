@@ -206,7 +206,6 @@ TEST_P(myriadConvolution1x1LayerTests_smoke, Convolution1x1) {
                     return pair1.second.execution_index < pair2.second.execution_index;
                 });
 
-        unsigned currentIndex = 0;
         for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
             std::string layerName = it->first;
             InferenceEngine::InferenceEngineProfileInfo info = it->second;

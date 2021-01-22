@@ -107,7 +107,6 @@ template<typename T>
 void FillBlobRandom(Blob::Ptr& inputBlob) {
     srand(1);
     auto inputBlobData = inputBlob->buffer().as<T*>();
-    unsigned int seed = RAND_MAX;
     for (size_t i = 0; i < inputBlob->size(); i++) {
         inputBlobData[i] = (T) (GenerateRandom(RAND_MAX) / static_cast<float>(RAND_MAX) * 100);
     }

@@ -9,7 +9,7 @@
 namespace ngraph {
 namespace builder {
 namespace subgraph {
-static std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> inputShape = {1, 1, 32, 32},
+inline std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> inputShape = {1, 1, 32, 32},
                                                           ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
@@ -39,7 +39,7 @@ static std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
+inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                             ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
@@ -59,7 +59,7 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inputShape = {1, 4, 20, 20},
+inline std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                          ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
@@ -78,7 +78,7 @@ static std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inp
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20}) {
+inline std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20}) {
     auto ngPrc = ngraph::element::Type_t::f32;
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
@@ -122,7 +122,7 @@ static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32) {
+inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32) {
     // That which we iterate over
     const size_t N = 32; // Batch size
     const size_t L = 10; // Sequence length
@@ -180,7 +180,7 @@ static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(ngraph::element::Typ
     return fn_ptr;
 }
 
-static std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
+inline std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
                                                         ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
 
@@ -192,7 +192,7 @@ static std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inpu
     return fn_ptr;
 }
 
-static std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24}) {
+inline std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24}) {
     ngraph::element::Type type = ngraph::element::Type_t::f32;
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
     auto conv1 = ngraph::builder::makeConvolution(param0, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -221,7 +221,7 @@ static std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t>
     return fn_ptr;
 }
 
-static std::shared_ptr<ngraph::Function> make2InputSubtract(std::vector<size_t> inputShape = {1, 3, 24, 24},
+inline std::shared_ptr<ngraph::Function> make2InputSubtract(std::vector<size_t> inputShape = {1, 3, 24, 24},
                                                             ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
     auto param1 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
@@ -232,7 +232,7 @@ static std::shared_ptr<ngraph::Function> make2InputSubtract(std::vector<size_t> 
     return fn_ptr;
 }
 
-static std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
+inline std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                    ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
@@ -264,7 +264,7 @@ static std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<s
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeSplitConvConcatInputInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
+inline std::shared_ptr<ngraph::Function> makeSplitConvConcatInputInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                           ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
@@ -294,7 +294,7 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcatInputInBranch(std::v
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
+inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranch(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                                            ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
     int localId = 0;
@@ -355,7 +355,7 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranch(std::
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNestedOut(
+inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNestedOut(
         std::vector<size_t> inputShape = {1, 4, 20, 20},
         ngraph::element::Type ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
@@ -457,7 +457,7 @@ static std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNested
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputShape = {1, 3, 24, 24},
+inline std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputShape = {1, 3, 24, 24},
                                                       ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
@@ -475,7 +475,7 @@ static std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputS
     return fn_ptr;
 }
 
-static std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<size_t> inputShape = {1, 1, 2, 4},
+inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<size_t> inputShape = {1, 1, 2, 4},
                                                                    ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");

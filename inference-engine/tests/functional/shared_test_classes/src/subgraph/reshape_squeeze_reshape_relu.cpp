@@ -10,7 +10,6 @@ namespace SubgraphTestsDefinitions {
         ShapeAxesTuple squeezeShape;
         InferenceEngine::Precision netPrecision;
         std::string targetName;
-        bool is_squeeze;
         ngraph::helpers::SqueezeOpType opType;
         std::tie(squeezeShape, netPrecision, targetName, opType) = obj.param;
         std::ostringstream results;

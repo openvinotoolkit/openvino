@@ -93,7 +93,6 @@ public:
         const int pooled_w = params.pooled_w;
         const float spatial_scale = params.spatial_scales;
         const int top_area = pooled_h * pooled_w;
-        const int top_volume = C * pooled_h * pooled_w;
         if (method == roi_pooling_max) //  generate GT for roi_pooling_max
         {
             for (int r = 0; r < R; ++r) {
@@ -230,8 +229,6 @@ public:
         ASSERT_NO_THROW(_outputsInfo = _cnnNetwork.getOutputsInfo());
         for (auto inpt : _inputsInfo)
         {
-            InferenceEngine::Layout layout = inpt.second->getTensorDesc().getLayout();
-
             Blob::Ptr data;
             ASSERT_NO_THROW(data = _inferRequest.GetBlob(inpt.first.c_str()));
             

@@ -21,8 +21,7 @@
 
 namespace FuncTestUtils {
 namespace Bf16TestUtils {
-static float reducePrecisionBitwise(const float in);
-static short reducePrecisionBitwiseS(const float in);
+inline short reducePrecisionBitwiseS(const float in);
 }  // namespace Bf16TestUtils
 
 enum CompareType{
@@ -46,10 +45,10 @@ enum CompareType{
  * @param printData A flag if data printing is demanded
  */
 template<typename dType>
-static void inline compareRawBuffers(const dType *res, const dType *ref,
-                                     size_t resSize, size_t refSize,
-                                     CompareType compareType, float thr1 = 0.01, float thr2 = 0.01,
-                                     bool printData = false) {
+inline void compareRawBuffers(const dType *res, const dType *ref,
+                              size_t resSize, size_t refSize,
+                              CompareType compareType, float thr1 = 0.01, float thr2 = 0.01,
+                              bool printData = false) {
     if (printData) {
         std::cout << "Reference results: " << std::endl;
         for (size_t i = 0; i < refSize; i++) {
@@ -103,10 +102,10 @@ static void inline compareRawBuffers(const dType *res, const dType *ref,
  * @param printData Flag if data printing is demanded
  */
 template<typename dType>
-static void inline compareRawBuffers(const dType *res, const dType *ref,
-                                     size_t resSize, size_t refSize,
-                                     float thr = 0.01,
-                                     bool printData = false) {
+inline void compareRawBuffers(const dType *res, const dType *ref,
+                              size_t resSize, size_t refSize,
+                              float thr = 0.01,
+                              bool printData = false) {
     compareRawBuffers(res, ref, resSize, refSize, CompareType::ABS_AND_REL, thr, thr, printData);
 }
 /**
@@ -125,7 +124,7 @@ static void inline compareRawBuffers(const dType *res, const dType *ref,
  * @param printData A flag if data printing is demanded
  */
 template<typename dType>
-static void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<dType *> ref,
+inline void compareRawBuffers(const std::vector<dType *> res, const std::vector<dType *> ref,
                               const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
                               CompareType compareType,
                               float thr1 = 0.01, float thr2 = 0.01, bool printData = false) {
@@ -150,9 +149,9 @@ static void inline compareRawBuffers(const std::vector<dType *> res, const std::
  * @param printData A flag if data printing is demanded
  */
 template<typename dType>
-static void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<dType *> ref,
-                                     const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
-                                     float thr = 0.01, bool printData = false) {
+inline void compareRawBuffers(const std::vector<dType *> res, const std::vector<dType *> ref,
+                              const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
+                              float thr = 0.01, bool printData = false) {
     compareRawBuffers(res, ref, resSizes, refSizes, CompareType::ABS_AND_REL, thr, thr, printData);
 }
 /**
@@ -171,7 +170,7 @@ static void inline compareRawBuffers(const std::vector<dType *> res, const std::
  * @param printData A flag if data printing is demanded
  */
 template<typename dType>
-static void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<std::shared_ptr<dType *>> ref,
+inline void compareRawBuffers(const std::vector<dType *> res, const std::vector<std::shared_ptr<dType *>> ref,
                               const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
                               CompareType compareType,
                               float thr1 = 0.01, float thr2 = 0.01, bool printData = false) {
@@ -196,14 +195,14 @@ static void inline compareRawBuffers(const std::vector<dType *> res, const std::
  * @param printData A flag if data printing is demanded
  */
 template<typename dType>
-static void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<std::shared_ptr<dType *>> ref,
-                                     const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
-                                     float thr = 0.01, bool printData = false) {
+inline void compareRawBuffers(const std::vector<dType *> res, const std::vector<std::shared_ptr<dType *>> ref,
+                              const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
+                              float thr = 0.01, bool printData = false) {
     compareRawBuffers(res, ref, resSizes, refSizes, CompareType::ABS_AND_REL, thr, thr, printData);
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline
+inline void
 compareBlobData(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob::Ptr &ref, float max_diff = 0.01,
                 const std::string &assertDetails = "", bool printData = false) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
@@ -243,13 +242,12 @@ compareBlobData(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Bl
 
 
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline
+inline void
 compareBlobData(const std::vector<InferenceEngine::Blob::Ptr> &res, const std::vector<InferenceEngine::Blob::Ptr> &ref,
                 float max_diff = 0.01,
                 const std::string &assertDetails = "", bool printData = false) {
     IE_ASSERT(res.size() == ref.size()) << "Length of comparing and references blobs vector are not equal!"
                                         << assertDetails;
-    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     for (size_t i = 0; i < res.size(); i++) {
         if (printData)
             std::cout << "BEGIN CHECK BLOB [" << i << "]" << std::endl;
@@ -259,7 +257,7 @@ compareBlobData(const std::vector<InferenceEngine::Blob::Ptr> &res, const std::v
     }
 }
 
-void inline
+inline void
 compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob::Ptr &ref, float max_diff = 0.01,
              const std::string &assertDetails = "", bool printData = false) {
     ASSERT_EQ(res->byteSize(), ref->byteSize()) << "Blobs have different byteSize(): "
@@ -284,7 +282,7 @@ compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob:
     }
 }
 
-void inline GetComparisonThreshold(InferenceEngine::Precision prc, float &absoluteThreshold, float &relativeThreshold) {
+inline void GetComparisonThreshold(InferenceEngine::Precision prc, float &absoluteThreshold, float &relativeThreshold) {
     switch (prc) {
         case InferenceEngine::Precision::FP32:
             absoluteThreshold = relativeThreshold = 1e-4;
@@ -302,7 +300,7 @@ void inline GetComparisonThreshold(InferenceEngine::Precision prc, float &absolu
     }
 }
 
-float inline GetComparisonThreshold(InferenceEngine::Precision prc) {
+inline float GetComparisonThreshold(InferenceEngine::Precision prc) {
     float res;
     GetComparisonThreshold(prc, res, res);
     return res;
@@ -310,7 +308,7 @@ float inline GetComparisonThreshold(InferenceEngine::Precision prc) {
 
 // Copy from net_pass.h
 template<InferenceEngine::Precision::ePrecision PREC_FROM, InferenceEngine::Precision::ePrecision PREC_TO>
-void inline convertArrayPrecision(typename InferenceEngine::PrecisionTrait<PREC_TO>::value_type *dst,
+inline void convertArrayPrecision(typename InferenceEngine::PrecisionTrait<PREC_TO>::value_type *dst,
                                   const typename InferenceEngine::PrecisionTrait<PREC_FROM>::value_type *src,
                                   size_t nelem) {
     using dst_type = typename InferenceEngine::PrecisionTrait<PREC_TO>::value_type;
@@ -321,15 +319,14 @@ void inline convertArrayPrecision(typename InferenceEngine::PrecisionTrait<PREC_
 }
 
 template<>
-void inline
+inline void
 convertArrayPrecision<InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32>(float *dst, const short *src,
                                                                                           size_t nelem) {
-    uint16_t a = *reinterpret_cast<const uint16_t *>(src);
     InferenceEngine::PrecisionUtils::f16tof32Arrays(dst, src, nelem, 1.0f, 0.0f);
 }
 
 template<>
-void inline
+inline void
 convertArrayPrecision<InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP32>(float *dst, const short *src,
                                                                                           size_t nelem) {
     auto srcBf16 = reinterpret_cast<const ngraph::bfloat16*>(src);
@@ -339,7 +336,7 @@ convertArrayPrecision<InferenceEngine::Precision::BF16, InferenceEngine::Precisi
 }
 
 template<InferenceEngine::Precision::ePrecision PREC_FROM, InferenceEngine::Precision::ePrecision PREC_TO>
-InferenceEngine::Blob::Ptr inline convertBlobPrecision(const InferenceEngine::Blob::Ptr &blob) {
+inline InferenceEngine::Blob::Ptr convertBlobPrecision(const InferenceEngine::Blob::Ptr &blob) {
     using from_d_type = typename InferenceEngine::PrecisionTrait<PREC_FROM>::value_type;
     using to_d_type = typename InferenceEngine::PrecisionTrait<PREC_TO>::value_type;
 
@@ -356,7 +353,7 @@ InferenceEngine::Blob::Ptr inline convertBlobPrecision(const InferenceEngine::Bl
 
 
 template<InferenceEngine::Precision::ePrecision targetPRC>
-InferenceEngine::Blob::Ptr inline copyBlobWithCast(const InferenceEngine::Blob::Ptr &blob) {
+inline InferenceEngine::Blob::Ptr copyBlobWithCast(const InferenceEngine::Blob::Ptr &blob) {
     InferenceEngine::Blob::Ptr newBlob;
     switch (blob->getTensorDesc().getPrecision()) {
         case InferenceEngine::Precision::FP32:
@@ -387,7 +384,7 @@ InferenceEngine::Blob::Ptr inline copyBlobWithCast(const InferenceEngine::Blob::
     return newBlob;
 }
 
-InferenceEngine::Blob::Ptr inline createAndFillBlobFloatNormalDistribution(const InferenceEngine::TensorDesc &td,
+inline InferenceEngine::Blob::Ptr createAndFillBlobFloatNormalDistribution(const InferenceEngine::TensorDesc &td,
                                                                            const float mean,
                                                                            const float stddev,
                                                                            const int32_t seed = 1) {
@@ -412,7 +409,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlobFloatNormalDistribution(const
     return blob;
 }
 
-InferenceEngine::Blob::Ptr inline createAndFillBlobFloat(const InferenceEngine::TensorDesc &td,
+inline InferenceEngine::Blob::Ptr createAndFillBlobFloat(const InferenceEngine::TensorDesc &td,
         const uint32_t range = 10,
         const int32_t start_from = 0,
         const int32_t resolution = 1,
@@ -439,7 +436,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlobFloat(const InferenceEngine::
     return blob;
 }
 
-InferenceEngine::Blob::Ptr inline createAndFillBlobWithFloatArray(const InferenceEngine::TensorDesc &td,
+inline InferenceEngine::Blob::Ptr createAndFillBlobWithFloatArray(const InferenceEngine::TensorDesc &td,
                                                                   const float values[],
                                                                   const int size) {
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
@@ -463,7 +460,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlobWithFloatArray(const Inferenc
     return blob;
 }
 
-InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::TensorDesc &td,
+inline InferenceEngine::Blob::Ptr createAndFillBlob(const InferenceEngine::TensorDesc &td,
         const uint32_t range = 10,
         const int32_t start_from = 0,
         const int32_t resolution = 1,
@@ -491,7 +488,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::Tenso
     return blob;
 }
 
-InferenceEngine::Blob::Ptr inline createAndFillBlobConsistently(
+inline InferenceEngine::Blob::Ptr createAndFillBlobConsistently(
     const InferenceEngine::TensorDesc &td,
     const uint32_t range,
     const int32_t start_from,
@@ -517,7 +514,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlobConsistently(
     return blob;
 }
 
-InferenceEngine::Blob::Ptr inline createAndFillBlobUniqueSequence(
+inline InferenceEngine::Blob::Ptr createAndFillBlobUniqueSequence(
     const InferenceEngine::TensorDesc &td,
     const int32_t start_from = 0,
     const int32_t resolution = 1,
@@ -543,7 +540,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlobUniqueSequence(
     return blob;
 }
 
-InferenceEngine::Blob::Ptr inline convertBlobLayout(const InferenceEngine::Blob::Ptr& in,
+inline InferenceEngine::Blob::Ptr convertBlobLayout(const InferenceEngine::Blob::Ptr& in,
                                                     InferenceEngine::Layout layout) {
     IE_ASSERT(in != nullptr) << "Got NULL pointer";
 
@@ -564,7 +561,7 @@ InferenceEngine::Blob::Ptr inline convertBlobLayout(const InferenceEngine::Blob:
 }
 
 template<typename dType>
-static void fillInputsBySinValues(dType* data, size_t size) {
+inline void fillInputsBySinValues(dType* data, size_t size) {
     if (std::is_same<dType, float>::value) {
         for (size_t i = 0; i < size; i++) {
             data[i] = sin(static_cast<float>(i));
@@ -577,7 +574,7 @@ static void fillInputsBySinValues(dType* data, size_t size) {
 }
 
 template<typename dType>
-static void fillInputsByCosValues(dType* data, size_t size) {
+inline void fillInputsByCosValues(dType* data, size_t size) {
     if (std::is_same<dType, float>::value) {
         for (size_t i = 0; i < size; i++) {
             data[i] = sin(static_cast<float>(i));
@@ -589,7 +586,7 @@ static void fillInputsByCosValues(dType* data, size_t size) {
     }
 }
 
-static int fillInputsBySinValues(InferenceEngine::Blob::Ptr blob) {
+inline int fillInputsBySinValues(InferenceEngine::Blob::Ptr blob) {
     InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
     if (!mblob) {
         return -1;
@@ -602,7 +599,7 @@ static int fillInputsBySinValues(InferenceEngine::Blob::Ptr blob) {
     return 0;
 }
 
-static int fillInputsByCosValues(InferenceEngine::Blob::Ptr blob) {
+inline int fillInputsByCosValues(InferenceEngine::Blob::Ptr blob) {
     InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
     if (!mblob) {
         return -1;
@@ -617,7 +614,13 @@ static int fillInputsByCosValues(InferenceEngine::Blob::Ptr blob) {
 
 
 namespace Bf16TestUtils {
-static float reducePrecisionBitwise(const float in) {
+
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
+
+inline float reducePrecisionBitwise(const float in) {
     float f = in;
     int* i = reinterpret_cast<int*>(&f);
     int t2 = *i & 0xFFFF0000;
@@ -629,13 +632,18 @@ static float reducePrecisionBitwise(const float in) {
     return ft1;
 }
 
-static short reducePrecisionBitwiseS(const float in) {
+inline short reducePrecisionBitwiseS(const float in) {
     float f = reducePrecisionBitwise(in);
     int intf = *reinterpret_cast<int*>(&f);
     intf = intf >> 16;
     short s = intf;
     return s;
 }
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif
+
 }  // namespace Bf16TestUtils
 
 enum class BlobKind {

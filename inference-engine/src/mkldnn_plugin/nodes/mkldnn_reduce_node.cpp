@@ -1685,7 +1685,7 @@ void MKLDNNReduceNode::reduce_BLK_concern_padding(const uint8_t *in_ptr, uint8_t
         size_t ob = ReduceN ? 0 : ib; GET_PTR_N_BLK;
         if (!ReduceD && ReduceH && ReduceW) {
             for (size_t icb = 0; icb < ICB; icb++) {
-                size_t ocb = 0; GET_PTR_NC_BLK;
+                size_t ocb = 0;;
                 size_t ic = icb * blk_size;
                 parallel_for(ID, [&](size_t id) {
                     size_t od = id; GET_PTR_NCD_BASE_PTR_N_BLK;

@@ -116,6 +116,7 @@ void TestEnvironment::TearDown() {
     for (const auto &op : opsInfo) {
         std::string name = std::string(op.name) + "-" + std::to_string(op.version);
         pugi::xml_node entry = opsNode.append_child(name.c_str());
+        (void)entry;
     }
 
     pugi::xml_node resultsNode = root.child("results");

@@ -36,7 +36,6 @@ public:
     std::shared_ptr<ngraph::Function> f, ref_f;
 
     void SetUp() override {
-        const auto& parameters = GetParam();
         const auto& test_case = std::get<0>(GetParam());
         f = get_initial_function(test_case);
         if (test_case.is_negative)

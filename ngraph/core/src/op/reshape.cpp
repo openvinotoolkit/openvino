@@ -286,7 +286,6 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
 {
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
-    size_t output_rank = inputs[1]->get_shape()[0];
     std::vector<int64_t> out_shape_val;
 
     switch (inputs[1]->get_element_type())

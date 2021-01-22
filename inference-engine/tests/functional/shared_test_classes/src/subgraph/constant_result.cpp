@@ -16,7 +16,6 @@ std::string ConstantResultSubgraphTest::getTestCaseName(testing::TestParamInfo<c
 
 void ConstantResultSubgraphTest::SetUp() {
     InferenceEngine::SizeVector inputShapes;
-    InferenceEngine::Precision inputPrecision;
     std::tie(targetDevice) = this->GetParam();
     std::vector<float> data(300);
     for (size_t i = 0; i < 300; i++)

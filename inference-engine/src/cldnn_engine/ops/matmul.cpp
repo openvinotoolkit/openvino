@@ -71,7 +71,6 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             THROW_IE_EXCEPTION << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
         }
         size_t K = *(shape_a_aligned.end() - 1);
-        size_t O = *(shape_b_aligned.end() - 1);
 
         auto inputName = inputPrimitives[0];
         auto weightsName = inputPrimitives[1];

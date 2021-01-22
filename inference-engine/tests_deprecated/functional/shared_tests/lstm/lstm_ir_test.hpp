@@ -48,15 +48,15 @@ TEST_P(LSTM_IR_Test, canParseLSTM) {
         return npy_data;
     };
 
-    auto _save_to_npy = [&](std::string name,
-                            const std::vector<unsigned long>& npy_shape,
-                            const std::vector<float>& npy_data) {
-        std::replace(name.begin(), name.end(), '\\', '_');
-        std::replace(name.begin(), name.end(), '/', '_');
-        auto file_path = name + ".npy";
+    // auto _save_to_npy = [&](std::string name,
+    //                         const std::vector<unsigned long>& npy_shape,
+    //                         const std::vector<float>& npy_data) {
+    //     std::replace(name.begin(), name.end(), '\\', '_');
+    //     std::replace(name.begin(), name.end(), '/', '_');
+    //     auto file_path = name + ".npy";
 
-        npy::SaveArrayAsNumpy(file_path, false, (unsigned int)(npy_shape.size()), npy_shape.data(), npy_data);
-    };
+    //     npy::SaveArrayAsNumpy(file_path, false, (unsigned int)(npy_shape.size()), npy_shape.data(), npy_data);
+    // };
 
     for (auto &info: net.getInputsInfo()) {
         auto blob = inf_req.GetBlob(info.first);

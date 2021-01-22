@@ -159,7 +159,6 @@ public:
         for (auto inputInfo: _inputsInfo)
         {
             InferenceEngine::SizeVector inputDims = inputInfo.second->getTensorDesc().getDims();
-            InferenceEngine::Layout layout = inputInfo.second->getTensorDesc().getLayout();
 
             Blob::Ptr data;
             ASSERT_NO_THROW(data = _inferRequest.GetBlob(inputInfo.first.c_str()));

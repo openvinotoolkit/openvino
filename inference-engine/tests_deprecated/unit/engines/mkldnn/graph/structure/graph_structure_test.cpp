@@ -2364,7 +2364,6 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithConstLayer) {
 
     InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {6400}, InferenceEngine::C });
     weights->allocate();
-    float * data = weights->buffer();
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 

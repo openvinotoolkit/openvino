@@ -265,7 +265,6 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         ngraph::OutputVector inputs;
 
         auto& deps = prim_info.c_dependencies;
-        size_t in_size = deps.size();
 
         // Decrease expected dependencies count if there is a const input without original id in the IR
         for (auto& dep : deps) {
@@ -321,7 +320,6 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
     };
 
     auto create_ngraph_node = [&](const cldnn::primitive_info& prim_info) {
-        const auto& deps = prim_info.c_dependencies;
         const auto& user_ids = prim_info.c_users;
         size_t output_size = user_ids.size();
         bool is_output = user_ids.empty();

@@ -241,7 +241,6 @@ VVVVF<OutputT> fully_connected_reference_typed_3d(VVVVF<InputT>& input, VVVVF<We
     size_t input_x = input[0][0][0].size();
     size_t output_b = input.size();        // input is assumed to be bfyx
     size_t output_f = weights.size();    // weights is assumed to be bfyx
-    size_t weights_f = weights[0].size();    // weights is assumed to be bfyx
     VVVVF<OutputT> output(output_b, VVVF<OutputT>(input_f, VVF<OutputT>(output_f, VF<OutputT>(1))));
     OutputT res;
     for (size_t b = 0; b < output_b; ++b) {

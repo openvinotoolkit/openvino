@@ -28,7 +28,7 @@ generateVector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1, int32
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
     std::uniform_int_distribution<unsigned long> dist(startFrom, upTo);
 
-    for (int i = 0; i < vec_len; i++) {
+    for (size_t i = 0; i < vec_len; i++) {
         res.push_back(
                 static_cast<typename ngraph::helpers::nGraphTypesTrait<dType>::value_type>(dist(gen)));
     }
@@ -46,7 +46,7 @@ std::vector<ngraph::float16> inline generateF16Vector(size_t vec_len, uint32_t u
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
     std::uniform_int_distribution<unsigned long> dist(startFrom, upTo);
 
-    for (int i = 0; i < vec_len; i++) {
+    for (size_t i = 0; i < vec_len; i++) {
         res.emplace_back(ngraph::float16(static_cast<float>(dist(gen))));
     }
     return res;
@@ -62,7 +62,7 @@ std::vector<ngraph::bfloat16> inline generateBF16Vector(size_t vec_len, uint32_t
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
     std::uniform_int_distribution<unsigned long> dist(startFrom, upTo);
 
-    for (int i = 0; i < vec_len; i++) {
+    for (size_t i = 0; i < vec_len; i++) {
         res.emplace_back(ngraph::bfloat16(static_cast<float>(dist(gen))));
     }
     return res;

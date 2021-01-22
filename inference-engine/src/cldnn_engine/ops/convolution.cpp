@@ -234,7 +234,6 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op:
 
     auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), op->get_group());
     auto outDims = op->get_output_shape(0);
-    auto outPrecision = op->get_output_element_type(0);
 
     std::vector<cldnn::primitive_id> weights = {inputs[2]};
     if (params.groups > 1) {
@@ -302,7 +301,6 @@ void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1:
 
     auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
     auto outDims = op->get_output_shape(0);
-    auto outPrecision = op->get_output_element_type(0);
 
     std::vector<cldnn::primitive_id> weights = {inputs[1]};
     cldnn::data_types calc_precision = DataTypeFromPrecision(op->get_output_element_type(0));

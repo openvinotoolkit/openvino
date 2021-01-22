@@ -68,7 +68,6 @@ void FP::ApplyDiagonalTransform(intel_dnn_component_t *component) {
     auto transform = &component->op.affine;
     int m = component->num_rows_out;
     int n = component->num_columns_in;
-    int ldb = component->num_columns_in;
     int ldc = component->num_columns_out;
 
     auto A = reinterpret_cast<float *>(transform->ptr_weights);

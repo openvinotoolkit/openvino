@@ -151,7 +151,6 @@ template <typename inputType, typename outputType>
 void MKLDNNROIAlignNode::executeSpecified() {
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
     auto srcBlockDesc = srcMemory0.GetDescriptor().data.layout_desc.blocking;

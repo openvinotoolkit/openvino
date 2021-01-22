@@ -121,7 +121,6 @@ bool op::DepthToSpace::evaluate_depth_to_space(const HostTensorVector& outputs,
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
-    const auto& out_shape = out->get_shape();
     size_t elem_size = data->get_element_type().size();
 
     if (data->get_partial_shape().is_dynamic())

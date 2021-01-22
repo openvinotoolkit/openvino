@@ -695,8 +695,6 @@ std::shared_ptr<Node>
 
 namespace
 {
-    constexpr size_t boxes_port = 0;
-    constexpr size_t scores_port = 1;
     constexpr size_t max_output_boxes_port = 2;
     constexpr size_t iou_threshold_port = 3;
     constexpr size_t score_threshold_port = 4;

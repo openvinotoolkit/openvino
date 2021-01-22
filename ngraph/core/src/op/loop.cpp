@@ -221,7 +221,6 @@ void op::v5::Loop::validate_and_infer_types()
             auto body_value =
                 m_body->get_results().at(merged_input_description->m_body_value_index);
 
-            const auto& body_value_partial_shape = body_value->get_input_partial_shape(0);
             auto body_parameter =
                 m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
 

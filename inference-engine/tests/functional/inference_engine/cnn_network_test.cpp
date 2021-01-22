@@ -41,12 +41,12 @@ TEST_F(CNNNetworkTests, throwsOnUninitializedGetName) {
 
 TEST_F(CNNNetworkTests, throwsOnUninitializedCastToICNNNetwork) {
     CNNNetwork network;
-    ASSERT_THROW(auto & net = static_cast<ICNNNetwork&>(network), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW((void)static_cast<ICNNNetwork&>(network), InferenceEngine::details::InferenceEngineException);
 }
 
 TEST_F(CNNNetworkTests, throwsOnConstUninitializedCastToICNNNetwork) {
     const CNNNetwork network;
-    ASSERT_THROW(const auto & net = static_cast<const ICNNNetwork&>(network), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW((void)static_cast<const ICNNNetwork&>(network), InferenceEngine::details::InferenceEngineException);
 }
 
 TEST_F(CNNNetworkTests, throwsOnUninitializedGetFunction) {

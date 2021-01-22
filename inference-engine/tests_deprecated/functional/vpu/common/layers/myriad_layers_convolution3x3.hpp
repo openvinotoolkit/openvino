@@ -60,21 +60,15 @@ void refConvolution3x3(const Blob::Ptr src, InferenceEngine::TBlob<uint8_t>::Ptr
     //the start address after 1 line/column padding(requested by convolution operation with 3x3 kernel )
     in = in + 1 + 1 * IW; 
 
-    int cnt = 0;
-
     for (size_t g = 0; g < group; ++g)
     {
         for (size_t oc = 0; oc < dst_channels; ++oc)
         {
-            size_t dst_channel = (g * dst_channels + oc);
             for (size_t oh = 0; oh < OH; oh++)
             {
                 for (size_t ow = 0; ow < OW; ow++)
                 {
-                    size_t oidx = dst_channel + ow * OC + oh * OC * OW;
                     float val = 0.0f;
-                    ie_fp16 hval = PrecisionUtils::f32tof16(val);
-                    float fval = 0.0f;
 
                     for (size_t ic = 0; ic < src_channels; ++ic)
                     {
@@ -239,7 +233,6 @@ TEST_P(myriadConvolution3x3LayerTests_smoke, Convolution3x3) {
                     return pair1.second.execution_index < pair2.second.execution_index;
                 });
 
-        unsigned currentIndex = 0;
         for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
             std::string layerName = it->first;
             InferenceEngine::InferenceEngineProfileInfo info = it->second;

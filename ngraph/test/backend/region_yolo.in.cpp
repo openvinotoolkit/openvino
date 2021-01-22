@@ -39,7 +39,6 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v2_caffe)
     const size_t channels = 125;
     const size_t width = 13;
     const size_t height = 13;
-    const size_t count = width * height * channels;
     const std::vector<int64_t> mask{0, 1, 2};
 
     Shape input_shape{batch, channels, height, width};
@@ -69,7 +68,6 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet)
     const std::vector<int64_t> mask{0, 1, 2};
 
     Shape shape{batch, channels, height, width};
-    const auto count = shape_size(shape);
 
     const auto A = make_shared<op::Parameter>(element::f32, shape);
     const auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, false, mask, 1, 3);

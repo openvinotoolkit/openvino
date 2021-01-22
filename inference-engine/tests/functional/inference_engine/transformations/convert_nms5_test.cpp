@@ -283,7 +283,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1SixInputs) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto &orig_selected_indices_shape = f->get_output_partial_shape(0);
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
@@ -337,7 +336,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1FiveInputs) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto &orig_selected_indices_shape = f->get_output_partial_shape(0);
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
@@ -386,7 +384,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1FourInputs) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto &orig_selected_indices_shape = f->get_output_partial_shape(0);
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
@@ -434,7 +431,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1ThreeInputs) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto &orig_selected_indices_shape = f->get_output_partial_shape(0);
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
@@ -481,7 +477,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1TwoInputs) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto &orig_selected_indices_shape = f->get_output_partial_shape(0);
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();

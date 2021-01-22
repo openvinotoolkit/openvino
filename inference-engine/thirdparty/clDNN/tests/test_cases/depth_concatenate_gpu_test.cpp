@@ -463,8 +463,8 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     topology topology;
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f }));
-    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f }));
+    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
+    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(data("weights", weights));
     topology.add(convolution("conv", "actv2", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(-1, -1, 0, 0))));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
@@ -540,8 +540,8 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     topology topology;
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f }));
-    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f }));
+    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
+    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
     topology.add(data("weights", weights));
     topology.add(convolution("conv", "depth1", { "weights" }, tensor(1), tensor(batch(0), feature(0), spatial(-1, -1, 0, 0))));
@@ -603,8 +603,8 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
     topology topology;
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
-    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f }));
-    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f }));
+    topology.add(activation("actv1", "input1", activation_func::linear, { 0.75f, 0.0f }));
+    topology.add(activation("actv2", "input2", activation_func::linear, { 0.5f, 0.0f }));
     topology.add(concatenation("depth1", { "actv1", "actv2" }, concatenation::along_f));
 
     cldnn::build_options options;

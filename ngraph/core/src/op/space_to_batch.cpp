@@ -149,7 +149,6 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
-    const auto& out_shape = out->get_shape();
     size_t elem_size = data->get_element_type().size();
 
     if (data->get_partial_shape().is_dynamic())

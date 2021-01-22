@@ -54,4 +54,12 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(${TARGET_NAME} PRIVATE onnx_importer)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api ngraph inference_engine_transformations)
+if(NOT MSVC)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-but-set-variable)
+    endif()
+endif()
+
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_plugin_api
+    ngraph inference_engine_transformations)
