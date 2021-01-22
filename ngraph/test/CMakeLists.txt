@@ -104,7 +104,6 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
-    type_prop/abs.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -126,7 +125,9 @@ set(SRC
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dyn_reshape.cpp
+    type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
+    type_prop/experimental_detectron_topkrois.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
     type_prop/embeddingbag_offsetssum.cpp
@@ -303,6 +304,7 @@ set(MULTI_TEST_SRC
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
+    backend/mvn.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
