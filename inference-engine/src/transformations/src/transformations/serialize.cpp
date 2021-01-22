@@ -120,7 +120,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
 
     template <typename T>
-    std::string create_atribute_list(
+    std::string create_attribute_list(
         ngraph::ValueAccessor<std::vector<T>>& adapter) {
         return join(adapter.get());
     }
@@ -280,25 +280,25 @@ public:
         const std::string& name,
         ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
         m_xml_node.append_attribute(name.c_str())
-            .set_value(create_atribute_list(adapter).c_str());
+            .set_value(create_attribute_list(adapter).c_str());
     }
     void on_adapter(
         const std::string& name,
         ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
         m_xml_node.append_attribute(name.c_str())
-            .set_value(create_atribute_list(adapter).c_str());
+            .set_value(create_attribute_list(adapter).c_str());
     }
     void on_adapter(
         const std::string& name,
         ngraph::ValueAccessor<std::vector<float>>& adapter) override {
         m_xml_node.append_attribute(name.c_str())
-            .set_value(create_atribute_list(adapter).c_str());
+            .set_value(create_attribute_list(adapter).c_str());
     }
     void on_adapter(
         const std::string& name,
         ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
         m_xml_node.append_attribute(name.c_str())
-            .set_value(create_atribute_list(adapter).c_str());
+            .set_value(create_attribute_list(adapter).c_str());
     }
     void on_adapter(
         const std::string& name,
