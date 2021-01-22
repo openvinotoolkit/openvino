@@ -53,13 +53,13 @@ public:
             auto supportedPrecision = (layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16 ? Precision::BF16 : Precision::FP32);
 
             std::vector<std::pair<Layout, Layout> > plainConfs{
-//                    {NHWC, NHWC},
+                    {NHWC, NHWC},
                     {NCHW, NCHW}
             };
 
             std::vector<std::pair<ConfLayout, ConfLayout> > blockConfs {
-//                    {ConfLayout::BLK16, ConfLayout::BLK16},
-//                    {ConfLayout::BLK8, ConfLayout::BLK8}
+                    {ConfLayout::BLK16, ConfLayout::BLK16},
+                    {ConfLayout::BLK8, ConfLayout::BLK8}
             };
 
             if (noTrans) {
