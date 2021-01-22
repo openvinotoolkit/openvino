@@ -96,6 +96,7 @@ TEST_P(TensorNamesTest, CheckTensorNamesAfterClone) {
 }
 
 TEST_P(TensorNamesTest, CheckAddOutput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     ConfigureNetwork();
 
