@@ -1780,32 +1780,32 @@ namespace
     {
         const auto& dataType = inputs[0]->get_element_type();
         const auto& seqLenType = inputs[1]->get_element_type();
-        if(dataType == element::Type_t::f16 && seqLenType == element::Type_t::i32)
+        if (dataType == element::Type_t::f16 && seqLenType == element::Type_t::i32)
         {
             ctc_greedy_decoder_v6::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(op, outputs, inputs);
         }
-        else if(dataType == element::Type_t::f32 && seqLenType == element::Type_t::i32)
+        else if (dataType == element::Type_t::f32 && seqLenType == element::Type_t::i32)
         {
             ctc_greedy_decoder_v6::evaluate<element::Type_t::f32, element::Type_t::i32, ET>(op, outputs, inputs);
         }
-        else if(dataType == element::Type_t::f64 && seqLenType == element::Type_t::i32)
+        else if (dataType == element::Type_t::f64 && seqLenType == element::Type_t::i32)
         {
             ctc_greedy_decoder_v6::evaluate<element::Type_t::f64, element::Type_t::i32, ET>(op, outputs, inputs);
         }
-        else if(dataType == element::Type_t::f16 && seqLenType == element::Type_t::i64)
+        else if (dataType == element::Type_t::f16 && seqLenType == element::Type_t::i64)
         {
             ctc_greedy_decoder_v6::evaluate<element::Type_t::f16, element::Type_t::i64, ET>(op, outputs, inputs);
         }
-        else if(dataType == element::Type_t::f32 && seqLenType == element::Type_t::i64)
+        else if (dataType == element::Type_t::f32 && seqLenType == element::Type_t::i64)
         {
             ctc_greedy_decoder_v6::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(op, outputs, inputs);
         }
-        else if(dataType == element::Type_t::f64 && seqLenType == element::Type_t::i64)
+        else if (dataType == element::Type_t::f64 && seqLenType == element::Type_t::i64)
         {
             ctc_greedy_decoder_v6::evaluate<element::Type_t::f64, element::Type_t::i64, ET>(op, outputs, inputs);
         }
         else
-            {
+        {
             return false;
         }
         return true;
