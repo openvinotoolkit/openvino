@@ -26,13 +26,13 @@ public:
             m_inputsInfo(network.getInputsInfo()),
             m_outputsInfo(network.getOutputsInfo()) {
         try {
-            // Note: custom ngraph extensions are not supported
-            std::map<std::string, ngraph::OpSet> custom_opsets;
+            auto & icnnnet = static_cast<ICNNNetwork &>(network);
+            auto & ngraphImpl = dynamic_cast<details::CNNNetworkNGraphImpl &>(icnnnet);
 
             std::stringstream xmlFile, binFile;
             ngraph::pass::Serialize serializer(xmlFile, binFile,
-                ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
-            serializer.run_on_function(network.getFunction());
+                ngraph::pass::Serialize::Version::IR_V10, ngraphImpl.getExtensions());
+            serializer.run_on_function(ngraphImpl.getFunction());
 
             m_constants = xmlFile.str();
             m_model = binFile.str();

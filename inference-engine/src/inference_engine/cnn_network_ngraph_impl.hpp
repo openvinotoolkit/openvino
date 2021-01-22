@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/opsets/opset.hpp>
 #include <ngraph/attribute_visitor.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
@@ -80,6 +81,16 @@ public:
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
+
+    std::map<std::string, ngraph::OpSet> getExtensions() const {
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (auto extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
+        }
+
+        return custom_opsets;
+    }
 
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;

@@ -412,15 +412,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
-        for (auto extension : _ie_extensions) {
-            auto opset = extension->getOpSets();
-            custom_opsets.insert(begin(opset), end(opset));
-        }
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(
             xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
-            custom_opsets);
+            getExtensions());
         manager.run_passes(_ngraph_function);
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
