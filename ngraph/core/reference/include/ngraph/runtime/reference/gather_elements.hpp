@@ -49,7 +49,7 @@ namespace ngraph
                 {
                     for (int64_t i = 0; i < indices_shape[0]; i++)
                     {
-                        if (indices[i] > data_shape[0])
+                        if (indices[i] > data_shape[0] - 1)
                         {
                             throw std::domain_error{
                                 "indices values of GatherElement exceed data size"};
