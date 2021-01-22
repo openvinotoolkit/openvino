@@ -304,6 +304,7 @@ set(MULTI_TEST_SRC
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
+    backend/mvn.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
