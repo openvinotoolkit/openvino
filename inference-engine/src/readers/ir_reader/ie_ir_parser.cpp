@@ -46,8 +46,9 @@ IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtension
     }
 }
 
-void V10Parser::XmlDeserializer::map_type_in_function(const pugi::xml_node& node,
-    const std::string map_type, std::map<uint64_t, uint64_t>& type_id_in_function) {
+std::map<uint64_t, uint64_t> V10Parser::XmlDeserializer::map_type_in_function(const pugi::xml_node& node,
+    const std::string map_type) {
+    std::map<uint64_t, uint64_t> type_id_in_function;
     uint64_t map_type_number = 0;
     auto body_node = node.child("body");
 
@@ -56,45 +57,43 @@ void V10Parser::XmlDeserializer::map_type_in_function(const pugi::xml_node& node
     }
 
     // Fill map: parameter/result id to parameter/result number in Function
-    FOREACH_CHILD(_layer, body_node.child("layers"), "layer") {
-        auto type = XMLParseUtils::GetStrAttr(_layer, "type");
+    FOREACH_CHILD(layer, body_node.child("layers"), "layer") {
+        auto type = XMLParseUtils::GetStrAttr(layer, "type");
 
         if (type == map_type) {
-            auto id = XMLParseUtils::GetUIntAttr(_layer, "id");
-            type_id_in_function[id] = map_type_number;
+            auto id = XMLParseUtils::GetUIntAttr(layer, "id");
+            type_id_in_function.emplace(id, map_type_number);
             map_type_number++;
         }
     }
+    return type_id_in_function;
 }
 
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10Parser::XmlDeserializer::parseInputDescription(const pugi::xml_node& node) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> inputs;
-    std::map<uint64_t, uint64_t> param_id_in_function;
-    std::map<uint64_t, uint64_t> result_id_in_function;
-    map_type_in_function(node, "Parameter", param_id_in_function);
-    map_type_in_function(node, "Result", result_id_in_function);
+    std::map<uint64_t, uint64_t> param_id_in_function = map_type_in_function(node, "Parameter");
+    std::map<uint64_t, uint64_t> result_id_in_function = map_type_in_function(node, "Result");
 
     // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
     std::map<uint64_t, pugi::xml_node> input_map;
-    FOREACH_CHILD(_input, node.child("port_map"), "input") {
-        int64_t ext_port_id = GetInt64Attr(_input, "external_port_id");
-        input_map[ext_port_id] = _input;
+    FOREACH_CHILD(input, node.child("port_map"), "input") {
+        int64_t ext_port_id = GetInt64Attr(input, "external_port_id");
+        input_map.emplace(ext_port_id, input);
     }
 
     for (const auto& input : input_map) {
-        auto &_input = input.second;
-        auto axis_attr = _input.attribute("axis");
-        auto purpose = XMLParseUtils::GetStrAttr(_input, "purpose", "");
-        int64_t ti_input_index = XMLParseUtils::GetInt64Attr(_input, "external_port_id");
-        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(_input, "internal_layer_id");
+        auto &xml_input = input.second;
+        auto axis_attr = xml_input.attribute("axis");
+        int64_t ti_input_index = XMLParseUtils::GetInt64Attr(xml_input, "external_port_id");
+        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_input, "internal_layer_id");
 
         // if axis is set, then slicing is enabled. Create ngraph::TensorIterator::SlicedInput.
         if (!axis_attr.empty()) {
-            size_t axis = XMLParseUtils::GetUIntAttr(_input, "axis");
-            int64_t start = XMLParseUtils::GetInt64Attr(_input, "start", 0);
-            int64_t stride = XMLParseUtils::GetInt64Attr(_input, "stride", 1);
-            int64_t end = XMLParseUtils::GetInt64Attr(_input, "end", -1);
-            int64_t part_size = XMLParseUtils::GetInt64Attr(_input, "part_size", 1);
+            size_t axis = XMLParseUtils::GetUIntAttr(xml_input, "axis");
+            int64_t start = XMLParseUtils::GetInt64Attr(xml_input, "start", 0);
+            int64_t stride = XMLParseUtils::GetInt64Attr(xml_input, "stride", 1);
+            int64_t end = XMLParseUtils::GetInt64Attr(xml_input, "end", -1);
+            int64_t part_size = XMLParseUtils::GetInt64Attr(xml_input, "part_size", 1);
 
             inputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::SliceInputDescription>
                     (ti_input_index,
@@ -107,11 +106,11 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
         } else {
             // otherwise find corresponding back edge and create ngraph::TensorIterator::MergedInput
             bool is_back_edge_exist = false;
-            FOREACH_CHILD(_edge, node.child("back_edges"), "edge") {
-                size_t to_layer = XMLParseUtils::GetUIntAttr(_edge, "to-layer");
+            FOREACH_CHILD(xml_edge, node.child("back_edges"), "edge") {
+                size_t to_layer = XMLParseUtils::GetUIntAttr(xml_edge, "to-layer");
 
                 if (to_layer == body_parameter_index) {
-                    size_t from_layer = XMLParseUtils::GetUIntAttr(_edge, "from-layer");
+                    size_t from_layer = XMLParseUtils::GetUIntAttr(xml_edge, "from-layer");
                     inputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::MergedInputDescription>
                         (ti_input_index,
                         param_id_in_function[body_parameter_index],
@@ -136,49 +135,91 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
 
 std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> V10Parser::XmlDeserializer::parseOutputDescription(const pugi::xml_node& node) {
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> outputs;
-    std::map<uint64_t, uint64_t> result_id_in_function;
-    map_type_in_function(node, "Result", result_id_in_function);
+    std::map<uint64_t, uint64_t> result_id_in_function = map_type_in_function(node, "Result");
 
     // Parse PortMap: outputs
     std::map<int64_t, pugi::xml_node> output_map;
-    FOREACH_CHILD(_output, node.child("port_map"), "output") {
-        int64_t ext_port_id = GetInt64Attr(_output, "external_port_id");
-        output_map[ext_port_id] = _output;
+    FOREACH_CHILD(output, node.child("port_map"), "output") {
+        int64_t ext_port_id = GetInt64Attr(output, "external_port_id");
+        output_map.emplace(ext_port_id, output);
     }
 
     uint64_t output_number = 0;
     for (const auto& output : output_map) {
-        auto& _output = output.second;
-        auto axis_attr = _output.attribute("axis");
-        auto purpose = XMLParseUtils::GetStrAttr(_output, "purpose", "");
-        size_t body_result_index = XMLParseUtils::GetUIntAttr(_output, "internal_layer_id");
+        auto& xml_output = output.second;
+        auto axis_attr = xml_output.attribute("axis");
+        size_t body_result_index = XMLParseUtils::GetUIntAttr(xml_output, "internal_layer_id");
 
-        // if axis is set, then concatenation is enabled. Create ngraph::TensorIterator::ConcatOutput.
-        if (!axis_attr.empty()) {
-            int64_t axis = XMLParseUtils::GetInt64Attr(_output, "axis");
-            int64_t start = XMLParseUtils::GetInt64Attr(_output, "start", 0);
-            int64_t stride = XMLParseUtils::GetInt64Attr(_output, "stride", 1);
-            int64_t end = XMLParseUtils::GetInt64Attr(_output, "end", -1);
-            int64_t part_size = XMLParseUtils::GetInt64Attr(_output, "part_size", 1);
+        // if external_port_id < 0 it means that this body result isn't connected to the Loop output
+        // and is used only for internal needs. For TensorIterator external_port_id is always > 0.
+        if (XMLParseUtils::GetInt64Attr(xml_output, "external_port_id") >= 0) {
+            // if axis is set, then concatenation is enabled. Create ngraph::TensorIterator::ConcatOutput.
+            if (!axis_attr.empty()) {
+                int64_t axis = XMLParseUtils::GetInt64Attr(xml_output, "axis");
+                int64_t start = XMLParseUtils::GetInt64Attr(xml_output, "start", 0);
+                int64_t stride = XMLParseUtils::GetInt64Attr(xml_output, "stride", 1);
+                int64_t end = XMLParseUtils::GetInt64Attr(xml_output, "end", -1);
+                int64_t part_size = XMLParseUtils::GetInt64Attr(xml_output, "part_size", 1);
 
-            outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::ConcatOutputDescription>
-                    (result_id_in_function[body_result_index],
-                    output_number,
-                    start,
-                    stride,
-                    part_size,
-                    end,
-                    axis));
-        } else {
-            // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
-            outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::BodyOutputDescription>
-                    (result_id_in_function[body_result_index],
-                    output_number,
-                    -1));
+                outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::ConcatOutputDescription>
+                        (result_id_in_function[body_result_index],
+                        output_number,
+                        start,
+                        stride,
+                        part_size,
+                        end,
+                        axis));
+            } else {
+                // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
+                outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::BodyOutputDescription>
+                        (result_id_in_function[body_result_index],
+                        output_number,
+                        -1));
+            }
+            output_number++;
         }
-        output_number++;
     }
     return outputs;
+}
+
+ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeAttribute(const pugi::xml_node& node) {
+    ngraph::op::v5::Loop::SpecialBodyPorts result = {-1, -1};
+    std::map<uint64_t, uint64_t> params = map_type_in_function(node, "Parameter");
+    std::map<uint64_t, uint64_t> results = map_type_in_function(node, "Result");
+
+    NGRAPH_CHECK(!params.empty() || !results.empty(), "No parameters or results found in body Function.");
+
+    // Parse PortMap: external_port_id for inputs/outputs does not always appear in consecutive order
+    std::map<uint64_t, pugi::xml_node> input_map;
+    FOREACH_CHILD(input, node.child("port_map"), "input") {
+        int64_t ext_port_id = GetInt64Attr(input, "external_port_id");
+        input_map.emplace(ext_port_id, input);
+    }
+    std::map<int64_t, pugi::xml_node> output_map;
+    FOREACH_CHILD(output, node.child("port_map"), "output") {
+        int64_t ext_port_id = GetInt64Attr(output, "external_port_id");
+        output_map.emplace(ext_port_id, output);
+    }
+
+    for (const auto& input : input_map) {
+        auto &xml_input = input.second;
+        auto purpose = XMLParseUtils::GetStrAttr(xml_input, "purpose", "");
+        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_input, "internal_layer_id");
+        if (purpose == "current_iteration") {
+            result.current_iteration_input_idx = params[body_parameter_index];
+        }
+    }
+
+    for (const auto& output : output_map) {
+        auto &xml_output = output.second;
+        auto purpose = XMLParseUtils::GetStrAttr(xml_output, "purpose", "");
+        size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_output, "internal_layer_id");
+        if (purpose == "execution_condition") {
+            result.body_condition_output_idx = results[body_parameter_index];
+        }
+    }
+
+    return result;
 }
 
 void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
@@ -192,6 +233,8 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                     <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
             a->set(parseOutputDescription(node));
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+            a->set(parsePurposeAttribute(node));
         }
     }
 
@@ -628,7 +671,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
         { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
         { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
-        { "Loop", std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop") },
         { "LogicalAnd", std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd") },
         { "LogicalOr", std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr") },
         { "LogicalXor", std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor") },
@@ -795,198 +837,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 }
 
 namespace InferenceEngine {
-
-
-// SubGraph layer
-std::shared_ptr<ngraph::Node>
-V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &inputs, const pugi::xml_node &node,
-                                               const Blob::CPtr& weights,
-                                               const V10Parser::GenericLayerParams &layerParsePrms,
-                                               std::shared_ptr<ngraph::op::util::SubGraphOp> subgraph_op) {
-    subgraph_op->set_friendly_name(GetStrAttr(node, "name"));
-    auto body_node = node.child("body");
-
-    if (body_node.empty()) {
-        THROW_IE_EXCEPTION << "TensorIterator has no body.";
-    }
-
-    // Fill map: result/parameter id to name
-    std::map<uint64_t, std::string> layer_idx_to_name;
-    FOREACH_CHILD(_layer, body_node.child("layers"), "layer") {
-        auto type = GetStrAttr(_layer, "type");
-
-        if (type == "Result" || type == "Parameter") {
-            auto id = GetUIntAttr(_layer, "id");
-            auto name = GetStrAttr(_layer, "name");
-            layer_idx_to_name[id] = name;
-        }
-    }
-
-    // Create ngraph::Function and set it as body of TensorIterator layer
-    IRParser parser(10);
-    auto ngraph_function = parser.parse(node.child("body"), weights)->getFunction();
-    auto parameter_nodes = ngraph_function->get_parameters();
-    auto result_nodes = ngraph_function->get_results();
-    // Disabled reshape for generic operations in the TI body
-    ::ngraph::op::GenericIE::DisableReshape noReshape(ngraph_function);
-    auto body = std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
-    subgraph_op->set_function(body);
-
-    // Parse PortMap: inputs
-    std::map<uint64_t, pugi::xml_node> input_map;
-    FOREACH_CHILD(_input, node.child("port_map"), "input") {
-        int64_t ext_port_id = GetInt64Attr(_input, "external_port_id");
-        input_map[ext_port_id] = _input;
-    }
-
-    bool is_sliced_input_exists = false;
-    for (const auto& input : input_map) {
-        auto &_input = input.second;
-        auto axis_attr = _input.attribute("axis");
-        auto purpose = GetStrAttr(_input, "purpose", "");
-        int64_t ti_input_index = GetInt64Attr(_input, "external_port_id");
-        size_t body_parameter_index = GetUIntAttr(_input, "internal_layer_id");
-
-        auto body_param = std::find_if(parameter_nodes.begin(), parameter_nodes.end(),
-                                       [&](const std::shared_ptr<ngraph::op::Parameter>& param) {
-                                           return param->get_friendly_name() == layer_idx_to_name[body_parameter_index];
-                                       });
-
-        if (body_param == parameter_nodes.end()) {
-            THROW_IE_EXCEPTION << "PortMap input parsing error. Body parameter with id = " << body_parameter_index
-                               << " not found.";
-        }
-
-        if (ti_input_index >=  static_cast<int64_t>(inputs.size()))
-            THROW_IE_EXCEPTION << "TensorIterator " << layerParsePrms.name << " has incorrect number of inputs!";
-
-        // if axis is set, then slicing is enabled. Create ngraph::TensorIterator::SlicedInput.
-        if (!axis_attr.empty()) {
-            size_t axis = GetUIntAttr(_input, "axis");
-            int64_t start = GetInt64Attr(_input, "start", 0);
-            int64_t stride = GetInt64Attr(_input, "stride", 1);
-            int64_t end = GetInt64Attr(_input, "end", -1);
-            int64_t part_size = GetInt64Attr(_input, "part_size", 1);
-            subgraph_op->set_sliced_input(*body_param, inputs.at(ti_input_index), start, stride, part_size, end, axis);
-            is_sliced_input_exists = true;
-        } else {
-            // otherwise find corresponding back edge and create ngraph::TensorIterator::MergedInput
-            bool is_back_edge_exist = false;
-            FOREACH_CHILD(_edge, node.child("back_edges"), "edge") {
-                size_t to_layer = GetUIntAttr(_edge, "to-layer");
-
-                if (to_layer == body_parameter_index) {
-                    size_t from_layer = GetUIntAttr(_edge, "from-layer");
-
-                    auto body_result = std::find_if(
-                        result_nodes.begin(), result_nodes.end(), [&](std::shared_ptr<ngraph::op::Result>& result) {
-                            return result->get_friendly_name() == layer_idx_to_name[from_layer];
-                        });
-
-                    if (body_result == result_nodes.end()) {
-                        THROW_IE_EXCEPTION << "PortMap input parsing error. Body result with id = " << from_layer
-                                           << " not found.";
-                    }
-
-                    subgraph_op->set_merged_input(*body_param, inputs.at(ti_input_index), *body_result);
-                    is_back_edge_exist = true;
-                    break;
-                }
-            }
-
-            // ti_input_index = -1 means that Parameter of the body is not connected to inputs of TensorIterator
-            // and is used only for internal needs.
-            if (!is_back_edge_exist && ti_input_index >= 0) {
-                subgraph_op->set_invariant_input(*body_param, inputs.at(ti_input_index));
-            }
-
-            if (purpose == "current_iteration") {
-                auto loop = std::dynamic_pointer_cast<ngraph::opset5::Loop>(subgraph_op);
-                if (!loop)
-                    THROW_IE_EXCEPTION << "PortMap output parsing error. Purpose attribute is available only for Loop operation.";
-                loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{ngraph_function->get_parameter_index(*body_param),
-                                                                                    -1});
-            }
-        }
-    }
-
-    // Parse PortMap: outputs
-    std::map<int64_t, pugi::xml_node> output_map;
-    FOREACH_CHILD(_output, node.child("port_map"), "output") {
-        int64_t ext_port_id = GetInt64Attr(_output, "external_port_id");
-        output_map[ext_port_id] = _output;
-    }
-
-    for (const auto& output : output_map) {
-        auto& _output = output.second;
-        auto axis_attr = _output.attribute("axis");
-        auto purpose = GetStrAttr(_output, "purpose", "");
-        size_t body_result_index = GetUIntAttr(_output, "internal_layer_id");
-
-        auto body_result =
-            std::find_if(result_nodes.begin(), result_nodes.end(), [&](std::shared_ptr<ngraph::op::Result>& result) {
-                return result->get_friendly_name() == layer_idx_to_name[body_result_index];
-            });
-
-        if (body_result == result_nodes.end()) {
-            THROW_IE_EXCEPTION << "PortMap output parsing error. Body result with id = " << body_result_index
-                               << " not found.";
-        }
-
-        // if axis is set, then concatenation is enabled. Create ngraph::TensorIterator::ConcatOutput.
-        if (!axis_attr.empty()) {
-            int64_t axis = GetInt64Attr(_output, "axis");
-            int64_t start = GetInt64Attr(_output, "start", 0);
-            int64_t stride = GetInt64Attr(_output, "stride", 1);
-            int64_t end = GetInt64Attr(_output, "end", -1);
-            int64_t part_size = GetInt64Attr(_output, "part_size", 1);
-            subgraph_op->get_concatenated_slices(*body_result, start, stride, part_size, end, axis);
-
-            if (!is_sliced_input_exists) {
-                if (auto ti = std::dynamic_pointer_cast<ngraph::op::TensorIterator>(subgraph_op))
-                    // for Loop op we just skip this call
-                    if (ti)
-                        ti->set_num_iterations((std::abs(end - start)) / part_size);
-            }
-        } else if (purpose == "execution_condition") {
-            auto loop = std::dynamic_pointer_cast<ngraph::opset5::Loop>(subgraph_op);
-            if (!loop)
-                THROW_IE_EXCEPTION << "PortMap output parsing error. Purpose attribute is available only for Loop operation.";
-            loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{loop->get_special_body_ports().current_iteration_input_idx,
-                                                                                ngraph_function->get_result_index(*body_result)});
-            // if external_port_id < 0,
-            // it means that this body result isn't connected to the Loop output and is used only for internal needs.
-            if (output.first >= 0) {
-                subgraph_op->get_iter_value(*body_result, -1);
-            }
-        } else {
-            // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
-            subgraph_op->get_iter_value(*body_result, -1);
-        }
-    }
-
-    subgraph_op->validate_and_infer_types();
-    return subgraph_op;
-}
-
-
-// TensorIterator layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    auto ti = std::make_shared<ngraph::op::TensorIterator>();
-    return fillSubGraphLayer(inputs, node, weights, layerParsePrms, ti);
-    }
-
-// Loop layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::opset5::Loop>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    auto loop = std::make_shared<ngraph::opset5::Loop>(inputs[0], inputs[1]);
-    return fillSubGraphLayer(inputs, node, weights, layerParsePrms, loop);
-}
 
 // LSTMCell layer
 template <>
