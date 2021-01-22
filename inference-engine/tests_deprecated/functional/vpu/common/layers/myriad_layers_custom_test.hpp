@@ -301,8 +301,6 @@ static void refBinaryConvolution(const Blob::Ptr src, const Blob::Ptr weights, B
 static void refExperimentalDetectronPriorGridGenerator(
         std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs,
         int grid_h, int grid_w, int stride_h, int stride_w) {
-    int num_priors = inputs[0]->getTensorDesc().getDims()[0];
-
     uint16_t *src_data = inputs[0]->buffer();
     uint16_t *dst_data = outputs[0]->buffer();
 
@@ -974,7 +972,6 @@ TEST_P(myriadLayersTestsQuantizeBinarize_smoke, Quantize_Binarization) {
                     return pair1.second.execution_index < pair2.second.execution_index;
                 });
 
-        unsigned currentIndex = 0;
         for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
             std::string layerName = it->first;
             InferenceEngine::InferenceEngineProfileInfo info = it->second;

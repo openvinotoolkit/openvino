@@ -141,7 +141,6 @@ namespace ngraph
                     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
                          ++i)
                     {
-                        const auto& body_output_shape = body_outputs[i].get_partial_shape();
                         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
                             body_outputs[i], concat_axis_const);
                     }

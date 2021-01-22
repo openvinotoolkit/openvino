@@ -437,7 +437,6 @@ private:
         const int weightsNDims = weightsShape.size();
 
         const int kernelNDims = weightsNDims - 2;
-        const int biasesNDims = 1;
 
         IE_ASSERT(inputNDims == outputNDims);
         IE_ASSERT(inputNDims >= 3); // CHW, NCHW, NCDHW, ...
