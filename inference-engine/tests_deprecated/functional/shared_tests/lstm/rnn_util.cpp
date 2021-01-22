@@ -175,8 +175,6 @@ static void copy_with_permute(Blob::Ptr &src, Blob::Ptr &dst, const std::vector<
     float *src_ptr = src->buffer().as<float*>();
     float *dst_ptr = dst->buffer().as<float*>();
 
-    float *_src_ptr = src->buffer().as<float*>();
-
     for (int i0 = 0; i0 < dims[0]; i0++)
     for (int i1 = 0; i1 < dims[1]; i1++)
     for (int i2 = 0; i2 < dims[2]; i2++)

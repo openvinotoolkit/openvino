@@ -24,7 +24,6 @@ namespace kernel_selector {
 
 namespace {
 constexpr size_t fsv = 4;
-constexpr size_t pref_simd = 16;
 constexpr size_t max_reg_usage = 64;
 
 enum mode : size_t {
