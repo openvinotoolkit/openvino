@@ -21,6 +21,7 @@
 #include <array>
 #include <cstdint>
 
+#include "transformations/serialize.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -412,12 +413,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             }}.run_on_function(ngraph::clone_function(*function));
     }
     for (auto&& network : networks) {
-        auto cfg = _config;
-        cfg[CONFIG_KEY_INTERNAL(SUBNETWORK_WITH_NETWORK_INPUTS)]
-            = isInputSubnetwork[std::distance(networks.data(), &network)] ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, cfg);
+        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
-                                                                 network._device, metaDevices[network._device]);
+            network._device, metaDevices[network._device]);
     }
 }
 
@@ -432,12 +430,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        THROW_IE_EXCEPTION << "Error reading HETERO plugin xml header";
+        THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ) << "Error reading HETERO plugin xml header";
     }
 
     using namespace XMLParseUtils;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
+    _name = GetStrAttr(heteroNode, "name");
 
     std::unordered_set<std::string> networkInputs;
     pugi::xml_node inputsNode = heteroNode.child("inputs");
@@ -457,7 +456,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     auto configsNode = heteroNode.child("configs");
     for (auto configNode = configsNode.child("config"); !configNode.empty();
             configNode = configNode.next_sibling("config")) {
-            importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
+        importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
+    }
+
+    auto blobNamesNode = heteroNode.child("blob_names_map");
+    for (auto blobNameNode = blobNamesNode.child("blob_name_map"); !blobNameNode.empty();
+            blobNameNode = blobNameNode.next_sibling("blob_name_map")) {
+        _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
     }
 
     for (auto&& config : configs) {
@@ -479,15 +484,17 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         bool loaded = false;
         try {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch(const InferenceEngine::NotImplemented&) {
+        } catch (const InferenceEngine::NotImplemented &) {
             // read XML content
             std::string xmlString;
-            std::getline(heteroModel, xmlString);
             std::uint64_t dataSize = 0;
             heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            xmlString.resize(dataSize);
+            heteroModel.read(const_cast<char*>(xmlString.c_str()), dataSize);
 
             // read blob content
             InferenceEngine::Blob::Ptr dataBlob;
+            heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
             if (0 != dataSize) {
                 dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
                     InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
@@ -500,32 +507,34 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
             auto inputs = cnnnetwork.getInputsInfo();
             auto inputsNode = subnetworkNode.child("inputs");
-            for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
+            for (auto inputNode = inputsNode.child("input"); !inputNode.empty();
+                inputNode = inputNode.next_sibling("input")) {
                 auto inputName = GetStrAttr(inputNode, "name");
                 inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
             }
 
-            auto outputsNode = subnetworkNode.child("outputs");
-            for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
-            }
             auto outputs = cnnnetwork.getOutputsInfo();
-            for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                outputs[GetStrAttr(outputNode, "name")]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
+            auto outputsNode = subnetworkNode.child("outputs");
+            for (auto outputNode = outputsNode.child("output"); !outputNode.empty();
+                outputNode = outputNode.next_sibling("output")) {
+                auto outputName = GetStrAttr(outputNode, "name");
+                outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
             }
+
             executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
             loaded = true;
         }
 
+        // restore network inputs and outputs
         for (auto&& input : executableNetwork.GetInputsInfo()) {
             if (networkInputs.end() != networkInputs.find(input.first)) {
-                _networkInputs.emplace(input.first, std::const_pointer_cast<InputInfo>(input.second));
+                _networkInputs.emplace(input.first, std::make_shared<InputInfo>(*input.second));
             }
         }
 
         for (auto&& output : executableNetwork.GetOutputsInfo()) {
             if (networkOutputs.end() != networkOutputs.find(output.first)) {
-                _networkOutputs.emplace(output.first, std::const_pointer_cast<Data>(output.second));
+                _networkOutputs.emplace(output.first, std::make_shared<Data>(*output.second));
             }
         }
 
@@ -536,7 +545,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         });
     }
 
-    networks = std::move(descs);
+    // save state
+    this->_config = importedConfigs;
+    this->networks = std::move(descs);
+    this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
 
 void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
@@ -556,56 +568,74 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");
     for (auto&& subnetwork : networks) {
-        auto subnetFunction = subnetwork._clonedNetwork.getFunction();
-        IE_ASSERT(subnetFunction != nullptr);
+        auto subnet = subnetwork._clonedNetwork;
+        IE_ASSERT(subnet.getFunction() != nullptr);
+
         auto subnetworkNode = subnetworksNode.append_child("subnetwork");
         subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
+
+        // inputs info
         auto subnetworkInputsNode = subnetworkNode.append_child("inputs");
-        for (auto&& parameter : subnetFunction->get_parameters()) {
+        auto inputInfo = subnet.getInputsInfo();
+        for (auto&& input : inputInfo) {
             auto inputNode = subnetworkInputsNode.append_child("input");
-            inputNode.append_attribute("name").set_value(parameter->get_friendly_name().c_str());
-            inputNode.append_attribute("precision").set_value(parameter->get_output_element_type(0).get_type_name().c_str());
+            inputNode.append_attribute("name").set_value(input.first.c_str());
+            inputNode.append_attribute("precision").set_value(input.second->getPrecision().name());
         }
+
+        // outputs info
         auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
-        for (auto&& result : subnetFunction->get_results()) {
+        auto outputInfo = subnet.getOutputsInfo();
+        for (auto&& output : outputInfo) {
             auto outputNode = subnetworkOutputsNode.append_child("output");
-            auto sourceOutput = result->input_value(0);
-            outputNode.append_attribute("creatorName").set_value(sourceOutput.get_node()->get_friendly_name().c_str());
-            outputNode.append_attribute("name").set_value(
-                (sourceOutput.get_node()->get_friendly_name() +
-                ((sourceOutput.get_node()->get_output_size() == 0) ? "" : std::to_string(sourceOutput.get_index()))).c_str());
-            outputNode.append_attribute("precision").set_value(result->get_input_element_type(0).get_type_name().c_str());
-            outputNode.append_attribute("index").set_value(std::to_string(sourceOutput.get_index()).c_str());
+            outputNode.append_attribute("name").set_value(output.first.c_str());
+            outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
         }
     }
 
     auto configsNode = heteroNode.append_child("configs");
     for (auto&& config : _config) {
-        auto configMode = configsNode.append_child("config");
-        configMode.append_attribute("key").set_value(config.first.c_str());
-        configMode.append_attribute("value").set_value(config.second.c_str());
+        auto configNode = configsNode.append_child("config");
+        configNode.append_attribute("key").set_value(config.first.c_str());
+        configNode.append_attribute("value").set_value(config.second.c_str());
+    }
+
+    auto blobNamesNode = heteroNode.append_child("blob_names_map");
+    for (auto&& kvp : _blobNameMap) {
+        auto blobNameNode = blobNamesNode.append_child("blob_name_map");
+        blobNameNode.append_attribute("key").set_value(kvp.first.c_str());
+        blobNameNode.append_attribute("value").set_value(kvp.second.c_str());
     }
 
     doc.save(heteroModel, nullptr, pugi::format_raw);
+    doc.reset();
     heteroModel << std::endl;
 
     for (auto&& subnetwork : networks) {
         try {
             subnetwork._network.Export(heteroModel);
-        } catch (const InferenceEngine::NotImplemented&) {
-            // TODO: enable once serialization to IR v10 is implemented
-#if 1
-            THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED)
-                << "Device " << subnetwork._device << " does not implement Export method";
-#else
-            pugi::xml_document doc;
+        } catch (const InferenceEngine::NotImplemented &) {
             auto subnet = subnetwork._clonedNetwork;
-            auto dataSize = static_cast<std::uint64_t>(InferenceEngine::Serialization::FillXmlDoc(subnet, doc));
-            doc.save(heteroModel, nullptr, pugi::format_raw);
-            heteroModel << std::endl;
+            if (!subnet.getFunction()) {
+                THROW_IE_EXCEPTION << "Hetero plugin supports only ngraph function representation";
+            }
+
+            // Note: custom ngraph extensions are not supported
+            std::stringstream xmlFile, binFile;
+            ngraph::pass::Serialize serializer(xmlFile, binFile,
+                ngraph::pass::Serialize::Version::IR_V10);
+            serializer.run_on_function(subnet.getFunction());
+
+            auto m_constants = binFile.str();
+            auto m_model = xmlFile.str();
+
+            auto dataSize = static_cast<std::uint64_t>(m_model.size());
             heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnet);
-#endif
+            heteroModel.write(m_model.c_str(), dataSize);
+
+            dataSize = static_cast<std::uint64_t>(m_constants.size());
+            heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            heteroModel.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
         }
     }
 }
@@ -701,7 +731,7 @@ void collectPluginMetrics(std::vector<std::string> & baseMetrics,
 }  // namespace
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string &name) const {
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {
             METRIC_KEY(NETWORK_NAME),
             METRIC_KEY(SUPPORTED_METRICS),
@@ -725,7 +755,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
         }
 
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {
             "TARGET_FALLBACK",
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
@@ -748,9 +778,9 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
         }
 
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
-    } else if (METRIC_KEY(NETWORK_NAME) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, _name);
-    } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = 0u;
         for (auto&& desc : networks) {
             value = std::max(value, desc._network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
