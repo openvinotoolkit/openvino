@@ -570,16 +570,32 @@ TEST(op_eval, interpolate_v4_linear_onnx5d)
         ShapeCalcMode shape_calculation_mode;
     };
 
-    std::vector<ShapesAndAttrs> shapes_and_attrs = {};
+    std::vector<ShapesAndAttrs> shapes_and_attrs = {
+        // resize_downsample_scales_linear
+        {Shape{1, 1, 3, 2, 4},
+         {2, 1, 2},
+         Shape{1, 1, 2, 1, 2},
+         {0.8f, 0.6f, 0.6f},
+         CoordinateTransformMode::half_pixel,
+         ShapeCalcMode::scales}};
+
+    std::vector<std::vector<float>> input_data_list = {
+        // resize_downsample_scales_linear
+        {1.0f,  2.0f,  3.0f,  4.0f, 5.0f,  6.0f,  7.0f,  8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f,
+         14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f}};
+
+    std::vector<std::vector<float>> expected_results = {
+        // resize_downsample_scales_linear
+        {3.6666665, 5.333333, 13.666666, 15.333333}};
 
     std::size_t i = 0;
     for (const auto& s : shapes_and_attrs)
     {
         auto image = std::make_shared<op::Parameter>(element::f32, s.input_data_shape);
         auto target_spatial_shape =
-            op::Constant::create<int64_t>(element::i64, Shape{2}, s.spatial_shape);
-        auto scales = op::Constant::create<float>(element::f32, Shape{2}, s.scales_data);
-        auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3, 4});
+            op::Constant::create<int64_t>(element::i64, Shape{3}, s.spatial_shape);
+        auto scales = op::Constant::create<float>(element::f32, Shape{3}, s.scales_data);
+        auto axes = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
 
         InterpolateAttrs attrs;
         attrs.mode = InterpolateMode::linear_onnx;
