@@ -61,7 +61,7 @@ namespace ngraph
     {
     public:
         /// Returns the value
-        virtual const VAT& get() = 0;
+        virtual const VAT& get() const = 0;
         /// Sets the value
         virtual void set(const VAT& value) = 0;
     };
@@ -71,7 +71,8 @@ namespace ngraph
     {
     public:
         virtual void* get_ptr() = 0;
-        virtual size_t size() = 0;
+        virtual const void* get_ptr() const = 0;
+        virtual size_t size() const = 0;
     };
 
     template <typename AT>
@@ -82,7 +83,7 @@ namespace ngraph
             : m_ref(ref)
         {
         }
-        const AT& get() override { return m_ref; }
+        const AT& get() const override { return m_ref; }
         void set(const AT& value) override { m_ref = value; }
     protected:
         AT& m_ref;
@@ -98,7 +99,7 @@ namespace ngraph
         {
         }
 
-        const VAT& get() override
+        const VAT& get() const override
         {
             if (!m_buffer_valid)
             {
@@ -116,21 +117,9 @@ namespace ngraph
 
     protected:
         AT& m_ref;
-        VAT m_buffer;
-        bool m_buffer_valid{false};
+        mutable VAT m_buffer;
+        mutable bool m_buffer_valid{false};
     };
-
-    template <typename A, typename B>
-    A copy_from(B& b)
-    {
-        A result(b.size());
-        for (size_t i = 0; i < b.size(); ++i)
-        {
-            result[i] =
-                static_cast<typename std::remove_reference<decltype(result[i])>::type>(b[i]);
-        }
-        return result;
-    }
 
     template <typename AT, typename VAT>
     class IndirectVectorValueAccessor : public ValueAccessor<VAT>
@@ -141,7 +130,7 @@ namespace ngraph
         {
         }
 
-        const VAT& get() override
+        const VAT& get() const override
         {
             if (!m_buffer_valid)
             {
@@ -159,9 +148,21 @@ namespace ngraph
 
         operator AT&() { return m_ref; }
     protected:
+        template <typename A, typename B>
+        static A copy_from(B& b)
+        {
+            A result(b.size());
+            for (size_t i = 0; i < b.size(); ++i)
+            {
+                result[i] =
+                    static_cast<typename std::remove_reference<decltype(result[i])>::type>(b[i]);
+            }
+            return result;
+        }
+
         AT& m_ref;
-        VAT m_buffer;
-        bool m_buffer_valid{false};
+        mutable VAT m_buffer;
+        mutable bool m_buffer_valid{false};
     };
 
     /// \brief An AttributeAdapter "captures" an attribute as an AT& and makes it available as a
@@ -182,7 +183,7 @@ namespace ngraph
         {
         }
 
-        const std::string& get() override { return as_string(m_ref); }
+        const std::string& get() const override { return as_string(m_ref); }
         void set(const std::string& value) override { m_ref = as_enum<AT>(value); }
         operator AT&() { return m_ref; }
     protected:

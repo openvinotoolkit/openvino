@@ -95,5 +95,13 @@ namespace ngraph
     {
         return m_ref->get_ptr();
     }
-    size_t AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::size() { return m_ref->size(); }
+
+    const void* AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::get_ptr() const
+    {
+        return m_ref->get_ptr();
+    }
+    size_t AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::size() const
+    {
+        return m_ref->size();
+    }
 }

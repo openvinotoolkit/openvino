@@ -80,7 +80,8 @@ namespace ngraph
     public:
         AttributeAdapter(std::shared_ptr<runtime::AlignedBuffer>& value);
         void* get_ptr() override;
-        size_t size() override;
+        const void* get_ptr() const override;
+        size_t size() const override;
 
         static constexpr DiscreteTypeInfo type_info{
             "AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>", 0};

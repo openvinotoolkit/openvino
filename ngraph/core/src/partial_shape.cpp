@@ -483,7 +483,7 @@ Dimension& PartialShape::operator[](size_t i)
     return m_dimensions[i];
 }
 
-const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get()
+const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get() const
 {
     if (!m_buffer_valid)
     {

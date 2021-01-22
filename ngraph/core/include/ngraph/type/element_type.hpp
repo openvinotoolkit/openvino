@@ -204,7 +204,7 @@ namespace ngraph
         {
         }
 
-        const std::string& get() override;
+        const std::string& get() const override;
         void set(const std::string& value) override;
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<element::Type>", 0};

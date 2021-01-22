@@ -365,14 +365,14 @@ namespace ngraph
         {
         }
 
-        const std::vector<int64_t>& get() override;
+        const std::vector<int64_t>& get() const override;
         void set(const std::vector<int64_t>& value) override;
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialShape>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
         operator PartialShape&() { return m_ref; }
     protected:
         PartialShape& m_ref;
-        std::vector<int64_t> m_buffer;
-        bool m_buffer_valid{false};
+        mutable std::vector<int64_t> m_buffer;
+        mutable bool m_buffer_valid{false};
     };
 }

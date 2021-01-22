@@ -341,7 +341,7 @@ namespace ngraph
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type_t>::type_info;
 
-const std::string& AttributeAdapter<element::Type>::get()
+const std::string& AttributeAdapter<element::Type>::get() const
 {
     return as_string(static_cast<element::Type_t>(m_ref));
 }

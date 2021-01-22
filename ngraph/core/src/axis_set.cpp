@@ -67,7 +67,7 @@ std::ostream& ngraph::operator<<(std::ostream& s, const AxisSet& axis_set)
     return s;
 }
 
-const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::AxisSet>::get()
+const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::AxisSet>::get() const
 {
     if (!m_buffer_valid)
     {
