@@ -450,12 +450,7 @@ public:
             }
         });
 
-        for (int n = realRois; n < nn; n++) {
-            parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
-                int index = n * nc * nh * nw + c * nh * nw + h * nw + w;
-                dstData[index] = 0;
-            });
-        }
+        memset(dstData + realRois * nc * nh * nw, 0, (nn - realRois) * nc * nh * nw * sizeof(outputType));
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
