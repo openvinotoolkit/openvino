@@ -330,6 +330,10 @@ public:
                 //     e.g. compiled for MYX, but current device is M2 stick)
                 std::cout << "NetworkNotRead: try to export one more time" << std::endl;
                 removeCacheEntry(blobFileName);
+            } catch (const std::exception & ex) {
+                // Apple RTTI
+                std::cout << "Apple RTTI: " << ex.what() << std::endl;
+                std::cout << "Import is not implemented: skip import and export" << std::endl;
             }
         }
 
@@ -340,12 +344,17 @@ public:
             if (cachingIsAvailable) {
                 try {
                     // need to export network for further import from "cache"
-                    execNetwork.Export(blobFileName);
+                    // execNetwork.Export(blobFileName);
                     std::cout << "Network is exported for " << parsed._deviceName << std::endl;
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
                     removeCacheEntry(blobFileName);
                     std::cout << "Export is not implemented: skip import and export" << std::endl;
+                } catch (const std::exception & ex) {
+                    // network cannot be exported due to plugin bugs
+                    // or APPLE RTTI
+                    std::cout << "Apple RTTI: " << ex.what() << std::endl;
+                    std::cout << "Failed to export model " << ex.what() << std::endl;
                 }
             }
         }

@@ -482,9 +482,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         InferenceEngine::ExecutableNetwork executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
-        try {
-            executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch (const InferenceEngine::NotImplemented &) {
+
+        auto importNetworkFromIR = [&] () {
             // read XML content
             std::string xmlString;
             std::uint64_t dataSize = 0;
@@ -523,6 +522,16 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
             executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
             loaded = true;
+        };
+
+        try {
+            executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
+        } catch (const InferenceEngine::NotImplemented &) {
+            importNetworkFromIR();
+#ifdef __APPLE__
+        } catch (const std::exception &) {
+            importNetworkFromIR();
+#endif
         }
 
         // restore network inputs and outputs
@@ -611,31 +620,39 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     doc.reset();
     heteroModel << std::endl;
 
+    auto exportNetworkToIR = [&] (const NetworkDesc & subnetwork) {
+        auto subnet = subnetwork._clonedNetwork;
+        if (!subnet.getFunction()) {
+            THROW_IE_EXCEPTION << "Hetero plugin supports only ngraph function representation";
+        }
+
+        // Note: custom ngraph extensions are not supported
+        std::stringstream xmlFile, binFile;
+        ngraph::pass::Serialize serializer(xmlFile, binFile,
+            ngraph::pass::Serialize::Version::IR_V10);
+        serializer.run_on_function(subnet.getFunction());
+
+        auto m_constants = binFile.str();
+        auto m_model = xmlFile.str();
+
+        auto dataSize = static_cast<std::uint64_t>(m_model.size());
+        heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        heteroModel.write(m_model.c_str(), dataSize);
+
+        dataSize = static_cast<std::uint64_t>(m_constants.size());
+        heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        heteroModel.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+    };
+
     for (auto&& subnetwork : networks) {
         try {
             subnetwork._network.Export(heteroModel);
         } catch (const InferenceEngine::NotImplemented &) {
-            auto subnet = subnetwork._clonedNetwork;
-            if (!subnet.getFunction()) {
-                THROW_IE_EXCEPTION << "Hetero plugin supports only ngraph function representation";
-            }
-
-            // Note: custom ngraph extensions are not supported
-            std::stringstream xmlFile, binFile;
-            ngraph::pass::Serialize serializer(xmlFile, binFile,
-                ngraph::pass::Serialize::Version::IR_V10);
-            serializer.run_on_function(subnet.getFunction());
-
-            auto m_constants = binFile.str();
-            auto m_model = xmlFile.str();
-
-            auto dataSize = static_cast<std::uint64_t>(m_model.size());
-            heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            heteroModel.write(m_model.c_str(), dataSize);
-
-            dataSize = static_cast<std::uint64_t>(m_constants.size());
-            heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            heteroModel.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+            exportNetworkToIR(subnetwork);
+#ifdef __APPLE__
+        } catch (const std::exception &) {
+            exportNetworkToIR(subnetwork);
+#endif
         }
     }
 }
