@@ -70,13 +70,22 @@ struct CPUStreamsExecutor::Impl {
             const auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
             #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
-               if (_impl->_config._threadPreferBigCores) {
-                    const auto selected_core_type = oneapi::tbb::info::core_types().back(); // runing on Big cores only
-                    _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{selected_core_type, concurrency} });
-                    // TODO: REMOVE THE DEBUG PRINTF
-                    printf("%s, EXPLICIT BINDING, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
-                        _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
-                        static_cast<int>(selected_core_type), concurrency);
+               if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType ) {
+                   if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
+                       _taskArena.reset(new tbb::task_arena{ concurrency });
+                       // TODO: REMOVE THE DEBUG PRINTF
+                       printf("%s, NO BINDING, StreamId: %d (%d threads) \n",
+                           _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, concurrency);
+                   } else {
+                       const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
+                           ? oneapi::tbb::info::core_types().back() // runing on Big cores only
+                           : oneapi::tbb::info::core_types().front(); // runing on Little cores only
+                       _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{selected_core_type, concurrency} });
+                       // TODO: REMOVE THE DEBUG PRINTF
+                       printf("%s, EXPLICIT BINDING, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
+                           _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
+                           static_cast<int>(selected_core_type), concurrency);
+                   }
                 } else {
                     // assigning the stream to the core type in the round-robin fashion
                     // wrapping around total_streams (i.e. how many streams all different core types can handle together)

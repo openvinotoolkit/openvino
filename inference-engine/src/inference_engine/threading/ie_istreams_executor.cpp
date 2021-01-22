@@ -151,20 +151,36 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     const auto& numaNodes = getAvailableNUMANodes();
     const auto numaNodesNum = numaNodes.size();
     auto streamExecutorConfig = initial;
-    const bool latencyCase = streamExecutorConfig._streams <= numaNodesNum;
-    const auto hwCores = !latencyCase && numaNodesNum == 1
+    const bool bLatencyCase = streamExecutorConfig._streams <= numaNodesNum;
+    bool bLatencyCaseHybrid = false;
+    //additional latency-case logic for hybrid processors:
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION >= 12010) // TBB with hybrid CPU aware task_arena api
+    if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
+        const auto core_types = oneapi::tbb::info::core_types();
+        const auto num_strongest_cores = oneapi::tbb::info::default_concurrency(core_types.back());
+        const auto num_other_cores = std::accumulate(core_types.cbegin(), core_types.cend(), -num_strongest_cores /*without big cores*/,
+            [](const auto& p, int num) {return num + oneapi::tbb::info::default_concurrency(p); });
+        // by default the latency case uses (faster) Big cores only
+        bLatencyCaseHybrid = num_strongest_cores > num_other_cores / 4; // relative efficiency of the VNNI-intensive code for Big vs Little cores;
+        streamExecutorConfig._threadPreferredCoreType =
+                                bLatencyCase
+                                    ? (bLatencyCaseHybrid                                       
+                                        ? IStreamsExecutor::Config::PreferredCoreType::BIG
+                                        : IStreamsExecutor::Config::PreferredCoreType::NONE)
+                                    : IStreamsExecutor::Config::PreferredCoreType::ROUND_ROBIN;
+    }
+    #endif
+
+    const auto hwCores = !bLatencyCase && numaNodesNum == 1
         // throughput case on a single-NUMA node machine uses all available cores
         ? parallel_get_max_threads()
         // on multi-NUMA node do not use hyper-threading (to reduce memory pressure)
         // additionally, any latency case (stream per node, or less) runs on the Big cores only
-        : getNumberOfCPUCores(latencyCase);
+        : getNumberOfCPUCores(bLatencyCaseHybrid);
     const auto threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams
                                             ? std::max(1, threads/streamExecutorConfig._streams)
                                             : threads;
-    // by default the latency case uses (faster) Big cores only
-    if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType && latencyCase)
-        streamExecutorConfig._threadPreferBigCores = true;
     return streamExecutorConfig;
 }
 

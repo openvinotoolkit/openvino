@@ -84,7 +84,12 @@ public:
         ThreadBindingType  _threadBindingType       = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type. No binding by default
         int                _threadBindingStep       = 1;  //!< In case of @ref CORES binding offset type thread binded to cores with defined step
         int                _threadBindingOffset     = 0;  //!< In case of @ref CORES binding offset type thread binded to cores starting from offset
-        bool               _threadPreferBigCores    = false; //!< In case of @ref HYBRID_AWARE give the TBB a hint to limit the execution the "big" cores
+        enum PreferredCoreType {
+            NONE,
+            LITTLE,
+            BIG,
+            ROUND_ROBIN // for multiple streams
+        }                  _threadPreferredCoreType = PreferredCoreType::NONE; //!< In case of @ref HYBRID_AWARE give the TBB a hint to affitize the execution
         int                _threads                 = 0;  //!< Number of threads distributed between streams. Reserved. Should not be used.
 
         /**
@@ -107,14 +112,14 @@ public:
             int                threadBindingStep       = 1,
             int                threadBindingOffset     = 0,
             int                threads                 = 0,
-            bool               bPreferBigCores         = false) :
+            PreferredCoreType  threadPreferredCoreType = PreferredCoreType::NONE) :
         _name{name},
         _streams{streams},
         _threadsPerStream{threadsPerStream},
         _threadBindingType{threadBindingType},
         _threadBindingStep{threadBindingStep},
         _threadBindingOffset{threadBindingOffset},
-        _threads{threads}, _threadPreferBigCores(bPreferBigCores){
+        _threads{threads}, _threadPreferredCoreType(threadPreferredCoreType){
         }
     };
 
