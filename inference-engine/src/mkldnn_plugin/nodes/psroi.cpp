@@ -53,13 +53,13 @@ public:
             auto supportedPrecision = (layer->insData[0].lock()->getTensorDesc().getPrecision() == Precision::BF16 ? Precision::BF16 : Precision::FP32);
 
             std::vector<std::pair<Layout, Layout> > plainConfs{
-//                    {NHWC, NHWC},
+                    {NHWC, NHWC},
                     {NCHW, NCHW}
             };
 
             std::vector<std::pair<ConfLayout, ConfLayout> > blockConfs {
-//                    {ConfLayout::BLK16, ConfLayout::BLK16},
-//                    {ConfLayout::BLK8, ConfLayout::BLK8}
+                    {ConfLayout::BLK16, ConfLayout::BLK16},
+                    {ConfLayout::BLK8, ConfLayout::BLK8}
             };
 
             if (noTrans) {
@@ -458,26 +458,34 @@ public:
         }
     }
 
-    StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
-                       ResponseDesc *resp) noexcept override {
-        auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
-        auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
+    StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
+        try {
+            auto inputPrec = inputs[0]->getTensorDesc().getPrecision();
+            auto outputPrec = outputs[0]->getTensorDesc().getPrecision();
 
-        PSROIPoolingContext ctx = {
-                *this,
-                inputs,
-                outputs
-        };
+            if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
+                  (inputPrec == Precision::FP32 && outputPrec == Precision::FP32)))
+                return NOT_IMPLEMENTED;
 
-        if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
-              (inputPrec == Precision::FP32 && outputPrec == Precision::FP32)))
-            return NOT_IMPLEMENTED;
+            PSROIPoolingContext ctx = {
+                    *this,
+                    inputs,
+                    outputs
+            };
 
-        OV_SWITCH(MKLDNNPlugin, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
-                  OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-                  OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
+            OV_SWITCH(MKLDNNPlugin, PSROIPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
+                      OV_CASE2(Precision::FP32, Precision::FP32, float, float),
+                      OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t))
 
-        return OK;
+            return OK;
+        }
+        catch (const std::exception& excp) {
+            snprintf(resp->msg, sizeof(resp->msg), "%s", excp.what());
+            return GENERAL_ERROR;
+        }
+        catch(...) {
+            return GENERAL_ERROR;
+        }
     }
 
     template <typename inputType>

@@ -23,6 +23,7 @@ namespace CPUTestUtils {
         ndhwc,
         nc,
         x,
+        blocked,
         undef
     } cpu_memory_format_t;
 
