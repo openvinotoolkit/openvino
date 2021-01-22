@@ -438,7 +438,6 @@ void MKLDNNScatterUpdateNode::scatterElementsUpdate(uint8_t *indices, uint8_t *u
     SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
     SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getDesc().getDims();
     SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
-    size_t srcRank = srcDataDim.size();
     size_t updateRank = updateDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);

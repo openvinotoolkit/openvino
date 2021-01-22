@@ -18,12 +18,12 @@ TEST_F(CNNNetworkTests, throwsOnInitWithNull) {
 
 TEST_F(CNNNetworkTests, throwsOnUninitializedCastToICNNNetwork) {
     CNNNetwork network;
-    ASSERT_THROW(auto & net = static_cast<ICNNNetwork&>(network), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW((void)static_cast<ICNNNetwork&>(network), InferenceEngine::details::InferenceEngineException);
 }
 
 TEST_F(CNNNetworkTests, throwsOnConstUninitializedCastToICNNNetwork) {
     const CNNNetwork network;
-    ASSERT_THROW(const auto & net = static_cast<const ICNNNetwork&>(network), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW((void)static_cast<const ICNNNetwork&>(network), InferenceEngine::details::InferenceEngineException);
 }
 
 IE_SUPPRESS_DEPRECATED_END

@@ -414,9 +414,6 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_func(const T* input_data, T* out)
             {
-                size_t input_rank = m_input_data_shape.size();
-                size_t num_of_axes = m_axes.size();
-
                 auto info = helper.get_info_for_linear_mode();
 
                 CoordinateTransform output_transform(m_out_shape);

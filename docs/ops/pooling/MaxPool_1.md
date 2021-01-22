@@ -67,7 +67,7 @@
 
 **Inputs**:
 
-*   **1**: 4D or 5D input tensor. Required.
+*   **1**: 3D, 4D or 5D input tensor. Required.
 
 **Mathematical Formulation**
 

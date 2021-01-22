@@ -70,7 +70,6 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
     const PartialShape& filters_shape = get_input_partial_shape(2);
 
     element::Type data_batch_et = get_input_element_type(0);
-    element::Type deformable_values_et = get_input_element_type(1);
     element::Type filters_et = get_input_element_type(2);
 
     if (deformable_values_shape.rank().is_static())

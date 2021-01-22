@@ -92,4 +92,19 @@ namespace ngraph
             };
         }
     }
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
+        : public DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>
+    {
+    public:
+        AttributeAdapter(op::v5::Loop::SpecialBodyPorts& value)
+            : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<op::v5::Loop::SpecialBodyPorts>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
 }
