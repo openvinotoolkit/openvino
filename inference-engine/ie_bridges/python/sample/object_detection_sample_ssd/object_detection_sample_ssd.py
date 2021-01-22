@@ -206,12 +206,12 @@ def main():
             else:
                 print()
 
+    tmp_image = cv2.imread(args.input)
     for imid in classes:
-        tmp_image = cv2.imread(args.input)
         for box in boxes[imid]:
             cv2.rectangle(tmp_image, (box[0], box[1]), (box[2], box[3]), (232, 35, 244), 2)
-        cv2.imwrite("out.bmp", tmp_image)
-        log.info("Image out.bmp created!")
+    cv2.imwrite("out.bmp", tmp_image)
+    log.info("Image out.bmp created!")
     # -----------------------------------------------------------------------------------------------------
 
     log.info("Execution successful\n")
