@@ -55,7 +55,7 @@ namespace ngraph
                     const float center = 0.5f * (base_size - coordinates_offset);
 
                     // enumerate all transformed boxes
-                    for (int ratio = 0; ratio < num_ratios; ++ratio)
+                    for (unsigned int ratio = 0; ratio < num_ratios; ++ratio)
                     {
                         // transformed width & height for given ratio factors
                         float ratio_w;
@@ -80,7 +80,7 @@ namespace ngraph
                         float* const p_anchors_hp =
                             anchors_ptr + 3 * num_ratios * num_scales + ratio * num_scales;
 
-                        for (int scale = 0; scale < num_scales; ++scale)
+                        for (unsigned int scale = 0; scale < num_scales; ++scale)
                         {
                             // transformed width & height for given scale factors
                             const float scale_w =
@@ -111,9 +111,9 @@ namespace ngraph
                                                 const T* d_anchor4d,
                                                 const float* anchors,
                                                 std::vector<ProposalBox<T>>& proposals,
-                                                const int num_anchors,
-                                                const int bottom_H,
-                                                const int bottom_W,
+                                                const unsigned int num_anchors,
+                                                const unsigned int bottom_H,
+                                                const unsigned int bottom_W,
                                                 const float img_H,
                                                 const float img_W,
                                                 const float min_box_H,
@@ -126,16 +126,17 @@ namespace ngraph
                                                 bool swap_xy,
                                                 bool clip_before_nms)
                 {
-                    const int bottom_area = bottom_H * bottom_W;
+                    // used for offset calculation
+                    const size_t bottom_area = bottom_H * bottom_W;
 
                     const float* p_anchors_wm = anchors + 0 * num_anchors;
                     const float* p_anchors_hm = anchors + 1 * num_anchors;
                     const float* p_anchors_wp = anchors + 2 * num_anchors;
                     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
-                    for (size_t h = 0; h < bottom_H; ++h)
+                    for (unsigned int h = 0; h < bottom_H; ++h)
                     {
-                        for (size_t w = 0; w < bottom_W; ++w)
+                        for (unsigned int w = 0; w < bottom_W; ++w)
                         {
                             const float x = static_cast<float>((swap_xy ? h : w) * feat_stride);
                             const float y = static_cast<float>((swap_xy ? w : h) * feat_stride);
@@ -143,9 +144,9 @@ namespace ngraph
                             const T* p_box = d_anchor4d + h * bottom_W + w;
                             const T* p_score = bottom4d + h * bottom_W + w;
 
-                            size_t proposal_off = (h * bottom_W + w) * num_anchors;
+                            const size_t proposal_off = (h * bottom_W + w) * num_anchors;
 
-                            for (int anchor = 0; anchor < num_anchors; ++anchor)
+                            for (unsigned int anchor = 0; anchor < num_anchors; ++anchor)
                             {
                                 const T dx = p_box[(anchor * 4 + 0) * bottom_area] /
                                              static_cast<T>(box_coordinate_scale);
@@ -156,7 +157,6 @@ namespace ngraph
                                                   static_cast<T>(box_size_scale);
                                 const T d_log_h = p_box[(anchor * 4 + 3) * bottom_area] /
                                                   static_cast<T>(box_size_scale);
-
                                 const T score = p_score[anchor * bottom_area];
 
                                 float x0 = x + p_anchors_wm[anchor];
@@ -228,27 +228,22 @@ namespace ngraph
                 template <typename T>
                 static void nms(const int num_boxes,
                                 std::vector<int>& is_dead,
-                                // it was
-                                // const std::vector<T>& boxes,
                                 const std::vector<ProposalBox<T>>& proposals,
-                                std::vector<int>& index_out,
-                                int* const num_out,
+                                std::vector<unsigned int>& index_out,
+                                int& num_out,
                                 const int base_index,
                                 const float nms_thresh,
                                 const int max_num_out,
                                 T coordinates_offset)
                 {
-                    int count = 0;
-                    // was
-                    // std::memset(is_dead, 0, num_boxes * sizeof(int));
                     std::fill(is_dead.begin(), is_dead.begin() + num_boxes, 0);
                     for (int box = 0; box < num_boxes; ++box)
                     {
                         if (is_dead[box])
                             continue;
 
-                        index_out[count++] = base_index + box;
-                        if (count == max_num_out)
+                        index_out[num_out++] = base_index + box;
+                        if (num_out == max_num_out)
                             break;
 
                         int tail = box + 1;
@@ -290,7 +285,6 @@ namespace ngraph
                                 is_dead[tail] = 1;
                         }
                     }
-                    *num_out = count;
                 }
 
                 template <typename T>
@@ -298,9 +292,7 @@ namespace ngraph
                                           const int item_index,
                                           const int num_proposals,
                                           const std::vector<ProposalBox<T>>& proposals,
-                                          // was
-                                          // const int roi_indices[],
-                                          const std::vector<int>& roi_indices,
+                                          const std::vector<unsigned int>& roi_indices,
                                           T* rois,
                                           int post_nms_topn_,
                                           bool normalize,
@@ -310,7 +302,7 @@ namespace ngraph
                 {
                     for (size_t roi = 0; roi < num_rois; ++roi)
                     {
-                        int index = roi_indices[roi];
+                        const unsigned int index = roi_indices[roi];
                         T x0 = proposals[index].x0;
                         T y0 = proposals[index].y0;
                         T x1 = proposals[index].x1;
@@ -364,8 +356,8 @@ namespace ngraph
                 const T* p_d_anchor_item = bbox_deltas;
                 T* p_roi_item = output;
                 // bottom shape (batch_size * (2 * num_anchors) * H * W)
-                const int bottom_H = class_probs_shape[2];
-                const int bottom_W = class_probs_shape[3];
+                const unsigned int bottom_H = class_probs_shape[2];
+                const unsigned int bottom_W = class_probs_shape[3];
                 // input image height and width
                 const T img_H = image_shape[0];
                 const T img_W = image_shape[1];
@@ -378,25 +370,25 @@ namespace ngraph
                 const T min_box_W = attrs.min_size * scale_W;
                 // get number of proposals
                 // class_probs shape is {batch_size, anchor_count*2, bottom_H, bottom_W}
-                const int anchor_count = class_probs_shape[1] / 2;
-                const int num_proposals = anchor_count * bottom_H * bottom_W;
+                const unsigned int anchor_count = class_probs_shape[1] / 2;
+                const unsigned int num_proposals = anchor_count * bottom_H * bottom_W;
                 // final RoI count
                 int num_rois = 0;
                 std::vector<details::ProposalBox<T>> proposals(num_proposals);
-                size_t pre_nms_topn =
+                const int pre_nms_topn =
                     num_proposals < attrs.pre_nms_topn ? num_proposals : attrs.pre_nms_topn;
                 std::vector<int> is_dead(pre_nms_topn);
-                std::vector<int> roi_indices(attrs.post_nms_topn);
+                std::vector<unsigned int> roi_indices(attrs.post_nms_topn);
 
                 std::vector<float> anchors(4 * anchor_count);
                 details::generate_anchors(attrs, anchors);
 
-                int batch_num = class_probs_shape[0];
+                unsigned int batch_num = class_probs_shape[0];
                 float coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
                 bool initial_clip = attrs.framework == "tensorflow" ? true : false;
                 bool swap_xy = attrs.framework == "tensorflow" ? true : false;
 
-                for (int batch_idx = 0; batch_idx < batch_num; ++batch_idx)
+                for (unsigned int batch_idx = 0; batch_idx < batch_num; ++batch_idx)
                 {
                     details::enumerate_proposals(p_bottom_item + num_proposals +
                                                      batch_idx * num_proposals * 2,
@@ -429,7 +421,7 @@ namespace ngraph
                                  is_dead,
                                  proposals,
                                  roi_indices,
-                                 &num_rois,
+                                 num_rois,
                                  0,
                                  attrs.nms_thresh,
                                  attrs.post_nms_topn,
