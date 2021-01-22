@@ -216,5 +216,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
 }
