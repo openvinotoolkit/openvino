@@ -56,7 +56,6 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiCh
     const float hight = interval.second / k;
 
     InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    const auto buffer = input->buffer().as<float*>();
     return input;
 }
 

@@ -38,7 +38,6 @@ TEST(TransformationTests, ConvertNMS1ToNMSIEInternal) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto & orig_shape = f->get_output_partial_shape(0);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
@@ -80,7 +79,6 @@ TEST(TransformationTests, ConvertNMS3ToNMSIEInternal) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto & orig_shape = f->get_output_partial_shape(0);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
@@ -121,7 +119,6 @@ TEST(TransformationTests, ConvertNMS4ToNMSIEInternal) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto & orig_shape = f->get_output_partial_shape(0);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
@@ -163,7 +160,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEInternal) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        const auto & orig_shape = f->get_output_partial_shape(0);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();

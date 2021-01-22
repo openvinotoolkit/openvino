@@ -127,9 +127,6 @@ void SegmentationMatcher::match() {
     // Load image to blob
     ConvertImageToInput(reader->getData().get(), reader->size(), *input);
 
-    InferenceEngine::ResponseDesc dsc;
-    InferenceEngine::StatusCode sts;
-
     auto loadedExecutableNetwork = config.ie_core->LoadNetwork(network, config._device_name, config.plugin_config);
     InferenceEngine::ExecutableNetwork executableNetwork;
     if (config.useExportImport) {

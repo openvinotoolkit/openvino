@@ -166,7 +166,6 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
     {
         reshaped_out_shape[3] *= ds[i];
     }
-    size_t data_size = shape_size(data_shape) * elem_size;
 
     // first reshape from data_shape to reshaped_out_shape is skipped since it doesn't affect
     // out

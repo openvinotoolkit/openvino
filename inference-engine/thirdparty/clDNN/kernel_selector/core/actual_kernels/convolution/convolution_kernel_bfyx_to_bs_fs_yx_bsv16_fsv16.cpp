@@ -21,7 +21,6 @@
 
 namespace kernel_selector {
 
-static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
 static const size_t batch_block_size = 16;
 
