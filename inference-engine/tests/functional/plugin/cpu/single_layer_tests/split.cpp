@@ -81,7 +81,7 @@ TEST_P(SplitLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Split");
+    CheckPluginRelatedResults(executableNetwork, "Split");
 }
 
 namespace {
