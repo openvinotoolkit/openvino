@@ -56,12 +56,18 @@ namespace BehaviorTestsDefinitions {                                            
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
+// TODO: issue with RTTI
+#ifdef __APPLE__
+using NotImplementedException = std::exception;
+#else
+using NotImplementedException = InferenceEngine::NotImplemented;
+#endif
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                                            \
 {                                                                               \
     try {                                                                       \
         __VA_ARGS__;                                                            \
-    } catch (const InferenceEngine::NotImplemented&) {                          \
+    } catch (const NotImplementedException &) {                                 \
         GTEST_SKIP();                                                           \
     }                                                                           \
 }
@@ -425,8 +431,9 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
 
-    if (deviceName == CommonTestUtils::DEVICE_CPU || deviceName == CommonTestUtils::DEVICE_FPGA) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), InferenceEngineException);
+    if (deviceName == CommonTestUtils::DEVICE_CPU ||
+        deviceName == CommonTestUtils::DEVICE_GPU) {
+        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplementedException);
     }
 }
 
@@ -483,7 +490,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
     SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    if (!strm.str().empty() && deviceName.find(CommonTestUtils::DEVICE_FPGA) != std::string::npos) {
+    if (!strm.str().empty()) {
         SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
     }
     if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
