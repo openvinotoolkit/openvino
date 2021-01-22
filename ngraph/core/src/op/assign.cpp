@@ -70,7 +70,10 @@ void op::v3::Assign::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           output_pshape.same_scheme(variable_info.data_shape),
-                          "Variables output shapes are inconsistent.");
+                          "Variables output shapes are inconsistent. Got: ",
+                          output_pshape,
+                          " and ",
+                          variable_info.data_shape);
 
     set_output_type(0, arg_t, output_pshape);
 }
