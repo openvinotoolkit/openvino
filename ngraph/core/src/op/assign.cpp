@@ -68,14 +68,18 @@ void op::v3::Assign::validate_and_infer_types()
     NODE_VALIDATION_CHECK(
         this, arg_t == variable_info.data_type, "Variables types are inconsistent.");
 
-    NODE_VALIDATION_CHECK(this,
-                          output_pshape.same_scheme(variable_info.data_shape),
-                          "Variables output shapes are inconsistent. Got: ",
-                          output_pshape,
-                          " and ",
-                          variable_info.data_shape);
+    if (output_pshape.is_static() && variable_info.data_shape.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              output_pshape == variable_info.data_shape,
+                              "Variables output shapes are inconsistent.");
 
-    set_output_type(0, arg_t, output_pshape);
+        set_output_type(0, arg_t, output_pshape);
+    }
+    else
+    {
+        set_output_type(0, arg_t, PartialShape::dynamic());
+    }
 }
 
 shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_args) const

@@ -74,7 +74,7 @@ TEST(type_prop, assign_deduce_basic)
 
 TEST(type_prop, assign_deduce_dynamic)
 {
-    PartialShape pshape = PartialShape::dynamic();
+    PartialShape pshape{Dimension::dynamic(), 2, 64, 64};
     auto input = make_shared<op::Parameter>(element::f32, pshape);
     auto read_value = make_shared<op::ReadValue>(input, "variable_id");
     auto assign = make_shared<op::Assign>(read_value, "variable_id");
@@ -85,10 +85,9 @@ TEST(type_prop, assign_deduce_dynamic)
 
 TEST(type_prop, assign_incompatible_variables)
 {
-    auto input =
-        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 64, 64});
+    auto input = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 64, 64});
     auto read_value = make_shared<op::v3::ReadValue>(input, "variable_id");
-    VariableInfo info = {PartialShape{1, 2, 64, 64}, element::f32, "variable_id"};
+    VariableInfo info = {PartialShape{2, 2, 64, 64}, element::f32, "variable_id"};
     auto var_info = make_shared<Variable>(info);
 
     // Incompatible partial shape
