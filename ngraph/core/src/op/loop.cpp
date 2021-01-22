@@ -41,8 +41,9 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
+    visitor.on_attribute("special_body_ports", m_special_body_ports);
 
-    return false;
+    return true;
 }
 
 void op::v5::Loop::validate_and_infer_types()
@@ -167,16 +168,28 @@ void op::v5::Loop::validate_and_infer_types()
             m_num_iterations = val[0];
     }
 
+    // WA: input description with index 0 or 1 means that Loop consructor will duplicate it in
+    // the inputs.
+    // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
+    size_t input_offset = 2;
+    for (const auto& in_desc : m_input_descriptions)
+    {
+        if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1)
+        {
+            input_offset--;
+        }
+    }
+    // input_offset < 0 means that there are several duplications of external_port_id
+    // (the same ext_port_id is connected to several Parameters in the port map) in input_desc,
+    // this can lead to wrong or undefined behavior, so throw exception here. Ticket: 47302
+    NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
+
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == m_input_descriptions.size() + 2,
+                          get_input_size() == m_input_descriptions.size() + input_offset,
                           "Number of inputs must be the same as number of input descriptions");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_output_size() == m_output_descriptions.size(),
-                          "Number of outputs must be the same as number of output descriptions");
-
     // Input
-    uint64_t index_it = 2;
+    uint64_t index_it = input_offset;
     for (const auto& input_description : m_input_descriptions)
     {
         auto index = input_description->m_input_index;
@@ -297,14 +310,33 @@ void op::v5::Loop::validate_and_infer_types()
             }
         }
     }
+
+    NODE_VALIDATION_CHECK(this,
+                          get_output_size() == m_output_descriptions.size(),
+                          "Number of outputs must be the same as number of output descriptions");
 }
 
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v5_Loop_clone_with_new_inputs);
+    // WA: input description with index 0 or 1 means that Loop consructor will duplicate it in
+    // the inputs.
+    // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
+    size_t input_offset = 2;
+    for (const auto& in_desc : m_input_descriptions)
+    {
+        if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1)
+        {
+            input_offset--;
+        }
+    }
+    // input_offset < 0 means that there are several duplications of external_port_id
+    // (the same ext_port_id is connected to several Parameters in the port map) in input_desc,
+    // this can lead to wrong or undefined behavior, so throw exception here. Ticket: 47302
+    NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
     // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body
     // params
-    OutputVector body_params_args(new_args.begin() + 2, new_args.end());
+    OutputVector body_params_args(new_args.begin() + input_offset, new_args.end());
     auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1]);
     for (int idx = 2; idx < new_args.size(); ++idx)
     {
@@ -398,4 +430,9 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
     runtime::reference::loop(
         m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
     return true;
+}
+
+namespace ngraph
+{
+    constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Loop::SpecialBodyPorts>::type_info;
 }
