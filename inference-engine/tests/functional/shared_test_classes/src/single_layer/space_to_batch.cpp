@@ -32,7 +32,7 @@ std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<
 void SpaceToBatchLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     std::vector<int64_t> blockShape, padsBegin, padsEnd;
-    InferenceEngine::Precision inputPrecision, netPrecision;
+    InferenceEngine::Precision netPrecision;
     std::tie(blockShape, padsBegin, padsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

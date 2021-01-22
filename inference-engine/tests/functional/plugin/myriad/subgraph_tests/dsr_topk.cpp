@@ -59,7 +59,6 @@ protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
         const auto& dataType = std::get<0>(parameters);
-        const auto& idxType = std::get<1>(parameters);
         const auto& topkSetup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
