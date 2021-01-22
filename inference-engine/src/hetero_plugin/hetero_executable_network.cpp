@@ -628,7 +628,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
 
         // Note: custom ngraph extensions are not supported
         std::stringstream xmlFile, binFile;
-        ngraph::pass::Serialize serializer(xmlFile, binFile,
+        ngraph::pass::Serialize serializer(&xmlFile, &binFile,
             ngraph::pass::Serialize::Version::IR_V10);
         serializer.run_on_function(subnet.getFunction());
 

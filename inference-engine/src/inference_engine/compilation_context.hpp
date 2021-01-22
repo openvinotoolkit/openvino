@@ -20,8 +20,7 @@
 
 namespace InferenceEngine {
 
-class NetworkCompilationContext final {
-public:
+struct NetworkCompilationContext final {
     explicit NetworkCompilationContext(CNNNetwork network,
         const std::map<std::string, std::string> & compileOptions = {}) :
             m_compileOptions(compileOptions),
@@ -31,13 +30,11 @@ public:
             auto & icnnnet = static_cast<ICNNNetwork &>(network);
             auto & ngraphImpl = dynamic_cast<details::CNNNetworkNGraphImpl &>(icnnnet);
 
-            std::stringstream xmlFile, binFile;
-            ngraph::pass::Serialize serializer(xmlFile, binFile,
+            ngraph::pass::Serialize serializer(&xmlFile, nullptr,
                 ngraph::pass::Serialize::Version::IR_V10, ngraphImpl.getExtensions());
             serializer.run_on_function(ngraphImpl.getFunction());
 
             m_constants = xmlFile.str();
-            m_model = binFile.str();
         } catch (const std::bad_cast &) {
             // IR v7 or older is passed: cannot cast to CNNNetworkNGraphImpl
             m_cachingIsAvailable = false;
@@ -79,7 +76,7 @@ public:
         IE_ASSERT(isCachingAvailable());
 
         size_t seed {};
-        seed = hash_combine(seed, m_model);
+        seed = hash_combine(seed, xmlFile.str());
 
         // TODO: optimize hash compute using this scheme:
         // find any layer with wiegths and compute hash only for this binary blob
@@ -143,7 +140,7 @@ private:
 
     // network structure (ngraph::Function description)
     std::string m_constants;
-    std::string m_model;
+    std::stringstream xmlFile;
 
     // compile options
     std::map<std::string, std::string> m_compileOptions;

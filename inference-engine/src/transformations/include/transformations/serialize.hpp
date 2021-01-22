@@ -17,6 +17,8 @@ class TRANSFORMATIONS_API Serialize;
 }  // namespace pass
 }  // namespace ngraph
 
+class OstreamAdapter;
+
 /**
  * @ingroup ie_transformation_common_api
  * @brief Serialize transformation converts ngraph::Function into IR files
@@ -33,17 +35,17 @@ public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-    Serialize(std::ostream & xmlFile, std::ostream & binFile,
+    Serialize(std::ostream * xmlFile, std::ostream * binFile,
               Version version = Version::IR_V10,
-              std::map<std::string, ngraph::OpSet> custom_opsets = {});
+              const std::map<std::string, ngraph::OpSet>& custom_opsets = {});
 
     Serialize(const std::string& xmlPath, const std::string& binPath,
               Version version = Version::IR_V10,
-              std::map<std::string, ngraph::OpSet> custom_opsets = {});
+              const std::map<std::string, ngraph::OpSet>& custom_opsets = {});
 
 private:
     std::ostream * m_xmlFile;
-    std::ostream * m_binFile;
+    std::shared_ptr<OstreamAdapter> m_binFile;
     const std::string m_xmlPath;
     const std::string m_binPath;
     const Version m_version;

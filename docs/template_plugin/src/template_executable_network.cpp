@@ -191,7 +191,7 @@ void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
     // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
-    ngraph::pass::Serialize serializer(xmlFile, binFile,
+    ngraph::pass::Serialize serializer(&xmlFile, &binFile,
         ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
     serializer.run_on_function(_function);
 

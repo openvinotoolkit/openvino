@@ -344,7 +344,7 @@ public:
             if (cachingIsAvailable) {
                 try {
                     // need to export network for further import from "cache"
-                    // execNetwork.Export(blobFileName);
+                    execNetwork.Export(blobFileName);
                     std::cout << "Network is exported for " << parsed._deviceName << std::endl;
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
