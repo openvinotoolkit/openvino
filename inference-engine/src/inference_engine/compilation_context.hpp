@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -67,11 +69,6 @@ public:
                 m_runtime_atrributes += op->get_friendly_name() + "#" + primPriority->get();
             }
         }
-
-        // information about precisions, layouts
-
-
-        // information about preprocessing
     }
 
     bool isCachingAvailable() const {
@@ -91,26 +88,56 @@ public:
 
         seed = hash_combine(seed, m_runtime_atrributes);
 
-        // TODO: more values to hash
-        // 1. precisions
-        // 2. layouts
-        // 3. preprocessing
+        for (const auto & input : m_inputsInfo) {
+            InputInfo::Ptr info = input.second;
+            seed = hash_combine(seed, as_int32_t(info->getPrecision()));
+            seed = hash_combine(seed, as_int32_t(info->getLayout()));
+
+            const InferenceEngine::PreProcessInfo& preproc = info->getPreProcess();
+            seed = hash_combine(seed, as_int32_t(preproc.getResizeAlgorithm()));
+            seed = hash_combine(seed, as_int32_t(preproc.getColorFormat()));
+            seed = hash_combine(seed, as_int32_t(preproc.getMeanVariant()));
+
+            if (preproc.getMeanVariant() == MeanVariant::MEAN_VALUE) {
+                seed = hash_combine(seed, preproc.getNumberOfChannels());
+                for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
+                    const PreProcessChannel::Ptr & channelInfo = preproc[c];
+                    seed = hash_combine(seed, channelInfo->stdScale);
+                    seed = hash_combine(seed, channelInfo->meanValue);
+                }
+            } else if (preproc.getMeanVariant() == MeanVariant::MEAN_IMAGE) {
+                // TODO: think if we need to compute hash for mean image if it exists
+            }
+        }
+
+        for (const auto & output : m_outputsInfo) {
+            DataPtr info = output.second;
+            seed = hash_combine(seed, as_int32_t(info->getPrecision()));
+            seed = hash_combine(seed, as_int32_t(info->getLayout()));
+        }
 
         return std::to_string(seed);
     }
 
 private:
     template <typename T>
+    static int32_t as_int32_t(T v) {
+        return static_cast<int32_t>(v);
+    }
+
+    template <typename T>
     static std::size_t hash_combine(std::size_t seed, const T & a) {
-        std::size_t hash = std::hash<T>()(a);
-        return hash ^ (seed << 1);
+        std::size_t val = std::hash<T>()(a);
+
+        // Hash combine formula from boost
+        return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
     }
 
     bool m_cachingIsAvailable = true;
 
     // network structure (ngraph::Function description)
     std::string m_constants;
-    std::string m_model;;
+    std::string m_model;
 
     // compile options
     std::map<std::string, std::string> m_compileOptions;
