@@ -126,8 +126,12 @@ def restore_correct_ports(graph: Graph):
             node = Node(graph, u)
             num_of_in_nodes = len(node.in_nodes())
             decremented_number = d['out'] - num_of_in_nodes
-            # we need to check operation type, if it is const op with out_port == 0, we don't renumber out ports
-            if node.type == 'Const'and d['out'] == 0:
+            # Initially Const operation in IR has output port with number 1. But later the behaviour was changed
+            # so the output port become 0. This change was made to be consistent with the IR serializer in the IE
+            # which generates Const with output port 0. For the backward compatibility reason we need to decrement
+            # the Const output port number should but for current version this number shouldn't be changed
+            # during reading the IR.
+            if node.type == 'Const' and d['out'] == 0:
                 decremented_number = d['out']
             out_port_id = decremented_number if not is_control_flow else 'control_flow_' + str(decremented_number)
             from_node_attrs['_out_ports'].update({out_port_id: {'control_flow': is_control_flow}})
