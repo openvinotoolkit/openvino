@@ -16,8 +16,14 @@
 
 #pragma once
 
+#include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/helpers.hpp"
 #include "ngraph/util.hpp"
+
+namespace
+{
+    constexpr size_t filter_group_axis = 0;
+}
 
 namespace ngraph
 {
@@ -41,6 +47,50 @@ namespace ngraph
                                    const CoordinateDiff& pads_end)
 
             {
+                NGRAPH_CHECK(filter_shape.size() >= 4 && filter_shape.size() <= 6,
+                             "Unsupported kernel rank: ",
+                             filter_shape);
+
+                const size_t group_count = filter_shape[filter_group_axis];
+
+                const INPUT* group_batch = in;
+                Shape group_batch_shape{in_shape};
+                group_batch_shape[in_batch_axis] = 1;
+                group_batch_shape[in_channel_axis] /= group_count;
+                const size_t group_batch_size = shape_size(group_batch_shape);
+
+                const FILTER* group_f = f;
+                Shape group_filter_shape(++filter_shape.begin(), filter_shape.end());
+                const size_t group_filter_size = shape_size(group_filter_shape);
+
+                OUTPUT* group_out = out;
+                Shape group_out_shape{out_shape};
+                group_out_shape[out_batch_axis] = 1;
+                group_out_shape[out_channel_axis] /= group_count;
+                const size_t group_out_size = shape_size(group_out_shape);
+
+                Strides unused;
+                for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
+                {
+                    group_f = f;
+                    for (size_t group_idx = 0; group_idx < group_count; ++group_idx)
+                    {
+                        runtime::reference::convolution(group_batch,
+                                                        group_f,
+                                                        group_out,
+                                                        group_batch_shape,
+                                                        group_filter_shape,
+                                                        group_out_shape,
+                                                        strides,
+                                                        dilation,
+                                                        pads_begin,
+                                                        pads_end,
+                                                        unused);
+                        group_out += group_out_size;
+                        group_f += group_filter_size;
+                        group_batch += group_batch_size;
+                    }
+                }
             }
         } // namespace reference
     }     // namespace runtime
