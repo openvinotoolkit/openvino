@@ -9,6 +9,7 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+        ".*TensorNamesTest\\.CheckAddOutput.*",
         // TODO: FIX BUG 31661
         // TODO: support InferRequest in GNAPlugin
         ".*InferRequestTests\\.canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait.*",
@@ -55,7 +56,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*VariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",
-        R"(.*TensorNamesTest.CheckAddOutput.*)"
+        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)"
     };
 }
