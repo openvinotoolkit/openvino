@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -376,7 +376,7 @@ void ConcatTransformation::addDequantizationLayers(
                     layer->set_output_type(0, precision, layer->get_output_partial_shape(0));
 
                     const auto it = outputs.find(layer->get_friendly_name());
-                    if (it != outputs.end()) {
+                    if (it != outputs.end() && is_type<ngraph::opset1::Result>(child.shared_from_this())) {
                         const std::string originalName = layer->get_friendly_name();
                         const std::string newName = layer->get_friendly_name() + LayerTransformation::originalLayerPostfix;
                         layer->set_friendly_name(newName);
