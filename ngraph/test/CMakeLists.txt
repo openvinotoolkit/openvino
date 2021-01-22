@@ -196,6 +196,7 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
+    type_prop/reduce_mean.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
     type_prop/ti.cpp
