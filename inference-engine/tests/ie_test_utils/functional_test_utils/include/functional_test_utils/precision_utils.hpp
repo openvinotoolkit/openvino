@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,8 @@ inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precis
     switch (pType) {
         case InferenceEngine::Precision::UNSPECIFIED:
             return ::ngraph::element::Type(::ngraph::element::Type_t::undefined);
+        case InferenceEngine::Precision::FP64:
+            return ::ngraph::element::Type(::ngraph::element::Type_t::f64);
         case InferenceEngine::Precision::FP32:
             return ::ngraph::element::Type(::ngraph::element::Type_t::f32);
         case InferenceEngine::Precision::FP16:
@@ -33,6 +35,8 @@ inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precis
             return ::ngraph::element::Type(::ngraph::element::Type_t::u16);
         case InferenceEngine::Precision::I16:
             return ::ngraph::element::Type(::ngraph::element::Type_t::i16);
+        case InferenceEngine::Precision::U32:
+            return ::ngraph::element::Type(::ngraph::element::Type_t::u32);
         case InferenceEngine::Precision::I32:
             return ::ngraph::element::Type(::ngraph::element::Type_t::i32);
         case InferenceEngine::Precision::I64:
