@@ -1453,7 +1453,8 @@ jit_erf_emitter::jit_erf_emitter(jit_generator *host, cpu_isa_t host_isa, const 
     } else if (host_isa_ == cpu::avx2) {
         exp_injector_avx2 = std::make_shared<jit_uni_eltwise_injector_f32<cpu_isa_t::avx2>>(h, mkldnn::impl::alg_kind_t::mkldnn_eltwise_exp, 0.f, 0.f);
     } else if (host_isa_ == cpu::avx512_common) {
-        exp_injector_avx512 = std::make_shared<jit_uni_eltwise_injector_f32<cpu_isa_t::avx512_common>>(h, mkldnn::impl::alg_kind_t::mkldnn_eltwise_exp, 0.f, 0.f);
+        exp_injector_avx512 = std::make_shared<jit_uni_eltwise_injector_f32<cpu_isa_t::avx512_common>>(
+            h, mkldnn::impl::alg_kind_t::mkldnn_eltwise_exp, 0.f, 0.f);
     } else {
         assert(!"unsupported isa");
     }
