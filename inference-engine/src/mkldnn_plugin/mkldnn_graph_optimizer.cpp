@@ -33,7 +33,7 @@
 #  define _WINSOCK2API_
 #endif
 #endif
-#include "cpu/x64/cpu_isa_traits.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 #include <string>
 #include <list>

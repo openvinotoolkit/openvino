@@ -21,7 +21,7 @@ namespace MKLDNNPlugin {
  *
  * Represent a classes of layout. As example Plain, TailC, CBlocked and other.
  *
- * The tensor are in one layout family if they have same PartialBlkDescPartialBlkDesc.
+ * The tensor are in one layout family if they have same PartialBlkDesc.
  *
  * Any tensor will have same PartialBlkDesc as it subview tensor.
  *

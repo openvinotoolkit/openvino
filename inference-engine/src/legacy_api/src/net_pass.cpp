@@ -1540,7 +1540,7 @@ void ConvertPrecision(CNNNetwork& net, Precision from, Precision to) {
             convertPrecisionForAll<Precision::U16, Precision::I32>(net);
             break;
         case getPrecisionMask(Precision::I16, Precision::I32):
-            convertPrecisionForAll<Precision::U16, Precision::I32>(net);
+            convertPrecisionForAll<Precision::I16, Precision::I32>(net);
             break;
         default:
             THROW_IE_EXCEPTION << "Precision conversion from " << from << " to " << to

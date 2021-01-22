@@ -40,10 +40,10 @@ public:
     MKLDNNMemoryDesc(): desc() {}
 
     /** Construct a tensor desc with plain layout format (like ND C array) */
-    MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType);
+    MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType);
 
     /** Construct a tensor desc with specified layout format tag. Any and Undef is not supported */
-    MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
+    MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
     explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc);
     explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc): desc(desc) {}
@@ -140,18 +140,12 @@ public:
     size_t GetSize() const;
     size_t GetElementsCount() const;
 
-
-//    mkldnn::memory::format_tag GetFormat() const {
-//        MKLDNNMemoryDesc desc(prim->get_desc());
-//        return desc.getFormat();
-//    }
-
     mkldnn::memory::dims GetDims() const {
         auto data = GetDescriptor().data;
         return {data.dims, data.dims + data.ndims};
     }
 
-    void Create(mkldnn::memory::dims dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,
+    void Create(const mkldnn::memory::dims& dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,
                 const void* data = nullptr);
 
     void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
@@ -161,9 +155,9 @@ public:
     void SetData(const MKLDNNMemory& memory, size_t size = 0, bool ftz = true) const;
     void FillZero();
 
-    static mkldnn::memory::format_tag GetPlainFormat(mkldnn::memory::dims dims);
-    static InferenceEngine::Layout GetPlainLayout(mkldnn::memory::dims dims);
-    static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format_tag format);
+    static mkldnn::memory::format_tag GetPlainFormat(const mkldnn::memory::dims& dims);
+    static InferenceEngine::Layout GetPlainLayout(const mkldnn::memory::dims& dims);
+    static bool isConsistant(const mkldnn::memory::dims& dims, mkldnn::memory::format_tag format);
     static mkldnn::memory::format_tag Convert(const InferenceEngine::Layout layout);
     static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
     static mkldnn::memory::data_type convertToDataType(const InferenceEngine::Precision &precision);

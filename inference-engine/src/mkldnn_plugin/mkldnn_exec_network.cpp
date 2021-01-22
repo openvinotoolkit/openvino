@@ -77,8 +77,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
 
     OV_ITT_TASK_NEXT(taskChain, "createConstInputs");
-    auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, std::vector<size_t> shape, std::string name) {
-        LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
+    auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, const std::vector<size_t>& shape, const std::string& name) {
+        LayerParams attrs = {layer->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
         auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         constLayer->blobs["custom"] = blob;
 
@@ -107,20 +107,20 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     auto all_layers = details::CNNNetSortTopologically(_clonedNetwork);
     for (auto &layer : all_layers) {
         if (layer->type == "ScaleShift" && layer->insData.size() == 1) {
-            std::vector<size_t> constDims(layer->insData[0].lock()->getDims().size(), 1);
+            auto constDimsRank = layer->insData[0].lock()->getDims().size();
 
             Blob::Ptr scalesBlob = layer->blobs["weights"];
             if (scalesBlob != nullptr) {
-                auto shape = constDims;
-                shape[shape.size() > 1 ? 1 : 0] = scalesBlob.get()->size();
+                std::vector<size_t> shape(constDimsRank, 1);
+                shape[shape.size() > 1 ? 1 : 0] = scalesBlob->size();
 
                 createConstInputTo(layer, scalesBlob, shape, "weights");
             }
 
             Blob::Ptr shiftBlob = layer->blobs["biases"];
             if (shiftBlob != nullptr) {
-                auto shape = constDims;
-                shape[shape.size() > 1 ? 1 : 0] = shiftBlob.get()->size();
+                std::vector<size_t> shape(constDimsRank, 1);
+                shape[shape.size() > 1 ? 1 : 0] = shiftBlob->size();
 
                 createConstInputTo(layer, shiftBlob, shape, "biases");
             } else if (scalesBlob != nullptr) {
@@ -132,8 +132,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                 for (size_t i = 0; i < biases->size(); i++)
                     biasesPtr[i] = 0;
 
-                auto shape = constDims;
-                shape[shape.size() > 1 ? 1 : 0] = biases.get()->size();
+                std::vector<size_t> shape(constDimsRank, 1);
+                shape[shape.size() > 1 ? 1 : 0] = biases->size();
 
                 createConstInputTo(layer, biases, shape, "biases");
             }
@@ -141,7 +141,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
             Blob::Ptr scalesBlob = layer->blobs["weights"];
             if (scalesBlob != nullptr) {
                 std::vector<size_t> shape(layer->insData[0].lock()->getDims().size(), 1);
-                shape[shape.size() > 1 ? 1 : 0] = scalesBlob.get()->size();
+                shape[shape.size() > 1 ? 1 : 0] = scalesBlob->size();
 
                 createConstInputTo(layer, scalesBlob, shape, "weights");
             }

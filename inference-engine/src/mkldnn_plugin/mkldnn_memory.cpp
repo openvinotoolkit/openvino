@@ -48,7 +48,7 @@ size_t MKLDNNMemory::GetElementsCount() const {
     return std::accumulate(std::begin(dims), std::end(dims), (size_t) 1, std::multiplies<size_t>());
 }
 
-void MKLDNNMemory::Create(memory::dims dims, memory::data_type data_type, memory::format_tag format, const void* data) {
+void MKLDNNMemory::Create(const memory::dims& dims, memory::data_type data_type, memory::format_tag format, const void* data) {
     if (format == memory::format_tag::undef) {
         format = memory::format_tag::any;
     }
@@ -168,7 +168,7 @@ void MKLDNNMemory::FillZero() {
     memset(dataPtr, 0, GetSize());
 }
 
-memory::format_tag MKLDNNMemory::GetPlainFormat(memory::dims dims) {
+memory::format_tag MKLDNNMemory::GetPlainFormat(const memory::dims& dims) {
     switch (dims.size()) {
         case 0:
         case 1:
@@ -188,7 +188,7 @@ memory::format_tag MKLDNNMemory::GetPlainFormat(memory::dims dims) {
     }
 }
 
-InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(memory::dims dims) {
+InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(const memory::dims& dims) {
     switch (dims.size()) {
         case 0: return Layout::SCALAR;
         case 1: return Layout::C;
@@ -201,7 +201,7 @@ InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(memory::dims dims) {
     }
 }
 
-bool MKLDNNMemory::isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format_tag format) {
+bool MKLDNNMemory::isConsistant(const mkldnn::memory::dims& dims, mkldnn::memory::format_tag format) {
     memory::desc attempt(dims, memory::data_type::f32, format, true);
     return static_cast<bool>(attempt);
 }
@@ -321,7 +321,7 @@ MKLDNNMemoryDesc::operator mkldnn::memory::desc() const {
     return desc;
 }
 
-MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType,
+MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType,
                                    mkldnn::memory::format_tag format): desc(dims, dataType, mkldnn::memory::format_tag::any) {
     if (format != memory::format_tag::undef) {
         if (format == memory::format_tag::x && dims.size() == 0) {
@@ -343,7 +343,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::da
     }
 }
 
-MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType) : desc() {
+MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType) : desc() {
     const auto ndims = dims.size();
     mkldnn::memory::dims plain_strides(ndims, 1);
     for (size_t i = 1; i < ndims; i++) {
