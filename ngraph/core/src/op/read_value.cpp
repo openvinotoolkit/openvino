@@ -33,14 +33,21 @@ void op::ReadValue::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v3_ReadValue_validate_and_infer_types);
     auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    auto output_pshape = get_input_partial_shape(0);
 
-    VariableInfo info = {output_shape, arg_t, m_variable_id};
+    NODE_VALIDATION_CHECK(
+        this, m_variable_id != "", "Variable identifier may not be an empty string.");
+
+    VariableInfo info = {output_pshape, arg_t, m_variable_id};
     if (m_variable == nullptr)
+    {
         m_variable = std::make_shared<Variable>(info);
+    }
     else
+    {
         m_variable->update(info);
-    set_output_type(0, arg_t, output_shape);
+    }
+    set_output_type(0, arg_t, output_pshape);
 }
 
 shared_ptr<Node> op::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const
