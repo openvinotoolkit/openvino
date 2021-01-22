@@ -83,16 +83,14 @@ public:
 
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
-    // used by Core to dump the network
-    const std::vector<IExtensionPtr> _ie_extensions;
-    std::shared_ptr<::ngraph::Function> _ngraph_function;
-
 protected:
     virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
+    std::shared_ptr<::ngraph::Function> _ngraph_function;
 
 private:
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
+    const std::vector<IExtensionPtr> _ie_extensions;
 
     /**
      * @brief Create DataPtr for nGraph operation

@@ -188,16 +188,15 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
 
 // ! [executable_network:export_impl]
 void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
+    // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
-    // for (auto extension : ngraphImpl._ie_extensions) {
-    //     auto opset = extension->getOpSets();
-    //     custom_opsets.insert(std::begin(opset), std::end(opset));
-    // }
-    ngraph::pass::Serialize serializer(ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+    std::stringstream xmlFile, binFile;
+    ngraph::pass::Serialize serializer(xmlFile, binFile,
+        ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
     serializer.run_on_function(_function);
 
-    auto m_constants = serializer.getWeights();
-    auto m_model = serializer.getModel();
+    auto m_constants = binFile.str();
+    auto m_model = xmlFile.str();
 
     auto dataSize = static_cast<std::uint64_t>(m_model.size());
     modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));

@@ -56,12 +56,18 @@ namespace BehaviorTestsDefinitions {                                            
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
+// TODO: issue with RTTI
+#ifdef __APPLE__
+using NotImplementedException = std::exception;
+#else
+using NotImplementedException = InferenceEngine::NotImplemented;
+#endif
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                                            \
 {                                                                               \
     try {                                                                       \
         __VA_ARGS__;                                                            \
-    } catch (const InferenceEngine::NotImplemented&) {                          \
+    } catch (const NotImplementedException &) {                                 \
         GTEST_SKIP();                                                           \
     }                                                                           \
 }
@@ -84,7 +90,6 @@ public:
     void SetUp() override {
         // Generic network
         {
-            std::cout << "Create actual network " << std::endl;
             std::shared_ptr<ngraph::Function> fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
             ASSERT_NO_THROW(actualNetwork = CNNNetwork(fnPtr));
         }
@@ -426,8 +431,9 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
 
-    if (deviceName == CommonTestUtils::DEVICE_CPU || deviceName == CommonTestUtils::DEVICE_FPGA) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplemented);
+    if (deviceName == CommonTestUtils::DEVICE_CPU ||
+        deviceName == CommonTestUtils::DEVICE_GPU) {
+        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplementedException);
     }
 }
 
@@ -477,7 +483,6 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
 //
 // ImportExportNetwork
 //
-
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;

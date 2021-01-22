@@ -103,7 +103,7 @@ void HeteroSyntheticTest::SetUp() {
             _registredPlugins.push_back(pluginParameter._name);
         }
         targetDevice += pluginParameter._name;
-        targetDevice += ((num != 0) ? "," : "");
+        targetDevice += (num != 0 ? "," : "");
         --num;
     }
     function = std::get<Function>(param)._function;

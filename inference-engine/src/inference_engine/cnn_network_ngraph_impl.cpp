@@ -116,7 +116,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     const std::shared_ptr<Function>& nGraph,
     const std::vector<IExtensionPtr>& exts)
-    : _ie_extensions(exts), _ngraph_function(nGraph) {
+    : _ngraph_function(nGraph), _ie_extensions(exts) {
     // Restore usual attributes for ICNNNetwork
     auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
@@ -225,6 +225,11 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
     try {
         for (const auto & layer : _ngraph_function->get_ops()) {
             if (layer->get_friendly_name() == layerName) {
+                // Check that we don't have a result for the output port
+                for (const auto& port : layer->output(outputIndex).get_target_inputs()) {
+                    if (dynamic_cast<ngraph::op::Result*>(port.get_node()))
+                        return OK;
+                }
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
                 _ngraph_function->add_results({result});
 
@@ -410,7 +415,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (auto extension : _ie_extensions) {
             auto opset = extension->getOpSets();
-            custom_opsets.insert(std::begin(opset), std::end(opset));
+            custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(

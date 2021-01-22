@@ -592,6 +592,7 @@ Core::Impl::Impl() {
     opsetNames.insert("opset3");
     opsetNames.insert("opset4");
     opsetNames.insert("opset5");
+    opsetNames.insert("opset6");
 }
 
 Core::Impl::~Impl() {}

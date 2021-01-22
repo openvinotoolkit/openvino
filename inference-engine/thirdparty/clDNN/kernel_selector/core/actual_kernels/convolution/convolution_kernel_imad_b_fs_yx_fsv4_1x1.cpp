@@ -192,10 +192,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Set
     dispatchData.cldnnStyle.blockWidth = simd;
     dispatchData.cldnnStyle.prefetch = autoTuneParam.force_prefetch ? 1 : 0;
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
 }  // SetDefault
+
+KernelsPriority ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
+}
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetTunedKernelsDataByIndex(const Params& params,
                                                                                 const optional_params& options,

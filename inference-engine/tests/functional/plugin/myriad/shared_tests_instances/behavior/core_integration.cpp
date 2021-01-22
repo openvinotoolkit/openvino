@@ -38,8 +38,7 @@ INSTANTIATE_TEST_CASE_P(
 // IEClassNetworkTestP tests, customized to add SKIP_IF_CURRENT_TEST_IS_DISABLED()
 //
 
-class IEClassNetworkTestP_VPU : public IEClassNetworkTestP {
-};
+using IEClassNetworkTestP_VPU = IEClassNetworkTestP;
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -47,9 +46,13 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    ASSERT_NO_THROW(executableNetwork.Export(strm));
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm));
-    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
+    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
+    if (!strm.str().empty()) {
+        SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
+    }
+    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
+        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
+    }
 }
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {

@@ -484,7 +484,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         bool loaded = false;
         try {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch (const InferenceEngine::NotImplemented&) {
+        } catch (const InferenceEngine::NotImplemented &) {
             // read XML content
             std::string xmlString;
             std::uint64_t dataSize = 0;
@@ -620,19 +620,14 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
                 THROW_IE_EXCEPTION << "Hetero plugin supports only ngraph function representation";
             }
 
-            // TODO: propogate custom opsets
-            // const auto & ngraphImpl = static_cast<const details::CNNNetworkNGraphImpl &>(
-            //     static_cast<const ICNNNetwork&>(subnet));
-            std::map<std::string, ngraph::OpSet> custom_opsets;
-            // for (auto extension : ngraphImpl._ie_extensions) {
-            //     auto opset = extension->getOpSets();
-            //     custom_opsets.insert(std::begin(opset), std::end(opset));
-            // }
-            ngraph::pass::Serialize serializer(ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+            // Note: custom ngraph extensions are not supported
+            std::stringstream xmlFile, binFile;
+            ngraph::pass::Serialize serializer(xmlFile, binFile,
+                ngraph::pass::Serialize::Version::IR_V10);
             serializer.run_on_function(subnet.getFunction());
 
-            auto m_constants = serializer.getWeights();
-            auto m_model = serializer.getModel();
+            auto m_constants = binFile.str();
+            auto m_model = xmlFile.str();
 
             auto dataSize = static_cast<std::uint64_t>(m_model.size());
             heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));

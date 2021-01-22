@@ -20,24 +20,22 @@ namespace InferenceEngine {
 
 class NetworkCompilationContext final {
 public:
-    explicit NetworkCompilationContext(const CNNNetwork & network,
+    explicit NetworkCompilationContext(CNNNetwork network,
         const std::map<std::string, std::string> & compileOptions = {}) :
             m_compileOptions(compileOptions),
             m_inputsInfo(network.getInputsInfo()),
             m_outputsInfo(network.getOutputsInfo()) {
         try {
-            const auto & ngraphImpl = dynamic_cast<const details::CNNNetworkNGraphImpl &>(
-                        static_cast<const ICNNNetwork&>(network));
+            // Note: custom ngraph extensions are not supported
             std::map<std::string, ngraph::OpSet> custom_opsets;
-            for (auto extension : ngraphImpl._ie_extensions) {
-                auto opset = extension->getOpSets();
-                custom_opsets.insert(std::begin(opset), std::end(opset));
-            }
-            ngraph::pass::Serialize serializer(ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
-            serializer.run_on_function(ngraphImpl._ngraph_function);
 
-            m_constants = serializer.getWeights();
-            m_model = serializer.getModel();
+            std::stringstream xmlFile, binFile;
+            ngraph::pass::Serialize serializer(xmlFile, binFile,
+                ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+            serializer.run_on_function(network.getFunction());
+
+            m_constants = xmlFile.str();
+            m_model = binFile.str();
         } catch (const std::bad_cast &) {
             // IR v7 or older is passed: cannot cast to CNNNetworkNGraphImpl
             m_cachingIsAvailable = false;
