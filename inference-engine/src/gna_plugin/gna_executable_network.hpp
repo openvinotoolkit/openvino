@@ -75,7 +75,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
     using ExecutableNetworkInternal::Export;
 
     void ExportImpl(std::ostream&) override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
