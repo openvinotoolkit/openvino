@@ -37,16 +37,13 @@ class GABackend(TelemetryBackend):
             'cid': self.uid,
             'an': self.app_name,
             'av': self.app_version,
-            'ua': 'Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14'  # identifier of the browser
+            'ua': 'Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14'  # dummy identifier of the browser
         }
 
     def send(self, message: Message):
         try:
             import requests
-            print("Sending message: {}".format(message.attrs))
-            requests.post(self.backend_url, message.attrs, timeout=0.5)
-        except ImportError:
-            pass
+            requests.post(self.backend_url, message.attrs, timeout=1.0)
         except Exception:
             pass
 

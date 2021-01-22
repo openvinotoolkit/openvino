@@ -38,8 +38,7 @@ class Telemetry(metaclass=SingletonMetaClass):
     def __init__(self, app_name: str = None, app_version: str = None, tid: [None, str] = None,
                  backend: [str, None] = 'ga'):
         if app_name is not None:
-            #self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
-            self.consent = True  # for testing purposes
+            self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
             # override default tid
             if tid is not None:
                 self.tid = tid
@@ -48,6 +47,15 @@ class Telemetry(metaclass=SingletonMetaClass):
         else:  # use already configured instance
             assert self.sender is not None, 'The first instantiation of the Telemetry should be done with the ' \
                                             'application name and version'
+
+    def force_shutdown(self, timeout: float = 1.0):
+        """
+        Stops currently running threads which may be hanging because of no Internet connection.
+
+        :param timeout: maximum timeout time
+        :return: None
+        """
+        self.sender.force_shutdown(timeout)
 
     def send_event(self, event_category: str, event_action: str, event_label: str, event_value: int = 1, **kwargs):
         """
