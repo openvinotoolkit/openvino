@@ -234,7 +234,8 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
 
     try {
         for (const auto & layer : _ngraph_function->get_ops()) {
-            if (layer->get_friendly_name() == layerName) {
+            // Result can have the same name as previous operation
+            if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ngraph::op::Result>(layer)) {
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
                     outputName += "." + std::to_string(outputIndex);
