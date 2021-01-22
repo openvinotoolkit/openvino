@@ -65,7 +65,7 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
     return str;
 }
 
-void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
+void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
     IE_SUPPRESS_DEPRECATED_START
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     bool isNodeFound = false;
@@ -170,8 +170,23 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     return cpuInfo;
 }
 
+std::shared_ptr<ngraph::Function>
+CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
+                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
+   auto newLastNode = modifyGraph(ngPrc, params, lastNode);
+
+   ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(newLastNode)};
+   return std::make_shared<ngraph::Function>(results, params, name);
+}
+
+std::shared_ptr<ngraph::Node>
+CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+    lastNode->get_rt_info() = getCPUInfo();
+    return lastNode;
+}
+
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
-    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
             if (formats[i] == nChw16c)
                 formats[i] = nChw8c;
@@ -190,4 +205,25 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificPa
     return paramsVector;
 }
 
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
+    std::vector<CPUSpecificParams> resCPUParams;
+    const int selectedTypeIndex = 3;
+
+    for (auto param : CPUParams) {
+        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
+
+        if (selectedTypeStr.find("jit") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("sse42") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("avx2") != std::string::npos && !InferenceEngine::with_cpu_x86_avx2())
+            continue;
+        if (selectedTypeStr.find("avx512") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512f())
+            continue;
+
+        resCPUParams.push_back(param);
+    }
+
+    return resCPUParams;
+}
 } // namespace CPUTestUtils

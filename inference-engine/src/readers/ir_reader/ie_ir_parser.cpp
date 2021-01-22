@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2017-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -380,8 +380,6 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
             variable_id_to_read_value.at(std::dynamic_pointer_cast<ngraph::op::Assign>(assign)->get_variable_id()));
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructCNNNetwork");
-
     return function;
 }
 
@@ -422,11 +420,11 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
 }
 
 std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
-    OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
-
     std::shared_ptr<ngraph::Function> function;
     XmlDeserializer visitor(root, weights, opsets);
     visitor.on_attribute("net", function);
+
+    OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
 
     CNNNetwork net(function, _exts);
     parsePreProcess(net, root, weights);
@@ -624,13 +622,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const GenericLayerParams& params) {
     static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
         { "GreaterEqual", std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual") },
-        { "SquaredDifference", std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference") },
         { "LessEqual", std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual") },
         { "Equal", std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal") },
         { "LSTMCell", std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell") },
         { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
-        { "RegionYolo", std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo") },
-        { "Result", std::make_shared<LayerCreator<ngraph::op::Result>>("Result") },
         { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
         { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
         { "Loop", std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop") },
@@ -680,7 +675,19 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     }
 
     // Try to create operation from loaded opsets
-    if (!ngraphNode && opsetIt != opsets.end()) {
+    auto version = params.version;
+    static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
+                                                                            "ExperimentalDetectronGenerateProposalsSingleImage",
+                                                                            "ExperimentalDetectronPriorGridGenerator",
+                                                                            "ExperimentalDetectronROIFeatureExtractor",
+                                                                            "ExperimentalDetectronTopKROIs"};
+
+    if (experimental_detectrons.count(params.type)) {
+        version = "opset6";
+    }
+
+    if (!ngraphNode && opsets.count(version)) {
+        auto opset = opsets.at(version);
         auto const & type = params.type == "Const"
                                 ? "Constant"
                                 : params.type;
@@ -693,10 +700,9 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
                         << " from unsupported opset: " << params.version;
                 }
+                opset = opsetIt->second;
             }
         }
-
-        auto const & opset = opsetIt->second;
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         if (!ngraphNode) {
@@ -704,8 +710,18 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets);
-        if (ngraphNode->visit_attributes(visitor))
+        if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
+        }
+
+        // To be sure that all default values will be initialized:
+        ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
+
+        // Constructor of Loop and TensorIterator do not call validate_and_infer_types function
+        // -> ticket 36145
+        if (const auto& subGraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphNode)) {
+            subGraph->validate_and_infer_types();
+        }
     }
 
     // Create GenericIE operation for backward compatibility
@@ -901,7 +917,6 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
         output_map[ext_port_id] = _output;
     }
 
-    int i = 0;
     for (const auto& output : output_map) {
         auto& _output = output.second;
         auto axis_attr = _output.attribute("axis");
@@ -992,15 +1007,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>:
                                                   activations, activations_alpha, activations_beta, clip);
 }
 
-// SquaredDifference layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::SquaredDifference>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::SquaredDifference>(inputs[0], inputs[1]);
-}
-
 // GreaterEqual layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GreaterEqual>::createLayer(
@@ -1049,39 +1055,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::DepthToSpace>:
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
     return std::make_shared<ngraph::op::DepthToSpace>(inputs[0], GetStrAttr(dn, "mode"), GetIntAttr(dn, "block_size", 1));
-}
-
-// Result layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Result>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    return std::make_shared<ngraph::op::Result>(inputs[0]);
-}
-
-// RegionYolo layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::RegionYolo>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto axis = GetIntAttr(dn, "axis");
-    auto classes = GetUIntAttr(dn, "classes");
-    auto coords = GetUIntAttr(dn, "coords");
-    auto do_softmax = GetIntAttr(dn, "do_softmax");
-    auto end_axis = GetIntAttr(dn, "end_axis");
-    auto num = GetUIntAttr(dn, "num");
-    auto mask = getParameters<int64_t>(dn, "mask", {});
-    auto anchors = getParameters<float>(dn, "anchors", {});
-
-    return std::make_shared<ngraph::op::RegionYolo>(inputs[0], coords, classes, num, do_softmax,
-                                                    mask, axis, end_axis, anchors);
 }
 
 // ReorgYolo layer

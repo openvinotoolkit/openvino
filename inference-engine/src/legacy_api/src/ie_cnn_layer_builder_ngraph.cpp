@@ -109,19 +109,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GenericIE>::createLayer(const std::share
 }
 
 CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
-    auto find_input_idx = [](const CNNLayerPtr& where, const DataPtr& what) {
-        auto it = std::find_if(where->insData.begin(), where->insData.end(), [&](const DataWeakPtr& wk_ptr) {
-            auto layer_data = wk_ptr.lock();
-            IE_ASSERT(layer_data != nullptr);
-            return what->getName() == layer_data->getName();
-        });
-        if (it == where->insData.end()) {
-            THROW_IE_EXCEPTION << "Input layer not found.";
-        }
-
-        return it - where->insData.begin();
-    };
-
     auto tensor_iterator = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
     if (!tensor_iterator) {
         THROW_IE_EXCEPTION << "Cannot cast layer to TensorIterator.";
@@ -194,8 +181,8 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         if (is_constant_holder(holder)) {
             auto& holder_map = getInputTo(holder);
             // remove_if
-            for( auto it = holder_map.begin(); it != holder_map.end(); ) {
-                if( it->second->type == "Input")
+            for (auto it = holder_map.begin(); it != holder_map.end(); ) {
+                if (it->second->type == "Input")
                     it = holder_map.erase(it);
                 else
                     ++it;
@@ -239,7 +226,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         //       to FP32. However Loop body has strong requirements for continue_condition
         //       port, it should be BOOL(U8).
         //
-        for (int i = 0; i < results.size(); i++) {
+        for (size_t i = 0; i < results.size(); i++) {
             auto result = results[i];
             auto output = body.outputs[i];
             if (result->get_element_type() == ngraph::element::u8) {
@@ -584,15 +571,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ScaleShiftIE>::createLayer(const std::sh
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::SquaredDifference>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Eltwise",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
-    res->params["operation"] = "squared_diff";
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "ShuffleChannels", details::convertPrecision(layer->get_output_element_type(0))};
 
@@ -851,39 +829,6 @@ CNNLayer::Ptr NodeConverter<ExecGraphInfoSerialization::ExecutionNode>::createLa
         if (castedVariant)
             res->params[kvp.first] = getStringValue(castedVariant);
     }
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::RegionYolo>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "RegionYolo",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::RegionYolo>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["mask"] = value;
-
-    value = "";
-    for (const auto& val : castedLayer->get_anchors()) {
-        if (!value.empty())
-            value += ",";
-        value += asString(val);
-    }
-    res->params["anchors"] = value;
-
-    res->params["coords"] = asString(castedLayer->get_num_coords());
-    res->params["classes"] = asString(castedLayer->get_num_classes());
-    res->params["num"] = asString(castedLayer->get_num_regions());
-    res->params["do_softmax"] = castedLayer->get_do_softmax() ? "1" : "0";
-    res->params["axis"] = asString(castedLayer->get_axis());
-    res->params["end_axis"] = asString(castedLayer->get_end_axis());
 
     return res;
 }

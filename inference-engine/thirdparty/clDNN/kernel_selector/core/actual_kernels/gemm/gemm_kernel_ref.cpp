@@ -64,7 +64,11 @@ JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
 }
 
 KernelsData GemmKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 bool GemmKernelRef::Validate(const Params& params, const optional_params& options) const {

@@ -32,6 +32,7 @@ public:
     GemmKernelTiledOpt() : GemmKernelBase("gemm_tiled_opt") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

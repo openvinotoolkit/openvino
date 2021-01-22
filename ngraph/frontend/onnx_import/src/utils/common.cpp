@@ -15,9 +15,9 @@
 //*****************************************************************************
 #include <onnx/onnx_pb.h> // onnx types
 
+#include "default_opset.hpp"
 #include "ngraph/graph_util.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
