@@ -623,7 +623,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
         { "SquaredDifference", std::make_shared<LayerCreator<ngraph::op::SquaredDifference>>("SquaredDifference") },
         { "LessEqual", std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual") },
-        { "LSTMCell", std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell") },
         { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
         { "RegionYolo", std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo") },
         { "Result", std::make_shared<LayerCreator<ngraph::op::Result>>("Result") },
@@ -987,25 +986,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::opset5::Loop>::cre
         const GenericLayerParams& layerParsePrms) {
     auto loop = std::make_shared<ngraph::opset5::Loop>(inputs[0], inputs[1]);
     return fillSubGraphLayer(inputs, node, weights, layerParsePrms, loop);
-}
-
-// LSTMCell layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 6);
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    std::vector<std::string> activations = getParameters<std::string>(dn, "activations", {"sigmoid", "tanh", "tanh"});
-    std::vector<float> activations_alpha = getParameters<float>(dn, "activations_alpha", {});
-    std::vector<float> activations_beta = getParameters<float>(dn, "activations_beta", {});
-    float clip = GetFloatAttr(dn, "clip", 0.f);
-    return std::make_shared<ngraph::op::v0::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
-                                                  GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
-                                                  activations, activations_alpha, activations_beta, clip);
 }
 
 // SquaredDifference layer
