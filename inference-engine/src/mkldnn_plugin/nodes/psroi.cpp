@@ -356,7 +356,6 @@ public:
         // TODO
         const int blockSize = inputs[0]->getTensorDesc().getLayout() == Layout::BLOCKED ?
                               inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4] : 1;
-        const int blockOffset = width * blockSize;
 
         int realRois = 0;
         for (; realRois < nn; realRois++) {
