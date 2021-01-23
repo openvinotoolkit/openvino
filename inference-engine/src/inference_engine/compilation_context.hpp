@@ -103,6 +103,7 @@ struct NetworkCompilationContext final {
 
         // compute hash on weights if any
         if (m_weights) {
+            std::cout << "Compute hash on weights" << std::endl;
             auto data = reinterpret_cast<const std::uint8_t *>(m_weights->get_data_ptr());
 
             for (size_t i = 0; i < ngraph::shape_size(m_weights->get_shape()); ++i) {

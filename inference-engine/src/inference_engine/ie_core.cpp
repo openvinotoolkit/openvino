@@ -270,17 +270,46 @@ public:
         auto compileConfig = config;
         compileConfig["DEVICE_NAME"] = deviceName;
 
-        NetworkCompilationContext context(network, compileConfig);
-        bool cachingIsAvailable = context.isCachingAvailable();
-        bool networkIsImported = false;
-        std::string networkHash = cachingIsAvailable ? context.computeHash() : std::string{};
+        bool deviceSupportsImport = [&] (ICore * core) -> bool {
+            std::stringstream dummyStream;
+            bool supports = true;
+            try {
+                core->ImportNetwork(dummyStream, deviceName, config);
+            } catch (const NetworkNotRead &) {
+                supports = true;
+            } catch (const NotImplemented &) {
+                supports = false;
+#ifdef __APPLE__
+            } catch (const std::exception & ex) {
+                std::string message = ex.what();
+                supports = message.find("NOT IMPLEMENTED") == std::string::npos;
+#endif
+            }
+
+            if (!supports) {
+                std::cout << deviceName << " does not support import" << std::endl;
+            }
+
+            return supports;
+        } (this);
+
+        bool cachingIsAvailable = false, networkIsImported = false;
+        std::string networkHash;
+
+        if (deviceSupportsImport) {
+            NetworkCompilationContext context(network, compileConfig);
+            cachingIsAvailable = context.isCachingAvailable();
+
+            if (cachingIsAvailable)
+                networkHash = context.computeHash();
+        }
 
         std::cout << (cachingIsAvailable ?
             std::string("caching is available") :
             std::string("caching is not available")) << " for " << deviceName << std::endl;
 
-        auto removeCacheEntry = [] (const std::string & blobFileName_) {
-            std::cout << "Removed cache entry " << blobFileName_ << std::endl;
+        auto removeCacheEntry = [&] (const std::string & blobFileName_) {
+            std::cout << "Removed cache entry " << blobFileName_ << " " << deviceName << std::endl;
             std::remove(blobFileName_.c_str());
         };
 
@@ -311,29 +340,26 @@ public:
         std::string blobFileName = FileUtils::makePath(getIELibraryPath(), networkHash + ".ovblob");
 
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
-            // TODO: maybe we need to pass all config values?
-            // check with GNA, VPU, KMB teams
-            // Looks like we should not ...
             auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
             try {
                 std::cout << "try to import from core to " << deviceName << "\n\n" << std::endl;
                 std::ifstream networkStream(blobFileName);
-                execNetwork = GetCPPPluginByName(importConfig._deviceName).ImportNetwork(networkStream, importConfig._config);
+                execNetwork = ImportNetwork(networkStream, importConfig._deviceName, importConfig._config);
                 networkIsImported = true;
-                std::cout << "Network is imported" << std::endl;
+                std::cout << "Network is imported to " << deviceName << std::endl;
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
-                std::cout << "Import is not implemented: skip import and export" << std::endl;
+                std::cout << "Import is not implemented " << importConfig._deviceName << std::endl;
             } catch (const NetworkNotRead &) {
                 // 2. Device supports this flow, but failed to import network for some reason
                 //    (e.g. device arch is not compatible with device arch network compiled for
                 //     e.g. compiled for MYX, but current device is M2 stick)
-                std::cout << "NetworkNotRead: try to export one more time" << std::endl;
+                std::cout << "NetworkNotRead: try to export one more time (remove blob!!) " << importConfig._deviceName << std::endl;
                 removeCacheEntry(blobFileName);
             } catch (const std::exception & ex) {
                 // Apple RTTI
                 std::cout << "Apple RTTI: " << ex.what() << std::endl;
-                std::cout << "Import is not implemented: skip import and export" << std::endl;
+                std::cout << "Import is not implemented " << importConfig._deviceName << std::endl;
             }
         }
 
@@ -345,11 +371,12 @@ public:
                 try {
                     // need to export network for further import from "cache"
                     execNetwork.Export(blobFileName);
-                    std::cout << "Network is exported for " << parsed._deviceName << std::endl;
+                    std::cout << "Network is exported for " << parsed._deviceName
+                        << " as " << networkHash << std::endl;
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
                     removeCacheEntry(blobFileName);
-                    std::cout << "Export is not implemented: skip import and export" << std::endl;
+                    std::cout << "Export is not implemented " << parsed._deviceName << std::endl;
                 } catch (const std::exception & ex) {
                     // network cannot be exported due to plugin bugs
                     // or APPLE RTTI
