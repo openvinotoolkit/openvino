@@ -62,7 +62,7 @@ public:
                     {ConfLayout::BLK8, ConfLayout::BLK8}
             };
 
-            if (mode != "bilinear_deformable" && noTrans) {
+            if (mode != "bilinear_deformable") {
                 for (auto conf : plainConfs) {
                     LayerConfig config;
                     DataConfig inConfig0, inConfig1, inConfig2;
@@ -81,6 +81,9 @@ public:
                                       DataConfigurator(ConfLayout::PLN, Precision::FP32)},
                               {DataConfigurator(conf.second, supportedPrecision)});
                 }
+            } else if (noTrans) {
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                          {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
             } else {
                 addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
                                   DataConfigurator(ConfLayout::PLN, Precision::FP32),
