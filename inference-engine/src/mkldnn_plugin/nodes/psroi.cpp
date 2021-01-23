@@ -337,28 +337,6 @@ public:
 
         auto srcDesc = inputs[0]->getTensorDesc();
         auto dstDesc = outputs[0]->getTensorDesc();
-        const auto inFmt = srcDesc.getLayout();
-        const auto outFmt = dstDesc.getLayout();
-        const int inBlockSize = (inFmt == Layout::BLOCKED ? srcDesc.getBlockingDesc().getBlockDims()[4] : 1);
-        const int outBlockSize = (outFmt == Layout::BLOCKED ? dstDesc.getBlockingDesc().getBlockDims()[4] : 1);
-        auto inputChannelsPadding = srcDesc.getBlockingDesc().getBlockDims()[1] * inBlockSize;
-        auto outputChannelsPadding = dstDesc.getBlockingDesc().getBlockDims()[1] * outBlockSize;
-        const int outBlockCount = outputChannelsPadding / outBlockSize;
-
-        int hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
-        const auto& outOrder = dstDesc.getBlockingDesc().getOrder();
-        const auto& inOrder = srcDesc.getBlockingDesc().getOrder();
-        for (int i = 0; i < outOrder.size(); i++) {
-            if (outOrder[i] == 2) hOutStrIndex = i;
-            if (outOrder[i] == 3) wOutStrIndex = i;
-        }
-        for (int i = 0; i < inOrder.size(); i++) {
-            if (inOrder[i] == 2) hInStrIndex = i;
-            if (inOrder[i] == 3) wInStrIndex = i;
-        }
-        const int hOutputStride = dstDesc.getBlockingDesc().getStrides()[hOutStrIndex];
-        const int wOutputStride = dstDesc.getBlockingDesc().getStrides()[wOutStrIndex];
-        const int binCount = nh * nw;
 
         int realRois = 0;
         for (; realRois < nn; realRois++) {
