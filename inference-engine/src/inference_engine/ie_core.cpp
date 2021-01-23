@@ -222,9 +222,10 @@ class Core::Impl : public ICore {
             std::string("caching is available") :
             std::string("caching is not available")) << " for " << deviceName << std::endl;
 
-        auto removeCacheEntry = [&] (const std::string & blobFileName_) {
-            std::cout << "Removed cache entry " << blobFileName_ << " " << deviceName << std::endl;
-            std::remove(blobFileName_.c_str());
+        auto removeCacheEntry = [&deviceName] (const std::string & blobFileName) {
+            std::cout << "Removed cache entry " << blobFileName << " " << deviceName << std::endl;
+            if (FileUtils::fileExist(blobFileName))
+                std::remove(blobFileName.c_str());
         };
 
         auto getImportConfig = [] (const std::map<std::string, std::string> & loadConfig) {
@@ -265,7 +266,8 @@ class Core::Impl : public ICore {
                 std::cout << "Network is imported to " << deviceName << std::endl;
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
-                std::cout << "Import is not implemented " << importConfig._deviceName << std::endl;
+                std::cout << "Import is not implemented O_o " << importConfig._deviceName << std::endl;
+                removeCacheEntry(blobFileName);
             } catch (const NetworkNotRead &) {
                 // 2. Device supports this flow, but failed to import network for some reason
                 //    (e.g. device arch is not compatible with device arch network compiled for
@@ -276,6 +278,7 @@ class Core::Impl : public ICore {
                 // Apple RTTI
                 std::cout << "Apple RTTI: " << ex.what() << std::endl;
                 std::cout << "Import is not implemented " << importConfig._deviceName << std::endl;
+                removeCacheEntry(blobFileName);
             }
         }
 
@@ -296,13 +299,11 @@ class Core::Impl : public ICore {
                         << " as " << networkHash << std::endl;
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
-                    if (FileUtils::fileExist(blobFileName))
-                        removeCacheEntry(blobFileName);
+                    removeCacheEntry(blobFileName);
 
                     std::cout << "Export is not implemented " << parsed._deviceName << std::endl;
                 } catch (const std::exception & ex) {
-                    if (FileUtils::fileExist(blobFileName))
-                        removeCacheEntry(blobFileName);
+                    removeCacheEntry(blobFileName);
 
                     // network cannot be exported due to plugin bugs
                     // or APPLE RTTI
