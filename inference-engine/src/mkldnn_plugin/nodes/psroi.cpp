@@ -62,7 +62,7 @@ public:
                     {ConfLayout::BLK8, ConfLayout::BLK8}
             };
 
-            if (noTrans) {
+            if (mode != "bilinear_deformable") {
                 for (auto conf : plainConfs) {
                     LayerConfig config;
                     DataConfig inConfig0, inConfig1, inConfig2;
@@ -81,6 +81,9 @@ public:
                                       DataConfigurator(ConfLayout::PLN, Precision::FP32)},
                               {DataConfigurator(conf.second, supportedPrecision)});
                 }
+            } else if (noTrans) {
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision), DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                            {DataConfigurator(ConfLayout::PLN, supportedPrecision)});
             } else {
                 addConfig(layer, {DataConfigurator(ConfLayout::PLN, supportedPrecision),
                                   DataConfigurator(ConfLayout::PLN, Precision::FP32),
@@ -156,24 +159,24 @@ public:
         const float roiWidth  = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
         const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
 
-        auto avgPsroi = [&] (int c_, int h_, int w_, int binOffIn_, int binOffOut_, int inBlkRes_, int outBlkRes_) {
+        auto avgPsroi = [&] (int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
             float binSizeH = roiHeight / static_cast<float>(pooledHeight);
             float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
-            int hStart = static_cast<int>(floor(static_cast<float>(h_ + 0) * binSizeH + roiStartH));
-            int hEnd = static_cast<int>(ceil(static_cast<float>(h_ + 1) * binSizeH + roiStartH));
+            int hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
+            int hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
 
             hStart = std::min<int>(std::max<int>(hStart, 0), height);
             hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
-            int wStart = static_cast<int>(floor(static_cast<float>(w_ + 0) * binSizeW + roiStartW));
-            int wEnd = static_cast<int>(ceil(static_cast<float>(w_ + 1) * binSizeW + roiStartW));
+            int wStart = static_cast<int>(floor(static_cast<float>(w + 0) * binSizeW + roiStartW));
+            int wEnd = static_cast<int>(ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
 
             wStart = std::min<int>(std::max<int>(wStart, 0), width);
             wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
 
             const float binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
 
-            size_t dstIndex = binOffOut_ + h_ * hOutputStride + w_ * wOutputStride + outBlkRes_;
+            size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
             dstData[dstIndex] = 0;
             if (binArea) {
                 float outSum = 0.0f;
@@ -181,7 +184,7 @@ public:
                 const int widthIndexBound = wEnd * wInputStride;
                 for (int hh = hStart * hInputStride; hh < heightIndexBound; hh += hInputStride) {
                     for (int ww = wStart * wInputStride; ww < widthIndexBound; ww += wInputStride) {
-                        outSum += srcData[binOffIn_ + hh + ww + inBlkRes_];
+                        outSum += srcData[binOffIn + hh + ww + inBlkRes];
                     }
                 }
                 dstData[dstIndex] = outSum / binArea;
