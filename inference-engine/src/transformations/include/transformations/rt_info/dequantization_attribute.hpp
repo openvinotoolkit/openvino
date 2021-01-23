@@ -17,7 +17,6 @@
 #include <ngraph/variant.hpp>
 #include <transformations_visibility.hpp>
 
-
 namespace ngraph {
 
 /**
