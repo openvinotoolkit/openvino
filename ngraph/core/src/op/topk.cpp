@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -422,10 +422,8 @@ shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_arg
 {
     NGRAPH_OP_SCOPE(v1_TopK_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto new_v1_topk =
-        make_shared<v1::TopK>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort);
-
-    new_v1_topk->set_index_element_type(m_index_element_type);
+    auto new_v1_topk = make_shared<v1::TopK>(
+        new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort, m_index_element_type);
 
     return std::move(new_v1_topk);
 }
@@ -567,10 +565,8 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 {
     NGRAPH_OP_SCOPE(v3_TopK_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto new_v3_topk =
-        make_shared<v3::TopK>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort);
-
-    new_v3_topk->set_index_element_type(m_index_element_type);
+    auto new_v3_topk = make_shared<v3::TopK>(
+        new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort, m_index_element_type);
 
     return std::move(new_v3_topk);
 }

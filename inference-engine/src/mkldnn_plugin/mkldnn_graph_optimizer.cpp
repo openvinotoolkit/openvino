@@ -1522,7 +1522,6 @@ void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph)
         }
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
         if (!isSutableChildNode(parentNode, childNode)) {
             parent++;
             continue;

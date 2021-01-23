@@ -15,8 +15,10 @@ list(APPEND CLDNN_LIBS
         ${CLDNN__IOCL_ICD_LIBPATH})
 
 # try to find VA libraries
-include(FindPkgConfig)
-pkg_search_module(LIBVA QUIET libva)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_search_module(LIBVA QUIET libva)
+endif()
 
 # TODO: pkg_search_module finds libva not in sysroot
 if(ANDROID)

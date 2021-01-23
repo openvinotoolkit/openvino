@@ -8,8 +8,8 @@
 #include <threading/ie_itask_executor.hpp>
 #include <threading/ie_istreams_executor.hpp>
 
+#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp>
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_internal.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_system_conf.h>
 
@@ -40,7 +40,7 @@ namespace InferenceEngine {
  *
  * @snippet example_async_infer_request.cpp async_infer_request:define_pipeline
  */
-class AsyncInferRequestThreadSafeDefault : public AsyncInferRequestThreadSafeInternal {
+class AsyncInferRequestThreadSafeDefault : public IAsyncInferRequestInternal {
     using AtomicCallback = std::atomic<IInferRequest::CompletionCallback>;
     using Futures = std::vector<std::shared_future<void>>;
     using Promise = std::shared_ptr<std::promise<void>>;
@@ -143,6 +143,72 @@ public:
         }
     }
 
+    void StartAsync() override {
+        if (setIsRequestBusy(true)) ThrowBusy();
+        try {
+            StartAsync_ThreadUnsafe();
+        } catch (...) {
+            setIsRequestBusy(false);
+            throw;
+        }
+    }
+
+    void Infer() override {
+        if (setIsRequestBusy(true)) ThrowBusy();
+        try {
+            Infer_ThreadUnsafe();
+        } catch (...) {
+            setIsRequestBusy(false);
+            throw;
+        }
+        setIsRequestBusy(false);
+    }
+
+    void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap) const override {
+        CheckBusy();
+        _syncRequest->GetPerformanceCounts(perfMap);
+    }
+
+    void SetBlob(const char* name, const Blob::Ptr& data) override {
+        CheckBusy();
+        _syncRequest->SetBlob(name, data);
+    }
+
+    void SetBlob(const char* name, const Blob::Ptr& data, const PreProcessInfo& info) override {
+        CheckBusy();
+        _syncRequest->SetBlob(name, data, info);
+    }
+
+    void GetBlob(const char* name, Blob::Ptr& data) override {
+        CheckBusy();
+        _syncRequest->GetBlob(name, data);
+    }
+
+    void GetPreProcess(const char* name, const PreProcessInfo** info) const override {
+        _syncRequest->GetPreProcess(name, info);
+    }
+
+    void SetBatch(int batch) override {
+        CheckBusy();
+        _syncRequest->SetBatch(batch);
+    };
+
+    void GetUserData(void** data) override {
+        CheckBusy();
+        if (data == nullptr) THROW_IE_EXCEPTION << NOT_ALLOCATED_str;
+        *data = _userData;
+    }
+
+    void SetUserData(void* data) override {
+        CheckBusy();
+        _userData = data;
+    }
+
+    void SetCompletionCallback(IInferRequest::CompletionCallback callback) override {
+        CheckBusy();
+        _callback = callback;
+    }
+
     /**
      * @brief Sets the pointer to public interface.
      * @note Needed to correctly handle ownership between objects
@@ -173,6 +239,37 @@ protected:
      * @brief Pipeline is vector of stages
      */
     using Pipeline = std::vector<Stage>;
+
+    /**
+     * @brief      Determines if request busy.
+     * @return     `True` if request busy, `false` otherwise.
+     */
+    bool isRequestBusy() const {
+        return _isRequestBusy;
+    }
+
+    /**
+     * @brief      Sets the is request busy.
+     * @param[in]  isBusy  Indicates if busy
+     * @return     `True` is case of success, `false` otherwise.
+     */
+    bool setIsRequestBusy(bool isBusy) {
+        return _isRequestBusy.exchange(isBusy);
+    }
+
+    /**
+     * @brief Throws an exception that an inference request is busy.
+     */
+    [[noreturn]] static void ThrowBusy() {
+        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::REQUEST_BUSY << REQUEST_BUSY_str;
+    }
+
+    /**
+     * @brief Checks whether an inference request is busy and calls ThrowBusy if `true`
+     */
+    void CheckBusy() const {
+        if (isRequestBusy()) ThrowBusy();
+    }
 
     /**
      * @brief Creates and run the first stage task. If destructor was not called add a new std::future to the
@@ -262,50 +359,21 @@ protected:
     Pipeline _pipeline;  //!< Pipeline variable that should be filled by inherited class.
     Pipeline _syncPipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
 
-    void StartAsync_ThreadUnsafe() override {
+    /**
+     * @brief Starts an asynchronous pipeline thread unsafe.
+     * @note Used by StartAsync which ensures thread-safety and calls this method after.
+     */
+    virtual void StartAsync_ThreadUnsafe() {
         _syncRequest->checkBlobs();
         RunFirstStage(_pipeline.begin(), _pipeline.end(), _callbackExecutor);
     }
 
-    void Infer_ThreadUnsafe() override {
+    /**
+     * @brief Performs inference of pipeline in syncronous mode
+     * @note Used by Infer which ensures thread-safety and calls this method after.
+     */
+    virtual void Infer_ThreadUnsafe() {
         InferUsingSync();
-    }
-
-    void GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo>& perfMap) const override {
-        _syncRequest->GetPerformanceCounts(perfMap);
-    }
-
-    void SetBlob_ThreadUnsafe(const char* name, const Blob::Ptr& data) override {
-        _syncRequest->SetBlob(name, data);
-    }
-
-    void SetBlob_ThreadUnsafe(const char* name, const Blob::Ptr& data, const PreProcessInfo& info) override {
-        _syncRequest->SetBlob(name, data, info);
-    }
-
-    void GetBlob_ThreadUnsafe(const char* name, Blob::Ptr& data) override {
-        _syncRequest->GetBlob(name, data);
-    }
-
-    void GetPreProcess_ThreadUnsafe(const char* name, const PreProcessInfo** info) const override {
-        _syncRequest->GetPreProcess(name, info);
-    }
-
-    void SetCompletionCallback_ThreadUnsafe(IInferRequest::CompletionCallback callback) override {
-        _callback = callback;
-    }
-
-    void GetUserData_ThreadUnsafe(void** data) override {
-        if (data == nullptr) THROW_IE_EXCEPTION << NOT_ALLOCATED_str;
-        *data = _userData;
-    }
-
-    void SetUserData_ThreadUnsafe(void* data) override {
-        _userData = data;
-    }
-
-    void SetBatch_ThreadUnsafe(int batch) override {
-        _syncRequest->SetBatch(batch);
     }
 
 private:
@@ -378,6 +446,7 @@ private:
         }, std::move(callbackExecutor));
     }
 
+    std::atomic_bool _isRequestBusy = {false};
     void* _userData = nullptr;
     AtomicCallback _callback = {nullptr};
     IInferRequest::Ptr _publicInterface;

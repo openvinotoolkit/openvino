@@ -3,13 +3,17 @@
 #
 
 # [cmake:main]
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13)
 
 project(InferenceEngineTemplatePlugin)
 
 set(IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR ${InferenceEngineTemplatePlugin_SOURCE_DIR})
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wall)
+endif()
 
 add_subdirectory(src)
 

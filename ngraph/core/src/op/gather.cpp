@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,7 +81,6 @@ void op::v1::Gather::validate_and_infer_types()
     }
 
     element::Type result_et = get_input_element_type(PARAMS);
-    element::Type indices_et = get_input_element_type(INDICES);
 
     const PartialShape& params_shape = get_input_partial_shape(PARAMS);
     const PartialShape& indices_shape = get_input_partial_shape(INDICES);

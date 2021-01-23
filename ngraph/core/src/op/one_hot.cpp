@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -143,7 +143,6 @@ namespace detail
                   const int64_t axis)
     {
         const auto& indices = input_values[0];
-        const auto& depth = input_values[1];
         const auto& on_value = input_values[2];
         const auto& off_value = input_values[3];
 

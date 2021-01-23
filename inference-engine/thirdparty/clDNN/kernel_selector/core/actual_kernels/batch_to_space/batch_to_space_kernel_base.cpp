@@ -82,7 +82,7 @@ JitConstants BatchToSpaceKernelBase::GetJitConstants(const batch_to_space_params
     return jit;
 }
 
-KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options, float estimatedTime) const {
+KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
     KernelData kd = KernelData::Default<batch_to_space_params>(params);
     batch_to_space_params& newParams = *static_cast<batch_to_space_params*>(kd.params.get());
 
@@ -99,8 +99,6 @@ KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, 1, GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimatedTime;
 
     return { kd };
 }

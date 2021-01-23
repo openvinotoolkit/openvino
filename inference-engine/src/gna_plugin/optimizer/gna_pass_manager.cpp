@@ -63,8 +63,6 @@ static const char softSignLayersCounter[] = "numSoftSignLayers";
  * @brief helper injections of diagonal layer with certain value
  */
 
-static const char diagonalLayerCounterName[] = "diagonalLayerCounter";
-
 static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
                                        InferenceEngine::CNNLayerPtr nextLayer,
                                        std::shared_ptr<IPassManager> passmanager,
@@ -550,13 +548,6 @@ void ReversePermutationsPass::run() {
         return prev;
     };
 
-    auto prevLayerSkipReshape = [&prevLayerSkipCertain](CNNLayerPtr layer) -> CNNLayerPtr {
-        return prevLayerSkipCertain(layer, [] (CNNLayerPtr l2) {
-            return LayerInfo(l2).isNonFunctional();
-        });
-    };
-
-
     std::function<CNNLayerPtr(CNNLayerPtr)> nextLayerSkipReshape = [&nextLayerSkipReshape](CNNLayerPtr layer) -> CNNLayerPtr {
         if (layer->outData.empty()) {
             return nullptr;
@@ -638,7 +629,6 @@ void ReversePermutationsPass::run() {
 
 void RemovePermutationsNHWCToNCHWPass::run() {
     std::list<CNNLayerPtr> permutationsToRemove;
-
     for (auto& l : *pLayers) {
         if (!LayerInfo(l).isConvolution()) {
             continue;
@@ -654,12 +644,31 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         auto next = getInputTo(l->outData.front()).begin()->second;
         auto prev = CNNNetPrevLayer(l);
 
-        if (!LayerInfo(next).isPermute() || !LayerInfo(prev).isPermute()) {
+        // The next layer must be NCHW to NHWC permute
+        if (!LayerInfo(next).isPermute() || next->input()->getLayout() != Layout::NCHW ||
+            next->GetParamAsInts("order") != GetPermuteOrder(Layout::NCHW, Layout::NHWC)) {
             continue;
         }
 
-        if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
-            permutationsToRemove.push_back(prev);
+        // The previous layer must be NHWC to NCHW permute or have 1D data
+        if (LayerInfo(prev).isPermute()) {
+            if (prev->outData[0]->getLayout() != Layout::NCHW ||
+                prev->GetParamAsInts("order") != GetPermuteOrder(Layout::NHWC, Layout::NCHW)) {
+                continue;
+            }
+
+            if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+                permutationsToRemove.push_back(prev);
+            }
+        } else  {
+            if (prev->outData.size() != 1 || getInputTo(prev->outData[0]).size() != 1) {
+                continue;
+            }
+            auto prev_dims = prev->outData[0]->getDims();
+            // Check if the previous layer has all dimensions except one to be equal to 1
+            if (std::count_if(std::begin(prev_dims), std::end(prev_dims), [](size_t dim) { return dim != 1; }) > 1) {
+                continue;
+            }
         }
         permutationsToRemove.push_back(next);
     }
@@ -675,7 +684,6 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                 next->input()->setDims(toRemove->input()->getDims());
                 next->input()->setLayout(Layout::NHWC);
                 auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-
                 DataPtr output = nullptr;
                 for (auto before_output : layerBeforePermute->outData) {
                     if (areEqualDatas(toRemove->input(), before_output)) {
@@ -1428,7 +1436,6 @@ void SubstituteScaleShiftBroadCastPass::run() {
         auto batchSize = dataDims[0];
         auto nElements = product(begin(dataDims), end(dataDims)) / batchSize;
         auto weightsElements = scaleShift->_weights->size();
-        auto weightsBytes = scaleShift->_weights->byteSize();
 
         if (!reshape_batch && nElements == weightsElements) {
             continue;
@@ -1924,7 +1931,6 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         float fqLevels = fqLayer.getLevels();
-        float scaleInput = (fqLevels - 1) / (inputRange.second[0] - inputRange.first[0]);
         float scaleOutputs = (fqLevels - 1) / (outputRange.second[0] - outputRange.first[0]);
 
         // Before FQ layer is removed, the previous layer has to be updated with its quantization data

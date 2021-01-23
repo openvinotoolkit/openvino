@@ -194,7 +194,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
                                             <<  "that the MULTI device is initialized to work with";
 
     // checking the perf counters config from the loaded network to respect both device's plugin and load-specific setting
-    int num_plugins_supporting_perf_counters = 0;
+    size_t num_plugins_supporting_perf_counters = 0;
     for (auto n : executableNetworkPerDevice) {
             try {
                 num_plugins_supporting_perf_counters +=

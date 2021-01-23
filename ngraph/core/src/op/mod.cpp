@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,12 @@ using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::v1::Mod::type_info;
+
+op::v1::Mod::Mod()
+    : FusedOp()
+    , m_auto_broadcast()
+{
+}
 
 op::v1::Mod::Mod(const Output<Node>& A,
                  const Output<Node>& B,

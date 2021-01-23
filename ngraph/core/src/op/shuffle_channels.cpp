@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -166,7 +166,6 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
     {
         reshaped_out_shape[3] *= ds[i];
     }
-    size_t data_size = shape_size(data_shape) * elem_size;
 
     // first reshape from data_shape to reshaped_out_shape is skipped since it doesn't affect
     // out

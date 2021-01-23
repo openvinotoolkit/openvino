@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from collections import namedtuple
 import networkx as nx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.utils import class_registration
@@ -445,7 +446,7 @@ class PermuteAttrs:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
-        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+        return PermuteAttrs.Permutation(perm=int64_array(perm), inv=int64_array(inv))
 
     @staticmethod
     def get_nchw_to_nhwc_permutation(dims_number: int):
@@ -456,4 +457,4 @@ class PermuteAttrs:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
-        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+        return PermuteAttrs.Permutation(perm=int64_array(perm), inv=int64_array(inv))

@@ -3,6 +3,7 @@
 //
 
 #include "cldnn_program.h"
+#include "cldnn_common_utils.h"
 
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/op/constant.hpp"
@@ -10,23 +11,6 @@
 #include "api/permute.hpp"
 
 namespace CLDNNPlugin {
-
-template<class Type>
-std::vector<Type> GetPermuteOrder(const std::vector<Type>& ie_order, Type value_to_align = 0) {
-    static_assert(std::is_integral<Type>::value, "Integeral required.");
-    std::vector<Type> cldnn_order = ie_order;
-
-    // 1. Align to min. 4 sizes
-    if (cldnn_order.size() < 4)
-        cldnn_order.push_back(value_to_align);
-
-    // 2. Swap spatial positions
-    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
-        std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
-    }
-
-    return cldnn_order;
-}
 
 void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpose>& op) {
     p.ValidateInputs(op, {1, 2});
@@ -49,23 +33,7 @@ void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::Transpo
             ie_order.push_back((uint16_t)o);
     }
 
-    // if order size is less than 4 - fill the rest with just copy
-    for (auto o = ie_order.size(); o < rank; o++)
-        ie_order.push_back((uint16_t)o);
-
-    /*
-        Because of the cldnn ordering: bfxy, and IE ordering: bfyx
-        we need to adjust the permute order.
-    */
-    std::vector<uint16_t> cldnn_permute_order;
-    // 1. Switch permute order values for spatial dims
-    for (auto const& o : ie_order) {
-        if (o >= 2)
-            cldnn_permute_order.push_back(1 + ie_order.size() - o);
-        else
-            cldnn_permute_order.push_back(o);
-    }
-    cldnn_permute_order = GetPermuteOrder(cldnn_permute_order);
+    std::vector<uint16_t> cldnn_permute_order = ConvertPermuteOrder(ie_order, rank);
 
     auto permutePrim = cldnn::permute(layerName,
                                       inputPrimitives[0],

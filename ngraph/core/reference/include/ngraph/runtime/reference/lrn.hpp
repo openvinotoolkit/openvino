@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,7 +44,6 @@ namespace ngraph
                                                      const std::vector<size_t>& begin,
                                                      const Shape& slice_shape)
             {
-                size_t begin_idx = begin[0];
                 size_t slice_size = shape_size(slice_shape);
                 size_t rank = begin.size();
                 auto coord = begin;
