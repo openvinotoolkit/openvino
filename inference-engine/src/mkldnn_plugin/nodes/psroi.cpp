@@ -432,6 +432,7 @@ public:
                                 for (size_t iw = 0; iw < spatialBinsX; iw++) {
                                     float w1 = wStart + iw * subBinSizeW;
                                     float h1 = hStart + ih * subBinSizeH;
+
                                     // bilinear interpolation
                                     if (w1 < -0.5 || w1 > width - 0.5 || h1 < -0.5 || h1 > height - 0.5)
                                         continue;
