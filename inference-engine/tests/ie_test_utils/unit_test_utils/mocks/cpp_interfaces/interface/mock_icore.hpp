@@ -16,9 +16,13 @@ public:
 
     MOCK_METHOD3(LoadNetwork, InferenceEngine::ExecutableNetwork(
         const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));
+    MOCK_METHOD3(LoadNetwork, InferenceEngine::ExecutableNetwork(
+        const InferenceEngine::CNNNetwork&, const InferenceEngine::RemoteContext::Ptr &, const std::map<std::string, std::string>&));
 
     MOCK_METHOD3(ImportNetwork, InferenceEngine::ExecutableNetwork(
         std::istream&, const std::string&, const std::map<std::string, std::string>&));
+    MOCK_METHOD3(ImportNetwork, InferenceEngine::ExecutableNetwork(
+        std::istream&, const InferenceEngine::RemoteContext::Ptr&, const std::map<std::string, std::string>&));
 
     MOCK_QUALIFIED_METHOD3(QueryNetwork, const, InferenceEngine::QueryNetworkResult(
         const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));
