@@ -340,61 +340,56 @@ public:
         // Force too small ROIs to be 1x1
         const float roiWidth  = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
         const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
-        size_t dstIndex = currentRoi * nc * nh * nw;
-        for (int c = 0; c < nc; c++) {
-            for (int h = 0; h < nh; h++) {
-                for (int w = 0; w < nw; w++) {
-                    dstData[dstIndex] = 0;
-                    // Compute w and h at bottom
-                    float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-                    float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+        parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
+            size_t dstIndex = ((currentRoi * nc + c) * nh + h) * nw + w;
+            dstData[dstIndex] = 0;
+            // Compute w and h at bottom
+            float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+            float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
-                    float subBinSizeH = binSizeH / static_cast<float>(spatialBinsX);
-                    float subBinSizeW = binSizeW / static_cast<float>(spatialBinsY);
+            float subBinSizeH = binSizeH / static_cast<float>(spatialBinsX);
+            float subBinSizeW = binSizeW / static_cast<float>(spatialBinsY);
 
-                    int partH = h * partSize / pooledHeight;
-                    int partW = w * partSize / pooledWidth;
-                    int classId = c / channelsEachClass;
-                    float transX = noTrans ? 0 :
-                                   bottomTrans[(((currentRoi * numClasses + classId) * 2) * partSize + partH)
-                                               * partSize + partW] * transStd;
-                    float transY = noTrans ? 0 :
-                                   bottomTrans[(((currentRoi * numClasses + classId) * 2 + 1) * partSize + partH)
-                                               * partSize + partW] * transStd;
+            int partH = h * partSize / pooledHeight;
+            int partW = w * partSize / pooledWidth;
+            int classId = c / channelsEachClass;
+            float transX = noTrans ? 0 :
+                           bottomTrans[(((currentRoi * numClasses + classId) * 2) * partSize + partH)
+                                       * partSize + partW] * transStd;
+            float transY = noTrans ? 0 :
+                           bottomTrans[(((currentRoi * numClasses + classId) * 2 + 1) * partSize + partH)
+                                       * partSize + partW] * transStd;
 
-                    float wStart = w * binSizeW + roiStartW + transX * roiWidth;
-                    float hStart = h * binSizeH + roiStartH + transY * roiHeight;
+            float wStart = w * binSizeW + roiStartW + transX * roiWidth;
+            float hStart = h * binSizeH + roiStartH + transY * roiHeight;
 
-                    float sum = 0;
-                    int count = 0;
-                    int gw = w * groupSize / pooledWidth;
-                    int gh = h * groupSize / pooledHeight;
-                    gw = (std::min)((std::max)(gw, 0), static_cast<int>(groupSize - 1));
-                    gh = (std::min)((std::max)(gh, 0), static_cast<int>(groupSize - 1));
+            float sum = 0;
+            int count = 0;
+            int gw = w * groupSize / pooledWidth;
+            int gh = h * groupSize / pooledHeight;
+            gw = (std::min)((std::max)(gw, 0), static_cast<int>(groupSize - 1));
+            gh = (std::min)((std::max)(gh, 0), static_cast<int>(groupSize - 1));
 
-                    const inputType* offsetBottomData = srcData + (roiBatchInd * channels) * height * width;
-                    for (size_t ih = 0; ih < spatialBinsY; ih++) {
-                        for (size_t iw = 0; iw < spatialBinsX; iw++) {
-                            float w1 = wStart + iw * subBinSizeW;
-                            float h1 = hStart + ih * subBinSizeH;
-                            // bilinear interpolation
-                            if (w1 < -0.5 || w1 > width - 0.5 || h1 < -0.5 || h1 > height - 0.5)
-                                continue;
-                            w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
-                            h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
-                            int c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
-                            float val = bilinearInterp<inputType>(offsetBottomData +
-                                                                  c1 * height * width, w1, h1, width);
+            const inputType* offsetBottomData = srcData + (roiBatchInd * channels) * height * width;
+            for (size_t ih = 0; ih < spatialBinsY; ih++) {
+                for (size_t iw = 0; iw < spatialBinsX; iw++) {
+                    float w1 = wStart + iw * subBinSizeW;
+                    float h1 = hStart + ih * subBinSizeH;
+                    // bilinear interpolation
+                    if (w1 < -0.5 || w1 > width - 0.5 || h1 < -0.5 || h1 > height - 0.5)
+                        continue;
+                    w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
+                    h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
+                    int c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
+                    float val = bilinearInterp<inputType>(offsetBottomData +
+                                                          c1 * height * width, w1, h1, width);
 
-                            sum += val;
-                            count++;
-                        }
-                    }
-                    dstData[dstIndex] = count == 0 ? 0 : sum / count;
-                    dstIndex++;
+                    sum += val;
+                    count++;
                 }
             }
-        }
+            dstData[dstIndex] = count == 0 ? 0 : sum / count;
+        });
     }
 
     template <typename inputType, typename outputType>
