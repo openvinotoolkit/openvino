@@ -330,10 +330,78 @@ public:
     }
 
     template <typename inputType, typename outputType>
+    void executeBilinearDeformable(const inputType *srcData, outputType *dstData, const float *bottomRois,
+                                   const float *bottomTrans, const int numClasses, const int channelsEachClass,
+                                   const int currentRoi, const int roiBatchInd) {
+        const float roiStartW = static_cast<float>(round(bottomRois[1])) * spatialScale - 0.5f;
+        const float roiStartH = static_cast<float>(round(bottomRois[2])) * spatialScale - 0.5f;
+        const float roiEndW   = static_cast<float>(round(bottomRois[3]) + 1.0f) * spatialScale - 0.5f;
+        const float roiEndH   = static_cast<float>(round(bottomRois[4]) + 1.0f) * spatialScale - 0.5f;
+        // Force too small ROIs to be 1x1
+        const float roiWidth  = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
+        const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
+        size_t dstIndex = currentRoi * nc * nh * nw;
+        for (int c = 0; c < nc; c++) {
+            for (int h = 0; h < nh; h++) {
+                for (int w = 0; w < nw; w++) {
+                    dstData[dstIndex] = 0;
+                    // Compute w and h at bottom
+                    float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+                    float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+
+                    float subBinSizeH = binSizeH / static_cast<float>(spatialBinsX);
+                    float subBinSizeW = binSizeW / static_cast<float>(spatialBinsY);
+
+                    int partH = h * partSize / pooledHeight;
+                    int partW = w * partSize / pooledWidth;
+                    int classId = c / channelsEachClass;
+                    float transX = noTrans ? 0 :
+                                   bottomTrans[(((currentRoi * numClasses + classId) * 2) * partSize + partH)
+                                               * partSize + partW] * transStd;
+                    float transY = noTrans ? 0 :
+                                   bottomTrans[(((currentRoi * numClasses + classId) * 2 + 1) * partSize + partH)
+                                               * partSize + partW] * transStd;
+
+                    float wStart = w * binSizeW + roiStartW + transX * roiWidth;
+                    float hStart = h * binSizeH + roiStartH + transY * roiHeight;
+
+                    float sum = 0;
+                    int count = 0;
+                    int gw = w * groupSize / pooledWidth;
+                    int gh = h * groupSize / pooledHeight;
+                    gw = (std::min)((std::max)(gw, 0), static_cast<int>(groupSize - 1));
+                    gh = (std::min)((std::max)(gh, 0), static_cast<int>(groupSize - 1));
+
+                    const inputType* offsetBottomData = srcData + (roiBatchInd * channels) * height * width;
+                    for (size_t ih = 0; ih < spatialBinsY; ih++) {
+                        for (size_t iw = 0; iw < spatialBinsX; iw++) {
+                            float w1 = wStart + iw * subBinSizeW;
+                            float h1 = hStart + ih * subBinSizeH;
+                            // bilinear interpolation
+                            if (w1 < -0.5 || w1 > width - 0.5 || h1 < -0.5 || h1 > height - 0.5)
+                                continue;
+                            w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
+                            h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
+                            int c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
+                            float val = bilinearInterp<inputType>(offsetBottomData +
+                                                                  c1 * height * width, w1, h1, width);
+
+                            sum += val;
+                            count++;
+                        }
+                    }
+                    dstData[dstIndex] = count == 0 ? 0 : sum / count;
+                    dstIndex++;
+                }
+            }
+        }
+    }
+
+    template <typename inputType, typename outputType>
     void executeSpecified(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) {
-        const float *bottomRoisBeginning = inputs[1]->buffer();
-        const auto *srcData = inputs[0]->cbuffer().as<const inputType*>();
-        auto *dstData = outputs[0]->buffer().as<outputType*>();
+        const auto *srcData = inputs[0]->cbuffer().as<const inputType*>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        const float *bottomRoisBeginning = inputs[1]->cbuffer().as<const float*>() + inputs[1]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        auto *dstData = outputs[0]->buffer().as<outputType*>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         auto srcDesc = inputs[0]->getTensorDesc();
         auto dstDesc = outputs[0]->getTensorDesc();
@@ -351,83 +419,21 @@ public:
         int numClasses = 1;
         int channelsEachClass = outputDim;
         if (!noTrans) {
-            bottomTrans = inputs[2]->buffer();
+            bottomTrans = inputs[2]->cbuffer().as<float*>() + inputs[2]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             numClasses = static_cast<int>(inputs[2]->getTensorDesc().getDims()[1]) / 2;
             channelsEachClass /= numClasses;
         }
 
-
         parallel_for(realRois, [&](int currentRoi) {
             const float *bottomRois = bottomRoisBeginning + currentRoi * 5;
             int roiBatchInd = static_cast<int>(bottomRois[0]);
-            float roiStartW = 0.0f, roiStartH = 0.0f, roiEndW = 0.0f, roiEndH = 0.0f, roiWidth = 0.0f, roiHeight = 0.0f;
             if (mode == "average") {
                 executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
             } else if (mode == "bilinear") {
                 executeBilinear(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
             } else if (mode == "bilinear_deformable") {
-                roiStartW = static_cast<float>(round(bottomRois[1])) * spatialScale - 0.5f;
-                roiStartH = static_cast<float>(round(bottomRois[2])) * spatialScale - 0.5f;
-                roiEndW   = static_cast<float>(round(bottomRois[3]) + 1.0f) * spatialScale - 0.5f;
-                roiEndH   = static_cast<float>(round(bottomRois[4]) + 1.0f) * spatialScale - 0.5f;
-                // Force too small ROIs to be 1x1
-                roiWidth  = std::max<float>(roiEndW - roiStartW, 0.1f);  // avoid 0
-                roiHeight = std::max<float>(roiEndH - roiStartH, 0.1f);
-                size_t dstIndex = currentRoi * nc * nh * nw;
-                for (int c = 0; c < nc; c++) {
-                    for (int h = 0; h < nh; h++) {
-                        for (int w = 0; w < nw; w++) {
-                            dstData[dstIndex] = 0;
-                            // Compute w and h at bottom
-                            const float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-                            const float binSizeW = roiWidth / static_cast<float>(pooledWidth);
-
-                            const float subBinSizeH = binSizeH / static_cast<float>(spatialBinsX);
-                            const float subBinSizeW = binSizeW / static_cast<float>(spatialBinsY);
-
-                            const int partH = h * partSize / pooledHeight;
-                            const int partW = w * partSize / pooledWidth;
-                            const int classId = c / channelsEachClass;
-                            const float transX = noTrans ? 0 :
-                                                 bottomTrans[(((currentRoi * numClasses + classId) * 2) * partSize + partH)
-                                                             * partSize + partW] * transStd;
-                            const float transY = noTrans ? 0 :
-                                                 bottomTrans[(((currentRoi * numClasses + classId) * 2 + 1) * partSize + partH)
-                                                             * partSize + partW] * transStd;
-
-                            const float wStart = w * binSizeW + roiStartW + transX * roiWidth;
-                            const float hStart = h * binSizeH + roiStartH + transY * roiHeight;
-
-                            float sum = 0;
-                            int count = 0;
-                            int gw = w * groupSize / pooledWidth;
-                            int gh = h * groupSize / pooledHeight;
-                            gw = (std::min)((std::max)(gw, 0), static_cast<int>(groupSize - 1));
-                            gh = (std::min)((std::max)(gh, 0), static_cast<int>(groupSize - 1));
-
-                            const inputType *offsetBottomData = srcData + (roiBatchInd * channels) * height * width;
-                            for (size_t ih = 0; ih < spatialBinsY; ih++) {
-                                for (size_t iw = 0; iw < spatialBinsX; iw++) {
-                                    float w1 = wStart + iw * subBinSizeW;
-                                    float h1 = hStart + ih * subBinSizeH;
-
-                                    // bilinear interpolation
-                                    if (w1 < -0.5 || w1 > width - 0.5 || h1 < -0.5 || h1 > height - 0.5)
-                                        continue;
-                                    w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
-                                    h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
-                                    int c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
-                                    float val = bilinearInterp<inputType>(offsetBottomData + c1 * height * width, w1, h1, width);
-
-                                    sum += val;
-                                    count++;
-                                }
-                            }
-                            dstData[dstIndex] = count == 0 ? 0 : sum / count;
-                            dstIndex++;
-                        }
-                    }
-                }
+                executeBilinearDeformable(srcData, dstData, bottomRois, bottomTrans,
+                        numClasses, channelsEachClass, currentRoi, roiBatchInd);
             }
         });
 
@@ -465,18 +471,18 @@ public:
     }
 
     template <typename inputType>
-    inline float bilinearInterp(const inputType* data_, const float x_, const float y_, const int width_) {
-        int x1 = static_cast<int>(std::floor(x_));
-        int x2 = static_cast<int>(std::ceil(x_));
-        int y1 = static_cast<int>(std::floor(y_));
-        int y2 = static_cast<int>(std::ceil(y_));
-        float distX = x_ - x1;
-        float distY = y_ - y1;
+    inline float bilinearInterp(const inputType* data, const float x, const float y, const int width_) {
+        int x1 = static_cast<int>(std::floor(x));
+        int x2 = static_cast<int>(std::ceil(x));
+        int y1 = static_cast<int>(std::floor(y));
+        int y2 = static_cast<int>(std::ceil(y));
+        float distX = x - x1;
+        float distY = y - y1;
 
-        float value11 = data_[y1 * width_ + x1];
-        float value12 = data_[y2 * width_ + x1];
-        float value21 = data_[y1 * width_ + x2];
-        float value22 = data_[y2 * width_ + x2];
+        float value11 = data[y1 * width_ + x1];
+        float value12 = data[y2 * width_ + x1];
+        float value21 = data[y1 * width_ + x2];
+        float value22 = data[y2 * width_ + x2];
         float value = (1 - distX) * (1 - distY) * value11 + (1 - distX) * distY * value12
                       + distX * (1 - distY) * value21 + distX * distY * value22;
         return value;
