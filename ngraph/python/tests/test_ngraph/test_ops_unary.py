@@ -128,6 +128,7 @@ def test_erf1():
     expected = [-0.842701]
 
     result = run_op_node([input_tensor], ng.erf)
+    print("result1=" + str(result))
     assert np.allclose(result, expected)
 
 
@@ -136,6 +137,7 @@ def test_erf2():
     expected = [0.0]
 
     result = run_op_node([input_tensor], ng.erf)
+    print("result2=" + str(result))
     assert np.allclose(result, expected)
 
 
@@ -144,6 +146,7 @@ def test_erf3():
     expected = [0.842701]
 
     result = run_op_node([input_tensor], ng.erf)
+    print("result3=" + str(result))
     assert np.allclose(result, expected)
 
 
@@ -152,6 +155,7 @@ def test_erf4():
     expected = [0.999593]
 
     result = run_op_node([input_tensor], ng.erf)
+    print("result4=" + str(result))
     assert np.allclose(result, expected)
 
 
@@ -160,6 +164,7 @@ def test_erf5():
     expected = [0.999991]
 
     result = run_op_node([input_tensor], ng.erf)
+    print("result5=" + str(result))
     assert np.allclose(result, expected)
 
 
@@ -168,6 +173,7 @@ def test_erf6():
     expected = [1.0]
 
     result = run_op_node([input_tensor], ng.erf)
+    print("result6=" + str(result))
     assert np.allclose(result, expected)
 
 
