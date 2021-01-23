@@ -9,32 +9,32 @@
 #include <cstdint>
 #include <map>
 
-#include <transformations/serialize.hpp>
-#include <cnn_network_ngraph_impl.hpp>
+#include "transformations/serialize.hpp"
+#include "cnn_network_ngraph_impl.hpp"
 
-#include <cpp/ie_cnn_network.h>
-#include <details/ie_exception.hpp>
+#include "cpp/ie_cnn_network.h"
+#include "details/ie_exception.hpp"
 
-#include <ngraph/variant.hpp>
-#include <ngraph/function.hpp>
+#include "ngraph/variant.hpp"
+#include "ngraph/function.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 namespace InferenceEngine {
 
 struct NetworkCompilationContext final {
     explicit NetworkCompilationContext(CNNNetwork network,
         const std::map<std::string, std::string> & compileOptions = {}) :
-            m_compileOptions(compileOptions),
-            m_inputsInfo(network.getInputsInfo()),
-            m_outputsInfo(network.getOutputsInfo()) {
+            m_weights{nullptr},
+            m_compileOptions{compileOptions},
+            m_inputsInfo{network.getInputsInfo()},
+            m_outputsInfo{network.getOutputsInfo()} {
         try {
             auto & icnnnet = static_cast<ICNNNetwork &>(network);
             auto & ngraphImpl = dynamic_cast<details::CNNNetworkNGraphImpl &>(icnnnet);
 
-            ngraph::pass::Serialize serializer(&xmlFile, nullptr,
+            ngraph::pass::Serialize serializer(&m_xmlFile, nullptr,
                 ngraph::pass::Serialize::Version::IR_V10, ngraphImpl.getExtensions());
             serializer.run_on_function(ngraphImpl.getFunction());
-
-            m_constants = xmlFile.str();
         } catch (const std::bad_cast &) {
             // IR v7 or older is passed: cannot cast to CNNNetworkNGraphImpl
             m_cachingIsAvailable = false;
@@ -65,6 +65,29 @@ struct NetworkCompilationContext final {
                 auto primPriority = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(priorities_it->second);
                 m_runtime_atrributes += op->get_friendly_name() + "#" + primPriority->get();
             }
+
+            // find any constant to compute hash on
+            {
+                if (m_weights)
+                    continue;
+
+                auto getConstant = [] (const std::shared_ptr<ngraph::Node> & node,
+                                       size_t port_index) {
+                    auto inputNode = node->input_value(port_index).get_node_shared_ptr();
+                    return std::dynamic_pointer_cast<ngraph::opset6::Constant>(inputNode);
+                };
+
+                if (std::dynamic_pointer_cast<ngraph::opset6::Convolution>(op) ||
+                    std::dynamic_pointer_cast<ngraph::opset6::GroupConvolution>(op) ||
+                    std::dynamic_pointer_cast<ngraph::opset6::BinaryConvolution>(op) ||
+                    std::dynamic_pointer_cast<ngraph::opset6::DeformableConvolution>(op) ||
+                    std::dynamic_pointer_cast<ngraph::opset6::ConvolutionBackpropData>(op) ||
+                    std::dynamic_pointer_cast<ngraph::opset6::GroupConvolutionBackpropData>(op)) {
+                    m_weights = getConstant(op, 1);
+                } else if (std::dynamic_pointer_cast<ngraph::opset6::Add>(op)) {
+                    m_weights = getConstant(op, 2);
+                }
+            }
         }
     }
 
@@ -76,13 +99,15 @@ struct NetworkCompilationContext final {
         IE_ASSERT(isCachingAvailable());
 
         size_t seed {};
-        seed = hash_combine(seed, xmlFile.str());
+        seed = hash_combine(seed, m_xmlFile.str());
 
-        // TODO: optimize hash compute using this scheme:
-        // find any layer with wiegths and compute hash only for this binary blob
-        // it will minimize time which is needed to compute hash for the network itself
-        {
-            seed = hash_combine(seed, m_constants);
+        // compute hash on weights if any
+        if (m_weights) {
+            auto data = reinterpret_cast<const std::uint8_t *>(m_weights->get_data_ptr());
+
+            for (size_t i = 0; i < ngraph::shape_size(m_weights->get_shape()); ++i) {
+                seed = hash_combine(seed, data[i]);
+            }
         }
 
         for (const auto & kvp : m_compileOptions) {
@@ -139,8 +164,8 @@ private:
     bool m_cachingIsAvailable = true;
 
     // network structure (ngraph::Function description)
-    std::string m_constants;
-    std::stringstream xmlFile;
+    std::shared_ptr<ngraph::opset6::Constant> m_weights;
+    std::stringstream m_xmlFile;
 
     // compile options
     std::map<std::string, std::string> m_compileOptions;
