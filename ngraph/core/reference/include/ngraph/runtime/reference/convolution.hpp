@@ -53,10 +53,14 @@ namespace ngraph
                 {
                     T buffer;
                     const Shape shape;
-                    Tensor(T buf, Shape s)
-                        : buffer{buf}
-                        , shape{s} {};
                 };
+
+                template <typename Buf>
+                Tensor<Buf> tensor(Buf buffer, const Shape& s)
+                {
+                    static_assert(std::is_pointer<Buf>::value, "expecting ptr");
+                    return Tensor<Buf>{buffer, s};
+                }
 
                 enum class ConvolutionType
                 {
@@ -116,8 +120,8 @@ namespace ngraph
                          i_x += p.strides[0])
                     {
                         ACCU sum = 0;
-                        Tensor<const INPUT*> ch_input = in;
-                        Tensor<const INPUT*> ch_filter = f;
+                        auto ch_input = in;
+                        auto ch_filter = f;
                         for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis]; ++ch_idx)
                         {
                             for (int f_x = 0; f_x < filter_size_x; ++f_x)
@@ -167,8 +171,8 @@ namespace ngraph
                              i_x += p.strides[1])
                         {
                             ACCU sum = 0;
-                            Tensor<const INPUT*> ch_input = in;
-                            Tensor<const INPUT*> ch_filter = f;
+                            auto ch_input = in;
+                            auto ch_filter = f;
                             for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis]; ++ch_idx)
                             {
                                 for (int f_y = 0; f_y < filter_size_y; ++f_y)
@@ -232,8 +236,8 @@ namespace ngraph
                                  i_x += p.strides[2])
                             {
                                 ACCU sum = 0;
-                                Tensor<const INPUT*> ch_input = in;
-                                Tensor<const INPUT*> ch_filter = f;
+                                auto ch_input = in;
+                                auto ch_filter = f;
                                 for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis];
                                      ++ch_idx)
                                 {
@@ -356,9 +360,9 @@ namespace ngraph
                 // (e.g signed + unsigned) in indexes calculation later
                 const ConvolutionParams params{strides, dilation, pads_begin, pads_end};
 
-                const Tensor<const INPUT*> input{in, in_shape};
-                const Tensor<const FILTER*> filter{f, filter_shape};
-                const Tensor<OUTPUT*> output{out, out_shape};
+                const auto input = tensor(in, in_shape);
+                const auto filter = tensor(f, filter_shape);
+                const auto output = tensor(out, out_shape);
 
                 conv_impl<INPUT, FILTER, OUTPUT, ACCU>(type, params, input, filter, output);
 
