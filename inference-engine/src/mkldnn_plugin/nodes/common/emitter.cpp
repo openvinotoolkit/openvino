@@ -57,11 +57,10 @@ std::set<InferenceEngine::Precision> jit_emitter::get_supported_precisions() {
 }
 
 void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                   const emitter_in_out_map &in_out_type) {
+                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
     using namespace Xbyak::util;
-    bool is_vec_input = (in_out_type == emitter_in_out_map::vec_to_vec) || (in_out_type == emitter_in_out_map::vec_to_gpr);
-    bool is_vec_output = (in_out_type == emitter_in_out_map::vec_to_vec) || (in_out_type == emitter_in_out_map::gpr_to_vec);
+    bool is_vec_input = (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::vec_to_gpr);
+    bool is_vec_output = (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::gpr_to_vec);
 
     for (auto idx : pool_vec_idxs)
         aux_vec_idxs.push_back(idx);
@@ -130,8 +129,9 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
     assert(aux_gpr_idxs.size() == aux_gprs_count());
 
     if (!entry_map_.empty()) {
-        p_table = Reg64(aux_gpr_idxs[0]);
-        aux_gpr_idxs.erase(aux_gpr_idxs.begin());
+        // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
+        p_table = Reg64(aux_gpr_idxs[aux_gprs_count() - 1]);
+        aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
     }
 
     for (size_t i = 0; i < preserved_gpr_idxs.size(); ++i)
@@ -200,8 +200,8 @@ void jit_emitter::prepare_table() {
 
 void jit_emitter::emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                        const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                       const emitter_in_out_map& in_out_type, const emitter_context *emit_context) {
-    emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, in_out_type);
+                       const emitter_context *emit_context) {
+    emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context);
 
