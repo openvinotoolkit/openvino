@@ -16,7 +16,7 @@
 
 namespace CommonTestUtils {
 
-static void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
+inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
     for (size_t i = 0; i < size; i++) {
         if ((i / duty_ratio) % 2 == 1) {
             data[i] = 0.0f;
@@ -26,7 +26,7 @@ static void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
     }
 }
 
-static void fill_data_sine(float *data, size_t size, float center, float ampl, float omega) {
+inline void fill_data_sine(float *data, size_t size, float center, float ampl, float omega) {
     for (size_t i = 0; i < size; i++) {
         data[i] = center + ampl * sin(static_cast<float>(i) * omega);
     }
@@ -36,12 +36,12 @@ static void fill_data_sine(float *data, size_t size, float center, float ampl, f
  * @brief Create vector of floats with length of vec_len, with values ranging from min to max, 
  * with initial seed equal to variable seed with default of 0
  */
-static inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min, float max, int seed = 0) {
+inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min, float max, int seed = 0) {
     std::vector<float> res;
     std::mt19937 gen(static_cast<float>(seed));
 
     std::uniform_real_distribution<float> dist(min, max);
-    for (int i = 0; i < vec_len; i++)
+    for (std::size_t i = 0; i < vec_len; i++)
         res.emplace_back(static_cast<float>(dist(gen)));
 
     return res;
@@ -96,7 +96,7 @@ void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val);
  */
 size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
 
-static void fill_data_bbox(float *data, size_t size, int height, int width, float omega) {
+inline void fill_data_bbox(float *data, size_t size, int height, int width, float omega) {
     float center_h = (height - 1.0f) / 2;
     float center_w = (width - 1.0f) / 2;
     for (size_t i = 0; i < size; i = i + 5) {
@@ -123,32 +123,42 @@ static void fill_data_bbox(float *data, size_t size, int height, int width, floa
     }
 }
 
-static void fill_data_roi(float *data, size_t size, const uint32_t range, const int height, const int width, const float omega, const int seed = 1) {
+inline void fill_data_roi(float *data, size_t size, const uint32_t range, const int height, const int width, const float omega,
+                          const bool is_roi_max_mode, const int seed = 1) {
     std::default_random_engine random(seed);
     std::uniform_int_distribution<int32_t> distribution(0, range);
-    float center_h = (height - 1.0f) / 2;
-    float center_w = (width - 1.0f) / 2;
+
+    const int max_y = (is_roi_max_mode) ? (height - 1) : 1;
+    const int max_x = (is_roi_max_mode) ? (width - 1)  : 1;
+
+    float center_h = (max_y) / 2.0f;
+    float center_w = (max_x) / 2.0f;
+
     for (size_t i = 0; i < size; i += 5) {
         data[i] = static_cast<float>(distribution(random));
-        data[i + 1] = std::floor(center_w + width * 0.6f * sin(static_cast<float>(i+1) * omega));
-        data[i + 3] = std::floor(center_w + width * 0.6f * sin(static_cast<float>(i+3) * omega));
+        const float x0 = (center_w + width * 0.3f * sin(static_cast<float>(i + 1) * omega));
+        const float x1 = (center_w + width * 0.3f * sin(static_cast<float>(i + 3) * omega));
+        data[i + 1] = is_roi_max_mode ? std::floor(x0) : x0;
+        data[i + 3] = is_roi_max_mode ? std::floor(x1) : x1;
         if (data[i + 3] < data[i + 1]) {
             std::swap(data[i + 1], data[i + 3]);
         }
         if (data[i + 1] < 0)
             data[i + 1] = 0;
-        if (data[i + 3] > width - 1)
-            data[i + 3] = static_cast<float>(width - 1);
+        if (data[i + 3] > max_x)
+            data[i + 3] = static_cast<float>(max_x);
 
-        data[i + 2] = std::floor(center_h + height * 0.6f * sin(static_cast<float>(i+2) * omega));
-        data[i + 4] = std::floor(center_h + height * 0.6f * sin(static_cast<float>(i+4) * omega));
+        const float y0 = (center_h + height * 0.3f * sin(static_cast<float>(i + 2) * omega));
+        const float y1 = (center_h + height * 0.3f * sin(static_cast<float>(i + 4) * omega));
+        data[i + 2] = is_roi_max_mode ? std::floor(y0) : y0;
+        data[i + 4] = is_roi_max_mode ? std::floor(y1) : y1;
         if (data[i + 4] < data[i + 2]) {
             std::swap(data[i + 2], data[i + 4]);
         }
         if (data[i + 2] < 0)
             data[i + 2] = 0;
-        if (data[i + 4] > height - 1)
-            data[i + 4] = static_cast<float>(height - 1);
+        if (data[i + 4] > max_y)
+            data[i + 4] = static_cast<float>(max_y);
     }
 }
 
@@ -332,21 +342,21 @@ void inline fill_data_random<InferenceEngine::Precision::BF16>(InferenceEngine::
 
 template<typename T>
 typename std::enable_if<std::is_signed<T>::value, T>::type
-static ie_abs(const T &val) {
+inline ie_abs(const T &val) {
     return std::abs(val);
 }
 
 template<typename T>
 typename std::enable_if<std::is_unsigned<T>::value, T>::type
-static ie_abs(const T &val) {
+inline ie_abs(const T &val) {
     return val;
 }
 
-static ngraph::bfloat16 ie_abs(const ngraph::bfloat16& val) {
+inline ngraph::bfloat16 ie_abs(const ngraph::bfloat16& val) {
     return ngraph::bfloat16::from_bits(val.to_bits() & 0x7FFF);
 }
 
-static ngraph::float16 ie_abs(const ngraph::float16& val) {
+inline ngraph::float16 ie_abs(const ngraph::float16& val) {
     return ngraph::float16::from_bits(val.to_bits() ^ 0x8000);
 }
 

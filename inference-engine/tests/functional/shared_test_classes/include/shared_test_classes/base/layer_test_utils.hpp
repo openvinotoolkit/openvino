@@ -68,12 +68,10 @@ struct PassRate {
     }
 
     float getPassrate() const {
-        if (passed == 0 && failed == 0) {
-            return 0.;
-        } else if (passed != 0 && failed == 0) {
-            return 100.;
+        if (passed + failed == 0) {
+            return 0.f;
         } else {
-            return (passed / (passed + failed)) * 100.;
+            return passed * 100.f / (passed + failed + skipped);
         }
     }
 };

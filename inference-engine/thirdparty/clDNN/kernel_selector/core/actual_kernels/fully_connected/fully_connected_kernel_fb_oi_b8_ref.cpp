@@ -65,12 +65,15 @@ KernelsData FullyConnected_fb_oi_b8_ref::GetKernelsData(const Params& params, co
                                                     optParams,
                                                     DataLayout::fb,
                                                     WeightsLayout::oi,
-                                                    FORCE_PRIORITY_6,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
     }
     return res;
+}
+
+KernelsPriority FullyConnected_fb_oi_b8_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

@@ -78,8 +78,6 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
-    kd.estimatedTime = dispatchData.efficiency;
-
     return {kd};
 }
 
