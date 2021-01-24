@@ -17,12 +17,15 @@
 #pragma once
 
 #include "ngraph/runtime/reference/convolution.hpp"
-#include "ngraph/runtime/reference/helpers.hpp"
 #include "ngraph/util.hpp"
 
 namespace
 {
     constexpr size_t filter_group_axis = 0;
+    constexpr size_t in_batch_axis = 0;
+    constexpr size_t in_channel_axis = 1;
+    constexpr size_t out_batch_axis = 0;
+    constexpr size_t out_channel_axis = 1;
 }
 
 namespace ngraph
@@ -69,7 +72,8 @@ namespace ngraph
                 group_out_shape[out_channel_axis] /= group_count;
                 const size_t group_out_size = shape_size(group_out_shape);
 
-                Strides unused;
+                Strides in_dilation(in_shape.size());
+                std::fill(in_dilation.begin(), in_dilation.end(), 1);
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
                     group_f = f;
@@ -85,7 +89,7 @@ namespace ngraph
                                                         dilation,
                                                         pads_begin,
                                                         pads_end,
-                                                        unused);
+                                                        in_dilation);
                         group_out += group_out_size;
                         group_f += group_filter_size;
                         group_batch += group_batch_size;
