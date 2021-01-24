@@ -92,6 +92,12 @@ namespace ngraph
                     return size;
                 }
 
+                template <typename Int>
+                constexpr inline bool in_range(Int val, std::pair<Int, Int> range) noexcept
+                {
+                    return val >= range.first && val < range.second;
+                }
+
                 template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
                 void convolve_1D_channels(const ConvolutionParams& p,
                                           const Tensor<const INPUT*>& in,
@@ -117,7 +123,7 @@ namespace ngraph
                             for (int f_x = 0; f_x < filter_size_x; ++f_x)
                             {
                                 int rel_i_x = i_x + (f_x * p.dilation[0]);
-                                bool padding = (rel_i_x < 0) || (rel_i_x >= input_size_x);
+                                bool padding = !in_range(rel_i_x, {0, input_size_x});
                                 if (padding)
                                     continue;
 
@@ -172,9 +178,8 @@ namespace ngraph
                                         int rel_i_y = i_y + (f_y * p.dilation[0]);
                                         int rel_i_x = i_x + (f_x * p.dilation[1]);
 
-                                        bool padding = (rel_i_y < 0) || (rel_i_x < 0) ||
-                                                       (rel_i_y >= input_size_y) ||
-                                                       (rel_i_x >= input_size_x);
+                                        bool padding = !(in_range(rel_i_x, {0, input_size_x}) &&
+                                                         in_range(rel_i_y, {0, input_size_y}));
                                         if (padding)
                                             continue;
 
@@ -242,11 +247,10 @@ namespace ngraph
                                                 int rel_i_y = i_y + (f_y * p.dilation[1]);
                                                 int rel_i_x = i_x + (f_x * p.dilation[2]);
 
-                                                bool padding = (rel_i_z < 0) || (rel_i_y < 0) ||
-                                                               (rel_i_x < 0) ||
-                                                               (rel_i_z >= input_size_z) ||
-                                                               (rel_i_y >= input_size_y) ||
-                                                               (rel_i_x >= input_size_x);
+                                                bool padding =
+                                                    !(in_range(rel_i_x, {0, input_size_x}) &&
+                                                      in_range(rel_i_y, {0, input_size_y}) &&
+                                                      in_range(rel_i_z, {0, input_size_z}));
                                                 if (padding)
                                                     continue;
 
