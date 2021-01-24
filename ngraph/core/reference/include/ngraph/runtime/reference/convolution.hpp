@@ -53,13 +53,27 @@ namespace ngraph
                 {
                     T buffer;
                     const Shape shape;
+                    const size_t size;
+
+                    Tensor& operator++()
+                    {
+                        buffer += size;
+                        return *this;
+                    }
                 };
 
                 template <typename Buf>
                 Tensor<Buf> tensor(Buf buffer, const Shape& s)
                 {
                     static_assert(std::is_pointer<Buf>::value, "expecting ptr");
-                    return Tensor<Buf>{buffer, s};
+                    return Tensor<Buf>{buffer, s, shape_size(s)};
+                }
+
+                template <typename Tens>
+                Tens tensor_slice(Tens t)
+                {
+                    Shape new_shape(++t.shape.begin(), t.shape.end());
+                    return tensor(t.buffer, new_shape);
                 }
 
                 enum class ConvolutionType
@@ -86,16 +100,6 @@ namespace ngraph
                         , pads_end{pads_end_.begin(), pads_end_.end()} {};
                 };
 
-                size_t compute_size(ngraph::Shape shape, size_t start_axis)
-                {
-                    size_t size = 1;
-                    for (size_t i = start_axis; i < shape.size(); i++)
-                    {
-                        size *= shape[i];
-                    }
-                    return size;
-                }
-
                 template <typename Int>
                 constexpr inline bool in_range(Int val, std::pair<Int, Int> range) noexcept
                 {
@@ -104,14 +108,12 @@ namespace ngraph
 
                 template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
                 void convolve_1D_channels(const ConvolutionParams& p,
-                                          const Tensor<const INPUT*>& in,
-                                          const Tensor<const FILTER*>& f,
+                                          const Tensor<const INPUT*>& batch,
+                                          const Tensor<const FILTER*>& filter,
                                           Tensor<OUTPUT*>& out)
                 {
-                    const int input_spatial_size = compute_size(in.shape, spatial_axis);
-                    const int filter_spatial_size = compute_size(f.shape, spatial_axis);
-                    const int input_size_x = in.shape[spatial_axis];
-                    const int filter_size_x = f.shape[spatial_axis];
+                    const int input_size_x = batch.shape[1];
+                    const int filter_size_x = filter.shape[1];
                     const int dilated_filter_size_x =
                         filter_size_x + (filter_size_x - 1) * (p.dilation[0] - 1);
 
@@ -120,9 +122,10 @@ namespace ngraph
                          i_x += p.strides[0])
                     {
                         ACCU sum = 0;
-                        auto ch_input = in;
-                        auto ch_filter = f;
-                        for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis]; ++ch_idx)
+                        auto input_channel = tensor_slice(batch);
+                        auto filter_channel = tensor_slice(filter);
+                        size_t filter_channels_count = filter.shape[0];
+                        while (filter_channels_count--)
                         {
                             for (int f_x = 0; f_x < filter_size_x; ++f_x)
                             {
@@ -134,11 +137,11 @@ namespace ngraph
                                 int f_buf_idx = f_x;
                                 int i_buf_idx = rel_i_x;
 
-                                sum += static_cast<ACCU>(ch_input.buffer[i_buf_idx]) *
-                                       static_cast<ACCU>(ch_filter.buffer[f_buf_idx]);
+                                sum += static_cast<ACCU>(input_channel.buffer[i_buf_idx]) *
+                                       static_cast<ACCU>(filter_channel.buffer[f_buf_idx]);
                             }
-                            ch_input.buffer += input_spatial_size;
-                            ch_filter.buffer += filter_spatial_size;
+                            ++input_channel;
+                            ++filter_channel;
                         }
                         *out.buffer = sum;
                         ++out.buffer;
@@ -147,16 +150,14 @@ namespace ngraph
 
                 template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
                 void convolve_2D_channels(const ConvolutionParams& p,
-                                          const Tensor<const INPUT*>& in,
-                                          const Tensor<const FILTER*>& f,
+                                          const Tensor<const INPUT*>& batch,
+                                          const Tensor<const FILTER*>& filter,
                                           Tensor<OUTPUT*>& out)
                 {
-                    const int input_spatial_size = compute_size(in.shape, spatial_axis);
-                    const int filter_spatial_size = compute_size(f.shape, spatial_axis);
-                    const int input_size_y = in.shape[spatial_axis];
-                    const int input_size_x = in.shape[spatial_axis + 1];
-                    const int filter_size_y = f.shape[spatial_axis];
-                    const int filter_size_x = f.shape[spatial_axis + 1];
+                    const int input_size_y = batch.shape[1];
+                    const int input_size_x = batch.shape[2];
+                    const int filter_size_y = filter.shape[1];
+                    const int filter_size_x = filter.shape[2];
                     const int dilated_filter_size_y =
                         filter_size_y + (filter_size_y - 1) * (p.dilation[0] - 1);
                     const int dilated_filter_size_x =
@@ -171,9 +172,10 @@ namespace ngraph
                              i_x += p.strides[1])
                         {
                             ACCU sum = 0;
-                            auto ch_input = in;
-                            auto ch_filter = f;
-                            for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis]; ++ch_idx)
+                            auto input_channel = tensor_slice(batch);
+                            auto filter_channel = tensor_slice(filter);
+                            size_t filter_channels_count = filter.shape[0];
+                            while (filter_channels_count--)
                             {
                                 for (int f_y = 0; f_y < filter_size_y; ++f_y)
                                 {
@@ -189,12 +191,12 @@ namespace ngraph
 
                                         int f_buf_idx = (f_y * filter_size_x) + f_x;
                                         int i_buf_idx = (rel_i_y * input_size_x) + rel_i_x;
-                                        sum += static_cast<ACCU>(ch_input.buffer[i_buf_idx]) *
-                                               static_cast<ACCU>(ch_filter.buffer[f_buf_idx]);
+                                        sum += static_cast<ACCU>(input_channel.buffer[i_buf_idx]) *
+                                               static_cast<ACCU>(filter_channel.buffer[f_buf_idx]);
                                     }
                                 }
-                                ch_input.buffer += input_spatial_size;
-                                ch_filter.buffer += filter_spatial_size;
+                                ++input_channel;
+                                ++filter_channel;
                             }
                             *out.buffer = sum;
                             ++out.buffer;
@@ -204,18 +206,16 @@ namespace ngraph
 
                 template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
                 void convolve_3D_channels(const ConvolutionParams& p,
-                                          const Tensor<const INPUT*>& in,
-                                          const Tensor<const FILTER*>& f,
+                                          const Tensor<const INPUT*>& batch,
+                                          const Tensor<const FILTER*>& filter,
                                           Tensor<OUTPUT*>& out)
                 {
-                    const int input_spatial_size = compute_size(in.shape, spatial_axis);
-                    const int filter_spatial_size = compute_size(f.shape, spatial_axis);
-                    const int input_size_z = in.shape[spatial_axis];
-                    const int input_size_y = in.shape[spatial_axis + 1];
-                    const int input_size_x = in.shape[spatial_axis + 2];
-                    const int filter_size_z = f.shape[spatial_axis];
-                    const int filter_size_y = f.shape[spatial_axis + 1];
-                    const int filter_size_x = f.shape[spatial_axis + 2];
+                    const int input_size_z = batch.shape[1];
+                    const int input_size_y = batch.shape[2];
+                    const int input_size_x = batch.shape[3];
+                    const int filter_size_z = filter.shape[1];
+                    const int filter_size_y = filter.shape[2];
+                    const int filter_size_x = filter.shape[3];
                     const int dilated_filter_size_z =
                         filter_size_z + (filter_size_z - 1) * (p.dilation[0] - 1);
                     const int dilated_filter_size_y =
@@ -236,10 +236,10 @@ namespace ngraph
                                  i_x += p.strides[2])
                             {
                                 ACCU sum = 0;
-                                auto ch_input = in;
-                                auto ch_filter = f;
-                                for (size_t ch_idx = 0; ch_idx < f.shape[filter_in_ch_axis];
-                                     ++ch_idx)
+                                auto input_channel = tensor_slice(batch);
+                                auto filter_channel = tensor_slice(filter);
+                                size_t filter_channels_count = filter.shape[0];
+                                while (filter_channels_count--)
                                 {
                                     for (int f_z = 0; f_z < filter_size_z; ++f_z)
                                     {
@@ -264,14 +264,15 @@ namespace ngraph
                                                 int i_buf_idx =
                                                     (rel_i_z * input_size_y * input_size_x) +
                                                     (rel_i_y * input_size_x) + rel_i_x;
-                                                sum +=
-                                                    static_cast<ACCU>(ch_input.buffer[i_buf_idx]) *
-                                                    static_cast<ACCU>(ch_filter.buffer[f_buf_idx]);
+                                                sum += static_cast<ACCU>(
+                                                           input_channel.buffer[i_buf_idx]) *
+                                                       static_cast<ACCU>(
+                                                           filter_channel.buffer[f_buf_idx]);
                                             }
                                         }
                                     }
-                                    ch_input.buffer += input_spatial_size;
-                                    ch_filter.buffer += filter_spatial_size;
+                                    ++input_channel;
+                                    ++filter_channel;
                                 }
                                 *out.buffer = sum;
                                 ++out.buffer;
@@ -304,24 +305,22 @@ namespace ngraph
                 template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
                 void conv_impl(const ConvolutionType& type,
                                const ConvolutionParams& params,
-                               const Tensor<const INPUT*> in,
-                               const Tensor<const FILTER*> f,
-                               Tensor<OUTPUT*> out)
+                               const Tensor<const INPUT*> input,
+                               const Tensor<const FILTER*> filters,
+                               Tensor<OUTPUT*> output)
                 {
-                    const size_t batch_size = compute_size(in.shape, in_channel_axis);
-                    const size_t filter_size = compute_size(f.shape, filter_in_ch_axis);
+                    const size_t batch_count = input.shape[in_batch_axis];
+                    const size_t filters_count = filters.shape[filter_out_ch_axis];
 
-                    Tensor<const INPUT*> batch = in;
-                    for (size_t batch_idx = 0; batch_idx < in.shape[in_batch_axis]; ++batch_idx)
+                    auto batch = tensor_slice(input);
+                    for (size_t batch_idx = 0; batch_idx < batch_count; ++batch_idx, ++batch)
                     {
-                        Tensor<const FILTER*> filter = f;
-                        for (size_t f_idx = 0; f_idx < f.shape[filter_out_ch_axis]; ++f_idx)
+                        auto filter = tensor_slice(filters);
+                        for (size_t f_idx = 0; f_idx < filters_count; ++f_idx, ++filter)
                         {
                             convolve_channels<INPUT, FILTER, OUTPUT, ACCU>(
-                                type, params, batch, filter, out);
-                            filter.buffer += filter_size;
+                                type, params, batch, filter, output);
                         }
-                        batch.buffer += batch_size;
                     }
                 }
             }
