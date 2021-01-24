@@ -558,10 +558,6 @@ template <mkldnn::impl::cpu::cpu_isa_t isa>
             }
         }
 
-        constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-        constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-        constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
-
         if (src_prc == dst_prc) {
             store_bytes<Vmm>(Vmm(in_vec_idx), reg_dst, offset_byte, store_num * dst_prc.size());
         } else {
@@ -757,9 +753,7 @@ template <typename Vmm>
         assert(mayiuse(cpu::sse42)
                 && "routine is not supported for the current isa");
 
-        auto xmm = Xbyak::Xmm(vmm.getIdx());
         auto ymm = Xbyak::Ymm(vmm.getIdx());
-        auto zmm = Xbyak::Zmm(vmm.getIdx());
 
         const auto addr = [&](int bytes_offset) {
             return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
@@ -836,7 +830,6 @@ template <typename Vmm>
         assert(mayiuse(cpu::sse42)
                 && "routine is not supported for the current isa");
 
-        auto xmm = Xbyak::Xmm(vmm.getIdx());
         auto ymm = Xbyak::Ymm(vmm.getIdx());
         auto zmm = Xbyak::Zmm(vmm.getIdx());
 
