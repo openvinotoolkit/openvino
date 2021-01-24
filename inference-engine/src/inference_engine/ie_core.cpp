@@ -269,7 +269,7 @@ class Core::Impl : public ICore {
                 std::cout << "Network is imported to " << deviceName << std::endl;
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
-                std::cout << "Import is not implemented O_o " << importConfig._deviceName << std::endl;
+                std::cout << "[BUG] Import is not implemented O_o " << importConfig._deviceName << std::endl;
                 removeCacheEntry(blobFileName);
             } catch (const NetworkNotRead &) {
                 // 2. Device supports this flow, but failed to import network for some reason
@@ -278,10 +278,15 @@ class Core::Impl : public ICore {
                 std::cout << "NetworkNotRead: try to export one more time (remove blob!!) " << importConfig._deviceName << std::endl;
                 removeCacheEntry(blobFileName);
             } catch (const std::exception & ex) {
-                // Apple RTTI
-                std::cout << "Apple RTTI: " << ex.what() << std::endl;
-                std::cout << "Import is not implemented " << importConfig._deviceName << std::endl;
-                removeCacheEntry(blobFileName);
+                std::string message = ex.what();
+                bool appleRTTI = message.find("NOT IMPLMENENTED") != std::string::npos;
+
+                if (appleRTTI) { // Apple RTTI
+                    std::cout << "Apple RTTI: " << ex.what() << std::endl;
+                } else { // some issues because of import failed
+                    std::cout << "[BUG] Import failed for " << importConfig._deviceName << std::endl;
+                    removeCacheEntry(blobFileName);
+                }
             }
         }
 
@@ -306,12 +311,15 @@ class Core::Impl : public ICore {
 
                     std::cout << "Export is not implemented " << parsed._deviceName << std::endl;
                 } catch (const std::exception & ex) {
-                    removeCacheEntry(blobFileName);
+                    std::string message = ex.what();
+                    bool appleRTTI = message.find("NOT IMPLMENENTED") != std::string::npos;
 
-                    // network cannot be exported due to plugin bugs
-                    // or APPLE RTTI
-                    std::cout << "Apple RTTI: " << ex.what() << std::endl;
-                    std::cout << "Failed to export model " << ex.what() << std::endl;
+                    if (appleRTTI) { // APPLE RTTI issue
+                        std::cout << "Apple RTTI: " << message << std::endl;
+                    } else { // network cannot be exported due to plugin bugs
+                        std::cout << "[BUG] Failed to export model " << ex.what() << std::endl;
+                        removeCacheEntry(blobFileName);
+                    }
                 }
             }
         }
