@@ -1209,11 +1209,8 @@ bool ngraph::could_propagate(const Output<Node>& output, NodeVector& order)
         auto current_node = nodes_to_calculate.front();
         nodes_to_calculate.pop_front();
 
-        if (bool is_leaf = current_node->inputs().empty())
-        {
-            if (!is_type<op::Constant>(current_node))
-                status = false;
-        }
+        if (current_node->inputs().empty() && !is_type<op::Constant>(current_node))
+            status = false;
         else if (!is_type<op::v0::ShapeOf>(current_node) && !is_type<op::v3::ShapeOf>(current_node))
         {
             // not a leaf, not a shape_of -- continue to search
@@ -1428,7 +1425,7 @@ bool ngraph::interval_bound_evaluator(const Node* node,
     NGRAPH_CHECK(lower_output_values.size() == upper_output_values.size());
     NGRAPH_CHECK(node->get_input_size() == 2);
 
-    const auto num_of_inputs = node->get_input_size(), num_of_outputs = node->get_output_size();
+    const auto num_of_outputs = node->get_output_size();
     std::shared_ptr<HostTensor> low_0 = evaluate_lower_bound(node->get_input_source_output(0));
     std::shared_ptr<HostTensor> low_1 = evaluate_lower_bound(node->get_input_source_output(1));
     std::shared_ptr<HostTensor> up_0 = evaluate_upper_bound(node->get_input_source_output(0));
