@@ -1262,6 +1262,9 @@ HostTensorPtr ngraph::evaluate_bound(const Output<Node>& output, bool is_upper)
                         node->get_output_tensor(i).get_lower_value() == nullptr)
                         node->get_output_tensor(i).set_lower_value(outputs[i]);
                 }
+                for (const auto& input : input_values)
+                    if (input.get_target_inputs().size() == 1)
+                        input.get_tensor().invalidate_values();
             }
             else
                 break;
