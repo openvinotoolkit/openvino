@@ -86,10 +86,9 @@ struct NetworkCompilationContext final {
                     std::dynamic_pointer_cast<ngraph::opset6::BinaryConvolution>(op) ||
                     std::dynamic_pointer_cast<ngraph::opset6::DeformableConvolution>(op) ||
                     std::dynamic_pointer_cast<ngraph::opset6::ConvolutionBackpropData>(op) ||
-                    std::dynamic_pointer_cast<ngraph::opset6::GroupConvolutionBackpropData>(op)) {
+                    std::dynamic_pointer_cast<ngraph::opset6::GroupConvolutionBackpropData>(op) ||
+                    std::dynamic_pointer_cast<ngraph::opset6::Add>(op)) {
                     m_weights = getConstant(op, 1);
-                } else if (std::dynamic_pointer_cast<ngraph::opset6::Add>(op)) {
-                    m_weights = getConstant(op, 2);
                 }
             }
         }

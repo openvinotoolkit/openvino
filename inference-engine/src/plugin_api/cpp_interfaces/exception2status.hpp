@@ -17,7 +17,7 @@
  * @brief Throws an exception along with the status (which is eventually converted to the typed exception)
  */
 #define THROW_IE_EXCEPTION_WITH_STATUS(__status) THROW_IE_EXCEPTION << \
-                        InferenceEngine::details::as_status << InferenceEngine::StatusCode::__status << __status##_str
+    InferenceEngine::details::as_status << InferenceEngine::StatusCode::__status << __status##_str
 
 namespace InferenceEngine {
 

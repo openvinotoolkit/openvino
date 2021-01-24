@@ -190,6 +190,9 @@ class Core::Impl : public ICore {
                 supports = true;
             } catch (const NotImplemented &) {
                 supports = false;
+            } catch (const details::InferenceEngineException & ex) {
+                std::string message = ex.what();
+                supports = message.find("NOT IMPLEMENTED") == std::string::npos;
 #ifdef __APPLE__
             } catch (const std::exception & ex) {
                 std::string message = ex.what();
