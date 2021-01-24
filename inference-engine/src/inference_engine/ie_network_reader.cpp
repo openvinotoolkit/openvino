@@ -5,6 +5,7 @@
 #include "ie_network_reader.hpp"
 #include "ie_itt.hpp"
 
+#include "cpp_interfaces/exception2status.hpp"
 #include <details/ie_so_pointer.hpp>
 #include <file_utils.h>
 #include <ie_blob_stream.hpp>
@@ -173,7 +174,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
     const std::string path_to_save_in_stream = modelPath;
     modelStream.pword(0) = const_cast<char*>(path_to_save_in_stream.c_str());
     if (!modelStream.is_open())
-        THROW_IE_EXCEPTION << "Model file " << modelPath << " cannot be opened!";
+        THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ) << "Model file " << modelPath << " cannot be opened!";
 
     assertIfIRv7LikeModel(modelStream);
 
@@ -208,7 +209,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
                 std::ifstream binStream;
                 binStream.open(weights_path, std::ios::binary);
                 if (!binStream.is_open())
-                    THROW_IE_EXCEPTION << "Weights file " << bPath << " cannot be opened!";
+                    THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ) << "Weights file " << bPath << " cannot be opened!";
 
                 binStream.seekg(0, std::ios::end);
                 size_t fileSize = binStream.tellg();
@@ -230,8 +231,10 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
             return reader->read(modelStream, exts);
         }
     }
-    THROW_IE_EXCEPTION << "Unknown model format! Cannot find reader for model format: " << fileExt << " and read the model: " << modelPath <<
-        ". Please check that reader library exists in your PATH.";
+    THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ)
+        << "Unknown model format! Cannot find reader for model format: " << fileExt
+        << " and read the model: " << modelPath
+        << ". Please check that reader library exists in your PATH.";
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) {
@@ -251,7 +254,9 @@ CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weig
             return reader->read(modelStream, exts);
         }
     }
-    THROW_IE_EXCEPTION << "Unknown model format! Cannot find reader for the model and read it. Please check that reader library exists in your PATH.";
+    THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ)
+        << "Unknown model format! Cannot find reader for the model and read it. "
+        << "Please check that reader library exists in your PATH.";
 }
 
 }  // namespace InferenceEngine

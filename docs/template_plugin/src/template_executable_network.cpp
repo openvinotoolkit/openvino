@@ -64,13 +64,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
     // TODO: implement Import / Export of configuration options
     // TODO: implement Import / Export of network precisions, layouts, preprocessing info
 
-    InferenceEngine::CNNNetwork cnnnetwork;
-
-    try {
-        cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
-    } catch (...) {
-        THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ);
-    }
+    auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
 
     setNetworkInputs(cnnnetwork.getInputsInfo());
     setNetworkOutputs(cnnnetwork.getOutputsInfo());
