@@ -312,9 +312,6 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
-
     bool hasUnknown = false;
     std::vector<size_t> canSelectPrimitive;
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {

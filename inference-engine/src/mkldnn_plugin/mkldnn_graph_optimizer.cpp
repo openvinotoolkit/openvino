@@ -942,9 +942,6 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         if (!childConvolutionNode->inputZeroPoints.empty() || !childConvolutionNode->weightsZeroPoints.empty())
             return false;
 
-        bool withBias = (childLayer->_biases != nullptr && childLayer->_biases->size() != 0) ||
-                        childConvolutionNode->getBaseIntputsNumber() == 3;
-
         auto allPads = getPaddings(*childLayer);
 
         bool isSupportedParams = childLayer->_out_depth == childLayer->_group &&

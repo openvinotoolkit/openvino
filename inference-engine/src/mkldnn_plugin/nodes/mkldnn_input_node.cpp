@@ -47,13 +47,11 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
-    memory::format_tag outFormat = mkldnn::memory::format_tag::undef;
     if (getType() == Input || getType() == MemoryInput) {
         precision = getCnnLayer()->outData[0]->getPrecision();
         if (precision == InferenceEngine::Precision::U16 || isMeanImage) {
             precision = InferenceEngine::Precision::FP32;
         }
-        auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
@@ -64,7 +62,6 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     } else if (getType() == Output) {
         precision = getCnnLayer()->insData[0].lock()->getPrecision();
         if (precision == InferenceEngine::Precision::U16) precision = InferenceEngine::Precision::FP32;
-        auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;

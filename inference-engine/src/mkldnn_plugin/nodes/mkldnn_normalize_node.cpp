@@ -1458,7 +1458,6 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
 
 template <typename in_data_t, typename out_data_t>
 void MKLDNNNormalizeNode::normalize_function(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims) {
-    auto selectedPD = getSelectedPrimitiveDescriptor();
     if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
         if (jcp.is_nchw) {
             normalize_nchw(src_data, dst_data, dims);

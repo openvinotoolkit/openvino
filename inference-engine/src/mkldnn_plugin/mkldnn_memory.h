@@ -164,8 +164,6 @@ public:
 
     static std::string formatToString(mkldnn::memory::format_tag fmt);
 
-    static void CreateBlockingDesc(mkldnn::memory::desc& desc);
-
 private:
     std::shared_ptr<mkldnn::memory> prim;
     mkldnn::engine eng;

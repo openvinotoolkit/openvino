@@ -55,10 +55,6 @@ void MKLDNNMemory::Create(const memory::dims& dims, memory::data_type data_type,
 
     memory::desc desc = MKLDNNMemoryDesc({dims}, data_type, format);
 
-    if (format == memory::format_tag::any) {
-        CreateBlockingDesc(desc);
-    }
-
     Create(desc, data);
 }
 
@@ -129,7 +125,6 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
         memData += prim->get_desc().data.offset0;
-        size_t realSize = GetSize() / sizeof(float);
         setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
 }
@@ -158,7 +153,6 @@ void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
         memData += prim->get_desc().data.offset0;
-        size_t realSize = GetSize() / sizeof(float);
         setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
 }
@@ -204,40 +198,6 @@ InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(const memory::dims& dims) {
 bool MKLDNNMemory::isConsistant(const mkldnn::memory::dims& dims, mkldnn::memory::format_tag format) {
     memory::desc attempt(dims, memory::data_type::f32, format, true);
     return static_cast<bool>(attempt);
-}
-
-void MKLDNNMemory::CreateBlockingDesc(memory::desc &desc) {
-    auto dims = desc.data.dims;
-    int ndims = desc.data.ndims;
-
-    desc.data.format_kind = static_cast<dnnl_format_kind_t>(memory::format_kind::blocked);
-
-    auto& blk = desc.data.format_desc.blocking;
-
-    desc.data.offset0 = 0;
-
-    // TODO: finish implementation or delete
-//    for (int i = 0; i < ndims; i++) {
-//        blk.block_dims[i] = 1;
-//        blk.strides[1][i] = 1;
-//        blk.padding_dims[i] = dims[i];
-//        blk.offset_padding_to_data[i] = 0;
-//    }
-//
-//    int perm[TENSOR_MAX_DIMS] = {0};
-//
-//    for (int i = 0; i < ndims; ++i) {
-//        perm[i] = i;
-//    }
-//
-//    blk.strides[0][perm[ndims - 1]] = 1;
-//
-//    for (int d = 1; d < ndims; ++d) {
-//        const int prev_idx = perm[ndims - d];
-//        const int curr_idx = perm[ndims - 1 - d];
-//
-//        blk.strides[0][curr_idx] = dims[curr_idx] == 0 ? 1 : blk.strides[0][prev_idx] * (std::max)((ptrdiff_t)1, dims[prev_idx]);
-//    }
 }
 
 Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
@@ -326,7 +286,6 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::mem
     if (format != memory::format_tag::undef) {
         if (format == memory::format_tag::x && dims.size() == 0) {
             desc = mkldnn::memory::desc(mkldnn::memory::dims(1, 1), dataType, format);
-            MKLDNNMemory::CreateBlockingDesc(desc);
         } else {
             desc = mkldnn::memory::desc(dims, dataType, format);
         }
@@ -688,7 +647,6 @@ bool MKLDNNMemoryDesc::isTailCFormat() const {
     const auto &ndims = desc.data.ndims;
     const auto &strides = desc.data.format_desc.blocking.strides;
     const auto &dims = desc.data.padded_dims;
-    const auto blk_size = blocking.inner_blks[0];
 
     // dense permutation of acd..b
     bool is_tailc_strides = (strides[1] == 1 && strides[ndims-1] == dims[1] && strides[0] == dims[2] * strides[2]);

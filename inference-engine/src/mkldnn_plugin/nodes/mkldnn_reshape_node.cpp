@@ -36,7 +36,6 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (inputDataType != outputDataType)
         inputDataType = outputDataType;
 
-    auto& outDims = getChildEdgeAt(0)->getDims();
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
