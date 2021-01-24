@@ -52,7 +52,7 @@ void op::Squeeze::pre_validate_and_infer_types()
     bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
 
-    auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
+    auto axes_constant = get_constant_from_source(axes_node);
     bool axes_is_empty_constant =
         (axes_constant) ? axes_constant->cast_vector<int64_t>().empty() : false;
 
@@ -186,16 +186,14 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
 
 bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (inputs().size() > 1 &&
-        !std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+    if (inputs().size() > 1 && !has_and_set_equal_bounds(input_value(1)))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (inputs().size() > 1 &&
-        !std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+    if (inputs().size() > 1 && !has_and_set_equal_bounds(input_value(1)))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

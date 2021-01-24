@@ -119,6 +119,37 @@ namespace convert
         }
         return rc;
     }
+
+    bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper)
+    {
+        const auto& input = node->input_value(0);
+        if (is_upper ? evaluate_upper_bound(input) : evaluate_lower_bound(input))
+        {
+            // constants for dynamic values translation
+            auto input_maximum_value = get_constant_max_of_type(input.get_element_type());
+            auto output_maximum_value =
+                get_constant_max_of_type(output_values[0]->get_element_type());
+            if (input_maximum_value == nullptr || output_maximum_value == nullptr)
+                return false;
+
+            const auto& value = is_upper ? input.get_tensor().get_upper_value()
+                                         : input.get_tensor().get_lower_value();
+            node->evaluate(output_values, {value});
+
+            // dynamic values translation
+            auto input_dynamic_mask =
+                std::make_shared<HostTensor>(element::boolean, input.get_shape());
+            op::v1::Equal().evaluate({input_dynamic_mask},
+                                     {value, std::make_shared<HostTensor>(input_maximum_value)});
+            op::v1::Select().evaluate(output_values,
+                                      {input_dynamic_mask,
+                                       std::make_shared<HostTensor>(output_maximum_value),
+                                       output_values[0]});
+            return true;
+        }
+        else
+            return false;
+    }
 }
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
@@ -129,57 +160,10 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
 
 bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const
 {
-    const auto& input = input_value(0);
-    if (evaluate_lower_bound(input))
-    {
-        const auto& low_value = input.get_tensor().get_lower_value();
-        auto input_maximum_value = get_constant_max_of_type(input.get_element_type());
-        if (input_maximum_value == nullptr)
-            return false;
-
-        evaluate(output_values, {low_value});
-
-        // dynamic values saving
-        auto input_low_dyn_mask = std::make_shared<HostTensor>(element::boolean, input.get_shape());
-        op::v1::Equal().evaluate({input_low_dyn_mask},
-                                 {low_value, std::make_shared<HostTensor>(input_maximum_value)});
-
-        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
-        op::v1::Select().evaluate(output_values,
-                                  {input_low_dyn_mask,
-                                   std::make_shared<HostTensor>(output_maximum_value),
-                                   output_values[0]});
-        return true;
-    }
-    else
-        return false;
+    return convert::evaluate_bound(this, output_values, false);
 }
 
 bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) const
 {
-    const auto& input = input_value(0);
-    if (evaluate_upper_bound(input))
-    {
-        const auto& upper_value = input.get_tensor().get_upper_value();
-        auto input_maximum_value = get_constant_max_of_type(input.get_element_type());
-        if (input_maximum_value == nullptr)
-            return false;
-
-        evaluate(output_values, {upper_value});
-
-        // dynamic values saving
-        auto input_upper_dyn_mask =
-            std::make_shared<HostTensor>(element::boolean, input.get_shape());
-        op::v1::Equal().evaluate({input_upper_dyn_mask},
-                                 {upper_value, std::make_shared<HostTensor>(input_maximum_value)});
-
-        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
-        op::v1::Select().evaluate(output_values,
-                                  {input_upper_dyn_mask,
-                                   std::make_shared<HostTensor>(output_maximum_value),
-                                   output_values[0]});
-        return true;
-    }
-    else
-        return false;
+    return convert::evaluate_bound(this, output_values, true);
 }

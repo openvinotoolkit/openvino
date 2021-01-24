@@ -23,7 +23,6 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -42,17 +41,7 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    for (auto& node : get_ordered_ops())
-    {
-        if (op::is_parameter(node))
-        {
-            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
-            if (it == m_parameters.end())
-            {
-                throw ngraph_error("Function references undeclared parameter");
-            }
-        }
-    }
+    validate_parameters();
 }
 
 Function::Function(const OutputVector& results,
@@ -64,18 +53,7 @@ Function::Function(const OutputVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    for (auto& node : get_ordered_ops())
-    {
-        // If we find a parameter make sure it is in the list of parameters of the function
-        if (op::is_parameter(node))
-        {
-            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
-            if (it == m_parameters.end())
-            {
-                throw ngraph_error("Function references undeclared parameter");
-            }
-        }
-    }
+    validate_parameters();
 }
 
 Function::Function(const NodeVector& results,
@@ -87,18 +65,7 @@ Function::Function(const NodeVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    for (auto& node : get_ordered_ops())
-    {
-        // If we find a parameter make sure it is in the list of parameters of the function
-        if (op::is_parameter(node))
-        {
-            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
-            if (it == m_parameters.end())
-            {
-                throw ngraph_error("Function references undeclared parameter");
-            }
-        }
-    }
+    validate_parameters();
 }
 
 Function::Function(const std::shared_ptr<Node>& result,
@@ -119,6 +86,20 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
+    validate_parameters();
+}
+
+Function::Function(const OutputVector& results,
+                   const SinkVector& sinks,
+                   const ParameterVector& parameters,
+                   const std::string& name)
+    : Function(as_result_vector(results), sinks, parameters, name)
+{
+}
+
+void Function::validate_parameters() const
+{
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT, "Function::validate_parameters");
     for (auto& node : get_ordered_ops())
     {
         // If we find a parameter make sure it is in the list of parameters of the function
@@ -131,14 +112,6 @@ Function::Function(const ResultVector& results,
             }
         }
     }
-}
-
-Function::Function(const OutputVector& results,
-                   const SinkVector& sinks,
-                   const ParameterVector& parameters,
-                   const std::string& name)
-    : Function(as_result_vector(results), sinks, parameters, name)
-{
 }
 
 void Function::validate_nodes_and_infer_types() const

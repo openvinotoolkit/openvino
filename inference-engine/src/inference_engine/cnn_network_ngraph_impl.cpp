@@ -337,13 +337,13 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     if (parameter_replaced)
         _ngraph_function->validate_nodes_and_infer_types();
 
-    bool outputs_are_static = true;
-    for (const auto &result : _ngraph_function->get_results())
-        outputs_are_static &= result->get_input_partial_shape(0).is_static();
+    const auto& results = _ngraph_function->get_results();
+    bool outputs_are_static = all_of(
+            begin(results), end(results),
+            [](const ngraph::Output<ngraph::Node>& out){ return out.get_partial_shape().is_static(); });
 
     {
-                    shared_ptr<Function> specialized_ngraph_function = nullptr;
-
+        shared_ptr<Function> specialized_ngraph_function = nullptr;
         if (outputs_are_static) {
             specialized_ngraph_function = _ngraph_function;
         } else {

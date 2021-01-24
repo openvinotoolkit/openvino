@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/non_zero.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -78,6 +79,16 @@ void op::v3::NonZero::validate_and_infer_types()
     }
 
     set_input_is_relevant_to_shape(0);
+
+    if (has_and_set_equal_bounds(input_value(0)))
+    { // input_value is available to calculate output shape
+        const auto& input_data = input_value(0).get_tensor().get_upper_value();
+        auto output = std::make_shared<HostTensor>(m_output_type, get_output_partial_shape(0));
+        evaluate({output}, {input_data});
+        set_output_type(0, m_output_type, output->get_partial_shape());
+        get_output_tensor(0).set_lower_value(output);
+        get_output_tensor(0).set_upper_value(output);
+    }
 }
 
 shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_args) const

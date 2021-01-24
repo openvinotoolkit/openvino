@@ -174,6 +174,7 @@ namespace ngraph
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
         Function& operator=(const Function&) = delete;
+        void validate_parameters() const;
 
         static std::atomic<size_t> m_next_instance_id;
         std::string m_name;

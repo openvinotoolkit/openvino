@@ -87,20 +87,14 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
 
 bool op::v1::ReduceMin::evaluate_lower(const HostTensorVector& output_values) const
 {
-    HostTensorPtr lb, ub;
-    std::tie(lb, ub) = evaluate_both_bounds(input_value(1));
-    if (!lb || lb != ub)
-        return false; // axis is undefined
-
+    if (!has_and_set_equal_bounds(input_value(1)))
+        return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::ReduceMin::evaluate_upper(const HostTensorVector& output_values) const
 {
-    HostTensorPtr lb, ub;
-    std::tie(lb, ub) = evaluate_both_bounds(input_value(1));
-    if (!lb || lb != ub)
-        return false; // axis is undefined
-
+    if (!has_and_set_equal_bounds(input_value(1)))
+        return false;
     return default_upper_bound_evaluator(this, output_values);
 }

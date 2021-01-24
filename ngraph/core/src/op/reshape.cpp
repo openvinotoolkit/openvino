@@ -343,14 +343,14 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
 
 bool op::v1::Reshape::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+    if (!has_and_set_equal_bounds(input_value(1)))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Reshape::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+    if (!has_and_set_equal_bounds(input_value(1)))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

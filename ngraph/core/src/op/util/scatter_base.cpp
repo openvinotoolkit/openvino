@@ -81,14 +81,13 @@ void op::util::ScatterBase::validate_and_infer_types()
                                       data_shape.rank().get_length() - 1,
                           "Updates rank is expected to be indices rank + data rank - 1.");
 
-    bool is_axis_constant = op::is_constant(input_value(AXIS).get_node());
+    bool is_axis_constant = has_and_set_equal_bounds(input_value(AXIS));
 
     // Get axis value if possible.
     if (is_axis_constant && data_shape.rank().is_static())
     {
         bool compatible = true;
-        const auto axis_const_input =
-            as_type_ptr<op::v0::Constant>(input_value(AXIS).get_node_shared_ptr());
+        const auto axis_const_input = get_constant_from_source(input_value(AXIS));
         int64_t axis = axis_const_input->cast_vector<int64_t>().at(0);
         axis = normalize_axis(this, axis, data_shape.rank().get_length());
 

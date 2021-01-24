@@ -241,10 +241,11 @@ namespace ngraph
                                                   const HostTensorVector& output_values);
     NGRAPH_API bool default_lower_bound_evaluator(const Node* node,
                                                   const HostTensorVector& output_values);
-    bool interval_bound_evaluator(const Node* node,
-                                  const HostTensorVector& lower_output_values,
-                                  const HostTensorVector& upper_output_values);
+    NGRAPH_API bool interval_bound_evaluator(const Node* node,
+                                             const HostTensorVector& lower_output_values,
+                                             const HostTensorVector& upper_output_values);
     NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
+    NGRAPH_API bool has_and_set_equal_bounds(const Output<Node>& source);
     NGRAPH_API std::shared_ptr<op::Constant> get_constant_from_source(const Output<Node>& source);
 
     NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);

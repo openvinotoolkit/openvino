@@ -301,24 +301,13 @@ namespace rangeop
         return rc;
     }
 
-    bool evaluate_bound(const Node* range_node, const HostTensorVector& output_values)
+    bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper)
     {
-        HostTensorPtr start_lb, start_ub;
-        std::tie(start_lb, start_ub) = evaluate_both_bounds(range_node->input_value(0));
-        if (!start_lb || start_lb != start_ub)
+        if (!has_and_set_equal_bounds(node->input_value(0)) ||
+            !has_and_set_equal_bounds(node->input_value(1)) ||
+            !has_and_set_equal_bounds(node->input_value(2)))
             return false;
-
-        HostTensorPtr stop_lb, stop_ub;
-        std::tie(stop_lb, stop_ub) = evaluate_both_bounds(range_node->input_value(1));
-        if (!stop_lb || stop_lb != stop_ub)
-            return false;
-
-        HostTensorPtr step_lb, step_ub;
-        std::tie(step_lb, step_ub) = evaluate_both_bounds(range_node->input_value(2));
-        if (!step_lb || step_lb != step_ub)
-            return false;
-
-        return range_node->evaluate(output_values, {start_ub, stop_ub, step_ub});
+        return default_bound_evaluator(node, output_values, is_upper);
     }
 }
 
@@ -334,12 +323,12 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v4::Range::evaluate_lower(const HostTensorVector& output_values) const
 {
-    return rangeop::evaluate_bound(this, output_values);
+    return rangeop::evaluate_bound(this, output_values, false);
 }
 
 bool op::v4::Range::evaluate_upper(const HostTensorVector& output_values) const
 {
-    return rangeop::evaluate_bound(this, output_values);
+    return rangeop::evaluate_bound(this, output_values, true);
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
@@ -391,9 +380,9 @@ static
 template <typename T>
 static PartialShape infer_output_shape(const op::v0::Range* node, const element::Type& /* et */)
 {
-    shared_ptr<op::Constant> const_start = get_constant_from_source(node->input_value(0));
-    shared_ptr<op::Constant> const_stop = get_constant_from_source(node->input_value(1));
-    shared_ptr<op::Constant> const_step = get_constant_from_source(node->input_value(2));
+    auto const_start = get_constant_from_source(node->input_value(0));
+    auto const_stop = get_constant_from_source(node->input_value(1));
+    auto const_step = get_constant_from_source(node->input_value(2));
 
     T start = static_cast<T>(0);
     T stop = static_cast<T>(0);
@@ -543,10 +532,10 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v0::Range::evaluate_lower(const HostTensorVector& output_values) const
 {
-    return rangeop::evaluate_bound(this, output_values);
+    return rangeop::evaluate_bound(this, output_values, false);
 }
 
 bool op::v0::Range::evaluate_upper(const HostTensorVector& output_values) const
 {
-    return rangeop::evaluate_bound(this, output_values);
+    return rangeop::evaluate_bound(this, output_values, true);
 }

@@ -44,9 +44,9 @@ void op::v0::Unsqueeze::validate_and_infer_types()
     auto data_partial_shape = data.get_partial_shape();
     const auto data_rank = data_partial_shape.rank();
 
-    const auto axes_node = input_value(1).get_node_shared_ptr();
+    const auto axes_source = input_value(1);
 
-    if (data_rank.is_dynamic() || !op::is_constant(axes_node))
+    if (data_rank.is_dynamic() || !has_and_set_equal_bounds(axes_source))
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         return;
@@ -55,7 +55,7 @@ void op::v0::Unsqueeze::validate_and_infer_types()
     uint64_t data_rank_value = data_partial_shape.rank().get_length();
 
     // Get value of axes from Constant
-    const auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
+    const auto axes_constant = get_constant_from_source(axes_source);
     const auto axes_values = axes_constant->cast_vector<int64_t>();
     const auto expanded_rank = data_rank_value + axes_values.size();
     auto axes = normalize_axes(this->description(), axes_values, expanded_rank);
@@ -159,14 +159,14 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
 
 bool op::v0::Unsqueeze::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+    if (!has_and_set_equal_bounds(input_value(1)))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+    if (!has_and_set_equal_bounds(input_value(1)))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

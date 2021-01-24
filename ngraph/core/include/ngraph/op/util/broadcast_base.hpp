@@ -74,6 +74,8 @@ namespace ngraph
                 bool evaluate(const HostTensorPtr& arg0,
                               const HostTensorPtr& out,
                               const AxisSet& broadcast_axes) const;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
                 PartialShape
                     get_result_shape_pdpd(const PartialShape& arg0_shape,

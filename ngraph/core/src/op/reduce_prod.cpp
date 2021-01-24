@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "ngraph/op/reduce_prod.hpp"
-#include <ngraph/op/constant.hpp>
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
@@ -92,7 +91,7 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
 
 bool op::v1::ReduceProd::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+    if (!has_and_set_equal_bounds(input_value(1)))
         return false;
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(0));
@@ -103,7 +102,7 @@ bool op::v1::ReduceProd::evaluate_lower(const HostTensorVector& output_values) c
 
 bool op::v1::ReduceProd::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(1)))
+    if (!has_and_set_equal_bounds(input_value(1)))
         return false;
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(0));

@@ -77,7 +77,8 @@ void op::v1::OneHot::validate_and_infer_types()
     const auto& depth = input_value(1).get_node_shared_ptr();
     PartialShape result_shape{PartialShape::dynamic()};
 
-    if (indices_shape.is_static() && indices_shape.rank().is_static() && op::is_constant(depth))
+    if (indices_shape.is_static() && indices_shape.rank().is_static() &&
+        has_and_set_equal_bounds(input_value(1)))
     {
         const auto indices_rank = indices_shape.rank().get_length();
 
@@ -103,7 +104,7 @@ void op::v1::OneHot::validate_and_infer_types()
                               depth->get_shape(),
                               " elements).");
 
-        const auto depth_constant = as_type_ptr<op::Constant>(depth);
+        const auto depth_constant = get_constant_from_source(input_value(1));
         int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
 
         NODE_VALIDATION_CHECK(this,

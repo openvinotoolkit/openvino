@@ -16,6 +16,7 @@
 
 #include "ngraph/op/non_max_suppression.hpp"
 #include <cstring>
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
@@ -178,9 +179,8 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                           "The last dimension of the 'boxes' input must be equal to 4. Got:",
                           boxes_ps[2]);
 
-    const auto max_output_boxes_per_class = input_value(2).get_node_shared_ptr();
     if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-        op::is_constant(max_output_boxes_per_class))
+        has_and_set_equal_bounds(input_value(2)))
     {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto max_output_boxes_per_class = max_boxes_output_from_input();
@@ -195,8 +195,7 @@ int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const
 {
     int64_t max_output_boxes{0};
 
-    const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+    const auto max_output_boxes_input = get_constant_from_source(input_value(2));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -395,9 +394,8 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
         const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
         if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node))
+            has_and_set_equal_bounds(input_value(2)))
         {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
@@ -413,8 +411,7 @@ int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const
 {
     int64_t max_output_boxes{0};
 
-    const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+    const auto max_output_boxes_input = get_constant_from_source(input_value(2));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -530,9 +527,8 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
         const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node))
+            has_and_set_equal_bounds(input_value(2)))
         {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
@@ -840,7 +836,7 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
     }
 
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(max_output_boxes_port).get_node_shared_ptr());
+        get_constant_from_source(input_value(max_output_boxes_port));
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -855,8 +851,7 @@ float op::v5::NonMaxSuppression::iou_threshold_from_input() const
         return iou_threshold;
     }
 
-    const auto iou_threshold_input =
-        as_type_ptr<op::Constant>(input_value(iou_threshold_port).get_node_shared_ptr());
+    const auto iou_threshold_input = get_constant_from_source(input_value(iou_threshold_port));
     iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
 
     return iou_threshold;
@@ -871,8 +866,7 @@ float op::v5::NonMaxSuppression::score_threshold_from_input() const
         return score_threshold;
     }
 
-    const auto score_threshold_input =
-        as_type_ptr<op::Constant>(input_value(score_threshold_port).get_node_shared_ptr());
+    const auto score_threshold_input = get_constant_from_source(input_value(score_threshold_port));
     score_threshold = score_threshold_input->cast_vector<float>().at(0);
 
     return score_threshold;
@@ -887,8 +881,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
         return soft_nms_sigma;
     }
 
-    const auto soft_nms_sigma_input =
-        as_type_ptr<op::Constant>(input_value(soft_nms_sigma_port).get_node_shared_ptr());
+    const auto soft_nms_sigma_input = get_constant_from_source(input_value(soft_nms_sigma_port));
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;
@@ -918,9 +911,8 @@ void op::v5::NonMaxSuppression::validate_and_infer_types()
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static() && get_input_size() > 2)
     {
         const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node))
+            has_and_set_equal_bounds(input_value(2)))
         {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();

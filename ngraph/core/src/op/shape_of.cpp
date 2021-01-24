@@ -199,7 +199,7 @@ namespace shape_of
 
             vector<bool> dynamic_mask; // true if dimension is dynamic
             for (const auto& i : input_partial_shape)
-                dynamic_mask.push_back(i.is_dynamic());
+                dynamic_mask.push_back(Dimension(i.get_interval().get_max_val()).is_dynamic());
             auto mask_const =
                 ngraph::op::Constant::create(element::boolean, {dynamic_mask.size()}, dynamic_mask);
             auto dynamic_min_const = ngraph::op::Constant::create(output_et, {}, {0});

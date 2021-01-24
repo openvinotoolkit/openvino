@@ -650,10 +650,7 @@ bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
 
 bool op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const
 {
-    evaluate(outputs, {});
-    get_output_tensor(0).set_lower_value(outputs[0]);
-    get_output_tensor(0).set_upper_value(outputs[0]);
-    return true;
+    return evaluate(outputs, {});
 }
 bool op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const
 {

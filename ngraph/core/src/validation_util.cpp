@@ -1230,22 +1230,16 @@ bool ngraph::could_propagate(const Output<Node>& output, NodeVector& order)
 
 HostTensorPtr ngraph::evaluate_bound(const Output<Node>& output, bool is_upper)
 {
-    const auto node = output.get_node_shared_ptr();
     // bound is already set in the tensor
     if (is_upper && output.get_tensor().get_upper_value() != nullptr)
-    {
         return output.get_tensor().get_upper_value();
-    }
     if (!is_upper && output.get_tensor().get_lower_value() != nullptr)
-    {
         return output.get_tensor().get_lower_value();
-    }
 
     NodeVector order;
     if (could_propagate(output, order))
     {
         reverse(order.begin(), order.end());
-        // std::cout << "START:" << std::endl;
         for (const auto& node : order)
         {
             HostTensorVector outputs;
@@ -1253,13 +1247,11 @@ HostTensorPtr ngraph::evaluate_bound(const Output<Node>& output, bool is_upper)
                 outputs.push_back(std::make_shared<HostTensor>(out));
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs))
             {
-                bool same_inputs = !node->inputs().empty();
-                for (const auto& in : node->inputs())
-                {
-                    const auto low = in.get_source_output().get_tensor().get_lower_value();
-                    const auto up = in.get_source_output().get_tensor().get_upper_value();
-                    same_inputs &= low && low == up;
-                }
+                const auto& input_values = node->input_values();
+                bool same_inputs = std::all_of(
+                    input_values.begin(), input_values.end(), [](const Output<Node>& input) {
+                        return input.get_tensor().has_and_set_bound();
+                    });
                 for (size_t i = 0; i < outputs.size(); ++i)
                 {
                     // TODO: should we skip setting value for tensors that have only one consumer?
@@ -1563,11 +1555,16 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound)
     return result[0];
 }
 
-shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& source)
+bool ngraph::has_and_set_equal_bounds(const Output<Node>& source)
 {
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(source);
-    if (!lb || lb != ub)
+    return lb && lb == ub;
+}
+
+shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& source)
+{
+    if (!has_and_set_equal_bounds(source))
         return nullptr;
-    return std::make_shared<op::Constant>(ub);
+    return std::make_shared<op::Constant>(source.get_tensor().get_upper_value());
 }

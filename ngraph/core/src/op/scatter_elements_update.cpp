@@ -95,9 +95,9 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
                           " and: ",
                           updates_shape);
 
-    if (ngraph::op::is_constant(input_value(3).get_node()) && data_shape.rank().is_static())
+    if (has_and_set_equal_bounds(input_value(3)) && data_shape.rank().is_static())
     {
-        const auto axis_input = as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr());
+        const auto axis_input = get_constant_from_source(input_value(3));
         auto axis = axis_input->cast_vector<int64_t>().at(0);
 
         int64_t data_rank_length = data_shape.rank().get_length();

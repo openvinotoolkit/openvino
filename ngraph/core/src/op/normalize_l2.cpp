@@ -15,6 +15,7 @@
 //*****************************************************************************
 #include <algorithm>
 #include <iterator>
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
@@ -67,7 +68,8 @@ void op::NormalizeL2::pre_validate_and_infer_types()
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
 
-    NODE_VALIDATION_CHECK(this, op::is_constant(axes_node), "Input axes must be Constant type");
+    NODE_VALIDATION_CHECK(
+        this, has_and_set_equal_bounds(input_value(1)), "Input axes must be Constant type");
 
     if (axes_rank.is_static())
     {
@@ -99,8 +101,7 @@ void op::NormalizeL2::pre_validate_and_infer_types()
 AxisSet op::NormalizeL2::get_reduction_axes() const
 {
     AxisSet axes;
-    auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (auto const_op = get_constant_from_source(input_value(1)))
     {
         axes = const_op->get_axis_set_val();
     }

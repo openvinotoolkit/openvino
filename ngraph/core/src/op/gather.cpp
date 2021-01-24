@@ -23,7 +23,6 @@
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/shape.hpp"
 
-#include <limits>
 #include <ngraph/validation_util.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -120,8 +119,7 @@ void op::v1::Gather::validate_and_infer_types()
 int64_t op::v1::Gather::get_axis() const
 {
     int64_t axis = AXIS_NOT_SET_VALUE;
-    auto axes_input_node = input_value(AXIS).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (auto const_op = get_constant_from_source(input_value(AXIS)))
     {
         axis = const_op->cast_vector<int64_t>()[0];
     }
@@ -323,16 +321,16 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
 
 bool op::v1::Gather::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(INDICES)) ||
-        !std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(AXIS)))
+    if (!has_and_set_equal_bounds(input_value(INDICES)) ||
+        !has_and_set_equal_bounds(input_value(AXIS)))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Gather::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(INDICES)) ||
-        !std::dynamic_pointer_cast<op::Constant>(get_input_node_shared_ptr(AXIS)))
+    if (!has_and_set_equal_bounds(get_input_node_shared_ptr(INDICES)) ||
+        !has_and_set_equal_bounds(get_input_node_shared_ptr(AXIS)))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

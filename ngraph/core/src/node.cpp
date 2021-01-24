@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <memory>
+#include <ngraph/validation_util.hpp>
 #include <sstream>
 #include <typeindex>
 #include <typeinfo>
@@ -273,22 +274,6 @@ void Node::set_input_is_relevant_to_value(size_t i, bool relevant)
 void Node::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape)
 {
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
-}
-
-void Node::set_output_lb_value(size_t i, const std::shared_ptr<ngraph::runtime::HostTensor>& value)
-{
-    get_output_descriptor(i).get_tensor_ptr()->set_lower_value(value);
-}
-
-void Node::set_output_ub_value(size_t i, const std::shared_ptr<ngraph::runtime::HostTensor>& value)
-{
-    get_output_descriptor(i).get_tensor_ptr()->set_upper_value(value);
-}
-
-void Node::set_output_value(size_t i, const std::shared_ptr<ngraph::runtime::HostTensor>& value)
-{
-    get_output_descriptor(i).get_tensor_ptr()->set_upper_value(value);
-    get_output_descriptor(i).get_tensor_ptr()->set_lower_value(value);
 }
 
 std::string Node::description() const
@@ -974,12 +959,24 @@ bool Node::evaluate(const HostTensorVector& output_values,
 
 bool Node::evaluate_lower(const HostTensorVector& output_values) const
 {
-    return false;
+    const auto& inputs = input_values();
+    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+        return !has_and_set_equal_bounds(output);
+    });
+    if (dyn_inputs)
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
 }
 
 bool Node::evaluate_upper(const HostTensorVector& output_values) const
 {
-    return false;
+    const auto& inputs = input_values();
+    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+        return !has_and_set_equal_bounds(output);
+    });
+    if (dyn_inputs)
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
 }
 
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values)
@@ -991,19 +988,7 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
         return false;
     }
 
-    bool pre_calculated = true;
-    for (size_t i = 0; i < outputs().size(); ++i)
-        pre_calculated &= get_output_tensor(i).has_and_set_bound();
-
-    if (pre_calculated)
-    {
-        for (size_t i = 0; i < outputs().size(); ++i)
-            output_values[i] = make_shared<op::Constant>(get_output_tensor(i).get_upper_value());
-        return true;
-    }
-
     // If all the inputs are constants, try to evaluate the outputs
-    HostTensorVector input_tensors;
     bool all_constants =
         std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
             return as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr());
@@ -1011,6 +996,7 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
     if (!all_constants)
         return false;
 
+    HostTensorVector input_tensors;
     for (const auto& input : input_values)
     {
         auto host_tensor = make_shared<runtime::HostTensor>(

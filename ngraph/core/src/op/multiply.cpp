@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "ngraph/op/multiply.hpp"
-#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/multiply.hpp"

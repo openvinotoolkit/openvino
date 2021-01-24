@@ -278,11 +278,10 @@ void op::util::BroadcastBase::validate_and_infer_types()
                                   " doesn't match rank of input tensor ",
                                   input_rank);
 
-            if (output_shape_defined && op::is_constant(input_value(2).get_node()))
+            if (output_shape_defined && has_and_set_equal_bounds(input_value(2)))
             {
                 auto axes_mapping_val =
-                    as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr())
-                        ->get_axis_vector_val();
+                    get_constant_from_source(input_value(2))->get_axis_vector_val();
                 validate_target_shape_none(arg_shape, axes_mapping_val, output_shape);
             }
         }
@@ -351,8 +350,7 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
 
     if (m_mode.m_type == BroadcastType::NONE)
     {
-        const auto axes_mapping_constant =
-            as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
+        const auto axes_mapping_constant = get_constant_from_source(input_value(2));
         if (get_input_partial_shape(1).is_static() && axes_mapping_constant)
         {
             auto axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
@@ -569,4 +567,20 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
     }
 
     return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+}
+
+bool op::util::BroadcastBase::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!has_and_set_equal_bounds(input_value(1)) ||
+        (get_input_size() > 2 && !has_and_set_equal_bounds(input_value(2))))
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::util::BroadcastBase::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!has_and_set_equal_bounds(input_value(1)) ||
+        (get_input_size() > 2 && !has_and_set_equal_bounds(input_value(2))))
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }
