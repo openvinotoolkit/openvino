@@ -98,7 +98,15 @@ void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadca
 
 void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::Broadcast>& op) {
     p.ValidateInputs(op, {2, 3});
-    CreateCommonBroadcastOp(p, op, op->get_broadcast_axes().second);
+    ngraph::AxisSet axis_mapping;
+    if (op->get_input_size() == 3) {
+        auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        if (!axis_mapping_node)
+            THROW_IE_EXCEPTION << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+
+        axis_mapping = axis_mapping_node->get_axis_set_val();
+    }
+    CreateCommonBroadcastOp(p, op, axis_mapping);
 }
 
 REGISTER_FACTORY_IMPL(v1, Broadcast);

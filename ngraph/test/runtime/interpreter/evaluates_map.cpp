@@ -27,6 +27,7 @@
 #include <ngraph/runtime/reference/convert.hpp>
 #include <ngraph/runtime/reference/convolution.hpp>
 #include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
+#include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
 #include <ngraph/runtime/reference/cum_sum.hpp>
 #include <ngraph/runtime/reference/detection_output.hpp>
@@ -1729,6 +1730,86 @@ namespace
                                                   inputs[1]->get_shape(),
                                                   outputs[0]->get_shape(),
                                                   op->get_ctc_merge_repeated());
+        return true;
+    }
+
+    namespace ctc_greedy_decoder_v6
+    {
+        template <element::Type_t T1, element::Type_t T2, element::Type_t TOUT>
+        inline void evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
+                             const HostTensorVector& outputs,
+                             const HostTensorVector& inputs)
+        {
+            using TF = typename element_type_traits<T1>::value_type;
+            using TI = typename element_type_traits<T2>::value_type;
+            using TIND1 = typename element_type_traits<TOUT>::value_type;
+            if (op->get_sequence_length_type() == element::i32)
+            {
+                runtime::reference::ctc_greedy_decoder_seq_len<TF>(
+                    inputs[0]->get_data_ptr<const TF>(),
+                    inputs[1]->get_data_ptr<const TI>(),
+                    inputs[2]->get_data_ptr<const TI>(),
+                    outputs[0]->get_data_ptr<TIND1>(),
+                    outputs[1]->get_data_ptr<int32_t>(),
+                    inputs[0]->get_shape(),
+                    outputs[0]->get_shape(),
+                    op->get_merge_repeated());
+            }
+            else if (op->get_sequence_length_type() == element::i64)
+            {
+                runtime::reference::ctc_greedy_decoder_seq_len<TF>(
+                    inputs[0]->get_data_ptr<const TF>(),
+                    inputs[1]->get_data_ptr<const TI>(),
+                    inputs[2]->get_data_ptr<const TI>(),
+                    outputs[0]->get_data_ptr<TIND1>(),
+                    outputs[1]->get_data_ptr<int64_t>(),
+                    inputs[0]->get_shape(),
+                    outputs[0]->get_shape(),
+                    op->get_merge_repeated());
+            }
+        }
+    }
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto& dataType = inputs[0]->get_element_type();
+        const auto& seqLenType = inputs[1]->get_element_type();
+        if (dataType == element::Type_t::f16 && seqLenType == element::Type_t::i32)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f32 && seqLenType == element::Type_t::i32)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f32, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f64 && seqLenType == element::Type_t::i32)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f64, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f16 && seqLenType == element::Type_t::i64)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f16, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f32 && seqLenType == element::Type_t::i64)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f64 && seqLenType == element::Type_t::i64)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f64, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+        }
+        else
+        {
+            return false;
+        }
         return true;
     }
 
